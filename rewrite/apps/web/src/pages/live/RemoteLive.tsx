@@ -25,7 +25,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
     <Waiting>
       <div className="flex-1 flex items-center justify-center text-center px-6 py-16">
         <div className="space-y-2">
-          <p className="text-neutral-400 dark:text-neutral-500 text-sm" data-testid="remote-state">
+          <p className="text-stone-400 dark:text-stone-500 text-sm" data-testid="remote-state">
             {text}
           </p>
           {extra}
@@ -39,7 +39,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
       <Waiting>
         <div className="flex-1 flex items-center justify-center px-6 py-16">
           <div className="w-full max-w-sm space-y-3">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400" data-testid="remote-state">
+            <p className="text-sm text-stone-500 dark:text-stone-400" data-testid="remote-state">
               {t('remote.pick')}
             </p>
             {candidates.map((c, i) => (
@@ -58,7 +58,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
     return notReady(
       t('remote.ownerOffline'),
       <div className="space-y-2 pt-2">
-        <div className="text-neutral-400 dark:text-neutral-500 text-xs">{t('remote.endAbandonedHint')}</div>
+        <div className="text-stone-400 dark:text-stone-500 text-xs">{t('remote.endAbandonedHint')}</div>
         <AppButton variant="danger" filled onClick={() => link.end(chosen.id)}>
           {t('remote.endAbandoned')}
         </AppButton>
@@ -73,7 +73,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
 function Waiting({ children }: { children: ReactNode }) {
   return (
     <section className="flex-1 min-h-0 flex flex-col bg-ground">
-      <nav className="flex items-center px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
+      <nav data-window-bar className="flex items-center px-4 h-14 sm:h-13 shrink-0 sm:border-b-[0.5px] sm:border-separator bg-ground">
         <BackToPresentations />
       </nav>
       <RemoteBanner />

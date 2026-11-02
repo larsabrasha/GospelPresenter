@@ -35,7 +35,7 @@ function NameDialog({ title, text, initial, submit, onClose }: { title: string; 
   const [busy, setBusy] = useState(false);
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
-      {text && <p className="text-sm text-neutral-600 dark:text-neutral-300">{text}</p>}
+      {text && <p className="text-sm text-stone-600 dark:text-stone-300">{text}</p>}
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -130,7 +130,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
     <PageContainer>
       <DetailHeader backHref={href({ page: 'settings' })} title={t('logins.title')} className="px-5" />
       <div className={`${CARD} p-5 space-y-4`}>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('logins.text')}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">{t('logins.text')}</p>
         {failure && (
           <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {failure}
@@ -138,12 +138,12 @@ export function Logins({ error: initialError }: { error: string | null }) {
         )}
         <ul className="space-y-3 empty:hidden" aria-label={t('logins.title')}>
           {logins?.map((l) => (
-            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600">
+            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600">
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">
-                  <span className="font-medium">{label(l)}</span> <span className="text-neutral-500 dark:text-neutral-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
+                  <span className="font-medium">{label(l)}</span> <span className="text-stone-500 dark:text-stone-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
                 </div>
-                <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
               </div>
               {l.provider === 'passkey' && (
                 <AppButton variant="neutral" className="px-3! py-1.5!" onClick={() => setDialog({ kind: 'rename', login: l })}>
@@ -156,10 +156,10 @@ export function Logins({ error: initialError }: { error: string | null }) {
             </li>
           ))}
         </ul>
-        {only && <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('logins.last')}</p>}
+        {only && <p className="text-xs text-stone-500 dark:text-stone-400">{t('logins.last')}</p>}
         {waiting ? (
           <div className="flex items-center gap-3">
-            <p className="flex-1 text-sm text-neutral-600 dark:text-neutral-300" role="status">
+            <p className="flex-1 text-sm text-stone-600 dark:text-stone-300" role="status">
               {t('logins.waiting')}
             </p>
             <AppButton variant="cancel" onClick={() => setWaiting(null)}>

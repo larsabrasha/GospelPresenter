@@ -50,6 +50,18 @@ export function Dropdown({
     }
   }, [open]);
 
+  // A press anywhere outside closes it. Listened for on the document rather than by a cover under the menu: a cover
+  // inside a blurred sticky heading (backdrop-filter) is held to that heading, and a press beside it went through.
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', outside, true);
+    return () => document.removeEventListener('pointerdown', outside, true);
+  }, [open]);
+
   const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) triggerRef.current?.focus();
@@ -82,7 +94,7 @@ export function Dropdown({
   };
 
   return (
-    <div className={`relative flex items-center ${className ?? ''}`} onKeyDown={onKeyDown}>
+    <div ref={root} className={`relative flex items-center ${className ?? ''}`} onKeyDown={onKeyDown}>
       <AppButton
         variant="plain"
         {...button}
@@ -96,10 +108,9 @@ export function Dropdown({
       </AppButton>
       {open && (
         <>
-          <div className="fixed inset-0 z-[120]" onClick={() => setOpen(false)} />
           <div
             ref={menuRef}
-            className={`absolute top-full right-0 mt-1 z-[130] bg-white dark:bg-raised rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden ${menuClassName ?? ''}`}
+            className={`absolute top-full right-0 mt-1 z-[130] bg-white dark:bg-raised rounded-2xl shadow-lg border-[0.5px] border-stone-200 dark:border-stone-600 overflow-hidden ${menuClassName ?? ''}`}
             role="menu"
             onClick={() => close(open === 'keyboard')}
           >
@@ -112,12 +123,12 @@ export function Dropdown({
 }
 
 /** The choices the arrows move between, a ticked one included. */
-const ITEMS = '[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled])';
+const ITEMS = '[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled]), [role="menuitemradio"]:not([disabled])';
 
 /** A choice in a Dropdown, as a link or a button, with an icon before it. */
 export const MENU_ITEM =
-  'flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-raised-2 focus:bg-neutral-100 dark:focus:bg-neutral-600 focus:outline-none cursor-pointer no-underline whitespace-nowrap';
+  'flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-raised-2 focus:bg-stone-100 dark:focus:bg-stone-600 focus:outline-none cursor-pointer no-underline whitespace-nowrap';
 
 /** A red choice that deletes (Images.razor's Radera): smaller, as the current app draws it. */
 export const MENU_ITEM_DANGER =
-  'w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-raised focus:bg-neutral-100 dark:focus:bg-neutral-700 focus:outline-none cursor-pointer whitespace-nowrap';
+  'w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-raised focus:bg-stone-100 dark:focus:bg-stone-700 focus:outline-none cursor-pointer whitespace-nowrap';

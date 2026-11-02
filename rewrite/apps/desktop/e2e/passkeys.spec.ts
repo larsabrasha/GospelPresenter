@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { TestBrowser } from '../../server/test/fake-google.ts';
 import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, testPort, type Desktop, type PasskeyBrowser } from './apps.ts';
-import { ANNA, setUpHost, signInWithGoogle, signOut } from './flows.ts';
+import { ANNA, openAdmin, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 
 let host: Desktop | undefined;
 let server: ChildProcess | undefined;
@@ -23,10 +23,9 @@ test.afterEach(async () => {
   host = server = browser = undefined;
 });
 
-/** Inloggningsmetoder, under Mina inställningar in the menu behind the user's picture in the bar. */
+/** Inloggningsmetoder, under Mina inställningar in Inställningar. */
 async function openLogins(page: Page) {
-  await page.getByTestId('me').click();
-  await page.getByRole('menuitem', { name: 'Mina inställningar', exact: true }).click();
+  await openAdmin(page, 'Mina inställningar');
   await page.getByRole('link', { name: 'Inloggningsmetoder' }).click();
   await expect(page.getByRole('heading', { name: 'Inloggningsmetoder' })).toBeVisible();
   return page.getByRole('list', { name: 'Inloggningsmetoder' }).getByRole('listitem');

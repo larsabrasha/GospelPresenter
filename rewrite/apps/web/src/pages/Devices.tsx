@@ -7,6 +7,7 @@ import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingSelect } from '../ui/Floating.tsx';
+import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { DevicesPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -76,8 +77,8 @@ function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expi
   const expired = now >= expiresAt;
   return (
     <Dialog title={t('devices.codeTitle')} onClose={onClose} maxWidthClass="max-w-lg">
-      <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('devices.codeText', { name })}</p>
-      <p className={`font-mono text-5xl tracking-[0.3em] text-center my-4 ${expired ? 'text-neutral-400 dark:text-neutral-500' : ''}`} data-testid="pair-code">
+      <p className="text-sm text-stone-600 dark:text-stone-300">{t('devices.codeText', { name })}</p>
+      <p className={`font-mono text-5xl tracking-[0.3em] text-center my-4 ${expired ? 'text-stone-400 dark:text-stone-500' : ''}`} data-testid="pair-code">
         {code}
       </p>
       {/* The code goes in the fragment, which no server sees; the tablet's pairing page reads it from there. */}
@@ -90,12 +91,12 @@ function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expi
       )}
       {urls?.length ? (
         urls.map((url) => (
-          <p key={url} className="text-sm text-neutral-600 dark:text-neutral-300 break-all">
+          <p key={url} className="text-sm text-stone-600 dark:text-stone-300 break-all">
             {t('devices.openOn', { url })}
           </p>
         ))
       ) : (
-        urls && <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('devices.lanOff')}</p>
+        urls && <p className="text-xs text-stone-500 dark:text-stone-400">{t('devices.lanOff')}</p>
       )}
       <DialogButtons>
         <AppButton onClick={onClose}>{t('common.close')}</AppButton>
@@ -136,22 +137,18 @@ export function Devices({ me }: { me: Me }) {
       <PageHeader title={t('devices.title')}>
         <AddButton label={t('devices.pair')} onClick={() => setChoosing(true)} />
       </PageHeader>
-      <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400">{t('devices.text')}</p>
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
       <div className={CARD}>
         {Array.isArray(devices) && !devices.length && (
-          <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-            <DevicesPicture className="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600" />
-            <p className="text-neutral-500 dark:text-neutral-400">{t('devices.empty')}</p>
-          </div>
+          <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')} />
         )}
         <ul aria-label={t('devices.title')}>
           {Array.isArray(devices) &&
             devices.map((d) => (
-              <li key={d.id} className={`flex items-center gap-3 px-5 py-3 text-sm border-b border-neutral-100 dark:border-separator/60 last:border-0 ${d.revokedAt ? 'opacity-50' : ''}`}>
+              <li key={d.id} className={`flex items-center gap-3 px-5 py-3 text-sm border-b border-stone-100 dark:border-separator/60 last:border-0 ${d.revokedAt ? 'opacity-50' : ''}`}>
                 <div className="flex-1 min-w-0">
                   <div className="truncate">{d.name}</div>
-                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                  <div className="text-xs text-stone-500 dark:text-stone-400">
                     {t('devices.paired', { date: when(d.createdAt) })} · {d.revokedAt ? t('devices.disconnected') : t('devices.lastSeen', { date: when(d.lastUsedAt) })}
                   </div>
                 </div>

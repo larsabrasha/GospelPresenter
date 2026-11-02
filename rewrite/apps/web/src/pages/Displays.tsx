@@ -61,7 +61,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void submit();
         }}
       >
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{kind === 'screen' ? t('screens.addText') : t('displays.addText')}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{kind === 'screen' ? t('screens.addText') : t('displays.addText')}</p>
         <FloatingInput label={t('displays.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={() => onClose(null)}>
@@ -93,16 +93,16 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
             <QrCode value={url} label={t('displays.qr')} />
           </div>
         </div>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">{screen ? t('screens.scanHint') : t('displays.scanHint')}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 text-center">{screen ? t('screens.scanHint') : t('displays.scanHint')}</p>
       </div>
       {screen && (
         <>
           <div className="mt-8! flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
-            <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('screens.or')}</span>
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
+            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
+            <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-stone-500">{t('screens.or')}</span>
+            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
           </div>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('screens.linkHint')}</p>
+          <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{t('screens.linkHint')}</p>
         </>
       )}
       {download && (
@@ -116,7 +116,7 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
       <CopyField value={url} label={t('displays.link')} copyLabel={t('displays.copy')} onCopy={() => void copyLink(url, () => toast(t('displays.copied')))} />
       {renew && (
         <div className="mt-8! pt-4 border-t border-separator space-y-3">
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('displays.newCodeText')}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">{t('displays.newCodeText')}</p>
           <AppButton variant="danger" className="text-xs" onClick={renew}>
             {t('displays.newCode')}
           </AppButton>
@@ -181,20 +181,20 @@ export function Displays({ link }: { link: LiveLink }) {
         <AddButton label={t('screens.add')} onClick={() => setCreating('screen')} />
       </PageHeader>
       <div className={CARD}>
-        {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
+        {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {screens && !screens.length && (
-          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} text={t('screens.text')} />
+          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} />
         )}
         <ul aria-label={t('screens.title')}>
           {screens?.map((d) => {
             const on = online.includes(d.id);
             return (
               <li key={d.id} className={ROW} aria-label={d.name}>
-                <ScreenIcon className={`size-5 ${on ? 'text-green-500' : 'text-neutral-300 dark:text-neutral-600'}`} offline={!on} />
+                <ScreenIcon className={`size-5 ${on ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} offline={!on} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{d.name}</div>
                 </div>
-                <div className={`text-xs ${on ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{on ? t('screens.online') : t('screens.offline')}</div>
+                <div className={`text-xs ${on ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{on ? t('screens.online') : t('screens.offline')}</div>
                 <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
                   <LinkIcon className="size-3.5" />
                   {t('screens.showLink')}
@@ -208,25 +208,25 @@ export function Displays({ link }: { link: LiveLink }) {
         </ul>
       </div>
       <div className="flex items-center justify-between px-5 pt-6">
-        <h2 className="text-xl/7 font-bold dark:text-neutral-100">{t('displays.public')}</h2>
+        <h2 className="text-xl/7 font-bold dark:text-stone-100">{t('displays.public')}</h2>
         <AddButton label={t('displays.create')} onClick={() => setCreating('public')} />
       </div>
       <div className={CARD}>
-        {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
+        {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {displays && !displays.length && (
-          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} text={t('displays.publicText')} />
+          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} />
         )}
         <ul aria-label={t('displays.public')}>
           {displays?.map((d) => {
             const { sending, viewers } = status(d);
             return (
               <li key={d.id} className={ROW} aria-label={d.name}>
-                <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-neutral-300 dark:text-neutral-600'}`} />
+                <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{d.name}</div>
-                  {sending && <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{t('displays.sending', { name: sending })}</div>}
+                  {sending && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{t('displays.sending', { name: sending })}</div>}
                 </div>
-                <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{viewersText(viewers)}</div>
+                <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</div>
                 <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
                   <QrCodeIcon className="size-3.5" />
                   {t('displays.showQr')}

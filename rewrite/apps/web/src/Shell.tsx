@@ -64,7 +64,7 @@ export function SyncWarnings() {
   return (
     <div
       data-testid="sync-warnings"
-      className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-neutral-800 dark:text-neutral-100"
+      className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-stone-800 dark:text-stone-100"
     >
       {warnings.map((w, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function UnexpectedError() {
   }, []);
   if (!failed) return null;
   return (
-    <div role="alert" className="fixed left-0 bottom-0 w-full z-[1000] p-3 bg-yellow-50 dark:bg-yellow-950 text-neutral-900 dark:text-neutral-100">
+    <div role="alert" className="fixed left-0 bottom-0 w-full z-[1000] p-3 bg-yellow-50 dark:bg-yellow-950 text-stone-900 dark:text-stone-100">
       {t('layout.unexpectedError')}
       <a href="." className="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl no-underline">
         {t('layout.reload')}

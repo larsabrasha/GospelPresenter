@@ -2,7 +2,7 @@
 // in the background. Without Web Crypto it hashes on the same thread as the
 // database answers the page, so the hash must give the thread back.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { highlight, makeZip, PROTOCOL_VERSION, SCHEMA_VERSION, searchSongs, utf8Encode } from '@gp/core';
 import { addSongs, allowRemote, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
@@ -25,7 +25,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   test.skip(!lan, 'this machine has no LAN address');
   host = await launch({ lan: true });
   await setUpHost(host);
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: MUTED });
   const phone = await browser.newPage();
   // A tablet is slower than this machine.
   await (await phone.context().newCDPSession(phone)).send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -655,7 +655,7 @@ test('a slide step reaches the output window and a paired screen at once, measur
   await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
   const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();
   await page.getByRole('dialog', { name: 'Kyrksal' }).getByRole('button', { name: 'Stäng' }).click();
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: MUTED });
   const screen = await browser.newPage();
   await screen.goto(url);
   await expect(screen.getByTestId('display-idle')).toBeVisible();

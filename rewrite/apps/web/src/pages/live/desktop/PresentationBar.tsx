@@ -1,36 +1,29 @@
 import type { Presentation } from '@gp/core';
-import { useState } from 'react';
-import { orgRemoteControl } from '../../../db/queries.ts';
-import { useData } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { outputWindow } from '../../../live/outputWindow.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, QrCodeOutlineIcon, StopIcon } from '../../../ui/icons.tsx';
+import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../../ui/icons.tsx';
 import { href } from '../../../ui/router.ts';
-import { Sheet } from '../../../ui/Sheet.tsx';
 import { templateDetails } from '../../templates.ts';
 import { eventLine } from '../../presentation-editor/eventDate.ts';
 import { PresentationMenu } from '../../presentation-editor/PresentationMenu.tsx';
-import { RemotePanel } from '../RemotePanel.tsx';
 import { SyncCloud } from '../../../TopBar.tsx';
-
-type Open = null | 'remote';
+import { GREEN_SHADOW, LIFTED, RED_SHADOW, ROUND_BACK } from '../../../ui/glass.ts';
 
 // Round, as every button of the 2.0 layout.
-const BAR_BUTTON = 'h-8 touch:h-11 touch:min-w-11 justify-center px-3.5 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
-const ROUND = 'size-8 touch:size-11 px-0!';
+const BAR_BUTTON = 'h-9 touch:h-11 touch:min-w-11 justify-center px-3.5 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
+const ROUND = 'size-9 touch:size-11 px-0!';
 
 /**
  * A presentation's bar on a computer or an iPad lying down, the same before and while it is presented
  * (docs/layout-2-0.md): "‹ Presentationer" at the left; in the middle its name, LIVE while presented, and when and
- * where, which open the presentation's menu; at the right round icons for Fjärrstyrning (while presented) and
- * Inställningar, and at the far right Starta presentation or Avsluta presentation (which asks first), icon and words.
+ * where, which open the presentation's menu; at the right Inställningar as a round icon (Fjärrstyrning is in the live
+ * column), and at the far right Starta presentation or Avsluta presentation (which asks first), icon and words.
  * A template has no Starta.
  */
 export function PresentationBar({
-  id,
   presentation,
   live,
   presenting,
@@ -39,12 +32,10 @@ export function PresentationBar({
   onStart,
   onDetails,
   onSaveAsTemplate,
-  onKeepOffline,
   onMaterials,
   onTrash,
   className,
 }: {
-  id: string;
   presentation: Presentation;
   live: LiveControl;
   presenting: boolean;
@@ -54,17 +45,12 @@ export function PresentationBar({
   onStart: () => void;
   onDetails: () => void;
   onSaveAsTemplate?: () => void;
-  onKeepOffline?: () => void;
   onMaterials?: () => void;
   onTrash: () => void;
   className?: string;
 }) {
-  const [open, setOpen] = useState<Open>(null);
   const { dialog, ask } = useConfirm();
-  const remotePolicy = useData(orgRemoteControl, []);
   const when = presentation.isTemplate ? templateDetails(presentation) : [eventLine(presentation), presentation.location].filter(Boolean).join(' · ');
-  const close = () => setOpen(null);
-  const remote = presenting && owner && remotePolicy && remotePolicy !== 'never';
   const end = async () => {
     const ok = await ask({ title: t('live.end'), text: t('live.endText'), confirm: t('live.end'), compact: true });
     if (!ok) return;
@@ -73,11 +59,11 @@ export function PresentationBar({
     outputWindow().turn(false);
   };
   return (
-    <div className={`relative shrink-0 h-13 touch:h-15 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 border-b-[0.5px] border-separator bg-surface ${className ?? ''}`} data-testid="presentation-bar">
+    <div className={`relative shrink-0 h-13 touch:h-15 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 border-b-[0.5px] border-separator bg-ground ${className ?? ''}`} data-testid="presentation-bar" data-window-bar>
       {dialog}
-      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} className="justify-self-start flex items-center gap-1 -ml-1 touch:min-h-11 text-sm font-medium text-sky-500 hover:text-sky-600 no-underline whitespace-nowrap">
+      {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
+      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} title={t('nav.backToPresentations')} className={`justify-self-start ${ROUND_BACK}`}>
         <ChevronLeftIcon className="size-5" />
-        {t('nav.presentations')}
       </a>
       {/* The page's heading, for screen readers; the button shows the name. */}
       <h1 className="sr-only">{presentation.name}</h1>
@@ -87,7 +73,6 @@ export function PresentationBar({
         presenting={presenting}
         onEditDetails={onDetails}
         onSaveAsTemplate={onSaveAsTemplate}
-        onKeepOffline={onKeepOffline}
         onMaterials={onMaterials}
         onTrash={onTrash}
         className="min-w-0 justify-self-center"
@@ -104,10 +89,10 @@ export function PresentationBar({
                   {t('live.badge')}
                 </span>
               )}
-              <ChevronDownIcon className="size-3 shrink-0 text-neutral-500" />
+              <ChevronDownIcon className="size-3 shrink-0 text-stone-500" />
             </span>
             {when && (
-              <span className="max-w-full truncate text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
+              <span className="max-w-full truncate text-xs text-stone-500 dark:text-stone-400" data-testid="schedule">
                 {when}
               </span>
             )}
@@ -116,37 +101,25 @@ export function PresentationBar({
       />
       <div className="justify-self-end flex items-center gap-2">
         <SyncCloud />
-        {/* What is not the presentation's own, round icons: remote control while presenting. */}
-        {remote && (
-          <AppButton variant="plain" onClick={() => setOpen('remote')} aria-label={t('live.remote')} title={t('live.remote')} aria-haspopup="dialog" className={`${BAR_BUTTON} ${ROUND} bg-raised dark:bg-raised-2`}>
-            <QrCodeOutlineIcon className="size-4" />
-          </AppButton>
-        )}
         {/* Inställningar next to start and stop. */}
-        <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} bg-raised dark:bg-raised-2`}>
+        <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
           <CogIcon className="size-4" />
         </AppButton>
         {/* Start and stop at the far right, an icon and its words on a computer: ▶ before, ■ while presented (only
             this window's session ends). */}
         {!presenting && canStart && (
-          <AppButton variant="plain" onClick={onStart} className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600`}>
+          <AppButton variant="plain" onClick={onStart} className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>
             <PlayIcon className="size-4" />
             {t('presentation.start')}
           </AppButton>
         )}
         {presenting && owner && (
-          <AppButton variant="plain" onClick={() => void end()} className={`${BAR_BUTTON} bg-red-500/15 text-red-500`}>
+          <AppButton variant="plain" onClick={() => void end()} className={`${BAR_BUTTON} bg-red-50 dark:bg-red-950/40 text-red-500 ${RED_SHADOW}`}>
             <StopIcon className="size-4" />
             {t('live.end')}
           </AppButton>
         )}
       </div>
-      {/* Fjärrstyrning in a sheet of its own, centred as iPadOS's form sheet, as on a phone. */}
-      {open === 'remote' && remote && owner && (
-        <Sheet title={t('live.remote')} onClose={close}>
-          <RemotePanel id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
-        </Sheet>
-      )}
     </div>
   );
 }

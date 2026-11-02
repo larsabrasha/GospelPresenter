@@ -18,7 +18,7 @@ export function PanelSection({ title, hint, open: initiallyOpen, badge, children
       <div className="flex items-center gap-2">
         <h2 className="flex-1 min-w-0">
           <AppButton variant="plain" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)} className="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
-            <ChevronDownIcon className={`size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
+            <ChevronDownIcon className={`size-3 text-stone-400 dark:text-stone-500 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
             <span className={CAPTION}>{title}</span>
             {badge}
           </AppButton>
@@ -30,13 +30,13 @@ export function PanelSection({ title, hint, open: initiallyOpen, badge, children
           title={hint}
           onClick={() => setInfo((v) => !v)}
           className={`size-4 shrink-0 flex items-center justify-center rounded-full text-[10px] font-semibold border cursor-pointer transition-colors ${
-            info ? 'bg-sky-500 border-sky-500 text-white' : 'border-neutral-300 dark:border-neutral-500 text-neutral-400 dark:text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'
+            info ? 'bg-sky-500 border-sky-500 text-white' : 'border-stone-300 dark:border-stone-500 text-stone-400 dark:text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
           }`}
         >
           i
         </AppButton>
       </div>
-      {info && <p className="mt-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-raised/50 text-neutral-600 dark:text-neutral-300 text-xs leading-relaxed">{hint}</p>}
+      {info && <p className="mt-2 px-3 py-2 rounded-lg bg-stone-100 dark:bg-raised/50 text-stone-600 dark:text-stone-300 text-xs leading-relaxed">{hint}</p>}
       <div id={id} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden min-h-0">
           <div className="flex flex-col gap-3 p-1 pt-3">{children}</div>

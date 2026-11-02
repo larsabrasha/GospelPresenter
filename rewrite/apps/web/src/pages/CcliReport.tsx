@@ -8,7 +8,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { CcliPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
-import { PageContainer } from '../ui/PageContainer.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
 import { SWITCH } from '../ui/Toggle.tsx';
 import { cardKey, ccliCards, ccliFilters, matchesFilter, type CcliFilter } from './ccliReport.ts';
@@ -67,7 +67,7 @@ export function CcliReport({ role }: { role: Role }) {
 
   return (
     <PageContainer>
-      <h1 className="px-5 text-xl/7 font-bold dark:text-neutral-100">{t('ccli.title')}</h1>
+      <PageHeader title={t('ccli.title')} />
       <div className="px-5 pb-2">
         <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
           <input
@@ -79,9 +79,9 @@ export function CcliReport({ role }: { role: Role }) {
             disabled={!data || !can(role, 'ManageOrganizationSettings')}
             onChange={(e) => ask(COLLECTION, e.target.checked, db.mutate('setCcliCollection', { on: e.target.checked }))}
           />
-          <span className="text-sm dark:text-neutral-200">{t('ccli.collection')}</span>
+          <span className="text-sm dark:text-stone-200">{t('ccli.collection')}</span>
         </label>
-        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1 ml-12">{t('ccli.collectionText')}</p>
+        <p className="text-xs text-stone-400 dark:text-stone-500 mt-1 ml-12">{t('ccli.collectionText')}</p>
       </div>
       <div className="px-5 pb-2">
         <PillTabs label={t('ccli.filter')}>
@@ -93,10 +93,10 @@ export function CcliReport({ role }: { role: Role }) {
         </PillTabs>
       </div>
       {!data ? (
-        <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>
+        <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>
       ) : !cards.length ? (
         <div className={`${CARD} overflow-hidden`}>
-          <EmptyPicture picture={<CcliPicture className={PICTURE} />} title={t('ccli.empty')} text={t('ccli.emptyText')} />
+          <EmptyPicture picture={<CcliPicture className={PICTURE} />} title={t('ccli.empty')} />
         </div>
       ) : (
         <>
@@ -105,13 +105,13 @@ export function CcliReport({ role }: { role: Role }) {
             const reported = asked.get(c.key) ?? allReported(c.entries);
             return (
               <section key={c.key} aria-label={`${name} ${c.date}`} className={`${CARD} overflow-hidden`}>
-                <div className="flex items-center justify-between gap-3 px-5 py-3 bg-neutral-100 dark:bg-raised/50">
+                <div className="flex items-center justify-between gap-3 px-5 py-3 bg-stone-100 dark:bg-raised/50">
                   <div className="min-w-0">
-                    <div className="font-semibold dark:text-neutral-100 truncate">{name}</div>
-                    <div className="text-xs text-neutral-400 dark:text-neutral-500">{c.date}</div>
+                    <div className="font-semibold dark:text-stone-100 truncate">{name}</div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500">{c.date}</div>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
-                    <span className="text-xs text-neutral-400 dark:text-neutral-500">{t('ccli.reported')}</span>
+                    <span className="text-xs text-stone-400 dark:text-stone-500">{t('ccli.reported')}</span>
                     <input
                       type="checkbox"
                       className={SWITCH}
@@ -125,10 +125,10 @@ export function CcliReport({ role }: { role: Role }) {
                 <ul>
                   {c.entries.map((e) => (
                     <li key={e.id} className="flex items-center px-5 py-2.5 border-t-[0.5px] border-separator">
-                      <div className="w-0 sm:w-28 overflow-hidden shrink-0 text-sm text-neutral-500 dark:text-neutral-400">{e.ccli}</div>
+                      <div className="w-0 sm:w-28 overflow-hidden shrink-0 text-sm text-stone-500 dark:text-stone-400">{e.ccli}</div>
                       <div className="flex-1 min-w-0">
                         <div className="truncate">{e.songName}</div>
-                        <div className="sm:hidden text-xs text-neutral-500 dark:text-neutral-400">{e.ccli}</div>
+                        <div className="sm:hidden text-xs text-stone-500 dark:text-stone-400">{e.ccli}</div>
                       </div>
                     </li>
                   ))}

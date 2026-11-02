@@ -1,13 +1,17 @@
 # On Cloudflare
 
-**The Worker serves the web app** from Workers static assets: `[assets]` in `wrangler.toml` points at
-`apps/web/dist`, so `pnpm build` comes before `wrangler deploy`. With `run_worker_first` every request reaches
-the Worker, which leaves `/api/…` alone and otherwise asks the `ASSETS` binding: a path with no file extension
-gets `index.html`, as on Node. It adds the same headers as the Node server (`apps/server/src/static.ts`): the CSP
-on every file, and `no-cache` on everything outside `/assets/`, so `index.html` and `/sw.js` are asked again
-every time. `html_handling = "none"`, because the default redirects `/index.html` to `/`, and the service worker
-keeps `/index.html` under that name: a kept redirect would break a navigation offline.
-`apps/server/test/static.test.ts` checks this on Node and in local workerd (Miniflare's assets).
+**Cloudflare serves the web app, the Worker only the API** (Lars, 2026-11-02: the app cheap, the data guarded).
+`[assets]` in `wrangler.toml` points at `apps/web/dist`, so `pnpm build` comes before `wrangler deploy`, and
+`run_worker_first = ["/api/*"]` starts the Worker for the API alone. Every other request is Cloudflare's own asset
+serving, which costs no Worker request: a path with no file gets `index.html` (`not_found_handling =
+"single-page-application"`), and `apps/web/public/_headers` gives every file the Node server's headers
+(`apps/server/src/static.ts`: the CSP, `no-cache` on everything outside `/assets/`), with the hashed files under
+`/assets/` kept for a year. `apps/server/test/static-headers.test.ts` checks the two agree. `html_handling = "none"`,
+because the default redirects `/index.html` to `/`: the service worker keeps `/index.html` under that name, and a
+kept redirect would break a navigation offline. The data is not among the files: D1 (users, sessions), each
+organisation's Durable Object (songs, presentations, the sync log) and R2 (media) are reached only through the Worker,
+which asks for a session; the bucket has no public address. The Worker still has its own fallback for the files, for a
+config that sends it everything; `apps/server/test/static.test.ts` checks it on Node and in local workerd.
 
 **The test environment (2026-11-02).** `https://gp-test.lars-arvidsson.workers.dev`: Worker `gp-test`, D1
 `gp-test-global` (WEUR) and R2 `gp-test-media`, named in `apps/server/wrangler.test.toml`. It runs the repo's

@@ -11,7 +11,7 @@ import { appVersion } from '../version.ts';
 import { AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 
 /** The sign-in buttons of SignIn.razor: Google white with its G, any other way sky blue. */
-const GOOGLE = 'flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-white text-neutral-700 text-lg cursor-pointer hover:bg-neutral-100 border border-neutral-300';
+const GOOGLE = 'flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-white text-stone-700 text-lg cursor-pointer hover:bg-stone-100 border border-stone-300';
 const OTHER = 'flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600';
 
 /** What the server offers when it could not be asked: Google, as before passkeys. */
@@ -98,7 +98,7 @@ export function SignInChoices({
       <div className="flex flex-col items-center gap-3 pt-2">
         {(firstOnly && !more ? ways.slice(0, 1) : ways).map((w) => w.button)}
         {firstOnly && !more && ways.length > 1 && (
-          <AppButton variant="plain" className="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer" onClick={() => setMore(true)}>
+          <AppButton variant="plain" className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 cursor-pointer" onClick={() => setMore(true)}>
             {t('auth.more')}
           </AppButton>
         )}
@@ -126,7 +126,7 @@ function Recover() {
   if (!open)
     return (
       <div className="flex justify-center pt-4">
-        <AppButton variant="plain" className="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer" onClick={() => setOpen(true)}>
+        <AppButton variant="plain" className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 cursor-pointer" onClick={() => setOpen(true)}>
           {t('recover.link')}
         </AppButton>
       </div>
@@ -175,7 +175,7 @@ export function SignIn({ error, methods, onSignedIn }: { error: string | null; m
       footer={
         <>
           {methods?.mail && <Recover />}
-          {version && <p className="pt-16 text-xs text-neutral-400 dark:text-neutral-500 text-center">{version}</p>}
+          {version && <p className="pt-16 text-xs text-stone-400 dark:text-stone-500 text-center">{version}</p>}
         </>
       }
       onSignedIn={onSignedIn}

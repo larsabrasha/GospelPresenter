@@ -84,19 +84,19 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
               {t('audios.failed', { n: imports.failures.length })}
             </span>
           )}
-          {imports.progress && <span className="text-neutral-400 text-sm">{t('images.importing', imports.progress)}</span>}
+          {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!audios && <p className="flex items-center justify-center py-12 text-neutral-400 text-sm">{t('audios.loading')}</p>}
+          {!audios && <p className="flex items-center justify-center py-12 text-stone-400 text-sm">{t('audios.loading')}</p>}
           {audios && !audios.length && (
-            <EmptyTab icon={<SpeakerWaveIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
+            <EmptyTab icon={<SpeakerWaveIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
               <p>{t('presentation.noAudios')}</p>
             </EmptyTab>
           )}
           <ul className="flex flex-col gap-1 p-3" aria-label={t('audios.title')} onKeyDown={list.onKeyDown}>
             {shown.map((a, i) => (
-              <PickableFileRow key={a.id} nav={list.item(i)} picked={picked.includes(a.id)} name={a.fileName} icon={<SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />} onToggle={() => toggle(a.id)} onRemove={() => void remove(a)}>
+              <PickableFileRow key={a.id} nav={list.item(i)} picked={picked.includes(a.id)} name={a.fileName} icon={<SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" />} onToggle={() => toggle(a.id)} onRemove={() => void remove(a)}>
                 <span className="text-sm truncate flex-1">{a.fileName}</span>
               </PickableFileRow>
             ))}

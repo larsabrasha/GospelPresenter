@@ -34,7 +34,7 @@ export function SearchField({
 }) {
   return (
     <div className="relative flex-1 min-w-0">
-      <SearchIcon className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      <SearchIcon className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
       <input
         ref={inputRef}
         autoFocus={autoFocus}
@@ -44,7 +44,7 @@ export function SearchField({
         placeholder={placeholder ?? label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
+        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-stone-200 dark:border-stone-600 bg-white dark:bg-raised text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
       />
       {value && (
         <AppButton variant="icon" aria-label={t('common.clear')} onClick={onClear ?? (() => onChange(''))} className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6!">
@@ -80,7 +80,7 @@ export function isAddKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; a
 export function AddFooter({ hint, name, label, onAdd }: { hint?: string; name?: string; label?: string; onAdd?: () => void }) {
   return (
     <div className="shrink-0 flex flex-wrap items-center justify-end gap-x-10 gap-y-2 pt-4">
-      {hint && <p className="mr-auto text-xs text-neutral-400 dark:text-neutral-500">{hint}</p>}
+      {hint && <p className="mr-auto text-xs text-stone-400 dark:text-stone-500">{hint}</p>}
       {name !== undefined && onAdd && (
         <AppButton aria-label={label} onClick={onAdd} className="max-w-full min-w-0 inline-flex items-center gap-1">
           <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{name}</span>
@@ -93,7 +93,7 @@ export function AddFooter({ hint, name, label, onAdd }: { hint?: string; name?: 
 /** A tab with nothing to show: a large grey icon and a line. */
 export function EmptyTab({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center text-neutral-400 dark:text-neutral-500 text-sm py-8 gap-3 select-none">
+    <div className="flex flex-col items-center justify-center text-center text-stone-400 dark:text-stone-500 text-sm py-8 gap-3 select-none">
       {icon}
       {children}
     </div>

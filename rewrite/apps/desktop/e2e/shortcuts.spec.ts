@@ -39,7 +39,7 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await page.getByRole('link', { name: 'Söndag' }).click();
   help = await openHelp(page);
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Presentation', 'Överallt']);
-  await expect(help.getByRole('listitem').filter({ hasText: 'Byt namn på valt inslag' }).locator('kbd')).toHaveText('F2');
+  await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till i presentationen' }).locator('kbd')).toHaveText('a');
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
   await page.keyboard.press('a');

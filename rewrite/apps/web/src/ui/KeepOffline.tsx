@@ -4,10 +4,7 @@ import { addDays, presentationOfflineState } from '@gp/sync/client';
 import { isPinned } from '../db/queries.ts';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
-import { t } from '../i18n.ts';
 import { localToday } from '../pages/dashboard.ts';
-import { AppButton } from './AppButton.tsx';
-import { CheckCircleIcon } from './icons.tsx';
 
 // Keeping a presentation offline (TODO.md "Video, and which files a device fetches"): a choice each
 // device makes, by hand per presentation, or for the coming seven days under Mina inställningar. A
@@ -111,7 +108,7 @@ export function ProgressRing({ share, className }: { share: number; className?: 
   const length = 2 * Math.PI * r;
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <circle cx="12" cy="12" r={r} fill="none" strokeWidth={2.5} className="stroke-neutral-300 dark:stroke-neutral-600" />
+      <circle cx="12" cy="12" r={r} fill="none" strokeWidth={2.5} className="stroke-stone-300 dark:stroke-stone-600" />
       <circle
         cx="12"
         cy="12"
@@ -124,51 +121,5 @@ export function ProgressRing({ share, className }: { share: number; className?: 
         transform="rotate(-90 12 12)"
       />
     </svg>
-  );
-}
-
-/**
- * The icon of a presentation's offline state, a button that keeps it offline or stops: a cloud with an
- * arrow while it is not kept, a ring that fills while its files come, a sky check once all is here.
- * Kept by the setting for the coming days, it says so and is undone there.
- */
-export function KeepOfflineButton({ presentation, className = '' }: { presentation: Pick<Presentation, 'id' | 'name' | 'eventDate' | 'isTemplate' | 'deletedAt'>; className?: string }) {
-  const keep = useKeepOffline(presentation);
-  if (keep.hidden) return null;
-  const percent = Math.floor(keep.share * 100);
-  const label = keep.unavailable
-    ? t('offline.unavailable')
-    : keep.state === 'none'
-      ? t('offline.keep', { name: presentation.name })
-      : keep.state === 'fetching'
-        ? t('offline.fetching', { name: presentation.name, percent })
-        : t(keep.bySetting ? 'offline.keptComing' : 'offline.kept', { name: presentation.name });
-  const disabled = keep.unavailable || !keep.ready || (keep.bySetting && keep.state !== 'none');
-  return (
-    <AppButton
-      variant="plain"
-      aria-label={label}
-      title={label}
-      aria-pressed={keep.kept}
-      disabled={disabled}
-      data-testid="keep-offline"
-      data-state={keep.unavailable ? 'unavailable' : keep.state}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        keep.set(!keep.kept);
-      }}
-      className={`size-8 justify-center rounded-full shrink-0 flex items-center transition ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-raised'} ${
-        keep.unavailable ? 'opacity-40' : ''
-      } ${className}`}
-    >
-      {keep.state === 'kept' ? (
-        <CheckCircleIcon className="size-5 text-sky-500" />
-      ) : keep.state === 'fetching' ? (
-        <ProgressRing share={keep.share} className="size-5" />
-      ) : (
-        <CloudArrowDownIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
-      )}
-    </AppButton>
   );
 }

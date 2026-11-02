@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
-import { CloseIcon } from './icons.tsx';
+import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
+import { LIFTED } from './glass.ts';
 
 /** The round close button in a dialog's corner (Components/Dialog.razor). */
 function CloseButton({ onClick }: { onClick: () => void }) {
@@ -10,7 +11,7 @@ function CloseButton({ onClick }: { onClick: () => void }) {
     <AppButton
       variant="plain"
       data-close
-      className="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 cursor-pointer text-neutral-500"
+      className={`absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full cursor-pointer text-stone-500 ${LIFTED}`}
       title={t('common.close')}
       aria-label={t('common.close')}
       onClick={onClick}
@@ -69,6 +70,7 @@ function DialogFrame({
   };
   return createPortal(
     <div
+      data-overlay="dialog"
       className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-4' : 'p-4'}`}
       onMouseDown={(e) => {
         if (!page && e.target === e.currentTarget) close();
@@ -76,7 +78,7 @@ function DialogFrame({
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-neutral-900 dark:text-neutral-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"
@@ -160,16 +162,45 @@ export function Modal({ title, onClose, children, footer, className }: { title: 
  * A dialog that holds pages of its own, as the admin pages over the page the user is on:
  * a bar with the title and the close button, and `children` filling the rest.
  */
-export function PageDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function PageDialog({
+  title,
+  compactTitle,
+  compactTitleShown = true,
+  back,
+  split,
+  onClose,
+  children,
+}: {
+  title: string;
+  compactTitle?: string;
+  compactTitleShown?: boolean;
+  back?: { href: string; label: string };
+  /** From `lg` the content draws its own bars, split in two columns up to the top as macOS's System Settings: no bar here. */
+  split?: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const titleId = useId();
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className="max-w-5xl sm:h-[min(52rem,100%)]" page>
       {(close) => (
         <>
-          <div className="relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
-            <h2 id={titleId} className="font-semibold text-lg/7">
+          <div className={`elevated relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator bg-ground ${split ? 'lg:hidden' : ''}`}>
+            {/* Below `lg` as iOS 26's bar: a round ‹ alone at the left, and the page's own name in the middle
+                (`compactTitle`); the dialog keeps `title` as its name for screen readers. */}
+            {back && (
+              <a href={back.href} aria-label={back.label} title={back.label} className="lg:hidden -ml-2 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 text-stone-600 dark:text-stone-300">
+                <ChevronLeftIcon className="size-5" />
+              </a>
+            )}
+            <h2 id={titleId} className={`font-semibold text-lg/7 ${compactTitle ? 'max-lg:sr-only' : ''}`}>
               {title}
             </h2>
+            {compactTitle && (
+              <span aria-hidden="true" className={`lg:hidden absolute inset-x-16 text-center font-semibold text-[17px] truncate transition-opacity ${compactTitleShown ? '' : 'opacity-0'}`}>
+                {compactTitle}
+              </span>
+            )}
             <CloseButton onClick={close} />
           </div>
           {/* A step lighter in dark mode than the page under it (app.css `.elevated`), as iOS draws what floats. */}
@@ -250,7 +281,7 @@ export function useConfirm(): { dialog: ReactNode; ask: (o: AskOptions) => Promi
   };
   const dialog = open && (
     <Dialog title={open.title} onClose={() => done(false)} maxWidthClass={open.compact ? 'max-w-sm' : undefined}>
-      <p className={open.compact ? '' : 'text-sm text-neutral-600 dark:text-neutral-300'}>{emphasised(open.text, open.bold)}</p>
+      <p className={open.compact ? '' : 'text-sm text-stone-600 dark:text-stone-300'}>{emphasised(open.text, open.bold)}</p>
       <DialogButtons>
         <AppButton variant="cancel" onClick={() => done(false)}>
           {t('common.cancel')}

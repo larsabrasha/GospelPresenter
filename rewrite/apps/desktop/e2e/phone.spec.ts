@@ -84,7 +84,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await start.click();
   await expect(live).toBeVisible();
   // The title sits in the middle of the room between the back button and the buttons at the right, never under them.
-  const title = (await live.getByRole('button', { name: 'Om presentationen' }).boundingBox())!;
+  const title = (await live.getByRole('button', { name: 'Alternativ' }).boundingBox())!;
   const back = (await live.getByRole('link', { name: 'Tillbaka till presentationerna' }).boundingBox())!;
   const right = (await live.getByRole('button', { name: 'Mer', exact: true }).boundingBox())!;
   expect(title.x).toBeGreaterThanOrEqual(back.x + back.width);
@@ -107,7 +107,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
-  await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('LIVE');
+  await expect(live.getByRole('button', { name: 'Alternativ' })).toContainText('LIVE');
   await expect(liveOrder).not.toContainText('VISAS');
   await expect(liveOrder.getByRole('button', { name: /B ett/ })).toContainText('NÄSTA');
   await expect(liveOrder.getByLabel('LIVE')).toHaveCount(0);
@@ -130,7 +130,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   // Flytta in an item's … folds the list to one row per item, moved by ≡; the shown item cannot be removed.
   await expect(live.getByRole('button', { name: 'Redigera', exact: true })).toHaveCount(0); // no Edit button, as iOS 27
   await liveOrder.getByRole('button', { name: 'Mer om Sång C' }).click();
-  await page.getByRole('button', { name: 'Flytta', exact: true }).click();
+  await page.getByRole('button', { name: 'Ändra ordning', exact: true }).click();
   const edit = page.getByTestId('live-edit');
   await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång C/, /Sång B/]);
   await expect(edit.getByRole('button', { name: 'Ta bort Sång A' })).toBeDisabled();
@@ -139,10 +139,11 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await live.getByRole('button', { name: 'Klar' }).click();
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång B', 'Sång C']);
 
-  // Redigera sången in an item's … opens the song alone in Inställningar: no list, no way back, only Stäng.
+  // Redigera sången in an item's … opens the song alone in Inställningar's dialog, titled Sång: no list, no way back,
+  // only Stäng.
   await liveOrder.getByRole('button', { name: 'Mer om Sång B' }).click();
   await page.getByRole('button', { name: 'Redigera sången' }).click();
-  const settings = page.getByRole('dialog', { name: 'Inställningar' });
+  const settings = page.getByRole('dialog', { name: 'Sång', exact: true });
   await expect(settings.getByRole('heading', { name: 'Sång B', exact: true })).toBeVisible();
   await expect(settings.getByRole('navigation', { name: 'Administration' })).toHaveCount(0);
   await expect(settings.getByRole('link', { name: /Inställningar|Tillbaka/ })).toHaveCount(0);
@@ -156,6 +157,14 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(page.getByTestId('live-panel')).toBeVisible();
   await page.setViewportSize(PHONE);
   await expect(live).toBeVisible();
+
+  // Lying down, the running order is at the left and the picture at the right, beside it.
+  await page.setViewportSize({ width: 844, height: 390 });
+  const order = (await liveOrder.boundingBox())!;
+  const lying = (await picture.boundingBox())!;
+  expect(lying.x).toBeGreaterThanOrEqual(order.x + order.width - 1);
+  expect(lying.y).toBeLessThan(order.y + order.height / 2);
+  await page.setViewportSize(PHONE);
 
   // A sheet is pulled down by its bar to close it, as on iOS.
   await live.getByRole('button', { name: 'Mer', exact: true }).click();

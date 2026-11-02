@@ -77,17 +77,18 @@ export function LiveOrder({
   const order = items.map((i) => i.id);
   const can = menu ? itemActions(order, menu.item.id, shownId) : null;
 
+  // The scrollbar's room on both sides, so the column is as wide at the right as at the left.
   return (
-    <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto">
+    <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges]">
       {ticking && (
         <div className="flex items-center justify-between px-4 pb-2">
           <AppButton
             variant="plain"
-            className="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+            className="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
             aria-pressed={allTicked}
             onClick={() => setTicked(allTicked ? new Set() : new Set(order))}
           >
-            <CheckboxIcon checked={allTicked} filled className={allTicked ? 'size-5 text-sky-500' : 'size-5 text-neutral-300 dark:text-neutral-500'} />
+            <CheckboxIcon checked={allTicked} filled className={allTicked ? 'size-5 text-sky-500' : 'size-5 text-stone-300 dark:text-stone-500'} />
             {t('presentation.tickAll')}
           </AppButton>
           <AppButton variant="plain" className="px-2 py-1.5 rounded-full text-xs cursor-pointer bg-sky-500 text-white hover:bg-sky-600" onClick={onDoneTicking}>
@@ -112,32 +113,33 @@ export function LiveOrder({
                 setMenu({ item, at: { x: e.clientX, y: e.clientY } });
               }}
               className={`group flex items-center pr-1.5 touch:pr-0 rounded-full text-sm scroll-mb-16 ${
-                shown ? 'bg-red-500/12 dark:bg-red-500/18' : selected ? 'bg-raised dark:bg-raised-2' : 'hover:bg-raised'
-              } ${dragging === i ? 'shadow-lg bg-surface dark:bg-raised' : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''}`}
+                // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white.
+                selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'hover:bg-black/5 dark:hover:bg-white/10'
+              } ${dragging === i ? `shadow-lg ${selected ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''}`}
             >
               {/* The dot's place is always there, so the rows line up whether one is shown or not. */}
               <span className={`ml-3 size-2 shrink-0 rounded-full ${shown ? 'bg-red-500' : ''}`} data-testid={shown ? 'live-dot' : undefined} />
               {ticking ? (
                 <AppButton
                   variant="plain"
-                  className="flex items-center gap-2.5 px-2.5 py-2.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-neutral-700 dark:text-neutral-200"
+                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
                   aria-pressed={ticked.has(item.id)}
                   onClick={(e) => tick(item.id, e.shiftKey)}
                 >
-                  <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : 'size-5 shrink-0 text-neutral-300 dark:text-neutral-500'} />
-                  <ItemIcon type={item.type} className="size-4 shrink-0 text-neutral-400" />
+                  <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : 'size-5 shrink-0 text-stone-300 dark:text-stone-500'} />
+                  <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
                   <span className="truncate">{item.title}</span>
                 </AppButton>
               ) : (
                 <>
                 <AppButton
                   variant="plain"
-                  className="flex items-center gap-2.5 px-2.5 py-2.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-neutral-700 dark:text-neutral-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
                   aria-pressed={selected}
                   aria-current={shown ? 'true' : undefined}
                   onClick={() => onSelect(item.id)}
                 >
-                  <ItemIcon type={item.type} className="size-4 shrink-0 text-neutral-400" />
+                  <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
                   <span className={`truncate ${shown ? 'font-semibold' : ''}`}>{item.title}</span>
                   {problem && problem !== 'no-parts' && (
                     <span className="text-amber-500">
@@ -151,7 +153,7 @@ export function LiveOrder({
                   data-no-drag
                   aria-label={t('presentation.itemOptions', { title: item.title })}
                   title={t('presentation.options')}
-                  className="shrink-0 size-7 touch:size-11 flex items-center justify-center rounded-full cursor-pointer text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-raised-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 aria-expanded:opacity-100"
+                  className="shrink-0 size-7 touch:size-11 flex items-center justify-center rounded-full cursor-pointer text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/8 dark:hover:bg-white/12 aria-expanded:bg-black/8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 aria-expanded:opacity-100"
                   aria-expanded={menu?.item.id === item.id}
                   onClick={(e) => {
                     const box = e.currentTarget.getBoundingClientRect();
@@ -163,25 +165,25 @@ export function LiveOrder({
                 </>
               )}
               {/* A finger drags by ≡ (a mouse drags the whole row); Alt+↑/↓ moves the selected item from the keyboard. */}
-              <div {...handle(i)} data-no-drag data-testid="drag-handle" className={`${ticking ? 'hidden' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-neutral-400 dark:text-neutral-500`}>
+              <div {...handle(i)} data-no-drag data-testid="drag-handle" className={`${ticking ? 'hidden' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-stone-400 dark:text-stone-500`}>
                 <MenuIcon className="size-4" />
               </div>
             </li>
           );
         })}
       </ol>
-      <div className="sticky bottom-0 p-3 bg-surface">
+      <div className="sticky bottom-0 p-3 bg-sidebar">
         {ticking && ticked.size > 0 ? (
           <AppButton
             variant="plain"
-            className="text-sm text-center w-full bg-red-500 text-white px-4 py-2.5 touch:min-h-11 rounded-full hover:bg-red-600 cursor-pointer flex items-center justify-center gap-2"
+            className="text-sm text-center w-full bg-red-500 text-white px-4 h-9 touch:h-11 rounded-full hover:bg-red-600 cursor-pointer flex items-center justify-center gap-2"
             onClick={() => onRemoveTicked(items.filter((i) => ticked.has(i.id)))}
           >
             <TrashIcon className="size-4" strokeWidth={1.5} />
             {t('presentation.removeTicked', { n: ticked.size })}
           </AppButton>
         ) : ticking ? (
-          <div className="text-sm text-center text-neutral-400 dark:text-neutral-500 py-2.5">{t('presentation.tickHint')}</div>
+          <div className="text-sm text-center text-stone-400 dark:text-stone-500 py-2.5">{t('presentation.tickHint')}</div>
         ) : (
           <AppButton variant="secondary" onClick={() => onAddAfter(null)} className="w-full flex items-center justify-center gap-2 touch:min-h-11">
             <PlusIcon className="size-4" />

@@ -4,7 +4,8 @@ import { AppButton } from '../../ui/AppButton.tsx';
 
 /**
  * A presentation's description at the top of its running order, where it is plain to see (Lars, 2026-11-01): three
- * lines, and Visa mer when there is more, which unfolds the rest.
+ * lines, and Visa mer when there is more, which unfolds the rest. Grey text on no box of its own, as a list's note in
+ * Reminders: a box read as a field or a button (Lars, 2026-11-02).
  */
 export function Description({ text, className }: { text: string; className?: string }) {
   const [open, setOpen] = useState(false);
@@ -21,8 +22,8 @@ export function Description({ text, className }: { text: string; className?: str
     return () => observer.disconnect();
   }, [open]);
   return (
-    <div className={`rounded-xl bg-raised px-3 py-2.5 ${className ?? ''}`} data-testid="description">
-      <p ref={box} className={`text-sm/5 whitespace-pre-line text-neutral-700 dark:text-neutral-300 ${open ? '' : 'line-clamp-3'}`}>
+    <div className={`px-2 ${className ?? ''}`} data-testid="description">
+      <p ref={box} className={`text-sm/5 whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
       {(more || open) && (

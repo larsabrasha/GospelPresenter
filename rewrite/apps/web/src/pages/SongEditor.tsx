@@ -32,8 +32,8 @@ export interface NewSong {
 }
 
 /**
- * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor). With `onBack`,
- * inside the add dialog (EditSong.razor): its back button returns to the song list there, and
+ * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor), one page wherever a song is edited.
+ * With `onBack`, inside the add dialog (EditSong.razor): its back button returns to the song list there, and
  * so does moving the song to the trash. With `adding`, a song just made there: Avbryt, "Ny sång"
  * and Lägg till (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen. There, Escape
  * is the back button, or Avbryt.
@@ -87,13 +87,12 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   useEffect(() => {
     if (missing) leave();
   }, [missing]);
-  const Frame = onBack ? EmbeddedFrame : PageFrame;
   const back = onBack ? { onBack } : { backHref: href({ page: 'songs' }) };
   if (!data)
     return (
       <Frame onEscape={adding?.onCancel ?? onBack}>
-        <DetailHeader {...back} title="" className={onBack ? 'shrink-0' : 'px-5'} />
-        <div className="px-7 text-neutral-400">{t('common.loading')}</div>
+        <DetailHeader {...back} title="" className="px-5" />
+        <div className="px-7 text-stone-400">{t('common.loading')}</div>
       </Frame>
     );
   const { song, parts, arrangements, labels } = data;
@@ -134,13 +133,15 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const partRow = (p: SongPart, i: number) => {
     const label = p.labelId ? labelChoices.find((l) => l.id === p.labelId) : undefined;
     return (
-      <li key={p.id} data-part-id={p.id} className={`${CARD} p-4 space-y-3`}>
-        <div className="flex items-center gap-2">
+      // One card per part, no box in it (Lars, 2026-11-02): its label, order and removal in a row at the top, the text
+      // written straight into the card under it.
+      <li key={p.id} data-part-id={p.id} className={`${CARD} overflow-hidden`}>
+        <div className="flex items-center gap-1 px-2 py-1.5 border-b-[0.5px] border-separator">
           <SelectMenu
             label={t('song.label')}
             value={p.labelId ?? ''}
             choices={[
-              { value: '', label: t('song.noLabel'), content: <span className="text-neutral-400">{t('song.noLabel')}</span> },
+              { value: '', label: t('song.noLabel'), content: <span className="text-stone-400">{t('song.noLabel')}</span> },
               ...labelChoices.map((l) => ({
                 value: l.id,
                 label: l.text,
@@ -152,9 +153,8 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
               })),
             ]}
             onChoose={(v) => saving(db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === v)?.text ?? null }))}
-            className="flex-1 max-w-[50%]"
-            buttonClassName="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left cursor-pointer focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-            listClassName="left-0 w-full max-h-60 overflow-y-auto"
+            buttonClassName="flex items-center gap-1.5 rounded-full px-2 py-1 text-sm text-left text-stone-900 dark:text-stone-100 hover:bg-raised cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 outline-none"
+            listClassName="left-0 w-56 max-h-60 overflow-y-auto"
             face={
               <>
                 {label ? (
@@ -162,12 +162,11 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
                     <span className={`${PILL} shrink-0`} style={{ background: label.color }}>
                       {label.text}
                     </span>
-                    <span className="flex-1" />
                   </>
                 ) : (
-                  <span className="flex-1 truncate text-neutral-400">{t('song.noLabel')}</span>
+                  <span className="truncate text-stone-400">{t('song.noLabel')}</span>
                 )}
-                <ChevronDownIcon className="size-4 text-neutral-400 shrink-0" />
+                <ChevronDownIcon className="size-4 text-stone-400 shrink-0" />
               </>
             }
           />
@@ -175,7 +174,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           <div className="flex items-center gap-1">
             <AppButton
               variant="icon"
-              className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 disabled:cursor-default"
+              className="p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:cursor-default"
               aria-label={t('common.moveUp')}
               title={t('common.moveUp')}
               disabled={i === 0}
@@ -185,13 +184,16 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             </AppButton>
             <AppButton
               variant="icon"
-              className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 disabled:cursor-default"
+              className="p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:cursor-default"
               aria-label={t('common.moveDown')}
               title={t('common.moveDown')}
               disabled={i === parts.length - 1}
               onClick={() => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i + 1 }))}
             >
               <ChevronDownIcon className="size-4" />
+            </AppButton>
+            <AppButton variant="dangerIcon" className="p-1.5" aria-label={t('song.removePart')} title={t('song.removePart')} onClick={() => void removePart(p)}>
+              <TrashIcon className="size-4" />
             </AppButton>
           </div>
         </div>
@@ -200,15 +202,11 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           value={p.content}
           maxLength={5000}
           multiline
+          bare
           warnOnClash
           onSave={(content) => db.mutate('updateSongPart', { id: p.id, content })}
           onSaved={saved.show}
         />
-        <div className="flex justify-end">
-          <AppButton variant="dangerIcon" className="p-1.5" aria-label={t('song.removePart')} title={t('song.removePart')} onClick={() => void removePart(p)}>
-            <TrashIcon className="size-4" />
-          </AppButton>
-        </div>
       </li>
     );
   };
@@ -224,11 +222,11 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
     <Frame onEscape={adding ? () => void cancel() : onBack}>
       {dialog}
       {adding ? (
-        <div className="flex items-center justify-between gap-3 min-h-10 shrink-0">
+        <div className="flex items-center justify-between gap-3 min-h-10 shrink-0 px-5">
           <AppButton variant="cancel" onClick={() => void cancel()}>
             {t('common.cancel')}
           </AppButton>
-          <h1 className="text-xl/7 font-bold dark:text-neutral-100 truncate">{t('song.newTitle')}</h1>
+          <h1 className="text-xl/7 font-bold dark:text-stone-100 truncate">{t('song.newTitle')}</h1>
           <div className="flex items-center gap-3">
             <span className="relative w-16 h-5">{saved.node}</span>
             <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onAdd(song.name)}>
@@ -237,10 +235,11 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           </div>
         </div>
       ) : (
-        <DetailHeader {...back} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
+        <DetailHeader {...back} title={song.name} saved={saved.node} className="px-5" />
       )}
       <div className="space-y-4" onInput={() => (typed.current = true)}>
-        <div className={`${CARD} p-5 space-y-4`}>
+        {/* The fields have boxes of their own, so no card around them (Lars, 2026-11-02). */}
+        <div className="space-y-4">
           {/* A blank name is not saved (spec 02). */}
           <div data-song-name>
             <AutoSaveField label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
@@ -290,7 +289,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           {t('song.addPart')}
         </AppButton>
         <div className="pt-4">
-          <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 pb-3">{t('song.arrangements')}</h2>
+          <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100 pb-3">{t('song.arrangements')}</h2>
           <div className="space-y-4">
             {arrangements.length > 0 && (
               <ol className="space-y-4">
@@ -311,19 +310,14 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             )}
           </div>
         </div>
-        {/* Noter och länkar for the band: on the song's page, not in the add dialog. */}
+        {/* Noter och länkar for the band, once the song is made. */}
         {!adding && <SongMaterials songId={id} />}
         {!adding && (
           <div className="flex items-center justify-between">
-            {/* Historik is the song page's, not the add dialog's (SongDetail.razor). */}
-            {onBack ? (
-              <div />
-            ) : (
-              <AppButton variant="neutral" href={href({ page: 'songHistory', id })} className="flex items-center gap-1.5">
-                <ClockIcon className="size-4" strokeWidth={2} />
-                {t('song.history')}
-              </AppButton>
-            )}
+            <AppButton variant="neutral" href={href({ page: 'songHistory', id })} className="flex items-center gap-1.5">
+              <ClockIcon className="size-4" strokeWidth={2} />
+              {t('song.history')}
+            </AppButton>
             <AppButton variant="danger" onClick={() => void trash()}>
               {t('song.trash')}
             </AppButton>
@@ -334,24 +328,22 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   );
 }
 
-function PageFrame({ children }: { children: ReactNode; onEscape?: () => void }) {
-  return <PageContainer className="pb-8">{children}</PageContainer>;
-}
-
-/** Inside the add dialog: its own scrolling column, with the dialog's padding (EditSong.razor). */
-function EmbeddedFrame({ children, onEscape }: { children: ReactNode; onEscape?: () => void }) {
+/**
+ * The song's page, the same in Inställningar and in the add dialog (Lars, 2026-11-02: one song editor). In the add
+ * dialog (`onEscape`) Escape goes back one step, to the song list; a second one closes the dialog. A menu or question
+ * open in the editor takes its own Escape first.
+ */
+function Frame({ children, onEscape }: { children: ReactNode; onEscape?: () => void }) {
   return (
     <div
-      className="flex-1 min-h-0 overflow-y-auto flex flex-col space-y-5 pb-6"
+      className="contents"
       onKeyDown={(e) => {
-        // Escape goes back one step, to the song list; a second one closes the add dialog. A menu or question
-        // open in the editor takes its own Escape first.
         if (e.key !== 'Escape' || !onEscape) return;
         e.stopPropagation();
         onEscape();
       }}
     >
-      {children}
+      <PageContainer className="pb-8">{children}</PageContainer>
     </div>
   );
 }

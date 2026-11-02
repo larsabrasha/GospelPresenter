@@ -107,5 +107,5 @@ export function DropZone({
 
 /** Says, next to an upload button, that dropping works too (Components/DropHint.razor); hidden on a phone by default. */
 export function DropHint({ text, className }: { text: string; className?: string }) {
-  return <span className={`text-xs text-neutral-400 dark:text-neutral-500 ${className ?? 'hidden sm:inline'}`}>{text}</span>;
+  return <span className={`text-xs text-stone-400 dark:text-stone-500 ${className ?? 'hidden sm:inline'}`}>{text}</span>;
 }

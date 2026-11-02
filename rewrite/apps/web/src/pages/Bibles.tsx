@@ -79,7 +79,7 @@ export function Bibles() {
         <PageHeader title={t('bibles.title')} />
         <div className={`${CARD} p-5 space-y-4`}>
           <h2 className="text-base/6 font-semibold">{t('bibles.importTitle')}</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
             {t('bibles.importText').split('{zip}')[0]}
             <code>.zip</code>
             {t('bibles.importText').split('{zip}')[1]}
@@ -102,8 +102,8 @@ export function Bibles() {
           <DropHint text={t('bibles.orDrop')} className="hidden sm:inline ml-3" />
           {busy && (
             <div className="space-y-2" role="status">
-              <div className="text-sm text-neutral-600 dark:text-neutral-300">{t('bibles.processing')}</div>
-              <div className="w-full bg-neutral-200 dark:bg-raised rounded-full h-2 overflow-hidden">
+              <div className="text-sm text-stone-600 dark:text-stone-300">{t('bibles.processing')}</div>
+              <div className="w-full bg-stone-200 dark:bg-raised rounded-full h-2 overflow-hidden">
                 <div className="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse" />
               </div>
             </div>
@@ -117,10 +117,10 @@ export function Bibles() {
         <div className={CARD}>
           <div className="px-5 pt-4 pb-2">
             <h2 className="text-base/6 font-semibold">{t('bibles.installed', { count: bibles?.length ?? 0 })}</h2>
-            {!host && status && !persistent && !!bibles?.length && <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">{t('bibles.offlineUnavailable')}</p>}
+            {!host && status && !persistent && !!bibles?.length && <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('bibles.offlineUnavailable')}</p>}
           </div>
           {bibles && !bibles.length && (
-            <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
+            <div className="flex flex-col items-center justify-center py-12 text-stone-400">
               <BookOpenOutlineIcon className="size-16 mb-4" />
               <p className="text-sm">{t('bibles.empty')}</p>
             </div>
@@ -130,10 +130,10 @@ export function Bibles() {
               <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{b.name}</div>
-                  <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount })}</div>
+                  <div className="text-xs text-stone-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount })}</div>
                 </div>
                 {host ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
                     <CheckIcon className="size-4 text-green-500" />
                     {t('bibles.offline')}
                   </span>
@@ -180,8 +180,8 @@ function OfflineState({ bible: b, busy, onKeep }: { bible: InstalledBible; busy:
       </AppButton>
     );
   }
-  if (b.kept) return <span className="text-xs text-neutral-400">{t('bibles.fetching')}</span>;
-  if (b.stored) return <span className="text-xs text-neutral-400">{t('bibles.offline')}</span>;
+  if (b.kept) return <span className="text-xs text-stone-400">{t('bibles.fetching')}</span>;
+  if (b.stored) return <span className="text-xs text-stone-400">{t('bibles.offline')}</span>;
   return (
     <AppButton variant="secondary" loading={busy === b.id} disabled={busy !== null} onClick={() => onKeep(true)}>
       {t('bibles.makeOffline')}

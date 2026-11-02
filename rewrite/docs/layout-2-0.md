@@ -8,12 +8,14 @@ colour. Everything not named here keeps the current look.
 
 ## Colours
 
-One scale for the whole app, iOS's grouped one, named in the Tailwind theme (`apps/web/src/app.css`): `ground`
-(the page: `#ebebf0` light, black dark), `surface` on it (cards, panels, dialogs, the bar, a list's rows: white,
-`#1c1c1e`), `raised` on a surface (fields, pills, secondary buttons, rows inside a card: `#f2f2f7`, `#2c2c2e`) and
-`raised-2` a step further (hover), hairline `separator`s, and a sheet's own `sheet` with its rows in `sheet-cell`.
-Light mode's ground is a step darker than iOS's `#f2f2f7`, so a white row stands out on it. A class names the role
-(`bg-surface`), never a grey; the old `neutral` greys remain only for text, icons and fields' borders.
+One scale for the whole app, Tailwind's warm grey `stone`, the text's too (Lars, 2026-11-02: warm as Claude's; no
+blue-tinted Apple greys and no `neutral` beside it), named by role in the Tailwind theme (`apps/web/src/app.css`):
+`ground` (the page, the lightest: stone-50 light, stone-950 dark), `surface` on it (cards, panels, dialogs, a list's
+rows: white with a hairline, stone-900), `raised` on a surface (fields, pills, secondary buttons, rows inside a card:
+stone-100, stone-800) and `raised-2` a step further (hover), see-through hairline `separator`s, a `sidebar` a step
+darker than the page beside it (stone-100), and a sheet's own `sheet` with its rows in `sheet-cell`. A class names
+the role (`bg-surface`) rather than a step of the scale. Cards are flat: a hairline, no shadow, no box of their own
+around fields that have boxes.
 
 ## One rule across the app
 
@@ -42,12 +44,18 @@ tapped shows nothing, and ▶ starts it.
   (`● LIVE · 10:00 · Kyrksalen`; LIVE until Avsluta, also while Rensa has blacked the outputs), and at the right
   one glass button in two parts: … and ■, which ends the presentation (asking first). Start and stop are always an
   icon at the far right of the bar, on a phone and a computer (Lars, 2026-11-01).
-  The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens
-  **Om presentationen**: time, place, the whole description, and Redigera.
-- **…** holds Utgångar first, then Om presentationen, Overlays and Fjärrstyrning. There is no Scenläge: the live view is it
-  on a phone and a tablet (Lars, 2026-11-01).
-- **The description** sits at the top of the running order, three lines with Visa mer to unfold the rest, so it is
-  plain to see; on a computer the same at the top of the left column.
+  The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens the
+  presentation's menu, the same as on a computer (Lars, 2026-11-02): Redigera detaljer… and Noter och länkar, Spara
+  som mall…, and to the trash when not presented.
+- **…** holds only what the title's menu does not, in groups as on iOS (Lars, 2026-11-02): Utgångar, Overlays and
+  Fjärrstyrning; then Inställningar. Spara offline is the line under the running order while it is kept. "…" in a
+  menu only where a dialog asks first. There is no
+  Scenläge: the live view is it on a phone and a tablet (Lars, 2026-11-01).
+- **The description** sits at the top of the left column on a computer, three lines with Visa mer to unfold the rest.
+  A phone leaves it out of the running order, to keep the room for the parts (Lars, 2026-11-02); Redigera detaljer…
+  has it. The picture while presenting is at most a fifth of the screen high, for the same reason.
+  A phone lying down has two columns: the running order at the left, the picture and ‹ Rensa › at the right, the +
+  at the foot of the order (Lars, 2026-11-02).
 - **The picture** that is shown, with **‹ Rensa ›** right under it (Rensa only blacks the outputs, and
   rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
@@ -61,9 +69,9 @@ tapped shows nothing, and ▶ starts it.
   has a red ring and VISAS, the next NÄSTA; the ones before look as the rest (not dimmed), as one goes back to them.
 - **The list follows the shown part** only when it changed some other way than a tap in the list (the arrows,
   someone controlling it remotely), and only when the part is out of view: nothing moves under a finger.
-- **Flytta**, in an item's …, folds the list to one row per item, moved by ≡ and removed by a red minus; the shown item can move
+- **Ändra ordning** (was Flytta: Lars, 2026-11-02), in an item's …, folds the list to one row per item, moved by ≡ and removed by a red minus; the shown item can move
   but not be removed. Klar ends it.
-- **An item's …** (on its heading) offers Lägg till efter, Flytta and Ta bort.
+- **An item's …** (on its heading) offers Lägg till efter…, Ändra ordning and Ta bort.
 - **Lägg till** (Sånger, Bibel, Text) adds right after what is shown, or after the last thing added while that is
   still ahead, so several additions keep their order; "Lägg till efter" in an item's … names the place instead.
   The list goes to the new item and marks it; nothing changes on the outputs. Adding and removing can be undone.
@@ -73,15 +81,16 @@ tapped shows nothing, and ▶ starts it.
 
 ## Live, columns (computer, iPad lying down)
 
-Editing sits in the middle, before and while presenting: a section's heading renames the item (a click on its
-title, or F2), opens its song (Redigera) or edits its pictures, and under it are the item's warnings, its player,
+Editing sits in the middle, before and while presenting: a section's heading names the item (it is not renamed in
+the app, which confused: Lars, 2026-11-02), opens its song (Redigera) or edits its pictures, and under it are the item's warnings, its player,
 its arrangement and its overlay. Markera at the top of the left column ticks items to remove together. On a phone
-an item's … holds the same: Byt namn, Redigera sång, Redigera bilder, the arrangement and the overlay.
+an item's … holds the same but Byt namn (Lars, 2026-11-02): Redigera sång, Redigera bilder, the arrangement and the
+overlay.
 
 - **The bar** is the presentation's own, the same before and while it is presented, so its name stays in one place
   (the left column has none): "‹ Presentationer" at the left; in the middle the name, LIVE while presented, and when
-  and where, which open the presentation's menu (Redigera detaljer, Spara som mall, and to the trash when not
-  presented); at the right round icons for Fjärrstyrning (while presented) and Inställningar, no … (Lars,
+  and where, which open the presentation's menu (Redigera detaljer… and Noter och länkar, Spara som mall…, and to the trash
+  when not presented, each group apart); at the right round icons for Fjärrstyrning (while presented) and Inställningar, no … (Lars,
   2026-11-01), and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
   sync has a problem. A template has no ▶.
 - **Left:** the items, one row each, the shown one marked by a red dot left of its name and a tint across the
@@ -98,7 +107,7 @@ an item's … holds the same: Byt namn, Redigera sång, Redigera bilder, the arr
 ## The start page and the bar
 
 The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
-name and role, Mina inställningar, Inställningar, Byt organisation, the sync's state and Logga ut. The cloud shows
+name (no role or organisation), Inställningar (Mina inställningar is a row in it), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
 what and offers Synka nu. The page keeps Visas nu at the top, then Idag, Kommande and Senast ändrade, each row with
 its time, place and number of items, and Papperskorg last. On a computer the groups are tables.
@@ -108,6 +117,9 @@ its time, place and number of items, and Papperskorg last. On a computer the gro
 On a phone a list as iOS's Settings: Mina inställningar as a profile cell at the top, then Bibliotek (Sånger,
 Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Teman, CCLI-rapport),
 Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
-opens its page full width with "‹ Inställningar". On a computer as macOS's System Settings: the same list at the
+opens its page full width, with a round ‹ alone at the left of the dialog's bar (one step up) and the page's name in
+its middle (Lars, 2026-11-02). Overlays, Mallar, Etiketter, Skärmar, Teman, CCLI-rapport, Enheter and Organisationen
+open with a card as iOS's Settings has: the row's icon, the page's name and what it is for; the bar names the page
+once the card has scrolled away. On a computer as macOS's System Settings: the same list at the
 left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
 list replaces the dialog's side menu.

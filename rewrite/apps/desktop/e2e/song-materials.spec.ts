@@ -49,7 +49,7 @@ test('a song carries sheet music and links; the presentation gathers them for th
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ' }).click();
-  await page.getByRole('menuitem', { name: 'Noter och länkar…' }).click();
+  await page.getByRole('menuitem', { name: 'Noter och länkar' }).click();
   const gathered = page.getByTestId('presentation-materials');
   const song = gathered.getByRole('region', { name: 'Sång A' });
   await expect(song.getByRole('link', { name: /Spotify/ })).toBeVisible();

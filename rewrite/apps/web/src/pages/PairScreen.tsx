@@ -43,7 +43,7 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
           ref={(el) => {
             boxes.current[i] = el;
           }}
-          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-raised text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20"
           inputMode="numeric"
           autoComplete="one-time-code"
           aria-label={t('pairScreen.digit', { n: i + 1 })}
@@ -160,14 +160,14 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
             <TickIcon className="size-12 text-white" />
           </div>
           <div className="font-semibold text-lg">{t('pairScreen.done')}</div>
-          <div className="text-sm text-neutral-500 dark:text-neutral-400">{t('pairScreen.doneText')}</div>
+          <div className="text-sm text-stone-500 dark:text-stone-400">{t('pairScreen.doneText')}</div>
           <AppButton onClick={onClose}>{t('common.close')}</AppButton>
         </div>
       ) : (
         <>
           <div className="space-y-3">
-            <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.scan')}</h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('pairScreen.scanHint')}</p>
+            <h3 className="font-medium text-sm/5 text-stone-800 dark:text-stone-100">{t('pairScreen.scan')}</h3>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{t('pairScreen.scanHint')}</p>
             <div className="flex justify-center">
               <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
                 {token && <QrCode value={`${base}${href({ page: 'display', id: null, name: null, token })}`} label={t('pairScreen.qr')} />}
@@ -175,12 +175,12 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
-            <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('pairScreen.or')}</span>
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
+            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
+            <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-stone-500">{t('pairScreen.or')}</span>
+            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
           </div>
           <div className="space-y-4">
-            <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.manual')}</h3>
+            <h3 className="font-medium text-sm/5 text-stone-800 dark:text-stone-100">{t('pairScreen.manual')}</h3>
             <div className="space-y-2">
               <Step n={1} text={t('pairScreen.step1')} />
               <div className="pl-7">
@@ -208,7 +208,7 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
 /** A numbered step: the number in a small sky circle (PairingCodeDialog.razor). */
 function Step({ n, text }: { n: number; text: string }) {
   return (
-    <div className="flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
+    <div className="flex items-start gap-2 text-sm text-stone-700 dark:text-stone-200">
       <span className="size-5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-semibold shrink-0">{n}</span>
       <span>{text}</span>
     </div>

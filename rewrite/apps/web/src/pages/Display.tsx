@@ -130,7 +130,7 @@ function Waiting({ testId, children }: { testId: string; children: ReactNode }) 
   return (
     <div className="fixed inset-0 flex flex-col bg-black text-white items-center justify-center" data-testid={testId}>
       <div className="flex-1 flex flex-col items-center justify-center gap-6">{children}</div>
-      <div className="flex items-center gap-3 text-neutral-600 pb-8">
+      <div className="flex items-center gap-3 text-stone-600 pb-8">
         <LogoIcon className="size-8" />
         <span className="text-xl font-semibold tracking-wide">Gospel Presenter</span>
       </div>
@@ -148,8 +148,8 @@ function SavedScreen({ code, name }: { code: string; name: string | null }) {
   if (shown.kind === 'canvas' && !gone) return <Slide base={base} shown={shown} />;
   return (
     <Waiting testId="display-idle">
-      {title && <div className="text-neutral-300 text-[3vw] font-semibold">{title}</div>}
-      {gone && <div className="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.notFound')}</div>}
+      {title && <div className="text-stone-300 text-[3vw] font-semibold">{title}</div>}
+      {gone && <div className="text-stone-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.notFound')}</div>}
     </Waiting>
   );
 }
@@ -209,14 +209,14 @@ function TemporaryScreen({ token, name }: { token: string | null; name: string |
   if (pairedId) return <Slide base={`/api/screen/${pairedId}`} shown={shown} />;
   return (
     <Waiting testId="display-pairing">
-      {name && <div className="text-neutral-300 text-[3vw] font-semibold">{name}</div>}
+      {name && <div className="text-stone-300 text-[3vw] font-semibold">{name}</div>}
       {state.kind === 'code' && (
         <>
-          <div className="text-neutral-400 text-[2.5vw] tracking-widest uppercase">{t('display.code')}</div>
+          <div className="text-stone-400 text-[2.5vw] tracking-widest uppercase">{t('display.code')}</div>
           <div className="text-[14vw] leading-none font-bold tracking-[0.3em] font-mono" data-testid="display-pin">
             {state.pin}
           </div>
-          <div className="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.codeText')}</div>
+          <div className="text-stone-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.codeText')}</div>
         </>
       )}
     </Waiting>

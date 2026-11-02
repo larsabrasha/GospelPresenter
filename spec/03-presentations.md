@@ -165,7 +165,8 @@ nothing.
 
 #### 2b. Header (`S/Components/Presentations/PresentationHeader.razor`)
 - Selected item title; on desktop (≥lg) clicking it (or F2) turns it into an input: Enter or blur
-  saves (trimmed; blank or unchanged = no-op), Escape cancels.
+  saves (trimmed; blank or unchanged = no-op), Escape cancels. **The rewrite (2.0) has no renaming of an item in
+  the app** (Lars, 2026-11-02: it confused): the title is plain text, and F2 does nothing. MCP's `rename_item` keeps it.
 - Song selected: **Redigera** → modal "Redigera" with the full song editor (songs area) and an
   autosave "Sparad" indicator; closing re-reads the song and, if its name changed, renames the item
   to the new song name.
@@ -302,7 +303,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 | Startsidan | `n` | New presentation (picker/dialog). |
 | Startsidan (doc) | ↓ / Enter | Move through list / open. |
 | Presentation | `a` | Open Add modal (ignored in remote and stage mode). |
-| Presentation | `F2` | Rename selected item (ignored in stage mode). |
+| Presentation | `F2` | Rename selected item (ignored in stage mode). Not in 2.0 (see 2b). |
 | Presentation | `Delete` | Confirm-remove selected item (ignored in remote and stage mode). |
 | Presentation (rewrite) | Alt+↑ / Alt+↓ | Move the selected item one place up / down. |
 | Presentation (doc) | ↓ / → / Enter | Move through running order / slides / show slide. |
@@ -541,7 +542,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   are checked and the button reads "Ta bort markerade (3)"; confirming shows toast "3 objekt borttagna".
 - PRES-A18 Given a selected item on a desktop viewport, when the user presses F2, types a new name and
   presses Enter, then the title updates in header and sidebar and persists; Escape instead keeps the
-  old title.
+  old title. Not in 2.0: items are not renamed in the app (see 2b).
 - PRES-A19 Given the running order has focus, when the user presses ↓ three times past the last item,
   then selection stops on the last item (no wrap); Ctrl+↓ does nothing.
 - PRES-A20 Given a song item is selected, when the user presses → in the slide grid, then focus moves to

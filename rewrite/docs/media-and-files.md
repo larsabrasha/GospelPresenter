@@ -191,10 +191,10 @@ afterwards as cache.
 
 **Kept offline**, on a device that keeps its data (OPFS in a browser, the desktop app): every file of the
 presentation, whatever its date, its videos whole too, including what is added to it later. It is a choice the device
-makes for each presentation by its icon after the title in the start page's list (a cloud with an arrow, a ring that
-fills while its files come, a sky check once all is here), or by "Spara offline…" in the presentation's menu, a
-dialog that says what keeping does and has the switch; while kept, a quiet line at the foot of the left column ("Sparad
-offline", or a ring that fills) opens the same dialog (`ui/KeepOffline.tsx`, `presentation-editor/OfflineStatus.tsx`;
+makes for each presentation by a quiet line at the foot of its left column (on a phone, under the running order:
+"Inte sparad offline" with a cloud, a ring that fills while its files come, "Sparad offline" with a sky check), which
+opens a dialog that says what keeping does and has the switch. The start page's list and the presentation's menu
+have no Spara offline (Lars, 2026-11-02) (`ui/KeepOffline.tsx`, `presentation-editor/OfflineStatus.tsx`;
 the local table `pinned_presentations`), or for every presentation dated from today to seven days ahead with "Spara
 kommande presentationer offline" under Mina inställningar ("Presentationer de närmaste sju dagarna hämtas till den
 här enheten, även video.", off at first, kept in the browser as the theme is). Once a date has passed, its files are

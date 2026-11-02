@@ -25,9 +25,11 @@ test('the start page bar holds the picture, whose menu tells the sync and opens 
   await expect(page.getByRole('button', { name: /Synka nu/ })).toHaveCount(0); // the cloud shows only when something is wrong
 
   await page.getByTestId('me').click();
-  await expect(page.getByTestId('sync-state')).toHaveText('Synkad');
+  await expect(page.getByTestId('sync-state')).toHaveCount(0); // all synced: the menu says nothing of it
   await expect(page.getByRole('menuitem', { name: 'Synka nu' })).toHaveCount(0);
-  await page.getByRole('menuitem', { name: 'Mina inställningar', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Mina inställningar' })).toHaveCount(0); // a row in Inställningar
+  await page.keyboard.press('Escape');
+  await openAdmin(page, 'Mina inställningar');
   await expect(page.getByRole('heading', { name: 'Mina inställningar', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Administration' }).getByRole('link', { name: 'Mina inställningar' })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('link', { name: 'Inloggningsmetoder' }).click();
@@ -80,7 +82,7 @@ test('neither Escape nor a press outside closes Inställningar', async () => {
   await openAdmin(page, 'Sånger');
   const settings = adminDialog(page);
 
-  await settings.getByRole('heading', { name: 'Sånger', exact: true }).click();
+  await settings.getByRole('heading', { name: 'Importera ProPresenter-sånger' }).click();
   await page.keyboard.press('Escape');
   await page.mouse.click(2, 2);
 
@@ -118,7 +120,7 @@ test('on a phone Inställningar fills the screen with its list, and a row opens 
 
   await expect(list).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Teman', exact: true })).toBeVisible();
-  await adminDialog(page).getByRole('link', { name: 'Inställningar' }).click();
+  await adminDialog(page).getByRole('link', { name: 'Tillbaka' }).click();
   await expect(list).toBeVisible();
   await closeAdmin(page);
   await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
@@ -137,4 +139,14 @@ test('Om Gospel Presenter, at the foot of the list for everyone, tells the versi
   await expect(links.getByRole('link', { name: 'Webbplats' })).toHaveAttribute('href', 'https://www.gospelpresenter.com');
   await expect(links.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/larsabrasha/GospelPresenter');
   await expect(links.getByRole('link', { name: 'GitHub' })).toHaveAttribute('target', '_blank');
+});
+
+test("a library's Papperskorg opens inside Inställningar, its row marked, and ‹ goes back to the list", async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Sånger');
+  await adminDialog(page).getByRole('link', { name: 'Papperskorg' }).click();
+  await expect(adminDialog(page).getByRole('heading', { name: 'Papperskorg', exact: true })).toBeVisible();
+  await expect(adminDialog(page).getByRole('navigation', { name: 'Administration' }).getByRole('link', { name: 'Sånger' })).toHaveAttribute('aria-current', 'page');
 });

@@ -47,10 +47,10 @@ export function MaterialList({ materials, editable, empty }: { materials: SongMa
         {materials.map((m) => (
           <li key={m.id} className="flex items-center">
             {m.kind === 'link' ? (
-              <a href={m.url ?? undefined} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 flex items-center gap-3 px-4 py-2.5 min-h-12 no-underline text-neutral-900 dark:text-neutral-100">
+              <a href={m.url ?? undefined} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 flex items-center gap-3 px-4 py-2.5 min-h-12 no-underline text-stone-900 dark:text-stone-100">
                 <MaterialIcon m={m} />
                 <Title m={m} />
-                <ArrowTopRightOnSquareIcon className="size-4 shrink-0 text-neutral-400" />
+                <ArrowTopRightOnSquareIcon className="size-4 shrink-0 text-stone-400" />
               </a>
             ) : (
               <AppButton variant="plain" onClick={() => setOpen(m)} className="flex-1 min-w-0 flex items-center gap-3 px-4 py-2.5 min-h-12 text-left cursor-pointer">
@@ -62,12 +62,12 @@ export function MaterialList({ materials, editable, empty }: { materials: SongMa
               <Dropdown
                 className="shrink-0 pr-2"
                 menuClassName="w-44"
-                button={{ className: 'size-9 rounded-full flex items-center justify-center cursor-pointer text-neutral-400 hover:bg-raised', 'aria-label': t('material.options', { title: m.title }), title: t('presentation.options') }}
+                button={{ className: 'size-9 rounded-full flex items-center justify-center cursor-pointer text-stone-400 hover:bg-raised', 'aria-label': t('material.options', { title: m.title }), title: t('presentation.options') }}
                 trigger={<EllipsisOutlineIcon className="size-4" />}
               >
                 <AppButton variant="plain" role="menuitem" className={MENU_ITEM} onClick={() => setRenaming(m)}>
                   <PencilIcon className="size-4" />
-                  {t('presentation.renameShort')}
+                  {t('presentation.renameMenu')}
                 </AppButton>
                 <AppButton
                   variant="plain"
@@ -96,7 +96,7 @@ function Title({ m }: { m: SongMaterial }) {
   return (
     <span className="flex-1 min-w-0 flex flex-col">
       <span className="truncate text-[15px]">{m.title}</span>
-      <span className="truncate text-xs text-neutral-500 dark:text-neutral-400">{detail(m)}</span>
+      <span className="truncate text-xs text-stone-500 dark:text-stone-400">{detail(m)}</span>
     </span>
   );
 }
@@ -125,8 +125,8 @@ export function SongMaterials({ songId }: { songId: string }) {
   };
   return (
     <section className="pt-4 space-y-3" aria-label={t('material.title')}>
-      <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">{t('material.title')}</h2>
-      <MaterialList materials={materials} editable empty={<p className="text-sm text-neutral-500 dark:text-neutral-400">{t('material.empty')}</p>} />
+      <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100">{t('material.title')}</h2>
+      <MaterialList materials={materials} editable empty={<p className="text-sm text-stone-500 dark:text-stone-400">{t('material.empty')}</p>} />
       {failures.map((f) => (
         <p key={f} className="text-sm text-red-500 dark:text-red-400">
           {f}

@@ -50,8 +50,8 @@ export function SlidesTab({ presentationId, afterItemId, onAdded }: TabProps) {
   return (
     <DropZone className="flex flex-col items-center justify-center h-full gap-6 px-4 py-8" label={t('slides.dropHere')} accept="application/pdf,.pdf" multiple={false} enabled={!importing} onFiles={(files) => void importFile(files[0])}>
       {importing ? (
-        <div className="flex flex-col items-center gap-3 text-neutral-500 dark:text-neutral-400" role="status">
-          <PresentationChartOutlineIcon className="size-12 text-neutral-300 dark:text-neutral-600 animate-pulse" />
+        <div className="flex flex-col items-center gap-3 text-stone-500 dark:text-stone-400" role="status">
+          <PresentationChartOutlineIcon className="size-12 text-stone-300 dark:text-stone-600 animate-pulse" />
           <span className="text-sm font-medium">{t('slides.importing')}</span>
         </div>
       ) : (
@@ -76,7 +76,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded }: TabProps) {
               {error}
             </p>
           )}
-          <div className="text-xs text-neutral-400 dark:text-neutral-500 text-center max-w-xs leading-relaxed space-y-3">
+          <div className="text-xs text-stone-400 dark:text-stone-500 text-center max-w-xs leading-relaxed space-y-3">
             <p>{t('slides.help1')}</p>
             <p>{t('slides.help2')}</p>
             <p>{t('slides.help3')}</p>

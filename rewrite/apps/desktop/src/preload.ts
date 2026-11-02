@@ -12,6 +12,14 @@ contextBridge.exposeInMainWorld('gpDesktop', {
     return () => void ipcRenderer.off('output-changed', on);
   },
   isHost: Boolean(ipcRenderer.sendSync('is-host')),
+  /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */
+  macFrame: process.platform === 'darwin',
+  /** A choice in the menu bar the page has no key for (Inställningar…). */
+  onMenu(cb: (command: string) => void) {
+    const on = (_e: unknown, command: unknown) => typeof command === 'string' && cb(command);
+    ipcRenderer.on('menu', on);
+    return () => void ipcRenderer.off('menu', on);
+  },
   deviceName: String(ipcRenderer.sendSync('device-name')),
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,

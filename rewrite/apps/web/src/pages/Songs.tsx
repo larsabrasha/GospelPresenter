@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
+import { FIRST_PART_LABEL } from './songEditorLook.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
+import { EmptySmall } from '../ui/Empty.tsx';
 import { MusicalNoteOutlineIcon, TrashIcon } from '../ui/icons.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { CARD, ListLinkRow } from '../ui/List.tsx';
@@ -30,6 +32,8 @@ function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: stri
       setSaving(false);
       return;
     }
+    // A new song starts with its first part, Verse 1, to type in (Lars, 2026-11-02).
+    await trySave(db.mutate('addSongPart', { id: newId(), songId: id, labelText: FIRST_PART_LABEL, content: '' }));
     onCreated(id);
   };
   return (
@@ -85,13 +89,9 @@ export function Songs() {
             {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
           </div>
           {songs && !songs.length && (
-            <div className="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
-              <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
-              <p className="font-medium text-neutral-500 dark:text-neutral-400 mb-1">{t('songs.emptyTitle')}</p>
-              <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('songs.emptyText')}</p>
-            </div>
+            <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} />
           )}
-          {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-neutral-400 text-sm">{t('songs.noHits')}</p>}
+          {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-stone-400 text-sm">{t('songs.noHits')}</p>}
           {!!shown?.length && (
             <ul aria-label={t('nav.songs')}>
               {shown.map((s) => (

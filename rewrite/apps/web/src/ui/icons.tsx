@@ -472,11 +472,11 @@ export function EmptySlidesPicture({ className }: IconProps) {
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" className={className} aria-hidden="true">
       <rect x="50" y="10" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.5" />
       <rect x="35" y="25" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.7" />
-      <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" className="fill-stone-100 dark:fill-stone-800" />
       <line x1="40" y1="65" x2="120" y2="65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
       <line x1="40" y1="78" x2="100" y2="78" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
       <line x1="40" y1="91" x2="110" y2="91" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
-      <circle cx="160" cy="130" r="20" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <circle cx="160" cy="130" r="20" stroke="currentColor" strokeWidth="2" className="fill-stone-100 dark:fill-stone-800" />
       <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
@@ -578,6 +578,43 @@ export function ArrowDownTrayIcon({ className, strokeWidth = 2 }: StrokeIconProp
   );
 }
 
+/** A box with a check, drawn as the boxes Markera shows (SF Symbols' checkmark.square): Markera. */
+export function CheckSquareIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="3.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 12.25 2.5 2.5 5-5.5" />
+    </Outline>
+  );
+}
+
+/** A door with an arrow out (Heroicons' arrow-right-start-on-rectangle): Logga ut. */
+export function SignOutIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+    </Outline>
+  );
+}
+
+/** Two arrows, left and right (Heroicons' arrows-right-left): Byt organisation. */
+export function ArrowsRightLeftIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </Outline>
+  );
+}
+
+/** Two arrows, up and down (Heroicons' arrows-up-down, SF Symbols' arrow.up.arrow.down): Ändra ordning. */
+export function ArrowsUpDownIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+    </Outline>
+  );
+}
+
 /** "⋯", a menu of one thing (Images.razor, Audios.razor). */
 export function EllipsisIcon({ className }: IconProps) {
   return (
@@ -601,24 +638,6 @@ export function QrCodeIcon({ className }: IconProps) {
     <Solid className={className} viewBox="0 0 20 20">
       <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z" />
     </Solid>
-  );
-}
-
-/** The QR code in outline, on the live panel's "Visa info om fjärrstyrning" (LivePanel.razor). */
-export function QrCodeOutlineIcon({ className }: IconProps) {
-  return (
-    <Outline className={className}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z"
-      />
-    </Outline>
   );
 }
 
@@ -702,7 +721,7 @@ export function MapIcon({ className }: IconProps) {
 
 // The large grey pictures of the admin pages' empty lists.
 
-const PICTURE_FILL = 'fill-neutral-100 dark:fill-neutral-800';
+const PICTURE_FILL = 'fill-stone-100 dark:fill-stone-800';
 
 /** A circle with a plus, at the lower right of several pictures. */
 function PlusBadge() {

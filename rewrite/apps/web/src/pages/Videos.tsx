@@ -25,8 +25,8 @@ const trashedAt = () => Date.now();
 function Thumb({ video }: { video: LibraryVideo }) {
   const url = useBlobUrl(video.thumbHash);
   return (
-    <span className="relative w-16 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-raised overflow-hidden flex items-center justify-center">
-      {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-4 text-neutral-400" />}
+    <span className="relative w-16 aspect-video shrink-0 rounded bg-stone-200 dark:bg-raised overflow-hidden flex items-center justify-center">
+      {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-4 text-stone-400" />}
     </span>
   );
 }
@@ -76,7 +76,7 @@ export function Videos({ role }: { role: Role }) {
           </div>
         </PageHeader>
         {status && (
-          <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400" role="status">
+          <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status">
             {status.phase === 'waiting'
               ? t('videos.waiting', { percent: status.percent })
               : t(status.phase === 'reading' ? 'videos.reading' : 'videos.uploading', { name: status.name, percent: status.percent })}
@@ -98,20 +98,20 @@ export function Videos({ role }: { role: Role }) {
             <h2 className="text-base/6 font-semibold">{t('videos.all', { n: videos?.length ?? 0 })}</h2>
             {!!videos?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
           </div>
-          {!videos && <div className="px-5 py-4 text-neutral-400 text-sm">{t('videos.loading')}</div>}
-          {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('presentation.noVideos')} text={t('videos.emptyText')} />}
+          {!videos && <div className="px-5 py-4 text-stone-400 text-sm">{t('videos.loading')}</div>}
+          {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('presentation.noVideos')} />}
           {!!videos?.length && !shown.length && <CardNote>{t('videos.noMatch')}</CardNote>}
           <ul aria-label={t('videos.page')}>
             {shown.map((v) => (
               <li
                 key={v.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-raised/50"
+                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-stone-100 dark:hover:bg-raised/50"
                 aria-label={v.fileName}
               >
                 <Thumb video={v} />
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm truncate">{v.fileName}</span>
-                  <span className="block text-xs text-neutral-500 dark:text-neutral-400 tabular-nums">
+                  <span className="block text-xs text-stone-500 dark:text-stone-400 tabular-nums">
                     {[formatDuration(v.duration), formatBytes(v.size), v.codec === 'hevc' ? 'HEVC' : 'H.264'].join(' · ')}
                   </span>
                 </span>

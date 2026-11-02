@@ -114,7 +114,7 @@ export function StorageSection() {
     return (
       <div className={`${CARD} p-5`} data-testid="storage">
         <h2 className="block text-sm/5 font-medium mb-1">{t('storage.title')}</h2>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('storage.host')}</p>
+        <p className="text-xs text-stone-500 dark:text-stone-400">{t('storage.host')}</p>
       </div>
     );
   return <DeviceStorage />;
@@ -149,20 +149,20 @@ function DeviceStorage() {
       <section aria-labelledby="storage-offline">
         <h3 id="storage-offline" className="flex items-baseline justify-between gap-2 text-sm font-medium">
           <span>{t('storage.offline')}</span>
-          <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums" data-testid="storage-offline-total">
+          <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums" data-testid="storage-offline-total">
             {formatBytes(report?.offlineTotal ?? 0)}
           </span>
         </h3>
-        {report && !report.offline.length && <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">{t('storage.offlineNone')}</p>}
+        {report && !report.offline.length && <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('storage.offlineNone')}</p>}
         <ul className="mt-2 flex flex-col gap-1" aria-label={t('storage.offline')}>
           {report?.offline.map((o) => {
             const p = byId.get(o.presentationId);
             const byHand = !!pinned?.has(o.presentationId);
             return (
-              <li key={o.presentationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-neutral-100 dark:bg-raised/50 px-3 py-2 text-sm">
+              <li key={o.presentationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-stone-100 dark:bg-raised/50 px-3 py-2 text-sm">
                 <span className="flex-1 min-w-0">
                   <span className="block truncate">{p?.name ?? o.presentationId}</span>
-                  <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">
                     {[p?.eventDate, formatBytes(o.bytes)].filter(Boolean).join(' · ')}
                     {!byHand && ` · ${t('storage.byComing')}`}
                   </span>
@@ -181,11 +181,11 @@ function DeviceStorage() {
       <section aria-labelledby="storage-cache" className="space-y-2">
         <h3 id="storage-cache" className="flex items-baseline justify-between gap-2 text-sm font-medium">
           <span>{t('storage.cache')}</span>
-          <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums" data-testid="storage-cache">
+          <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums" data-testid="storage-cache">
             {formatBytes(cache)}
           </span>
         </h3>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('storage.cacheText')}</p>
+        <p className="text-xs text-stone-500 dark:text-stone-400">{t('storage.cacheText')}</p>
         <label className="flex items-center justify-between gap-3 text-sm">
           <span>{t('storage.limit')}</span>
           <span className="relative shrink-0">
@@ -199,7 +199,7 @@ function DeviceStorage() {
                 setLimit(bytes);
                 setCacheLimitSetting(bytes);
               }}
-              className="appearance-none h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-neutral-900 dark:text-neutral-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="appearance-none h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               {[...new Set([...LIMITS.filter((l) => l <= (max ?? limit)), limit])]
                 .toSorted((a, b) => a - b)
@@ -209,7 +209,7 @@ function DeviceStorage() {
                   </option>
                 ))}
             </select>
-            <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </span>
         </label>
         <AppButton

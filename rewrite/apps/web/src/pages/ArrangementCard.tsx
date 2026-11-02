@@ -23,7 +23,7 @@ function partName(p: SongPart, labels: Map<string, Label>): string {
 function PartPill({ part, labels }: { part: SongPart; labels: Map<string, Label> }) {
   const label = part.labelId ? labels.get(part.labelId) : undefined;
   return (
-    <span className={`${PILL} ${label ? '' : 'bg-neutral-400'}`} style={label ? { background: label.color } : undefined}>
+    <span className={`${PILL} ${label ? '' : 'bg-stone-400'}`} style={label ? { background: label.color } : undefined}>
       {partName(part, labels)}
     </span>
   );
@@ -78,7 +78,7 @@ export function ArrangementCard({
   });
 
   return (
-    <li className="bg-neutral-50 dark:bg-surface rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator p-4 space-y-3" role="group" aria-label={title}>
+    <li className="bg-surface rounded-xl border-[0.5px] border-separator p-4 space-y-3" role="group" aria-label={title}>
       {dialog}
       {named && (
         <div className="flex gap-4">
@@ -112,16 +112,16 @@ export function ArrangementCard({
                 e.preventDefault();
                 refocus.current = move(v, e.key === 'ArrowUp' ? v - 1 : v + 1) ?? null;
               }}
-              className={`flex items-center gap-1.5 bg-white dark:bg-raised rounded-lg shadow-sm border-t-[0.5px] border-white dark:border-separator px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+              className={`flex items-center gap-1.5 bg-raised rounded-lg px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                 dragging === v ? 'shadow-lg' : ''
               }`}
             >
-              <GripIcon className="size-4 text-neutral-300 dark:text-neutral-500 shrink-0" />
+              <GripIcon className="size-4 text-stone-300 dark:text-stone-500 shrink-0" />
               <PartPill part={part} labels={labels} />
               <span className="flex-1" />
               <AppButton
                 variant="plain"
-                className="p-0.5 text-neutral-300 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 cursor-pointer shrink-0"
+                className="p-0.5 text-stone-300 hover:text-red-500 dark:text-stone-500 dark:hover:text-red-400 cursor-pointer shrink-0"
                 aria-label={t('song.removeChip', { part: partName(part, labels) })}
                 onClick={() => saving(db.mutate('removeArrangementPart', { id: arrangement.id, index: i, partId: id }))}
               >
@@ -137,11 +137,11 @@ export function ArrangementCard({
           label={t('song.addPart')}
           choices={parts.map((p, i) => ({ value: p.id, label: `${i + 1}. ${partName(p, labels)}`, content: <PartPill part={p} labels={labels} /> }))}
           onChoose={(partId) => saving(db.mutate('appendArrangementPart', { id: arrangement.id, partId }))}
-          buttonClassName="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          buttonClassName="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 cursor-pointer transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           listClassName="left-0 w-48 max-h-60 overflow-y-auto"
           face={
             <>
-              <span className="flex items-center justify-center size-6 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-500">
+              <span className="flex items-center justify-center size-6 rounded-lg border border-dashed border-stone-300 dark:border-stone-500">
                 <PlusIcon className="size-3.5" />
               </span>
               {t('song.addPart')}

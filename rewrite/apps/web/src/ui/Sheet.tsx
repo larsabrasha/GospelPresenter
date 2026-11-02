@@ -9,9 +9,9 @@ import { useSheetDrag } from './sheetDrag.ts';
  * A sheet from the bottom, as iOS draws one at its medium height (docs/layout-2-0.md): as high as its content,
  * floating off the sides and the bottom, a grabber, the title in the middle and ✕ at the right. Pulled down
  * (`useSheetDrag`), a tap outside, ✕ or Escape closes it; Escape closes only the sheet, not what is under it.
- * From the `sm` width (an iPad) it is centred, as iPadOS's form sheet, without the grabber. As on iOS it slides up
- * from below as it opens (`sheet-in`) and down off the screen as it closes, however it is closed: ✕, a tap outside,
- * Escape, or a choice in it (`useSheetDismiss`).
+ * From the `sm` width (an iPad) it is centred, as iPadOS's form sheet, without the grabber. On a phone it slides up
+ * from below as it opens (`sheet-in`) and down off the screen as it closes; centred it grows out of its place and
+ * fades as it closes. However it is closed: ✕, a tap outside, Escape, or a choice in it (`useSheetDismiss`).
  */
 export function Sheet({ title, onClose, leading, children }: { title: string; onClose: () => void; leading?: ReactNode; children: ReactNode }) {
   const titleId = useId();
@@ -19,7 +19,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
   const panel = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
-  /** Slides the sheet off the bottom of the screen and the dimming away, then closes it and runs `then`. */
+  /** Slides the sheet off the bottom of the screen (or fades it, centred) and the dimming away, then closes it and runs `then`. */
   const dismiss = (then?: () => void) => {
     if (leaving.current) return;
     leaving.current = true;
@@ -30,8 +30,14 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
     const el = panel.current;
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
     el.getAnimations().forEach((a) => a.cancel()); // one still sliding in starts down from where it stands
-    el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
-    el.style.transform = `translateY(${innerHeight - el.getBoundingClientRect().top}px)`;
+    if (matchMedia('(width >= 40rem)').matches) {
+      el.style.transition = `transform ${OUT_MS}ms ease-in, opacity ${OUT_MS}ms ease-in`;
+      el.style.transform = 'scale(0.96)';
+      el.style.opacity = '0';
+    } else {
+      el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+      el.style.transform = `translateY(${innerHeight - el.getBoundingClientRect().top}px)`;
+    }
     const shade = backdrop.current;
     if (shade) {
       shade.style.transition = `background-color ${OUT_MS}ms`;
@@ -49,6 +55,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
   return createPortal(
     <div
       ref={backdrop}
+      data-overlay
       className="dialog-in fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/40"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss();
@@ -59,7 +66,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto rounded-[2.25rem] bg-sheet text-neutral-900 dark:text-neutral-100 shadow-2xl pb-5"
+        className="sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl pb-5"
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') dismiss();
@@ -67,7 +74,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
       >
         <div ref={bar} className="touch-none">
           <div className="flex justify-center pt-1.5 sm:invisible">
-            <span className="w-9 h-1.5 rounded-full bg-neutral-300 dark:bg-raised-2" aria-hidden="true" />
+            <span className="w-9 h-1.5 rounded-full bg-stone-300 dark:bg-raised-2" aria-hidden="true" />
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 pt-1 pb-3">
             <div className="justify-self-start">{leading}</div>
@@ -78,7 +85,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
               variant="plain"
               aria-label={t('common.close')}
               onClick={() => dismiss()}
-              className="justify-self-end size-11 rounded-full flex items-center justify-center cursor-pointer bg-neutral-200 dark:bg-raised/60"
+              className="justify-self-end size-11 rounded-full flex items-center justify-center cursor-pointer bg-stone-200 dark:bg-raised/60"
             >
               <CloseIcon className="size-4" />
             </AppButton>

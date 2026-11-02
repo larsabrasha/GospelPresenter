@@ -147,12 +147,12 @@ export function Templates() {
       </PageHeader>
       {!templates && (
         <div className={CARD}>
-          <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>
+          <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
         </div>
       )}
       {templates && !templates.length && (
         <div className={CARD}>
-          <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} text={t('templates.description')} />
+          <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} />
         </div>
       )}
       {!!templates?.length && (

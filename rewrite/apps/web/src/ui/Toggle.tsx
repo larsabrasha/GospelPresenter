@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 
 /** A checkbox drawn as the current app's switch: grey, sky when on, its knob sliding over. */
 export const SWITCH =
-  'relative shrink-0 appearance-none w-9 h-5 p-0 m-0 border-0 rounded-full cursor-pointer bg-neutral-300 dark:bg-neutral-500 checked:bg-sky-500 transition-colors disabled:cursor-default ' +
+  'relative shrink-0 appearance-none w-9 h-5 p-0 m-0 border-0 rounded-full cursor-pointer bg-stone-300 dark:bg-stone-500 checked:bg-sky-500 transition-colors disabled:cursor-default ' +
   'before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow before:transition-all checked:before:left-4.5 ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
 
@@ -17,8 +17,8 @@ export const IOS_SWITCH =
 
 /** The row a switch sits in, ringed in sky while on. */
 function rowClass(on: boolean, disabled = false): string {
-  return `flex items-center justify-between gap-2 px-3 py-2 touch:min-h-11 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 ${
-    on ? 'bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500' : 'bg-neutral-100 dark:bg-raised/50'
+  return `flex items-center justify-between gap-2 px-3 py-2 touch:min-h-11 rounded-lg text-sm text-stone-600 dark:text-stone-300 ${
+    on ? 'bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500' : 'bg-stone-100 dark:bg-raised/50'
   } ${disabled ? 'cursor-default opacity-60' : 'cursor-pointer'}`;
 }
 
@@ -56,7 +56,7 @@ export function ToggleRow({
         {icon}
         <span className="min-w-0 text-left">
           <span className="block truncate">{label}</span>
-          {sub && <span className="block text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{sub}</span>}
+          {sub && <span className="block text-[11px] text-stone-400 dark:text-stone-500 truncate">{sub}</span>}
         </span>
       </span>
       <span className="flex items-center gap-2 shrink-0">
@@ -68,4 +68,4 @@ export function ToggleRow({
 }
 
 /** A small grey caption in capitals, as "NU VISAS" over the live preview. */
-export const CAPTION = 'text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold';
+export const CAPTION = 'text-[10px] uppercase tracking-widest text-stone-400 dark:text-stone-500 font-semibold';

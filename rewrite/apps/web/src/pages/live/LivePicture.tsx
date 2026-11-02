@@ -22,6 +22,7 @@ export function LivePicture({
   onStep,
   onClear,
   testId,
+  maxWidthClass = 'max-w-[640px]',
   children,
 }: {
   slide: Slide | null;
@@ -32,16 +33,19 @@ export function LivePicture({
   onStep: (delta: number) => void;
   onClear: () => void;
   testId?: string;
+  /** How wide the picture may grow; a phone caps it by the screen's height. */
+  maxWidthClass?: string;
   children?: ReactNode;
 }) {
-  const arrow = `size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${GLASS}`;
+  // 36 px on a computer, as every button there; 44 by touch and on a phone (Lars, 2026-11-02).
+  const arrow = `size-11 lg:size-9 lg:touch:size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${GLASS}`;
   return (
     <div className="flex flex-col gap-3 items-center">
-      <div className={`w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-neutral-500' : 'ring-red-500'}`} data-testid={testId}>
+      <div className={`w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
         <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} />
       </div>
       {children}
-      <div role="toolbar" aria-label={t('live.outputs')} className="flex items-center justify-center gap-4 h-11">
+      <div role="toolbar" aria-label={t('live.outputs')} className="flex items-center justify-center gap-4 h-11 lg:h-9 lg:touch:h-11">
         <AppButton variant="plain" aria-label={t('live.previous')} disabled={!canStep.back} onClick={() => onStep(-1)} className={arrow}>
           <ChevronLeftIcon className="size-5" />
         </AppButton>
@@ -50,7 +54,7 @@ export function LivePicture({
           aria-pressed={black}
           disabled={black}
           onClick={onClear}
-          className={`h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${GLASS}`}
+          className={`h-11 lg:h-9 lg:touch:h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] lg:text-sm font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${GLASS}`}
         >
           {t('live.clear')}
         </AppButton>

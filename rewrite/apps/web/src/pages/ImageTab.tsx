@@ -101,13 +101,13 @@ export function ImageTab({
               {t('images.failed', { n: imports.failures.length })}
             </span>
           )}
-          {imports.progress && <span className="text-neutral-400 text-sm">{t('images.importing', imports.progress)}</span>}
+          {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!images && <p className="flex items-center justify-center py-12 text-neutral-400 text-sm">{t('presentation.loadingImages')}</p>}
+          {!images && <p className="flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}
           {images && !images.length && (
-            <EmptyTab icon={<PhotoIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
+            <EmptyTab icon={<PhotoIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
               <p>{t('presentation.noImages')}</p>
             </EmptyTab>
           )}
@@ -138,7 +138,7 @@ export function ImageTab({
                       <RemoveMenu name={image.fileName} on="picture" onRemove={() => void remove(image)} />
                     </span>
                   </span>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
                     {image.fileName}
                   </p>
                 </li>

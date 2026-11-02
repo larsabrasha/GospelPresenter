@@ -42,7 +42,7 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
         {playing ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
       </AppButton>
       <div className="flex-1 flex items-center gap-2 min-w-0">
-        <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums w-10 text-right shrink-0" data-testid={`${kind}-time`}>
+        <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums w-10 text-right shrink-0" data-testid={`${kind}-time`}>
           {clock(position)}
         </span>
         <div
@@ -64,12 +64,12 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
             onSeek(Math.min(duration, Math.max(0, position + by)));
           }}
         >
-          <div className="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-raised-2 overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-stone-200 dark:bg-raised-2 overflow-hidden">
             <div className="h-full bg-sky-500 rounded-full transition-none" style={{ width: percent }} />
           </div>
           <div className="absolute size-3.5 -ml-[7px] rounded-full bg-sky-500 shadow opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" style={{ left: percent }} />
         </div>
-        <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums w-10 shrink-0" data-testid={`${kind}-duration`}>
+        <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums w-10 shrink-0" data-testid={`${kind}-duration`}>
           {clock(duration)}
         </span>
       </div>

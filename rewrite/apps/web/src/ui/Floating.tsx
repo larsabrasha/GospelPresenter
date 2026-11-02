@@ -5,8 +5,8 @@ import { ChevronDownIcon } from './icons.tsx';
 // value or focus (Components/FloatingInput.razor, FloatingSelect, FloatingTextarea).
 
 const LABEL =
-  'pointer-events-none absolute left-4 top-1 text-xs text-neutral-500 dark:text-neutral-400 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs';
-const BOX = 'rounded-lg border dark:bg-raised dark:scheme-dark focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500';
+  'pointer-events-none absolute left-4 top-1 text-xs text-stone-500 dark:text-stone-400 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs';
+const BOX = 'rounded-lg border dark:bg-raised dark:scheme-dark focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20';
 
 export function FloatingInput({
   label,
@@ -19,7 +19,7 @@ export function FloatingInput({
 }: InputHTMLAttributes<HTMLInputElement> & { label: string; hideLabel?: boolean; hasError?: boolean; inputClassName?: string }) {
   const own = useId();
   const inputId = id ?? own;
-  const border = hasError ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-600';
+  const border = hasError ? 'border-red-500' : 'border-stone-200 dark:border-stone-600';
   return (
     <div className={`relative ${className ?? ''}`}>
       <input
@@ -43,18 +43,19 @@ export function FloatingSelect({ label, className, id, children, ...rest }: Sele
   const selectId = id ?? own;
   return (
     <div className={`relative ${className ?? ''}`}>
-      <select {...rest} id={selectId} className={`w-full appearance-none h-12 pt-4 pb-0 px-4 pr-10 ${BOX} border-neutral-300 dark:border-neutral-600 disabled:opacity-50`}>
+      <select {...rest} id={selectId} className={`w-full appearance-none h-12 pt-4 pb-0 px-4 pr-10 ${BOX} border-stone-200 dark:border-stone-600 disabled:opacity-50`}>
         {children}
       </select>
-      <label htmlFor={selectId} className="pointer-events-none absolute left-4 top-1 text-xs text-neutral-500 dark:text-neutral-400">
+      <label htmlFor={selectId} className="pointer-events-none absolute left-4 top-1 text-xs text-stone-500 dark:text-stone-400">
         {label}
       </label>
-      <ChevronDownIcon className="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      <ChevronDownIcon className="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
     </div>
   );
 }
 
-export function FloatingTextarea({ label, className, id, rows = 4, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
+/** A text area with its label in the box; `bare` has no box of its own, for text written straight into a card. */
+export function FloatingTextarea({ label, className, id, rows = 4, bare, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean }) {
   const own = useId();
   const areaId = id ?? own;
   return (
@@ -64,7 +65,11 @@ export function FloatingTextarea({ label, className, id, rows = 4, ...rest }: Te
         id={areaId}
         rows={rows}
         placeholder=" "
-        className={`peer w-full pt-5 px-4 pb-2 ${BOX} border-neutral-300 dark:border-neutral-600 placeholder-transparent resize-y`}
+        className={
+          bare
+            ? 'block w-full px-4 py-3 bg-transparent border-0 outline-none resize-y text-[15px]/6 text-stone-900 dark:text-stone-100'
+            : `peer w-full pt-5 px-4 pb-2 ${BOX} border-stone-200 dark:border-stone-600 placeholder-transparent resize-y`
+        }
       />
       <label htmlFor={areaId} className={LABEL}>
         {label}

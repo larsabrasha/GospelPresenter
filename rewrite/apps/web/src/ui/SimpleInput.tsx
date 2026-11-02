@@ -12,11 +12,11 @@ export function SimpleInput({ icon, className, type = 'text', ...rest }: InputHT
     <div
       className={`flex items-center gap-1.5 h-9 rounded-full bg-raised text-sm focus-within:ring-2 focus-within:ring-sky-500 ${shown ? 'pl-3 pr-4' : 'px-4'} ${className ?? ''}`}
     >
-      {shown && <span className="flex items-center shrink-0 pointer-events-none text-neutral-400 dark:text-neutral-500">{shown}</span>}
+      {shown && <span className="flex items-center shrink-0 pointer-events-none text-stone-400 dark:text-stone-500">{shown}</span>}
       <input
         {...rest}
         type={type}
-        className={`min-w-0 bg-transparent dark:scheme-dark text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none${type === 'date' || type === 'time' ? ' native-picker-hidden' : ''}`}
+        className={`min-w-0 bg-transparent dark:scheme-dark text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none${type === 'date' || type === 'time' ? ' native-picker-hidden' : ''}`}
       />
     </div>
   );
@@ -28,11 +28,11 @@ export function SimpleSelect({ className, children, ...rest }: SelectHTMLAttribu
     <div className={`relative ${className ?? ''}`}>
       <select
         {...rest}
-        className="appearance-none h-9 pl-4 pr-8 rounded-full bg-raised text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+        className="appearance-none h-9 pl-4 pr-8 rounded-full bg-raised text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
       >
         {children}
       </select>
-      <ChevronDownIcon className="size-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      <ChevronDownIcon className="size-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
     </div>
   );
 }

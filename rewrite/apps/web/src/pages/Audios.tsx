@@ -63,7 +63,7 @@ export function Audios({ role }: { role: Role }) {
           </div>
         </PageHeader>
         {progress && (
-          <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400" role="status">
+          <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status">
             {t('images.importing', progress)}
           </p>
         )}
@@ -83,19 +83,19 @@ export function Audios({ role }: { role: Role }) {
             <h2 className="text-base/6 font-semibold">{t('audios.all', { n: audios?.length ?? 0 })}</h2>
             {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
           </div>
-          {!audios && <div className="px-5 py-4 text-neutral-400 text-sm">{t('audios.loading')}</div>}
+          {!audios && <div className="px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
           {audios && !audios.length && (
-            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('audios.empty')} text={t('audios.emptyText')} />
+            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} />
           )}
           {!!audios?.length && !shown.length && <CardNote>{t('audios.noMatch')}</CardNote>}
           <ul aria-label={t('audios.title')}>
             {shown.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-raised/50"
+                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-stone-100 dark:hover:bg-raised/50"
                 aria-label={a.fileName}
               >
-                <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />
+                <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" />
                 <span className="text-sm truncate flex-1">{a.fileName}</span>
                 {manage && (
                   <RemoveMenu name={a.fileName} on="row" onRemove={() => void remove(a)} />

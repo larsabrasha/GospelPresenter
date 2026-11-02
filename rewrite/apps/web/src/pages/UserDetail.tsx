@@ -14,7 +14,7 @@ import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
 
-const CARD = 'bg-neutral-50 dark:bg-surface dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator p-5 space-y-4';
+const CARD = 'bg-surface dark:text-stone-100 rounded-xl border-[0.5px] border-separator p-5 space-y-4';
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
 
 const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
@@ -100,7 +100,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     return (
       <PageContainer>
         <DetailHeader backHref="/admin/users" title="" className="px-5" />
-        <div className={`px-7 ${user ? ERROR : 'text-neutral-400'}`}>{user ?? t('common.loading')}</div>
+        <div className={`px-7 ${user ? ERROR : 'text-stone-400'}`}>{user ?? t('common.loading')}</div>
       </PageContainer>
     );
   }
@@ -219,9 +219,9 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             ))}
           </FloatingSelect>
           {self ? (
-            <div className="text-sm text-neutral-500 mt-1">{t('users.ownRole')}</div>
+            <div className="text-sm text-stone-500 mt-1">{t('users.ownRole')}</div>
           ) : (
-            !canEdit && <div className="text-sm text-neutral-500 mt-1">{t('userDetail.superAdminOnly')}</div>
+            !canEdit && <div className="text-sm text-stone-500 mt-1">{t('userDetail.superAdminOnly')}</div>
           )}
           {roleError && (
             <div className={`${ERROR} mt-1`} role="alert">
@@ -233,18 +233,18 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
 
       <div className={CARD}>
         <div className="font-semibold">{t('userDetail.login')}</div>
-        {logins === null && <div className="text-neutral-400">{t('common.loading')}</div>}
+        {logins === null && <div className="text-stone-400">{t('common.loading')}</div>}
         {typeof logins === 'string' && <div className={ERROR}>{logins}</div>}
         {Array.isArray(logins) && logins.length > 0 && (
           <ul aria-label={t('userDetail.login')} className="space-y-4">
             {logins.map((l) => (
               <li
                 key={`${l.provider}:${l.id}`}
-                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600"
+                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600"
               >
                 <div className="min-w-0">
                   <div className="font-medium text-sm">{providerName(l)}</div>
-                  <div className="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{l.id}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
                 </div>
                 {canEdit && (
                   <AppButton
@@ -272,8 +272,8 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
           <>
             {!invite && (
               <div className="flex flex-col items-center text-center py-4 select-none">
-                <KeyPicture className="w-32 h-auto mb-3 text-neutral-300 dark:text-neutral-600" />
-                <p className="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">
+                <KeyPicture className="w-32 h-auto mb-3 text-stone-300 dark:text-stone-600" />
+                <p className="text-sm text-stone-400 dark:text-stone-500 leading-relaxed">
                   {t('userDetail.noLogins')}
                   <br />
                   {t('userDetail.noLoginsText')}
@@ -283,11 +283,11 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             {invite && (
               <div
                 data-testid="invite"
-                className={`p-4 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+                className={`p-4 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <LinkIcon className="size-4 text-neutral-400" />
+                    <LinkIcon className="size-4 text-stone-400" />
                     <span className="text-sm font-medium">{t('userDetail.inviteLink')}</span>
                     {invite.expired ? (
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">{t('userDetail.expired')}</span>
@@ -319,11 +319,11 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                 </div>
                 {!invite.expired && (
                   <>
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
                     {/* The link exists only in this page, from when it was made (AUTH-R13); on a host it is accepted here (Users.tsx). */}
                     {link && !host && (
                       <div className="space-y-2">
-                        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteText', { name: user.name })}</p>
+                        <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteText', { name: user.name })}</p>
                         <CopyField
                           inputRef={setInput}
                           value={link}
@@ -341,7 +341,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     )}
                     {link && host && (
                       <div className="space-y-2">
-                        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteHost', { name: user.name })}</p>
+                        <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteHost', { name: user.name })}</p>
                         <AppButton variant="secondary" onClick={() => acceptHere(link.slice(link.indexOf('#') + 1))}>
                           {t('users.acceptHere', { name: user.name })}
                         </AppButton>
@@ -349,7 +349,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     )}
                     {!link && (
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('userDetail.linkShownOnce')}</div>
+                        <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.linkShownOnce')}</div>
                         {!inviteRefusal(actor, user) && (
                           <AppButton variant="secondary" onClick={() => void createInvite(true)}>
                             {t('userDetail.newLink')}

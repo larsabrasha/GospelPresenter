@@ -19,6 +19,10 @@ import './fonts.css';
 import './app.css';
 
 installTheme();
+// The desktop app on a Mac: the page's bar is the window's title bar (app.css `.mac-frame`).
+if (window.gpDesktop?.macFrame) document.documentElement.classList.add('mac-frame');
+// The desktop app behaves as a native app: nothing selects but what a native app lets you select (app.css `.native`).
+if (window.gpDesktop) document.documentElement.classList.add('native');
 const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();

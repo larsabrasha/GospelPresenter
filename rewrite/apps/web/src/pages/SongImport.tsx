@@ -119,7 +119,7 @@ export function useSongImport(library: Song[] | undefined) {
     <div className={`${CARD} p-5 space-y-3`}>
       <div>
         <h2 className="text-base/6 font-semibold">{t('songs.import.title')}</h2>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('songs.import.text')}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">{t('songs.import.text')}</p>
       </div>
       <div className="flex items-center gap-3">
         <AppButton asLabel disabled={busy} className="inline-flex items-center gap-1.5">
@@ -142,10 +142,10 @@ export function useSongImport(library: Song[] | undefined) {
       </div>
       {(stage === 'reading' || stage === 'saving') && (
         <div className="space-y-2" role="status">
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             {stage === 'reading' ? t('songs.import.reading', { n: readCount.done, m: readCount.total }) : t('songs.import.saving')}
           </p>
-          <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-raised overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-stone-200 dark:bg-raised overflow-hidden">
             {stage === 'reading' ? (
               <div className="h-2 rounded-full bg-sky-500 transition-[width]" style={{ width: `${(readCount.done / Math.max(readCount.total, 1)) * 100}%` }} />
             ) : (
@@ -164,8 +164,8 @@ export function useSongImport(library: Song[] | undefined) {
 
   const dialog = plan && (
     <Dialog title={t('songs.import.dupTitle')} onClose={cancel} maxWidthClass="max-w-3xl">
-      <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('songs.import.dupText', { n: plan.plan.duplicates.length, m: plan.plan.songs.length })}</p>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+      <p className="text-sm text-stone-600 dark:text-stone-300">{t('songs.import.dupText', { n: plan.plan.duplicates.length, m: plan.plan.songs.length })}</p>
+      <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
         {t('songs.import.all')}
         {(['skip', 'replace', 'keep'] as const).map((c) => (
           <AppButton key={c} variant="neutral" className="py-1.5! px-3!" onClick={() => chooseAll(c)}>
@@ -194,8 +194,8 @@ export function useSongImport(library: Song[] | undefined) {
 function DuplicateRow({ duplicate: d, choice, onChoose, shown, onToggle }: { duplicate: Duplicate; choice: DuplicateChoice; onChoose: (c: DuplicateChoice) => void; shown: boolean; onToggle: () => void }) {
   const text = (title: string, body: string) => (
     <div className="min-w-0">
-      <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 mb-1">{title}</div>
-      <pre className="whitespace-pre-wrap font-sans text-sm max-h-60 overflow-y-auto rounded-lg bg-neutral-50 dark:bg-ground/50 p-3">{body}</pre>
+      <div className="text-xs font-medium text-stone-400 dark:text-stone-500 mb-1">{title}</div>
+      <pre className="whitespace-pre-wrap font-sans text-sm max-h-60 overflow-y-auto rounded-lg bg-stone-50 dark:bg-ground/50 p-3">{body}</pre>
     </div>
   );
   return (

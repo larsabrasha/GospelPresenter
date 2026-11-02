@@ -40,7 +40,13 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
   // Sång A carries Kollekt, chosen under its heading: its tiles show it.
-  await page.getByRole('region', { name: 'Sång A' }).getByRole('combobox', { name: 'Overlay' }).selectOption({ label: 'Kollekt' });
+  await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await page.getByRole('menuitemradio', { name: 'Kollekt' }).click();
+  // The … closes on a press outside it, also from a heading that sticks (its blur once held the cover to it).
+  await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.getByRole('list', { name: 'Sång B' }).click({ position: { x: 5, y: 5 } });
+  await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Sång A' }).getByTestId('slide-overlay').first()).toHaveText('Swish 123 45');
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
@@ -123,13 +129,13 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await addSongs(page, ['Sång A']);
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Sång A', exact: true }).click();
   await expect(failed).toHaveCount(0, { timeout: 6000 });
-  const select = page.getByRole('combobox', { name: 'Overlay' });
-  await select.evaluate((el) => {
-    (el as HTMLSelectElement).options[1]!.value = 'no-such-overlay';
-  });
-  await select.selectOption({ index: 1 });
+  await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  const choice = page.getByRole('menuitemradio').nth(1);
+  await choice.evaluate((el) => (el as HTMLElement).setAttribute('data-overlay', 'no-such-overlay'));
+  await choice.click();
   await expect(failed).toBeVisible();
-  await expect(select).toHaveValue('');
+  await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await expect(page.getByRole('menuitemradio', { name: 'Ingen' })).toHaveAttribute('aria-checked', 'true');
 });
 
 test('an overlay saves as you type, takes a dropped picture into Bilder, and goes back to the list when deleted or unknown', async () => {

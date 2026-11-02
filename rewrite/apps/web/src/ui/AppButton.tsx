@@ -1,5 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, LabelHTMLAttributes, Ref } from 'react';
 import { SpinnerIcon } from './icons.tsx';
+import { LIFTED, RED_SHADOW, SKY_SHADOW } from './glass.ts';
 
 /**
  * The button styles of the current app (Components/AppButton.razor, ButtonVariant.cs).
@@ -7,32 +8,33 @@ import { SpinnerIcon } from './icons.tsx';
  */
 type ButtonVariant = 'primary' | 'secondary' | 'neutral' | 'cancel' | 'danger' | 'icon' | 'dangerIcon' | 'pill' | 'pillActive' | 'plain';
 
-const PILL = 'whitespace-nowrap text-sm px-4 py-2.5 rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-default';
+// One height for every button and chosen row: 36 px, 44 by touch (Lars, 2026-11-02).
+const PILL = 'inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sm h-9 touch:h-11 px-4 rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-default';
 const TAB = 'flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap';
 
 /** The classes of a variant, for an element that is not an AppButton but should look like one. */
 function buttonClasses(variant: ButtonVariant = 'primary', filled = false): string {
   switch (variant) {
     case 'primary':
-      return `${PILL} bg-sky-500 text-white hover:bg-sky-600`;
+      return `${PILL} bg-sky-500 text-white hover:bg-sky-600 ${SKY_SHADOW}`;
     case 'secondary':
-      return `${PILL} text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50`;
+      return `${PILL} text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50 ${SKY_SHADOW}`;
     case 'neutral':
-      return `${PILL} text-neutral-600 dark:text-neutral-400 bg-neutral-200 dark:bg-raised hover:bg-neutral-300 dark:hover:bg-raised-2`;
+      return `${PILL} text-stone-700 dark:text-stone-300 ${LIFTED}`;
     case 'cancel':
-      return `${PILL} text-neutral-500 dark:text-neutral-400 hover:bg-raised-2`;
+      return `${PILL} text-stone-500 dark:text-stone-400 hover:bg-raised-2`;
     case 'danger':
       return filled
-        ? `${PILL} bg-red-500 text-white hover:bg-red-600`
-        : `${PILL} text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/60`;
+        ? `${PILL} bg-red-500 text-white hover:bg-red-600 ${RED_SHADOW}`
+        : `${PILL} text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/60 ${RED_SHADOW}`;
     case 'icon':
-      return 'size-8 flex items-center justify-center rounded-full cursor-pointer hover:bg-raised-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300';
+      return 'size-8 flex items-center justify-center rounded-full cursor-pointer hover:bg-raised-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300';
     case 'dangerIcon':
       return 'size-8 flex items-center justify-center rounded-full cursor-pointer text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:opacity-50 disabled:cursor-default';
     case 'pillActive':
       return `${TAB} bg-white dark:bg-raised-2 dark:text-white shadow font-medium`;
     case 'pill':
-      return `${TAB} hover:bg-raised-2 text-neutral-500 dark:text-neutral-400`;
+      return `${TAB} hover:bg-raised-2 text-stone-500 dark:text-stone-400`;
     case 'plain':
       return '';
   }

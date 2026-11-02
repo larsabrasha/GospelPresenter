@@ -19,10 +19,10 @@ export function PresentationMaterials({ items, onClose }: { items: PresentationI
   return (
     <PageDialog title={t('material.title')} onClose={onClose}>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6" data-testid="presentation-materials">
-        {!withMaterial.length && <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('material.presentationEmpty')}</p>}
+        {!withMaterial.length && <p className="text-sm text-stone-500 dark:text-stone-400">{t('material.presentationEmpty')}</p>}
         {withMaterial.map((s) => (
           <section key={s.sourceId} aria-label={s.title} className="space-y-2">
-            <h3 className="px-4 text-[13px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{s.title}</h3>
+            <h3 className="px-4 text-[13px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{s.title}</h3>
             <MaterialList materials={materials.filter((m) => m.songId === s.sourceId)} editable={false} />
           </section>
         ))}

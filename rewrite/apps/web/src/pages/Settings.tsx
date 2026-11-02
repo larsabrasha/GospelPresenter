@@ -27,7 +27,7 @@ function KeepComing() {
       <label className={`flex items-start justify-between gap-4 ${unavailable ? 'cursor-default' : 'cursor-pointer'}`}>
         <span>
           <span className="block text-sm/5 font-medium">{t('settings.keepComing')}</span>
-          <span className="block text-xs text-neutral-500 dark:text-neutral-400 mt-1">{t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}</span>
+          <span className="block text-xs text-stone-500 dark:text-stone-400 mt-1">{t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}</span>
         </span>
         <input type="checkbox" role="switch" className={`${SWITCH} mt-0.5`} checked={on && !unavailable} disabled={unavailable} onChange={(e) => setKeepComingSetting(e.target.checked)} />
       </label>
@@ -53,7 +53,7 @@ function Choices<T extends string>({ id, title, options, current, onChoose }: { 
       <h2 id={id} className="block text-sm/5 font-medium mb-1">
         {t(title)}
       </h2>
-      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">{t('settings.themeDescription')}</p>
+      <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">{t('settings.themeDescription')}</p>
       <div className="flex flex-col gap-2" role="radiogroup" aria-labelledby={id}>
         {options.map(({ value, label, icon: Icon }) => {
           const selected = value === current;
@@ -65,7 +65,7 @@ function Choices<T extends string>({ id, title, options, current, onChoose }: { 
               aria-checked={selected}
               onClick={() => onChoose(value)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left cursor-pointer transition ${
-                selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-neutral-300 dark:border-neutral-600 hover:bg-raised'
+                selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-stone-300 dark:border-stone-600 hover:bg-raised'
               }`}
             >
               <Icon className="w-5 h-5 shrink-0" />
@@ -85,9 +85,9 @@ function Account() {
     <div className={CARD}>
       <h2 className="px-5 pt-4 pb-1 text-sm/5 font-medium">{t('settings.account')}</h2>
       <a href={href({ page: 'logins', error: null })} className="flex items-center gap-3 px-5 py-3 no-underline text-inherit hover:bg-raised">
-        <KeyIcon className="size-5 shrink-0 text-neutral-400" />
+        <KeyIcon className="size-5 shrink-0 text-stone-400" />
         <span className="flex-1">{t('logins.title')}</span>
-        <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600" />
+        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600" />
       </a>
     </div>
   );

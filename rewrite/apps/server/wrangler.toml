@@ -13,13 +13,16 @@ compatibility_date = "2026-08-01"
 [define]
 GP_TEST_ISSUER = "false"
 
-# The built web app: `pnpm build` before a deploy. Every request reaches the Worker
-# first, which adds the CSP and `no-cache` (src/static.ts) and leaves /api/* alone.
+# The built web app: `pnpm build` before a deploy. Only /api/* reaches the Worker; Cloudflare serves the
+# files with web/public/_headers (the same headers as src/static.ts).
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
-run_worker_first = true
+# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# headers of web/public/_headers, and an address with no file gets index.html.
+run_worker_first = ["/api/*"]
 html_handling = "none"
+not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Me } from '@gp/core';
 import { api } from './auth/api.ts';
 import { switchOrg } from './auth/orgs.ts';
@@ -7,10 +7,11 @@ import { t } from './i18n.ts';
 import { signOut, SyncWarnings } from './Shell.tsx';
 import { AppButton } from './ui/AppButton.tsx';
 import { Dropdown } from './ui/Dropdown.tsx';
-import { CheckIcon, ChevronLeftIcon, CloudOffIcon, LogoIcon } from './ui/icons.tsx';
+import { ArrowsRightLeftIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon, LogoIcon, SignOutIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
 import { initials, PENDING_GRACE_MS, syncState } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
+import { ROUND_BACK } from './ui/glass.ts';
 
 // The bar at the top of the start page and the pages outside a presentation (docs/layout-2-0.md, "The start page and
 // the bar"): + and the user's picture, whose menu holds the rest. The cloud shows only when the sync has a problem.
@@ -87,7 +88,7 @@ export function Avatar({ name, className }: { name: string; className: string })
 type SwitchOrg = { id: string; name: string };
 
 /** The organisations the user may switch to, or none offline; Byt organisation shows only when there is a choice. */
-function useSwitchOrgs(me: Me): SwitchOrg[] {
+function useSwitchOrgs(): SwitchOrg[] {
   const [orgs, setOrgs] = useState<SwitchOrg[]>([]);
   useEffect(() => {
     api<SwitchOrg[]>('GET', '/api/auth/orgs').then(
@@ -95,23 +96,25 @@ function useSwitchOrgs(me: Me): SwitchOrg[] {
       () => undefined, // offline: no switching
     );
   }, []);
-  return me.role === 'superAdmin' || orgs.length > 1 ? orgs : [];
+  // Only with somewhere to switch to, a super admin too (Lars, 2026-11-02).
+  return orgs.length > 1 ? orgs : [];
 }
 
-const ROW = 'flex items-center gap-3 w-full min-h-11 px-4 py-2 text-left text-[15px] text-neutral-800 dark:text-neutral-100 hover:bg-raised-2 focus:bg-raised-2 focus:outline-none cursor-pointer no-underline';
+// On a computer a row's highlight is inset with round corners, as macOS's and GitHub's menus (Lars, 2026-11-02).
+const ROW = 'flex items-center gap-3 w-full sm:w-[calc(100%-0.75rem)] sm:mx-1.5 sm:rounded-md min-h-11 sm:min-h-8 px-4 sm:px-2.5 py-2 sm:py-1.5 text-left text-[15px] text-stone-800 dark:text-stone-100 hover:bg-raised-2 focus:bg-raised-2 focus:outline-none cursor-pointer no-underline';
 const DIVIDER = 'h-2 sm:h-px sm:mx-3 sm:my-1 bg-black/5 dark:bg-black/25 sm:bg-separator sm:dark:bg-separator';
 
-/** A choice in the menu with a grey line under it, named by its first line alone. */
-function Choice({ to, label, sub }: { to: string; label: string; sub: string }) {
+/** A link in the menu, with its icon. */
+function Choice({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
   return (
-    <a href={to} role="menuitem" aria-label={label} className={ROW}>
-      <span className="flex flex-col">
-        <span>{label}</span>
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">{sub}</span>
-      </span>
+    <a href={to} role="menuitem" className={ROW}>
+      {icon}
+      {label}
     </a>
   );
 }
+
+const ICON = 'size-[18px] sm:size-4 shrink-0 text-stone-500 dark:text-stone-400';
 
 /** Byt organisation, which unfolds the organisations in the menu, the active one checked. Choosing one loads the start page there (ORG-R7). */
 function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
@@ -129,8 +132,10 @@ function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
           setOpen((o) => !o);
         }}
       >
+        <ArrowsRightLeftIcon className={ICON} />
         <span className="flex-1">{t('profile.switchOrg')}</span>
-        <span className="text-neutral-500 dark:text-neutral-400 truncate max-w-28">{me.orgName} ›</span>
+        {/* Which one is active shows as a check when the list unfolds. */}
+        <span className="text-stone-500 dark:text-stone-400">›</span>
       </AppButton>
       {open &&
         orgs.map((o) => (
@@ -138,7 +143,7 @@ function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
             key={o.id}
             variant="plain"
             role="menuitem"
-            className={`${ROW} pl-8 ${o.id === me.orgId ? 'text-sky-600! dark:text-sky-400!' : ''}`}
+            className={`${ROW} pl-11 sm:pl-9 ${o.id === me.orgId ? 'text-sky-600! dark:text-sky-400!' : ''}`}
             onClick={() => {
               if (o.id !== me.orgId) void switchOrg(o.id).then((error) => error && toast(error, 'warning'));
             }}
@@ -152,12 +157,13 @@ function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
 }
 
 /**
- * The picture's menu (docs/layout-2-0.md): who, Mina inställningar, Inställningar, Byt organisation, how the sync
- * stands with Synka nu when something is wrong, and Logga ut. A dot on the picture while the sync has a problem.
+ * The picture's menu (docs/layout-2-0.md): the name, Inställningar (Mina inställningar is a row in it), Byt
+ * organisation with two or more, what is wrong with the sync and Synka nu (nothing while all is synced), and Logga ut
+ * (Lars, 2026-11-02). A dot on the picture while the sync has a problem.
  */
 function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: string } | null }) {
   const db = useDb();
-  const orgs = useSwitchOrgs(me);
+  const orgs = useSwitchOrgs();
   const who = `${me.name} · ${me.orgName}`;
   return (
     <Dropdown
@@ -172,33 +178,29 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
     >
       <div className="flex items-center gap-3 px-4 py-3 sm:py-2">
         <Avatar name={me.name} className="size-10 sm:size-8 text-sm sm:text-xs" />
-        <div className="min-w-0">
-          <div className="text-[17px] sm:text-sm font-semibold truncate">{me.name}</div>
-          <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-            {t(me.role === 'superAdmin' ? 'role.superAdmin' : me.role === 'admin' ? 'role.admin' : 'role.user')} · {me.orgName}
-          </div>
-        </div>
+        {/* The name alone: no role, no organisation (Lars, 2026-11-02). */}
+        <div className="min-w-0 text-[17px] sm:text-sm font-semibold truncate">{me.name}</div>
       </div>
       <div className={DIVIDER} />
-      <Choice to={href({ page: 'settings' })} label={t('nav.settings')} sub={t('profile.mineText')} />
-      <Choice to={href({ page: 'admin' })} label={t('nav.admin')} sub={t('profile.settingsText')} />
+      <Choice to={href({ page: 'admin' })} label={t('nav.admin')} icon={<CogIcon className={ICON} />} />
       {orgs.length > 0 && <OrgChoices me={me} orgs={orgs} />}
-      <div className={DIVIDER} />
-      {sync && (
-        <div data-testid="sync-state" className={`flex items-center justify-between gap-3 min-h-11 sm:min-h-8 px-4 text-[15px] sm:text-[13px] ${sync.problem ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-500'}`}>
-          <span className="flex items-center gap-2 min-w-0">
-            <span className={`size-2 shrink-0 rounded-full ${sync.problem ? 'bg-amber-500' : 'bg-green-500'}`} />
-            <span className="truncate">{sync.text}</span>
-          </span>
-          {sync.problem && (
+      {sync?.problem && (
+        <>
+          <div className={DIVIDER} />
+          <div data-testid="sync-state" className="flex items-center justify-between gap-3 min-h-11 sm:min-h-8 px-4 text-[15px] sm:text-[13px] text-amber-600 dark:text-amber-400">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="size-2 shrink-0 rounded-full bg-amber-500" />
+              <span className="truncate">{sync.text}</span>
+            </span>
             <AppButton variant="plain" role="menuitem" className="shrink-0 h-7 sm:h-6 px-3 rounded-full bg-black/5 dark:bg-white/10 text-sky-600 dark:text-sky-400 text-xs font-semibold cursor-pointer" onClick={() => void db.syncNow()}>
               {t('status.syncNow')}
             </AppButton>
-          )}
-        </div>
+          </div>
+        </>
       )}
       <div className={DIVIDER} />
       <AppButton variant="plain" role="menuitem" className={`${ROW} text-red-600! dark:text-red-400!`} onClick={() => void signOut()}>
+        <SignOutIcon className="size-[18px] sm:size-4 shrink-0" />
         {t('auth.signOut')}
       </AppButton>
     </Dropdown>
@@ -216,31 +218,39 @@ function BarEnd({ me }: { me: Me }) {
   );
 }
 
-/** The bar's way back to the start page, as the live bar's "‹ Presentationer". */
+/** The bar's way back to the start page, a round ‹ alone as iOS 27's and the live bar's. */
 export function BackToPresentations() {
   return (
     <a
       href={href({ page: 'presentations' })}
       title={t('nav.backToPresentations')}
       aria-label={t('nav.backToPresentations')}
-      className="flex items-center gap-1 -ml-1 text-sm font-medium text-sky-500 hover:text-sky-600 no-underline whitespace-nowrap"
+      className={ROUND_BACK}
     >
       <ChevronLeftIcon className="size-5" />
-      {t('nav.presentations')}
     </a>
   );
 }
 
 /**
- * The bar at the top: the logo (from the `sm` width; a phone shows the page's large title alone); at the right the
- * picture (the start page's + is in its heading row). A presentation has a bar of its own. The warnings under it,
- * unless Inställningar covers it and shows them itself.
+ * The bar at the top: the logo, on a phone too (Lars, 2026-11-02); at the right the picture (the start page's + is in
+ * its heading row). A presentation has a bar of its own. The warnings under it, unless Inställningar covers it and
+ * shows them itself.
  */
-export function TopBar({ me, warnings }: { me: Me; warnings: boolean }) {
+export function TopBar({ me, warnings, title }: { me: Me; warnings: boolean; title?: string }) {
   return (
     <>
-      <nav className="relative flex items-center justify-between gap-3 px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
-        <div className="max-sm:hidden flex items-center gap-3">
+      <nav data-window-bar className="relative flex items-center justify-between gap-3 px-4 h-14 sm:h-13 shrink-0 sm:border-b-[0.5px] sm:border-separator bg-ground">
+        {/* A page under the start page (Papperskorg) has a round ‹ and its name in the middle, as a presentation's bar. */}
+        {title !== undefined ? (
+          <>
+            {/* The title before the ‹: a Mac window's drag regions are taken in this order, and the ‹ must come last to
+                stay pressable where the title runs under it. */}
+            <h1 className="absolute inset-x-24 text-center text-[15px] font-semibold truncate pointer-events-none">{title}</h1>
+            <BackToPresentations />
+          </>
+        ) : (
+        <div className="flex items-center gap-3">
           <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
             <LogoIcon className="size-6" />
             <span className="text-sm font-semibold uppercase tracking-wide whitespace-nowrap">
@@ -249,6 +259,7 @@ export function TopBar({ me, warnings }: { me: Me; warnings: boolean }) {
           </a>
           <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
         </div>
+        )}
         <span className="flex-1" />
         <BarEnd me={me} />
       </nav>

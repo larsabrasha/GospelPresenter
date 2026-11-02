@@ -90,8 +90,10 @@ export async function createSong(page: Page, name: string, parts: [string, strin
   await dialog.getByLabel('Namn').fill(name);
   await dialog.getByLabel('Namn').press('Enter');
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  // A new song starts with its first part (Verse 1): the first is filled in, the rest added.
+  await expect(page.getByLabel('Delar 1', { exact: true })).toBeVisible();
   for (const [i, [label, text]] of parts.entries()) {
-    await page.getByRole('button', { name: 'Lägg till del' }).click();
+    if (i > 0) await page.getByRole('button', { name: 'Lägg till del' }).click();
     const part = page.getByLabel(`Delar ${i + 1}`, { exact: true });
     await part.fill(text);
     await part.blur();
@@ -205,16 +207,10 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
   await device.getByRole('button', { name: 'Anslut' }).click();
 }
 
-/**
- * The live page's "Tillåt fjärrstyrning", its section opened first: Fjärrstyrning starts closed, as
- * LivePanel.razor's.
- */
+/** The live page's "Tillåt fjärrstyrning", in the sheet the live column's Fjärrstyrning line opens on a computer. */
 export async function remoteSwitch(page: Page) {
-  const toggle = page.getByLabel('Tillåt fjärrstyrning');
-  if (await toggle.isVisible()) return toggle;
-  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Fjärrstyrning', exact: true }).click();
-  const section = page.getByRole('dialog', { name: 'Fjärrstyrning' }).getByRole('button', { name: 'Fjärrstyrning', exact: true });
-  if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
+  const toggle = page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByLabel('Tillåt fjärrstyrning');
+  if (!(await toggle.isVisible())) await page.getByTestId('live-panel').getByTestId('remote-status').click();
   return toggle;
 }
 
@@ -232,12 +228,8 @@ export async function endPresentation(page: Page) {
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
 }
 
-/**
- * Switches remote control on for the first time on this live page, and closes the
- * "Fjärrstyr presentationen" dialog that then opens by itself, as LivePanel.razor's.
- */
+/** Switches remote control on in the live page's Fjärrstyrning sheet, and closes the sheet. */
 export async function allowRemote(page: Page) {
   await (await remoteSwitch(page)).check();
-  await page.getByRole('dialog', { name: 'Fjärrstyr presentationen' }).getByRole('button', { name: 'Stäng' }).click();
   await closeRemoteSheet(page);
 }

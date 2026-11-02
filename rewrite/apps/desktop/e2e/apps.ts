@@ -5,6 +5,9 @@ import { _electron as electron, chromium, type ElectronApplication, type Page } 
 import { workerPort } from './ports.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from '../../server/test/fake-google.ts';
 
+/** Chromium's switch that keeps the tests' audio and video out of the speakers (Lars, 2026-11-02). */
+export const MUTED = ['--mute-audio'];
+
 /**
  * A port for a host or server in a test. Workers run side by side, so each takes its own range
  * (`workerPort`), and within it the next port each time (a random start, as a host from an earlier run
@@ -55,7 +58,7 @@ export async function launch(
   else delete env.GP_LAN;
   const fake = await fakeGoogle();
   Object.assign(env, { GP_GOOGLE_CLIENT_ID: fake.clientId, GP_GOOGLE_CLIENT_SECRET: fake.clientSecret, GP_GOOGLE_TEST_ISSUER: fake.url });
-  const app = await electron.launch({ args: ['dist/main.mjs'], env });
+  const app = await electron.launch({ args: [...MUTED, 'dist/main.mjs'], env });
   const events: Record<string, unknown>[] = [];
   const ready = new Promise<string>((resolve) => {
     app.process().stdout!.on('data', (chunk: Buffer) => {
@@ -121,7 +124,7 @@ export interface PasskeyBrowser {
  * one more reason the app runs ceremonies in the system browser.
  */
 export async function passkeyBrowser(): Promise<PasskeyBrowser> {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: MUTED });
   const page = await (await browser.newContext()).newPage();
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('WebAuthn.enable', { enableUI: false });

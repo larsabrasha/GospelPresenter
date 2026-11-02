@@ -94,8 +94,8 @@ export function Orgs() {
       </PageHeader>
       {typeof orgs === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{orgs}</p>}
       <div className={CARD}>
-        {orgs === null && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
-        {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-neutral-300 dark:text-neutral-600" />} title={t('orgs.empty')} />}
+        {orgs === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('orgs.empty')} />}
         <ul aria-label={t('orgs.title')}>
           {Array.isArray(orgs) &&
             orgs.map((o) => (
@@ -104,7 +104,7 @@ export function Orgs() {
                   <Avatar name={o.name} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{o.name}</div>
-                    <div className="text-xs text-neutral-400 dark:text-neutral-500">{t('orgs.members', { n: o.members })}</div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500">{t('orgs.members', { n: o.members })}</div>
                   </div>
                 </a>
               </li>
@@ -152,7 +152,7 @@ function DeleteOrgDialog({ org, me, onClose }: { org: OrgRow; me: Me; onClose: (
   };
   return (
     <Dialog title={t('org.delete')} onClose={onClose} maxWidthClass="max-w-md">
-      <div className="space-y-3 text-sm text-neutral-600 dark:text-neutral-300">
+      <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
         <p>{t('org.deleteConfirm', { name: org.name })}</p>
         <p>{t('org.willBeDeleted')}</p>
         <ul className="list-disc pl-5 space-y-0.5">
@@ -194,7 +194,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'orgs' })} title="" className="px-5" />
-        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'text-neutral-400'}`}>{org ?? t('common.loading')}</div>
+        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'text-stone-400'}`}>{org ?? t('common.loading')}</div>
       </PageContainer>
     );
   return (
@@ -216,13 +216,13 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
       </div>
       <div className={`${CARD} overflow-hidden`}>
         <h2 className="px-7 pt-4 pb-2 font-semibold">{t('org.membersTitle', { n: org.users.length })}</h2>
-        {!org.users.length && <p className="px-7 pb-4 text-sm text-neutral-400">{t('org.noMembers')}</p>}
+        {!org.users.length && <p className="px-7 pb-4 text-sm text-stone-400">{t('org.noMembers')}</p>}
         <ul aria-label={t('org.membersTitle', { n: org.users.length })}>
           {org.users.map((u) => (
             <li key={u.id} className="flex items-center gap-3 px-7 py-3 border-t border-separator">
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{u.name}</div>
-                {u.email && <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{u.email}</div>}
+                {u.email && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{u.email}</div>}
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
             </li>

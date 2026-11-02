@@ -39,7 +39,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
   return (
     <AuthCard title={t('setup.title')}>
       <p className={AUTH_TEXT}>{t('setup.text')}</p>
-      <ul className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed px-4 list-disc">
+      <ul className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed px-4 list-disc">
         <li>{t('setup.createOrgs')}</li>
         <li>{t('setup.manageUsers')}</li>
         <li>{t('setup.configure')}</li>
@@ -79,7 +79,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
               value={setupToken}
               onChange={(e) => setSetupToken(e.target.value)}
             />
-            <p id="setup-token-hint" className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            <p id="setup-token-hint" className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               {t('setup.tokenHint')}
             </p>
           </div>

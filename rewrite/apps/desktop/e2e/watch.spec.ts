@@ -1,7 +1,7 @@
 // Public output (spec 04 §6, §7): an admin makes one; anyone opens its link
 // in a browser, with no sign-in, and follows what the host presents.
 import { chromium, expect, test, type Browser } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -40,7 +40,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(row.getByRole('button', { name: 'Ny kod' })).toHaveCount(0);
 
   // A phone opens it: the waiting screen, with the output's name, in the phone's language.
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: MUTED });
   const phone = await browser.newPage({ locale: 'sv-SE' });
   await phone.goto(url);
   await expect(phone.getByTestId('watch-waiting')).toContainText('Kyrkkaffet');

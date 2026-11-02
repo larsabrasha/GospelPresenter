@@ -105,7 +105,7 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: 
             ))}
           </FloatingSelect>
           {/* Every role offered, with what it may do (Users.razor). */}
-          <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-1" data-testid="role-descriptions">
+          <div className="mt-2 text-xs text-stone-500 dark:text-stone-400 space-y-1" data-testid="role-descriptions">
             {roles.map((r) => (
               <div key={r}>
                 <span className="font-medium">{t(`role.${r}`)}:</span> {t(`role.${r}.description`)}
@@ -183,23 +183,23 @@ export function Users({ me }: { me: Me }) {
       <PageHeader title={t('users.title')}>{manage && <AddButton label={t('users.create')} onClick={() => setCreating(true)} />}</PageHeader>
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
       <div className={CARD}>
-        {users === null && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
+        {users === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {empty && (
-          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} text={t('users.emptyText')} />
+          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} />
         )}
         <ul aria-label={t('users.title')}>
           {Array.isArray(users) &&
             users.map((u) => (
               <li key={u.id} className="border-b border-separator last:border-b-0">
                 <a href={href({ page: 'user', id: u.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-raised cursor-pointer">
-                  <span className="size-8 rounded-full bg-neutral-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+                  <span className="size-8 rounded-full bg-stone-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-stone-500 dark:text-stone-400">
                     <UserIcon className="size-4" />
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="truncate">
-                      <span className="font-medium">{u.name}</span> {u.email && <span className="text-sm text-neutral-400 dark:text-neutral-500">{u.email}</span>}
+                      <span className="font-medium">{u.name}</span> {u.email && <span className="text-sm text-stone-400 dark:text-stone-500">{u.email}</span>}
                     </div>
-                    <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{inviteStatus(u)}</div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{inviteStatus(u)}</div>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
                 </a>

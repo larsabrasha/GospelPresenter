@@ -2,7 +2,7 @@
 // these check that the steps work together, in the order a Sunday takes them. No detail is checked twice here.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
-import { launch, testPort, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED, testPort } from './apps.ts';
 import { addSongs, closeAdmin, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
@@ -18,7 +18,7 @@ test.afterEach(async () => {
 
 /** A TV or a phone: a browser page of its own, in Swedish. */
 async function viewer(url: string): Promise<Page> {
-  browser ??= await chromium.launch();
+  browser ??= await chromium.launch({ args: MUTED });
   const page = await browser.newPage({ locale: 'sv-SE' });
   await page.goto(url);
   return page;

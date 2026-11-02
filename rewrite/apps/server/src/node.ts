@@ -352,6 +352,8 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       await next();
       for (const [k, v] of Object.entries(staticHeaders(c.req.path))) c.header(k, v);
     });
+    // Cloudflare's header rules (web/public/_headers) are no file to serve.
+    app.get('/_headers', (c) => c.notFound());
     app.use('/*', serveStatic({ root: opts.webRoot }));
     app.get('*', (c, next) => (isAppPage(c.req.path) ? serveStatic({ root: opts.webRoot, path: 'index.html' })(c, next) : next()));
   }

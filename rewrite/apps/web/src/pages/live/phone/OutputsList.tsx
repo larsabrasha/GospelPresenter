@@ -50,7 +50,7 @@ export function OutputsList({ link, sessionId }: { link: LiveLink; sessionId: st
               variant="plain"
               aria-label={t('screens.disconnect', { n: x.n })}
               onClick={x.disconnect}
-              className="size-9 rounded-full flex items-center justify-center cursor-pointer text-neutral-400 hover:text-red-500"
+              className="size-9 rounded-full flex items-center justify-center cursor-pointer text-stone-400 hover:text-red-500"
             >
               <CloseIcon className="size-4" />
             </AppButton>
@@ -72,10 +72,10 @@ export function OutputsList({ link, sessionId }: { link: LiveLink; sessionId: st
 function Row({ icon, on, name, state, children }: { icon: ReactNode; on: boolean; name: string; state: string; children: ReactNode }) {
   return (
     <li className="min-h-[60px] px-4 py-2 flex items-center gap-3">
-      <span className={`size-[30px] shrink-0 rounded-lg flex items-center justify-center text-white ${on ? 'bg-green-600' : 'bg-neutral-400 dark:bg-neutral-600'}`}>{icon}</span>
+      <span className={`size-[30px] shrink-0 rounded-lg flex items-center justify-center text-white ${on ? 'bg-green-600' : 'bg-stone-400 dark:bg-stone-600'}`}>{icon}</span>
       <span className="flex-1 min-w-0 flex flex-col">
         <span className="text-[17px] truncate">{name}</span>
-        <span className={`text-[13px] truncate ${on ? 'text-green-600 dark:text-green-400' : 'text-neutral-500 dark:text-neutral-400'}`}>{state}</span>
+        <span className={`text-[13px] truncate ${on ? 'text-green-600 dark:text-green-400' : 'text-stone-500 dark:text-stone-400'}`}>{state}</span>
       </span>
       {children}
     </li>

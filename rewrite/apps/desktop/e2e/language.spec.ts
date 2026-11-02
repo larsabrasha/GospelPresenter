@@ -2,7 +2,7 @@
 // Mina inställningar; the choice belongs to the device, so it outlasts a reload and a sign-out.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { setUpHost } from './flows.ts';
+import { openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -14,8 +14,7 @@ test('English chosen under Mina inställningar shows the app in English, after a
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await page.getByTestId('me').click();
-  await page.getByRole('menuitem', { name: 'Mina inställningar', exact: true }).click();
+  await openAdmin(page, 'Mina inställningar');
 
   await page.getByRole('radio', { name: 'English' }).click();
 

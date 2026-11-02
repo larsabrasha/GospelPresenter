@@ -78,7 +78,7 @@ export function PresentationDetailsDialog({
         <FloatingTextarea label={t('presentation.description')} maxLength={5000} rows={4} value={d.description} onChange={set('description')} />
         {withTheme && (
           <div>
-            <label htmlFor="presentation-theme" className="block text-sm font-medium mb-1.5 text-neutral-500 dark:text-neutral-400">
+            <label htmlFor="presentation-theme" className="block text-sm font-medium mb-1.5 text-stone-500 dark:text-stone-400">
               {t('presentation.theme')}
             </label>
             {/* w-fit so the chevron stays on the control rather than at the far edge of the dialog. */}

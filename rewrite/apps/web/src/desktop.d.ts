@@ -9,6 +9,10 @@ interface Window {
     outputOpen(): Promise<boolean>;
     /** Called whenever the output window opens or closes, however it closed. Returns an unsubscribe. */
     onOutputChanged(cb: (open: boolean) => void): () => void;
+    /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */
+    macFrame?: boolean;
+    /** A choice in the menu bar the page has no key for (Inställningar…). Returns an unsubscribe. */
+    onMenu?(cb: (command: string) => void): () => void;
     /** This app runs the host (the embedded server), rather than being a client of another machine's server. */
     isHost: boolean;
     /** This machine's name, for the server's device lists. */

@@ -7,10 +7,11 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon, VideoOutlineIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
-import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
+import { EmptySmall } from '../ui/Empty.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
-import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
+import { TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { templateDetails } from './templates.ts';
 
@@ -54,7 +55,8 @@ function daysText(days: number) {
  * The trash (spec 03 section 5): the kinds the user may manage, newest
  * deletion first, to restore or purge. Opening it purges what has expired.
  */
-export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; role: Role }) {
+/** `inSettings`: a library's trash, opened inside Inställningar with its own heading; the start page's has the bar's. */
+export function Trash({ kind: initialKind, role, inSettings }: { kind: TrashKind | null; role: Role; inSettings?: boolean }) {
   const db = useDb();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
@@ -132,15 +134,11 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   return (
     <PageContainer>
       {dialog}
-      <DetailHeader backHref={href({ page: 'presentations' })} title={t('trash.title')} className="px-5" />
+      {inSettings && <PageHeader title={t('trash.title')} />}
       <div className={CARD}>
-        {!all && <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>}
+        {!all && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
         {all && !entries.length && (
-          <div className="flex flex-col items-center justify-center py-16 text-neutral-400">
-            <TrashIcon className="size-12 mb-3" strokeWidth={1.5} />
-            <p className="text-sm">{t('trash.emptyTitle')}</p>
-            <p className="text-xs mt-1 max-w-xs text-center">{t('trash.emptyText')}</p>
-          </div>
+          <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
         )}
         {!!entries.length && (
           <>
@@ -151,7 +149,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                   {shown.length !== entries.length && (
                     <>
                       {' '}
-                      <span className="font-normal text-neutral-400 text-sm">{t('trash.countOf', { count: '', total: entries.length }).trim()}</span>
+                      <span className="font-normal text-stone-400 text-sm">{t('trash.countOf', { count: '', total: entries.length }).trim()}</span>
                     </>
                   )}
                 </div>
@@ -183,7 +181,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                 compact
               />
             </div>
-            {!shown.length && <p className="px-5 py-10 text-center text-sm text-neutral-400">{t('trash.noMatch')}</p>}
+            {!shown.length && <p className="px-5 py-10 text-center text-sm text-stone-400">{t('trash.noMatch')}</p>}
             {/* Newest first, so what was just deleted by mistake is the first thing in view. */}
             <ul aria-label={t('trash.title')}>
               {shown.map((e) => {
@@ -192,12 +190,12 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                 const detail = e.template ? templateDetails(e.template) : e.detail;
                 return (
                   <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0" aria-label={e.name}>
-                    <div className="shrink-0 text-neutral-400 dark:text-neutral-500" title={t(`trash.one.${e.kind}`)}>
+                    <div className="shrink-0 text-stone-400 dark:text-stone-500" title={t(`trash.one.${e.kind}`)}>
                       <KindIcon kind={e.kind} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{e.name}</div>
-                      <div className="text-xs text-neutral-400 truncate">
+                      <div className="text-xs text-stone-400 truncate">
                         {[t(`trash.one.${e.kind}`), detail].filter(Boolean).join(' · ')}
                         {' · '}
                         <span className={days <= 1 ? 'text-red-500 dark:text-red-400' : undefined}>{daysText(days)}</span>

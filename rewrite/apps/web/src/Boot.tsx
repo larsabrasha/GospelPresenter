@@ -97,7 +97,7 @@ export function Boot({ boot }: { boot: BootFor }) {
 
   switch (screen) {
     case 'loading':
-      return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-neutral-400" />;
+      return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-stone-400" />;
     case 'offline':
       return (
         <AuthCard title={t('auth.signIn')} centered>

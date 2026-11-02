@@ -19,13 +19,13 @@ export function About() {
           </span>
         </div>
         <p className="text-center text-base">{t('about.tagline')}</p>
-        <dl className="grid w-full grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl bg-neutral-100 dark:bg-raised/50 p-3 select-text">
-          <dt className="text-neutral-500 dark:text-neutral-400">{t('about.version')}</dt>
+        <dl className="grid w-full grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl bg-stone-100 dark:bg-raised/50 p-3 select-text">
+          <dt className="text-stone-500 dark:text-stone-400">{t('about.version')}</dt>
           <dd className="min-w-0 break-words" data-testid="about-version">
             <Commit />
           </dd>
         </dl>
-        <p className="text-center text-neutral-500 dark:text-neutral-400">
+        <p className="text-center text-stone-500 dark:text-stone-400">
           {t('about.credits')}
           <br />
           {t('about.creditsCode')}
@@ -64,7 +64,7 @@ function Commit() {
       <a href={`${REPO_URL}/commit/${commit}`} target="_blank" rel="noreferrer" className="font-mono text-inherit no-underline hover:underline" title={t('about.commitOnGitHub')}>
         {commit}
       </a>
-      {import.meta.env.DEV && <span className="text-neutral-500 dark:text-neutral-400">{t('about.devBuild')}</span>}
+      {import.meta.env.DEV && <span className="text-stone-500 dark:text-stone-400">{t('about.devBuild')}</span>}
     </span>
   );
 }

@@ -43,9 +43,10 @@ import { SyncWarnings, UnexpectedError } from './Shell.tsx';
 import { PageDialog } from './ui/Dialog.tsx';
 import { TopBar } from './TopBar.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
+import { settingsGroups } from './pages/settings/settingsLinks.ts';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
-import { closeAdmin, isAdminPage, useRoute, type Route } from './ui/router.ts';
+import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, settingsTrash, useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -65,6 +66,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   // And counts the songs it shows for the CCLI report (SONG-R48).
   useCcliCounter(live, db);
   // Starta presentation fetches the presentation's files here, at once and quietly; looking around fetches none.
+  // Inställningar… in the desktop app's menu bar.
+  useEffect(() => window.gpDesktop?.onMenu?.((command) => command === 'settings' && navigate({ page: 'admin' })), []);
   useEffect(() => {
     let last: string | null | undefined;
     return live.subscribe((p) => {
@@ -87,6 +90,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   }, [db]);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
+  // Whether the intro card's title of a page in Inställningar is in view: the bar names the page only once it is not.
+  const [introTitleInView, setIntroTitleInView] = useState(false);
 
   useEffect(() => {
     api<Me>('GET', '/api/auth/me')
@@ -129,6 +134,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
+      {route.page === 'trash' && settingsTrash(route) && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} inSettings />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
@@ -149,7 +155,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         {ownBar ? (
           !adminOpen && <SyncWarnings />
         ) : (
-          <TopBar me={me} warnings={!adminOpen} />
+          <TopBar me={me} warnings={!adminOpen} title={under.page === 'trash' ? t('trash.title') : undefined} />
         )}
         {under.page === 'presentations' ? (
           <Presentations link={link} ownSessionId={sessionId} />
@@ -167,9 +173,23 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         )}
       </div>
       {adminOpen && (
-        <PageDialog title={t('nav.admin')} onClose={() => closeAdmin(under)}>
+        <PageDialog
+          title={settingsTitle(route)}
+          compactTitle={settingsPageTitle(route, me, host)}
+          compactTitleShown={!introTitleInView}
+          back={settingsBack(route)}
+          split={!aloneInSettings(route, adminBack())}
+          onClose={() => closeAdmin(under)}
+        >
           <SyncWarnings />
-          <SettingsLayout me={me} host={host} route={route}>
+          <SettingsLayout
+            me={me}
+            host={host}
+            route={route}
+            // From `lg` the list's own page shows Sånger beside it.
+            bar={{ title: route.page === 'admin' ? t('nav.songs') : settingsPageTitle(route, me, host), titleShown: !introTitleInView, back: settingsBack(route), onClose: () => closeAdmin(under) }}
+            onIntroTitle={setIntroTitleInView}
+          >
             {admin}
           </SettingsLayout>
         </PageDialog>
@@ -178,11 +198,67 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   );
 }
 
+/**
+ * The dialog's title: Inställningar, or what a page opened straight from outside it is (a song from a presentation's
+ * item), since it stands there alone, without the list.
+ */
+function settingsTitle(route: Route, detail = false): string {
+  if (!detail && !aloneInSettings(route, adminBack())) return t('nav.admin');
+  switch (route.page) {
+    case 'song':
+      return t('song.one');
+    case 'songHistory':
+      return t('history.versions');
+    case 'user':
+      return t('users.title');
+    case 'overlay':
+      return t('overlays.itemOverlay');
+    case 'org':
+      return t('orgs.one');
+    default:
+      return t('nav.admin');
+  }
+}
+
+/**
+ * The page's name for the dialog's bar on a phone, where the page shows no heading of its own (PageHeader): its row's
+ * name in the list, or what a detail page is.
+ */
+function settingsPageTitle(route: Route, me: Me, host: boolean): string {
+  if (route.page === 'admin') return t('nav.admin');
+  if (route.page === 'settings') return t('nav.settings');
+  if (route.page === 'trash') return t('trash.title');
+  if (route.page === 'logins') return t('logins.title');
+  if (DETAIL_TITLES.has(route.page)) return settingsTitle(route, true);
+  const link = settingsGroups(me, host).flatMap((g) => g.links).find((l) => l.route.page === route.page);
+  return link ? t(link.label) : t('nav.admin');
+}
+
+const DETAIL_TITLES = new Set<Route['page']>(['song', 'songHistory', 'user', 'overlay', 'org']);
+
+/**
+ * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
+ * list; none on the list, nor on a page opened alone.
+ */
+function settingsBack(route: Route): { href: string; label: string } | undefined {
+  if (route.page === 'admin' || aloneInSettings(route, adminBack())) return undefined;
+  const up: Route =
+    route.page === 'song' ? { page: 'songs' }
+    : route.page === 'songHistory' ? { page: 'song', id: route.id }
+    : route.page === 'user' ? { page: 'users' }
+    : route.page === 'overlay' ? { page: 'overlays' }
+    : route.page === 'org' ? { page: 'orgs' }
+    : route.page === 'logins' ? { page: 'settings' }
+    : route.page === 'trash' ? (settingsTrash(route) ?? { page: 'admin' })
+    : { page: 'admin' };
+  return { href: href(up), label: t('common.back') };
+}
+
 /** A page the user may not open: why, where the page would be. */
 function Refused({ text }: { text: string }) {
   return (
     <PageContainer>
-      <p className="px-5 text-neutral-500 dark:text-neutral-400">{text}</p>
+      <p className="px-5 text-stone-500 dark:text-stone-400">{text}</p>
     </PageContainer>
   );
 }

@@ -2,7 +2,7 @@
 // host, with no sign-in and no pairing as a device, and shows the session.
 // Played by Playwright's Chromium beside the desktop app.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, createPresentation, createSong, endPresentation, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
@@ -32,7 +32,7 @@ async function presenting(): Promise<Page> {
 }
 
 async function tv(url: string): Promise<Page> {
-  browser ??= await chromium.launch();
+  browser ??= await chromium.launch({ args: MUTED });
   const page = await browser.newPage({ locale: 'sv-SE' });
   await page.goto(url);
   return page;
@@ -48,8 +48,8 @@ test('a saved screen is online while its page is open, shows the slide when swit
   const origin = new URL(page.url()).origin;
   await openAdmin(page, 'Skärmar');
   await expect(page.getByText('Inga skärmar tillagda')).toBeVisible();
-  // The explanation is inside the empty card only, in the current app's words (Displays.razor).
-  await expect(page.getByText(/^En skärm är en extern enhet/)).toBeVisible();
+  // An empty list shows its picture and heading only; the intro card at the top says what screens are.
+  await expect(page.getByText(/^TV-apparater och projektorer som visar presentationen/)).toBeVisible();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
   await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();

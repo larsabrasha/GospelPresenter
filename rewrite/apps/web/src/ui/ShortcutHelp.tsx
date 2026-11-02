@@ -90,11 +90,11 @@ export function ShortcutHelp() {
   if (!open) return null;
   return (
     <Dialog title={t('shortcuts.title')} onClose={() => setOpen(false)} maxWidthClass="max-w-lg" showClose>
-      <p className="text-sm text-neutral-500 dark:text-neutral-400 -mt-3">{t('shortcuts.hint')}</p>
+      <p className="text-sm text-stone-500 dark:text-stone-400 -mt-3">{t('shortcuts.hint')}</p>
       <div className="max-h-[60vh] overflow-y-auto space-y-5 -mx-1 px-1">
         {describe(registered.map((g) => g.group)).map((group) => (
           <section key={group.title} className="space-y-1" aria-label={group.title}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{group.title}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{group.title}</h3>
             <ul className="rounded-xl border border-separator overflow-hidden">
               {group.lines.map((line) => (
                 <li key={line.text} className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-separator last:border-b-0">
@@ -103,7 +103,7 @@ export function ShortcutHelp() {
                     {line.keys.map((k) => (
                       <kbd
                         key={k}
-                        className="px-2 py-1 rounded-md bg-raised border-b-2 border-neutral-300 dark:border-neutral-600 text-xs font-sans font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap"
+                        className="px-2 py-1 rounded-md bg-raised border-b-2 border-stone-300 dark:border-stone-600 text-xs font-sans font-medium text-stone-700 dark:text-stone-200 whitespace-nowrap"
                       >
                         {keyLabel(k)}
                       </kbd>

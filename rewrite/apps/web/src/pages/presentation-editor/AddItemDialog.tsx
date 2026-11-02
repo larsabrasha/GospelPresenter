@@ -2,11 +2,13 @@ import type { Theme } from '@gp/core';
 import { useEffect, useEffectEvent, useState, type ReactNode } from 'react';
 import type { Db } from '../../db/db.ts';
 import { useDb } from '../../db/react.tsx';
+import { FIRST_PART_LABEL } from '../songEditorLook.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
+import { PageFill } from '../../ui/PageContainer.tsx';
 import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
@@ -77,12 +79,12 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
   /** Counts the songs added from the new song's editor: the song tab starts over, its search empty. */
   const [addedNew, setAddedNew] = useState(0);
 
-  // Skapa in the song tab: a song named as the search, with an empty first part to type in, opened here.
+  // Skapa in the song tab: a song named as the search, with its first part, Verse 1, to type in, opened here.
   const newSong = async (query: string) => {
     const id = newId();
     const name = query || t('song.newTitle');
     if (!(await trySave(db.mutate('createSong', { id, name })))) return;
-    await trySave(db.mutate('addSongPart', { id: newId(), songId: id, labelText: null, content: '' }));
+    await trySave(db.mutate('addSongPart', { id: newId(), songId: id, labelText: FIRST_PART_LABEL, content: '' }));
     setEditing({ id, isNew: true, focusName: !query });
   };
   const discard = (id: string) => discardSong(db, id);
@@ -125,7 +127,9 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl">
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-surface px-4 py-3 md:static md:inset-auto md:z-auto md:p-0 md:flex-1 md:min-h-0">
+          // The same page as in Inställningar, filling the dialog.
+          <PageFill value>
+          <div className="flex-1 min-h-0 flex flex-col -mx-4">
             {editing?.isNew ? (
               <SongEditor
                 id={editing.id}
@@ -143,6 +147,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
               <SongEditor id={editingSongId} onBack={() => setEditing(null)} />
             )}
           </div>
+          </PageFill>
         )}
         <div className={editingSongId ? 'hidden' : 'mb-4 md:flex md:justify-center'}>
           <PillTabs role="tablist">

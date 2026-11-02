@@ -27,13 +27,13 @@ const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song
         aria-pressed={chosen}
         onClick={() => onPick(s.id)}
         className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-raised/50 hover:bg-raised-2'
+          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-raised/70 dark:bg-raised/50 hover:bg-raised-2'
         }`}
       >
         <span className="block truncate w-full">
           <Highlight text={s.name} query={query} />
         </span>
-        <span className="block text-xs text-neutral-400 truncate w-full">{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
+        <span className="block text-xs text-stone-400 truncate w-full">{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
       </AppButton>
     </li>
   );
@@ -158,8 +158,8 @@ export function SongTab({
   if (songs && !songs.length)
     return (
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-sm gap-3 select-none">
-        <MusicalNoteOutlineIcon className="size-12 mb-1 text-neutral-300 dark:text-neutral-600" />
-        <p className="text-neutral-400 dark:text-neutral-500">{t('songs.emptyTitle')}</p>
+        <MusicalNoteOutlineIcon className="size-12 mb-1 text-stone-300 dark:text-stone-600" />
+        <p className="text-stone-400 dark:text-stone-500">{t('songs.emptyTitle')}</p>
         <AppButton variant="secondary" href={href({ page: 'songs' })} className="flex items-center gap-1.5">
           <AdjustmentsIcon className="size-4" />
           {t('presentation.manageSongs')}
@@ -176,7 +176,7 @@ export function SongTab({
       <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         <div className="w-full md:w-1/2 min-w-0 flex flex-col md:pr-3 md:min-h-0">
           {songs && !shown.length && (
-            <EmptyTab icon={<MusicalNoteOutlineIcon className="size-12 mb-1 text-neutral-300 dark:text-neutral-600" />}>
+            <EmptyTab icon={<MusicalNoteOutlineIcon className="size-12 mb-1 text-stone-300 dark:text-stone-600" />}>
               <p>{t('songs.noHits')}</p>
               {create}
             </EmptyTab>
@@ -187,12 +187,13 @@ export function SongTab({
             ))}
           </ul>
           {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
-          {!!shown.length && <div className="shrink-0 pt-3">{create}</div>}
+          {/* Room under it for its shadow, which the scrolling column would cut. */}
+          {!!shown.length && <div className="shrink-0 pt-3 pb-4">{create}</div>}
         </div>
         <div ref={previewPane} className="hidden md:block md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3">
           {!shownPreview && (
-            <div className="flex flex-col items-center justify-center h-full py-8 text-sm text-neutral-400 dark:text-neutral-500 select-none">
-              <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
+            <div className="flex flex-col items-center justify-center h-full py-8 text-sm text-stone-400 dark:text-stone-500 select-none">
+              <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />
               <p>{t('presentation.noSongSelected')}</p>
             </div>
           )}
@@ -204,14 +205,14 @@ export function SongTab({
                     <Highlight text={shownPreview.song.name} query={query} />
                   </h3>
                   {shownPreview.song.author && (
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-xs text-stone-400">
                       <Highlight text={shownPreview.song.author} query={query} />
                     </p>
                   )}
                 </div>
                 <AppButton
                   variant="icon"
-                  className="shrink-0 size-7! text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                  className="shrink-0 size-7! text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
                   title={t('presentation.editSong')}
                   aria-label={t('presentation.editSong')}
                   onClick={() => onEditSong(shownPreview.song.id)}
@@ -259,7 +260,7 @@ export function SongTab({
             </AppButton>
             <div className="flex-1 min-w-0 text-left">
               <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
-              {shownPreview.song.author && <p className="text-xs text-neutral-400 truncate">{shownPreview.song.author}</p>}
+              {shownPreview.song.author && <p className="text-xs text-stone-400 truncate">{shownPreview.song.author}</p>}
             </div>
             <AppButton
               variant="icon"

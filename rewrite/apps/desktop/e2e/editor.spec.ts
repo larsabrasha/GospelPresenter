@@ -27,8 +27,9 @@ test('the item selected again on return, and Markera removes a range', async () 
   await page.getByRole('link', { name: /Söndag/ }).click();
   await expect(order.getByRole('button', { name: 'Sång B', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  // Markera, beside the running order: tick A, Shift+click C ticks the range, and the three go together after the question.
-  await page.getByRole('button', { name: 'Markera', exact: true }).click();
+  // Markera, in the … beside the description: tick A, Shift+click C ticks the range, and the three go together after the question.
+  await page.getByRole('button', { name: 'Fler val för ordningen' }).click();
+  await page.getByRole('menuitem', { name: 'Markera' }).click();
   await expect(page.getByText('Välj objekt att radera')).toBeVisible();
   await order.getByRole('button', { name: 'Sång A' }).click();
   await order.getByRole('button', { name: 'Sång C' }).click({ modifiers: ['Shift'] });
@@ -143,8 +144,9 @@ test('several pictures make one image item; Redigera removes one and adds more',
   await expect(order.getByRole('listitem')).toHaveText([/2 bilder/]);
   await expect(page.getByRole('list', { name: '2 bilder' }).getByRole('listitem')).toHaveCount(2);
 
-  // Redigera: the ✕ on the first asks, then removes it; the dashed tile adds Grön last.
-  await page.getByRole('button', { name: 'Redigera', exact: true }).click();
+  // Redigera, in the item's …: the ✕ on the first asks, then removes it; the dashed tile adds Grön last.
+  await page.getByRole('region', { name: '2 bilder' }).getByRole('button', { name: 'Fler val för 2 bilder' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera' }).click();
   await page.getByRole('button', { name: 'Ta bort bild 1' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByTestId('image-order').getByRole('listitem')).toHaveCount(1);

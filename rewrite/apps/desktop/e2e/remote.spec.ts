@@ -2,7 +2,7 @@
 // host presents. The host's outputs follow its own state; commands travel
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, allowRemote, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
@@ -46,12 +46,11 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
   // Anna allows it; the card appears on Bo's computer without a reload.
-  // The QR code button waits for the switch; switching on the first time opens its dialog (LivePanel.razor).
-  const showInfo = page.getByRole('button', { name: 'Visa info om fjärrstyrning' });
+  // Switched on, the QR code and the link show under the switch, in the same sheet.
+  const info = page.getByRole('region', { name: 'Fjärrstyr presentationen' });
   await (await remoteSwitch(page)).scrollIntoViewIfNeeded();
-  await expect(showInfo).toBeDisabled();
+  await expect(info).toHaveCount(0);
   await (await remoteSwitch(page)).check();
-  const info = page.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
   await expect(info.getByText('Skanna med kameran på enheten du vill fjärrstyra från.')).toBeVisible();
   // The link to copy is folded away under the QR code, and is the code's link.
   await info.getByRole('button', { name: 'Kopiera länken' }).click();
@@ -59,13 +58,8 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(remoteLink).toBeVisible();
   await expect(remoteLink).toHaveValue(/\/presentations\/[\w-]+\?remote=true&session=[\w-]+$/);
   await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await remoteLink.inputValue());
-  await info.getByRole('button', { name: 'Stäng' }).click();
-  await expect(info).toHaveCount(0);
-  // Not inline in the panel any more; the button opens it again.
-  await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveCount(0);
-  await showInfo.click();
-  await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toBeVisible();
-  await info.getByRole('button', { name: 'Stäng' }).click();
+  await page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true })).toHaveCount(0);
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await expect(card).toContainText('Söndag', { timeout: 5_000 });
   await card.getByRole('link', { name: 'Ta kontroll' }).click();
@@ -147,7 +141,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
   test.skip(!lan, 'this machine has no LAN address');
   host = await launch({ lan: true });
   await setUpHost(host);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: MUTED });
   try {
     const phone = await browser.newPage();
     const errors: string[] = [];
@@ -207,7 +201,10 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await remoteSwitch(page);
   await expect(page.getByText('Alla i organisationen kan fjärrstyra presentationen.')).toBeVisible();
   await expect(page.getByLabel('Tillåt fjärrstyrning')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Visa info om fjärrstyrning' })).toBeEnabled();
+  // Always on, so the QR code shows in the sheet at once.
+  await expect(page.getByRole('region', { name: 'Fjärrstyr presentationen' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true })).toHaveCount(0); // it fades out first
   await openPresentations(secondApp.page);
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await expect(card.getByRole('link', { name: 'Ta kontroll' })).toBeVisible({ timeout: 5_000 });

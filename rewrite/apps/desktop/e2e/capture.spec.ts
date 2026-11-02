@@ -6,7 +6,7 @@
 import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, createPresentation, createSong, endPresentation, openAdmin, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';
 import { toneWav } from './wav.ts';
@@ -31,7 +31,7 @@ test.afterAll(async () => {
 
 /** A page in a browser beside the app, as a TV or a phone would open one, in a theme and a size. */
 async function beside(url: string, theme: string, width: number, height: number): Promise<Page> {
-  browser ??= await chromium.launch();
+  browser ??= await chromium.launch({ args: MUTED });
   const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme as 'light' | 'dark', locale: 'sv-SE' });
   await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
   const p = await ctx.newPage();
@@ -231,7 +231,7 @@ test('capture every page', async () => {
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Rensa' }).click();
-        await p.getByRole('button', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
+        await p.getByRole('button', { name: /^Utgångar/ }).scrollIntoViewIfNeeded();
       },
       stopLive,
     ],
@@ -240,9 +240,9 @@ test('capture every page', async () => {
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        for (const name of ['Overlays', 'Fjärrstyrning']) await p.getByRole('button', { name, exact: true }).click();
+        await p.getByRole('button', { name: 'Overlays', exact: true }).click();
         for (const hint of await p.getByRole('button', { name: /^Förklaring: / }).all()) await hint.click();
-        await p.getByRole('button', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
+        await p.getByRole('button', { name: /^Utgångar/ }).scrollIntoViewIfNeeded();
       },
       stopLive,
     ],
@@ -255,13 +255,12 @@ test('capture every page', async () => {
           async (p: Page) => {
             await goLive(p);
             await (await remoteSwitch(p)).check();
-            const info = p.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
-            await info.waitFor();
-            if (name === 'live-remote-on') await info.getByRole('button', { name: 'Stäng' }).click();
+            await p.getByRole('region', { name: 'Fjärrstyr presentationen' }).waitFor();
+            if (name === 'live-remote-on') await p.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
           },
           async (p: Page) => {
-            if (name === 'live-remote') await p.getByRole('dialog', { name: 'Fjärrstyr presentationen' }).getByRole('button', { name: 'Stäng' }).click();
             await (await remoteSwitch(p)).uncheck();
+            await p.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
             await stopLive(p);
           },
         ] as [string, string, (p: Page) => Promise<unknown>, (p: Page) => Promise<unknown>],

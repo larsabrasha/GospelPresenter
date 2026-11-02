@@ -29,8 +29,8 @@ export function formatDuration(ms: number): string {
 function VideoThumb({ video }: { video: LibraryVideo }) {
   const url = useBlobUrl(video.thumbHash);
   return (
-    <span className="relative w-20 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-raised overflow-hidden flex items-center justify-center">
-      {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-5 text-neutral-400" />}
+    <span className="relative w-20 aspect-video shrink-0 rounded bg-stone-200 dark:bg-raised overflow-hidden flex items-center justify-center">
+      {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-5 text-stone-400" />}
     </span>
   );
 }
@@ -103,7 +103,7 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
             </span>
           )}
           {status && (
-            <span className="text-neutral-400 text-sm" data-testid="video-import-progress">
+            <span className="text-stone-400 text-sm" data-testid="video-import-progress">
               {status.phase === 'waiting'
                 ? t('videos.waiting', { percent: status.percent })
                 : t(status.phase === 'reading' ? 'videos.reading' : 'videos.uploading', { name: status.name, percent: status.percent })}
@@ -112,19 +112,19 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!videos && <p className="flex items-center justify-center py-12 text-neutral-400 text-sm">{t('videos.loading')}</p>}
+          {!videos && <p className="flex items-center justify-center py-12 text-stone-400 text-sm">{t('videos.loading')}</p>}
           {videos && !videos.length && (
-            <EmptyTab icon={<VideoIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
+            <EmptyTab icon={<VideoIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
               <p>{t('presentation.noVideos')}</p>
               <p className="text-xs mt-1">{t('videos.resumeHint')}</p>
             </EmptyTab>
           )}
           <ul className="flex flex-col gap-1 p-3" aria-label={t('videos.title')} onKeyDown={list.onKeyDown}>
             {shown.map((v, i) => (
-              <PickableFileRow key={v.id} nav={list.item(i)} picked={picked.includes(v.id)} name={v.fileName} icon={<VideoIcon className="size-5 text-neutral-400 shrink-0" />} onToggle={() => toggle(v.id)} onRemove={() => void remove(v)}>
+              <PickableFileRow key={v.id} nav={list.item(i)} picked={picked.includes(v.id)} name={v.fileName} icon={<VideoIcon className="size-5 text-stone-400 shrink-0" />} onToggle={() => toggle(v.id)} onRemove={() => void remove(v)}>
                 <VideoThumb video={v} />
                 <span className="text-sm truncate flex-1">{v.fileName}</span>
-                <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums shrink-0">{formatDuration(v.duration)}</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums shrink-0">{formatDuration(v.duration)}</span>
               </PickableFileRow>
             ))}
           </ul>

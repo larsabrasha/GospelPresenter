@@ -148,7 +148,20 @@ const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles
 const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins']);
 
 export function isAdminPage(r: Route): boolean {
-  return ADMIN_DIALOG_PAGES.has(r.page);
+  return ADMIN_DIALOG_PAGES.has(r.page) || settingsTrash(r) !== null;
+}
+
+/** The list in Inställningar a trash of one kind belongs to: it opens there (Lars, 2026-11-02); presentations' is a page. */
+export function settingsTrash(r: Route): Route | null {
+  if (r.page !== 'trash') return null;
+  const lists: Partial<Record<TrashKind, Route>> = {
+    Song: { page: 'songs' },
+    Image: { page: 'images' },
+    Audio: { page: 'audios' },
+    Video: { page: 'videos' },
+    Template: { page: 'templates' },
+  };
+  return r.kind ? (lists[r.kind] ?? null) : null;
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */

@@ -31,11 +31,11 @@ export function LiveEditList({ items, shownId, onRemove }: { items: Presentation
                 onClick={() => onRemove(item)}
                 className="size-11 -ml-2 shrink-0 flex items-center justify-center cursor-pointer disabled:cursor-default"
               >
-                <span className={`size-5.5 rounded-full flex items-center justify-center ${shown ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-red-500'}`}>
+                <span className={`size-5.5 rounded-full flex items-center justify-center ${shown ? 'bg-stone-300 dark:bg-stone-600' : 'bg-red-500'}`}>
                   <span className="w-2.5 h-0.5 rounded-full bg-white" />
                 </span>
               </AppButton>
-              <ItemIcon type={item.type} className="size-4 shrink-0 text-neutral-500 dark:text-neutral-400" />
+              <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-500 dark:text-stone-400" />
               <span className="flex-1 min-w-0 flex items-center gap-2 text-[17px]">
                 <span className="truncate">{item.title}</span>
                 {shown && <span className="size-2 rounded-full bg-red-500 shrink-0" aria-label={t('live.badge')} />}
@@ -44,7 +44,7 @@ export function LiveEditList({ items, shownId, onRemove }: { items: Presentation
                 {...handle(i)}
                 data-testid="drag-handle"
                 title={t('live.moveItem', { title: item.title })}
-                className="size-11 shrink-0 flex items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing text-neutral-400 dark:text-neutral-500"
+                className="size-11 shrink-0 flex items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing text-stone-400 dark:text-stone-500"
               >
                 <GripIcon className="size-5" />
               </div>
@@ -52,7 +52,7 @@ export function LiveEditList({ items, shownId, onRemove }: { items: Presentation
           );
         })}
       </ol>
-      <p className="px-4 pt-2 text-[13px] text-neutral-500 dark:text-neutral-400">{t('live.editHint')}</p>
+      <p className="px-4 pt-2 text-[13px] text-stone-500 dark:text-stone-400">{t('live.editHint')}</p>
     </div>
   );
 }

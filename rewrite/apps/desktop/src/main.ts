@@ -19,6 +19,7 @@ import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron';
 import type { GoogleConfig } from '@gp/server';
 import { mailConfigFrom } from '@gp/server/node';
 import { lanUrls, pageUrl, startHost } from './host.ts';
+import { setAppMenu } from './menu.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 /**
@@ -263,7 +264,20 @@ app.whenReady().then(async () => {
   });
 
   if (hidden) app.dock?.hide();
-  const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', show: !hidden, webPreferences });
+  setAppMenu(
+    () => mainWindow,
+    (command) => mainWindow?.webContents.send('menu', command),
+  );
+  // On a Mac the title bar is hidden and the window's buttons sit in the page's own bar, which reaches the top, as
+  // macOS's own apps (Lars, 2026-11-02); the page leaves room for them and lets its bar move the window.
+  const main = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: 'Gospel Presenter',
+    show: !hidden,
+    webPreferences,
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 18, y: 19 } } : {}),
+  });
   mainWindow = main;
   guardWindow(main);
   await main.loadURL(pageUrl(base));

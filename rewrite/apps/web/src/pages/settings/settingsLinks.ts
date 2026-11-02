@@ -19,7 +19,7 @@ import {
   VideoIcon,
   ViewGridIcon,
 } from '../../ui/icons.tsx';
-import type { Route } from '../../ui/router.ts';
+import { settingsTrash, type Route } from '../../ui/router.ts';
 
 export interface SettingsLink {
   route: Route;
@@ -29,6 +29,8 @@ export interface SettingsLink {
   colour: string;
   /** The pages that mark this row as the one open. */
   pages: Route['page'][];
+  /** What the page is for, in a card at its top as iOS's Settings has (Lars, 2026-11-02): only where it is not plain. */
+  intro?: TextKey;
 }
 
 export interface SettingsGroup {
@@ -56,35 +58,37 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
     {
       title: 'settings.group.presentation',
       links: [
-        can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, colour: 'bg-indigo-500', pages: ['overlays', 'overlay'] },
-        can(me.role, 'ManageTemplates') && { route: { page: 'templates' }, label: 'nav.templates', icon: ViewGridIcon, colour: 'bg-cyan-600', pages: ['templates'] },
-        can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', icon: TagIcon, colour: 'bg-green-500', pages: ['labels'] },
+        can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, colour: 'bg-indigo-500', pages: ['overlays', 'overlay'], intro: 'intro.overlays' },
+        can(me.role, 'ManageTemplates') && { route: { page: 'templates' }, label: 'nav.templates', icon: ViewGridIcon, colour: 'bg-cyan-600', pages: ['templates'], intro: 'intro.templates' },
+        can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', icon: TagIcon, colour: 'bg-green-500', pages: ['labels'], intro: 'intro.labels' },
       ],
     },
     {
       title: 'settings.group.display',
       links: [
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'] },
-        { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, colour: 'bg-neutral-500', pages: ['themes'] },
-        can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'] },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
+        { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes'], intro: 'themes.text' },
+        can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
       ],
     },
     {
       title: 'settings.group.church',
       links: [
         can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, colour: 'bg-blue-500', pages: ['users', 'user'] },
-        host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, colour: 'bg-teal-500', pages: ['devices'] },
-        can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, colour: 'bg-neutral-500', pages: ['orgSettings'] },
+        host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, colour: 'bg-teal-500', pages: ['devices'], intro: 'intro.devices' },
+        can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, colour: 'bg-stone-500', pages: ['orgSettings'], intro: 'intro.orgSettings' },
         // The SuperAdmin's pages, across organisations (spec 01 sidebar).
         can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
       ],
     },
-    { title: null, links: [{ route: { page: 'about' }, label: 'nav.about', icon: InformationCircleIcon, colour: 'bg-neutral-500', pages: ['about'] }] },
+    { title: null, links: [{ route: { page: 'about' }, label: 'nav.about', icon: InformationCircleIcon, colour: 'bg-stone-500', pages: ['about'] }] },
   ];
   return groups.map((g) => ({ title: g.title, links: g.links.filter((l): l is SettingsLink => !!l) })).filter((g) => g.links.length > 0);
 }
 
 /** Whether `link` is the row of the page open; on a computer the list alone (`/admin`) shows the songs. */
 export function isOpen(link: Pick<SettingsLink, 'pages'>, route: Route): boolean {
-  return link.pages.includes(route.page === 'admin' ? 'songs' : route.page);
+  // A trash of one kind marks its list's row.
+  const page = route.page === 'admin' ? 'songs' : (settingsTrash(route)?.page ?? route.page);
+  return link.pages.includes(page);
 }

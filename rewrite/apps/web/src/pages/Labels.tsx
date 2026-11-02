@@ -70,12 +70,12 @@ function LabelDialog({ editing, labels, onClose }: { editing: Label | null; labe
           {taken && <p className="text-sm text-red-600 dark:text-red-400">{t('labels.taken')}</p>}
         </div>
         <label className="block">
-          <span className="text-sm text-neutral-500 dark:text-neutral-400 mb-1 block">{t('labels.color')}</span>
+          <span className="text-sm text-stone-500 dark:text-stone-400 mb-1 block">{t('labels.color')}</span>
           <input
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            className="block w-full h-10 rounded-lg border border-neutral-300 dark:border-neutral-600 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-lg"
+            className="block w-full h-10 rounded-lg border border-stone-300 dark:border-stone-600 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-lg"
           />
         </label>
         <DialogButtons>
@@ -108,9 +108,9 @@ export function Labels() {
         <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
       </PageHeader>
       <div className={CARD}>
-        {!labels && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
+        {!labels && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {labels && !labels.length && (
-          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} text={t('labels.text')} />
+          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} />
         )}
         <ul aria-label={t('labels.title')}>
           {labels?.map((l, i) => (

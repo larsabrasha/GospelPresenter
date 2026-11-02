@@ -14,13 +14,13 @@ function Brand({ className }: { className: string }) {
 }
 
 /** A line of grey text under the title (Setup.razor's description). */
-export const AUTH_TEXT = 'text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed text-center';
+export const AUTH_TEXT = 'text-sm text-stone-500 dark:text-stone-400 leading-relaxed text-center';
 
 /** The wide sky button at the foot of a form (Setup.razor's Kom igång). */
 export const AUTH_SUBMIT = 'mt-2 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600 disabled:opacity-50 disabled:cursor-default';
 
 /** The title as Setup.razor's. */
-const TITLE = 'text-2xl font-semibold text-neutral-800 dark:text-neutral-100 mb-3 text-center px-4';
+const TITLE = 'text-2xl font-semibold text-stone-800 dark:text-stone-100 mb-3 text-center px-4';
 
 /**
  * The frame of the screens before the app: sign-in, setup, invite and pairing.

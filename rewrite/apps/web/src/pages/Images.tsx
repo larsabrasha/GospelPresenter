@@ -26,7 +26,7 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
   return url ? (
     <img src={url} alt={image.fileName} draggable={false} className={className ?? 'block max-w-full max-h-32 rounded-lg'} />
   ) : (
-    <div className="w-32 max-w-full aspect-video rounded-lg bg-neutral-200 dark:bg-raised flex items-center justify-center text-xs text-neutral-400">{t('images.fetching')}</div>
+    <div className="w-32 max-w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised flex items-center justify-center text-xs text-stone-400">{t('images.fetching')}</div>
   );
 }
 
@@ -76,7 +76,7 @@ export function Images({ role }: { role: Role }) {
           </div>
         </PageHeader>
         {progress && (
-          <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400" role="status" data-testid="image-progress">
+          <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status" data-testid="image-progress">
             {t('images.importing', progress)}
           </p>
         )}
@@ -96,9 +96,9 @@ export function Images({ role }: { role: Role }) {
             <h2 className="text-base/6 font-semibold">{t('images.all', { n: images?.length ?? 0 })}</h2>
             {!!images?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
           </div>
-          {!images && <div className="px-5 py-4 text-neutral-400 text-sm">{t('presentation.loadingImages')}</div>}
+          {!images && <div className="px-5 py-4 text-stone-400 text-sm">{t('presentation.loadingImages')}</div>}
           {images && !images.length && (
-            <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('images.empty')} text={t('images.emptyText')} />
+            <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('images.empty')} />
           )}
           {!!images?.length && !shown.length && <CardNote>{t('images.noMatch')}</CardNote>}
           <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 p-3 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
@@ -112,7 +112,7 @@ export function Images({ role }: { role: Role }) {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
+                <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
                   {image.fileName}
                 </p>
               </li>

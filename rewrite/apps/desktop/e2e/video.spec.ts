@@ -6,7 +6,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, expect, test, type Browser, type Locator, type Page } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -42,7 +42,7 @@ async function addVideo(page: Page, name = 'Dop.mp4', file = 'h264.mp4') {
 /** A temporary screen in Playwright's Chromium, paired with the presenting window by its code. */
 async function pairedScreen(page: Page): Promise<Page> {
   const origin = new URL(page.url()).origin;
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: MUTED });
   const screen = await browser.newPage();
   await screen.goto(`${origin}/display`);
   const code = (await screen.getByTestId('display-pin').textContent({ timeout: 10_000 }))!;

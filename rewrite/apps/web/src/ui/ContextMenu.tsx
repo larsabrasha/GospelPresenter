@@ -22,7 +22,7 @@ export function ContextMenu({ at, label, onClose, children }: { at: { x: number;
       ref={menu}
       role="menu"
       aria-label={label}
-      className="fixed z-[135] min-w-52 p-1.5 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator text-sm text-neutral-800 dark:text-neutral-100"
+      className="fixed z-[135] min-w-52 p-1.5 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator text-sm text-stone-800 dark:text-stone-100"
       onClick={onClose}
     >
       {children}

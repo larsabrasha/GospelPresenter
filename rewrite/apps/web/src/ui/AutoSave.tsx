@@ -48,7 +48,7 @@ export function useSavedIndicator(): { node: ReactNode; show: () => void } {
     state === 'hidden' ? null : (
       <span
         data-testid="saved"
-        className={`text-xs text-neutral-400 dark:text-neutral-500 transition-opacity duration-300 ${state === 'fading' ? 'opacity-0' : 'opacity-100'} absolute right-0`}
+        className={`text-xs text-stone-400 dark:text-stone-500 transition-opacity duration-300 ${state === 'fading' ? 'opacity-0' : 'opacity-100'} absolute right-0`}
       >
         <TickIcon strokeWidth={2} className="size-3.5 inline -mt-0.5 mr-0.5" />
         {t('common.saved')}
@@ -80,6 +80,7 @@ export function AutoSaveField({
   warnOnClash,
   rows = 8,
   showLabel,
+  bare,
   className,
   maxLength,
   type,
@@ -98,6 +99,8 @@ export function AutoSaveField({
   rows?: number;
   /** Shows a multiline field's label in the box, as other fields do; a part's text has none. */
   showLabel?: boolean;
+  /** A multiline field written straight into its card, without a box of its own. */
+  bare?: boolean;
   className?: string;
   /** The field's limits (AppConstraints): its length, and for a number its type and range. */
   maxLength?: number;
@@ -205,7 +208,7 @@ export function AutoSaveField({
   };
   // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
   const field = multiline ? (
-    <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} bare={bare} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
     <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} hasError={hasError} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   );
@@ -215,7 +218,7 @@ export function AutoSaveField({
       {field}
       <div role="alert" className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-2 text-sm text-amber-800 dark:text-amber-200">
         <p className="font-medium">{t('autosave.clash')}</p>
-        <p className="max-h-32 overflow-y-auto whitespace-pre-line text-neutral-700 dark:text-neutral-300" data-testid="clash-theirs">
+        <p className="max-h-32 overflow-y-auto whitespace-pre-line text-stone-700 dark:text-stone-300" data-testid="clash-theirs">
           {clash}
         </p>
         <div className="flex flex-wrap gap-2">

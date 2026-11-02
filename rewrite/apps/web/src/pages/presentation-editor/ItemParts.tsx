@@ -27,9 +27,9 @@ function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; na
   const url = useBlobUrl(hash);
   if (!url)
     return (
-      <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 shadow-sm space-y-3">
+      <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 border-[0.5px] border-separator space-y-3">
         <p className="text-sm font-medium truncate">{name}</p>
-        <p className="text-sm text-neutral-400">{t('presentation.audioFetching')}</p>
+        <p className="text-sm text-stone-400">{t('presentation.audioFetching')}</p>
       </div>
     );
   return <PreviewPlayer key={url} url={url} itemId={itemId} name={name} />;
@@ -128,7 +128,7 @@ export function ImageItemEditor({ item, slides, theme, onAddImages }: { item: Pr
       </ol>
       <AppButton
         variant="plain"
-        className="aspect-video w-full sm:w-96 m-1 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-neutral-400 dark:text-neutral-500 transition-colors"
+        className="aspect-video w-full sm:w-96 m-1 border-2 border-dashed border-stone-300 dark:border-stone-600 rounded-2xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-stone-400 dark:text-stone-500 transition-colors"
         title={t('presentation.addMoreImages')}
         aria-label={t('presentation.addMoreImages')}
         onClick={onAddImages}
@@ -200,12 +200,26 @@ export function ItemMedia({ item, set, players, shownId }: { item: PresentationI
 }
 
 /** A song item's arrangement, when it has two or more, and the overlay any item carries, when there are overlays. */
-export function ItemSettings({ item, song, arrangements, overlays }: { item: PresentationItem; song: Song | undefined; arrangements: SongArrangement[]; overlays: Overlay[] }) {
+export function ItemSettings({
+  item,
+  song,
+  arrangements,
+  overlays,
+  withoutOverlay,
+}: {
+  item: PresentationItem;
+  song: Song | undefined;
+  arrangements: SongArrangement[];
+  overlays: Overlay[];
+  /** On a computer the overlay is chosen in the heading's … (ItemMenu). */
+  withoutOverlay?: boolean;
+}) {
   const db = useDb();
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const pills = song?.deletedAt === null && arrangements.length > 1;
-  if (!pills && !overlays.length) return null;
+  const overlay = !withoutOverlay && !!overlays.length;
+  if (!pills && !overlay) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
       {pills && (
@@ -215,15 +229,15 @@ export function ItemSettings({ item, song, arrangements, overlays }: { item: Pre
           onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
         />
       )}
-      {!!overlays.length && (
-        <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400" title={t('overlays.itemHint')}>
+      {overlay && (
+        <label className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400" title={t('overlays.itemHint')}>
           {t('overlays.itemOverlay')}
           <span className="relative">
             <select
               aria-label={t('overlays.itemOverlay')}
               value={item.overlayId ?? ''}
               onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: e.target.value || null }))}
-              className="appearance-none h-7 pl-3 pr-8 rounded-full text-[13px] bg-raised dark:bg-raised-2 text-neutral-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="appearance-none h-7 pl-3 pr-8 rounded-full text-[13px] bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="">{t('overlays.itemNone')}</option>
               {overlays.map((o) => (
@@ -232,7 +246,7 @@ export function ItemSettings({ item, song, arrangements, overlays }: { item: Pre
                 </option>
               ))}
             </select>
-            <ChevronDownIcon className="size-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDownIcon className="size-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </span>
         </label>
       )}

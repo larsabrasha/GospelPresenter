@@ -162,7 +162,7 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
    link's source when left blank). A file opens in the viewer: a PDF's pages drawn by pdf.js, sharp at every zoom
    (Mindre, Större), a recording's player; **Dela** (the device's share sheet, where there is one), **Öppna i
    webbläsaren** (not in the desktop app), **Ladda ner**. A link opens where it points. A row's … renames or removes
-   it, removing after a question. A presentation's menu has **Noter och länkar…**: its songs' material in the running
+   it, removing after a question. A presentation's menu has **Noter och länkar**: its songs' material in the running
    order, read only.
 5. Footer: **Historik** button → `/admin/songs/{id}/history`; **Ta bort sång** (danger) → confirm
    "Vill du flytta {name} till papperskorgen? Sången raderas permanent efter 30 dagar." → soft

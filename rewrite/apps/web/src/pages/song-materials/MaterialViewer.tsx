@@ -9,7 +9,7 @@ import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, MinusIcon, PlusIcon, Shar
 
 /** How far the pages may be zoomed, from the dialog's width. */
 const ZOOMS = [1, 1.5, 2, 3];
-const ACTION = 'h-9 px-3.5 rounded-full flex items-center gap-1.5 text-sm font-medium cursor-pointer bg-raised dark:bg-raised-2 hover:bg-neutral-200 dark:hover:bg-neutral-600 no-underline text-neutral-800 dark:text-neutral-100';
+const ACTION = 'h-9 px-3.5 rounded-full flex items-center gap-1.5 text-sm font-medium cursor-pointer bg-raised dark:bg-raised-2 hover:bg-stone-200 dark:hover:bg-stone-600 no-underline text-stone-800 dark:text-stone-100';
 
 /** The file's name to save or share it as: its title and the extension of what it is. */
 function fileName(m: SongMaterial, type: string): string {
@@ -74,9 +74,9 @@ export function MaterialViewer({ material, onClose }: { material: SongMaterial; 
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto bg-neutral-200 dark:bg-neutral-900" data-testid="material-viewer">
-        {file === 'loading' && <p className="p-6 text-sm text-neutral-500">{t('material.loading')}</p>}
-        {file === null && <p className="p-6 text-sm text-neutral-500">{t('material.unavailable')}</p>}
+      <div className="flex-1 min-h-0 overflow-auto bg-stone-200 dark:bg-stone-900" data-testid="material-viewer">
+        {file === 'loading' && <p className="p-6 text-sm text-stone-500">{t('material.loading')}</p>}
+        {file === null && <p className="p-6 text-sm text-stone-500">{t('material.unavailable')}</p>}
         {loaded && pdf && <PdfPages bytes={loaded.bytes} zoom={ZOOMS[zoom]!} title={material.title} />}
         {loaded && !pdf && url && (
           <div className="p-6 flex justify-center">
@@ -144,7 +144,7 @@ function PdfPages({ bytes, zoom, title }: { bytes: Uint8Array; zoom: number; tit
   }, [bytes, width, zoom, title]);
   return (
     <>
-      {failed && <p className="p-6 text-sm text-neutral-500">{t('material.unreadable')}</p>}
+      {failed && <p className="p-6 text-sm text-stone-500">{t('material.unreadable')}</p>}
       <div ref={box} className="p-4 min-w-full w-max" data-testid="pdf-pages" />
     </>
   );

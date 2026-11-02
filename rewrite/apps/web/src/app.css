@@ -14,19 +14,22 @@
 @custom-variant touch (@media (pointer: coarse));
 
 /*
- * The 2.0 colours (docs/layout-2-0.md), iOS's grouped scale: the ground; a surface on it (cards, panels,
- * dialogs, the bar, a list's rows); raised on a surface (fields, pills, secondary buttons, rows inside a card),
- * raised-2 a step further (hover); hairline separators. A sheet is drawn a step lighter in dark mode, as iOS
- * lifts what floats: its own colour, its rows one step above it. Light mode's ground is a step darker than iOS's
- * #f2f2f7, so a white row stands out on it.
+ * The 2.0 colours (docs/layout-2-0.md), all from Tailwind's warm grey, stone, as the text's are (Lars, 2026-11-02:
+ * warm as Claude's, rather than neutral beside Apple's blue-tinted greys), named by role: the ground, the page, the
+ * lightest; a surface on it (cards, panels, dialogs, a list's rows) in white with a hairline; raised on a surface
+ * (fields, pills, secondary buttons, rows inside a card), raised-2 a step further (hover); separators, a see-through
+ * hairline; a sidebar a step darker than the page beside it. A sheet is drawn a step lighter in dark mode, as iOS
+ * lifts what floats: its own colour, its rows one step above it.
  */
 @theme {
-  --color-ground: #ebebf0;
+  --color-ground: var(--color-stone-50);
   --color-surface: #ffffff;
-  --color-raised: #f2f2f7;
-  --color-raised-2: #e5e5ea;
-  --color-separator: rgb(60 60 67 / 0.18);
-  --color-sheet: #f2f2f7;
+  --color-raised: var(--color-stone-100);
+  --color-raised-2: var(--color-stone-200);
+  /* A hairline of the scale's darkest, see-through, so it reads the same on every surface. */
+  --color-separator: color-mix(in oklab, var(--color-stone-950) 10%, transparent);
+  --color-sidebar: var(--color-stone-100);
+  --color-sheet: var(--color-stone-100);
   --color-sheet-cell: #ffffff;
 }
 /*
@@ -34,19 +37,21 @@
  * its ground is the page's surface, its cards a step above.
  */
 .dark .elevated {
-  --color-ground: #1c1c1e;
-  --color-surface: #2c2c2e;
-  --color-raised: #3a3a3c;
-  --color-raised-2: #48484a;
+  --color-ground: var(--color-stone-900);
+  --color-surface: var(--color-stone-800);
+  --color-raised: var(--color-stone-700);
+  --color-raised-2: var(--color-stone-600);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-900), var(--color-stone-950));
 }
 .dark {
-  --color-ground: #000000;
-  --color-surface: #1c1c1e;
-  --color-raised: #2c2c2e;
-  --color-raised-2: #3a3a3c;
-  --color-separator: rgb(84 84 88 / 0.6);
-  --color-sheet: #1c1c1e;
-  --color-sheet-cell: #2c2c2e;
+  --color-ground: var(--color-stone-950);
+  --color-surface: var(--color-stone-900);
+  --color-raised: var(--color-stone-800);
+  --color-raised-2: var(--color-stone-700);
+  --color-separator: color-mix(in oklab, var(--color-stone-50) 12%, transparent);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-950), black 30%);
+  --color-sheet: var(--color-stone-900);
+  --color-sheet-cell: var(--color-stone-800);
 }
 
 @layer base {
@@ -58,12 +63,13 @@
   h6 { @apply text-sm/4; }
 
   /* The shell: the page never scrolls, its content does (Layout/MainLayout.razor). */
-  html { @apply h-dvh overscroll-none overflow-hidden bg-ground text-neutral-900 dark:text-neutral-100; }
+  html { @apply h-dvh overscroll-none overflow-hidden bg-ground text-stone-900 dark:text-stone-100; }
   html.dark { color-scheme: dark; }
   body { @apply flex flex-col h-full; }
   #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }
-  /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. */
-  #root, .overflow-y-auto { scrollbar-gutter: stable; }
+  /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. Not #root,
+     whose room would stop the top bar short of the window's edge: the pages scroll in boxes of their own. */
+  .overflow-y-auto { scrollbar-gutter: stable; }
 }
 
 /* Dialogs fade in, as the current app's dialog.animated. */
@@ -73,12 +79,20 @@
 }
 .dialog-in { animation: dialog-in 200ms ease-out; }
 
-/* A sheet slides up from below, on a phone and centred on an iPad alike, with iOS's sheet curve (ui/Sheet.tsx). */
+/* A sheet slides up from below on a phone, with iOS's sheet curve; centred (from `sm`) it grows out of its place
+   instead, as a dialog in the middle should (Lars, 2026-11-02; ui/Sheet.tsx). */
 @keyframes sheet-in {
   from { transform: translateY(100vh); }
   to { transform: translateY(0); }
 }
+@keyframes sheet-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
 .sheet-in { animation: sheet-in 420ms cubic-bezier(0.32, 0.72, 0, 1); }
+@media (width >= 40rem) {
+  .sheet-in { animation: sheet-pop 220ms cubic-bezier(0.32, 0.72, 0, 1); }
+}
 @media (prefers-reduced-motion: reduce) {
   .sheet-in { animation: dialog-in 200ms ease-out; }
 }
@@ -131,3 +145,50 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
 :where(.dark, .dark *) .animated-bg::before { background: #0284c7; opacity: 0.2; }
 :where(.dark, .dark *) .animated-bg::after { background: #0ea5e9; opacity: 0.15; }
 :where(.dark, .dark *) .blob-3 { background: #0284c7; opacity: 0.12; }
+
+/* The card around an empty list (ui/Empty.tsx): no card of its own, quiet, and no rival to an intro card above it. */
+:has(> [data-empty-list]) {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/*
+ * The desktop app on a Mac (main.tsx): no title bar, so a page's bar reaches the top, makes room for the window's three
+ * buttons and moves the window when dragged; what is pressed in it does not. A dialog or a sheet over it takes the
+ * whole window, so nothing under it drags.
+ */
+.mac-frame [data-window-bar] {
+  -webkit-app-region: drag;
+  padding-left: 88px;
+}
+.mac-frame [data-window-bar] :is(a, button, input, select, [role='menu']),
+.mac-frame [data-overlay] {
+  -webkit-app-region: no-drag;
+}
+/* A dialog keeps clear of the window's buttons at every width, a narrow window's full one too (a sheet sits low). */
+.mac-frame [data-overlay='dialog'] {
+  padding-top: 40px;
+}
+
+/*
+ * The desktop app (main.tsx) as a native app (Lars, 2026-11-02): headings, labels and lists do not select or show a
+ * text cursor; what is typed in does, and anything marked `.selectable`.
+ */
+.native body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* A link or a picture is not dragged away as a URL or a file, as a native app's buttons are not. */
+.native :is(a, img) {
+  -webkit-user-drag: none;
+}
+.native :is(input, textarea, [contenteditable='true'], .selectable) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Inställningar's content bar: a detail page's own name (in its slot) stands in for the page's kind. */
+[data-bar]:has([data-bar-slot]:not(:empty)) [data-bar-title] {
+  display: none;
+}

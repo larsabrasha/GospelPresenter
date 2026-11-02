@@ -4,7 +4,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 // caption above (Components/Presentations/PresentationSection.razor, PresentationRow.razor).
 
 /** The card the rows sit in; also the card for a block of content on a page. */
-export const CARD = 'bg-neutral-50 dark:bg-surface dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator overflow-hidden';
+export const CARD = 'bg-surface dark:text-stone-100 rounded-xl border-[0.5px] border-separator overflow-hidden';
 
 export function ListCard({ children, label, className }: { children: ReactNode; label?: string; className?: string }) {
   return (
@@ -18,7 +18,7 @@ export function ListCard({ children, label, className }: { children: ReactNode; 
 export function ListSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-xs/4 font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-5">{title}</h2>
+      <h2 className="text-xs/4 font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 px-5">{title}</h2>
       <ListCard label={title}>{children}</ListCard>
     </section>
   );
@@ -49,12 +49,12 @@ export function ListLinkRow({
       <a
         {...nav}
         href={href}
-        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-raised/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-stone-100 dark:hover:bg-raised/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>
           {subtitle && (
-            <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate" title={subtitleTitle}>
+            <div className="text-xs text-stone-400 dark:text-stone-500 truncate" title={subtitleTitle}>
               {subtitle}
             </div>
           )}

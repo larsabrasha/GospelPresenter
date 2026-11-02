@@ -15,13 +15,13 @@ export function AudioPlayer({ control, itemId, name, testId = 'audio-player' }: 
   const mine = state?.itemId === itemId ? state : null;
   const playing = !!mine?.playing;
   return (
-    <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 shadow-sm text-neutral-900 dark:text-neutral-100" role="group" aria-label={name} data-testid={testId} data-playing={playing}>
+    <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 border-[0.5px] border-separator text-stone-900 dark:text-stone-100" role="group" aria-label={name} data-testid={testId} data-playing={playing}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium truncate flex-1">{name}</p>
         <AppButton
           variant="plain"
           onClick={() => control.command({ action: 'fade', itemId })}
-          className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-raised text-neutral-600 dark:text-neutral-300 cursor-pointer hover:bg-raised-2 transition shrink-0 ${mine?.fading ? 'opacity-50 pointer-events-none' : ''}`}
+          className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-raised text-stone-600 dark:text-stone-300 cursor-pointer hover:bg-raised-2 transition shrink-0 ${mine?.fading ? 'opacity-50 pointer-events-none' : ''}`}
         >
           {mine?.fading ? <SpinnerIcon className="size-4" /> : <FadeOutIcon className="size-4" />}
           {t('audio.fade')}

@@ -36,7 +36,7 @@ export function SongHistory({ id }: { id: string }) {
     return (
       <PageContainer maxWidthClass="max-w-[1200px]">
         {header}
-        <div className="px-7 text-neutral-400">{t('common.loading')}</div>
+        <div className="px-7 text-stone-400">{t('common.loading')}</div>
       </PageContainer>
     );
 
@@ -66,7 +66,7 @@ export function SongHistory({ id }: { id: string }) {
       {dialog}
       {header}
       {!version ? (
-        <div className="flex flex-col items-center justify-center py-16 text-neutral-400">
+        <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <ClockIcon className="size-12 mb-3" />
           <span className="text-sm">{t('history.empty')}</span>
         </div>
@@ -82,11 +82,11 @@ export function SongHistory({ id }: { id: string }) {
                     aria-pressed={selected}
                     onClick={() => setChosen(v.id)}
                     className={`w-full text-left px-3 h-[52px] flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-                      selected ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-raised/50 hover:bg-raised-2'
+                      selected ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-raised/70 dark:bg-raised/50 hover:bg-raised-2'
                     }`}
                   >
-                    <span className="truncate w-full dark:text-neutral-100">{v.name}</span>
-                    <span className="text-xs text-neutral-400 truncate w-full">{versionTime(v.createdAt)}</span>
+                    <span className="truncate w-full dark:text-stone-100">{v.name}</span>
+                    <span className="text-xs text-stone-400 truncate w-full">{versionTime(v.createdAt)}</span>
                   </AppButton>
                 </li>
               );
@@ -95,9 +95,9 @@ export function SongHistory({ id }: { id: string }) {
           <section className="flex-1 min-w-0" aria-label={t('history.preview')}>
             <div className="flex items-start justify-between mb-2 px-1 gap-3">
               <div className="min-w-0">
-                <div className="font-semibold text-sm dark:text-neutral-100 truncate">{shown!.name}</div>
-                {shown!.author && <div className="text-xs text-neutral-400 truncate">{shown!.author}</div>}
-                <div className="text-xs text-neutral-400 mt-0.5">{versionTime(version.createdAt)}</div>
+                <div className="font-semibold text-sm dark:text-stone-100 truncate">{shown!.name}</div>
+                {shown!.author && <div className="text-xs text-stone-400 truncate">{shown!.author}</div>}
+                <div className="text-xs text-stone-400 mt-0.5">{versionTime(version.createdAt)}</div>
               </div>
               <AppButton className="shrink-0" onClick={restore}>
                 {t('history.restore')}

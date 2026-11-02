@@ -204,28 +204,15 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   await expect(page.getByLabel('CCLI')).toHaveValue('');
 });
 
-test('a refused rename of an item or of a presentation says "Kunde inte spara"', async () => {
+test('a refused rename of a presentation says "Kunde inte spara"', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
-  await addSongs(page, ['Sång A']);
-  const order = page.getByRole('list', { name: 'Programpunkter' });
-  await order.getByRole('button', { name: 'Sång A', exact: true }).click();
   const failed = page.getByRole('alert').getByText('Kunde inte spara');
   const tooLong = 'x'.repeat(201);
 
   // A name is at most 200 characters; without the field's own limit, the write is refused.
-  await page.keyboard.press('F2');
-  const title = page.getByLabel('Byt namn på programpunkten');
-  await title.evaluate((el) => el.removeAttribute('maxlength'));
-  await title.fill(tooLong);
-  await title.press('Enter');
-  await expect(failed).toBeVisible();
-  await expect(order.getByRole('button', { name: 'Sång A', exact: true })).toBeVisible();
-
-  await expect(failed).toHaveCount(0, { timeout: 6000 });
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
@@ -345,12 +332,6 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByRole('button', { name: 'Kort', exact: true }).click();
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
 
-  // PRES-A18: F2 renames the selected item; the song keeps its name.
-  await page.keyboard.press('F2');
-  await page.getByLabel('Byt namn på programpunkten').fill('Inledning');
-  await page.getByLabel('Byt namn på programpunkten').press('Enter');
-  await expect(order).toHaveText([/Blott en dag/, /Inledning/]);
-
   // The date, time, place and description change after create; the side menu and the start page show them.
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
@@ -373,7 +354,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
-  await page.getByRole('button', { name: 'Inledning 1' }).click();
+  await page.getByRole('button', { name: 'Pilgrimsfärd 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Pilgrimsfärd');
   await page.keyboard.press('ArrowRight');
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden');

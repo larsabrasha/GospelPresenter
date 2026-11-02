@@ -64,7 +64,6 @@ const KEYS: ShortcutGroup = {
   title: t('shortcuts.group.presentation'),
   lines: [
     { keys: ['a'], text: t('shortcuts.addItem') },
-    { keys: ['F2'], text: t('shortcuts.renameItem') },
     { keys: ['Delete'], text: t('shortcuts.removeItem') },
     { keys: ['ArrowUp', 'ArrowDown'], text: t('shortcuts.moveThroughItems') },
     { keys: ['Alt+ArrowUp', 'Alt+ArrowDown'], text: t('shortcuts.moveItem') },
@@ -154,8 +153,6 @@ export function PresentationEditor({
   const [keepingOffline, setKeepingOffline] = useState(false);
   // Noter och länkar…: the songs' sheet music, recordings and links, for the band.
   const [showingMaterials, setShowingMaterials] = useState(false);
-  // The item whose title is being renamed (F2, or a click on it).
-  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const selected = items.find((i) => i.id === selectedId) ?? null;
@@ -242,7 +239,6 @@ export function PresentationEditor({
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'a') setAdding('item');
-    else if (e.key === 'F2' && selected) setRenamingId(selected.id);
     // The item shown cannot be removed while presenting (docs/layout-2-0.md).
     else if (e.key === 'Delete' && selected && !(presenting && selected.id === liveItemId)) void removeItem(selected);
     else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length && !e.shiftKey) {
@@ -263,10 +259,10 @@ export function PresentationEditor({
     return (
       <section className="flex-1 min-h-0 flex flex-col bg-ground">
         {/* The app's bar is not on a presentation's page: the way back is this. */}
-        <nav className="flex items-center px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
+        <nav data-window-bar className="flex items-center px-4 h-14 sm:h-13 shrink-0 sm:border-b-[0.5px] sm:border-separator bg-ground">
           <BackToPresentations />
         </nav>
-        <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
+        <p className="text-sm text-center text-stone-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
       </section>
     );
 
@@ -300,7 +296,6 @@ export function PresentationEditor({
   // A row chosen in the running order; on a computer the slides scroll to it, each choice anew.
   const select = (itemId: string) => {
     setSelectedId(itemId);
-    setRenamingId(null);
     setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
   };
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
@@ -319,7 +314,6 @@ export function PresentationEditor({
       {/* The bar on a computer, before and while presenting; below `lg` the app's bar and the drawer have it all. */}
       {!phone && (
         <PresentationBar
-          id={id}
           presentation={presentation}
           live={live}
           presenting={!!presenting}
@@ -328,7 +322,6 @@ export function PresentationEditor({
           onStart={start}
           onDetails={() => setDetails(true)}
           onSaveAsTemplate={saveAsTemplate}
-          onKeepOffline={keepOffline}
           onMaterials={template ? undefined : () => setShowingMaterials(true)}
           onTrash={() => void trash()}
         />
@@ -354,7 +347,7 @@ export function PresentationEditor({
             presenting={presenting}
             canStart={startable}
             onStart={start}
-              onDetails={() => setDetails(true)}
+            onDetails={() => setDetails(true)}
             onSaveAsTemplate={saveAsTemplate}
             onKeepOffline={keepOffline}
             onMaterials={template ? undefined : () => setShowingMaterials(true)}
@@ -389,8 +382,6 @@ export function PresentationEditor({
               overlays={overlays}
               pointer={pointer}
               players={presenting && { audio: presenting.audio, video: presenting.video }}
-              renamingId={renamingId}
-              onRenaming={setRenamingId}
               reveal={reveal}
               onShow={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
               onAddImages={(itemId) => {
@@ -402,6 +393,7 @@ export function PresentationEditor({
         )}
         {!phone && presenting && (
           <LivePanel
+            presentation={presentation}
             owner={owner}
             link={presenting.link}
             live={live}

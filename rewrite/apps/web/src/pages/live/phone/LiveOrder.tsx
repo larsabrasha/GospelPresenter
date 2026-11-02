@@ -8,7 +8,6 @@ import { AppButton } from '../../../ui/AppButton.tsx';
 import { EllipsisIcon } from '../../../ui/icons.tsx';
 import { SlideView } from '../../../ui/SlideView.tsx';
 import { ItemMedia, ItemWarnings } from '../../presentation-editor/ItemParts.tsx';
-import { Description } from '../../presentation-editor/Description.tsx';
 
 /** How tall a section's sticky heading is: a part under it is out of view. */
 const HEADING = 36;
@@ -26,7 +25,6 @@ export function LiveOrder({
   pointer,
   audio,
   addedId,
-  description,
   onPick,
   onItemMenu,
 }: {
@@ -38,8 +36,6 @@ export function LiveOrder({
   audio?: AudioControl;
   /** The item just added, scrolled to and marked for a moment. */
   addedId: string | null;
-  /** The presentation's description, at the top of the list. */
-  description: string | null;
   /** While presenting: a part tapped is shown. */
   onPick?: (itemId: string, partIndex: number) => void;
   onItemMenu: (item: PresentationItem) => void;
@@ -80,9 +76,8 @@ export function LiveOrder({
   };
 
   return (
-    <div ref={list} className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-24" data-testid="live-order">
+    <div ref={list} className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-24 landscape:pt-3" data-testid="live-order">
       <div className="flex flex-col gap-2">
-        {description && <Description key={description} text={description} className="mt-2" />}
         {items.map((item) => {
           const set = slides.get(item.id);
           const liveHere = !pointer.black && item.id === pointer.itemId;
@@ -90,7 +85,7 @@ export function LiveOrder({
             <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5">
               {/* As iOS's grouped lists: the heading close above its rows, the space between the sections above it. */}
               <h3
-                className={`sticky top-0 z-[1] -mx-4 px-5 pt-5 pb-0.5 flex items-center justify-between gap-3 text-[13px]/4 font-semibold uppercase tracking-wide backdrop-blur-md bg-ground/90 transition-colors ${item.id === addedId ? 'text-sky-500' : 'text-neutral-500 dark:text-neutral-400'}`}
+                className={`sticky top-0 z-[1] -mx-4 px-5 pt-5 pb-0.5 flex items-center justify-between gap-3 text-[13px]/4 font-semibold uppercase tracking-wide backdrop-blur-md bg-ground/90 transition-colors ${item.id === addedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="truncate">{item.title}</span>
@@ -101,7 +96,7 @@ export function LiveOrder({
                   aria-label={t('live.itemMore', { title: item.title })}
                   onClick={() => onItemMenu(item)}
                   // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
-                  className="-mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-neutral-600 dark:text-neutral-300"
+                  className="-mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300"
                 >
                   <EllipsisIcon className="size-5" />
                 </AppButton>
@@ -129,7 +124,7 @@ export function LiveOrder({
                       })
                     }
                     // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
-                    className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left ${onPick ? 'cursor-pointer' : 'cursor-default'} ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-neutral-300 dark:border-neutral-600' : 'bg-surface border-transparent'}`}
+                    className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left ${onPick ? 'cursor-pointer' : 'cursor-default'} ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : 'bg-surface border-transparent'}`}
                   >
                     {slide.kind === 'media' && (
                       <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
@@ -138,10 +133,10 @@ export function LiveOrder({
                     )}
                     <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <span className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-semibold text-neutral-500 dark:text-neutral-400 truncate">{partLabel(slide, partIndex)}</span>
+                        <span className="text-[13px] font-semibold text-stone-500 dark:text-stone-400 truncate">{partLabel(slide, partIndex)}</span>
                         {mark && <span className={`shrink-0 text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-lg ${mark.className}`}>{mark.text}</span>}
                       </span>
-                      {slide.kind !== 'media' && <span className="text-[17px]/snug whitespace-pre-line text-neutral-900 dark:text-neutral-100">{slide.text}</span>}
+                      {slide.kind !== 'media' && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
                     </span>
                   </AppButton>
                 );

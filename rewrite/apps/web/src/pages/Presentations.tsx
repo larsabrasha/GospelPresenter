@@ -2,10 +2,10 @@ import type { Presentation } from '@gp/core';
 import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { itemCounts, itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
-import { KeepOfflineButton } from '../ui/KeepOffline.tsx';
 import { locale, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
+import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
@@ -57,7 +57,7 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
 }
 
 const PICK =
-  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-raised text-left text-inherit cursor-pointer transition-colors';
+  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-stone-50 dark:hover:bg-raised text-left text-inherit cursor-pointer transition-colors';
 
 /** The first step of Skapa when there are templates: a blank presentation, or one of the last used templates (Dashboard.razor). */
 function TemplatePicker({ templates, onPick, onClose }: { templates: Presentation[]; onPick: (template: Presentation | null) => void; onClose: () => void }) {
@@ -65,7 +65,7 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
     <Dialog title={t('presentations.createTitle')} onClose={onClose}>
       <AppButton
         variant="plain"
-        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-raised cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-raised cursor-pointer text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
         title={t('common.close')}
         aria-label={t('common.close')}
         onClick={onClose}
@@ -73,17 +73,17 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
         <CloseIcon className="size-5" />
       </AppButton>
       <AppButton variant="plain" className={PICK} onClick={() => onPick(null)}>
-        <DocumentIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+        <DocumentIcon className="size-5 shrink-0 text-stone-400 dark:text-stone-500" />
         <span className="text-sm font-medium">{t('templates.blank')}</span>
       </AppButton>
-      <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wide pt-2">{t('templates.pickerTitle')}</div>
+      <div className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide pt-2">{t('templates.pickerTitle')}</div>
       <div className="flex flex-col gap-2">
         {templates.map((tp) => (
           <AppButton key={tp.id} variant="plain" className={PICK} onClick={() => onPick(tp)}>
-            <DocumentTextIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+            <DocumentTextIcon className="size-5 shrink-0 text-stone-400 dark:text-stone-500" />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{tp.name}</div>
-              {templateDetails(tp) && <div className="text-xs text-neutral-400 dark:text-neutral-500">{templateDetails(tp)}</div>}
+              {templateDetails(tp) && <div className="text-xs text-stone-400 dark:text-stone-500">{templateDetails(tp)}</div>}
             </div>
           </AppButton>
         ))}
@@ -106,7 +106,7 @@ function OwnLive({ p }: { p: Presentation }) {
           {t('remote.nowShowing')}
         </span>
         <span className="text-[17px] lg:text-[15px] font-semibold truncate">{p.name}</span>
-        <span className="text-[13px] text-neutral-500 dark:text-neutral-400 truncate">{[p.time, p.location].filter(Boolean).join(' · ')}</span>
+        <span className="text-[13px] text-stone-500 dark:text-stone-400 truncate">{[p.time, p.location].filter(Boolean).join(' · ')}</span>
       </span>
       <span className="shrink-0 h-9 lg:h-[30px] px-4 rounded-full lg:rounded-lg flex items-center bg-red-500 text-white text-[15px] lg:text-[13px] font-semibold">{t('presentations.open')}</span>
     </a>
@@ -134,8 +134,8 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
               <span className="inline-block size-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
               <div className="min-w-0">
                 <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('remote.nowShowing')}</div>
-                <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{s.presentationName || t('remote.nowShowingUnknown')}</div>
-                <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{s.deviceName}</div>
+                <div className="text-sm font-medium text-stone-700 dark:text-stone-200 truncate">{s.presentationName || t('remote.nowShowingUnknown')}</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400 truncate">{s.deviceName}</div>
               </div>
             </div>
             {s.presentationId && (
@@ -175,7 +175,7 @@ function Row({
   const count = items === 1 ? t('presentations.item') : t('presentations.items', { n: items });
   // "mån 4 maj · 11:00 · Stora salen · 7 inslag" (PresentationRow.razor); on a computer the same as a table's columns.
   const subtitle = [when, p.location, count].filter(Boolean).join(' · ');
-  const column = 'max-lg:hidden shrink-0 text-[13px] text-neutral-500 dark:text-neutral-400 truncate';
+  const column = 'max-lg:hidden shrink-0 text-[13px] text-stone-500 dark:text-stone-400 truncate';
   return (
     <ListLinkRow
       href={href({ page: 'presentation', id: p.id })}
@@ -183,7 +183,6 @@ function Row({
       subtitle={<span className="lg:hidden">{subtitle}</span>}
       subtitleTitle={date ? fullDate(date, withYear) : undefined}
       nav={nav}
-      after={<KeepOfflineButton presentation={p} />}
       end={
         <>
           {live && (
@@ -192,7 +191,7 @@ function Row({
               {t('presentations.live')}
             </span>
           )}
-          <span className={`${column} w-48 text-neutral-700! dark:text-neutral-300!`} title={date ? fullDate(date, withYear) : undefined}>
+          <span className={`${column} w-48 text-stone-700! dark:text-stone-300!`} title={date ? fullDate(date, withYear) : undefined}>
             {when}
           </span>
           <span className={`${column} w-36`}>{p.location}</span>
@@ -270,18 +269,10 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
       {!presentations && (
         <div className={CARD}>
-          <div className="px-4 py-3 text-neutral-400">{t('common.loading')}</div>
+          <div className="px-4 py-3 text-stone-400">{t('common.loading')}</div>
         </div>
       )}
-      {presentations && !presentations.length && (
-        <div className={CARD}>
-          <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-            <EmptyPicture />
-            <h2 className="text-lg/7 font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('presentations.emptyTitle')}</h2>
-            <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('presentations.emptyText')}</p>
-          </div>
-        </div>
-      )}
+      {presentations && !presentations.length && <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} />}
       {groups && (
         <div className="space-y-5" onKeyDown={list.onKeyDown}>
           {groups.today.length > 0 && <ListSection title={t('presentations.today')}>{groups.today.map((p, i) => row(p, i, false, false))}</ListSection>}
@@ -314,16 +305,16 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
 }
 
 /** The empty start page's picture: a stack of slides and a plus. */
-function EmptyPicture() {
+function PresentationsPicture() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" className="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" className="w-48 h-auto mb-6 text-stone-300 dark:text-stone-600" aria-hidden="true">
       <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.4" />
-      <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" strokeWidth="2" className="fill-stone-100 dark:fill-stone-800" />
       <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
       <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
       <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.25" />
       <line x1="55" y1="96" x2="105" y2="96" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
-      <circle cx="155" cy="130" r="18" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <circle cx="155" cy="130" r="18" stroke="currentColor" strokeWidth="2" className="fill-stone-100 dark:fill-stone-800" />
       <line x1="155" y1="121" x2="155" y2="139" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       <line x1="146" y1="130" x2="164" y2="130" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>

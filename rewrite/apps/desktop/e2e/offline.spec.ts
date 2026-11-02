@@ -1,7 +1,7 @@
 // Keeping presentations offline (TODO.md "Video, and which files a device fetches"): a device keeps every
 // file of a presentation it was told to, its videos whole too, whatever its date, and fetches what is
-// added to it later without the presentation being opened. Its icon in the list says how far it has come; in
-// a presentation, a quiet line at the foot of the left column, which opens Spara offline's dialog. "Spara kommande presentationer offline" under Mina inställningar does the same for
+// added to it later without the presentation being opened. In a presentation a quiet line at the foot of the left
+// column says how far it has come, and opens Spara offline's dialog with the switch. "Spara kommande presentationer offline" under Mina inställningar does the same for
 // the coming seven days.
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
@@ -20,8 +20,12 @@ test.afterEach(async () => {
 
 const video = () => readFileSync(new URL('../../../packages/core/test/fixtures/h264.mp4', import.meta.url));
 
-/** The offline icon of a presentation in the start page's list. */
-const listIcon = (page: Page, name: string) => page.getByRole('listitem').filter({ hasText: name }).getByTestId('keep-offline');
+/** Opens a presentation from the start page and gives its offline line. */
+async function offlineLine(page: Page, name: string) {
+  await openPresentations(page);
+  await page.getByRole('link', { name }).click();
+  return page.getByTestId('offline-status');
+}
 
 /** Adds to the open presentation, through Lägg till, a picture or a video already in the library. */
 async function addFromLibrary(page: Page, key: string, name: string) {
@@ -33,7 +37,7 @@ async function addFromLibrary(page: Page, key: string, name: string) {
   await picker.getByRole('button', { name: 'Stäng' }).click();
 }
 
-test('a presentation kept offline by its icon has its pictures and its video whole on a computer when the host is gone', async () => {
+test('a presentation kept offline by its line has its pictures and its video whole on a computer when the host is gone', async () => {
   host = await launch();
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se');
@@ -50,17 +54,18 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await picker.getByRole('button', { name: 'Dop.mp4', exact: true }).click({ timeout: 15_000 });
   await picker.getByRole('button', { name: 'Lägg till Dop.mp4' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
-  // The host's own window keeps nothing (its server has it all): it shows no offline icon.
-  await expect(host.page.getByTestId('keep-offline')).toHaveCount(0);
+  // The host's own window keeps nothing (its server has it all): it shows no offline line.
+  await expect(host.page.getByTestId('offline-status')).toHaveCount(0);
 
-  // On the second computer the list shows it not kept; the icon keeps it, and fills until all is there.
+  // On the second computer the line says it is not kept; its dialog keeps it, and the line fills until all is there.
+  const line = await offlineLine(second.page, 'Konsert');
+  await expect(line).toHaveText('Inte sparad offline', { timeout: 5_000 });
+  await line.click();
+  await second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('checkbox', { name: 'Spara på den här enheten' }).check();
+  await second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('button', { name: 'Stäng' }).first().click();
+  await expect(line).toHaveAttribute('data-state', 'kept', { timeout: 15_000 });
+  await expect(line).toHaveText('Sparad offline');
   await openPresentations(second.page);
-  const icon = listIcon(second.page, 'Konsert');
-  await expect(icon).toHaveAttribute('data-state', 'none', { timeout: 5_000 });
-  await expect(icon).toHaveAccessibleName('Spara Konsert offline på den här enheten');
-  await icon.click();
-  await expect(icon).toHaveAttribute('data-state', 'kept', { timeout: 15_000 });
-  await expect(icon).toHaveAccessibleName('Konsert är sparad offline på den här enheten. Klicka för att sluta spara den.');
 
   // The host adds a picture to it while the second computer is elsewhere in the app.
   await openAdmin(host.page, 'Bilder');
@@ -71,8 +76,7 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await addFromLibrary(host.page, 'Control+3', 'Affisch.png');
   // The second computer fetches it without opening the presentation: time to sync and fetch, then all is there.
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/);
-  await second.page.waitForTimeout(3000); // the icon says kept before the new picture arrives as after: time for it to arrive
-  await expect(icon).toHaveAttribute('data-state', 'kept', { timeout: 15_000 });
+  await second.page.waitForTimeout(3000); // nothing on the start page says when the new picture has arrived: time for it to arrive
 
   // The host goes away; the presentation opens with its full picture and plays its video, from this computer alone.
   await host.app.close();
@@ -85,6 +89,18 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await expect(dialog.getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeChecked();
   await expect(dialog).toContainText('Allt finns på den här enheten.');
   await dialog.getByRole('button', { name: 'Stäng' }).first().click();
+  // On a phone the same line is at the foot of the view. The title opens the computer's menu, and … holds only what
+  // the title's menu does not: no Spara offline in either.
+  await second.page.setViewportSize({ width: 390, height: 844 });
+  const phone = second.page.getByTestId('phone-live');
+  await expect(second.page.getByTestId('phone-live').getByTestId('offline-status')).toHaveText('Sparad offline');
+  await phone.getByRole('button', { name: 'Alternativ' }).click();
+  await expect(phone.getByRole('menuitem')).toHaveText(['Redigera detaljer…', 'Noter och länkar', 'Radera presentation']);
+  await second.page.keyboard.press('Escape');
+  await phone.getByRole('button', { name: 'Mer', exact: true }).click();
+  await expect(second.page.getByRole('dialog', { name: 'Konsert' }).getByRole('button', { name: /Noter och länkar|Spara offline|Radera/ })).toHaveCount(0);
+  await second.page.getByRole('dialog', { name: 'Konsert' }).getByRole('button', { name: 'Stäng' }).click();
+  await second.page.setViewportSize({ width: 1280, height: 800 });
   await pickItem(second.page, 'Affisch.png');
   const shown = second.page.getByRole('region', { name: 'Affisch.png' }).getByTestId('slide-image').first();
   await expect.poll(() => shown.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1200);
@@ -94,10 +110,9 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await preview.evaluate((v: HTMLVideoElement) => v.play());
   await expect.poll(() => preview.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 10_000 }).toBeGreaterThan(0.3);
 
-  // Lagring på den här enheten lists it under Sparat offline, with its size: Mina inställningar, from the start page.
+  // Lagring på den här enheten lists it under Sparat offline, with its size: Mina inställningar in Inställningar, from the start page.
   await openPresentations(second.page);
-  await second.page.getByTestId('me').click();
-  await second.page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
+  await openAdmin(second.page, 'Mina inställningar');
   const storage = second.page.getByTestId('storage');
   await expect(storage.getByRole('list', { name: 'Sparat offline' }).getByRole('listitem')).toHaveText([/Konsert.*(kB|MB)/]);
   await expect(storage.getByTestId('storage-cache')).toHaveText('0 B');
@@ -111,12 +126,11 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await expect(storage.getByTestId('storage-total')).not.toContainText(' 0 B');
   await expect(storage.getByTestId('storage-limit').locator('option:checked')).toHaveText('2 GB (standard)');
 
-  // Back in the list the icon is a cloud again.
-  await openPresentations(second.page);
-  await expect(listIcon(second.page, 'Konsert')).toHaveAttribute('data-state', 'none');
+  // In the presentation the line says it is not kept again.
+  await expect(await offlineLine(second.page, 'Konsert')).toHaveAttribute('data-state', 'none');
 });
 
-test('"Spara kommande presentationer offline" keeps the coming seven days on a computer, shown by their icons, not later ones', async () => {
+test('"Spara kommande presentationer offline" keeps the coming seven days on a computer, shown by their lines, not later ones', async () => {
   host = await launch();
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se');
@@ -127,16 +141,17 @@ test('"Spara kommande presentationer offline" keeps the coming seven days on a c
   await createPresentation(host.page, 'Om en månad', day(30));
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
-  await second.page.getByTestId('me').click();
-  await second.page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
+  await openAdmin(second.page, 'Mina inställningar');
   const setting = second.page.getByRole('switch', { name: /Spara kommande presentationer offline/ });
   await expect(setting).not.toBeChecked();
   await expect(second.page.getByText('Presentationer de närmaste sju dagarna hämtas till den här enheten, även video.')).toBeVisible();
   await setting.check();
-  await openPresentations(second.page);
 
-  const soon = listIcon(second.page, 'Söndag');
+  const soon = await offlineLine(second.page, 'Söndag');
   await expect(soon).toHaveAttribute('data-state', 'kept', { timeout: 10_000 });
-  await expect(soon).toBeDisabled(); // undone under Mina inställningar, not here
-  await expect(listIcon(second.page, 'Om en månad')).toHaveAttribute('data-state', 'none');
+  await soon.click();
+  // Undone under Mina inställningar, not here.
+  await expect(second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeDisabled();
+  await second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('button', { name: 'Stäng' }).first().click();
+  await expect(await offlineLine(second.page, 'Om en månad')).toHaveAttribute('data-state', 'none');
 });

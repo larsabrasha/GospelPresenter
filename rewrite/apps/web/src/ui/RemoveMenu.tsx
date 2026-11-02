@@ -4,7 +4,7 @@ import { Dropdown, MENU_ITEM_DANGER } from './Dropdown.tsx';
 import { EllipsisIcon, TrashIcon } from './icons.tsx';
 
 const BUTTON = {
-  row: 'size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer',
+  row: 'size-7 flex items-center justify-center rounded-full text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 cursor-pointer',
   picture: 'size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80',
 };
 

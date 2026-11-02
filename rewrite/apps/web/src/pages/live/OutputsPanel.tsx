@@ -34,7 +34,7 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
           ? t('live.outputsOnWatching', { n: state.on, viewers: state.viewers })
           : t('live.outputsOn', { n: state.on })
         : t('live.outputsNone');
-  const tone = state.kind === 'offline' ? 'text-orange-500' : state.kind === 'on' ? 'text-green-600 dark:text-green-400' : 'text-neutral-500 dark:text-neutral-400';
+  const tone = state.kind === 'offline' ? 'text-orange-500' : state.kind === 'on' ? 'text-green-600 dark:text-green-400' : 'text-stone-500 dark:text-stone-400';
   return (
     <section className={`rounded-xl bg-raised ${state.kind === 'offline' ? 'ring-[1.5px] ring-orange-500' : ''}`}>
       {dialog}
@@ -46,12 +46,12 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
         onClick={() => setOpen(!open)}
         className="w-full min-h-11 px-3 py-2 flex items-center gap-2.5 text-left cursor-pointer"
       >
-        <span className={`size-2.5 shrink-0 rounded-full ${state.kind === 'offline' ? 'bg-orange-500' : state.kind === 'on' ? 'bg-green-500' : 'bg-neutral-400'}`} />
+        <span className={`size-2.5 shrink-0 rounded-full ${state.kind === 'offline' ? 'bg-orange-500' : state.kind === 'on' ? 'bg-green-500' : 'bg-stone-400'}`} />
         <span className="flex-1 min-w-0 flex flex-col">
           <span className="text-sm font-semibold">{t('live.outputs')}</span>
           <span className={`text-xs truncate ${tone}`}>{summary}</span>
         </span>
-        <ChevronDownIcon className={`size-3.5 shrink-0 text-neutral-500 transition-transform ${open ? '' : '-rotate-90'}`} />
+        <ChevronDownIcon className={`size-3.5 shrink-0 text-stone-500 transition-transform ${open ? '' : '-rotate-90'}`} />
       </AppButton>
       <div id={id} hidden={!open} className="px-3 pb-3 flex flex-col gap-3">
         <ToggleRow label={t('live.output')} checked={externalOn} onChange={turnExternal} icon={<DesktopIcon className="size-4 shrink-0" />} />
@@ -66,23 +66,23 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
                 onChange={(v) => void toggle(v)}
                 icon={
                   d.kind === 'public' ? (
-                    <QrCodeIcon className={`size-4 shrink-0 ${sending ? 'text-green-500' : 'text-neutral-400 dark:text-neutral-500'}`} />
+                    <QrCodeIcon className={`size-4 shrink-0 ${sending ? 'text-green-500' : 'text-stone-400 dark:text-stone-500'}`} />
                   ) : (
-                    <DesktopIcon off={offline} className={`size-4 shrink-0 ${sending ? 'text-green-500' : offline ? 'text-neutral-300 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`} />
+                    <DesktopIcon off={offline} className={`size-4 shrink-0 ${sending ? 'text-green-500' : offline ? 'text-stone-300 dark:text-stone-500' : 'text-stone-500 dark:text-stone-400'}`} />
                   )
                 }
                 sub={elsewhere !== null && !offline ? t('displays.sending', { name: elsewhere }) : undefined}
                 extra={
                   d.kind === 'public' &&
                   sending &&
-                  viewers !== undefined && <span className={`text-[11px] ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{viewersText(viewers)}</span>
+                  viewers !== undefined && <span className={`text-[11px] ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</span>
                 }
               />
             </li>
           ))}
           {temporary.map((x) => (
             <li key={x.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" aria-label={t('screens.temporary', { n: x.n })}>
-              <span className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+              <span className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
                 <DesktopIcon className="size-4 shrink-0" />
                 {t('screens.temporary', { n: x.n })}
               </span>
@@ -91,7 +91,7 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
                 aria-label={t('screens.disconnect', { n: x.n })}
                 title={t('screens.disconnectShort')}
                 onClick={x.disconnect}
-                className="cursor-pointer touch:size-11 touch:-m-3 flex items-center justify-center text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
+                className="cursor-pointer touch:size-11 touch:-m-3 flex items-center justify-center text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400"
               >
                 <CloseIcon className="size-4" />
               </AppButton>

@@ -56,10 +56,10 @@ function OverlayThumb({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
   const shown = useShownOverlay(overlay.id);
   const url = useBlobUrl(shown?.thumbHash ?? null);
   return url ? (
-    <img src={url} alt="" draggable={false} className="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0" />
+    <img src={url} alt="" draggable={false} className="w-16 h-9 object-cover rounded border border-stone-200 dark:border-stone-600 shrink-0" />
   ) : (
-    <div className="w-16 h-9 rounded border border-neutral-200 dark:border-neutral-600 bg-neutral-200 dark:bg-raised shrink-0 flex items-center justify-center">
-      <PhotoOutlineIcon className="size-4 text-neutral-400" strokeWidth={1.5} />
+    <div className="w-16 h-9 rounded border border-stone-200 dark:border-stone-600 bg-stone-200 dark:bg-raised shrink-0 flex items-center justify-center">
+      <PhotoOutlineIcon className="size-4 text-stone-400" strokeWidth={1.5} />
     </div>
   );
 }
@@ -78,18 +78,18 @@ export function Overlays() {
         <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
       </PageHeader>
       <div className={CARD}>
-        {!overlays && <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>}
+        {!overlays && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
         {overlays && !overlays.length && (
-          <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} text={t('overlays.emptyText')} />
+          <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} />
         )}
         <ul aria-label={t('overlays.title')}>
           {overlays?.map((o) => (
             <li key={o.id} className="border-b border-separator last:border-b-0">
-              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-raised/50 no-underline text-inherit">
+              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-stone-100 dark:hover:bg-raised/50 no-underline text-inherit">
                 <OverlayThumb overlay={o} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{o.title}</div>
-                  {o.content?.trim() && <div className="text-xs text-neutral-400 truncate">{o.content}</div>}
+                  {o.content?.trim() && <div className="text-xs text-stone-400 truncate">{o.content}</div>}
                 </div>
               </a>
             </li>
@@ -106,13 +106,13 @@ function ImagePicker({ onPick, onClose }: { onPick: (image: LibraryImage) => voi
   const images = useData(listImages, []);
   return (
     <Dialog title={t('overlays.pickImage')} onClose={onClose} wide>
-      {images && !images.length && <p className="text-sm text-neutral-400 dark:text-neutral-500">{t('presentation.noImages')}</p>}
+      {images && !images.length && <p className="text-sm text-stone-400 dark:text-stone-500">{t('presentation.noImages')}</p>}
       <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center empty:hidden" aria-label={t('images.title')}>
         {images?.map((image) => (
           <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
             <AppButton variant="plain" onClick={() => onPick(image)} className="flex flex-col items-center w-full min-w-0 cursor-pointer rounded-lg hover:bg-raised p-1">
               <ImageThumb image={image} />
-              <span className="block text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
+              <span className="block text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
                 {image.fileName}
               </span>
             </AppButton>
@@ -158,7 +158,7 @@ export function OverlayEditor({ id }: { id: string }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'overlays' })} title="" className="px-5" />
-        {!data && <div className="px-7 text-neutral-400">{t('common.loading')}</div>}
+        {!data && <div className="px-7 text-stone-400">{t('common.loading')}</div>}
       </PageContainer>
     );
   const { overlay, image } = data;
@@ -191,7 +191,7 @@ export function OverlayEditor({ id }: { id: string }) {
         <DropZone compact label={t('overlays.dropImage')} accept={IMAGE_ACCEPT} multiple={false} onFiles={(files) => void dropped(files)}>
           <div className="block text-sm font-medium mb-1">{t('overlays.image')}</div>
           <div className="flex items-center gap-3">
-            {image && <ImageThumb image={image} className="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600" />}
+            {image && <ImageThumb image={image} className="w-48 h-[108px] object-cover rounded-lg border border-stone-200 dark:border-stone-600" />}
             {overlay.imageId && !image && <span className="text-sm text-amber-600 dark:text-amber-400">{t('live.imageMissing')}</span>}
             <div className="flex flex-col items-start gap-1">
               <AppButton variant="secondary" disabled={!!progress} onClick={() => setPicking(true)}>
@@ -206,7 +206,7 @@ export function OverlayEditor({ id }: { id: string }) {
           </div>
           <DropHint text={t('overlays.dropAffordance')} className="hidden sm:block mt-1" />
           {progress && (
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400" role="status">
+            <p className="mt-1 text-sm text-stone-500 dark:text-stone-400" role="status">
               {t('images.importing', progress)}
             </p>
           )}

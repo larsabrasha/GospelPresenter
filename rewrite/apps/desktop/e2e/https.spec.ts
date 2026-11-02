@@ -9,7 +9,7 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { launch, testPort, type Desktop } from './apps.ts';
+import { type Desktop, launch, MUTED, testPort } from './apps.ts';
 import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -50,7 +50,7 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   expect(host.events.find((e) => e.event === 'ready')?.lan).toEqual(expect.arrayContaining([`https://${lan}:${tlsPort}`]));
   await expect(fetch(`http://${lan}:${host.port}/`)).rejects.toThrow();
 
-  browser = await chromium.launch({ args: [`--ignore-certificate-errors-spki-list=${tls.spki}`] });
+  browser = await chromium.launch({ args: [...MUTED, `--ignore-certificate-errors-spki-list=${tls.spki}`] });
   const tablet = await browser.newPage();
   await tablet.goto(`https://${lan}:${tlsPort}/`);
   expect(await tablet.evaluate(() => isSecureContext)).toBe(true);
@@ -117,7 +117,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   // The host's own window loads its page from its own server: no worker there.
   expect(await host.page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);
 
-  browser = await chromium.launch({ args: [`--ignore-certificate-errors-spki-list=${tls.spki}`] });
+  browser = await chromium.launch({ args: [...MUTED, `--ignore-certificate-errors-spki-list=${tls.spki}`] });
   const tablet = await browser.newPage();
   const app = `https://${lan}:${tlsPort}`;
   await tablet.goto(`${app}/`);
@@ -168,7 +168,7 @@ test('GP_TLS=self-signed: the host makes its own certificate once and keeps it; 
   expect(execFileSync('openssl', ['x509', '-in', certFile, '-noout', '-ext', 'subjectAltName']).toString()).toContain(`IP Address:${lan}`);
 
   // As a person who taps "visit the website anyway" in the warning.
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: MUTED });
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const tablet = await context.newPage();
   await tablet.goto(`https://${lan}:${tlsPort}/`);
