@@ -10,7 +10,7 @@ import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
-import { MusicalNoteOutlineIcon, TrashIcon } from '../ui/icons.tsx';
+import { MusicalNoteOutlineIcon } from '../ui/icons.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { CARD, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -81,10 +81,6 @@ export function Songs() {
           <div className="px-5 pt-4 pb-2 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-base/6 font-semibold">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
-              <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Song' })} className="flex items-center gap-1.5">
-                <TrashIcon className="size-4" />
-                {t('nav.trash')}
-              </AppButton>
             </div>
             {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
           </div>

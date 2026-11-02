@@ -8,18 +8,19 @@ import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { navigate } from '../../ui/router.ts';
+import { href, navigate } from '../../ui/router.ts';
+import { songPage } from '../live/songPage.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
-import { PresentationBar } from '../live/desktop/PresentationBar.tsx';
+import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
-import { LiveOrder } from '../live/desktop/LiveOrder.tsx';
-import { LiveSlides } from '../live/desktop/LiveSlides.tsx';
+import { RunningOrder } from '../live/RunningOrder.tsx';
+import { SlideList } from '../live/SlideList.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
@@ -266,26 +267,6 @@ export function PresentationEditor({
       </section>
     );
 
-  const removeItems = async (chosen: PresentationItem[]) => {
-    const ok = await ask({
-      title: t('common.delete'),
-      text: chosen.length === 1 ? t('presentation.removeOne') : t('presentation.removeMany', { n: chosen.length }),
-      confirm: t('common.delete'),
-      compact: true,
-      run: async () => {
-        try {
-          for (const item of chosen) await db.mutate('removeItem', { itemId: item.id });
-        } catch (e) {
-          console.error('save failed', e);
-          saveFailed();
-        }
-      },
-    });
-    if (!ok) return;
-    setTicking(false);
-    toast(chosen.length === 1 ? t('presentation.removedOne') : t('presentation.removedMany', { n: chosen.length }));
-  };
-
   const trash = async () => {
     // To the trash without a dialog, with a toast that says where it went (PRES-R29).
     if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
@@ -356,8 +337,8 @@ export function PresentationEditor({
         )}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} ticking={ticking} onTicking={setTicking} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
-              <LiveOrder
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
+              <RunningOrder
                 items={items}
                 slides={slides}
                 selectedId={selectedId}
@@ -368,12 +349,12 @@ export function PresentationEditor({
                   setAdding('item');
                 }}
                 onRemove={(item) => void removeItem(item)}
+                editHref={(item) => { const page = songPage(item, songs); return page && href(page); }}
                 ticking={ticking}
-                onDoneTicking={() => setTicking(false)}
-                onRemoveTicked={(chosen) => void removeItems(chosen)}
+                onTicking={setTicking}
               />
             </SideMenu>
-            <LiveSlides
+            <SlideList
               items={items}
               slides={slides}
               theme={theme}
@@ -381,9 +362,9 @@ export function PresentationEditor({
               arrangements={data.arrangements}
               overlays={overlays}
               pointer={pointer}
-              players={presenting && { audio: presenting.audio, video: presenting.video }}
-              reveal={reveal}
-              onShow={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
+              players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
+              toItem={reveal}
+              onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
               onAddImages={(itemId) => {
                 setSelectedId(itemId);
                 setAdding('images');

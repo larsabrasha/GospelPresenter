@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { t } from '../i18n.ts';
+import type { SlideMarkKind } from '../live/liveList.ts';
 
 // A slide in a grid, as the current app draws one (Components/Slide.razor):
 // rounded, with a thin dark edge at the top and a thick outline that marks
@@ -27,14 +28,13 @@ export function tileClass({ selected, live, rested, interactive = true }: { sele
   return `${BASE} cursor-pointer ${mark}`;
 }
 
-/** "● LIVE" in the corner of the slide on the screens. */
-export function LiveBadge({ children, small }: { children: ReactNode; small?: boolean }) {
+/** VISAS or NÄSTA on a slide while presenting (live/liveList.ts `slideMarks`), on a computer's tile and a phone's row. */
+export function SlideMark({ kind, className }: { kind: SlideMarkKind; className?: string }) {
   return (
     <span
-      className={`absolute top-1 left-1 z-[3] flex items-center gap-1 bg-red-500 text-white font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full pointer-events-none ${small ? 'text-[8px]' : 'text-[9px]'}`}
+      className={`shrink-0 text-[11px]/4 font-bold tracking-wide px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'bg-red-600 text-white' : 'bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
     >
-      <span className={`${small ? 'size-1' : 'size-1.5'} rounded-full bg-white animate-pulse`} />
-      {children}
+      {kind === 'shown' ? t('live.shownBadge') : t('live.nextBadge')}
     </span>
   );
 }

@@ -12,7 +12,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('the start page bar holds the picture, whose menu tells the sync and opens both settings; + is in the heading row', async () => {
+test('the start page bar holds the cog and the picture, whose menu tells the sync and opens both settings; + is in the heading row', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -20,7 +20,10 @@ test('the start page bar holds the picture, whose menu tells the sync and opens 
   const bar = page.getByRole('navigation').first();
   await expect(bar.getByRole('button', { name: 'Ny presentation' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Ny presentation' })).toBeVisible();
-  await expect(bar.getByRole('link', { name: 'Inställningar' })).toHaveCount(0); // no cog
+  // The cog, as a presentation's bar has it (Lars, 2026-11-02).
+  await bar.getByRole('link', { name: 'Inställningar' }).click();
+  await expect(page.getByRole('navigation', { name: 'Administration' })).toBeVisible();
+  await closeAdmin(page);
   await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
   await expect(page.getByRole('button', { name: /Synka nu/ })).toHaveCount(0); // the cloud shows only when something is wrong
 
@@ -141,12 +144,14 @@ test('Om Gospel Presenter, at the foot of the list for everyone, tells the versi
   await expect(links.getByRole('link', { name: 'GitHub' })).toHaveAttribute('target', '_blank');
 });
 
-test("a library's Papperskorg opens inside Inställningar, its row marked, and ‹ goes back to the list", async () => {
+test('the one Papperskorg is a row in Inställningar, marked while open; the lists have none of their own', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
   await openAdmin(page, 'Sånger');
-  await adminDialog(page).getByRole('link', { name: 'Papperskorg' }).click();
+  const nav = adminDialog(page).getByRole('navigation', { name: 'Administration' });
+  await expect(adminDialog(page).getByRole('link', { name: 'Papperskorg' })).toHaveCount(1);
+  await nav.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(adminDialog(page).getByRole('heading', { name: 'Papperskorg', exact: true })).toBeVisible();
-  await expect(adminDialog(page).getByRole('navigation', { name: 'Administration' }).getByRole('link', { name: 'Sånger' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: 'Papperskorg' })).toHaveAttribute('aria-current', 'page');
 });

@@ -70,6 +70,12 @@
   /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. Not #root,
      whose room would stop the top bar short of the window's edge: the pages scroll in boxes of their own. */
   .overflow-y-auto { scrollbar-gutter: stable; }
+  /* And never scrolls sideways (Lars, 2026-11-02): what is too wide is cut, not scrolled to. */
+  .overflow-y-auto { overflow-x: hidden; }
+  /* The right padding that, with the scrollbar's room (`--scrollbar`, measured in main.tsx: 0 where the bar floats over
+     the content, as on a Mac with a trackpad), makes 20px: a column as wide at the right as at the left, whatever the
+     scrollbar (Lars, 2026-11-02). */
+  :root { --beside-scrollbar: max(4px, calc(20px - var(--scrollbar, 0px))); }
 }
 
 /* Dialogs fade in, as the current app's dialog.animated. */

@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, LabelHTMLAttributes, Ref } from 'react';
 import { SpinnerIcon } from './icons.tsx';
-import { LIFTED, RED_SHADOW, SKY_SHADOW } from './glass.ts';
+import { RED_TINT, SKY_TINT } from './glass.ts';
 
 /**
  * The button styles of the current app (Components/AppButton.razor, ButtonVariant.cs).
@@ -16,17 +16,17 @@ const TAB = 'flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 ro
 function buttonClasses(variant: ButtonVariant = 'primary', filled = false): string {
   switch (variant) {
     case 'primary':
-      return `${PILL} bg-sky-500 text-white hover:bg-sky-600 ${SKY_SHADOW}`;
+      return `${PILL} bg-sky-500 text-white hover:bg-sky-600`;
     case 'secondary':
-      return `${PILL} text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50 ${SKY_SHADOW}`;
+      return `${PILL} ${SKY_TINT}`;
     case 'neutral':
-      return `${PILL} text-stone-700 dark:text-stone-300 ${LIFTED}`;
+      return `${PILL} text-stone-700 dark:text-stone-300 bg-raised hover:bg-raised-2`;
     case 'cancel':
       return `${PILL} text-stone-500 dark:text-stone-400 hover:bg-raised-2`;
     case 'danger':
       return filled
-        ? `${PILL} bg-red-500 text-white hover:bg-red-600 ${RED_SHADOW}`
-        : `${PILL} text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/60 ${RED_SHADOW}`;
+        ? `${PILL} bg-red-500 text-white hover:bg-red-600`
+        : `${PILL} ${RED_TINT}`;
     case 'icon':
       return 'size-8 flex items-center justify-center rounded-full cursor-pointer hover:bg-raised-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300';
     case 'dangerIcon':

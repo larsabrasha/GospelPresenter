@@ -214,7 +214,7 @@ the Shared assembly as `Themes/aurora/background.webp`.
 ### `/admin/images` — Images (nav "Bilder")
 (`GospelPresenter/GospelPresenter.Shared/Pages/Admin/Images.razor`)
 - Access: policy `ManageOrganizationImages` (User, Admin, SuperAdmin).
-- Header "Bilder", drop hint, button "Papperskorg" → `/trash?kind=Image` (always visible), button
+- Header "Bilder", drop hint, button "Papperskorg" → `/trash?kind=Image` (always visible; 2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03)), button
   "Importera" (multi-select file input, accept `image/jpeg,image/png,image/webp,image/gif`). Whole page
   is a drop zone ("Släpp bilder här").
 - During upload: "Importerar {i} av {n}..."; failures accumulate as "{n} bild(er) kunde inte

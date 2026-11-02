@@ -4,15 +4,13 @@ import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
-import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
-import { TrashIcon, VideoIcon } from '../ui/icons.tsx';
+import { VideoIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
-import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { formatBytes } from './Storage.tsx';
 import { formatDuration } from './VideoTab.tsx';
@@ -66,10 +64,6 @@ export function Videos({ role }: { role: Role }) {
         <PageHeader title={t('videos.page')}>
           <div className="flex items-center gap-3">
             {manage && <DropHint text={t('images.dropAffordance')} />}
-            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Video' })} className="inline-flex items-center gap-1.5">
-              <TrashIcon className="size-4" />
-              {t('images.trash')}
-            </AppButton>
             {manage && (
               <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />
             )}

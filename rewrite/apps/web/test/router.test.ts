@@ -111,6 +111,12 @@ describe('routes', () => {
     expect(aloneInSettings({ page: 'song', id: 'S1' }, undefined)).toBe(false);
   });
 
+  it('the one trash opens in Inställningar, whatever kind it is opened at', () => {
+    for (const path of ['/trash', '/trash?kind=Presentation', '/trash?kind=Song']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
   it('a page of the list itself never stands alone, opened first or not', () => {
     expect(aloneInSettings({ page: 'settings' }, 1)).toBe(false);
   });
@@ -122,7 +128,7 @@ describe('routes', () => {
   });
 
   it('the pages outside Inställningar open on their own, the template editor among them', () => {
-    for (const path of ['/', '/presentations/P1', '/templates/T1', '/trash']) {
+    for (const path of ['/', '/presentations/P1', '/templates/T1']) {
       expect(isAdminPage(read(path)), path).toBe(false);
     }
   });

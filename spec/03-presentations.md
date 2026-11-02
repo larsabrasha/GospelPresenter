@@ -103,6 +103,7 @@ trash).
   `/presentations/{id}`.
   4. **Papperskorg** button → `/trash?kind=Presentation`, always shown in the content state for
      users with ManagePresentations (`Dashboard.razor:125-137`). (Not shown in the empty state.)
+     2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03).
 - **Create flow** (`Dashboard.razor:378-469`):
   - If the org has ≥1 template (10 most recent: `LastUsedAt` desc, then `UpdatedAt` desc), a picker
     dialog "Skapa presentation" shows **Tom presentation** and a "Mallar" list (name + "weekday
@@ -257,7 +258,7 @@ also deletes its deck and page files.
 
 ### 3. Templates admin — `/admin/templates` (`S/Pages/Admin/Templates.razor`)
 Policy ManageTemplates (Admin, SuperAdmin). Title "Mallar"; **Papperskorg** → `/trash?kind=Template`
-(always visible); **Skapa** (when list non-empty). States: "Laddar...", empty (SVG, "Inga mallar",
+(always visible; 2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03)); **Skapa** (when list non-empty). States: "Laddar...", empty (SVG, "Inga mallar",
 "Med mallar kan du snabbt skapa presentationer med fördefinierat innehåll.", **Skapa**), list of all
 templates by `UpdatedAt` desc linking to `/templates/{id}`. Create → template details dialog
 "Skapa mall" (name, weekday, time, location) → navigate to the template editor. Reloads on sync.
@@ -273,6 +274,9 @@ the last keystroke (debounced) and flash "Sparad" in the header; a blank title i
 trash) → back to list. Unknown id → redirect to list. Showing an overlay live → live area.
 
 ### 5. Trash — `/trash` (`S/Pages/Trash.razor`)
+2.0 (Lars, 2026-11-02): one trash, a row of its own in Inställningar's list (after the groups, before Om Gospel
+Presenter), opening in Inställningar's dialog with every kind; `?kind=` still chooses the filter first. No page has a
+Papperskorg button of its own.
 Any signed-in user. Back link to `/`. Opening triggers a best-effort purge of expired rows (> 30 days)
 for each kind the caller manages, then lists every trashed row of the kinds the caller may *manage*
 (ManagePresentations, ManageTemplates, ManageSongs, ManageOrganizationImages,

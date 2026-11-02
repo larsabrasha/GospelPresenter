@@ -4,10 +4,10 @@ import { isOpen, MINE, settingsGroups } from '../src/pages/settings/settingsLink
 const labels = (role: 'user' | 'admin' | 'superAdmin', host = false) => settingsGroups({ role }, host).flatMap((g) => g.links.map((l) => l.label));
 
 describe('settingsGroups', () => {
-  it('an admin sees the four groups, then Om Gospel Presenter apart', () => {
+  it('an admin sees the four groups, then Papperskorg and Om Gospel Presenter apart', () => {
     const groups = settingsGroups({ role: 'admin' }, false);
-    expect(groups.map((g) => g.title)).toEqual(['settings.group.library', 'settings.group.presentation', 'settings.group.display', 'settings.group.church', null]);
-    expect(groups.at(-1)!.links.map((l) => l.label)).toEqual(['nav.about']);
+    expect(groups.map((g) => g.title)).toEqual(['settings.group.library', 'settings.group.presentation', 'settings.group.display', 'settings.group.church', null, null]);
+    expect(groups.slice(-2).map((g) => g.links.map((l) => l.label))).toEqual([['nav.trash'], ['nav.about']]);
   });
 
   it('only a SuperAdmin sees Organisationer', () => {

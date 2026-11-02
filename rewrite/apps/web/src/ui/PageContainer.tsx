@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
 import { useWide } from './useWide.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
@@ -44,10 +45,11 @@ export const PageIntroProvider = Intro.Provider;
  */
 export function PageContainer({ children, maxWidthClass, className }: { children: ReactNode; maxWidthClass?: string; className?: string }) {
   const filled = useContext(Filled);
-  const column = filled ? 'pt-5' : `pt-8 ${maxWidthClass ?? 'sm:w-180'} mx-auto`;
+  // In Inställningar the room at the foot is always there, so the floating + never covers the last row.
+  const column = filled ? 'pt-5 pb-24' : `pt-8 pb-24 lg:pb-3 ${maxWidthClass ?? 'sm:w-180'} mx-auto`;
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className={`flex flex-col p-3 pb-24 lg:pb-3 w-full ${column} space-y-5 ${className ?? ''}`}>{children}</div>
+      <div className={`flex flex-col p-3 w-full ${column} space-y-5 ${className ?? ''}`}>{children}</div>
     </div>
   );
 }
@@ -55,22 +57,24 @@ export function PageContainer({ children, maxWidthClass, className }: { children
 /**
  * A page's heading row: its title, and its buttons at the right. `large` for a phone's large title, as iOS's. In
  * Inställningar's dialog its bar names the page (the dialog's below `lg`, the content column's from it), so the
- * title is for screen readers there.
+ * title is for screen readers there, and its + floats at the column's bottom right.
  */
 export function PageHeader({ title, large, children }: { title: string; large?: boolean; children?: ReactNode }) {
   const inBar = useContext(BackInBar);
   const intro = useContext(Intro);
+  const float = useFloatSlot();
+  const actions = children && <HeaderFloatProvider value={float}>{children}</HeaderFloatProvider>;
   if (intro)
     return (
       <>
         <IntroCard title={title} intro={intro} />
-        {children && <div className="flex items-center justify-end gap-2 px-2 -mt-2">{children}</div>}
+        {actions && <div className="flex items-center justify-end gap-2 px-2 -mt-2 empty:hidden">{actions}</div>}
       </>
     );
   return (
     <div className={`relative flex items-center justify-between px-5 ${inBar ? 'justify-end' : ''}`}>
       <h1 className={`text-xl/7 font-bold dark:text-stone-100 ${large ? 'max-sm:text-[34px]/tight' : ''} ${inBar ? 'sr-only' : ''}`}>{title}</h1>
-      {children}
+      {actions}
     </div>
   );
 }

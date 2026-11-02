@@ -103,11 +103,12 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(picture).toContainText('A två');
 
   // Rensa blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not
-  // VISAS, nor the item's dot; NÄSTA still says what → shows. The bar still says LIVE, as the presentation runs until Avsluta.
+  // VISAS, nor the item's dot; NÄSTA still says what → shows. The bar has ■ to end it, and no LIVE beside the name.
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
-  await expect(live.getByRole('button', { name: 'Alternativ' })).toContainText('LIVE');
+  await expect(live.getByRole('button', { name: 'Alternativ' })).not.toContainText('LIVE');
+  await expect(live.getByRole('button', { name: 'Avsluta presentation' })).toBeVisible();
   await expect(liveOrder).not.toContainText('VISAS');
   await expect(liveOrder.getByRole('button', { name: /B ett/ })).toContainText('NÄSTA');
   await expect(liveOrder.getByLabel('LIVE')).toHaveCount(0);
@@ -127,22 +128,24 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång C', 'Sång B']);
   await expect(picture).toContainText('A två');
 
-  // Flytta in an item's … folds the list to one row per item, moved by ≡; the shown item cannot be removed.
+  // Markera in an item's … opens the computer's running order in select mode, that item ticked, each row moved by ≡;
+  // the shown item cannot be ticked, so it cannot be removed.
   await expect(live.getByRole('button', { name: 'Redigera', exact: true })).toHaveCount(0); // no Edit button, as iOS 27
   await liveOrder.getByRole('button', { name: 'Mer om Sång C' }).click();
-  await page.getByRole('button', { name: 'Ändra ordning', exact: true }).click();
-  const edit = page.getByTestId('live-edit');
+  await page.getByRole('button', { name: 'Markera', exact: true }).click();
+  const edit = live.getByRole('list', { name: 'Programpunkter' });
   await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång C/, /Sång B/]);
-  await expect(edit.getByRole('button', { name: 'Ta bort Sång A' })).toBeDisabled();
+  await expect(edit.getByRole('button', { name: /Sång A/ })).toBeDisabled();
+  await expect(edit.getByRole('button', { name: /Sång C/ })).toHaveAttribute('aria-pressed', 'true');
   await dragTo(page, edit.getByTestId('drag-handle').nth(1), edit.getByRole('listitem').nth(2), 'below');
   await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång B/, /Sång C/]);
   await live.getByRole('button', { name: 'Klar' }).click();
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång B', 'Sång C']);
 
-  // Redigera sången in an item's … opens the song alone in Inställningar's dialog, titled Sång: no list, no way back,
+  // Redigera in an item's … opens the song alone in Inställningar's dialog, titled Sång: no list, no way back,
   // only Stäng.
   await liveOrder.getByRole('button', { name: 'Mer om Sång B' }).click();
-  await page.getByRole('button', { name: 'Redigera sången' }).click();
+  await page.getByRole('button', { name: 'Redigera', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Sång', exact: true });
   await expect(settings.getByRole('heading', { name: 'Sång B', exact: true })).toBeVisible();
   await expect(settings.getByRole('navigation', { name: 'Administration' })).toHaveCount(0);

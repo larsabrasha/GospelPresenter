@@ -55,8 +55,8 @@ function daysText(days: number) {
  * The trash (spec 03 section 5): the kinds the user may manage, newest
  * deletion first, to restore or purge. Opening it purges what has expired.
  */
-/** `inSettings`: a library's trash, opened inside Inställningar with its own heading; the start page's has the bar's. */
-export function Trash({ kind: initialKind, role, inSettings }: { kind: TrashKind | null; role: Role; inSettings?: boolean }) {
+/** The one trash, in Inställningar (Lars, 2026-11-02): every kind the user may manage, `kind` chosen first. */
+export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; role: Role }) {
   const db = useDb();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
@@ -134,7 +134,7 @@ export function Trash({ kind: initialKind, role, inSettings }: { kind: TrashKind
   return (
     <PageContainer>
       {dialog}
-      {inSettings && <PageHeader title={t('trash.title')} />}
+      <PageHeader title={t('trash.title')} />
       <div className={CARD}>
         {!all && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
         {all && !entries.length && (

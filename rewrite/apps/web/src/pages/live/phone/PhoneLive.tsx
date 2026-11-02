@@ -5,26 +5,26 @@ import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { addAfter } from '../../../live/liveList.ts';
 import type { ItemSlides } from '../../../live/live.ts';
-import { outputWindow } from '../../../live/outputWindow.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { ArrowsUpDownIcon, ChevronDownIcon, ChevronLeftIcon, CogIcon, DesktopIcon, EllipsisIcon, PencilIcon, PlayIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { CheckSquareIcon, CogIcon, DesktopIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
-import { GLASS, TINTED_GLASS } from '../../../ui/glass.ts';
+import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
+import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
 import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
 import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
-import { PresentationMenu } from '../../presentation-editor/PresentationMenu.tsx';
+import { PresentationBar } from '../PresentationBar.tsx';
+import { RunningOrder } from '../RunningOrder.tsx';
+import { SlideList } from '../SlideList.tsx';
 import type { Presenting } from '../../presentation-editor/PresentationEditor.tsx';
 import { RemoteBanner } from '../RemoteBanner.tsx';
 import { OverlaysPanel } from '../OverlaysPanel.tsx';
 import { RemotePanel } from '../RemotePanel.tsx';
 import { VideoPlayer } from '../VideoPlayer.tsx';
-import { LiveEditList } from './LiveEditList.tsx';
-import { LiveOrder } from './LiveOrder.tsx';
 import { OutputsList } from './OutputsList.tsx';
 
 type Open = null | 'outputs' | 'more' | 'overlays' | 'remote' | { item: PresentationItem } | { images: PresentationItem };
@@ -97,8 +97,11 @@ export function PhoneLive({
     setWasPresenting(!!presenting);
     setLastAddedId(null);
   }
+  // An item just added: scrolled to (a new object each time) and its heading marked for a moment.
+  const [toAdded, setToAdded] = useState<{ id: string } | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  // Select mode (Markera), from an item's …: the item it was chosen on ticked first.
+  const [editing, setEditing] = useState<string | null>(null);
   const owner = presenting?.owner ?? null;
 
   const steps = items.flatMap((item) => (slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex })));
@@ -109,15 +112,7 @@ export function PhoneLive({
   };
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const video = pointer.itemId ? slides.get(pointer.itemId)?.video : undefined;
-  const place = [presentation.time, presentation.location].filter(Boolean).join(' · ');
 
-  const end = async () => {
-    setOpen(null);
-    const ok = await ask({ title: t('live.end'), text: t('live.endText'), confirm: t('live.end'), compact: true });
-    if (!ok) return;
-    live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
-    outputWindow().turn(false);
-  };
   const remove = async (item: PresentationItem) => {
     setOpen(null);
     const ok = await ask({ title: t('common.delete'), text: t('presentation.removeConfirm', { title: item.title }), bold: item.title, confirm: t('common.delete'), compact: true });
@@ -127,59 +122,20 @@ export function PhoneLive({
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-ground text-stone-900 dark:text-stone-100 pt-[env(safe-area-inset-top)]" data-testid="phone-live">
       {dialog}
-      {/* Above what follows, so the buttons' shadows fall over it whole; under the bar a soft fade from the page's
-          colour to clear rather than an edge, as iOS 26's bars (Lars, 2026-11-02). */}
-      <div data-window-bar className="relative z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 h-15 px-4 shrink-0 after:absolute after:inset-x-0 after:top-full after:h-5 after:bg-linear-to-b after:from-ground after:to-transparent after:pointer-events-none">
-        <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} className={`justify-self-start size-11 rounded-full flex items-center justify-center ${GLASS}`}>
-          <ChevronLeftIcon className="size-5" />
-        </a>
-        {/* The name opens the presentation's menu, the same as on a computer (PresentationBar). */}
-        <PresentationMenu
-          presentation={presentation}
-          presenting={!!presenting}
-          onEditDetails={onDetails}
-          onSaveAsTemplate={onSaveAsTemplate}
-          onMaterials={onMaterials}
-          onTrash={onTrash}
-          className="min-w-0 max-w-full justify-self-center"
-          menuClassName="left-1/2! right-auto! -translate-x-1/2"
-          button={{ className: 'min-w-0 max-w-full h-11 px-2 flex flex-col items-center justify-center cursor-pointer overflow-hidden' }}
-          trigger={
-            <>
-              <span className="max-w-full flex items-center gap-1 text-[17px]/[22px] font-semibold whitespace-nowrap">
-                <span className="truncate">{presentation.name}</span>
-                <ChevronDownIcon className="size-3.5 shrink-0 text-stone-500" />
-              </span>
-              <span className="max-w-full flex items-center gap-1.5 text-xs/4 whitespace-nowrap">
-                {/* LIVE until Avsluta, also while Rensa has blacked the outputs: the presentation is still running. */}
-                {presenting && (
-                  <>
-                    <span className="size-1.5 rounded-full shrink-0 bg-red-500" />
-                    <span className="shrink-0 font-semibold tracking-wide text-red-500">{t('live.badge')}</span>
-                  </>
-                )}
-                {place && <span className="min-w-0 truncate text-stone-500 dark:text-stone-400">{presenting ? `· ${place}` : place}</span>}
-              </span>
-            </>
-          }
-        />
-        {/* Most is in …; Scenläge and ending are icons of their own, in the computer's order (only this window's session ends). */}
-        <div className={`justify-self-end flex h-11 rounded-full ${GLASS}`}>
-          <AppButton variant="plain" aria-label={t('live.more')} onClick={() => setOpen('more')} className="w-11 flex items-center justify-center cursor-pointer">
-            <EllipsisIcon className="size-5" />
-          </AppButton>
-          {!presenting && canStart && (
-            <AppButton variant="plain" aria-label={t('presentation.start')} title={t('presentation.start')} onClick={onStart} className="w-12 flex items-center justify-center cursor-pointer text-emerald-500">
-              <PlayIcon className="size-5" />
-            </AppButton>
-          )}
-          {owner && (
-            <AppButton variant="plain" aria-label={t('live.end')} title={t('live.end')} onClick={() => void end()} className="w-12 flex items-center justify-center cursor-pointer text-red-500">
-              <StopIcon className="size-5" />
-            </AppButton>
-          )}
-        </div>
-      </div>
+      {/* The same bar as on a computer (PresentationBar), its … opening the sheet with the rest. */}
+      <PresentationBar
+        presentation={presentation}
+        live={live}
+        presenting={!!presenting}
+        owner={owner}
+        canStart={canStart}
+        onStart={onStart}
+        onDetails={onDetails}
+        onSaveAsTemplate={onSaveAsTemplate}
+        onMaterials={onMaterials}
+        onTrash={onTrash}
+        onMore={() => setOpen('more')}
+      />
 
       {presentation.isTemplate && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
@@ -218,26 +174,43 @@ export function PhoneLive({
           <OfflineStatus presentation={presentation} onOpen={onKeepOffline} className="w-auto pointer-events-auto" />
         </div>
       )}
-      {editing ? (
-        <AppButton variant="plain" onClick={() => setEditing(false)} className={`absolute z-10 right-7 landscape:right-[calc(45%+0.75rem)] bottom-[max(1.75rem,env(safe-area-inset-bottom))] h-14 px-6 rounded-full text-[17px] font-semibold text-sky-500 cursor-pointer ${GLASS}`}>
-          {t('live.editDone')}
-        </AppButton>
-      ) : (
-        <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className={`absolute z-10 right-7 landscape:right-[calc(45%+0.75rem)] bottom-[max(1.75rem,env(safe-area-inset-bottom))] size-14 rounded-full flex items-center justify-center cursor-pointer ${TINTED_GLASS}`}>
+      {/* In select mode its own Klar and removal take the foot (RunningOrder). */}
+      {!editing && (
+        <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className={`absolute z-10 right-7 landscape:right-[calc(45%+0.75rem)] bottom-[max(1.75rem,env(safe-area-inset-bottom))] size-14 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}`}>
           <PlusIcon className="size-6" strokeWidth={2.25} />
         </AppButton>
       )}
       {editing ? (
-        <LiveEditList items={items} shownId={pointer.itemId} onRemove={(item) => void remove(item)} />
+        // The computer's running order in its select mode, as iOS's lists edit (Lars, 2026-11-02).
+        <RunningOrder
+          items={items}
+          slides={slides}
+          selectedId={null}
+          shownId={pointer.black ? null : pointer.itemId}
+          onSelect={() => {}}
+          onAddAfter={(itemId) => setAdding({ chosenId: itemId })}
+          onRemove={(item) => void remove(item)}
+          editHref={(item) => {
+            const page = songPage(item, songs);
+            return page && href(page);
+          }}
+          ticking
+          tickFirst={editing}
+          onTicking={(on) => !on && setEditing(null)}
+        />
       ) : (
-        <LiveOrder
+        <SlideList
           items={items}
           slides={slides}
           theme={theme}
+          songs={songs}
+          arrangements={arrangements}
+          overlays={overlays}
           pointer={pointer}
-          audio={presenting?.audio}
-          addedId={addedId}
-          onPick={presenting && ((itemId, partIndex) => live.set({ itemId, partIndex, black: false }))}
+          players={presenting ? { audio: presenting.audio } : undefined}
+          toItem={toAdded}
+          markedId={addedId}
+          onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
           onItemMenu={(item) => setOpen({ item })}
         />
       )}
@@ -301,14 +274,14 @@ export function PhoneLive({
               <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
                 {t('live.addAfter')}
               </MenuRow>
-              <MenuRow icon={<ArrowsUpDownIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(true))}>
-                {t('live.move')}
+              <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
+                {t('presentation.tick')}
               </MenuRow>
             </MenuGroup>
             <MenuGroup>
-              {open.item.type === 'song' && songs.get(open.item.sourceId)?.deletedAt === null && (
-                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate({ page: 'song', id: open.item.sourceId }))}>
-                  {t('live.editSong')}
+              {songPage(open.item, songs) && (
+                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate(songPage(open.item, songs)!))}>
+                  {t('presentation.editSong')}
                 </MenuRow>
               )}
               {open.item.type === 'image' && (
@@ -341,6 +314,7 @@ export function PhoneLive({
           toItemId={adding.images}
           onAdded={(itemId) => {
             setLastAddedId(itemId);
+            setToAdded({ id: itemId });
             setAddedId(itemId);
             setTimeout(() => setAddedId((now) => (now === itemId ? null : now)), MARKED_MS);
           }}

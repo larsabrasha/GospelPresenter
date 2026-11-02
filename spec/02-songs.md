@@ -113,7 +113,7 @@ Policy `ManageSongs` (`GospelPresenter.Shared/Pages/Admin/Songs.razor:1-2`).
     names; buttons **Avbryt** (abort whole import, nothing written), **Hoppa över dubbletter**
     (import only new), **Ersätt dubbletter** (import new and overwrite existing).
 - Card "Alla sånger (N)" where N = total library count (not the filtered count), button
-  **Papperskorg** → `/trash?kind=Song` (Trash area).
+  **Papperskorg** → `/trash?kind=Song` (Trash area). 2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03).
 - Search box (only when library non-empty): placeholder "Sök", max 100 chars, filters on every
   keystroke (no debounce), clear (×) button when non-empty. Matching word prefixes are highlighted
   in name and author.

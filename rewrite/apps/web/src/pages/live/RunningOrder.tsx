@@ -1,28 +1,33 @@
 import type { PresentationItem } from '@gp/core';
 import { useEffect, useRef, useState } from 'react';
-import { useDb } from '../../../db/react.tsx';
-import { t } from '../../../i18n.ts';
-import type { ItemSlides } from '../../../live/live.ts';
-import { itemActions } from '../../../live/liveList.ts';
-import { AppButton } from '../../../ui/AppButton.tsx';
-import { useSaveFailed } from '../../../ui/AutoSave.tsx';
-import { CONTEXT_ROW, ContextMenu } from '../../../ui/ContextMenu.tsx';
-import { afterWrite } from '../../../ui/debounce.ts';
-import { CheckboxIcon, ChevronDownIcon, ChevronUpIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../../ui/icons.tsx';
-import { useSortable } from '../../../ui/sortable.ts';
+import { useDb } from '../../db/react.tsx';
+import { t } from '../../i18n.ts';
+import type { ItemSlides } from '../../live/live.ts';
+import { itemActions } from '../../live/liveList.ts';
+import { AppButton } from '../../ui/AppButton.tsx';
+import { useSaveFailed } from '../../ui/AutoSave.tsx';
+import { useConfirm } from '../../ui/Dialog.tsx';
+import { useToast } from '../../ui/Toast.tsx';
+import { CONTEXT_ROW, ContextMenu } from '../../ui/ContextMenu.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
+import { CheckboxIcon, CheckSquareIcon, ChevronDownIcon, ChevronUpIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PencilIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { useSortable } from '../../ui/sortable.ts';
 
 /** An item's menu, open at a point: from a right click on its row, or under its …. */
 type Menu = { item: PresentationItem; at: { x: number; y: number } };
 
 /**
- * The left column on a computer or an iPad lying down, before and while presenting (docs/layout-2-0.md): the items, one row each,
- * the shown one marked by a red dot left of its name and a red tint across the row. A mouse drags a row straight
+ * The running order, one on a computer and a phone (Lars, 2026-11-02): on a computer or an iPad lying down the left
+ * column, before and while presenting (docs/layout-2-0.md); on a phone its edit mode, select mode from the start, as
+ * iOS's lists edit. The items, one row each,
+ * the shown one marked by a red dot in the room left of its row (Lars, 2026-11-02) and a red tint across the row. A mouse drags a row straight
  * away (after 4 px, so a click still selects); a finger drags by ≡, so it still scrolls. A right click or the row's …
- * gives Lägg till efter, Flytta upp, Flytta ned and Ta bort; the shown item cannot be removed. A click selects the
- * item, which scrolls the slides to it. With `ticking` (Markera), rows are ticked instead (Shift+click ticks a range)
- * and the button under the list removes them (Sidebar.razor).
+ * gives Redigera (a song's), Lägg till efter, Flytta upp, Flytta ned, Markera and Ta bort; the shown item cannot be removed. A click selects
+ * the item, which scrolls the slides to it. With `ticking` (Markera, which ticks the row it was chosen on), rows are
+ * ticked instead (Shift+click ticks a range), a finger moves them by ≡, and the button under the list removes them after a
+ * question (Sidebar.razor); the shown item cannot be ticked. `tickFirst` ticks a row when select mode starts from outside.
  */
-export function LiveOrder({
+export function RunningOrder({
   items,
   slides,
   selectedId,
@@ -30,9 +35,10 @@ export function LiveOrder({
   onSelect,
   onAddAfter,
   onRemove,
+  editHref,
   ticking,
-  onDoneTicking,
-  onRemoveTicked,
+  tickFirst = null,
+  onTicking,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -42,12 +48,17 @@ export function LiveOrder({
   /** Lägg till: after the item named, or by the live list's rule (liveList.ts `addAfter`) with none. */
   onAddAfter: (itemId: string | null) => void;
   onRemove: (item: PresentationItem) => void;
+  /** A song's page, opened alone in Inställningar, as its heading's … has it. */
+  editHref: (item: PresentationItem) => string | undefined;
+  /** Select mode: Markera in a row's … starts it, Klar ends it. */
   ticking: boolean;
-  onDoneTicking: () => void;
-  onRemoveTicked: (items: PresentationItem[]) => void;
+  tickFirst?: string | null;
+  onTicking: (on: boolean) => void;
 }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
+  const { dialog, ask } = useConfirm();
+  const toast = useToast();
   const [menu, setMenu] = useState<Menu | null>(null);
   const move = (itemId: string, by: number) => afterWrite(db.mutate('moveItem', { itemId, by }), () => {}, saveFailed);
   const { listRef, rowStyle, handle, wholeRow, dragging } = useSortable<HTMLOListElement>((from, to) => move(items[from]!.id, to - from));
@@ -57,46 +68,78 @@ export function LiveOrder({
     if (selectedId) scroller.current?.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [selectedId]);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
-  const lastTicked = useRef<string | null>(null);
-  // A new select mode starts with nothing ticked.
-  const [wasTicking, setWasTicking] = useState(ticking);
+  // Where Shift+click ticks a range from.
+  const [lastTicked, setLastTicked] = useState<string | null>(null);
+  // A new select mode starts with the row Markera was chosen on ticked, or none.
+  const [first, setFirst] = useState<string | null>(null);
+  const order = items.map((i) => i.id);
+  // The shown item cannot be removed, so it cannot be ticked either (docs/layout-2-0.md).
+  const tickable = order.filter((id) => id !== shownId);
+  const [wasTicking, setWasTicking] = useState(false);
   if (wasTicking !== ticking) {
     setWasTicking(ticking);
-    setTicked(new Set());
+    const start = first ?? tickFirst;
+    setTicked(new Set(ticking && start && tickable.includes(start) ? [start] : []));
+    setLastTicked(ticking ? start : null);
+    setFirst(null);
   }
   const tick = (itemId: string, range: boolean) => {
     const next = new Set(ticked);
-    const from = lastTicked.current ? items.findIndex((i) => i.id === lastTicked.current) : -1;
+    const from = lastTicked ? items.findIndex((i) => i.id === lastTicked) : -1;
     const to = items.findIndex((i) => i.id === itemId);
     if (range && from >= 0 && to >= 0) for (let i = Math.min(from, to); i <= Math.max(from, to); i++) next.add(items[i]!.id);
     else if (!next.delete(itemId)) next.add(itemId);
-    lastTicked.current = itemId;
+    if (shownId) next.delete(shownId);
+    setLastTicked(itemId);
     setTicked(next);
   };
-  const allTicked = items.length > 0 && ticked.size === items.length;
-  const order = items.map((i) => i.id);
+  const allTicked = tickable.length > 0 && ticked.size === tickable.length;
+  const removeTicked = async () => {
+    const chosen = items.filter((i) => ticked.has(i.id));
+    const ok = await ask({
+      title: t('common.delete'),
+      text: chosen.length === 1 ? t('presentation.removeOne') : t('presentation.removeMany', { n: chosen.length }),
+      confirm: t('common.delete'),
+      compact: true,
+      run: async () => {
+        try {
+          for (const item of chosen) await db.mutate('removeItem', { itemId: item.id });
+        } catch (e) {
+          console.error('save failed', e);
+          saveFailed();
+        }
+      },
+    });
+    if (!ok) return;
+    onTicking(false);
+    toast(chosen.length === 1 ? t('presentation.removedOne') : t('presentation.removedMany', { n: chosen.length }));
+  };
   const can = menu ? itemActions(order, menu.item.id, shownId) : null;
+  const songHref = menu ? editHref(menu.item) : undefined;
 
-  // The scrollbar's room on both sides, so the column is as wide at the right as at the left.
+  // The scrollbar keeps its room at the right, the padding there making up the rest of 20px (app.css `--beside-scrollbar`).
   return (
-    <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges]">
+    <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto">
+      {dialog}
       {ticking && (
-        <div className="flex items-center justify-between px-4 pb-2">
+        <div className="flex items-center justify-between pl-5 pr-(--beside-scrollbar) pb-2">
           <AppButton
             variant="plain"
-            className="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+            // Its box over the rows' boxes: the row's own padding and its button's.
+            className="flex items-center gap-2.5 pl-3.5 pr-1 text-sm cursor-pointer select-none text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
             aria-pressed={allTicked}
-            onClick={() => setTicked(allTicked ? new Set() : new Set(order))}
+            onClick={() => setTicked(allTicked ? new Set() : new Set(tickable))}
           >
             <CheckboxIcon checked={allTicked} filled className={allTicked ? 'size-5 text-sky-500' : 'size-5 text-stone-300 dark:text-stone-500'} />
             {t('presentation.tickAll')}
           </AppButton>
-          <AppButton variant="plain" className="px-2 py-1.5 rounded-full text-xs cursor-pointer bg-sky-500 text-white hover:bg-sky-600" onClick={onDoneTicking}>
+          <AppButton variant="plain" className="px-2 py-1.5 rounded-full text-xs cursor-pointer bg-sky-500 text-white hover:bg-sky-600" onClick={() => onTicking(false)}>
             {t('presentation.tickDone')}
           </AppButton>
         </div>
       )}
-      <ol ref={listRef} className="pb-8 px-2 select-none" aria-label={t('presentation.items')}>
+      {/* As wide as the description's box above; the live dot sits in the room at the left, outside the row. */}
+      <ol ref={listRef} className="pb-8 pl-5 pr-(--beside-scrollbar) select-none" aria-label={t('presentation.items')}>
         {items.map((item, i) => {
           const problem = slides.get(item.id)?.problem;
           const shown = item.id === shownId;
@@ -112,21 +155,22 @@ export function LiveOrder({
                 e.preventDefault();
                 setMenu({ item, at: { x: e.clientX, y: e.clientY } });
               }}
-              className={`group flex items-center pr-1.5 touch:pr-0 rounded-full text-sm scroll-mb-16 ${
+              className={`group relative flex items-center pl-1 pr-1.5 touch:pr-0 rounded-full text-sm scroll-mb-16 ${
                 // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white.
                 selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'hover:bg-black/5 dark:hover:bg-white/10'
-              } ${dragging === i ? `shadow-lg ${selected ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''}`}
+              } ${dragging === i ? `shadow-lg ${selected ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
             >
-              {/* The dot's place is always there, so the rows line up whether one is shown or not. */}
-              <span className={`ml-3 size-2 shrink-0 rounded-full ${shown ? 'bg-red-500' : ''}`} data-testid={shown ? 'live-dot' : undefined} />
+              {/* Centred in the 20px room left of the row. */}
+              {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
               {ticking ? (
                 <AppButton
                   variant="plain"
                   className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
                   aria-pressed={ticked.has(item.id)}
+                  disabled={shown}
                   onClick={(e) => tick(item.id, e.shiftKey)}
                 >
-                  <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : 'size-5 shrink-0 text-stone-300 dark:text-stone-500'} />
+                  <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
                   <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
                   <span className="truncate">{item.title}</span>
                 </AppButton>
@@ -134,13 +178,13 @@ export function LiveOrder({
                 <>
                 <AppButton
                   variant="plain"
-                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none"
                   aria-pressed={selected}
                   aria-current={shown ? 'true' : undefined}
                   onClick={() => onSelect(item.id)}
                 >
                   <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-                  <span className={`truncate ${shown ? 'font-semibold' : ''}`}>{item.title}</span>
+                  <span className="truncate">{item.title}</span>
                   {problem && problem !== 'no-parts' && (
                     <span className="text-amber-500">
                       <WarningIcon className="size-4" />
@@ -164,20 +208,21 @@ export function LiveOrder({
                 </AppButton>
                 </>
               )}
-              {/* A finger drags by ≡ (a mouse drags the whole row); Alt+↑/↓ moves the selected item from the keyboard. */}
-              <div {...handle(i)} data-no-drag data-testid="drag-handle" className={`${ticking ? 'hidden' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-stone-400 dark:text-stone-500`}>
+              {/* A finger drags by ≡ (a mouse drags the whole row); in select mode, where a row ticks, everyone does, as
+                  iOS's edit mode has its grips. Alt+↑/↓ moves the selected item from the keyboard. */}
+              <div {...handle(i)} data-no-drag data-testid="drag-handle" title={t('live.moveItem', { title: item.title })} className={`${ticking ? 'flex cursor-grab' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-stone-400 dark:text-stone-500`}>
                 <MenuIcon className="size-4" />
               </div>
             </li>
           );
         })}
       </ol>
-      <div className="sticky bottom-0 p-3 bg-sidebar">
+      <div className="sticky bottom-0 pl-5 pr-(--beside-scrollbar) py-3 bg-ground lg:bg-sidebar">
         {ticking && ticked.size > 0 ? (
           <AppButton
             variant="plain"
             className="text-sm text-center w-full bg-red-500 text-white px-4 h-9 touch:h-11 rounded-full hover:bg-red-600 cursor-pointer flex items-center justify-center gap-2"
-            onClick={() => onRemoveTicked(items.filter((i) => ticked.has(i.id)))}
+            onClick={() => void removeTicked()}
           >
             <TrashIcon className="size-4" strokeWidth={1.5} />
             {t('presentation.removeTicked', { n: ticked.size })}
@@ -193,6 +238,15 @@ export function LiveOrder({
       </div>
       {menu && can && (
         <ContextMenu at={menu.at} label={t('presentation.itemOptions', { title: menu.item.title })} onClose={() => setMenu(null)}>
+          {songHref && (
+            <>
+              <AppButton variant="plain" role="menuitem" href={songHref} className={CONTEXT_ROW}>
+                <PencilIcon className="size-4" />
+                {t('presentation.editSong')}
+              </AppButton>
+              <div className="h-px my-1 mx-1 bg-separator" />
+            </>
+          )}
           <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => onAddAfter(menu.item.id)}>
             <PlusIcon className="size-4" />
             {t('live.addAfter')}
@@ -204,6 +258,18 @@ export function LiveOrder({
           <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} disabled={!can.down} onClick={() => move(menu.item.id, 1)}>
             <ChevronDownIcon className="size-4" />
             {t('common.moveDown')}
+          </AppButton>
+          <AppButton
+            variant="plain"
+            role="menuitem"
+            className={CONTEXT_ROW}
+            onClick={() => {
+              setFirst(menu.item.id);
+              onTicking(true);
+            }}
+          >
+            <CheckSquareIcon className="size-4" />
+            {t('presentation.tick')}
           </AppButton>
           <div className="h-px my-1 mx-1 bg-separator" />
           <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} disabled={!can.remove} onClick={() => onRemove(menu.item)}>

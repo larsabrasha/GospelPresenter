@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addAfter, followsShown, itemActions, outputsState } from '../src/live/liveList.ts';
+import { addAfter, followsShown, itemActions, outputsState, slideMarks } from '../src/live/liveList.ts';
 
 const order = ['welcome', 'song', 'reading', 'sermon', 'blessing'];
 
@@ -135,5 +135,36 @@ describe('itemActions', () => {
 
   it('an item not shown can be removed', () => {
     expect(itemActions(order, 'sermon', 'song').remove).toBe(true);
+  });
+});
+
+describe('slideMarks', () => {
+  const parts = [
+    { itemId: 'song', parts: 2 },
+    { itemId: 'reading', parts: 1 },
+  ];
+
+  it('marks the slide shown, and the next one within the item', () => {
+    const mark = slideMarks(parts, { itemId: 'song', partIndex: 0, black: false });
+
+    expect([mark('song', 0), mark('song', 1), mark('reading', 0)]).toEqual(['shown', 'next', null]);
+  });
+
+  it("marks the first slide of the next item after an item's last", () => {
+    const mark = slideMarks(parts, { itemId: 'song', partIndex: 1, black: false });
+
+    expect(mark('reading', 0)).toBe('next');
+  });
+
+  it('after Rensa marks nothing shown, but still what comes next', () => {
+    const mark = slideMarks(parts, { itemId: 'song', partIndex: 0, black: true });
+
+    expect([mark('song', 0), mark('song', 1)]).toEqual([null, 'next']);
+  });
+
+  it('marks nothing next after the last slide', () => {
+    const mark = slideMarks(parts, { itemId: 'reading', partIndex: 0, black: false });
+
+    expect([mark('reading', 0), mark('song', 0)]).toEqual(['shown', null]);
   });
 });

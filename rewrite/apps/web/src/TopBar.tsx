@@ -11,7 +11,7 @@ import { ArrowsRightLeftIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon,
 import { href } from './ui/router.ts';
 import { initials, PENDING_GRACE_MS, syncState } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
-import { ROUND_BACK } from './ui/glass.ts';
+import { LIFTED, ROUND_BACK } from './ui/glass.ts';
 
 // The bar at the top of the start page and the pages outside a presentation (docs/layout-2-0.md, "The start page and
 // the bar"): + and the user's picture, whose menu holds the rest. The cloud shows only when the sync has a problem.
@@ -211,12 +211,17 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
 function BarEnd({ me }: { me: Me }) {
   const sync = useSync();
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-3">
       <SyncStatus sync={sync} />
+      {/* Inställningar a click away on every page, as the presentation's bar has it (Lars, 2026-11-02). */}
+      <a href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`size-9 touch:size-11 rounded-full flex items-center justify-center text-stone-700 dark:text-stone-200 no-underline ${LIFTED}`}>
+        <CogIcon className="size-4" />
+      </a>
       <ProfileMenu me={me} sync={sync} />
     </div>
   );
 }
+
 
 /** The bar's way back to the start page, a round ‹ alone as iOS 27's and the live bar's. */
 export function BackToPresentations() {
@@ -237,19 +242,10 @@ export function BackToPresentations() {
  * its heading row). A presentation has a bar of its own. The warnings under it, unless Inställningar covers it and
  * shows them itself.
  */
-export function TopBar({ me, warnings, title }: { me: Me; warnings: boolean; title?: string }) {
+export function TopBar({ me, warnings }: { me: Me; warnings: boolean }) {
   return (
     <>
       <nav data-window-bar className="relative flex items-center justify-between gap-3 px-4 h-14 sm:h-13 shrink-0 sm:border-b-[0.5px] sm:border-separator bg-ground">
-        {/* A page under the start page (Papperskorg) has a round ‹ and its name in the middle, as a presentation's bar. */}
-        {title !== undefined ? (
-          <>
-            {/* The title before the ‹: a Mac window's drag regions are taken in this order, and the ‹ must come last to
-                stay pressable where the title runs under it. */}
-            <h1 className="absolute inset-x-24 text-center text-[15px] font-semibold truncate pointer-events-none">{title}</h1>
-            <BackToPresentations />
-          </>
-        ) : (
         <div className="flex items-center gap-3">
           <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
             <LogoIcon className="size-6" />
@@ -259,7 +255,6 @@ export function TopBar({ me, warnings, title }: { me: Me; warnings: boolean; tit
           </a>
           <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
         </div>
-        )}
         <span className="flex-1" />
         <BarEnd me={me} />
       </nav>

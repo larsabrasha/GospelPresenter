@@ -606,15 +606,6 @@ export function ArrowsRightLeftIcon({ className, strokeWidth = 1.5 }: StrokeIcon
   );
 }
 
-/** Two arrows, up and down (Heroicons' arrows-up-down, SF Symbols' arrow.up.arrow.down): Ändra ordning. */
-export function ArrowsUpDownIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
-  return (
-    <Outline className={className} strokeWidth={strokeWidth}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
-    </Outline>
-  );
-}
-
 /** "⋯", a menu of one thing (Images.razor, Audios.razor). */
 export function EllipsisIcon({ className }: IconProps) {
   return (

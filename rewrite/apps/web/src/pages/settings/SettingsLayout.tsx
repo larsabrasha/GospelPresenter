@@ -5,6 +5,7 @@ import { Avatar } from '../../TopBar.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { LIFTED, ROUND_BACK } from '../../ui/glass.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '../../ui/icons.tsx';
+import { PageFloatSlot } from '../../ui/headerFloat.ts';
 import { PageAlone, PageBackInBar, PageBarSlot, PageFill, PageIntroProvider } from '../../ui/PageContainer.tsx';
 import { adminBack, aloneInSettings, href, type Route } from '../../ui/router.ts';
 import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks.ts';
@@ -95,15 +96,41 @@ export function SettingsLayout({
 }) {
   const atList = route.page === 'admin';
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const [float, setFloat] = useState<HTMLDivElement | null>(null);
   const link = settingsGroups(me, host)
     .flatMap((g) => g.links)
     .find((l) => l.route.page === route.page && l.intro);
   const intro = link?.intro ? { icon: link.icon, colour: link.colour, text: t(link.intro), onTitleInView: onIntroTitle } : null;
+  // The content column's bar from `lg`: ‹ one step up where there is a step (the list is beside it), the name, Stäng.
+  const contentBar = (
+    <div data-bar className="hidden lg:flex items-center gap-3 h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
+      {bar.back && bar.back.href !== href({ page: 'admin' }) && (
+        <a href={bar.back.href} aria-label={bar.back.label} title={bar.back.label} className={`-ml-1 ${ROUND_BACK}`}>
+          <ChevronLeftIcon className="size-5" />
+        </a>
+      )}
+      <span data-bar-title aria-hidden="true" className={`flex-1 min-w-0 font-semibold text-[17px] truncate transition-opacity ${bar.titleShown ? '' : 'opacity-0'}`}>
+        {bar.title}
+      </span>
+      {/* A detail page's own name and Sparad (DetailHeader) take the title's place. */}
+      <div ref={setSlot} data-bar-slot className="relative flex-1 min-w-0 flex items-center pr-20 empty:hidden" />
+      {/* Stäng at the top right, as every dialog has it. */}
+      <AppButton variant="plain" onClick={bar.onClose} aria-label={t('common.close')} title={t('common.close')} className={`-mr-1 size-8 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-500 ${LIFTED}`}>
+        <CloseIcon className="size-4" />
+      </AppButton>
+    </div>
+  );
+  // A page opened from outside has the same bar, its name and Sparad in it (Lars, 2026-11-02), and no list beside it.
   if (aloneInSettings(route, adminBack()))
     return (
       <main className="flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground">
+        {contentBar}
         <PageAlone value>
-          <PageFill value>{children}</PageFill>
+          <PageBackInBar value>
+            <PageBarSlot value={slot}>
+              <PageFill value>{children}</PageFill>
+            </PageBarSlot>
+          </PageBackInBar>
         </PageAlone>
       </main>
     );
@@ -113,30 +140,18 @@ export function SettingsLayout({
         <SettingsList me={me} host={host} route={route} />
       </aside>
       <main className={`flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground ${atList ? 'max-lg:hidden' : ''}`}>
-        {/* The content column's bar from `lg`: ‹ one step up where there is a step (the list is beside it), the name, Stäng. */}
-        <div data-bar className="hidden lg:flex items-center gap-3 h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
-          {bar.back && bar.back.href !== href({ page: 'admin' }) && (
-            <a href={bar.back.href} aria-label={bar.back.label} title={bar.back.label} className={`-ml-1 ${ROUND_BACK}`}>
-              <ChevronLeftIcon className="size-5" />
-            </a>
-          )}
-          <span data-bar-title aria-hidden="true" className={`flex-1 min-w-0 font-semibold text-[17px] truncate transition-opacity ${bar.titleShown ? '' : 'opacity-0'}`}>
-            {bar.title}
-          </span>
-          {/* A detail page's own name and Sparad (DetailHeader) take the title's place. */}
-          <div ref={setSlot} data-bar-slot className="relative flex-1 min-w-0 flex items-center pr-20 empty:hidden" />
-          {/* Stäng at the top right, as every dialog has it. */}
-          <AppButton variant="plain" onClick={bar.onClose} aria-label={t('common.close')} title={t('common.close')} className={`-mr-1 size-8 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-500 ${LIFTED}`}>
-            <CloseIcon className="size-4" />
-          </AppButton>
-        </div>
+        {contentBar}
         <PageBackInBar value>
           <PageBarSlot value={slot}>
-            <PageIntroProvider value={intro}>
-              <PageFill value>{children}</PageFill>
-            </PageIntroProvider>
+            <PageFloatSlot value={float}>
+              <PageIntroProvider value={intro}>
+                <PageFill value>{children}</PageFill>
+              </PageIntroProvider>
+            </PageFloatSlot>
           </PageBarSlot>
         </PageBackInBar>
+        {/* A list page's +, floating over the list at the bottom right (PageHeader). */}
+        <div ref={setFloat} className="absolute z-10 right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] flex gap-3 empty:hidden" />
       </main>
     </div>
   );

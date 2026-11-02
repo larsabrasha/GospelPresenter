@@ -1,25 +1,34 @@
-// The round glass of the 2.0 layout's floating buttons (docs/layout-2-0.md), as iOS 27 draws them.
-
-/** A surface floating on the page: the bar's round buttons, the arrows and Rensa under the picture. */
-export const GLASS = 'bg-white/70 dark:bg-surface/60 backdrop-blur-md shadow-[inset_0_0.5px_0_rgba(255,255,255,0.22),0_8px_28px_rgba(0,0,0,0.25)]';
-
-/** Glass tinted with the app's colour, as iOS 27 draws a floating "new": seen at once, quieter than a filled button. */
-export const TINTED_GLASS = 'bg-sky-100/80 dark:bg-sky-950/70 text-sky-600 dark:text-sky-300 ring-1 ring-sky-500/30 backdrop-blur-md shadow-[0_8px_28px_rgba(2,132,199,0.25)]';
+// How the 2.0 layout's buttons stand off the page (docs/layout-2-0.md, Lars, 2026-11-02): a shadow only in a bar or a
+// toolbar, and on the floating +, never in the content. Lifted (a soft shadow) for a bar's buttons, on a computer and a
+// phone alike, and the live picture's; in the content every button is flat: filled for the one that matters, tinted
+// for a quiet one in a colour, grey for the rest.
 
 /**
- * A button lifted off the page, as macOS's push buttons and iOS 26's controls: white and a soft shadow, no border
- * (Lars, 2026-11-02), smaller than the floating glass's so a form with many buttons stays light.
+ * A floating "new", as iOS 26 puts it at the bottom right: filled in the app's colour so it is seen (Lars, 2026-11-02),
+ * with the shadow of what floats, in its own colour.
  */
-export const LIFTED =
-  'bg-surface dark:bg-raised shadow-[0_1px_2px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.10)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_4px_14px_rgba(0,0,0,0.35)] hover:bg-raised dark:hover:bg-raised-2';
+export const FLOATING_PRIMARY = 'bg-sky-500 hover:bg-sky-600 text-white shadow-[0_8px_24px_rgba(14,165,233,0.45)]';
+
+/**
+ * A bar's button lifted off the page, as iOS 26's bar buttons: white and a soft shadow, no border (Lars, 2026-11-02),
+ * lighter than the floating glass's.
+ */
+const LIFT_SHADOW = 'shadow-[0_1px_2px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.10)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_4px_14px_rgba(0,0,0,0.35)]';
+export const LIFTED = `bg-surface dark:bg-raised ${LIFT_SHADOW} hover:bg-raised dark:hover:bg-raised-2`;
 
 /** A way back, as iOS 27 draws it: a round ‹ alone, lifted. */
 export const ROUND_BACK = `size-9 touch:size-11 rounded-full flex items-center justify-center text-stone-700 dark:text-stone-200 no-underline ${LIFTED}`;
 
 /**
- * A shadow in a button's own colour, as a coloured tile casts on a light page (Lars, 2026-11-02): it lifts the button
- * without a grey cloud under it.
+ * A quiet button in a colour, as iOS's and macOS's tinted buttons: a wash of the colour and its words in it, flat, with
+ * no shadow (Lars, 2026-11-02: a coloured shadow under a quiet button looked heavy).
  */
-export const SKY_SHADOW = 'shadow-[0_6px_18px_-6px_rgba(14,165,233,0.55)]';
+export const SKY_TINT = 'text-sky-600 dark:text-sky-300 bg-sky-500/12 dark:bg-sky-400/15 hover:bg-sky-500/18 dark:hover:bg-sky-400/22';
+export const RED_TINT = 'text-red-600 dark:text-red-300 bg-red-500/10 dark:bg-red-400/15 hover:bg-red-500/16 dark:hover:bg-red-400/22';
+
+/**
+ * A shadow in a filled bar button's own colour, as a coloured tile casts on a light page (Lars, 2026-11-02): it lifts
+ * ▶ and ■ as the bar's other buttons without a grey cloud under them.
+ */
 export const RED_SHADOW = 'shadow-[0_6px_18px_-6px_rgba(239,68,68,0.5)]';
 export const GREEN_SHADOW = 'shadow-[0_6px_18px_-6px_rgba(16,185,129,0.55)]';

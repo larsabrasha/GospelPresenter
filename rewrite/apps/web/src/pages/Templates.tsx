@@ -11,7 +11,7 @@ import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { SimpleInput, SimpleSelect } from '../ui/SimpleInput.tsx';
-import { TemplatesPicture, TrashIcon } from '../ui/icons.tsx';
+import { TemplatesPicture } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -137,11 +137,6 @@ export function Templates() {
     <PageContainer>
       <PageHeader title={t('nav.templates')}>
         <div className="flex items-center gap-2">
-          {/* Always here: whoever has just deleted the wrong template needs the way back in view (Templates.razor). */}
-          <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Template' })} className="flex items-center gap-1.5">
-            <TrashIcon className="size-4" />
-            {t('nav.trash')}
-          </AppButton>
           <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
         </div>
       </PageHeader>

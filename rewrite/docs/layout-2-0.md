@@ -15,7 +15,9 @@ rows: white with a hairline, stone-900), `raised` on a surface (fields, pills, s
 stone-100, stone-800) and `raised-2` a step further (hover), see-through hairline `separator`s, a `sidebar` a step
 darker than the page beside it (stone-100), and a sheet's own `sheet` with its rows in `sheet-cell`. A class names
 the role (`bg-surface`) rather than a step of the scale. Cards are flat: a hairline, no shadow, no box of their own
-around fields that have boxes.
+around fields that have boxes. A shadow belongs to a bar or a toolbar only (Lars, 2026-11-02): their buttons are
+lifted, and ▶ and ■ cast their own colour; in the content a button is flat, filled for the one that matters, tinted
+for a quiet one in a colour, grey for the rest (`ui/glass.ts`).
 
 ## One rule across the app
 
@@ -51,7 +53,8 @@ tapped shows nothing, and ▶ starts it.
   Fjärrstyrning; then Inställningar. Spara offline is the line under the running order while it is kept. "…" in a
   menu only where a dialog asks first. There is no
   Scenläge: the live view is it on a phone and a tablet (Lars, 2026-11-01).
-- **The description** sits at the top of the left column on a computer, three lines with Visa mer to unfold the rest.
+- **The description** sits at the top of the left column on a computer, on a flat card a step lighter than the column, as
+  a group in iOS's Settings (Lars, 2026-11-02), three lines with mer at the end of the last to unfold the rest.
   A phone leaves it out of the running order, to keep the room for the parts (Lars, 2026-11-02); Redigera detaljer…
   has it. The picture while presenting is at most a fifth of the screen high, for the same reason.
   A phone lying down has two columns: the running order at the left, the picture and ‹ Rensa › at the right, the +
@@ -69,9 +72,10 @@ tapped shows nothing, and ▶ starts it.
   has a red ring and VISAS, the next NÄSTA; the ones before look as the rest (not dimmed), as one goes back to them.
 - **The list follows the shown part** only when it changed some other way than a tap in the list (the arrows,
   someone controlling it remotely), and only when the part is out of view: nothing moves under a finger.
-- **Ändra ordning** (was Flytta: Lars, 2026-11-02), in an item's …, folds the list to one row per item, moved by ≡ and removed by a red minus; the shown item can move
-  but not be removed. Klar ends it.
-- **An item's …** (on its heading) offers Lägg till efter…, Ändra ordning and Ta bort.
+- **Markera** in an item's … opens the computer's running order in its select mode (Lars, 2026-11-02: one list, as
+  iOS's lists edit), that item ticked: one row per item, ticked to remove together after a question, moved by ≡; the
+  shown item can move but not be ticked. Klar ends it.
+- **An item's …** (on its heading) offers Lägg till efter…, Markera and Ta bort.
 - **Lägg till** (Sånger, Bibel, Text) adds right after what is shown, or after the last thing added while that is
   still ahead, so several additions keep their order; "Lägg till efter" in an item's … names the place instead.
   The list goes to the new item and marks it; nothing changes on the outputs. Adding and removing can be undone.
@@ -83,19 +87,20 @@ tapped shows nothing, and ▶ starts it.
 
 Editing sits in the middle, before and while presenting: a section's heading names the item (it is not renamed in
 the app, which confused: Lars, 2026-11-02), opens its song (Redigera) or edits its pictures, and under it are the item's warnings, its player,
-its arrangement and its overlay. Markera at the top of the left column ticks items to remove together. On a phone
-an item's … holds the same but Byt namn (Lars, 2026-11-02): Redigera sång, Redigera bilder, the arrangement and the
+its arrangement and its overlay. Markera in a row's … ticks items to remove together, that row first; the column has no … of its own (Lars, 2026-11-02). On a phone
+an item's … holds the same but Byt namn (Lars, 2026-11-02): Redigera (plain, not "Redigera sången": Lars, 2026-11-02), the arrangement and the
 overlay.
 
 - **The bar** is the presentation's own, the same before and while it is presented, so its name stays in one place
-  (the left column has none): "‹ Presentationer" at the left; in the middle the name, LIVE while presented, and when
+  (the left column has none): "‹ Presentationer" at the left; in the middle the name, LIVE only while following another's session (this window's own has the red ■: Lars, 2026-11-02), and when
   and where, which open the presentation's menu (Redigera detaljer… and Noter och länkar, Spara som mall…, and to the trash
   when not presented, each group apart); at the right round icons for Fjärrstyrning (while presented) and Inställningar, no … (Lars,
   2026-11-01), and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
   sync has a problem. A template has no ▶.
-- **Left:** the items, one row each, the shown one marked by a red dot left of its name and a tint across the
+- **Left:** the items, one row each, the shown one marked by a red dot in the room left of the row (Lars, 2026-11-02) and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
-  right click or the row's … gives Lägg till efter, Flytta upp, Flytta ned and Ta bort. A click scrolls the middle
+  right click or the row's … gives Redigera (a song's), Lägg till efter, Flytta upp, Flytta ned, Markera and Ta bort; in
+  Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
 - **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a
@@ -110,7 +115,9 @@ The bar has only the user's picture (+ for Ny presentation is in the page's head
 name (no role or organisation), Inställningar (Mina inställningar is a row in it), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
 what and offers Synka nu. The page keeps Visas nu at the top, then Idag, Kommande and Senast ändrade, each row with
-its time, place and number of items, and Papperskorg last. On a computer the groups are tables.
+its time and place under its name and its number of items at the right, two lines at every width with no
+columns (Lars, 2026-11-02). The bar has Inställningar's cog beside the picture, as a presentation's bar has it. There is one Papperskorg, a row in
+Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 
 ## Inställningar
 

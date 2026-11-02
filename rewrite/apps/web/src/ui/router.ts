@@ -145,23 +145,10 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'about']);
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
-  return ADMIN_DIALOG_PAGES.has(r.page) || settingsTrash(r) !== null;
-}
-
-/** The list in Inställningar a trash of one kind belongs to: it opens there (Lars, 2026-11-02); presentations' is a page. */
-export function settingsTrash(r: Route): Route | null {
-  if (r.page !== 'trash') return null;
-  const lists: Partial<Record<TrashKind, Route>> = {
-    Song: { page: 'songs' },
-    Image: { page: 'images' },
-    Audio: { page: 'audios' },
-    Video: { page: 'videos' },
-    Template: { page: 'templates' },
-  };
-  return r.kind ? (lists[r.kind] ?? null) : null;
+  return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */

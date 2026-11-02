@@ -3,13 +3,13 @@ import type { ReactNode } from 'react';
 import type { ShownOverlay } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { GLASS } from '../../ui/glass.ts';
+import { LIFTED } from '../../ui/glass.ts';
 import { ChevronLeftIcon } from '../../ui/icons.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
 /**
  * The picture shown and ‹ Rensa › under it, the same on a phone and a computer (docs/layout-2-0.md): a red ring while
- * the outputs show it, grey while Rensa has blacked them; round glass arrows, and Rensa a capsule of plain text between
+ * the outputs show it, grey while Rensa has blacked them; round lifted arrows, and Rensa a capsule of plain text between
  * them, as iOS 27's player. Rensa only blacks the outputs; a part chosen or an arrow shows one again, as ProPresenter's
  * Clear. `children` (a video's player line) goes between the picture and the buttons.
  */
@@ -38,7 +38,7 @@ export function LivePicture({
   children?: ReactNode;
 }) {
   // 36 px on a computer, as every button there; 44 by touch and on a phone (Lars, 2026-11-02).
-  const arrow = `size-11 lg:size-9 lg:touch:size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${GLASS}`;
+  const arrow = `size-11 lg:size-9 lg:touch:size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${LIFTED}`;
   return (
     <div className="flex flex-col gap-3 items-center">
       <div className={`w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
@@ -54,7 +54,7 @@ export function LivePicture({
           aria-pressed={black}
           disabled={black}
           onClick={onClear}
-          className={`h-11 lg:h-9 lg:touch:h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] lg:text-sm font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${GLASS}`}
+          className={`h-11 lg:h-9 lg:touch:h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] lg:text-sm font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${LIFTED}`}
         >
           {t('live.clear')}
         </AppButton>

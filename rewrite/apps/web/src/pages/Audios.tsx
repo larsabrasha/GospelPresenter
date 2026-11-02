@@ -4,15 +4,13 @@ import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
-import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
-import { SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
+import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
-import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { RemoveMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
@@ -53,10 +51,6 @@ export function Audios({ role }: { role: Role }) {
         <PageHeader title={t('audios.title')}>
           <div className="flex items-center gap-3">
             {manage && <DropHint text={t('images.dropAffordance')} />}
-            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Audio' })} className="inline-flex items-center gap-1.5">
-              <TrashIcon className="size-4" />
-              {t('images.trash')}
-            </AppButton>
             {manage && (
               <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
             )}

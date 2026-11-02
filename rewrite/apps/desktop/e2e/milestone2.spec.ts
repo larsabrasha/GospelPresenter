@@ -401,7 +401,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await expect(page.getByRole('status').getByText('Kväll flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Kväll' })).toHaveCount(0);
 
-  // The start page has no trash link once nothing is left there (Dashboard.razor): in by Sånger's, then to presentations.
+  // The start page has no trash link: the one trash is in Inställningar (Lars, 2026-11-02).
   await expect(page.getByRole('link', { name: 'Papperskorg' })).toHaveCount(0);
   await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Papperskorg' }).click();

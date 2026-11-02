@@ -27,11 +27,11 @@ test('the item selected again on return, and Markera removes a range', async () 
   await page.getByRole('link', { name: /Söndag/ }).click();
   await expect(order.getByRole('button', { name: 'Sång B', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  // Markera, in the … beside the description: tick A, Shift+click C ticks the range, and the three go together after the question.
-  await page.getByRole('button', { name: 'Fler val för ordningen' }).click();
+  // Markera, in A's …, ticks A; Shift+click C ticks the range, and the three go together after the question.
+  await order.getByRole('listitem').first().hover();
+  await order.getByRole('button', { name: 'Fler val för Sång A' }).click();
   await page.getByRole('menuitem', { name: 'Markera' }).click();
-  await expect(page.getByText('Välj objekt att radera')).toBeVisible();
-  await order.getByRole('button', { name: 'Sång A' }).click();
+  await expect(order.getByRole('button', { name: 'Sång A' })).toHaveAttribute('aria-pressed', 'true');
   await order.getByRole('button', { name: 'Sång C' }).click({ modifiers: ['Shift'] });
   await page.getByRole('button', { name: 'Ta bort markerade (3)' }).click();
   const confirm = page.getByRole('dialog', { name: 'Radera' });

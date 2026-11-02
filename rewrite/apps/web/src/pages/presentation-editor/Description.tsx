@@ -4,8 +4,9 @@ import { AppButton } from '../../ui/AppButton.tsx';
 
 /**
  * A presentation's description at the top of its running order, where it is plain to see (Lars, 2026-11-01): three
- * lines, and Visa mer when there is more, which unfolds the rest. Grey text on no box of its own, as a list's note in
- * Reminders: a box read as a field or a button (Lars, 2026-11-02).
+ * lines, and Visa mer when there is more, which unfolds the rest. A flat card a step lighter than the column, as a group
+ * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field); its mer at the end of the
+ * last line, as the App Store's.
  */
 export function Description({ text, className }: { text: string; className?: string }) {
   const [open, setOpen] = useState(false);
@@ -22,12 +23,18 @@ export function Description({ text, className }: { text: string; className?: str
     return () => observer.disconnect();
   }, [open]);
   return (
-    <div className={`px-2 ${className ?? ''}`} data-testid="description">
-      <p ref={box} className={`text-sm/5 whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
+    <div className={`relative px-3 py-2.5 rounded-xl bg-surface ${className ?? ''}`} data-testid="description">
+      <p ref={box} className={`text-[13px]/[18px] whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
       {(more || open) && (
-        <AppButton variant="plain" aria-expanded={open} onClick={() => setOpen(!open)} className="mt-1 text-sm font-medium text-sky-500 hover:text-sky-600 cursor-pointer">
+        <AppButton
+          variant="plain"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          // Folded, over the end of the last line, the words under it fading into the card.
+          className={`text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer ${open ? 'mt-0.5' : 'absolute right-3 bottom-2.5 pl-8 bg-linear-to-r from-transparent via-surface via-40% to-surface'}`}
+        >
           {open ? t('presentation.descriptionLess') : t('presentation.descriptionMore')}
         </AppButton>
       )}

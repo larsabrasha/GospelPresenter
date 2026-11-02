@@ -15,11 +15,12 @@ import {
   SpeakerWaveIcon,
   SquaresOverlapIcon,
   TagIcon,
+  TrashIcon,
   UsersIcon,
   VideoIcon,
   ViewGridIcon,
 } from '../../ui/icons.tsx';
-import { settingsTrash, type Route } from '../../ui/router.ts';
+import type { Route } from '../../ui/router.ts';
 
 export interface SettingsLink {
   route: Route;
@@ -81,6 +82,8 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
         can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
       ],
     },
+    // The one trash for everything deleted (Lars, 2026-11-02), rather than one beside every list.
+    { title: null, links: [{ route: { page: 'trash', kind: null }, label: 'nav.trash', icon: TrashIcon, colour: 'bg-stone-500', pages: ['trash'] }] },
     { title: null, links: [{ route: { page: 'about' }, label: 'nav.about', icon: InformationCircleIcon, colour: 'bg-stone-500', pages: ['about'] }] },
   ];
   return groups.map((g) => ({ title: g.title, links: g.links.filter((l): l is SettingsLink => !!l) })).filter((g) => g.links.length > 0);
@@ -88,7 +91,6 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
 
 /** Whether `link` is the row of the page open; on a computer the list alone (`/admin`) shows the songs. */
 export function isOpen(link: Pick<SettingsLink, 'pages'>, route: Route): boolean {
-  // A trash of one kind marks its list's row.
-  const page = route.page === 'admin' ? 'songs' : (settingsTrash(route)?.page ?? route.page);
+  const page = route.page === 'admin' ? 'songs' : route.page;
   return link.pages.includes(page);
 }

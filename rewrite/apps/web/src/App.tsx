@@ -46,7 +46,7 @@ import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { settingsGroups } from './pages/settings/settingsLinks.ts';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
-import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, settingsTrash, useRoute, type Route } from './ui/router.ts';
+import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -134,7 +134,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
-      {route.page === 'trash' && settingsTrash(route) && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} inSettings />}
+      {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
@@ -155,7 +155,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         {ownBar ? (
           !adminOpen && <SyncWarnings />
         ) : (
-          <TopBar me={me} warnings={!adminOpen} title={under.page === 'trash' ? t('trash.title') : undefined} />
+          <TopBar me={me} warnings={!adminOpen} />
         )}
         {under.page === 'presentations' ? (
           <Presentations link={link} ownSessionId={sessionId} />
@@ -168,9 +168,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           ) : (
             <Refused text={t('templates.forbidden')} />
           )
-        ) : (
-          under.page === 'trash' && <Trash key={under.kind ?? 'all'} kind={under.kind} role={me.role} />
-        )}
+        ) : null}
       </div>
       {adminOpen && (
         <PageDialog
@@ -178,7 +176,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           compactTitle={settingsPageTitle(route, me, host)}
           compactTitleShown={!introTitleInView}
           back={settingsBack(route)}
-          split={!aloneInSettings(route, adminBack())}
+          split
           onClose={() => closeAdmin(under)}
         >
           <SyncWarnings />
@@ -249,7 +247,6 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'overlay' ? { page: 'overlays' }
     : route.page === 'org' ? { page: 'orgs' }
     : route.page === 'logins' ? { page: 'settings' }
-    : route.page === 'trash' ? (settingsTrash(route) ?? { page: 'admin' })
     : { page: 'admin' };
   return { href: href(up), label: t('common.back') };
 }

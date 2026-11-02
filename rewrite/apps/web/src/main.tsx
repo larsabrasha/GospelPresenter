@@ -23,6 +23,13 @@ installTheme();
 if (window.gpDesktop?.macFrame) document.documentElement.classList.add('mac-frame');
 // The desktop app behaves as a native app: nothing selects but what a native app lets you select (app.css `.native`).
 if (window.gpDesktop) document.documentElement.classList.add('native');
+// How wide a scrollbar is beside the content, for a column that keeps the same margin whatever it is (app.css
+// `--beside-scrollbar`).
+const probe = document.createElement('div');
+probe.style.cssText = 'position:absolute;top:-100px;width:50px;height:50px;overflow:scroll';
+document.body.append(probe);
+document.documentElement.style.setProperty('--scrollbar', `${probe.offsetWidth - probe.clientWidth}px`);
+probe.remove();
 const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();

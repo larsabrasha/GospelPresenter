@@ -40,8 +40,9 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   await expect(rows).toHaveText([/Sång C/, /Sång B/, /Sång A/]);
   await expect(menu).toHaveCount(0);
 
-  // The row's … opens the same menu; Escape closes only it.
+  // The row's … opens the same menu, a song's page first in it; Escape closes only it.
   await list.getByRole('button', { name: 'Fler val för Sång C' }).click();
+  await expect(page.getByRole('menu', { name: 'Fler val för Sång C' }).getByRole('menuitem', { name: 'Redigera', exact: true })).toHaveAttribute('href', /^\/admin\/songs\//);
   await expect(page.getByRole('menu', { name: 'Fler val för Sång C' }).getByRole('menuitem', { name: 'Flytta upp' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
@@ -55,6 +56,15 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   await list.getByRole('button', { name: 'Sång A', exact: true }).click();
   await page.keyboard.press('Delete');
   await expect(page.getByRole('dialog', { name: 'Radera' })).toHaveCount(0);
+
+  // Markera cannot tick the shown item either, not by itself nor by Markera alla.
+  await rows.nth(1).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Markera' }).click();
+  await expect(list.getByRole('button', { name: /Sång A/ })).toBeDisabled();
+  await expect(list.getByRole('button', { name: /Sång A/ })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Markera alla' }).click();
+  await expect(page.getByRole('button', { name: 'Ta bort markerade (1)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Klar' }).click();
 
   // Lägg till efter puts the addition after the item named rather than after the shown one.
   await rows.nth(0).click({ button: 'right' });

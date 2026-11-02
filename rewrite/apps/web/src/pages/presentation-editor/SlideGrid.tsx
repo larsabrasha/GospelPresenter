@@ -3,7 +3,8 @@ import { useShownOverlay } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { LiveBadge, tileClass } from '../../ui/SlideTile.tsx';
+import type { SlideMarkKind } from '../../live/liveList.ts';
+import { SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
 /** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Arrangemang". */
@@ -50,7 +51,7 @@ export function SlideGrid({
   overlayId?: string | null;
   column?: boolean;
   highlight?: string;
-  shown?: { pointer: LivePointer; itemId: string; onShow: (partIndex: number) => void };
+  shown?: { pointer: LivePointer; itemId: string; mark: (partIndex: number) => SlideMarkKind | null; onShow: (partIndex: number) => void };
 }) {
   const overlay = useShownOverlay(overlayId);
   const size = column ? '' : 'w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1';
@@ -62,17 +63,19 @@ export function SlideGrid({
           // After Rensa nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
           const here = pointer.itemId === shown.itemId && pointer.partIndex === i;
           const live = here && !pointer.black;
+          const mark = shown.mark(i);
           return (
             <li key={s.key} className={`${size} flex`}>
               <AppButton
                 variant="plain"
                 aria-label={`${label} ${i + 1}`}
                 aria-pressed={live}
+                data-current={live}
                 className={`${tileClass({ selected: live, live: true, rested: here && pointer.black })} w-full p-0`}
                 onClick={() => shown.onShow(i)}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
-                {live && <LiveBadge>{t('stage.live')}</LiveBadge>}
+                {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
               </AppButton>
             </li>
           );

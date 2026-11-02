@@ -9,7 +9,7 @@ import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CloseIcon, DocumentIcon, DocumentTextIcon, TrashIcon } from '../ui/icons.tsx';
+import { CloseIcon, DocumentIcon, DocumentTextIcon } from '../ui/icons.tsx';
 import { CARD, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -173,14 +173,14 @@ function Row({
   const date = showDate && p.eventDate;
   const when = [date ? dateLabel(date, today, withYear) : null, p.time].filter(Boolean).join(' · ');
   const count = items === 1 ? t('presentations.item') : t('presentations.items', { n: items });
-  // "mån 4 maj · 11:00 · Stora salen · 7 inslag" (PresentationRow.razor); on a computer the same as a table's columns.
-  const subtitle = [when, p.location, count].filter(Boolean).join(' · ');
-  const column = 'max-lg:hidden shrink-0 text-[13px] text-stone-500 dark:text-stone-400 truncate';
+  // Two lines at every width, as a list in Mail or Notes (Lars, 2026-11-02: no columns): the name, and under it
+  // "mån 4 maj · 11:00 · Stora salen"; the number of items at the right.
+  const subtitle = [when, p.location].filter(Boolean).join(' · ');
   return (
     <ListLinkRow
       href={href({ page: 'presentation', id: p.id })}
       title={p.name}
-      subtitle={<span className="lg:hidden">{subtitle}</span>}
+      subtitle={subtitle || undefined}
       subtitleTitle={date ? fullDate(date, withYear) : undefined}
       nav={nav}
       end={
@@ -191,11 +191,7 @@ function Row({
               {t('presentations.live')}
             </span>
           )}
-          <span className={`${column} w-48 text-stone-700! dark:text-stone-300!`} title={date ? fullDate(date, withYear) : undefined}>
-            {when}
-          </span>
-          <span className={`${column} w-36`}>{p.location}</span>
-          <span className={`${column} w-20 text-right`}>{count}</span>
+          <span className="shrink-0 text-[13px] text-stone-500 dark:text-stone-400">{count}</span>
         </>
       }
     />
@@ -289,15 +285,6 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
               )}
             </div>
           )}
-        </div>
-      )}
-      {!!presentations?.length && (
-        // Whoever has just deleted the wrong thing is looking at an emptier page than expected: the way back stays in view (Dashboard.razor).
-        <div className="flex justify-center pt-2">
-          <AppButton variant="cancel" href={href({ page: 'trash', kind: 'Presentation' })} className="flex items-center gap-1.5">
-            <TrashIcon className="size-4" />
-            {t('nav.trash')}
-          </AppButton>
         </div>
       )}
     </PageContainer>
