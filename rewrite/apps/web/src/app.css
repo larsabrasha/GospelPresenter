@@ -16,6 +16,20 @@
    (Lars, 2026-11-02). useSplit in ui/useWide.ts asks the same. */
 @custom-variant split (@media (width >= 680px) and (height >= 500px));
 @custom-variant max-split (@media not ((width >= 680px) and (height >= 500px)));
+/*
+ * The page reaches the screen's edges (viewport-fit=cover in index.html), so what is drawn keeps out of the status bar,
+ * the notch or the island, the corners and the home indicator, on every phone and tablet, standing or lying, in the
+ * phone app and in a browser: the body by this padding, a layer fixed over the whole screen by its own. 0 elsewhere.
+ */
+@utility p-safe {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+/* The same, but never less than a margin of Tailwind's spacing: `p-safe-4` is at least 1rem on every side. */
+@utility p-safe-* {
+  --safe-min: --spacing(--value(integer));
+  padding: max(var(--safe-min), env(safe-area-inset-top)) max(var(--safe-min), env(safe-area-inset-right))
+    max(var(--safe-min), env(safe-area-inset-bottom)) max(var(--safe-min), env(safe-area-inset-left));
+}
 
 /*
  * The 2.0 colours (docs/layout-2-0.md), all from Tailwind's warm grey, stone, as the text's are (Lars, 2026-11-02:
@@ -70,7 +84,7 @@
   /* The shell: the page never scrolls, its content does (Layout/MainLayout.razor). */
   html { @apply h-dvh overscroll-none overflow-hidden bg-ground text-stone-900 dark:text-stone-100; }
   html.dark { color-scheme: dark; }
-  body { @apply flex flex-col h-full; }
+  body { @apply flex flex-col h-full p-safe; }
   #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }
   /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. Not #root,
      whose room would stop the top bar short of the window's edge: the pages scroll in boxes of their own. */

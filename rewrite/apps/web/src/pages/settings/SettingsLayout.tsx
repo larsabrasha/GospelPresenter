@@ -183,7 +183,7 @@ export function SettingsLayout({
           </PageBarSlot>
         </PageBackInBar>
         {/* A list page's +, floating over the list at the bottom right (PageHeader). */}
-        <div ref={setFloat} className="absolute z-10 right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] flex gap-3 empty:hidden" />
+        <div ref={setFloat} className="absolute z-10 right-5 bottom-5 flex gap-3 empty:hidden" />
       </main>
     </div>
   );

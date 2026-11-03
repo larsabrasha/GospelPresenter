@@ -90,14 +90,14 @@ function DialogFrame({
     <div
       ref={backdrop}
       data-overlay="dialog"
-      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-4 max-sm:items-end max-sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]' : 'p-4'}`}
+      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-safe-4 max-sm:items-end max-sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]' : 'p-safe-4'}`}
       onMouseDown={(e) => {
         if (!page && e.target === e.currentTarget) close();
       }}
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none' : 'overflow-auto'} ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"

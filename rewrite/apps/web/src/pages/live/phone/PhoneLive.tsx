@@ -121,7 +121,7 @@ export function PhoneLive({
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-ground text-stone-900 dark:text-stone-100 pt-[env(safe-area-inset-top)]" data-testid="phone-live">
+    <div className="fixed inset-0 z-30 flex flex-col bg-ground text-stone-900 dark:text-stone-100 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" data-testid="phone-live">
       {dialog}
       {/* The same bar as on a computer (PresentationBar), its cog to Inställningar. */}
       <PresentationBar

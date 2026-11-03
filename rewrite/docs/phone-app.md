@@ -26,6 +26,12 @@ environment on Cloudflare unless `GP_APP_SERVER` is set) and copies it into the 
 since it differs from the browser's by that one value. The native code is two files of the app's own:
 `ios/App/App/AppViewController.swift`, Capacitor's view registering the plugin, and `WebAuthPlugin.swift`.
 
+**Safe areas.** The page reaches the screen's edges (`viewport-fit=cover`, `apps/web/index.html`), in the phone app
+and in a browser alike, and keeps what it draws out of the status bar, the notch or island, the corners and the home
+indicator: the body is padded by the safe area (`p-safe` in `apps/web/src/app.css`), and a layer fixed over the whole
+screen pads itself (a dialog with `p-safe-4`, at least 1rem; the phone's live view, a toast, the error bar, a public
+output's text). A background still reaches the edges. Tried on an iPhone 17 Pro simulator standing and lying down.
+
 **Signing in** runs as the desktop app's does (`apps/desktop/src/main.ts`): never in the app's own web view, since
 `capacitor://localhost` cannot be a passkey's RP ID and Google refuses a web view. The same `/api/app-login` opens in
 ASWebAuthenticationSession, iOS's sheet for signing in (`WebAuthPlugin.swift`), which shares Safari's passkeys and

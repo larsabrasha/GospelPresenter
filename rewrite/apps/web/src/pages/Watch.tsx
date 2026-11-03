@@ -49,7 +49,7 @@ function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: Publi
   const theme = resolveTheme(slide.themeId, null);
   if (slide.kind === 'media') {
     return (
-      <div className="fixed inset-0 flex flex-col overflow-hidden" style={stageCss(theme, 'media')}>
+      <div className="fixed inset-0 flex flex-col overflow-hidden p-safe" style={stageCss(theme, 'media')}>
         <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-hidden">
           {slide.image && <img className="w-full h-full object-contain select-none" src={`${imageBase}/image/${slide.image}`} alt="" data-testid="watch-image" />}
         </div>
@@ -60,7 +60,7 @@ function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: Publi
   const main = mainCss(theme, slide.kind);
   const credits = creditsCss(theme, slide.kind);
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={stageCss(theme, slide.kind)} data-testid="watch-slide" data-theme={theme.id}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden p-safe" style={stageCss(theme, slide.kind)} data-testid="watch-slide" data-theme={theme.id}>
       {/* Text taller than the screen scrolls, as PublicSlideView.razor; "safe" keeps its top reachable. */}
       <div className="flex-1 min-w-0 min-h-0 flex items-center-safe justify-center overflow-y-auto" data-testid="watch-text-area">
         {/* A song keeps its lines; Bible text flows (PublicSlideView.razor). */}
@@ -145,7 +145,7 @@ export function Watch({ code }: { code: string }) {
 
   if (state.kind === 'slide') return <PublicSlideView imageBase={`/api/watch/${encodeURIComponent(code)}`} slide={state.slide} />;
   return (
-    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-3 px-8 text-center" data-testid="watch-waiting">
+    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-3 p-safe-8 text-center" data-testid="watch-waiting">
       {state.kind === 'waiting' && (
         <>
           {/* Three pulsing dots, not a signal: that would read as a network to join (PublicWatchPage.razor). */}
