@@ -1,6 +1,7 @@
 import type { LoginMethod, PasskeyBeginResponse, PasskeyCredentialJson, PasskeyFinishResponse, PasskeyOptions, SignInResponse } from '@gp/core';
 import { t } from '../i18n.ts';
 import { api } from './api.ts';
+import { appSignIn } from './appSignIn.ts';
 import { errorText } from './errors.ts';
 import { deviceName } from './session.ts';
 
@@ -10,7 +11,8 @@ import { deviceName } from './session.ts';
 // Keychain) is unreliable, and the window's 127.0.0.1 origin cannot have an
 // RP ID at all. The system browser runs it at http://localhost instead, and
 // the server hands a token back through the app's callback scheme, as for
-// Google (spec 01 device sign-in).
+// Google (spec 01 device sign-in). The phone app's capacitor://localhost
+// cannot be an RP ID either: iOS's sign-in sheet runs it there (appSignIn.ts).
 
 const bytes = (s: string) => Uint8Array.from(atob(s.replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0));
 function text(b: ArrayBuffer): string {
@@ -78,20 +80,20 @@ async function inPage<T extends PasskeyFinishResponse>(begin: object): Promise<s
  * system browser has it (the desktop app then waits for its callback).
  */
 export async function startPasskey(invite?: string): Promise<string | SignInResponse | null> {
-  const desktop = window.gpDesktop;
+  const native = appSignIn();
   try {
-    if (desktop) {
-      let path = `/api/app-login?${new URLSearchParams({ method: 'passkey', device: deviceName(), callback_scheme: desktop.callbackScheme })}`;
+    if (native) {
+      let path = `/api/app-login?${new URLSearchParams({ method: 'passkey', device: deviceName(), callback_scheme: native.callbackScheme })}`;
       if (invite) {
         const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', {
           mode: 'register',
           invite,
-          app: { deviceName: deviceName(), callbackScheme: desktop.callbackScheme },
+          app: { deviceName: deviceName(), callbackScheme: native.callbackScheme },
         });
         if (r.error || !('url' in r.body)) return errorText(r);
         path = r.body.url;
       }
-      return (await desktop.openSignIn(path)) ? null : t('auth.failed');
+      return (await native.openSignIn(path)) ? null : t('auth.failed');
     }
     if (!passkeysInPage()) return t('passkey.unsupported');
     return await inPage<SignInResponse>(invite ? { mode: 'register', invite } : { mode: 'signin' });
@@ -105,16 +107,16 @@ export async function startPasskey(invite?: string): Promise<string | SignInResp
  * passkey (in a browser), or null once the system browser has the ceremony.
  */
 export async function addPasskey(name: string): Promise<string | LoginMethod | null> {
-  const desktop = window.gpDesktop;
+  const native = appSignIn();
   try {
-    if (desktop) {
+    if (native) {
       const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', {
         mode: 'register',
         name,
-        app: { deviceName: deviceName(), callbackScheme: desktop.callbackScheme },
+        app: { deviceName: deviceName(), callbackScheme: native.callbackScheme },
       });
       if (r.error || !('url' in r.body)) return errorText(r);
-      return (await desktop.openSignIn(r.body.url)) ? null : t('auth.failed');
+      return (await native.openSignIn(r.body.url)) ? null : t('auth.failed');
     }
     if (!passkeysInPage()) return t('passkey.unsupported');
     const r = await inPage<{ added: LoginMethod }>({ mode: 'register', name });
@@ -126,12 +128,12 @@ export async function addPasskey(name: string): Promise<string | LoginMethod | n
 
 /** Links a Google account to the signed-in user. An error text, or null once the browser is on its way. */
 export async function linkGoogle(): Promise<string | null> {
-  const desktop = window.gpDesktop;
+  const native = appSignIn();
   try {
-    const app = desktop ? { deviceName: deviceName(), callbackScheme: desktop.callbackScheme } : undefined;
+    const app = native ? { deviceName: deviceName(), callbackScheme: native.callbackScheme } : undefined;
     const r = await api<{ url: string }>('POST', '/api/auth/google/begin', { link: true, app });
     if (r.error) return errorText(r);
-    if (desktop) return (await desktop.openSignIn(r.body.url)) ? null : t('auth.failed');
+    if (native) return (await native.openSignIn(r.body.url)) ? null : t('auth.failed');
     location.assign(r.body.url);
     return null;
   } catch {

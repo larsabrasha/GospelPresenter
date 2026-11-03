@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthState, LoginMethod } from '@gp/core';
 import { api } from '../auth/api.ts';
+import { appSignIn } from '../auth/appSignIn.ts';
 import { errorText } from '../auth/errors.ts';
 import { addPasskey, linkGoogle } from '../auth/passkey.ts';
 import { deviceName } from '../auth/session.ts';
@@ -176,7 +177,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
                   setError(null);
                   const problem = await linkGoogle();
                   if (problem) setError(problem);
-                  else if (window.gpDesktop) wait();
+                  else if (appSignIn()) wait();
                 }}
               >
                 {t('logins.linkGoogle')}

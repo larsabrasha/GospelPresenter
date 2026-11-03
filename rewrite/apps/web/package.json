@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@capacitor/core": "8.6.0",
     "@gp/core": "workspace:*",
     "@gp/sync": "workspace:*",
     "@journeyapps/wa-sqlite": "2.0.8",

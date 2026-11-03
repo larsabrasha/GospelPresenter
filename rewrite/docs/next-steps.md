@@ -49,7 +49,9 @@ this order:
    The desktop app's packages are made since 2026-11-03, tried on a Mac (see [desktop-app.md](desktop-app.md)); its
    built-in Google client, its updates and the Windows and Linux builds are left. The Capacitor app is
    now next and iOS first (Lars, 2026-11-03): the web app talks to a chosen server and the server lets the app's
-   origins in; the shell, its sign-in, and updates from the server are left. See [phone-app.md](phone-app.md).
+   origins in; the iOS shell and its sign-in sheet are built since 2026-11-03 and tried on a simulator up to the
+   passkey dialog. Left: a whole sign-in and the app signed in, tried on an iPhone; updates from the server; the icon;
+   Android. See [phone-app.md](phone-app.md).
 
 Also waiting, in TODO.md: remote control as an organisation setting ("Aldrig", "Presentatören väljer",
 "Alltid").

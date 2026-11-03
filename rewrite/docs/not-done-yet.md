@@ -1,6 +1,6 @@
 # Not done yet
 
-Profile pictures and logos, the mobile app (the phone layout of the web app is built), and a real
+Profile pictures and logos, the mobile app beyond its iOS shell and sign-in ([phone-app.md](phone-app.md); the phone layout of the web app is built), and a real
 deploy to Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,

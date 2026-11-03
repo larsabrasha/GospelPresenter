@@ -22,6 +22,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
 | `apps/desktop` | Electron: the embedded server, the main window and the output window |
+| `apps/mobile` | Capacitor: the web app in an iOS shell, with its sign-in sheet (docs/phone-app.md) |
 
 ```sh
 pnpm install
