@@ -88,19 +88,32 @@ export async function newSong(page: Page) {
 }
 
 /**
- * Opens a song's `index`th arrangement: the Arrangemang row on its page, then that arrangement's row in the sheet, which
- * makes the first one when the song has none (Lars, 2026-11-02). The sheet, showing the arrangement.
+ * Opens a song's `index`th arrangement: the Arrangemang row on its page pushes the list in, and that arrangement's row
+ * pushes it in, the row making the first one when the song has none (Lars, 2026-11-03).
  */
 export async function openArrangement(page: Page, index = 0) {
-  await page.getByRole('button', { name: /^Arrangemang/ }).click();
-  await page.getByRole('dialog', { name: 'Arrangemang' }).getByTestId('arrangement-row').nth(index).click();
-  return page.getByRole('dialog');
+  await page.getByRole('link', { name: /^Arrangemang/ }).click();
+  await page.getByTestId('arrangement-row').nth(index).click();
+  await expect(page.getByRole('list', { name: 'Delar i arrangemanget' })).toBeVisible();
 }
 
-/** Opens a song's Noter och länkar sheet from its row on the song's page. */
+/** Opens a song's Noter och länkar, pushed in from its row on the song's page. */
 export async function openMaterials(page: Page) {
-  await page.getByRole('button', { name: /^Noter och länkar/ }).click();
-  return page.getByRole('dialog', { name: 'Noter och länkar' });
+  await page.getByRole('link', { name: /^Noter och länkar/ }).click();
+}
+
+/**
+ * Back from a page pushed in from a song's page, through any between, to the song's page: by the address, each step
+ * waited for, since the song's page draws a moment after its address changes.
+ */
+export async function backToSong(page: Page) {
+  const pushed = /\/admin\/songs\/[^/]+\/./;
+  while (pushed.test(new URL(page.url()).pathname)) {
+    const from = page.url();
+    await page.getByRole('link', { name: 'Tillbaka' }).click();
+    await page.waitForURL((url) => url.href !== from);
+  }
+  await expect(page.getByRole('link', { name: 'Historik' })).toBeVisible();
 }
 
 /** Creates a song with labelled parts and stays in its editor. */

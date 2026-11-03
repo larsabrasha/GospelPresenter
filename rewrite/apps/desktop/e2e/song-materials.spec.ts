@@ -47,7 +47,6 @@ test('a song carries sheet music and links; the presentation gathers them for th
   await expect(list.getByRole('link', { name: /Spotify/ })).toHaveAttribute('href', 'https://open.spotify.com/track/abc');
 
   // A presentation gathers its songs' material, in the running order.
-  await page.getByRole('dialog', { name: 'Noter och länkar' }).getByRole('button', { name: 'Klar' }).click();
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ' }).click();
@@ -73,7 +72,6 @@ test('another computer fetches a song\'s PDF when it is opened, and not before',
   await openMaterials(host.page);
   await host.page.getByTestId('song-file').setInputFiles({ name: 'Gitarr.pdf', mimeType: 'application/pdf', buffer: onePagePdf() });
   await expect(host.page.getByRole('list', { name: 'Noter och länkar' }).getByRole('button', { name: /^Gitarr/ })).toBeVisible();
-  await host.page.getByRole('button', { name: 'Klar' }).click();
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
   // Every media request of the second computer, its database worker's too.

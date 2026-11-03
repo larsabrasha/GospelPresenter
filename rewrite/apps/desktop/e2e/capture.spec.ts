@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { addSongs, createPresentation, createSong, endPresentation, newSong, openAdmin, openArrangement, remoteSwitch, setUpHost, signOut } from './flows.ts';
+import { addSongs, backToSong, createPresentation, createSong, endPresentation, newSong, openAdmin, openArrangement, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';
 import { toneWav } from './wav.ts';
 
@@ -78,9 +78,8 @@ test('capture every page', async () => {
   await page.getByLabel('År').fill('1865');
   await page.getByLabel('År').blur();
   await openArrangement(page);
-  await page.getByRole('group', { name: 'Arrangemang' }).getByRole('combobox', { name: 'Lägg till del' }).click();
-  await page.getByRole('group', { name: 'Arrangemang' }).getByRole('option', { name: '2. Chorus', exact: true }).click();
-  await page.getByRole('button', { name: 'Klar' }).click();
+  await page.getByRole('group', { name: 'Arrangemang' }).getByRole('button', { name: 'Lägg till Chorus' }).click();
+  await backToSong(page);
   await createSong(page, 'Härlig är jorden', [
     ['Verse 1', 'Härlig är jorden,\nHärlig är Guds himmel,\nSkön är själarnas pilgrimsgång.\nGenom de fagra riken på jorden\nGår vi till paradiset fram.'],
     ['Verse 2', 'Tidevarv komma,\nTidevarv försvinna,\nSläkten följa släktens gång.\nAldrig uppslocknar tonen från himlen\nI själens glada pilgrimssång.'],

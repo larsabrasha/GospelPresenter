@@ -190,8 +190,7 @@ export function PhoneLive({
             songs,
             arrangements,
             overlays,
-            order: items.map((i) => i.id),
-            shownId: pointer.black ? null : pointer.itemId,
+                    shownId: pointer.black ? null : pointer.itemId,
             editHref: (item) => {
               const page = songPage(item, songs);
               return page && href(page);

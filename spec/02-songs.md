@@ -157,13 +157,17 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
    - **Skapa arrangemang** shown while fewer than 10 arrangements; creates an unnamed arrangement
      containing every part once, in current part order.
    - 2.0 (Lars, 2026-11-02): on the song's page one row, **Arrangemang**, with the order in grey ("Verse 1 · Chorus ·
-     Verse 2", or "2 arrangemang"), the parts' own order before there is one; it opens a sheet with a row for each
-     arrangement (its name over its line when there are two or more) or, with none, the parts' order, and under them
-     in grey "Ordningen delarna visas i. Upprepa refrängen här i stället för att skriva den flera gånger." A row opens
-     its arrangement in the same sheet (‹ Arrangemang back; the name field, the chips as rows, Lägg till del, and
-     **Ta bort arrangemang** as a red row; **Klar** closes); the row of a song with none makes its first arrangement,
-     every part once, and opens it. **Lägg till arrangemang**, once there is one and while fewer than 10.
-4. **Noter och länkar** (2.0): a row on the song's page with how many ("Inga" when none), opening a sheet with the song's material as one list, a coloured icon each (PDF red, recording violet,
+     Verse 2", or "2 arrangemang"), the parts' own order before there is one. 2.0 (Lars, 2026-11-03): it pushes a
+     page in, as Historik does (`/admin/songs/{id}/arrangements`, ‹ back to the song): one group with a row for each
+     arrangement (its name over its line when there are two or more) or, with none, the parts' order, and **Nytt
+     arrangemang** as the group's last row, once there is one and while fewer than 10. A row pushes its arrangement
+     in (`/admin/songs/{id}/arrangements/{arrangementId}`, ‹ back to Arrangemang), laid out as iOS's lists in edit
+     mode: the name field when there are two or more; **Delar i arrangemanget**, each row a red ⊖ that removes it,
+     its pill, and ≡, the row dragged or moved with Alt+↑/↓; **Sångens delar**, every part with a green ⊕ that adds it
+     last; and **Ta bort arrangemang** as a red row, after which Arrangemang takes its place. The row of a song with
+     none makes its first arrangement, every part once, and pushes it in. A song just made in a presentation's add
+     dialog has no Arrangemang, Noter och länkar or Historik rows: a page pushed in would leave the dialog.
+4. **Noter och länkar** (2.0): a row on the song's page with how many ("Inga" when none), pushing a page in as Historik does (`/admin/songs/{id}/materials`; Lars, 2026-11-03) with the song's material as one list, a coloured icon each (PDF red, recording violet,
    link sky), its title and under it the kind and size, or where a link points; **Ladda upp fil** (a PDF or an audio
    file, several at once; the title is the file's name) and **Lägg till länk** (the address, and a name that is the
    link's source when left blank). A file opens in the viewer: a PDF's pages drawn by pdf.js, sharp at every zoom
@@ -488,13 +492,13 @@ Propagation
 - **SONG-A8** Given parts A, B and an arrangement [A, B, A], when part A is deleted (after confirming
   "Vill du ta bort …?"), then the remaining arrangement contains only B-derived slides.
 - **SONG-A9** Given a song with parts V1, C, V2 and no arrangement, when the user clicks Skapa
-  arrangemang (2.0: the parts' order in the Arrangemang sheet, "V1 · C · V2"), then one arrangement with chips V1, C, V2 appears and
+  arrangemang (2.0: the parts' order on Arrangemang, "V1 · C · V2"), then one arrangement with chips V1, C, V2 appears and
   no name field is shown.
-- **SONG-A10** Given an arrangement, when the user appends "C" via Lägg till del twice and drags the
+- **SONG-A10** Given an arrangement, when the user appends "C" via Lägg till del (2.0: C's ⊕) twice and drags the
   last chip to the top, then after reload the chip order is persisted with C repeated.
 - **SONG-A11** Given two arrangements, when the user types a name "Kort", then after 500 ms it is
   saved; whitespace-only name saves as unnamed and the picker shows it as "Arrangemang".
-- **SONG-A12** Given 10 arrangements, then the Skapa arrangemang (2.0: Lägg till arrangemang) button is not shown.
+- **SONG-A12** Given 10 arrangements, then the Skapa arrangemang (2.0: Nytt arrangemang) button is not shown.
 - **SONG-A13** Given a song edited at 10:00 and again at 10:10, then the history shows one version
   (time ≈ 10:10) whose content is the state before 10:00; an edit at 10:45 adds a second version.
 - **SONG-A14** Given a song with history, when the user opens Historik, then versions are newest

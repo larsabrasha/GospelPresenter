@@ -8,8 +8,8 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
-import { DANGER_ROW, GROUP_ROW, Group, TEXT_ACTION } from '../ui/Group.tsx';
+import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { DANGER_ROW, Group, OpeningRow, TEXT_ACTION } from '../ui/Group.tsx';
 import { MoreMenu } from '../ui/MoreMenu.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { isAddKey } from '../ui/Picker.tsx';
@@ -18,7 +18,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { ctrlLabel } from '../ui/shortcuts.ts';
 import { SongMaterialsRow } from './song-materials/SongMaterials.tsx';
-import { SongArrangements } from './SongArrangements.tsx';
+import { arrangementSummary } from './SongArrangements.tsx';
 import { CARD, PILL } from './songEditorLook.ts';
 
 // The song editor's look is Components/SongEditor.razor and the parts it is made of:
@@ -265,18 +265,16 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           <PlusIcon className="size-4" />
           {t('song.addPart')}
         </AppButton>
-        {/* What is done to a song less often, as rows that open a sheet, as iOS's Settings (Lars, 2026-11-02): its
-            arrangements, its sheet music and links, its history; then Ta bort sång as a red row of its own. */}
-        <Group>
-          <SongArrangements songId={id} arrangements={arrangements} parts={parts} labels={labels} saving={saving} showSaved={saved.show} />
-          {!adding && <SongMaterialsRow songId={id} />}
-          {!adding && (
-            <a href={href({ page: 'songHistory', id })} className={`${GROUP_ROW} no-underline text-inherit hover:bg-raised`}>
-              {t('song.history')}
-              <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600" />
-            </a>
-          )}
-        </Group>
+        {/* What is done to a song less often, as rows that push a page in, as iOS's Settings (Lars, 2026-11-03): its
+            arrangements, its sheet music and links, its history; then Ta bort sång as a red row of its own. A song just
+            made in the add dialog has none of them: a page pushed in would leave the dialog. */}
+        {!adding && (
+          <Group>
+            {!!parts.length && <OpeningRow label={t('song.arrangements')} value={arrangementSummary(arrangements, parts, labels)} href={href({ page: 'songArrangements', id })} />}
+            <SongMaterialsRow songId={id} />
+            <OpeningRow label={t('song.history')} href={href({ page: 'songHistory', id })} />
+          </Group>
+        )}
         {!adding && (
           <Group>
             <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>

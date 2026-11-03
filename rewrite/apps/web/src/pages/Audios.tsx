@@ -5,7 +5,7 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { ROW_HOVER, CARD } from '../ui/List.tsx';
@@ -50,7 +50,6 @@ export function Audios({ role }: { role: Role }) {
       <DropZone className="flex flex-col space-y-5" label={t('audios.drop')} accept={AUDIO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('audios.title')}>
           <div className="flex items-center gap-3">
-            {manage && <DropHint text={t('images.dropAffordance')} />}
             {manage && (
               <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
             )}
@@ -73,13 +72,10 @@ export function Audios({ role }: { role: Role }) {
         )}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          <div className="px-5 pt-4 pb-2 space-y-3">
-            <h2 className="text-base/6 font-semibold">{t('audios.all', { n: audios?.length ?? 0 })}</h2>
-            {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
-          </div>
+          {!!audios?.length && <div className="px-5 pt-4 pb-2"><SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact /></div>}
           {!audios && <div className="px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
           {audios && !audios.length && (
-            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} />
+            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} dropHint={manage ? t('drop.here') : undefined} />
           )}
           {!!audios?.length && !shown.length && <CardNote>{t('audios.noMatch')}</CardNote>}
           <ul aria-label={t('audios.title')}>
@@ -98,6 +94,8 @@ export function Audios({ role }: { role: Role }) {
             ))}
           </ul>
         </div>
+        {!!shown.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'audios.count.one' : 'audios.count.many', { n: shown.length })}</p>}
+        {manage && !!audios?.length && <DropMore />}
       </DropZone>
     </PageContainer>
   );

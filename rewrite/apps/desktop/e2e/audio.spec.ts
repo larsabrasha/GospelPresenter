@@ -27,7 +27,7 @@ test('an audio file is imported, added to a presentation and plays in the editor
     { name: 'fake.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('this is text, not a sound') },
   ]);
   await expect(page.getByTestId('audio-failures')).toContainText('2 fil(er) kunde inte importeras');
-  await expect(page.getByRole('heading', { name: 'Alla ljudfiler (1)' })).toBeVisible();
+  await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Ljud' }).getByRole('listitem')).toHaveText([/Preludium\.wav/]);
 
   await createPresentation(page, 'Söndag');
@@ -65,7 +65,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
 
   await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(20) });
-  await expect(page.getByRole('heading', { name: 'Alla ljudfiler (1)' })).toBeVisible();
+  await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible();
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();

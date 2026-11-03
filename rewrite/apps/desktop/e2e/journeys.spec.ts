@@ -62,7 +62,7 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   await expect(page.getByTestId('bible-import-message')).toContainText('Importerade');
   await openAdmin(page, 'Bilder');
   await page.getByTestId('image-file').setInputFiles({ name: 'Välkommen.png', mimeType: 'image/png', buffer: solidPng(1200, 800, [180, 40, 40]) });
-  await expect(page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
+  await expect(page.getByText('1 bild', { exact: true })).toBeVisible();
   await openAdmin(page, 'CCLI-rapport');
   await page.getByRole('checkbox', { name: 'Aktivera CCLI-datainsamling' }).check();
   await createSong(page, 'Amazing Grace', [
@@ -160,7 +160,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
   await createSong(laptop, 'Psalm 1', [['Verse 1', 'Härlig är jorden']]);
   await openAdmin(laptop, 'Bilder');
   await laptop.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
-  await expect(laptop.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
+  await expect(laptop.getByText('1 bild', { exact: true })).toBeVisible();
   await closeAdmin(laptop);
   await createPresentation(laptop, 'Söndag');
   await addSongs(laptop, ['Psalm 1']);

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DROP_AREA } from './DropZone.tsx';
 
 // What an admin page's card shows when its list is empty, in the current app's
 // two sizes: a large picture with a heading (Overlays.razor, Users.razor,
@@ -21,11 +22,12 @@ export function EmptyPicture({ picture, title, children }: { picture: ReactNode;
 export const PICTURE = 'w-48 h-auto mb-6 text-stone-300 dark:text-stone-600';
 
 /** The small one: an icon and a line. */
-export function EmptySmall({ icon, title }: { icon: ReactNode; title: string }) {
+export function EmptySmall({ icon, title, dropHint }: { icon: ReactNode; title: string; /** "Släpp filer här": the empty list drawn as a place to drop, where there is a mouse. */ dropHint?: string }) {
   return (
-    <div data-empty-list className="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
+    <div data-empty-list className={`flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none ${dropHint ? DROP_AREA : ''}`}>
       {icon}
       <p className="font-medium text-stone-500 dark:text-stone-400">{title}</p>
+      {dropHint && <p className="hidden pointer-fine:block mt-1 text-stone-400 dark:text-stone-500">{dropHint}</p>}
     </div>
   );
 }

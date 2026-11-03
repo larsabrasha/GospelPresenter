@@ -481,6 +481,28 @@ export function CcliReportIcon({ className }: IconProps) {
   );
 }
 
+/** Two squares, one behind the other (Heroicons' square-2-stack): an overlay, in a menu of outline icons. */
+export function SquaresOverlapOutlineIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m8.25-8.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-7.5A2.25 2.25 0 0 1 8.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 0 0-2.25 2.25v6"
+      />
+    </Outline>
+  );
+}
+
+/** A row over lines (Heroicons' queue-list): parts in an order, an arrangement. */
+export function QueueListIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+    </Outline>
+  );
+}
+
 export function PencilIcon({ className }: IconProps) {
   return (
     <Outline className={className}>

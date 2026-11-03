@@ -303,7 +303,6 @@ export function PresentationEditor({
     songs,
     arrangements: data.arrangements,
     overlays,
-    order: items.map((i) => i.id),
     shownId: pointer.black ? null : liveItemId,
     editHref: (item) => {
       const page = songPage(item, songs);

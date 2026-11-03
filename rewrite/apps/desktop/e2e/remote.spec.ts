@@ -154,7 +154,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     // A picture imported on the host reaches the phone: fetched and checked without Web Crypto.
     await openAdmin(host.page, 'Bilder');
     await host.page.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
-    await expect(host.page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
+    await expect(host.page.getByText('1 bild', { exact: true })).toBeVisible();
     await openAdmin(phone, 'Bilder');
     const thumb = phone.getByTestId('image-card').getByRole('img', { name: 'Kors.png' });
     await expect(thumb).toBeVisible({ timeout: 10_000 });

@@ -21,6 +21,12 @@ export type Route =
   | { page: 'song'; id: string }
   /** A song's history (`/admin/songs/{id}/history`, SongHistory.razor). */
   | { page: 'songHistory'; id: string }
+  /** A song's arrangements, pushed in from its page as Historik is (`/admin/songs/{id}/arrangements`; Lars, 2026-11-03). */
+  | { page: 'songArrangements'; id: string }
+  /** One of them (`/admin/songs/{id}/arrangements/{arrangementId}`). */
+  | { page: 'songArrangement'; id: string; arrangementId: string }
+  /** A song's Noter och länkar, pushed in the same way (`/admin/songs/{id}/materials`). */
+  | { page: 'songMaterials'; id: string }
   | { page: 'presentations' }
   /**
    * A presentation in its editor, which is also where it is presented, as Presentation.razor: presenting
@@ -97,12 +103,20 @@ function decode(segment: string): string {
   }
 }
 
+/** A song's page, or a page pushed in from it. */
+function songRoute(id: string, sub: string | undefined, arrangementId: string | undefined): Route {
+  if (sub === 'history') return { page: 'songHistory', id };
+  if (sub === 'materials') return { page: 'songMaterials', id };
+  if (sub === 'arrangements') return arrangementId ? { page: 'songArrangement', id, arrangementId } : { page: 'songArrangements', id };
+  return { page: 'song', id };
+}
+
 /** An address as the router reads it: the path and query, and the fragment, which only an invite's token uses. */
 export function parseRoute(path: string, search = '', hash = ''): Route {
-  const [first = '', second, third, fourth] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
+  const [first = '', second, third, fourth, fifth] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
   const query = new URLSearchParams(search);
   if (first === 'admin') {
-    if (second === 'songs') return third ? (fourth === 'history' ? { page: 'songHistory', id: third } : { page: 'song', id: third }) : { page: 'songs' };
+    if (second === 'songs') return third ? songRoute(third, fourth, fifth) : { page: 'songs' };
     if (second === 'users') return third ? { page: 'user', id: third } : { page: 'users' };
     if (second === 'devices') return { page: 'devices' };
     if (second === 'bibles') return { page: 'bibles' };
@@ -151,15 +165,18 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
+/** The pages pushed in from a song's page. */
+export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
+
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
-const DETAIL_PAGES = new Set<Route['page']>(['song', 'songHistory', 'user', 'overlay', 'org']);
+const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org']);
 
 /**
  * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
@@ -184,6 +201,12 @@ export function href(r: Route): string {
       return `/admin/songs/${encodeURIComponent(r.id)}`;
     case 'songHistory':
       return `/admin/songs/${encodeURIComponent(r.id)}/history`;
+    case 'songArrangements':
+      return `/admin/songs/${encodeURIComponent(r.id)}/arrangements`;
+    case 'songArrangement':
+      return `/admin/songs/${encodeURIComponent(r.id)}/arrangements/${encodeURIComponent(r.arrangementId)}`;
+    case 'songMaterials':
+      return `/admin/songs/${encodeURIComponent(r.id)}/materials`;
     case 'presentation': {
       const q = new URLSearchParams();
       if (r.remote) q.set('remote', 'true');
@@ -260,6 +283,15 @@ function push(url: string) {
 
 export function navigate(r: Route) {
   push(href(r));
+}
+
+/**
+ * Puts `r` in place of this entry, as a page whose subject is gone does (a removed arrangement): back then skips it
+ * rather than landing on it again. The entry keeps what it knows of Inställningar.
+ */
+export function replaceRoute(r: Route) {
+  history.replaceState(history.state, '', href(r));
+  dispatchEvent(new Event(NAVIGATED));
 }
 
 /**

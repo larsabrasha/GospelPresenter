@@ -5,7 +5,7 @@ import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { VideoIcon } from '../ui/icons.tsx';
 import { ROW_HOVER, CARD } from '../ui/List.tsx';
@@ -63,7 +63,6 @@ export function Videos({ role }: { role: Role }) {
       <DropZone className="flex flex-col space-y-5" label={t('videos.drop')} accept={VIDEO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('videos.page')}>
           <div className="flex items-center gap-3">
-            {manage && <DropHint text={t('images.dropAffordance')} />}
             {manage && (
               <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />
             )}
@@ -88,12 +87,9 @@ export function Videos({ role }: { role: Role }) {
         )}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          <div className="px-5 pt-4 pb-2 space-y-3">
-            <h2 className="text-base/6 font-semibold">{t('videos.all', { n: videos?.length ?? 0 })}</h2>
-            {!!videos?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
-          </div>
+          {!!videos?.length && <div className="px-5 pt-4 pb-2"><SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact /></div>}
           {!videos && <div className="px-5 py-4 text-stone-400 text-sm">{t('videos.loading')}</div>}
-          {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('presentation.noVideos')} />}
+          {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('presentation.noVideos')} dropHint={manage ? t('drop.here') : undefined} />}
           {!!videos?.length && !shown.length && <CardNote>{t('videos.noMatch')}</CardNote>}
           <ul aria-label={t('videos.page')}>
             {shown.map((v) => (
@@ -116,6 +112,8 @@ export function Videos({ role }: { role: Role }) {
             ))}
           </ul>
         </div>
+        {!!shown.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'videos.count.one' : 'videos.count.many', { n: shown.length })}</p>}
+        {manage && !!videos?.length && <DropMore />}
       </DropZone>
     </PageContainer>
   );

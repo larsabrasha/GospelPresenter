@@ -219,7 +219,9 @@ the Shared assembly as `Themes/aurora/background.webp`.
   is a drop zone ("Släpp bilder här").
 - During upload: "Importerar {i} av {n}..."; failures accumulate as "{n} bild(er) kunde inte
   importeras" (red, stays until next upload). Each success is inserted at the top immediately.
-- Card "Alla bilder ({count})", search field (only when ≥1 image; max 100 chars; substring match on
+- Card "Alla bilder ({count})" (2.0, Lars, 2026-11-03: no heading, the page's title is "Bilder" already; "{n} bilder"
+  under the list as on Sånger; no drop hint by the header, but the empty list drawn as a dashed place to drop,
+  "Släpp filer här", and a dashed "Släpp fler filer här" under a list, both only where there is a mouse), search field (only when ≥1 image; max 100 chars; substring match on
   file name, case-insensitive, live on every keystroke; × to clear).
 - States: loading "Laddar bilder..."; empty: icon + "Inga bilder än" + "Importera bilder för att visa
   under presentationer, t.ex. logotyper eller bakgrunder."; no search hit: "Inga bilder matchar din

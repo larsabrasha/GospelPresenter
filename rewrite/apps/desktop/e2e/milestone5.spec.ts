@@ -42,7 +42,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   await expect(page.getByTestId('image-failures')).toContainText('2 bild(er) kunde inte importeras');
   await expect(page.getByTestId('image-failures')).toContainText('bakgrund.bmp: bara JPG, PNG, WebP och GIF kan importeras.');
   await expect(page.getByTestId('image-failures')).toContainText('x.jpg: filen är ingen giltig bild.');
-  await expect(page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
+  await expect(page.getByText('1 bild', { exact: true })).toBeVisible();
 
   // The thumbnail is fitted within 400×225 (MEDIA-A2).
   const thumb = page.getByTestId('image-card').getByRole('img', { name: 'Logotyp.png' });

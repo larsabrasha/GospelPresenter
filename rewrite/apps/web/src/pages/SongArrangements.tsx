@@ -1,110 +1,87 @@
 import { LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
-import { useState } from 'react';
-import { useDb } from '../db/react.tsx';
+import { arrangementsOf, getSong, listLabels, songPartsOf } from '../db/queries.ts';
+import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
-import { GROUP_ROW, Group, OpeningRow, TEXT_ACTION } from '../ui/Group.tsx';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '../ui/icons.tsx';
-import { ArrangementCard, orderLine } from './ArrangementCard.tsx';
+import { useSaveFailed } from '../ui/AutoSave.tsx';
+import { afterWrite } from '../ui/debounce.ts';
+import { ACTION_ROW, GROUP_ROW, Group, OpeningRow } from '../ui/Group.tsx';
+import { ChevronRightIcon, PlusIcon } from '../ui/icons.tsx';
+import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
+import { href, navigate } from '../ui/router.ts';
+import { orderLine } from './PartPill.tsx';
+import { useGoneSong } from './songPage.ts';
 
 /** An arrangement's name where it shows: its own, "Arrangemang" when it is the only one, else "Arrangemang 2". */
-function arrangementTitle(a: SongArrangement, index: number, count: number): string {
+export function arrangementTitle(a: SongArrangement, index: number, count: number): string {
   return a.name ?? (count === 1 ? t('song.arrangement') : `${t('song.arrangement')} ${index + 1}`);
 }
 
+/** What the Arrangemang row on a song's page says: the one arrangement's order, how many, or the parts' own order. */
+export function arrangementSummary(arrangements: SongArrangement[], parts: SongPart[], labels: Map<string, Label>): string {
+  if (arrangements.length > 1) return t('song.arrangementCount', { n: arrangements.length });
+  return orderLine(arrangements[0] ? parsePartIds(arrangements[0].partIds) : parts.map((p) => p.id), parts, labels);
+}
+
+/** A song's arrangements and labels, for the pages pushed in from its page. */
+export function useArrangementData(id: string) {
+  return useData(
+    async (d) => ({ song: await getSong(d, id), parts: await songPartsOf(d, [id]), arrangements: await arrangementsOf(d, [id]), labels: await listLabels(d) }),
+    [id],
+  );
+}
 
 /**
- * Arrangemang on a song's page (spec 02; Lars, 2026-11-02): one row, its order in grey, that opens a sheet as iOS's
- * Settings opens a page. In the sheet a row for each arrangement with its parts in a line, or the parts' own order
- * while the song has none; what an arrangement is for in grey under them; and Lägg till arrangemang. A row opens its
- * arrangement in the same sheet to drag, repeat and remove parts, the first time making it.
+ * Arrangemang (spec 02), pushed in from a song's page as Historik is (Lars, 2026-11-03: as iOS's Settings pushes a
+ * page): one group with a row for each arrangement, its name over its parts in a line when there are two or more, and
+ * Nytt arrangemang as the group's last row. A song with none has one row, the parts' own order, which makes its first
+ * arrangement. A row pushes its arrangement in.
  */
-export function SongArrangements({
-  songId,
-  arrangements,
-  parts,
-  labels,
-  saving,
-  showSaved,
-}: {
-  songId: string;
-  arrangements: SongArrangement[];
-  parts: SongPart[];
-  labels: Map<string, Label>;
-  saving: (write: Promise<void>) => void;
-  showSaved: () => void;
-}) {
+export function SongArrangements({ id }: { id: string }) {
   const db = useDb();
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
-  if (!parts.length) return null;
-  /** A new arrangement of every part once, in order (SONG-A9), opened at once. */
+  const saveFailed = useSaveFailed();
+  const data = useArrangementData(id);
+  const missing = useGoneSong(!!data, data?.song);
+  const header = <DetailHeader backHref={href({ page: 'song', id })} title={t('song.arrangements')} className="px-5" />;
+  if (!data || missing)
+    return (
+      <PageContainer>
+        {header}
+        <div className="px-7 text-stone-400">{t('common.loading')}</div>
+      </PageContainer>
+    );
+  const { arrangements, parts, labels } = data;
+  /** A new arrangement of every part once, in order (SONG-A9), pushed in once it is there. */
   const create = () => {
-    const id = newId();
-    saving(db.mutate('createArrangement', { id, songId, partIds: parts.map((p) => p.id) }));
-    setEditing(id);
+    const arrangementId = newId();
+    afterWrite(db.mutate('createArrangement', { id: arrangementId, songId: id, partIds: parts.map((p) => p.id) }), () => navigate({ page: 'songArrangement', id, arrangementId }), saveFailed);
   };
-  const close = () => {
-    setOpen(false);
-    setEditing(null);
-  };
-  const partsLine = orderLine(
-    parts.map((p) => p.id),
-    parts,
-    labels,
-  );
-  const line = (a: SongArrangement) => orderLine(parsePartIds(a.partIds), parts, labels);
-  const summary = arrangements.length > 1 ? t('song.arrangementCount', { n: arrangements.length }) : arrangements[0] ? line(arrangements[0]) : partsLine;
-  // An arrangement removed while open (here, or on another device) shows the list again.
-  const at = arrangements.findIndex((a) => a.id === editing);
-  const shown = at >= 0 ? arrangements[at]! : null;
-  const title = shown ? arrangementTitle(shown, at, arrangements.length) : t('song.arrangements');
+  const named = arrangements.length > 1;
   return (
-    <>
-      <OpeningRow label={t('song.arrangements')} value={summary} onClick={() => setOpen(true)} />
-      {open && (
-        <Dialog title={title} onClose={close} maxWidthClass="max-w-lg">
-          {shown ? (
-            <>
-              {/* Back to the list, as a sheet's own navigation does. */}
-              <AppButton variant="plain" className={`${TEXT_ACTION} -mt-2 -ml-4`} onClick={() => setEditing(null)}>
-                <ChevronLeftIcon className="size-4" />
-                {t('song.arrangements')}
-              </AppButton>
-              <ArrangementCard arrangement={shown} title={title} named={arrangements.length >= 2} parts={parts} labels={labels} saving={saving} showSaved={showSaved} />
-            </>
-          ) : (
-            <div className="space-y-1.5">
-              <Group footer={t('song.orderHint')}>
-                {arrangements.length ? (
-                  arrangements.map((a, i) => (
-                    <AppButton key={a.id} variant="plain" data-testid="arrangement-row" onClick={() => setEditing(a.id)} className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-raised`}>
-                      <span className="min-w-0">
-                        {arrangements.length > 1 && <span className="block">{arrangementTitle(a, i, arrangements.length)}</span>}
-                        <span className={`block truncate ${arrangements.length > 1 ? 'text-xs text-stone-500 dark:text-stone-400' : ''}`}>{line(a)}</span>
-                      </span>
-                      <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
-                    </AppButton>
-                  ))
-                ) : (
-                  <OpeningRow label={partsLine} onClick={create} testId="arrangement-row" />
-                )}
-              </Group>
-              {arrangements.length > 0 && arrangements.length < LIMITS.arrangementsPerSong && (
-                <AppButton variant="plain" className={TEXT_ACTION} onClick={create}>
-                  <PlusIcon className="size-4" />
-                  {t('song.createArrangement')}
-                </AppButton>
-              )}
-            </div>
-          )}
-          <DialogButtons>
-            <AppButton onClick={close}>{t('presentation.doneEditingImages')}</AppButton>
-          </DialogButtons>
-        </Dialog>
-      )}
-    </>
+    <PageContainer className="pb-8">
+      {header}
+      <Group>
+        {arrangements.length ? (
+          arrangements.map((a, i) => (
+            <AppButton key={a.id} variant="plain" data-testid="arrangement-row" href={href({ page: 'songArrangement', id, arrangementId: a.id })} className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-raised`}>
+              <span className="min-w-0">
+                {named && <span className="block">{arrangementTitle(a, i, arrangements.length)}</span>}
+                <span className={`block truncate ${named ? 'text-xs text-stone-500 dark:text-stone-400' : ''}`}>{orderLine(parsePartIds(a.partIds), parts, labels)}</span>
+              </span>
+              <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
+            </AppButton>
+          ))
+        ) : (
+          <OpeningRow label={arrangementSummary([], parts, labels)} onClick={create} testId="arrangement-row" />
+        )}
+        {arrangements.length > 0 && arrangements.length < LIMITS.arrangementsPerSong && (
+          <AppButton variant="plain" className={`${ACTION_ROW} justify-start`} onClick={create}>
+            <PlusIcon className="size-4" />
+            {t('song.createArrangement')}
+          </AppButton>
+        )}
+      </Group>
+    </PageContainer>
   );
 }

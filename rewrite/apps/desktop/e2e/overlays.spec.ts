@@ -41,6 +41,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await addSongs(page, ['Sång A', 'Sång B']);
   // Sång A carries Kollekt, chosen under its heading: its tiles show it.
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   await page.getByRole('menuitemradio', { name: 'Kollekt' }).click();
   // The … closes on a press outside it, also from a heading that sticks (its blur once held the cover to it).
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
@@ -109,9 +110,11 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   // The shown item's own overlay, changed in its …, shows at once, and goes at once when it is set to none.
   const menuB = page.getByRole('region', { name: 'Sång B' }).getByRole('button', { name: 'Fler val för Sång B' });
   await menuB.click();
+  await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   await page.getByRole('menuitemradio', { name: 'Kollekt' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
   await menuB.click();
+  await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   await page.getByRole('menuitemradio', { name: 'Ingen' }).click();
   await expect(overlay).toHaveCount(0);
 });
@@ -138,11 +141,13 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Sång A', exact: true }).click();
   await expect(failed).toHaveCount(0, { timeout: 6000 });
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   const choice = page.getByRole('menuitemradio').nth(1);
   await choice.evaluate((el) => (el as HTMLElement).setAttribute('data-choice', 'no-such-overlay'));
   await choice.click();
   await expect(failed).toBeVisible();
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
+  await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   await expect(page.getByRole('menuitemradio', { name: 'Ingen' })).toHaveAttribute('aria-checked', 'true');
 });
 

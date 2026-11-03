@@ -186,7 +186,7 @@ test('Videor lists the videos with length, size and codec, imports from the page
   await openAdmin(page, 'Videor');
   await expect(page.getByText('Inga videor än')).toBeVisible();
   await page.getByTestId('video-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: fixture('h264-long.mp4') });
-  await expect(page.getByRole('heading', { name: 'Alla videor (1)' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('1 video', { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('list', { name: 'Videor' }).getByRole('listitem')).toHaveText([/Dop\.mp4\s*0:20 · 66 kB · H\.264/]);
 
   await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();

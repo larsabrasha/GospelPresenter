@@ -13,6 +13,10 @@ describe('routes', () => {
     const routes: Route[] = [
       { page: 'songs' },
       { page: 'song', id: 'a b/c' },
+      { page: 'songHistory', id: 'S1' },
+      { page: 'songArrangements', id: 'S1' },
+      { page: 'songArrangement', id: 'S1', arrangementId: 'A 1/2' },
+      { page: 'songMaterials', id: 'S1' },
       { page: 'presentations' },
       { page: 'presentation', id: 'P1' },
       { page: 'presentation', id: 'P1', remote: true, session: null },

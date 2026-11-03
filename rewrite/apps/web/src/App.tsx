@@ -31,7 +31,10 @@ import { Settings } from './pages/Settings.tsx';
 import { CcliReport } from './pages/CcliReport.tsx';
 import { OrgDetail, Orgs } from './pages/Orgs.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
+import { SongArrangement } from './pages/SongArrangement.tsx';
+import { SongArrangements } from './pages/SongArrangements.tsx';
 import { SongHistory } from './pages/SongHistory.tsx';
+import { SongMaterials } from './pages/song-materials/SongMaterials.tsx';
 import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Templates } from './pages/Templates.tsx';
@@ -46,7 +49,7 @@ import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { settingsGroups } from './pages/settings/settingsLinks.ts';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
-import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, useRoute, type Route } from './ui/router.ts';
+import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, SONG_PAGES, useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -131,6 +134,9 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
       {route.page === 'labels' && <Labels />}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
+      {route.page === 'songArrangements' && <SongArrangements key={route.id} id={route.id} />}
+      {route.page === 'songArrangement' && <SongArrangement key={route.arrangementId} id={route.id} arrangementId={route.arrangementId} />}
+      {route.page === 'songMaterials' && <SongMaterials key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="screen" link={link} kind="screen" /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'publicOutputs' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="public" link={link} kind="public" /> : <Refused text={t('displays.forbidden')} />)}
@@ -211,6 +217,12 @@ function settingsTitle(route: Route, detail = false): string {
       return t('song.one');
     case 'songHistory':
       return t('history.versions');
+    case 'songArrangements':
+      return t('song.arrangements');
+    case 'songArrangement':
+      return t('song.arrangement');
+    case 'songMaterials':
+      return t('material.title');
     case 'user':
       return t('users.title');
     case 'overlay':
@@ -237,7 +249,7 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   return link ? t(link.label) : t('nav.admin');
 }
 
-const DETAIL_TITLES = new Set<Route['page']>(['song', 'songHistory', 'user', 'overlay', 'org']);
+const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org']);
 
 /**
  * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
@@ -247,7 +259,8 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
   if (route.page === 'admin' || aloneInSettings(route, adminBack())) return undefined;
   const up: Route =
     route.page === 'song' ? { page: 'songs' }
-    : route.page === 'songHistory' ? { page: 'song', id: route.id }
+    : route.page === 'songArrangement' ? { page: 'songArrangements', id: route.id }
+    : route.page === 'songHistory' || route.page === 'songArrangements' || route.page === 'songMaterials' ? { page: 'song', id: route.id }
     : route.page === 'user' ? { page: 'users' }
     : route.page === 'overlay' ? { page: 'overlays' }
     : route.page === 'org' ? { page: 'orgs' }

@@ -82,7 +82,7 @@ tapped shows nothing, and ▶ starts it.
 - **Markera** in an item's … opens the computer's running order in its select mode (Lars, 2026-11-02: one list, as
   iOS's lists edit), that item ticked: one row per item, ticked to remove together after a question, moved by ≡; the
   shown item can move but not be ticked. Klar ends it.
-- **An item's …** (on its heading) offers Lägg till efter…, Markera and Ta bort.
+- **An item's …** (on its heading) opens the same menu as its row's (see Left below).
 - **Lägg till** (Sånger, Bibel, Text) adds right after what is shown, or after the last thing added while that is
   still ahead, so several additions keep their order; "Lägg till efter" in an item's … names the place instead.
   The list goes to the new item and marks it; nothing changes on the outputs. Adding and removing can be undone.
@@ -114,8 +114,10 @@ overlay.
 - **Left:** the items, one row each, the shown one marked by a red dot in the room left of the row (Lars, 2026-11-02) and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
   right click or the row's … gives the item's menu, the same as its heading's … in the middle (Lars, 2026-11-03: the two
-  differed): Redigera (a song's page, or a picture item's pictures), Lägg till efter, Flytta upp, Flytta ned, Markera,
-  the arrangement and the overlay with the chosen one ticked, and Radera; in
+  differed), grouped as Apple groups a menu (Lars, 2026-11-03): Redigera (a song's page, or a picture item's
+  pictures); Arrangemang › and Överlägg ›, each with the chosen one in grey and its choices in a submenu beside it,
+  opened by a pointer resting on the row or a tap; Lägg till efter… and Markera; and Radera last, in red. No Flytta
+  upp or ned: a row is dragged, or moved with Alt+↑/↓, as Apple's lists have it. In
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
@@ -160,10 +162,12 @@ menu and what the chosen one means under it, as macOS's; a user's and an organis
 card around them, their logins or members as a group, and Radera … as a red row of its own.
 A song's page the same way (Lars, 2026-11-02, as Apple would): its facts as one card of rows (Namn, Upphovspersoner,
 Förlag, År, CCLI, none side by side, hairlines between them, each a field whose name moves up as it is typed in); each part as a group, its label over its card with ⋯ for Flytta
-upp, Flytta ned and Ta bort del, the card holding its text alone; Lägg till del in sky text; and at the foot one group of rows that open a sheet, as
-iOS's Settings opens a page (Lars, 2026-11-02: less text on the page): Arrangemang with the order in grey, Noter och
-länkar with how many, and Historik; then Ta bort sång as a red row. What an arrangement and sheet music are for is said
-in their sheets. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row
+upp, Flytta ned and Ta bort del, the card holding its text alone; Lägg till del in sky text; and at the foot one group of rows that push a page in, as
+iOS's Settings pushes a page (Lars, 2026-11-03: as Historik, not sheets): Arrangemang with the order in grey, Noter och
+länkar with how many, and Historik; then Ta bort sång as a red row. An arrangement's page is iOS's list in edit mode:
+its parts with a red ⊖ and ≡, every part of the song under them with a green ⊕, Ta bort arrangemang in red.
+Bilder, Ljud and Videor have one title, the page's; "{n} bilder" under the list; and where there is a mouse, a dashed
+place to drop (the empty list itself, or "Släpp fler filer här" under the list), though the whole page takes files. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row
 its time; the preview beside them when the page's own column has room (576 px), else a version tapped opens on its
 own with ‹ Versioner (and Escape) back.
 Sånger as Music's Låtar and Contacts: the search under the title, the songs in sections by letter with an index along

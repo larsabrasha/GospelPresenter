@@ -1,6 +1,6 @@
 import type { SongMaterial } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
-import { songMaterialsOf } from '../../db/queries.ts';
+import { getSong, songMaterialsOf } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -15,6 +15,9 @@ import { FloatingInput } from '../../ui/Floating.tsx';
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon, EllipsisOutlineIcon, LinkIcon, MusicalNoteIcon, PencilIcon, PlusIcon, TrashIcon } from '../../ui/icons.tsx';
 import { GROUP } from '../../ui/Sheet.tsx';
 import { OpeningRow, TEXT_ACTION } from '../../ui/Group.tsx';
+import { DetailHeader, PageContainer } from '../../ui/PageContainer.tsx';
+import { href } from '../../ui/router.ts';
+import { useGoneSong } from '../songPage.ts';
 import { MaterialViewer } from './MaterialViewer.tsx';
 
 /** A row's icon: a PDF's page, a recording's note, a link's chain. */
@@ -102,33 +105,29 @@ function Title({ m }: { m: SongMaterial }) {
   );
 }
 
-/**
- * Noter och länkar on a song's page (Lars, 2026-11-02, as iOS's Settings opens a page): one row with how many there
- * are, opening a sheet with the list, what it is for, and the ways to add.
- */
+/** Noter och länkar on a song's page: one row with how many there are, that pushes their page in. */
 export function SongMaterialsRow({ songId }: { songId: string }) {
   const count = useData((d) => songMaterialsOf(d, [songId]), [songId])?.length ?? 0;
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <OpeningRow label={t('material.title')} value={count ? String(count) : t('material.none')} onClick={() => setOpen(true)} />
-      {open && (
-        <Dialog title={t('material.title')} onClose={() => setOpen(false)} maxWidthClass="max-w-lg">
-          <SongMaterials songId={songId} />
-          <DialogButtons>
-            <AppButton onClick={() => setOpen(false)}>{t('presentation.doneEditingImages')}</AppButton>
-          </DialogButtons>
-        </Dialog>
-      )}
-    </>
-  );
+  return <OpeningRow label={t('material.title')} value={count ? String(count) : t('material.none')} href={href({ page: 'songMaterials', id: songId })} />;
 }
 
 /**
- * Noter och länkar in its sheet: the list, Ladda upp fil (a PDF or a recording) and Lägg till länk. The band reads it
- * from the presentations the song is in (PresentationMaterials).
+ * Noter och länkar (`/admin/songs/{id}/materials`), pushed in from a song's page as Historik is (Lars, 2026-11-03):
+ * the list, Ladda upp fil (a PDF or a recording) and Lägg till länk. The band reads it from the presentations the song
+ * is in (PresentationMaterials).
  */
-function SongMaterials({ songId }: { songId: string }) {
+export function SongMaterials({ id }: { id: string }) {
+  const song = useData((d) => getSong(d, id), [id]);
+  const missing = useGoneSong(song !== undefined, song);
+  return (
+    <PageContainer className="pb-8">
+      <DetailHeader backHref={href({ page: 'song', id })} title={t('material.title')} className="px-5" />
+      {song && !missing ? <MaterialsEditor songId={id} /> : <div className="px-7 text-stone-400">{t('common.loading')}</div>}
+    </PageContainer>
+  );
+}
+
+function MaterialsEditor({ songId }: { songId: string }) {
   const db = useDb();
   const materials = useData((d) => songMaterialsOf(d, [songId]), [songId]) ?? [];
   const picker = useRef<HTMLInputElement>(null);
@@ -147,7 +146,7 @@ function SongMaterials({ songId }: { songId: string }) {
     setBusy(false);
   };
   return (
-    // The list, what it is for in grey, and the actions in sky text; the sheet's title names it.
+    // The list, what it is for in grey, and the actions in sky text; the page's title names it.
     <section className="space-y-1.5" aria-label={t('material.title')}>
       <MaterialList materials={materials} editable empty={<p className="px-4 text-xs text-stone-500 dark:text-stone-400">{t('material.empty')}</p>} />
       {failures.map((f) => (

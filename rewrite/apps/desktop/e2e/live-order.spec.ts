@@ -32,18 +32,18 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   await dragTo(page, rows.nth(2).getByText('Sång C'), rows.nth(0), 'above');
   await expect(rows).toHaveText([/Sång C/, /Sång A/, /Sång B/]);
 
-  // A right click on the shown item: it moves, but cannot be removed.
+  // A right click on the shown item: it cannot be removed, but it is dragged like any other.
   await rows.nth(1).click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'Fler val för Sång A' });
   await expect(menu.getByRole('menuitem', { name: 'Visas nu, kan inte tas bort' })).toBeDisabled();
-  await menu.getByRole('menuitem', { name: 'Flytta ned' }).click();
-  await expect(rows).toHaveText([/Sång C/, /Sång B/, /Sång A/]);
+  await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
+  await dragTo(page, rows.nth(1).getByText('Sång A'), rows.nth(2), 'below');
+  await expect(rows).toHaveText([/Sång C/, /Sång B/, /Sång A/]);
 
   // The row's … opens the same menu, a song's page first in it; Escape closes only it.
   await list.getByRole('button', { name: 'Fler val för Sång C' }).click();
   await expect(page.getByRole('menu', { name: 'Fler val för Sång C' }).getByRole('menuitem', { name: 'Redigera', exact: true })).toHaveAttribute('href', /^\/admin\/songs\//);
-  await expect(page.getByRole('menu', { name: 'Fler val för Sång C' }).getByRole('menuitem', { name: 'Flytta upp' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByTestId('presentation-bar')).toBeVisible();

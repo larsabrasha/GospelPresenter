@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getSong, songVersionsOf, themeOf } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -12,6 +12,7 @@ import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
+import { useGoneSong } from './songPage.ts';
 import { versionClock, versionDay, versionSlides, versionTime } from './songHistory.ts';
 
 /**
@@ -39,12 +40,7 @@ export function SongHistory({ id }: { id: string }) {
     return () => removeEventListener('keydown', back);
   }, [viewing]);
 
-  // A song that is not there (gone, or in the trash) sends back to the list, as the song page does.
-  const missing = !!data && (!data.song || data.song.deletedAt !== null);
-  const leave = useEffectEvent(() => navigate({ page: 'songs' }));
-  useEffect(() => {
-    if (missing) leave();
-  }, [missing]);
+  const missing = useGoneSong(!!data, data?.song);
 
   const header = <DetailHeader backHref={href({ page: 'song', id })} title={t('history.title')} className="px-5" />;
   if (!data || missing)

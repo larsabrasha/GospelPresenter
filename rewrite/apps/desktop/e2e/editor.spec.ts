@@ -128,7 +128,7 @@ test('several pictures make one image item; Redigera removes one and adds more',
     { name: 'Blå.png', mimeType: 'image/png', buffer: solidPng(320, 180, [30, 30, 200]) },
     { name: 'Grön.png', mimeType: 'image/png', buffer: solidPng(320, 180, [30, 200, 30]) },
   ]);
-  await expect(page.getByRole('heading', { name: 'Alla bilder (3)' })).toBeVisible();
+  await expect(page.getByText('3 bilder', { exact: true })).toBeVisible();
   await createPresentation(page, 'Söndag');
 
   // Two picked in the Bilder tab go in as one item, "2 bilder", a slide each.
