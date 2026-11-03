@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-electron/
+# The desktop app's packages (apps/desktop/release.mjs)
+apps/desktop/release/
 .turbo/
 .wrangler/
 *.sqlite

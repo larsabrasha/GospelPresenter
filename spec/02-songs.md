@@ -160,7 +160,7 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
      Verse 2", or "2 arrangemang"), the parts' own order before there is one. 2.0 (Lars, 2026-11-03): it pushes a
      page in, as Historik does (`/admin/songs/{id}/arrangements`, ‹ back to the song): one group with a row for each
      arrangement (its name over its line when there are two or more) or, with none, the parts' order, and **Nytt
-     arrangemang** as the group's last row, once there is one and while fewer than 10. A row pushes its arrangement
+     arrangemang** as the group's last row while fewer than 10, with none too (Lars, 2026-11-03). A row pushes its arrangement
      in (`/admin/songs/{id}/arrangements/{arrangementId}`, ‹ back to Arrangemang), laid out as iOS's lists in edit
      mode: the name field when there are two or more; **Delar i arrangemanget**, each row a red ⊖ that removes it,
      its pill, and ≡, the row dragged or moved with Alt+↑/↓; **Sångens delar**, every part with a green ⊕ that adds it

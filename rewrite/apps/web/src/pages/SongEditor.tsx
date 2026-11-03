@@ -206,24 +206,30 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   };
 
   return (
-    <Frame onEscape={adding ? () => void cancel() : onBack}>
-      {dialog}
-      {adding ? (
-        <div className="flex items-center justify-between gap-3 min-h-10 shrink-0 px-5">
-          <AppButton variant="cancel" onClick={() => void cancel()}>
-            {t('common.cancel')}
-          </AppButton>
-          <h1 className="text-xl/7 font-bold dark:text-stone-100 truncate">{t('song.newTitle')}</h1>
-          <div className="flex items-center gap-3">
-            <span className="relative w-16 h-5">{saved.node}</span>
-            <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onAdd(song.name)}>
-              {t('presentation.add')}
+    <Frame
+      onEscape={adding ? () => void cancel() : onBack}
+      bar={
+        adding ? (
+          // The dialog's one bar while a song is made in it, as iOS's sheet: Avbryt, the name in the middle, Lägg till.
+          <div className="relative flex items-center justify-between gap-3 h-14 shrink-0 px-4">
+            <AppButton variant="cancel" onClick={() => void cancel()}>
+              {t('common.cancel')}
             </AppButton>
+            <h1 className="absolute left-1/2 -translate-x-1/2 max-w-[40%] truncate font-semibold text-[17px] dark:text-stone-100">{t('song.newTitle')}</h1>
+            <div className="flex items-center gap-3">
+              <span className="relative w-16 h-5">{saved.node}</span>
+              <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onAdd(song.name)}>
+                {t('presentation.add')}
+              </AppButton>
+            </div>
           </div>
-        </div>
-      ) : (
-        <DetailHeader {...back} title={song.name} saved={saved.node} className="px-5" />
-      )}
+        ) : (
+          onBack && <DetailHeader onBack={onBack} title={song.name} saved={saved.node} className="h-14 shrink-0 px-4" />
+        )
+      }
+    >
+      {dialog}
+      {!adding && !onBack && <DetailHeader {...back} title={song.name} saved={saved.node} className="px-5" />}
       <div className="space-y-4" onInput={() => (typed.current = true)}>
         {/* The song's facts as one card of rows, none side by side, each a field whose name moves up as it is typed in
             (Lars, 2026-11-02). */}
@@ -292,7 +298,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
  * dialog (`onEscape`) Escape goes back one step, to the song list; a second one closes the dialog. A menu or question
  * open in the editor takes its own Escape first.
  */
-function Frame({ children, onEscape }: { children: ReactNode; onEscape?: () => void }) {
+function Frame({ children, bar, onEscape }: { children: ReactNode; /** A bar over the page that stays while it scrolls: the add dialog's. */ bar?: ReactNode; onEscape?: () => void }) {
   return (
     <div
       className="contents"
@@ -302,6 +308,7 @@ function Frame({ children, onEscape }: { children: ReactNode; onEscape?: () => v
         onEscape();
       }}
     >
+      {bar}
       <PageContainer className="pb-8">{children}</PageContainer>
     </div>
   );

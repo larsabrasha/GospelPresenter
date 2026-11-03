@@ -34,7 +34,8 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
  * each (SlideGrid.razor's scale); or with `column` one under the other at full
  * width, as the add dialog's preview, which marks its search's words with `highlight`.
  * With `shown`, while presenting, each tile is a button that shows its slide live, and the
- * one shown is marked (SlideGrid.razor's SelectSlide).
+ * one shown is marked (SlideGrid.razor's SelectSlide). With `picked`, before presenting, a tile clicked gets the
+ * current app's blue outline and nothing more (spec 04: Starta presentation still starts black; Lars, 2026-11-03).
  */
 export function SlideGrid({
   slides,
@@ -44,6 +45,7 @@ export function SlideGrid({
   column,
   highlight,
   shown,
+  picked,
 }: {
   slides: ItemSlides['slides'];
   label: string;
@@ -52,27 +54,28 @@ export function SlideGrid({
   column?: boolean;
   highlight?: string;
   shown?: { pointer: LivePointer; itemId: string; mark: (partIndex: number) => SlideMarkKind | null; onShow: (partIndex: number) => void };
+  picked?: { partIndex: number | null; onPick: (partIndex: number) => void };
 }) {
   const overlay = useShownOverlay(overlayId);
   const size = column ? '' : 'w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1';
-  if (shown) {
-    const { pointer } = shown;
+  if (shown || picked) {
     return (
       <ol className="flex flex-wrap gap-3" aria-label={label}>
         {slides.map((s, i) => {
           // After Rensa nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
-          const here = pointer.itemId === shown.itemId && pointer.partIndex === i;
-          const live = here && !pointer.black;
-          const mark = shown.mark(i);
+          const here = !!shown && shown.pointer.itemId === shown.itemId && shown.pointer.partIndex === i;
+          const live = here && !shown.pointer.black;
+          const chosen = !shown && picked?.partIndex === i;
+          const mark = shown?.mark(i);
           return (
             <li key={s.key} className={`${size} flex`}>
               <AppButton
                 variant="plain"
                 aria-label={`${label} ${i + 1}`}
-                aria-pressed={live}
+                aria-pressed={shown ? live : chosen}
                 data-current={live}
-                className={`${tileClass({ selected: live, live: true, rested: here && pointer.black })} w-full p-0`}
-                onClick={() => shown.onShow(i)}
+                className={`${tileClass(shown ? { selected: live, live: true, rested: here && shown.pointer.black } : { selected: chosen })} w-full p-0`}
+                onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}

@@ -554,6 +554,9 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
 
 - Clicking a tile **before** Start writes the selection into the session (tile gets a blue outline) but
   nothing is shown anywhere; Start then clears it to black. `SlideGrid.razor:54`; `Presentation.razor:706`
+  2.0 (Lars, 2026-11-03: to click around and point a slide out to someone): the blue outline stays, kept in the window
+  only, never in the session; a phone's part row gets a blue border the same way; Start still begins black and lets
+  go of it.
 - After Start the outputs are black until the first tile is pressed (public viewers see the waiting
   screen).
 - Out-of-range part (song shortened while live): selection moves, outputs show an empty themed canvas;

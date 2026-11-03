@@ -155,24 +155,36 @@ export function Dialog({
 
 /**
  * A tall dialog with a centred title, a body that fills it and a footer
- * (Components/Modal.razor), for content that scrolls, such as a list to pick from.
+ * (Components/Modal.razor), for content that scrolls, such as a list to pick from. `bare` while a step in it draws its
+ * own bar (Ny sång: Avbryt, its name, Lägg till), as iOS's pushed view takes the sheet's bar (Lars, 2026-11-03: two
+ * bars were odd): no title row nor ✕, the body to the edges at the same height, the title kept as the dialog's name.
  */
-export function Modal({ title, onClose, children, footer, className }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string }) {
+export function Modal({ title, onClose, children, footer, className, bare }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string; bare?: boolean }) {
   const titleId = useId();
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className={`rounded-3xl! shadow-lg! ${className ?? 'max-w-2xl'}`}>
-      {(close) => (
-        <>
-          <CloseButton onClick={close} />
-          <div className="p-4 text-center">
-            <h2 id={titleId} className="text-base/6 font-normal">
+      {(close) =>
+        bare ? (
+          <>
+            <h2 id={titleId} className="sr-only">
               {title}
             </h2>
-          </div>
-          <div className="px-4 h-[70svh] flex flex-col">{children}</div>
-          <div className="px-4 py-3">{footer}</div>
-        </>
-      )}
+            {/* The title row (56 px) and the foot (24 px) are the body's here, so the dialog keeps its height. */}
+            <div className="h-[calc(70svh+5rem)] flex flex-col">{children}</div>
+          </>
+        ) : (
+          <>
+            <CloseButton onClick={close} />
+            <div className="p-4 text-center">
+              <h2 id={titleId} className="text-base/6 font-normal">
+                {title}
+              </h2>
+            </div>
+            <div className="px-4 h-[70svh] flex flex-col">{children}</div>
+            <div className="px-4 py-3">{footer}</div>
+          </>
+        )
+      }
     </DialogFrame>
   );
 }

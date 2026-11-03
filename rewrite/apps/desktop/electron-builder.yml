@@ -1,0 +1,50 @@
+# How the desktop app is packaged (D32, ADR 0007; docs/desktop-app.md). `pnpm --filter @gp/desktop release` makes the
+# packages for this computer's system in release/.
+appId: com.gospelpresenter.desktop
+productName: Gospel Presenter
+copyright: Gospel Presenter
+directories:
+  output: release
+  buildResources: build
+# Everything the main process needs is bundled into dist/ (build.mjs); no node_modules go along.
+files:
+  - dist/main.mjs
+  - dist/preload.cjs
+  - package.json
+# The web app beside app.asar, where the main process looks for it (`../../web/dist` from dist/).
+extraResources:
+  - from: ../web/dist
+    to: web/dist
+npmRebuild: false
+# Sign-in hands the token back on this scheme (ADR 0005 (5)); the installer registers it.
+protocols:
+  - name: Gospel Presenter
+    schemes:
+      - gospelpresenter
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    # The zip is what electron-updater fetches, once there is a signature to update with.
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.productivity
+  # Ad-hoc signed until there is a Developer ID (D32): macOS blocks the first start, and the user allows it under
+  # System Settings → Privacy & Security → "Open Anyway".
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
+  artifactName: Gospel-Presenter-${version}-${arch}-mac.${ext}
+dmg:
+  artifactName: Gospel-Presenter-${version}-${arch}.dmg
+# A per-user installer without admin rights, not code-signed (D32).
+win:
+  target: nsis
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: Gospel-Presenter-Setup-${version}.exe
+linux:
+  target: AppImage
+  category: Office
+  artifactName: Gospel-Presenter-${version}-${arch}.AppImage

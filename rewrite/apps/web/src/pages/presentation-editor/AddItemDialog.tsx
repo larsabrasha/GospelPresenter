@@ -124,12 +124,12 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');
   const tabProps = (key: Tab): TabProps => ({ ...props, onClose: close, active: !editingSongId && tab === key });
   return (
-    <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl">
+    <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl" bare={!!editingSongId}>
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
           // The same page as in Inställningar, filling the dialog.
           <PageFill value>
-          <div className="flex-1 min-h-0 flex flex-col -mx-4">
+          <div className="flex-1 min-h-0 flex flex-col bg-ground">
             {editing?.isNew ? (
               <SongEditor
                 id={editing.id}

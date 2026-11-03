@@ -215,10 +215,13 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await page.keyboard.press('Escape');
   await expect(picker).toHaveCount(0);
 
-  // Closing the dialog while a new song is open throws it away too.
+  // A new song's step has the dialog's one bar (Lars, 2026-11-03): no ✕, but Avbryt, which throws it away; then ✕ is
+  // back to close the dialog.
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
   await expect(picker.getByRole('heading', { name: 'Ny sång' })).toBeVisible();
+  await expect(picker.getByRole('button', { name: 'Stäng' })).toHaveCount(0);
+  await picker.getByRole('button', { name: 'Avbryt' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(picker).toHaveCount(0);
 

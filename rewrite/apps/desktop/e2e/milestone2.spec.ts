@@ -31,10 +31,18 @@ test("the host's own window keeps its database in memory, and the output still s
   ]);
   await createPresentation(page, 'Kväll');
   await addSongs(page, ['Blott en dag']);
+  // Before presenting a slide clicked is only outlined in blue, to point at it (Lars, 2026-11-03); Starta presentation
+  // still starts black (spec 04) and lets go of it.
+  const second = page.getByRole('button', { name: 'Blott en dag 2' });
+  await second.click();
+  await expect(second).toHaveAttribute('aria-pressed', 'true');
+  await expect(second).toHaveClass(/outline-sky-500/);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await expect(second).toHaveAttribute('aria-pressed', 'false');
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
-  await page.getByRole('button', { name: 'Blott en dag 2' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await second.click();
   await expect(output.getByTestId('slide-text')).toHaveText('Ett ögonblick i sänder');
 
   // An edit in the operator's in-memory database reaches the output too (D7).

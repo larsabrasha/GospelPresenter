@@ -35,8 +35,8 @@ export function useArrangementData(id: string) {
 /**
  * Arrangemang (spec 02), pushed in from a song's page as Historik is (Lars, 2026-11-03: as iOS's Settings pushes a
  * page): one group with a row for each arrangement, its name over its parts in a line when there are two or more, and
- * Nytt arrangemang as the group's last row. A song with none has one row, the parts' own order, which makes its first
- * arrangement. A row pushes its arrangement in.
+ * Nytt arrangemang as the group's last row, there also while the song has only its parts' own order (Lars, 2026-11-03),
+ * which is then the one row and makes the first arrangement too. A row pushes its arrangement in.
  */
 export function SongArrangements({ id }: { id: string }) {
   const db = useDb();
@@ -75,7 +75,7 @@ export function SongArrangements({ id }: { id: string }) {
         ) : (
           <OpeningRow label={arrangementSummary([], parts, labels)} onClick={create} testId="arrangement-row" />
         )}
-        {arrangements.length > 0 && arrangements.length < LIMITS.arrangementsPerSong && (
+        {arrangements.length < LIMITS.arrangementsPerSong && (
           <AppButton variant="plain" className={`${ACTION_ROW} justify-start`} onClick={create}>
             <PlusIcon className="size-4" />
             {t('song.createArrangement')}

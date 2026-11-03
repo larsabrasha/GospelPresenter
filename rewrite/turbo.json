@@ -9,7 +9,8 @@
         "dist/**"
       ],
       "env": [
-        "GP_COMMIT"
+        "GP_COMMIT",
+        "GP_RELEASE"
       ]
     },
     "typecheck": {

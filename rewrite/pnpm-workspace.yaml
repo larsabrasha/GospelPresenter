@@ -5,4 +5,6 @@ allowBuilds:
   better-sqlite3: true
   electron: true
   esbuild: true
+  # electron-builder's Squirrel.Windows maker; the Windows installer is NSIS (D32), so it never runs.
+  electron-winstaller: false
   workerd: true

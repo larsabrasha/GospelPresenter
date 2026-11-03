@@ -91,6 +91,14 @@ export function SlideList({
       markTapped();
       onShow(itemId, partIndex);
     });
+  // Before presenting, a slide clicked is only outlined in blue, as in the current app; Starta presentation starts
+  // black all the same (spec 04), and lets go of it.
+  const [picked, setPicked] = useState<{ itemId: string; partIndex: number } | null>(null);
+  const [wasShowing, setWasShowing] = useState(!!onShow);
+  if (wasShowing !== !!onShow) {
+    setWasShowing(!!onShow);
+    setPicked(null);
+  }
 
   // `elevated` on a computer: a step lighter in dark mode, so black slides stand out from the ground (app.css).
   return (
@@ -173,6 +181,7 @@ export function SlideList({
                 theme={theme}
                 overlayId={item.overlayId}
                 shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
+                picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => setPicked({ itemId: item.id, partIndex }) }}
               />
             ) : (
               set.slides.map((slide, partIndex) => (
@@ -184,7 +193,8 @@ export function SlideList({
                   current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
                   rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
                   mark={markOf(item.id, partIndex)}
-                  onShow={show && (() => show(item.id, partIndex))}
+                  picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
+                  onShow={show ? () => show(item.id, partIndex) : () => setPicked({ itemId: item.id, partIndex })}
                 />
               ))
             )}
@@ -205,6 +215,7 @@ function PartRow({
   current,
   rested,
   mark,
+  picked,
   onShow,
 }: {
   slide: Slide;
@@ -214,7 +225,9 @@ function PartRow({
   /** After Rensa, the part last shown keeps a quiet grey border: where → goes on from. */
   rested: boolean;
   mark: SlideMarkKind | null;
-  onShow?: () => void;
+  /** Before presenting, the part tapped: outlined in blue, as a computer's tile. */
+  picked: boolean;
+  onShow: () => void;
 }) {
   return (
     <AppButton
@@ -222,9 +235,10 @@ function PartRow({
       data-current={current}
       data-rested={rested || undefined}
       aria-current={current || undefined}
+      aria-pressed={picked || undefined}
       onClick={onShow}
       // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
-      className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left ${onShow ? 'cursor-pointer' : 'cursor-default'} ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : 'bg-surface border-transparent'}`}
+      className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : picked ? 'bg-surface border-sky-500' : 'bg-surface border-transparent'}`}
     >
       {slide.kind === 'media' && (
         <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
