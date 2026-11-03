@@ -109,7 +109,7 @@ export function SongHistory({ id }: { id: string }) {
                             setChosen(v.id);
                             setViewing(true);
                           }}
-                          className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-raised`}
+                          className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}
                         >
                           <span className="min-w-0">
                             <span className="block truncate dark:text-stone-100">{v.name}</span>

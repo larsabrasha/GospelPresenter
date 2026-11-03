@@ -155,7 +155,7 @@ export function SlideList({
                       const rect = e.currentTarget.getBoundingClientRect();
                       setMenu({ item, at: { x: rect.left, y: rect.bottom + 4 } });
                     }}
-                    className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-raised normal-case tracking-normal font-normal"
+                    className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] normal-case tracking-normal font-normal"
                   >
                     <EllipsisIcon className="size-4" />
                   </AppButton>

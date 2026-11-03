@@ -148,7 +148,7 @@ function ArrangementEditor({
           <AppButton
             key={p.id}
             variant="plain"
-            className="flex items-center gap-3 px-4 min-h-11 w-full text-left cursor-pointer hover:bg-raised"
+            className="flex items-center gap-3 px-4 min-h-11 w-full text-left cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]"
             aria-label={t('song.appendPart', { part: partName(p, labels) })}
             onClick={() => saving(db.mutate('appendArrangementPart', { id: arrangement.id, partId: p.id }))}
           >

@@ -64,7 +64,7 @@ export function SongArrangements({ id }: { id: string }) {
       <Group>
         {arrangements.length ? (
           arrangements.map((a, i) => (
-            <AppButton key={a.id} variant="plain" data-testid="arrangement-row" href={href({ page: 'songArrangement', id, arrangementId: a.id })} className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-raised`}>
+            <AppButton key={a.id} variant="plain" data-testid="arrangement-row" href={href({ page: 'songArrangement', id, arrangementId: a.id })} className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}>
               <span className="min-w-0">
                 {named && <span className="block">{arrangementTitle(a, i, arrangements.length)}</span>}
                 <span className={`block truncate ${named ? 'text-xs text-stone-500 dark:text-stone-400' : ''}`}>{orderLine(parsePartIds(a.partIds), parts, labels)}</span>

@@ -12,10 +12,10 @@ import { SWITCH } from './Toggle.tsx';
 export const GROUP_ROW = 'flex items-center justify-between gap-3 px-4 min-h-11 py-2 text-sm';
 
 /** An action as a row of a group, in sky, as iOS's ("Rensa cache", "Skapa inbjudningslänk"). */
-export const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`;
+export const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06] disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`;
 
 /** A destructive action as a group of its own, red and centred, as iOS's "Radera …". */
-export const DANGER_ROW = `${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-raised`;
+export const DANGER_ROW = `${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`;
 
 /** A group's small grey caption, over its card. */
 export const CAPTION = 'px-4 text-sm/5 font-semibold text-stone-500 dark:text-stone-400';
@@ -56,7 +56,7 @@ export function OpeningRow({ label, value, onClick, href, testId }: { label: str
       variant="plain"
       {...(href ? { href } : { onClick })}
       data-testid={testId}
-      className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-raised`}
+      className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}
     >
       <span className="shrink-0">{label}</span>
       <span className="flex-1 min-w-0 flex items-center justify-end gap-2 text-stone-500 dark:text-stone-400">

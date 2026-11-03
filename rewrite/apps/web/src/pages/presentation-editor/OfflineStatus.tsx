@@ -31,7 +31,7 @@ export function OfflineStatus({ presentation, onOpen, className = 'w-full' }: { 
       onClick={onOpen}
       data-testid="offline-status"
       data-state={keep.state}
-      className={`${className} flex items-center gap-2 px-2 py-1.5 touch:py-2.5 rounded-lg text-xs touch:text-[13px] text-left text-stone-500 dark:text-stone-400 hover:bg-raised cursor-pointer`}
+      className={`${className} flex items-center gap-2 px-2 py-1.5 touch:py-2.5 rounded-lg text-xs touch:text-[13px] text-left text-stone-500 dark:text-stone-400 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] cursor-pointer`}
     >
       <StateIcon state={keep.state} share={keep.share} />
       {keep.state === 'kept' ? t('offline.keptStatus') : keep.state === 'fetching' ? t('offline.fetchingShort', { percent: Math.floor(keep.share * 100) }) : t('offline.notKept')}

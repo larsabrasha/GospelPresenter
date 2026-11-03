@@ -101,7 +101,7 @@ export function PresentationBar({
         onTrash={onTrash}
         className="min-w-0 max-w-full justify-self-center"
         menuClassName="left-1/2! right-auto! -translate-x-1/2"
-        button={{ className: 'min-w-0 max-w-full px-2 lg:px-4 py-1 h-11 lg:h-auto touch:min-h-11 justify-center rounded-full flex flex-col items-center cursor-pointer overflow-hidden lg:hover:bg-raised lg:dark:hover:bg-raised-2 lg:aria-expanded:bg-raised lg:dark:aria-expanded:bg-raised-2' }}
+        button={{ className: 'min-w-0 max-w-full px-2 lg:px-4 py-1 h-11 lg:h-auto touch:min-h-11 justify-center rounded-full flex flex-col items-center cursor-pointer overflow-hidden lg:hover:bg-stone-200/60 lg:dark:hover:bg-raised-2 lg:aria-expanded:bg-stone-200/60 lg:dark:aria-expanded:bg-raised-2' }}
         trigger={
           <>
             <span className="max-w-full flex items-center gap-1 lg:gap-2 whitespace-nowrap">

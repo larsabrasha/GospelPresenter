@@ -49,7 +49,7 @@ export function About() {
 /** A link in the row at the foot: as text, with an area easy to hit with a finger. */
 function OutLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 whitespace-nowrap text-sky-500 no-underline hover:bg-raised">
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 whitespace-nowrap text-sky-500 no-underline hover:bg-stone-200/60 dark:hover:bg-white/[0.06]">
       {children}
     </a>
   );
