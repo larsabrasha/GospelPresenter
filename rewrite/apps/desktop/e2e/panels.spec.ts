@@ -72,3 +72,36 @@ test('a start brings the live column out even when it was folded, its toggle in 
   await expect(page.getByTestId('live-panel').getByRole('button', { name: 'Göm livekolumnen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Visa livekolumnen' })).toHaveCount(0);
 });
+
+test('with both columns folded, an iPad lying down has three slides to a row, and a wider window keeps them 384 px', async () => {
+  // Arrange: a song of six slides, presented, both columns folded.
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [1, 2, 3, 4, 5, 6].map((n) => [`Verse ${n}`, `Rad ${n}`] as [string, string]));
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Göm sidofält' }).click();
+  await page.getByRole('button', { name: 'Göm livekolumnen' }).click();
+  await expect(page.getByTestId('live-panel')).toBeHidden();
+  const tiles = page.getByRole('list', { name: 'Sång A' }).getByRole('listitem');
+  const firstRow = () => tiles.evaluateAll((els) => {
+    const top = els[0]!.getBoundingClientRect().top;
+    const row = els.filter((e) => e.getBoundingClientRect().top === top);
+    return { count: row.length, width: Math.round(row[0]!.getBoundingClientRect().width) };
+  });
+  const size = (width: number, height: number) => host!.app.evaluate(({ BrowserWindow }, [w, h]) => BrowserWindow.getAllWindows()[0]!.setContentSize(w!, h!), [width, height]);
+
+  // Act: an 11-inch iPad Pro lying down.
+  await size(1194, 834);
+
+  // Assert: three, narrower than 384 (which would fit only two) and no narrower than 340.
+  await expect.poll(async () => (await firstRow()).width).toBeLessThan(384);
+  expect(await firstRow()).toEqual({ count: 3, width: expect.any(Number) });
+  expect((await firstRow()).width).toBeGreaterThanOrEqual(340);
+
+  // A 13-inch one: three at 384.
+  await size(1376, 1032);
+  await expect.poll(firstRow).toEqual({ count: 3, width: 384 });
+});

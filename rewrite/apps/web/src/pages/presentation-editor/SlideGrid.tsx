@@ -28,10 +28,18 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
 }
 
 /**
+ * Where n tiles of 340 px fit to a row but n of 384 do not (each with its 8 px margin, 12 px between), they share the
+ * row: three to it on an iPad lying down with both columns folded (Lars, 2026-11-03), two or four in a window of that
+ * width. Elsewhere they stay 384 px.
+ */
+const FIT = 'lg:@min-[708px]:@max-[796px]:w-[calc((100%-1.75rem)/2)] lg:@min-[1068px]:@max-[1200px]:w-[calc((100%-3rem)/3)] lg:@min-[1428px]:@max-[1604px]:w-[calc((100%-4.25rem)/4)]';
+
+/**
  * The slides of an item, or a song in the add dialog; with the overlay the item
  * carries drawn above each, and no credits (SlideGrid.razor gives its tiles none).
  * A wrapping grid of tiles: one to a row on a phone, three to `lg`, then 384 px
- * each (SlideGrid.razor's scale); or with `column` one under the other at full
+ * each (SlideGrid.razor's scale), shrinking to no less than 340 px where that fits one more to a row (`FIT`); or with
+ * `column` one under the other at full
  * width, as the add dialog's preview, which marks its search's words with `highlight`.
  * With `shown`, while presenting, each tile is a button that shows its slide live, and the
  * one shown is marked (SlideGrid.razor's SelectSlide). With `picked`, before presenting, a tile clicked gets the
@@ -57,10 +65,10 @@ export function SlideGrid({
   picked?: { partIndex: number | null; onPick: (partIndex: number) => void };
 }) {
   const overlay = useShownOverlay(overlayId);
-  const size = column ? '' : 'w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1';
+  const size = column ? '' : `w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1 ${FIT}`;
   if (shown || picked) {
     return (
-      <ol className="flex flex-wrap gap-3" aria-label={label}>
+      <ol className="@container flex flex-wrap gap-3" aria-label={label}>
         {slides.map((s, i) => {
           // After Rensa nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
           const here = !!shown && shown.pointer.itemId === shown.itemId && shown.pointer.partIndex === i;
@@ -88,7 +96,7 @@ export function SlideGrid({
     );
   }
   return (
-    <ol className={column ? 'flex flex-col gap-2' : 'flex flex-wrap gap-3'} aria-label={label}>
+    <ol className={column ? 'flex flex-col gap-2' : '@container flex flex-wrap gap-3'} aria-label={label}>
       {slides.map((s, i) => (
         <li key={s.key} className={`${tileClass({ interactive: false })} ${size}`} aria-label={`${label} ${i + 1}`}>
           <SlideView slide={s} theme={theme} overlay={overlay} credits={false} highlight={highlight} />

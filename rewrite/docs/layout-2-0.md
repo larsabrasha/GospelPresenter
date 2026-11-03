@@ -125,6 +125,8 @@ overlay.
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
+  The slides are 384 px, and shrink to no less than 340 px where that fits one more to a row: three on an iPad lying
+  down with both columns folded (Lars, 2026-11-03; `apps/web/src/pages/presentation-editor/SlideGrid.tsx`).
 - **Folding the columns away** (Lars, 2026-11-03), as iPadOS's and macOS's sidebars: a quiet button with a sidebar
   icon in each column's foot, at its inner edge beside its last line (the left column's at the right of the sync line;
   the live column's at the left, Fjärrstyrning at the right), folds it away ("Göm sidofält", "Göm livekolumnen"); while
