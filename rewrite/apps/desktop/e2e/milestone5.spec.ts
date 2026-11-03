@@ -89,8 +89,8 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   // Trashed, the picture is gone from the library but still shows (MEDIA-R8).
   await page.goBack();
   await openAdmin(page, 'Bilder');
-  // Ta bort is in the ⋯ menu.
-  await page.getByRole('button', { name: 'Fler val för Logotyp.png' }).click();
+  // Radera is in the picture's menu, opened by a right click as in Photos.
+  await page.getByLabel('Logotyp.png', { exact: true }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Logotyp.png flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByText('Inga bilder än')).toBeVisible();

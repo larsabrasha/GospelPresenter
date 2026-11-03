@@ -32,7 +32,7 @@ export function PickableFileRow({ nav, picked, name, icon, onToggle, onRemove, c
       )}
       {children}
       <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <RemoveMenu name={name} on="row" onRemove={onRemove} />
+        <RemoveMenu name={name} onRemove={onRemove} />
       </span>
     </li>
   );

@@ -166,8 +166,16 @@ upp, Flytta ned and Ta bort del, the card holding its text alone; Lägg till del
 iOS's Settings pushes a page (Lars, 2026-11-03: as Historik, not sheets): Arrangemang with the order in grey, Noter och
 länkar with how many, and Historik; then Ta bort sång as a red row. An arrangement's page is iOS's list in edit mode:
 its parts with a red ⊖ and ≡, every part of the song under them with a green ⊕, Ta bort arrangemang in red.
-Bilder, Ljud and Videor have one title, the page's; "{n} bilder" under the list; and where there is a mouse, a dashed
-place to drop (the empty list itself, or "Släpp fler filer här" under the list), though the whole page takes files. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row
+The library pages alike (Lars, 2026-11-03): Sånger, Biblar, Bilder, Ljud and Videor have one title, the page's; their +
+(and Sånger's Importera) floating at the bottom right; the search under the title, never in a card; the list alone in
+its card, Bilder's pictures on the page itself as Photos'; "{n} bilder" under it; and where there is a mouse, a dashed
+place to drop (the empty list itself, or "Släpp fler filer här" under the list), though the whole page takes files.
+Papperskorg the same, its Töm papperskorgen a red row last. Every list page in Inställningar (the library's, Användare,
+Organisationer, Papperskorg) has the same search under its title, iOS's filled grey field as "Sök i inställningar"
+(ui/ListSearch.tsx). A picture has no … on it: a right click or a finger held on it opens Radera at that point, in
+the menu an item has (PictureMenu); a context menu opens over dialogs. A page opened alone from outside Inställningar (a song
+from a presentation) is as narrow as iPadOS's form sheet, 672 px; Inställningar's pages have 20 px at the sides and
+28 px between groups. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row
 its time; the preview beside them when the page's own column has room (576 px), else a version tapped opens on its
 own with ‹ Versioner (and Escape) back.
 Sånger as Music's Låtar and Contacts: the search under the title, the songs in sections by letter with an index along

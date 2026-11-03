@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
 import { assignableRoles, can, emailSchema, type Me, type Role, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
@@ -165,6 +166,7 @@ async function fetchUsers(): Promise<UserRow[] | string> {
 export function Users({ me }: { me: Me }) {
   const [users, setUsers] = useState<UserRow[] | string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
   const manage = can(me.role, 'ManageUsers');
 
   useEffect(() => {
@@ -172,18 +174,20 @@ export function Users({ me }: { me: Me }) {
   }, []);
 
   const empty = Array.isArray(users) && !users.length;
+  const shown = Array.isArray(users) ? users.filter((u) => matches(query, u.name, u.email)) : [];
   return (
     <PageContainer>
       <PageHeader title={t('users.title')}>{manage && <AddButton label={t('users.create')} onClick={() => setCreating(true)} />}</PageHeader>
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
-      <div className={CARD}>
+      {Array.isArray(users) && !!users.length && <ListSearch query={query} onChange={setQuery} />}
+      {Array.isArray(users) && !!users.length && !shown.length && <NoMatch query={query} />}
+      <div className={`${CARD} ${Array.isArray(users) && !!users.length && !shown.length ? 'hidden' : ''}`}>
         {users === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {empty && (
           <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} />
         )}
         <ul aria-label={t('users.title')}>
-          {Array.isArray(users) &&
-            users.map((u) => (
+          {shown.map((u) => (
               <li key={u.id} className="border-b border-separator last:border-b-0">
                 <a href={href({ page: 'user', id: u.id })} className={`flex items-center gap-3 px-7 py-3 ${ROW_HOVER} cursor-pointer`}>
                   <span className="size-8 rounded-full bg-stone-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-stone-500 dark:text-stone-400">

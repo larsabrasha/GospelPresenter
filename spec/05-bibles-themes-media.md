@@ -136,7 +136,10 @@ the Shared assembly as `Themes/aurora/background.webp`.
 - Header "Biblar". Card "Importera bibel" with text "Importera en bibelöversättning som en
   `.zip`-fil (USX- eller USFM-format)." and button "Välj fil" (accept `.zip`, single file) plus hint
   "eller släpp zip-filen här" (hidden below `sm`). The whole page is a drop zone ("Släpp bibelns
-  zip-fil här").
+  zip-fil här"). 2.0 (Lars, 2026-11-03: the library pages alike): no card; + floats at the bottom right as on Bilder
+  and takes the zip file; no "Installerade biblar ({n})" heading but "{n} biblar" under the list; what a bible file is
+  ("En översättning importeras som en zip-fil i USX- eller USFM-format.") in grey under the list; the empty list drawn
+  as the dashed place to drop, and "Släpp bibelns zip-fil här" dashed under a list, where there is a mouse.
 - While importing: button text "Importerar...", file input disabled, "Bearbetar bibelfil..." and an
   indeterminate progress bar. Afterwards an inline message (not a toast):
   - success new: "Importerade {namn} med {n} verser." (green)
@@ -227,7 +230,8 @@ the Shared assembly as `Themes/aurora/background.webp`.
   under presentationer, t.ex. logotyper eller bakgrunder."; no search hit: "Inga bilder matchar din
   sökning"; content: responsive grid (2/3/4/5/6 columns) of thumbnails (max height 128px) with file
   name below, newest first.
-- Each thumbnail has an always-visible "⋯" menu with "Ta bort" → moves to trash without confirmation,
+- Each thumbnail has an always-visible "⋯" menu (2.0, Lars, 2026-11-03: none on the picture; a right click or a finger
+  held on it opens the menu at that point) with "Ta bort" → moves to trash without confirmation,
   toast "{filnamn} flyttad till papperskorgen"; error → warning toast "Common.ErrorOccurred"
   (`…/Images.razor:308-326`).
 - The list reloads when an organisation sync announcement arrives, keeping the search text

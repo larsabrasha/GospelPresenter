@@ -36,7 +36,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(page.getByText('Inga biblar installerade ännu.')).toBeVisible();
   await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
   await expect(page.getByTestId('bible-import-message')).toHaveText('Importerade World English Bible (exempel) med 15 verser.');
-  await expect(page.getByRole('heading', { name: 'Installerade biblar (1)' })).toBeVisible();
+  await expect(page.getByText('1 bibel', { exact: true })).toBeVisible();
   await expect(page.getByText('WEB · 15 verser')).toBeVisible();
   await expect(page.getByText('Tillgänglig offline')).toBeVisible();
 

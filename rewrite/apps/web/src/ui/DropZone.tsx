@@ -111,12 +111,12 @@ export function DropZone({
  */
 export const DROP_AREA = 'rounded-xl pointer-fine:border-2 pointer-fine:border-dashed pointer-fine:border-stone-300 dark:pointer-fine:border-stone-600';
 
-/** Under a library's list: a drawn place to drop more files, where there is a mouse. */
-export function DropMore() {
+/** Under a library's list: a drawn place to drop more files (or what `text` names), where there is a mouse. */
+export function DropMore({ text }: { text?: string }) {
   return (
     <p className={`${DROP_AREA} hidden pointer-fine:flex items-center justify-center gap-2 py-5 text-sm text-stone-400 dark:text-stone-500`}>
       <ArrowDownTrayIcon className="size-4" />
-      {t('drop.more')}
+      {text ?? t('drop.more')}
     </p>
   );
 }

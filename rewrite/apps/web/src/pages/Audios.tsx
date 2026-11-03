@@ -70,9 +70,10 @@ export function Audios({ role }: { role: Role }) {
             </ul>
           </div>
         )}
+        {/* Under the title, as Sånger's (Lars, 2026-11-03: the pages alike, no box in a box). */}
+        {!!audios?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          {!!audios?.length && <div className="px-5 pt-4 pb-2"><SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact /></div>}
           {!audios && <div className="px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
           {audios && !audios.length && (
             <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} dropHint={manage ? t('drop.here') : undefined} />
@@ -88,7 +89,7 @@ export function Audios({ role }: { role: Role }) {
                 <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" />
                 <span className="text-sm truncate flex-1">{a.fileName}</span>
                 {manage && (
-                  <RemoveMenu name={a.fileName} on="row" onRemove={() => void remove(a)} />
+                  <RemoveMenu name={a.fileName} onRemove={() => void remove(a)} />
                 )}
               </li>
             ))}

@@ -29,7 +29,7 @@ export interface ItemMenuSource {
 export type OpenItemMenu = { item: PresentationItem; at: { x: number; y: number } };
 
 const DIVIDER = 'h-px my-1 mx-1 bg-separator';
-const PANEL = 'fixed z-[136] min-w-44 max-w-64 p-1.5 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator';
+const PANEL = 'fixed z-[146] min-w-44 max-w-64 p-1.5 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator';
 
 /** A submenu beside its row, kept on screen: at the row's right, else its left. It is inside the menu, so a press in it is the menu's. */
 function Submenu({ anchor, label, children }: { anchor: RefObject<HTMLElement | null>; label: string; children: ReactNode }) {

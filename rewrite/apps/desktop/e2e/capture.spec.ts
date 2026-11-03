@@ -329,7 +329,14 @@ test('capture every page', async () => {
       },
     ],
     ['images', '/admin/images', closeAdminMenu],
-    ['images-menu', '/admin/images', (p) => clickFirst(p, 'Fler val för Logotyp.png')],
+    [
+      'images-menu',
+      '/admin/images',
+      async (p) => {
+        await closeAdminMenu(p);
+        await p.getByLabel('Logotyp.png', { exact: true }).first().click({ button: 'right' });
+      },
+    ],
     ['audios', '/admin/audios', closeAdminMenu],
     ['audios-menu', '/admin/audios', (p) => clickFirst(p, 'Fler val för Preludium.wav')],
     ['bibles', '/admin/bibles', closeAdminMenu],

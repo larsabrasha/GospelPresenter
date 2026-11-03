@@ -85,9 +85,10 @@ export function Videos({ role }: { role: Role }) {
             </ul>
           </div>
         )}
+        {/* Under the title, as Sånger's (Lars, 2026-11-03: the pages alike, no box in a box). */}
+        {!!videos?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          {!!videos?.length && <div className="px-5 pt-4 pb-2"><SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact /></div>}
           {!videos && <div className="px-5 py-4 text-stone-400 text-sm">{t('videos.loading')}</div>}
           {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('presentation.noVideos')} dropHint={manage ? t('drop.here') : undefined} />}
           {!!videos?.length && !shown.length && <CardNote>{t('videos.noMatch')}</CardNote>}
@@ -106,7 +107,7 @@ export function Videos({ role }: { role: Role }) {
                   </span>
                 </span>
                 {manage && (
-                  <RemoveMenu name={v.fileName} on="row" onRemove={() => void remove(v)} />
+                  <RemoveMenu name={v.fileName} onRemove={() => void remove(v)} />
                 )}
               </li>
             ))}

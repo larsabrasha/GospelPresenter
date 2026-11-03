@@ -14,7 +14,7 @@ import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '.
 import { ctrlLabel } from '../ui/shortcuts.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { ImageThumb } from './Images.tsx';
-import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { PictureMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a file goes to the trash: this device's clock. */
@@ -116,7 +116,8 @@ export function ImageTab({
               const isPicked = picked.includes(image.id);
               return (
                 <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
-                  <span className="relative">
+                  <PictureMenu name={image.fileName} onRemove={() => void remove(image)}>
+                  <span className="relative block">
                     <AppButton
                       variant="plain"
                       {...grid.item(i)}
@@ -134,10 +135,8 @@ export function ImageTab({
                         </span>
                       )}
                     </AppButton>
-                    <span className="absolute top-1 right-1">
-                      <RemoveMenu name={image.fileName} on="picture" onRemove={() => void remove(image)} />
-                    </span>
                   </span>
+                  </PictureMenu>
                   <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
                     {image.fileName}
                   </p>

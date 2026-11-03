@@ -8,6 +8,7 @@ import { useConfirm } from '../ui/Dialog.tsx';
 import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon, VideoOutlineIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
+import { DANGER_ROW, Group } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
@@ -135,52 +136,39 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     <PageContainer>
       {dialog}
       <PageHeader title={t('trash.title')} />
-      <div className={CARD}>
-        {!all && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
-        {all && !entries.length && (
-          <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
-        )}
-        {!!entries.length && (
-          <>
-            <div className="px-5 pt-4 pb-2 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold" data-testid="trash-count">
-                  {count}
-                  {shown.length !== entries.length && (
-                    <>
-                      {' '}
-                      <span className="font-normal text-stone-400 text-sm">{t('trash.countOf', { count: '', total: entries.length }).trim()}</span>
-                    </>
-                  )}
-                </div>
-                <AppButton variant="danger" onClick={() => void empty()}>
-                  {t('trash.empty')}
-                </AppButton>
-              </div>
-              {/* Only the kinds that are in there: a tab that always says nothing is noise. */}
-              {kinds.length > 1 && (
-                <PillTabs label={t('trash.title')}>
-                  <PillTab active={activeKind === null} onClick={() => setKind(null)}>
-                    {t('trash.all')}
-                  </PillTab>
-                  {kinds.map((k) => (
-                    <PillTab key={k} active={activeKind === k} onClick={() => setKind(k)}>
-                      {t(`trash.kind.${k}`)}
-                    </PillTab>
-                  ))}
-                </PillTabs>
-              )}
-              <SearchField
-                value={search}
-                onChange={setSearch}
-                onClear={() => {
-                  setSearch('');
-                  setQuery('');
-                }}
-                label={t('trash.search')}
-                compact
-              />
-            </div>
+      {!all && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
+      {all && !entries.length && (
+        <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
+      )}
+      {/* As the other lists (Lars, 2026-11-03): the kinds and the search under the title, the list alone in its card,
+          how many under it, and Töm papperskorgen as a red row last. */}
+      {!!entries.length && (
+        <>
+          {/* Only the kinds that are in there: a tab that always says nothing is noise. */}
+          {kinds.length > 1 && (
+            <PillTabs label={t('trash.title')}>
+              <PillTab active={activeKind === null} onClick={() => setKind(null)}>
+                {t('trash.all')}
+              </PillTab>
+              {kinds.map((k) => (
+                <PillTab key={k} active={activeKind === k} onClick={() => setKind(k)}>
+                  {t(`trash.kind.${k}`)}
+                </PillTab>
+              ))}
+            </PillTabs>
+          )}
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            onClear={() => {
+              setSearch('');
+              setQuery('');
+            }}
+            label={t('trash.search')}
+            compact
+            filled
+          />
+          <div className={CARD}>
             {!shown.length && <p className="px-5 py-10 text-center text-sm text-stone-400">{t('trash.noMatch')}</p>}
             {/* Newest first, so what was just deleted by mistake is the first thing in view. */}
             <ul aria-label={t('trash.title')}>
@@ -211,9 +199,18 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                 );
               })}
             </ul>
-          </>
-        )}
-      </div>
+          </div>
+          <p className="text-center text-sm text-stone-500 dark:text-stone-400" data-testid="trash-count">
+            {count}
+            {shown.length !== entries.length && ` ${t('trash.countOf', { count: '', total: entries.length }).trim()}`}
+          </p>
+          <Group>
+            <AppButton variant="plain" className={DANGER_ROW} onClick={() => void empty()}>
+              {t('trash.empty')}
+            </AppButton>
+          </Group>
+        </>
+      )}
     </PageContainer>
   );
 }

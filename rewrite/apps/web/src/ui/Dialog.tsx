@@ -187,6 +187,7 @@ export function PageDialog({
   compactTitleShown = true,
   back,
   split,
+  narrow,
   onClose,
   children,
 }: {
@@ -196,12 +197,14 @@ export function PageDialog({
   back?: { href: string; label: string };
   /** From `lg` the content draws its own bars, split in two columns up to the top as macOS's System Settings: no bar here. */
   split?: boolean;
+  /** One page alone (a song opened from a presentation): as narrow as iPadOS's form sheet (Lars, 2026-11-03). */
+  narrow?: boolean;
   onClose: () => void;
   children: ReactNode;
 }) {
   const titleId = useId();
   return (
-    <DialogFrame titleId={titleId} onClose={onClose} className="max-w-5xl sm:h-[min(52rem,100%)]" page>
+    <DialogFrame titleId={titleId} onClose={onClose} className={`${narrow ? 'max-w-2xl' : 'max-w-5xl'} sm:h-[min(52rem,100%)]`} page>
       {(close) => (
         <>
           <div className={`elevated relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator bg-ground ${split ? 'split:hidden' : ''}`}>

@@ -6,8 +6,11 @@ import { isTextKey, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { ArrowDownTrayIcon, BookOpenOutlineIcon, CheckIcon, TrashIcon } from '../ui/icons.tsx';
+import { DropMore, DropZone } from '../ui/DropZone.tsx';
+import { EmptySmall } from '../ui/Empty.tsx';
+import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
+import { BookOpenOutlineIcon, CheckIcon, TrashIcon } from '../ui/icons.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -30,6 +33,7 @@ export function Bibles() {
   const bibles = useData(listBibles, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
+  const [query, setQuery] = useState('');
   /** The translation being downloaded or removed: one at a time, as the current app. */
   const [keeping, setKeeping] = useState<string | null>(null);
   const status = useDbStatus();
@@ -65,6 +69,8 @@ export function Bibles() {
     }
   };
 
+  const shown = bibles?.filter((b) => matches(query, b.name, b.abbreviation)) ?? [];
+
   const remove = async (b: InstalledBible) => {
     let saved = false;
     if (!(await ask(deleteAsk(t('bibles.deleteConfirm', { name: b.name }), b.name, async () => (saved = await trySave(db.mutate('deleteBible', { id: b.id }))))))) return;
@@ -76,57 +82,31 @@ export function Bibles() {
     <PageContainer>
       <DropZone className="flex flex-col space-y-5" label={t('bibles.dropHere')} accept=".zip" multiple={false} onFiles={(files) => void importFile(files[0])}>
         {dialog}
-        <PageHeader title={t('bibles.title')} />
-        <div className={`${CARD} p-5 space-y-4`}>
-          <h2 className="text-base/6 font-semibold">{t('bibles.importTitle')}</h2>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            {t('bibles.importText').split('{zip}')[0]}
-            <code>.zip</code>
-            {t('bibles.importText').split('{zip}')[1]}
-          </p>
-          <AppButton asLabel disabled={busy} className="inline-flex items-center gap-2">
-            <ArrowDownTrayIcon className="size-4" />
-            {busy ? t('bibles.importing') : t('bibles.chooseFile')}
-            <input
-              type="file"
-              accept=".zip"
-              hidden
-              disabled={busy}
-              data-testid="bible-file"
-              onChange={(e) => {
-                void importFile(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-          </AppButton>
-          <DropHint text={t('bibles.orDrop')} className="hidden sm:inline ml-3" />
-          {busy && (
-            <div className="space-y-2" role="status">
-              <div className="text-sm text-stone-600 dark:text-stone-300">{t('bibles.processing')}</div>
-              <div className="w-full bg-stone-200 dark:bg-raised rounded-full h-2 overflow-hidden">
-                <div className="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse" />
-              </div>
+        {/* As Bilder, Ljud and Videor (Lars, 2026-11-03): + floats at the bottom right and takes a zip file. */}
+        <PageHeader title={t('bibles.title')}>
+          <ImportFilesButton round accept=".zip" busy={busy} testId="bible-file" onFiles={(files) => void importFile(files[0])} />
+        </PageHeader>
+        {busy && (
+          <div className="px-5 space-y-2" role="status">
+            <div className="text-sm text-stone-600 dark:text-stone-300">{t('bibles.processing')}</div>
+            <div className="w-full bg-stone-200 dark:bg-raised rounded-full h-2 overflow-hidden">
+              <div className="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse" />
             </div>
-          )}
-          {message && (
-            <p className={`text-sm ${message.ok ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`} role="status" data-testid="bible-import-message">
-              {message.text}
-            </p>
-          )}
-        </div>
-        <div className={CARD}>
-          <div className="px-5 pt-4 pb-2">
-            <h2 className="text-base/6 font-semibold">{t('bibles.installed', { count: bibles?.length ?? 0 })}</h2>
-            {!host && status && !persistent && !!bibles?.length && <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('bibles.offlineUnavailable')}</p>}
           </div>
-          {bibles && !bibles.length && (
-            <div className="flex flex-col items-center justify-center py-12 text-stone-400">
-              <BookOpenOutlineIcon className="size-16 mb-4" />
-              <p className="text-sm">{t('bibles.empty')}</p>
-            </div>
-          )}
+        )}
+        {message && (
+          <p className={`px-5 text-sm ${message.ok ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`} role="status" data-testid="bible-import-message">
+            {message.text}
+          </p>
+        )}
+        {!!bibles?.length && <ListSearch query={query} onChange={setQuery} />}
+        {!!bibles?.length && !shown.length && <NoMatch query={query} />}
+        {/* None yet: the empty list itself is the place to drop the zip file; else the list, and that place under it. */}
+        {bibles && !bibles.length && <EmptySmall icon={<BookOpenOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('bibles.empty')} dropHint={t('bibles.dropHere')} />}
+        {!!shown.length && (
+        <div className={CARD}>
           <ul aria-label={t('bibles.title')}>
-            {bibles?.map((b) => (
+            {shown.map((b) => (
               <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{b.name}</div>
@@ -147,6 +127,14 @@ export function Bibles() {
             ))}
           </ul>
         </div>
+        )}
+        {!!bibles?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(bibles.length === 1 ? 'bibles.count.one' : 'bibles.count.many', { n: bibles.length })}</p>}
+        {/* What a bible file is, and why this device keeps none offline, in grey under the list as iOS's footers. */}
+        <p className="px-4 text-xs text-stone-500 dark:text-stone-400">
+          {t('bibles.importText')}
+          {!host && status && !persistent && !!bibles?.length && ` ${t('bibles.offlineUnavailable')}`}
+        </p>
+        {!!bibles?.length && <DropMore text={t('bibles.dropHere')} />}
       </DropZone>
     </PageContainer>
   );

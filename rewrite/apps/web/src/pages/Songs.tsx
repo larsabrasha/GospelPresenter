@@ -12,7 +12,7 @@ import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
 import { ArrowDownTrayIcon, MusicalNoteOutlineIcon } from '../ui/icons.tsx';
-import { DropZone } from '../ui/DropZone.tsx';
+import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { ListCard, ListLinkRow } from '../ui/List.tsx';
 import { CAPTION } from '../ui/Group.tsx';
 import { byLetter } from './songLetters.ts';
@@ -106,8 +106,8 @@ export function Songs() {
         {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
         {songImport.status}
         {songImport.dialog}
-        {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} />}
-        {songs && !songs.length && <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} />}
+        {!!songs?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} />}
+        {songs && !songs.length && <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} dropHint={t('songs.import.drop')} />}
         {!!songs?.length && shown && !shown.length && <p className="px-5 text-stone-400 text-sm">{t('songs.noHits')}</p>}
         {searching && !!shown?.length && <ListCard label={t('nav.songs')}>{shown.map(row)}</ListCard>}
         {sections && !!sections.length && (
@@ -138,6 +138,7 @@ export function Songs() {
           </div>
         )}
         {!!shown?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'songs.count.one' : 'songs.count.many', { n: shown.length })}</p>}
+        {!!songs?.length && <DropMore text={t('songs.import.drop')} />}
       </DropZone>
     </PageContainer>
   );

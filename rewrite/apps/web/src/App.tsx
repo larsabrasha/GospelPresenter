@@ -187,6 +187,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           compactTitleShown={!introTitleInView}
           back={settingsBack(route)}
           split
+          narrow={aloneInSettings(route, adminBack())}
           onClose={() => closeAdmin(under)}
         >
           <SyncWarnings />

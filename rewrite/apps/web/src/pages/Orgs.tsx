@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
 import type { Me, OrgRow, UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
@@ -86,21 +87,24 @@ function CreateOrgDialog({ onClose }: { onClose: () => void }) {
 export function Orgs() {
   const [orgs, setOrgs] = useState<OrgRow[] | string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
   useEffect(() => {
     void load<OrgRow[]>('/api/orgs').then(setOrgs);
   }, []);
+  const shown = Array.isArray(orgs) ? orgs.filter((o) => matches(query, o.name)) : [];
   return (
     <PageContainer>
       <PageHeader title={t('orgs.title')}>
         <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
       </PageHeader>
       {typeof orgs === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{orgs}</p>}
-      <div className={CARD}>
+      {Array.isArray(orgs) && !!orgs.length && <ListSearch query={query} onChange={setQuery} />}
+      {Array.isArray(orgs) && !!orgs.length && !shown.length && <NoMatch query={query} />}
+      <div className={`${CARD} ${Array.isArray(orgs) && !!orgs.length && !shown.length ? 'hidden' : ''}`}>
         {orgs === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('orgs.empty')} />}
         <ul aria-label={t('orgs.title')}>
-          {Array.isArray(orgs) &&
-            orgs.map((o) => (
+          {shown.map((o) => (
               <li key={o.id} className="border-b border-separator last:border-b-0">
                 <a href={href({ page: 'org', id: o.id })} className={`flex items-center gap-3 px-7 py-3 ${ROW_HOVER} cursor-pointer`}>
                   <Avatar name={o.name} />

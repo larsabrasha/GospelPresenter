@@ -8,11 +8,10 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { PhotoOutlineIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { PictureMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /**
@@ -27,6 +26,9 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
     <div className="w-32 max-w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised flex items-center justify-center text-xs text-stone-400">{t('images.fetching')}</div>
   );
 }
+
+/** When a picture goes to the trash: this device's clock, as for songs and presentations. */
+const trashedAt = () => Date.now();
 
 /**
  * Bilder (spec 05 `/admin/images`): the organisation's pictures. Each file is
@@ -50,7 +52,7 @@ export function Images({ role }: { role: Role }) {
   };
 
   const remove = async (image: LibraryImage) => {
-    if (!(await trySave(db.mutate('trashImage', { id: image.id, at: Date.now() })))) return;
+    if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
     toast(t('images.trashed', { name: image.fileName }));
   };
 
@@ -82,9 +84,10 @@ export function Images({ role }: { role: Role }) {
             </ul>
           </div>
         )}
-        {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
-        <div className={CARD.replace(' overflow-hidden', '')}>
-          {!!images?.length && <div className="px-5 pt-4 pb-2"><SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact /></div>}
+        {/* Under the title, as Sånger's (Lars, 2026-11-03: the pages alike, no box in a box). */}
+        {!!images?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
+        {/* The pictures on the page itself, as Photos' grid, with no card around them (Lars, 2026-11-03: no box in a box). */}
+        <div>
           {!images && <div className="px-5 py-4 text-stone-400 text-sm">{t('presentation.loadingImages')}</div>}
           {images && !images.length && (
             <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('images.empty')} dropHint={manage ? t('drop.here') : undefined} />
@@ -92,17 +95,19 @@ export function Images({ role }: { role: Role }) {
           {!!images?.length && !shown.length && <CardNote>{t('images.noMatch')}</CardNote>}
           {/* Columns by its own width, not the window's: Inställningar's page column is narrow on an iPad held upright. */}
           <div className="@container">
-          <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 p-3 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
+          <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 -mx-2 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
             {shown.map((image) => (
               <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid="image-card">
-                <div className="relative rounded-lg">
-                  <ImageThumb image={image} />
-                  {manage && (
-                    <div className="absolute top-1 right-1">
-                      <RemoveMenu name={image.fileName} on="picture" onRemove={() => void remove(image)} />
+                {/* Radera on a right click or a finger held on it, as Photos (PictureMenu); nothing on the picture. */}
+                {manage ? (
+                  <PictureMenu name={image.fileName} onRemove={() => void remove(image)}>
+                    <div className="relative rounded-lg" tabIndex={0} aria-label={image.fileName}>
+                      <ImageThumb image={image} />
                     </div>
-                  )}
-                </div>
+                  </PictureMenu>
+                ) : (
+                  <ImageThumb image={image} />
+                )}
                 <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
                   {image.fileName}
                 </p>

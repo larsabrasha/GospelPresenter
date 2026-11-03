@@ -289,7 +289,9 @@ for each kind the caller manages, then lists every trashed row of the kinds the 
 ManageOrganizationAudios), newest deletion first (tie → id).
 - States: "Laddar..."; empty: icon + "Papperskorgen är tom." + "Det du tar bort sparas här i 30 dagar
   innan det tas bort helt."; content.
-- Content header: "1 sak" / "{n} saker" (+ "av {total}" when filtered); **Töm papperskorgen**.
+- Content header: "1 sak" / "{n} saker" (+ "av {total}" when filtered); **Töm papperskorgen**. 2.0 (Lars,
+  2026-11-03, as the other lists): the kind tabs and the search under the title, the list alone in its card, the count
+  under it, and Töm papperskorgen as a red row of its own last.
 - Kind pills (only when >1 kind present): "Allt", then present kinds in fixed order Presentationer,
   Mallar, Sånger, Bilder, Ljudfiler. `?kind=Presentation|Template|Song|Image|Audio` (case-insensitive)
   preselects; unknown/absent/empty kind → "Allt".
