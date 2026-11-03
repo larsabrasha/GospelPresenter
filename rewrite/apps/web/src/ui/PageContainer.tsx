@@ -49,7 +49,7 @@ export function PageContainer({ children, maxWidthClass, className }: { children
   // sides and between groups as iOS's inset grouped lists have it (Lars, 2026-11-03: too little white space).
   const column = filled ? 'px-5 pt-5 pb-24 space-y-7' : `pt-8 pb-24 lg:pb-3 ${maxWidthClass ?? 'sm:w-180'} mx-auto space-y-5`;
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto pb-safe-0">
       <div className={`flex flex-col p-3 w-full ${column} ${className ?? ''}`}>{children}</div>
     </div>
   );

@@ -41,8 +41,9 @@ export function SideMenu({
       )}
       {children}
       {/* The sync, whether it is kept offline, and whether this device has the files while it presents or keeps the
-          presentation (a line only when one is missing). */}
-      <div className="shrink-0 px-2 py-1 empty:hidden">
+          presentation (a line only when one is missing). Always a row high, and room at its right, for the column's
+          toggle there (ui/PanelToggle.tsx). */}
+      <div className="shrink-0 min-h-10 touch:min-h-11 pl-2 pr-11 touch:pr-14 pt-1 pb-safe-1">
         {/* One line, one thing at a time: a sync that waits or fails, else whether it is kept offline. */}
         <SyncLine fallback={<OfflineStatus presentation={presentation} onOpen={onOffline} />} />
         {(media || keep.kept) && <MediaReadiness presentationId={presentation.id} audio />}

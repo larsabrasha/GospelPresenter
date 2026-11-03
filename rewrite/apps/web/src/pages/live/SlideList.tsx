@@ -120,7 +120,7 @@ export function SlideList({
       ref={box}
       // A column, so the footer (a phone's offline and Fjärrstyrning lines) stands at the foot of the page when the
       // items are few, and after them when they are many; never floating over them (Lars, 2026-11-02).
-      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-24 lg:pb-12 max-lg:landscape:pt-3 bg-ground`}
+      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-safe-24 lg:pb-safe-12 max-lg:landscape:pt-3 bg-ground`}
       data-testid={wide ? 'live-slides' : 'live-order'}
     >
       {header}

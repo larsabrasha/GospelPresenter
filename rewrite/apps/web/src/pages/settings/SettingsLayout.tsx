@@ -168,7 +168,7 @@ export function SettingsLayout({
     );
   return (
     <div className="flex flex-1 min-h-0">
-      <aside className={`split:w-80 shrink-0 overflow-y-auto bg-ground split:bg-sidebar split:border-r-[0.5px] split:border-separator px-4 pt-4 pb-12 split:py-4 ${atList ? 'max-split:flex-1' : 'max-split:hidden'}`}>
+      <aside className={`split:w-80 shrink-0 overflow-y-auto bg-ground split:bg-sidebar split:border-r-[0.5px] split:border-separator px-4 pt-4 pb-safe-12 split:pt-4 split:pb-safe-4 ${atList ? 'max-split:flex-1' : 'max-split:hidden'}`}>
         <SettingsList me={me} host={host} route={route} />
       </aside>
       <main className={`flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground ${atList ? 'max-split:hidden' : ''}`}>
@@ -183,7 +183,7 @@ export function SettingsLayout({
           </PageBarSlot>
         </PageBackInBar>
         {/* A list page's +, floating over the list at the bottom right (PageHeader). */}
-        <div ref={setFloat} className="absolute z-10 right-5 bottom-5 flex gap-3 empty:hidden" />
+        <div ref={setFloat} className="absolute z-10 right-5 bottom-safe-5 flex gap-3 empty:hidden" />
       </main>
     </div>
   );

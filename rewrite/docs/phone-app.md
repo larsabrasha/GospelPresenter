@@ -28,9 +28,11 @@ since it differs from the browser's by that one value. The native code is two fi
 
 **Safe areas.** The page reaches the screen's edges (`viewport-fit=cover`, `apps/web/index.html`), in the phone app
 and in a browser alike, and keeps what it draws out of the status bar, the notch or island, the corners and the home
-indicator: the body is padded by the safe area (`p-safe` in `apps/web/src/app.css`), and a layer fixed over the whole
-screen pads itself (a dialog with `p-safe-4`, at least 1rem; the phone's live view, a toast, the error bar, a public
-output's text). A background still reaches the edges. Typing keeps it so too: the keyboard makes the web view shorter
+indicator: the body is padded by the safe area at the top and sides (`px-safe-top` in `apps/web/src/app.css`), and a
+layer fixed over the whole screen pads itself (a dialog with `p-safe-4`, at least 1rem; the phone's live view, a toast, the error bar, a public
+output's text). A background still reaches the edges, at the foot too (Lars, 2026-11-03: a strip of the page's colour
+under the columns looked unfinished): what stands there keeps above the home indicator by `pb-safe-*` and
+`bottom-safe-*` (a page's scroll, a column's last line, the columns' toggles, Inställningar's +). Typing keeps it so too: the keyboard makes the web view shorter
 (Capacitor's Keyboard plugin, `resize: native`, `apps/mobile/capacitor.config.ts`) rather than pushing the page up under
 the status bar, the field being typed in is scrolled back into view when the page gets shorter (`apps/web/src/main.tsx`),
 and on iOS the page has a largest scale of 1, since iOS zooms into a field under 16 px and stays zoomed (the song's text

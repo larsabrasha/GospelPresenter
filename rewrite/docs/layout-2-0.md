@@ -125,9 +125,11 @@ overlay.
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
-- **Folding the columns away** (Lars, 2026-11-03): a round button with a sidebar icon beside ‹ folds the left column
-  away and out again ("Göm sidofält" / "Visa sidofält"), and while presenting one beside the cog does the same for the
-  live column ("Göm livekolumnen" / "Visa livekolumnen"), as iPadOS's and macOS's sidebars. Each slides off its edge
+- **Folding the columns away** (Lars, 2026-11-03): a button with a sidebar icon at the foot of each column, at its inner
+  edge beside its last line (the left column's at its right, beside the sync line; the live column's at its left, with
+  Fjärrstyrning moved to the right), folds it away and out again ("Göm sidofält" / "Visa sidofält", "Göm livekolumnen" /
+  "Visa livekolumnen"), as iPadOS's and macOS's sidebars. Folded, the button stays at the middle's edge and travels with
+  the column's edge as it slides (`apps/web/src/ui/PanelToggle.tsx`). Each slides off its edge
   and back by transform only, the middle taking the room at once as it goes in and giving it back once it is out
   (`apps/web/src/ui/sidePanels.ts`); whether each is out is kept on the device. Tested in `e2e/panels.spec.ts`.
 - **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a

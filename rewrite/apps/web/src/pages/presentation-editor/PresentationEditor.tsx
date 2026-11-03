@@ -36,6 +36,7 @@ import { isHostWindow } from '../../hostWindow.ts';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog.tsx';
 import { SideMenu } from './SideMenu.tsx';
 import { useSidePanels } from '../../ui/sidePanels.ts';
+import { PanelToggle } from '../../ui/PanelToggle.tsx';
 
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
@@ -358,7 +359,6 @@ export function PresentationEditor({
           onSaveAsTemplate={saveAsTemplate}
           onMaterials={template ? undefined : () => setShowingMaterials(true)}
           onTrash={() => void trash()}
-          panels={panels}
         />
       )}
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
@@ -437,6 +437,9 @@ export function PresentationEditor({
             />
           </>
         )}
+        {/* The columns' toggles at their feet, at their inner edges (ui/PanelToggle.tsx). */}
+        {!phone && <PanelToggle side="left" open={panels.open.left} onToggle={() => panels.toggle('left')} />}
+        {!phone && presenting && <PanelToggle side="right" open={panels.open.right} onToggle={() => panels.toggle('right')} />}
         {!phone && presenting && (
           <LivePanel
             presentation={presentation}
