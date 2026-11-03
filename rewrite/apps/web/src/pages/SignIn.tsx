@@ -9,6 +9,7 @@ import { FloatingInput } from '../ui/Floating.tsx';
 import { GoogleIcon } from '../ui/icons.tsx';
 import { appVersion } from '../version.ts';
 import { AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
+import { ServerChoice } from './ServerChoice.tsx';
 
 /** The sign-in buttons of SignIn.razor: Google white with its G, any other way sky blue. */
 const GOOGLE = 'flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-white text-stone-700 text-lg cursor-pointer hover:bg-stone-100 border border-stone-300';
@@ -176,6 +177,7 @@ export function SignIn({ error, methods, onSignedIn }: { error: string | null; m
         <>
           {methods?.mail && <Recover />}
           {version && <p className="pt-16 text-xs text-stone-400 dark:text-stone-500 text-center">{version}</p>}
+          <ServerChoice />
         </>
       }
       onSignedIn={onSignedIn}

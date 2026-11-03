@@ -17,6 +17,7 @@ import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx
 import { href, navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { ROLE_BADGE } from './Users.tsx';
+import { ROW_HOVER, RowChevron } from '../ui/List.tsx';
 
 // The SuperAdmin's organisations (spec 01 `/admin/organizations`, Organizations.razor and OrganizationDetail.razor;
 // decided on 2026-10-31). Online only: organisations are not synced (spec 06). No logo yet (GAPS.md: later).
@@ -101,12 +102,13 @@ export function Orgs() {
           {Array.isArray(orgs) &&
             orgs.map((o) => (
               <li key={o.id} className="border-b border-separator last:border-b-0">
-                <a href={href({ page: 'org', id: o.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-raised cursor-pointer">
+                <a href={href({ page: 'org', id: o.id })} className={`flex items-center gap-3 px-7 py-3 ${ROW_HOVER} cursor-pointer`}>
                   <Avatar name={o.name} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{o.name}</div>
                     <div className="text-xs text-stone-400 dark:text-stone-500">{t('orgs.members', { n: o.members })}</div>
                   </div>
+                  <RowChevron />
                 </a>
               </li>
             ))}

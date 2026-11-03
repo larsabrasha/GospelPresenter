@@ -1,6 +1,17 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { ChevronRightIcon } from './icons.tsx';
 
+/**
+ * A row's hover on a card: a shade darker than the page's ground, so the card stays a card (Lars, 2026-11-03: the
+ * ground's own colour made it vanish).
+ */
+export const ROW_HOVER = 'hover:bg-stone-200/60 dark:hover:bg-white/[0.06]';
+
+/** The › at the end of a row that opens a page, as iOS's lists. */
+export function RowChevron() {
+  return <ChevronRightIcon className="size-4 shrink-0 -mr-1 text-stone-400 dark:text-stone-600" />;
+}
+
 // The current app's lists: a light card of rows, with an optional small
 // caption above (Components/Presentations/PresentationSection.razor, PresentationRow.razor).
 
@@ -50,7 +61,7 @@ export function ListLinkRow({
       <a
         {...nav}
         href={href}
-        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-stone-100 dark:hover:bg-raised/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+        className={`flex-1 min-w-0 flex items-center gap-3 px-5 py-3 ${ROW_HOVER} no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500`}
       >
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>
@@ -62,7 +73,7 @@ export function ListLinkRow({
         </div>
         {end}
         {/* A row that opens a page says so, as iOS's lists do (Lars, 2026-11-03); not beside a control of its own. */}
-        {!after && <ChevronRightIcon className="size-4 shrink-0 -mr-1 text-stone-400 dark:text-stone-600" />}
+        {!after && <RowChevron />}
       </a>
       {after && <div className="shrink-0 pr-3 -ml-2">{after}</div>}
     </li>

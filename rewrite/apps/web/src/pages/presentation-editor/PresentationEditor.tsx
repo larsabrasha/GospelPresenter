@@ -20,6 +20,7 @@ import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
+import type { ItemMenuSource } from '../live/ItemContextMenu.tsx';
 import { useAutoOutputs } from '../live/useAutoOutputs.ts';
 import { SlideList } from '../live/SlideList.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
@@ -138,6 +139,9 @@ export function PresentationEditor({
   };
   // Select mode ("Markera"): items are ticked, then removed together (Sidebar.razor).
   const [ticking, setTicking] = useState(false);
+  // The row Markera was chosen on from a heading's …, ticked first; and the picture item edited in place.
+  const [tickFirst, setTickFirst] = useState<string | null>(null);
+  const [editingImages, setEditingImages] = useState<string | null>(null);
   // The add dialog: open, and whether it adds pictures to the selected image item (Lägg till bilder).
   const [adding, setAdding] = useState<false | 'item' | 'images'>(false);
   // While presenting: the item "Lägg till efter" named, and the last item added, which the next addition follows (liveList.ts).
@@ -294,6 +298,28 @@ export function PresentationEditor({
   const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
+  // An item's menu, the same from its row at the left and its heading's … (ItemContextMenu).
+  const menuSource: ItemMenuSource = {
+    songs,
+    arrangements: data.arrangements,
+    overlays,
+    order: items.map((i) => i.id),
+    shownId: pointer.black ? null : liveItemId,
+    editHref: (item) => {
+      const page = songPage(item, songs);
+      return page && href(page);
+    },
+    onEditImages: (item) => setEditingImages(item.id),
+    onAddAfter: (item) => {
+      setChosenAfter(item.id);
+      setAdding('item');
+    },
+    onTick: (item) => {
+      setTickFirst(item.id);
+      setTicking(true);
+    },
+    onRemove: (item) => void removeItem(item),
+  };
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -353,10 +379,13 @@ export function PresentationEditor({
                   setChosenAfter(itemId);
                   setAdding('item');
                 }}
-                onRemove={(item) => void removeItem(item)}
-                editHref={(item) => { const page = songPage(item, songs); return page && href(page); }}
+                menuSource={menuSource}
                 ticking={ticking}
-                onTicking={setTicking}
+                tickFirst={tickFirst}
+                onTicking={(on) => {
+                  setTicking(on);
+                  if (!on) setTickFirst(null);
+                }}
               />
             </SideMenu>
             <SlideList
@@ -365,7 +394,6 @@ export function PresentationEditor({
               slides={slides}
               theme={theme}
               songs={songs}
-              arrangements={data.arrangements}
               overlays={overlays}
               pointer={pointer}
               players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
@@ -375,6 +403,9 @@ export function PresentationEditor({
                 setSelectedId(itemId);
                 setAdding('images');
               }}
+              menuSource={menuSource}
+              editingImages={editingImages}
+              onEditingImages={setEditingImages}
             />
           </>
         )}

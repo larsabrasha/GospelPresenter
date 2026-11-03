@@ -33,6 +33,7 @@ import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 import { mediaAdds } from './mediaAdds.ts';
+import { socketUrl } from '../server.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
 const POLL_MS = 5 * 60_000;
@@ -40,6 +41,8 @@ const RECONNECT_MS = 3_000;
 
 let client: SyncClient | undefined;
 let session: Session | undefined;
+/** The server's origin, from the page (server.ts): a worker has no storage of its own to read it from. */
+let server = location.origin;
 let storage = '';
 let connected = false;
 let songSearch: SongSearch | undefined;
@@ -94,7 +97,7 @@ async function reportStatus() {
  * backstop poll; stops for good once the server refuses the credentials.
  */
 function startSync(c: SyncClient, s: Session) {
-  const url = new URL('/api/sync/poke', location.origin.replace(/^http/, 'ws')).toString();
+  const url = socketUrl('/api/sync/poke', server);
   const connect = async () => {
     if (c.authError) return void reportStatus();
     try {
@@ -140,13 +143,13 @@ const credentials = () => authHeaders({ token: session!.token, device: session!.
 
 /** Uploads the text of each queued import before the import is pushed, so imports work offline. */
 const uploads = new BibleTextUploads(async (hash, json) => {
-  const res = await fetch(`/api/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
+  const res = await fetch(`${server}/api/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
   return res.status;
 });
 
 /** Uploads the blobs of each queued `addImage` before it is pushed, so a picture can be added offline. */
 const mediaUploads = new MediaUploads(async (hash, bytes) => {
-  const res = await fetch(`/api/media/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', ...credentials() }, body: bytes as BodyInit });
+  const res = await fetch(`${server}/api/media/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', ...credentials() }, body: bytes as BodyInit });
   return res.status;
 });
 
@@ -174,12 +177,12 @@ function mediaPolicy(): MediaPolicy {
 }
 
 async function downloadBlob(hash: string): Promise<Uint8Array | null> {
-  const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
+  const res = await fetch(`${server}/api/media/${hash}`, { headers: credentials() });
   return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
 }
 
 /** A video from `offset` on (HTTP Range), to keep it whole here. */
-const getVideo = (hash: string, offset: number) => fetch(`/api/media/${hash}`, { headers: { ...credentials(), ...(offset ? { range: `bytes=${offset}-` } : {}) } });
+const getVideo = (hash: string, offset: number) => fetch(`${server}/api/media/${hash}`, { headers: { ...credentials(), ...(offset ? { range: `bytes=${offset}-` } : {}) } });
 
 /**
  * "Rensa cache": drops every file nothing wants now, blobs and videos, at once. Never a thumbnail, a file
@@ -287,7 +290,7 @@ function syncBibles() {
 async function fetchMediaHere(hash: string): Promise<MediaBytes | null> {
   if (!session?.hostWindow) return null;
   try {
-    const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
+    const res = await fetch(`${server}/api/media/${hash}`, { headers: credentials() });
     return res.ok ? { contentType: res.headers.get('content-type') ?? 'application/octet-stream', bytes: new Uint8Array(await res.arrayBuffer()) } : null;
   } catch {
     return null;
@@ -295,7 +298,7 @@ async function fetchMediaHere(hash: string): Promise<MediaBytes | null> {
 }
 
 async function downloadBibleText(hash: string): Promise<string | null> {
-  const res = await fetch(`/api/bibles/${hash}`, { headers: credentials() });
+  const res = await fetch(`${server}/api/bibles/${hash}`, { headers: credentials() });
   return res.ok ? res.text() : null;
 }
 
@@ -333,10 +336,11 @@ async function handle(call: DbCall): Promise<unknown> {
   switch (call.op) {
     case 'open': {
       if (client) return client.id;
+      server = call.server;
       const s = call.session;
       const sqlite = await openDb(dbFileName(s), s);
       const c = await SyncClient.open(sqlite, {
-        transport: httpTransport({ baseUrl: location.origin, token: s.token, device: s.device }),
+        transport: httpTransport({ baseUrl: server, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
       });

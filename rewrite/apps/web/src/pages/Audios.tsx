@@ -8,7 +8,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { ROW_HOVER, CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -86,7 +86,7 @@ export function Audios({ role }: { role: Role }) {
             {shown.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-stone-100 dark:hover:bg-raised/50"
+                className={`flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl ${ROW_HOVER}`}
                 aria-label={a.fileName}
               >
                 <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" />

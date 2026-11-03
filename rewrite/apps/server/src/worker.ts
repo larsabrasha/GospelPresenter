@@ -16,6 +16,7 @@ import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
 import { isAppPage, staticHeaders } from './static.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
+import { appCors } from './cors.ts';
 
 interface Env {
   DB: D1Database;
@@ -309,6 +310,9 @@ function globals(env: Env) {
 const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/live/', '/api/debug/dump', '/api/debug/triggers', '/api/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
+
+// The phone app's calls, before everything else: a preflight carries no credentials (cors.ts).
+worker.use('/api/*', appCors());
 
 worker.use('/api/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
 // Triggers in local D1: same check as in the Durable Object.

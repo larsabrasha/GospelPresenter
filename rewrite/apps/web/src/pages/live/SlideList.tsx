@@ -1,19 +1,18 @@
-import { sortedArrangements, type LivePointer, type Overlay, type PresentationItem, type Slide, type Song, type SongArrangement, type Theme } from '@gp/core';
+import { type LivePointer, type Overlay, type PresentationItem, type Slide, type Song, type Theme } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
 import { t } from '../../i18n.ts';
 import { slideMarks, type SlideMarkKind } from '../../live/liveList.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
-import { href } from '../../ui/router.ts';
 import { SlideMark } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { ImageItemEditor, ItemMedia, ItemWarnings, type Players } from '../presentation-editor/ItemParts.tsx';
 import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
-import { ItemMenu, OverlayChip } from './desktop/ItemMenu.tsx';
+import { OverlayChip } from './OverlayChip.tsx';
+import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 import { useFollowShown } from './followShown.ts';
-import { songPage } from './songPage.ts';
 
 /** A small round button in a section's heading. */
 const HEADING_BUTTON = 'ml-1 h-7 px-2.5 rounded-full flex items-center gap-1 normal-case tracking-normal font-medium cursor-pointer';
@@ -24,15 +23,14 @@ const HEADING_BUTTON = 'ml-1 h-7 px-2.5 rounded-full flex items-center gap-1 nor
  * top until the next pushes it away, with its warnings and its player under it; from `lg` the item's arrangement and
  * overlay too, and its slides a grid of pictures; on a phone every part a row with its whole text. While presenting
  * (`onShow`) a click or a tap shows a slide; the list follows the shown one only when it changed some other way, and
- * only when out of view. An item's … is a menu beside its name on a computer (Redigera, the overlay), and on a phone
- * opens `onItemMenu`'s sheet.
+ * only when out of view. An item's … beside its name opens on a computer the same menu as its row at the left
+ * (`menuSource`, ItemContextMenu), and on a phone `onItemMenu`'s sheet.
  */
 export function SlideList({
   items,
   slides,
   theme,
   songs,
-  arrangements,
   overlays,
   pointer,
   players,
@@ -40,6 +38,9 @@ export function SlideList({
   markedId = null,
   onShow,
   onItemMenu,
+  menuSource,
+  editingImages: editingShown,
+  onEditingImages,
   onAddImages,
   footer,
   header,
@@ -49,7 +50,6 @@ export function SlideList({
   slides: Map<string, ItemSlides>;
   theme: Theme;
   songs: Map<string, Song>;
-  arrangements: SongArrangement[];
   overlays: Overlay[];
   pointer: LivePointer;
   /** While presenting: the session's players (on a phone the audio only: the video plays in the picture). */
@@ -62,6 +62,11 @@ export function SlideList({
   onShow?: (itemId: string, partIndex: number) => void;
   /** On a phone: an item's … opens its sheet. */
   onItemMenu?: (item: PresentationItem) => void;
+  /** On a computer: what an item's menu needs, the same as its row's at the left. */
+  menuSource?: ItemMenuSource;
+  /** On a computer: the picture item edited in place, which its row's menu at the left can start too. */
+  editingImages?: string | null;
+  onEditingImages?: (itemId: string | null) => void;
   /** "Lägg till bilder" on an image item edited in place: the add dialog's picture tab, adding to it. */
   onAddImages?: (itemId: string) => void;
   /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
@@ -74,7 +79,10 @@ export function SlideList({
   const wide = useWide();
   const box = useRef<HTMLDivElement>(null);
   // Redigera on an image item, on a computer: its pictures to reorder, remove and add to, one item at a time.
-  const [editingImages, setEditingImages] = useState<string | null>(null);
+  const [ownEditing, setOwnEditing] = useState<string | null>(null);
+  const editingImages = editingShown === undefined ? ownEditing : editingShown;
+  const setEditingImages = onEditingImages ?? setOwnEditing;
+  const [menu, setMenu] = useState<OpenItemMenu | null>(null);
   const markTapped = useFollowShown(box, `${pointer.itemId}/${pointer.partIndex}`, wide ? 16 : 56, toItem);
   const markOf = slideMarks(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 })), pointer);
   const show =
@@ -104,7 +112,6 @@ export function SlideList({
       {items.map((item) => {
         const set = slides.get(item.id);
         const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
-        const page = songPage(item, songs);
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
         return (
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
@@ -138,14 +145,21 @@ export function SlideList({
                   {t('presentation.doneEditingImages')}
                 </AppButton>
               ) : (
-                <ItemMenu
-                  item={item}
-                  overlays={overlays}
-                  arrangements={song && song.deletedAt === null ? sortedArrangements(arrangements, song.id) : []}
-                  // A song opens alone in Inställningar, and Stäng comes back here, also while presenting.
-                  editHref={page && href(page)}
-                  onEditImages={item.type === 'image' ? () => setEditingImages(item.id) : undefined}
-                />
+                menuSource && (
+                  <AppButton
+                    variant="plain"
+                    aria-label={t('presentation.itemOptions', { title: item.title })}
+                    title={t('presentation.itemOptions', { title: item.title })}
+                    // The menu opens under the button, as a row's … at the left opens it.
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenu({ item, at: { x: rect.left, y: rect.bottom + 4 } });
+                    }}
+                    className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-raised normal-case tracking-normal font-normal"
+                  >
+                    <EllipsisIcon className="size-4" />
+                  </AppButton>
+                )
               )}
             </h3>
             <ItemWarnings item={item} set={set} songName={song?.name} />
@@ -178,6 +192,7 @@ export function SlideList({
         );
       })}
       {footer && <div className="mt-auto flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
+      {menu && menuSource && <ItemContextMenu menu={menu} source={menuSource} onClose={() => setMenu(null)} />}
     </div>
   );
 }

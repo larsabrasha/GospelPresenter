@@ -113,7 +113,9 @@ overlay.
   there are templates.
 - **Left:** the items, one row each, the shown one marked by a red dot in the room left of the row (Lars, 2026-11-02) and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
-  right click or the row's … gives Redigera (a song's), Lägg till efter, Flytta upp, Flytta ned, Markera and Ta bort; in
+  right click or the row's … gives the item's menu, the same as its heading's … in the middle (Lars, 2026-11-03: the two
+  differed): Redigera (a song's page, or a picture item's pictures), Lägg till efter, Flytta upp, Flytta ned, Markera,
+  the arrangement and the overlay with the chosen one ticked, and Radera; in
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.

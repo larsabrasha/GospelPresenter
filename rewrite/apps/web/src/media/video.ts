@@ -19,6 +19,7 @@ import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { render } from './process.ts';
+import { serverUrl } from '../server.ts';
 
 // Importing a video (TODO.md "Video, and which files a device fetches"): MP4
 // or MOV with H.264 or HEVC, kept as it is. The page reads the codec from the
@@ -159,7 +160,7 @@ const json = async (res: Response) => (await res.json().catch(() => ({}))) as { 
  * again. A refusal (not a video, another codec, too large) throws.
  */
 export async function uploadVideo(file: Blob, hash: string, progress: (p: UploadProgress) => void = () => {}, sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<{ type: VideoType; codec: VideoCodec }> {
-  const base = `/api/media/${hash}/upload`;
+  const base = serverUrl(`/api/media/${hash}/upload`);
   const read = fileReader(file);
   let failures = 0;
   const failed = async (done: number) => {
@@ -251,8 +252,9 @@ export async function playUrl(hash: string): Promise<string | null> {
   try {
     const r = await api<{ url: string; expiresAt: number }>('POST', `/api/media/${hash}/play`);
     if (r.status !== 200) return null;
-    playUrls.set(hash, r.body);
-    return r.body.url;
+    const played = { ...r.body, url: serverUrl(r.body.url) };
+    playUrls.set(hash, played);
+    return played.url;
   } catch {
     return null;
   }

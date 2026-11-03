@@ -1,4 +1,5 @@
 import { deviceToken, storedSession } from './session.ts';
+import { serverUrl } from '../server.ts';
 
 /** An answer from the server's auth API. A network failure throws instead. */
 export interface ApiResult<T> {
@@ -14,9 +15,9 @@ export function authHeaders(token = storedSession()?.token): Record<string, stri
   return { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(device ? { 'x-gp-device': device } : {}) };
 }
 
-/** Calls the server this page came from, with the session token (or `token`) and the paired-device token. */
+/** Calls the server (server.ts: the one the page came from, or the phone app's), with the session token (or `token`) and the paired-device token. */
 export async function api<T = unknown>(method: string, path: string, body?: unknown, opts: { token?: string } = {}): Promise<ApiResult<T>> {
-  const res = await fetch(path, {
+  const res = await fetch(serverUrl(path), {
     method,
     headers: {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),

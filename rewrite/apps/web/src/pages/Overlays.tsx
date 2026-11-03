@@ -14,11 +14,12 @@ import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { OverlaysPicture, PhotoOutlineIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { CARD, ROW_HOVER, RowChevron } from '../ui/List.tsx';
 import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { ImageThumb } from './Images.tsx';
+import { DANGER_ROW, Group } from '../ui/Group.tsx';
 
 /** "Skapa overlay": a title, then the overlay's page (Components/Presentations/NameDialog.razor). */
 function CreateDialog({ onClose }: { onClose: () => void }) {
@@ -85,12 +86,13 @@ export function Overlays() {
         <ul aria-label={t('overlays.title')}>
           {overlays?.map((o) => (
             <li key={o.id} className="border-b border-separator last:border-b-0">
-              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-stone-100 dark:hover:bg-raised/50 no-underline text-inherit">
+              <a href={href({ page: 'overlay', id: o.id })} className={`flex items-center gap-3 px-5 py-3 ${ROW_HOVER} no-underline text-inherit`}>
                 <OverlayThumb overlay={o} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{o.title}</div>
                   {o.content?.trim() && <div className="text-xs text-stone-400 truncate">{o.content}</div>}
                 </div>
+                <RowChevron />
               </a>
             </li>
           ))}
@@ -176,7 +178,8 @@ export function OverlayEditor({ id }: { id: string }) {
     <PageContainer>
       {dialog}
       <DetailHeader backHref={href({ page: 'overlays' })} title={overlay.title} saved={saved.node} className="px-5" />
-      <div className={`${CARD} p-5 space-y-4`}>
+      {/* The fields are boxes of their own, on the page with no card around them, as a user's page (Lars, 2026-11-03: no box in a box). */}
+      <div className="space-y-4">
         <AutoSaveField label={t('overlays.name')} maxLength={200} value={overlay.title} onSave={(v) => (v.trim() ? update({ title: v }) : undefined)} onSaved={saved.show} />
         <AutoSaveField
           label={t('overlays.content')}
@@ -223,11 +226,12 @@ export function OverlayEditor({ id }: { id: string }) {
           </div>
         </div>
       </div>
-      <div className="flex justify-end">
-        <AppButton variant="danger" onClick={() => void remove()}>
+      {/* Radera as a red row of its own, as a user's page has it. */}
+      <Group>
+        <AppButton variant="plain" className={DANGER_ROW} onClick={() => void remove()}>
           {t('common.delete')}
         </AppButton>
-      </div>
+      </Group>
       {picking && (
         <ImagePicker
           onClose={() => setPicking(false)}

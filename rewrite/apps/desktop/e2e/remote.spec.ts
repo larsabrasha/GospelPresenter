@@ -128,7 +128,7 @@ test('when the presenting computer drops out, the session freezes and someone el
   await secondApp.app.close();
   second = undefined; // closed already
   await expect(hostApp.page.getByTestId('remote-state')).toContainText('Datorn som presenterar har tappat kontakten', { timeout: 5_000 });
-  await expect(hostApp.page.getByText('Om datorn inte kommer tillbaka kan du avsluta presentationen härifrån.', { exact: false })).toBeVisible();
+  await expect(hostApp.page.getByText('Kommer datorn inte tillbaka kan du avsluta här.', { exact: false })).toBeVisible();
   await hostApp.page.getByRole('button', { name: 'Avsluta presentationen' }).click();
   await expect(hostApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
 });

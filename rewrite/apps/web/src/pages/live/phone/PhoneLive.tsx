@@ -185,10 +185,21 @@ export function PhoneLive({
           shownId={pointer.black ? null : pointer.itemId}
           onSelect={() => {}}
           onAddAfter={(itemId) => setAdding({ chosenId: itemId })}
-          onRemove={(item) => void remove(item)}
-          editHref={(item) => {
-            const page = songPage(item, songs);
-            return page && href(page);
+          // A row's menu here is the computer's (ItemContextMenu); its pictures open in their sheet, as the item's own sheet has them.
+          menuSource={{
+            songs,
+            arrangements,
+            overlays,
+            order: items.map((i) => i.id),
+            shownId: pointer.black ? null : pointer.itemId,
+            editHref: (item) => {
+              const page = songPage(item, songs);
+              return page && href(page);
+            },
+            onEditImages: (item) => setOpen({ images: item }),
+            onAddAfter: (item) => setAdding({ chosenId: item.id }),
+            onTick: (item) => setEditing(item.id),
+            onRemove: (item) => void remove(item),
           }}
           ticking
           tickFirst={editing}
@@ -201,7 +212,6 @@ export function PhoneLive({
           slides={slides}
           theme={theme}
           songs={songs}
-          arrangements={arrangements}
           overlays={overlays}
           pointer={pointer}
           players={presenting ? { audio: presenting.audio } : undefined}

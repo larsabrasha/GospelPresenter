@@ -3,6 +3,7 @@ import type { StorageReport } from '@gp/sync/client';
 import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 import { locale } from '../i18n.ts';
+import { serverOrigin } from '../server.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
 export class Db implements ReadDb {
@@ -40,7 +41,7 @@ export class Db implements ReadDb {
 
   /** Opens the session's database and starts syncing it. */
   open(session: Session): Promise<string> {
-    return this.call({ op: 'open', session, locale: locale() });
+    return this.call({ op: 'open', session, locale: locale(), server: serverOrigin() });
   }
 
   mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {

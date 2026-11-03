@@ -45,9 +45,9 @@ this order:
    (Lars makes the client; its redirect URI is `{origin}/api/auth/google/callback`), and deleting the trial
    when Lars is done. Setup and sign-in with a passkey there work in a browser, tried by hand.
 3. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
-   (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
-   (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
-   the LAN covers tablets for now.
+   (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app (ADR 0007 (7)),
+   now next and iOS first (Lars, 2026-11-03): the web app talks to a chosen server and the server lets the app's
+   origins in; the shell, its sign-in, and updates from the server are left. See [phone-app.md](phone-app.md).
 
 Also waiting, in TODO.md: remote control as an organisation setting ("Aldrig", "Presentatören väljer",
 "Alltid").

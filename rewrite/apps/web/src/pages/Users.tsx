@@ -12,11 +12,13 @@ import { UserIcon, UsersPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { serverOrigin } from '../server.ts';
+import { ROW_HOVER, RowChevron } from '../ui/List.tsx';
 
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */
 export async function inviteUrl(token: string): Promise<string> {
   const [lan] = (await window.gpDesktop?.lanUrls()) ?? [];
-  return `${lan ?? location.origin}/invite#${token}`;
+  return `${lan ?? serverOrigin()}/invite#${token}`;
 }
 
 /**
@@ -183,7 +185,7 @@ export function Users({ me }: { me: Me }) {
           {Array.isArray(users) &&
             users.map((u) => (
               <li key={u.id} className="border-b border-separator last:border-b-0">
-                <a href={href({ page: 'user', id: u.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-raised cursor-pointer">
+                <a href={href({ page: 'user', id: u.id })} className={`flex items-center gap-3 px-7 py-3 ${ROW_HOVER} cursor-pointer`}>
                   <span className="size-8 rounded-full bg-stone-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-stone-500 dark:text-stone-400">
                     <UserIcon className="size-4" />
                   </span>
@@ -194,6 +196,7 @@ export function Users({ me }: { me: Me }) {
                     <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{inviteStatus(u)}</div>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
+                  <RowChevron />
                 </a>
               </li>
             ))}

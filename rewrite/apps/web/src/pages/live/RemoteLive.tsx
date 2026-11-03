@@ -9,6 +9,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
 import { RemoteBanner } from './RemoteBanner.tsx';
+import { CloudOffIcon } from '../../ui/icons.tsx';
 
 /**
  * A controller (spec 04 §2): which session to drive, from the URL, the only
@@ -20,12 +21,14 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
   const [picked, setPicked] = useState<string | null>(wanted);
   const candidates = sessions.filter((s) => s.presentationId === id && s.id !== ownSessionId);
   const chosen: LiveSessionInfo | undefined = candidates.find((s) => s.id === picked) ?? (candidates.length === 1 ? candidates[0] : undefined);
-  // Why there is nothing to control (Presentation.razor): grey text, and what can still be done under it.
-  const notReady = (text: string, extra?: ReactNode) => (
+  // Why there is nothing to control (Presentation.razor), as iOS's empty states (Lars, 2026-11-03: less text, not as
+  // wide, one size): an icon where it helps, a short line, and what can still be done under it, in a readable column.
+  const notReady = (text: string, extra?: ReactNode, icon?: ReactNode) => (
     <Waiting>
       <div className="flex-1 flex items-center justify-center text-center px-6 py-16">
-        <div className="space-y-2">
-          <p className="text-stone-400 dark:text-stone-500 text-sm" data-testid="remote-state">
+        <div className="max-w-xs flex flex-col items-center gap-3">
+          {icon}
+          <p className="text-[17px] font-semibold text-stone-700 dark:text-stone-200 text-balance" data-testid="remote-state">
             {text}
           </p>
           {extra}
@@ -57,12 +60,13 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: strin
   if (!chosen.ownerOnline) {
     return notReady(
       t('remote.ownerOffline'),
-      <div className="space-y-2 pt-2">
-        <div className="text-stone-400 dark:text-stone-500 text-xs">{t('remote.endAbandonedHint')}</div>
-        <AppButton variant="danger" filled onClick={() => link.end(chosen.id)}>
+      <>
+        <p className="-mt-1 text-[15px] text-stone-500 dark:text-stone-400 text-balance">{t('remote.endAbandonedHint')}</p>
+        <AppButton variant="danger" filled onClick={() => link.end(chosen.id)} className="mt-2">
           {t('remote.endAbandoned')}
         </AppButton>
-      </div>,
+      </>,
+      <CloudOffIcon className="size-12 text-stone-400 dark:text-stone-500" />,
     );
   }
   if (!chosen.remote) return notReady(t('remote.off'));

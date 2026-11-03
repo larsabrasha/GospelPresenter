@@ -442,8 +442,8 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången finns inte längre.')).toBeVisible();
 
-  // The item's ⋯ menu removes it, after asking (Sidebar.razor).
-  await page.getByRole('button', { name: 'Fler val för Amazing Grace' }).click();
+  // The item's ⋯ menu removes it, after asking (Sidebar.razor): its row's, at the left (its heading's is the same menu).
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Fler val för Amazing Grace' }).click();
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveCount(0);

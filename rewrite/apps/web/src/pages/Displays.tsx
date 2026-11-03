@@ -20,6 +20,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { downloadQr, QrCode } from '../ui/QrCode.tsx';
 import { useServerBase } from '../ui/serverBase.ts';
 import { copyText } from '../ui/copyText.ts';
+import { serverOrigin } from '../server.ts';
 
 /** A new public output code (LIVE-R30), from the browser's random source. */
 function randomDisplayCode(): string {
@@ -27,7 +28,7 @@ function randomDisplayCode(): string {
 }
 
 /** Where anyone opens an output: the server's own address (spec 04 §7). */
-function watchUrl(code: string, base = location.origin): string {
+function watchUrl(code: string, base = serverOrigin()): string {
   return `${base}${href({ page: 'watch', code })}`;
 }
 

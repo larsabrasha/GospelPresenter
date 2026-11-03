@@ -8,7 +8,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { VideoIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { ROW_HOVER, CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -99,7 +99,7 @@ export function Videos({ role }: { role: Role }) {
             {shown.map((v) => (
               <li
                 key={v.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-stone-100 dark:hover:bg-raised/50"
+                className={`flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl ${ROW_HOVER}`}
                 aria-label={v.fileName}
               >
                 <Thumb video={v} />

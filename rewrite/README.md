@@ -65,6 +65,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [media-and-files.md](docs/media-and-files.md) | Pictures, audio and video: what syncs, where the bytes live, the endpoints, the client pipeline, video's upload in parts and streaming, clean-up, audio during live, and which files a device keeps |
 | [live.md](docs/live.md) | Overlays, paired screens (`/display`) and the QR codes, remote control, and public outputs (`/watch`) |
 | [lan-https-and-addresses.md](docs/lan-https-and-addresses.md) | A tablet over plain http, https on the LAN, the service worker that starts the app without the host, a reverse proxy, and the app's addresses |
+| [phone-app.md](docs/phone-app.md) | The Capacitor app for iOS and Android: which server it talks to and how a church changes it, CORS for its origins, its sign-in, and updates from the server outside the App Store |
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |
 | [performance.md](docs/performance.md) | How fast the most used flows are, measured before and after, and what made them so |
 | [scenarios.md](docs/scenarios.md) | What a church does with the app, most common first, and the e2e tests that run each scenario, whole Sundays included |

@@ -11,7 +11,7 @@ import { ROUND_CLOSE } from '../ui/glass.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ChevronRightIcon, CloseIcon, DocumentIcon, DocumentTextIcon } from '../ui/icons.tsx';
-import { CARD, ListLinkRow, ListSection } from '../ui/List.tsx';
+import { CARD, ListLinkRow, ListSection, ROW_HOVER } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useRovingList } from '../ui/listNav.ts';
@@ -114,7 +114,7 @@ function OwnLive({ p }: { p: Presentation }) {
     <a
       href={href({ page: 'presentation', id: p.id })}
       aria-label={`${t('remote.nowShowing')}: ${p.name}`}
-      className={`${CARD} flex items-center gap-3.5 px-5 py-3 no-underline text-inherit hover:bg-stone-100 dark:hover:bg-raised/50`}
+      className={`${CARD} flex items-center gap-3.5 px-5 py-3 no-underline text-inherit ${ROW_HOVER}`}
     >
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="flex items-center gap-1.5 text-[13px] font-semibold text-red-500">

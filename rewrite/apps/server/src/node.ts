@@ -30,6 +30,7 @@ import { isAppPage, staticHeaders } from './static.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
+import { appCors } from './cors.ts';
 
 export { mailConfigFrom, type MailConfig } from './mail.ts';
 
@@ -282,6 +283,8 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const socketAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
   const clientAddress = proxies ? (c: Context) => forwardedClient(socketAddress(c), c.req.header('x-forwarded-for'), proxies) : socketAddress;
   const app = new Hono<{ Bindings: HttpBindings }>();
+  // The phone app's calls, before any guard: a preflight carries no credentials (cors.ts).
+  app.use('/api/*', appCors());
   if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
   app.route(
     '/',

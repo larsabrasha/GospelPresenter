@@ -12,6 +12,7 @@ import {
   type LiveSessionInfo,
 } from '@gp/core';
 import { newId } from '../ids.ts';
+import { socketUrl } from '../server.ts';
 
 // Remote control on the client (spec 04 §2, ADR 0004). One socket per
 // operator window to `/api/live/socket`: the window reports the session it
@@ -74,7 +75,7 @@ export class LiveLink {
 
   private connect() {
     if (this.closed) return;
-    const ws = new WebSocket(new URL('/api/live/socket', location.origin.replace(/^http/, 'ws')).toString(), this.protocols);
+    const ws = new WebSocket(socketUrl('/api/live/socket'), this.protocols);
     this.ws = ws;
     ws.addEventListener('open', () => {
       this.attempt = 0;

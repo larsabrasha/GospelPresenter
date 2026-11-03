@@ -54,7 +54,8 @@ function commit(command: 'build' | 'serve'): string | null {
 
 export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss(), serviceWorker()],
-  define: { GP_COMMIT: JSON.stringify(commit(command)) },
+  // GP_APP_SERVER: the phone app's default server, given when it is built (apps/web/src/server.ts); none for the browser.
+  define: { GP_COMMIT: JSON.stringify(commit(command)), GP_APP_SERVER: JSON.stringify(process.env.GP_APP_SERVER ?? '') },
   // wa-sqlite loads its own wasm; pre-bundling would break the URL.
   optimizeDeps: { exclude: ['@journeyapps/wa-sqlite'] },
   worker: { format: 'es' },

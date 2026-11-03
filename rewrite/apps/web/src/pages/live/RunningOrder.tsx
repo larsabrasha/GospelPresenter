@@ -3,18 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
-import { itemActions } from '../../live/liveList.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { CONTEXT_ROW, ContextMenu } from '../../ui/ContextMenu.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { CheckboxIcon, CheckSquareIcon, ChevronDownIcon, ChevronUpIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PencilIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { CheckboxIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
 import { useSortable } from '../../ui/sortable.ts';
+import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 
-/** An item's menu, open at a point: from a right click on its row, or under its …. */
-type Menu = { item: PresentationItem; at: { x: number; y: number } };
 
 /**
  * The running order, one on a computer and a phone (Lars, 2026-11-02): on a computer or an iPad lying down the left
@@ -22,7 +19,7 @@ type Menu = { item: PresentationItem; at: { x: number; y: number } };
  * iOS's lists edit. The items, one row each,
  * the shown one marked by a red dot in the room left of its row (Lars, 2026-11-02) and a red tint across the row. A mouse drags a row straight
  * away (after 4 px, so a click still selects); a finger drags by ≡, so it still scrolls. A right click or the row's …
- * gives Redigera (a song's), Lägg till efter, Flytta upp, Flytta ned, Markera and Ta bort; the shown item cannot be removed. A click selects
+ * gives the item's menu, the same as its heading's (ItemContextMenu); the shown item cannot be removed. A click selects
  * the item, which scrolls the slides to it. With `ticking` (Markera, which ticks the row it was chosen on), rows are
  * ticked instead (Shift+click ticks a range), a finger moves them by ≡, and the button under the list removes them after a
  * question (Sidebar.razor); the shown item cannot be ticked. `tickFirst` ticks a row when select mode starts from outside.
@@ -34,8 +31,7 @@ export function RunningOrder({
   shownId,
   onSelect,
   onAddAfter,
-  onRemove,
-  editHref,
+  menuSource,
   ticking,
   tickFirst = null,
   onTicking,
@@ -47,9 +43,8 @@ export function RunningOrder({
   onSelect: (itemId: string) => void;
   /** Lägg till: after the item named, or by the live list's rule (liveList.ts `addAfter`) with none. */
   onAddAfter: (itemId: string | null) => void;
-  onRemove: (item: PresentationItem) => void;
-  /** A song's page, opened alone in Inställningar, as its heading's … has it. */
-  editHref: (item: PresentationItem) => string | undefined;
+  /** What a row's menu needs (ItemContextMenu); its Markera ticks the row it was chosen on here. */
+  menuSource: ItemMenuSource;
   /** Select mode: Markera in a row's … starts it, Klar ends it. */
   ticking: boolean;
   tickFirst?: string | null;
@@ -59,7 +54,7 @@ export function RunningOrder({
   const saveFailed = useSaveFailed();
   const { dialog, ask } = useConfirm();
   const toast = useToast();
-  const [menu, setMenu] = useState<Menu | null>(null);
+  const [menu, setMenu] = useState<OpenItemMenu | null>(null);
   const move = (itemId: string, by: number) => afterWrite(db.mutate('moveItem', { itemId, by }), () => {}, saveFailed);
   const { listRef, rowStyle, handle, wholeRow, dragging } = useSortable<HTMLOListElement>((from, to) => move(items[from]!.id, to - from));
   // The selected row comes into view when the selection moves, by the arrows or by an add.
@@ -114,8 +109,6 @@ export function RunningOrder({
     onTicking(false);
     toast(chosen.length === 1 ? t('presentation.removedOne') : t('presentation.removedMany', { n: chosen.length }));
   };
-  const can = menu ? itemActions(order, menu.item.id, shownId) : null;
-  const songHref = menu ? editHref(menu.item) : undefined;
 
   // The scrollbar keeps its room at the right, the padding there making up the rest of 20px (app.css `--beside-scrollbar`).
   return (
@@ -243,47 +236,18 @@ export function RunningOrder({
           </AppButton>
         )}
       </div>
-      {menu && can && (
-        <ContextMenu at={menu.at} label={t('presentation.itemOptions', { title: menu.item.title })} onClose={() => setMenu(null)}>
-          {songHref && (
-            <>
-              <AppButton variant="plain" role="menuitem" href={songHref} className={CONTEXT_ROW}>
-                <PencilIcon className="size-4" />
-                {t('presentation.editSong')}
-              </AppButton>
-              <div className="h-px my-1 mx-1 bg-separator" />
-            </>
-          )}
-          <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => onAddAfter(menu.item.id)}>
-            <PlusIcon className="size-4" />
-            {t('live.addAfter')}
-          </AppButton>
-          <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} disabled={!can.up} onClick={() => move(menu.item.id, -1)}>
-            <ChevronUpIcon className="size-4" />
-            {t('common.moveUp')}
-          </AppButton>
-          <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} disabled={!can.down} onClick={() => move(menu.item.id, 1)}>
-            <ChevronDownIcon className="size-4" />
-            {t('common.moveDown')}
-          </AppButton>
-          <AppButton
-            variant="plain"
-            role="menuitem"
-            className={CONTEXT_ROW}
-            onClick={() => {
-              setFirst(menu.item.id);
+      {menu && (
+        <ItemContextMenu
+          menu={menu}
+          source={{
+            ...menuSource,
+            onTick: (item) => {
+              setFirst(item.id);
               onTicking(true);
-            }}
-          >
-            <CheckSquareIcon className="size-4" />
-            {t('presentation.tick')}
-          </AppButton>
-          <div className="h-px my-1 mx-1 bg-separator" />
-          <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} disabled={!can.remove} onClick={() => onRemove(menu.item)}>
-            <TrashIcon className="size-4" strokeWidth={1.5} />
-            {can.remove ? t('common.delete') : t('live.shownCannotRemove')}
-          </AppButton>
-        </ContextMenu>
+            },
+          }}
+          onClose={() => setMenu(null)}
+        />
       )}
     </div>
   );
