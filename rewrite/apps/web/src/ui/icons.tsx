@@ -383,6 +383,18 @@ export function SearchIcon({ className }: IconProps) {
   );
 }
 
+/** A window with a column at the left (`side="left"`) or the right, as SF Symbols' sidebar.left and sidebar.right. */
+export function SidebarIcon({ className, side }: IconProps & { side: 'left' | 'right' }) {
+  const x = side === 'left' ? 9 : 15;
+  const lines = side === 'left' ? 5.5 : 18.5;
+  return (
+    <Outline className={className} strokeWidth={1.6}>
+      <rect x="2.75" y="4.25" width="18.5" height="15.5" rx="3.25" />
+      <path strokeLinecap="round" d={`M${x} 4.5v15M${lines - 0.75} 8h1.5M${lines - 0.75} 10.75h1.5M${lines - 0.75} 13.5h1.5`} />
+    </Outline>
+  );
+}
+
 export function ChevronLeftIcon({ className }: IconProps) {
   return (
     <Outline className={className} strokeWidth={2}>

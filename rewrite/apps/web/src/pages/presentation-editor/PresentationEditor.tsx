@@ -35,6 +35,7 @@ import { PresentationMaterials } from '../song-materials/PresentationMaterials.t
 import { isHostWindow } from '../../hostWindow.ts';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog.tsx';
 import { SideMenu } from './SideMenu.tsx';
+import { useSidePanels } from '../../ui/sidePanels.ts';
 
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
@@ -142,6 +143,8 @@ export function PresentationEditor({
   const [ticking, setTicking] = useState(false);
   // The row Markera was chosen on from a heading's …, ticked first; and the picture item edited in place.
   const [tickFirst, setTickFirst] = useState<string | null>(null);
+  // The side columns on a computer, each folded away or out (ui/sidePanels.ts).
+  const panels = useSidePanels();
   const [editingImages, setEditingImages] = useState<string | null>(null);
   // The add dialog: open, and whether it adds pictures to the selected image item (Lägg till bilder).
   const [adding, setAdding] = useState<false | 'item' | 'images'>(false);
@@ -355,6 +358,7 @@ export function PresentationEditor({
           onSaveAsTemplate={saveAsTemplate}
           onMaterials={template ? undefined : () => setShowingMaterials(true)}
           onTrash={() => void trash()}
+          panels={panels}
         />
       )}
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
@@ -387,7 +391,7 @@ export function PresentationEditor({
         )}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} open={panels.open.left}>
               <RunningOrder
                 items={items}
                 slides={slides}
@@ -446,6 +450,7 @@ export function PresentationEditor({
             overlays={overlays}
             canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
             onStep={step}
+            open={panels.open.right}
           />
         )}
         {!phone && adding && (

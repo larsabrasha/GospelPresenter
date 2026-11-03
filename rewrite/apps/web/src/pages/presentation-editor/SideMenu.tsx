@@ -1,8 +1,9 @@
 import type { Presentation } from '@gp/core';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { SyncLine } from '../../TopBar.tsx';
 import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
 import { useKeepOffline } from '../../ui/KeepOffline.tsx';
+import { useFold } from '../../ui/sidePanels.ts';
 import { Description } from './Description.tsx';
 import { OfflineStatus } from './OfflineStatus.tsx';
 
@@ -15,6 +16,7 @@ export function SideMenu({
   presentation,
   media = false,
   onOffline,
+  open = true,
   children,
 }: {
   presentation: Presentation;
@@ -22,11 +24,15 @@ export function SideMenu({
   media?: boolean;
   /** The line at the foot while it is kept offline opens the dialog. */
   onOffline: () => void;
+  /** Out, or folded off the left edge (ui/sidePanels.ts). */
+  open?: boolean;
   children: ReactNode;
 }) {
   const keep = useKeepOffline(presentation);
+  const column = useRef<HTMLElement>(null);
+  useFold(column, 'left', open);
   return (
-    <aside className="w-[300px] shrink-0 h-full pt-3 flex flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
+    <aside ref={column} className="flex w-[300px] shrink-0 h-full pt-3 flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
       {/* The list's scrollbar room and padding too, so the box's edges line up with the rows' (Lars, 2026-11-02). */}
       {presentation.description && (
         <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-3 overflow-hidden [scrollbar-gutter:stable]">

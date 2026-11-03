@@ -4,7 +4,7 @@ import { outputWindow } from '../../live/outputWindow.ts';
 import type { LiveControl } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
+import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, SidebarIcon, StopIcon } from '../../ui/icons.tsx';
 import { backToTemplates, href } from '../../ui/router.ts';
 import { templateDetails } from '../templates.ts';
 import { PresentationMenu } from '../presentation-editor/PresentationMenu.tsx';
@@ -37,6 +37,7 @@ export function PresentationBar({
   onSaveAsTemplate,
   onMaterials,
   onTrash,
+  panels,
 }: {
   presentation: Presentation;
   live: LiveControl;
@@ -49,7 +50,17 @@ export function PresentationBar({
   onSaveAsTemplate?: () => void;
   onMaterials?: () => void;
   onTrash: () => void;
+  /** On a computer, the side columns' toggles (ui/sidePanels.ts): the running order's beside ‹, the live column's while presenting. */
+  panels?: { open: { left: boolean; right: boolean }; toggle: (side: 'left' | 'right') => void };
 }) {
+  const panelButton = (side: 'left' | 'right') => {
+    const label = t(panels?.open[side] ? (side === 'left' ? 'presentation.hideSidebar' : 'presentation.hideLiveColumn') : side === 'left' ? 'presentation.showSidebar' : 'presentation.showLiveColumn');
+    return (
+      <AppButton variant="plain" onClick={() => panels?.toggle(side)} aria-label={label} title={label} aria-pressed={panels?.open[side]} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`} data-testid={`toggle-${side}`}>
+        <SidebarIcon side={side} className="size-5" />
+      </AppButton>
+    );
+  };
   const { dialog, ask } = useConfirm();
   // "2026-11-01 10:00 · Stora salen"; a phone has no room for the date, so it is a part of its own that hides there.
   const date = presentation.isTemplate ? null : presentation.eventDate;
@@ -74,21 +85,24 @@ export function PresentationBar({
       data-window-bar
     >
       {dialog}
-      {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
-      {/* A template's goes back to Mallar, where templates are kept. */}
-      <a
-        href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
-        onClick={(e) => {
-          if (!presentation.isTemplate) return;
-          e.preventDefault();
-          backToTemplates();
-        }}
-        aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
-        title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
-        className={`justify-self-start ${ROUND_BACK}`}
-      >
-        <ChevronLeftIcon className="size-5" />
-      </a>
+      <div className="justify-self-start flex items-center gap-3">
+        {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
+        {/* A template's goes back to Mallar, where templates are kept. */}
+        <a
+          href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
+          onClick={(e) => {
+            if (!presentation.isTemplate) return;
+            e.preventDefault();
+            backToTemplates();
+          }}
+          aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+          title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+          className={ROUND_BACK}
+        >
+          <ChevronLeftIcon className="size-5" />
+        </a>
+        {panels && panelButton('left')}
+      </div>
       {/* The page's heading, for screen readers; the button shows the name. */}
       <h1 className="sr-only">{presentation.name}</h1>
       {/* The name opens the presentation's menu, as a title menu on iPadOS and macOS. */}
@@ -127,6 +141,7 @@ export function PresentationBar({
       />
       <div className="justify-self-end flex items-center gap-3">
         <SyncCloud />
+        {panels && presenting && panelButton('right')}
         {/* Inställningar next to start and stop, on a phone too. */}
         <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
           <CogIcon className="size-5" />
