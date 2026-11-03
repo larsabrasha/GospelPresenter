@@ -22,7 +22,7 @@ import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
 import type { ItemMenuSource } from '../live/ItemContextMenu.tsx';
 import { useAutoOutputs } from '../live/useAutoOutputs.ts';
-import { SlideList } from '../live/SlideList.tsx';
+import { SlideList, type SlidePick } from '../live/SlideList.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
@@ -69,6 +69,7 @@ const KEYS: ShortcutGroup = {
     { keys: ['a'], text: t('shortcuts.addItem') },
     { keys: ['Delete'], text: t('shortcuts.removeItem') },
     { keys: ['ArrowUp', 'ArrowDown'], text: t('shortcuts.moveThroughItems') },
+    { keys: ['ArrowRight', 'ArrowLeft'], text: t('shortcuts.pickSlide') },
     { keys: ['Alt+ArrowUp', 'Alt+ArrowDown'], text: t('shortcuts.moveItem') },
   ],
 };
@@ -147,11 +148,16 @@ export function PresentationEditor({
   // While presenting: the item "Lägg till efter" named, and the last item added, which the next addition follows (liveList.ts).
   const [chosenAfter, setChosenAfter] = useState<string | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  // What was added before presenting does not decide where an addition goes while presenting.
+  // Before presenting, the slide picked: outlined in blue and shown nowhere, moved by the keys that step while
+  // presenting (Lars, 2026-11-03: to click and step around and point one out).
+  const [picked, setPicked] = useState<SlidePick | null>(null);
+  // What was added before presenting does not decide where an addition goes while presenting; Starta presentation
+  // lets go of the slide picked too.
   const [wasPresenting, setWasPresenting] = useState(!!presenting);
   if (wasPresenting !== !!presenting) {
     setWasPresenting(!!presenting);
     setLastAddedId(null);
+    setPicked(null);
   }
   const [details, setDetails] = useState(false);
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
@@ -204,6 +210,13 @@ export function PresentationEditor({
     const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
     if (next) live.set({ ...next, black: false });
   };
+  const pickStep = (delta: number) => {
+    const at = steps.findIndex((s) => s.itemId === picked?.itemId && s.partIndex === picked.partIndex);
+    const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
+    if (!next) return;
+    setPicked(next);
+    setSelectedId(next.itemId);
+  };
 
   // "Presentationen har uppdaterats" when another session changed it: its time of change moved while this window wrote nothing.
   const updatedAt = data?.presentation ? data.presentation.updatedAt : undefined;
@@ -228,12 +241,14 @@ export function PresentationEditor({
   usePageKeys((e) => {
     if (ticking) return;
     // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b` and `.` (a
-    // clicker's blank key) black, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide.
-    const forward = () => step(1);
-    const back = () => step(-1);
+    // clicker's blank key) black, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide. Before
+    // presenting the arrows and Page keys move the slide picked instead; Space stays a focused button's, and nothing
+    // blacks.
+    const forward = () => (presenting ? step(1) : pickStep(1));
+    const back = () => (presenting ? step(-1) : pickStep(-1));
     const black = () => live.set({ black: true });
-    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ' ': forward, ArrowLeft: back, PageUp: back, b: black, B: black, '.': black };
-    const liveKey = presenting && !e.altKey && !e.ctrlKey && !e.metaKey ? liveKeys[e.key] : undefined;
+    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ArrowLeft: back, PageUp: back, ...(presenting ? { ' ': forward, b: black, B: black, '.': black } : {}) };
+    const liveKey = !e.altKey && !e.ctrlKey && !e.metaKey ? liveKeys[e.key] : undefined;
     if (liveKey) {
       e.preventDefault();
       liveKey();
@@ -257,6 +272,7 @@ export function PresentationEditor({
       const item = items[next]!;
       setSelectedId(item.id);
       if (presenting && data?.slides.get(item.id)?.slides.length && item.id !== pointer.itemId) live.set({ itemId: item.id, partIndex: 0, black: false });
+      else if (!presenting && data?.slides.get(item.id)?.slides.length) setPicked({ itemId: item.id, partIndex: 0 });
     } else return;
     e.preventDefault();
   });
@@ -409,6 +425,11 @@ export function PresentationEditor({
               menuSource={menuSource}
               editingImages={editingImages}
               onEditingImages={setEditingImages}
+              picked={picked}
+              onPick={(p) => {
+                setPicked(p);
+                setSelectedId(p.itemId);
+              }}
             />
           </>
         )}

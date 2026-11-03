@@ -3,7 +3,7 @@ import { followsShown } from '../../live/liveList.ts';
 
 /**
  * How a list of slides scrolls while presenting, the same on a computer and a phone: to the slide shown (it carries
- * `data-current="true"`), once for each slide shown, there at once on opening and glided to after (Lars,
+ * `data-current="true"`; before presenting the one picked, `data-picked="true"`), once for each slide shown, there at once on opening and glided to after (Lars,
  * 2026-11-02), unless it was tapped where it already shows (liveList.ts `followsShown`); and to an item's section
  * (`data-item`) each time a new `toItem` is given, the same item chosen again too. `margin` is the room kept above the
  * slide under its section's sticky heading. Returns what to call when a tap shows a slide.
@@ -16,7 +16,7 @@ export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: str
     const opening = followed.current === null;
     followed.current = shownKey;
     const el = box.current;
-    const slide = el?.querySelector<HTMLElement>('[data-current="true"]');
+    const slide = el?.querySelector<HTMLElement>('[data-current="true"], [data-picked="true"]');
     const byTap = tapped.current;
     tapped.current = false;
     if (!el || !slide) return;

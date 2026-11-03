@@ -14,6 +14,9 @@ import { OverlayChip } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 import { useFollowShown } from './followShown.ts';
 
+
+/** A slide picked before presenting: outlined in blue, shown nowhere. */
+export type SlidePick = { itemId: string; partIndex: number };
 /** A small round button in a section's heading. */
 const HEADING_BUTTON = 'ml-1 h-7 px-2.5 rounded-full flex items-center gap-1 normal-case tracking-normal font-medium cursor-pointer';
 
@@ -41,6 +44,8 @@ export function SlideList({
   menuSource,
   editingImages: editingShown,
   onEditingImages,
+  picked: pickedShown,
+  onPick,
   onAddImages,
   footer,
   header,
@@ -67,6 +72,9 @@ export function SlideList({
   /** On a computer: the picture item edited in place, which its row's menu at the left can start too. */
   editingImages?: string | null;
   onEditingImages?: (itemId: string | null) => void;
+  /** On a computer: the slide picked before presenting, which the page's keys move too. */
+  picked?: SlidePick | null;
+  onPick?: (pick: SlidePick) => void;
   /** "Lägg till bilder" on an image item edited in place: the add dialog's picture tab, adding to it. */
   onAddImages?: (itemId: string) => void;
   /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
@@ -83,7 +91,17 @@ export function SlideList({
   const editingImages = editingShown === undefined ? ownEditing : editingShown;
   const setEditingImages = onEditingImages ?? setOwnEditing;
   const [menu, setMenu] = useState<OpenItemMenu | null>(null);
-  const markTapped = useFollowShown(box, `${pointer.itemId}/${pointer.partIndex}`, wide ? 16 : 56, toItem);
+  // Before presenting, a slide clicked is only outlined in blue, as in the current app; Starta presentation starts
+  // black all the same (spec 04), and lets go of it. The page's own when it moves it by the keys too (a computer's).
+  const [ownPicked, setOwnPicked] = useState<SlidePick | null>(null);
+  const [wasShowing, setWasShowing] = useState(!!onShow);
+  if (wasShowing !== !!onShow) {
+    setWasShowing(!!onShow);
+    setOwnPicked(null);
+  }
+  const picked = pickedShown === undefined ? ownPicked : pickedShown;
+  // It scrolls into view as a slide shown does, the one shown while presenting.
+  const markTapped = useFollowShown(box, onShow || !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
   const markOf = slideMarks(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 })), pointer);
   const show =
     onShow &&
@@ -91,14 +109,10 @@ export function SlideList({
       markTapped();
       onShow(itemId, partIndex);
     });
-  // Before presenting, a slide clicked is only outlined in blue, as in the current app; Starta presentation starts
-  // black all the same (spec 04), and lets go of it.
-  const [picked, setPicked] = useState<{ itemId: string; partIndex: number } | null>(null);
-  const [wasShowing, setWasShowing] = useState(!!onShow);
-  if (wasShowing !== !!onShow) {
-    setWasShowing(!!onShow);
-    setPicked(null);
-  }
+  const pick = (p: SlidePick) => {
+    markTapped();
+    (onPick ?? setOwnPicked)(p);
+  };
 
   // `elevated` on a computer: a step lighter in dark mode, so black slides stand out from the ground (app.css).
   return (
@@ -181,7 +195,7 @@ export function SlideList({
                 theme={theme}
                 overlayId={item.overlayId}
                 shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
-                picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => setPicked({ itemId: item.id, partIndex }) }}
+                picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
               />
             ) : (
               set.slides.map((slide, partIndex) => (
@@ -194,7 +208,7 @@ export function SlideList({
                   rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
                   mark={markOf(item.id, partIndex)}
                   picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
-                  onShow={show ? () => show(item.id, partIndex) : () => setPicked({ itemId: item.id, partIndex })}
+                  onShow={show ? () => show(item.id, partIndex) : () => pick({ itemId: item.id, partIndex })}
                 />
               ))
             )}
@@ -236,6 +250,7 @@ function PartRow({
       data-rested={rested || undefined}
       aria-current={current || undefined}
       aria-pressed={picked || undefined}
+      data-picked={picked || undefined}
       onClick={onShow}
       // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
       className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : picked ? 'bg-surface border-sky-500' : 'bg-surface border-transparent'}`}

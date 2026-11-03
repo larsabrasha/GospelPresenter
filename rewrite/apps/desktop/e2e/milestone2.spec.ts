@@ -37,6 +37,13 @@ test("the host's own window keeps its database in memory, and the output still s
   await second.click();
   await expect(second).toHaveAttribute('aria-pressed', 'true');
   await expect(second).toHaveClass(/outline-sky-500/);
+  // The keys that step while presenting move it too (Lars, 2026-11-03): ← to the first slide, → back.
+  const first = page.getByRole('button', { name: 'Blott en dag 1' });
+  await page.keyboard.press('ArrowLeft');
+  await expect(first).toHaveAttribute('aria-pressed', 'true');
+  await expect(second).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('ArrowRight');
+  await expect(second).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await expect(second).toHaveAttribute('aria-pressed', 'false');
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);

@@ -74,6 +74,7 @@ export function SlideGrid({
                 aria-label={`${label} ${i + 1}`}
                 aria-pressed={shown ? live : chosen}
                 data-current={live}
+                data-picked={chosen}
                 className={`${tileClass(shown ? { selected: live, live: true, rested: here && shown.pointer.black } : { selected: chosen })} w-full p-0`}
                 onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >
