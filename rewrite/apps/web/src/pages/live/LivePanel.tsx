@@ -1,9 +1,11 @@
 import type { LivePointer, Overlay, Presentation, Slide, Theme } from '@gp/core';
+import { useRef } from 'react';
 import { orgRemoteControl, type ShownOverlay } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { LivePicture } from './LivePicture.tsx';
+import { useLiveMotion } from './liveMotion.ts';
 import { OutputsPanel } from './OutputsPanel.tsx';
 import { OverlaysPanel } from './OverlaysPanel.tsx';
 import { RemoteStatus } from './RemotePanel.tsx';
@@ -40,16 +42,19 @@ export function LivePanel({
   onStep: (delta: number) => void;
 }) {
   const remotePolicy = useData(orgRemoteControl, []);
+  // The column, which slides in from the right before the picture fades in after a start (liveMotion.ts).
+  const column = useRef<HTMLElement>(null);
+  useLiveMotion(column, { side: true });
   // As wide at the right as at the left whatever the scrollbar, as the left column (app.css `--beside-scrollbar`).
   return (
-    <aside className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
+    <aside ref={column} className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
       <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} canStep={canStep} onStep={onStep} onClear={() => live.set({ black: true })} />
       {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
       {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}
       {owner && remotePolicy && remotePolicy !== 'never' && (
         <div className="mt-auto -mx-2 -mb-2">
-          <RemoteStatus id={presentation.id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
+          <RemoteStatus id={presentation.id} sessionId={owner.sessionId} always={remotePolicy === 'always'} />
         </div>
       )}
     </aside>

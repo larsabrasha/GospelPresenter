@@ -10,14 +10,15 @@ export const SWITCH =
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
 
 /** A checkbox drawn as iOS's switch, for the 2.0 lists (docs/layout-2-0.md): green when on, a 51×31 pt track. */
-export const IOS_SWITCH =
+const IOS_SWITCH =
   'relative shrink-0 appearance-none w-[51px] h-[31px] p-0 m-0 border-0 rounded-full cursor-pointer bg-raised-2 checked:bg-green-500 transition-colors disabled:cursor-default disabled:opacity-50 ' +
   'before:absolute before:top-0.5 before:left-0.5 before:size-[27px] before:rounded-full before:bg-white before:shadow before:transition-all checked:before:left-[22px] ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
 
 /**
  * Rows of a sheet's card (a phone's Utgångar and Overlays), drawn as iOS's: 17 pt text, 48 pt rows and its own switch,
- * as the item sheet's rows are (Lars, 2026-11-02: the sheets looked off beside each other).
+ * as the item sheet's rows are (Lars, 2026-11-02: the sheets looked off beside each other); their icons 20 px with
+ * 14 px to the text, as the item sheet's too (Lars, 2026-11-03).
  */
 export const SheetRows = createContext(false);
 
@@ -68,8 +69,8 @@ export function ToggleRow({
   const big = useContext(SheetRows);
   return (
     <label className={rowClass(checked, disabled, cell, big)} title={title}>
-      <span className="flex items-center gap-2 min-w-0">
-        {icon}
+      <span className={`flex items-center min-w-0 ${big ? 'gap-3.5' : 'gap-2'}`}>
+        {big && icon ? <span className="shrink-0 flex [&>svg]:size-5">{icon}</span> : icon}
         <span className="min-w-0 text-left">
           <span className="block truncate">{label}</span>
           {sub && <span className={`block ${big ? 'text-[13px]' : 'text-[11px]'} truncate ${warn ? 'text-orange-500' : 'text-stone-400 dark:text-stone-500'}`}>{sub}</span>}
@@ -82,6 +83,3 @@ export function ToggleRow({
     </label>
   );
 }
-
-/** A small grey caption, as "Nu visas" over the live preview; in sentence case, never capitals (Lars, 2026-11-02). */
-export const CAPTION = 'text-xs text-stone-400 dark:text-stone-500 font-semibold';

@@ -57,10 +57,10 @@ test('a public output follows the presentation in a browser without signing in; 
     ['Verse 1', 'A ett'],
     ['Chorus', 'A två'],
   ]);
-  await openAdmin(page, 'Overlays');
+  await openAdmin(page, 'Överlägg');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').fill('Kollekt');
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').press('Enter');
+  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill('Kollekt');
+  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
   await page.getByLabel('Textinnehåll').fill('Swish 123 45');
   await page.getByLabel('Textinnehåll').blur();
   await createPresentation(page, 'Söndag');
@@ -70,7 +70,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await outputs.getByLabel('Kyrkkaffet').check();
   await expect(outputs.getByText('1 enhet')).toBeVisible({ timeout: 5_000 });
   // An overlay with nothing selected reaches the phone on its own, as the projector shows it.
-  const overlays = page.getByRole('list', { name: 'Overlays' });
+  const overlays = page.getByRole('list', { name: 'Överlägg' });
   await overlays.getByLabel('Kollekt').check();
   await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
   await overlays.getByLabel('Kollekt').uncheck();

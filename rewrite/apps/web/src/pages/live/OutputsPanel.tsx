@@ -67,8 +67,8 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
           ))}
           {temporary.map((x) => (
             <li key={x.id} className={`flex items-center justify-between gap-2 py-1.5 ${sheet ? 'px-4 min-h-12' : 'px-3 min-h-11'}`} aria-label={t('screens.temporary', { n: x.n })}>
-              <span className={`flex items-center gap-2 ${sheet ? 'text-[17px] text-stone-900 dark:text-stone-100' : 'text-sm text-stone-700 dark:text-stone-200'}`}>
-                <DesktopIcon className="size-4 shrink-0 text-green-500" />
+              <span className={`flex items-center ${sheet ? 'gap-3.5 text-[17px] text-stone-900 dark:text-stone-100' : 'gap-2 text-sm text-stone-700 dark:text-stone-200'}`}>
+                <DesktopIcon className={`${sheet ? 'size-5' : 'size-4'} shrink-0 text-green-500`} />
                 {t('screens.temporary', { n: x.n })}
               </span>
               <AppButton
@@ -84,8 +84,8 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
           ))}
         </ul>
         {/* A row at the foot of the group, in grey: seldom needed, so it stays out of the way (Lars, 2026-11-02). */}
-        <AppButton variant="plain" onClick={() => setPairing(true)} className={`w-full flex items-center gap-2 text-left cursor-pointer ${sheet ? 'min-h-12 px-4 text-[17px] text-sky-600 dark:text-sky-400' : 'min-h-11 px-3 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'} hover:bg-black/5 dark:hover:bg-white/5`}>
-          <PlusIcon className="size-4 shrink-0" />
+        <AppButton variant="plain" onClick={() => setPairing(true)} className={`w-full flex items-center text-left cursor-pointer ${sheet ? 'gap-3.5 min-h-12 px-4 text-[17px] text-sky-600 dark:text-sky-400' : 'gap-2 min-h-11 px-3 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'} hover:bg-black/5 dark:hover:bg-white/5`}>
+          <PlusIcon className={`${sheet ? 'size-5' : 'size-4'} shrink-0`} />
           {t('pairScreen.title')}
         </AppButton>
       </PanelGroup>

@@ -19,14 +19,6 @@ export async function inviteUrl(token: string): Promise<string> {
   return `${lan ?? location.origin}/invite#${token}`;
 }
 
-export function copy(input: HTMLInputElement | null, text: string): Promise<void> {
-  // The clipboard API needs a secure context, which a LAN address over http is not.
-  if (navigator.clipboard && isSecureContext) return navigator.clipboard.writeText(text);
-  input?.select();
-  document.execCommand('copy');
-  return Promise.resolve();
-}
-
 /**
  * A new user's invite link, for their page to show (AUTH-R13: once). Held in
  * this window only, until that page is left (`forgetInvite`).

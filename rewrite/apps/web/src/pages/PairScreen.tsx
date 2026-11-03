@@ -4,17 +4,19 @@ import { api } from '../auth/api.ts';
 import { t } from '../i18n.ts';
 import { setOutput } from '../live/owner.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { CopyField } from '../ui/CopyField.tsx';
-import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
-import { TickIcon } from '../ui/icons.tsx';
+import { CheckIcon, CopyIcon, DesktopIcon, LinkIcon, TickIcon } from '../ui/icons.tsx';
+import { SKY_TINT } from '../ui/glass.ts';
 import { QrCode } from '../ui/QrCode.tsx';
 import { href } from '../ui/router.ts';
 import { useServerBase } from '../ui/serverBase.ts';
-import { useToast } from '../ui/Toast.tsx';
+import { ICON_GROUP, Sheet } from '../ui/Sheet.tsx';
+import { useCopied } from '../ui/copyText.ts';
 
 // "Anslut tillfällig skärm" (spec 04 §8): a TV pairs by scanning the QR code
 // or by its four-digit code typed here, for this window's session. The new
-// screen is switched on at once.
+// screen is switched on at once. A sheet as Fjärrstyrning's (Lars, 2026-11-03):
+// the QR code with one line under it, then the address and the code as rows of a
+// group, no numbered steps, no "eller".
 
 /** A new QR token every 8 minutes while open, of the 10 it is good for (LIVE-R28). */
 const TOKEN_RENEW_MS = 8 * 60_000;
@@ -36,18 +38,19 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
     if (next.every((d) => d)) onComplete(next.join(''));
   };
   return (
-    <div className="flex gap-3 pl-7 pt-1" role="group" aria-label={t('pairScreen.code')}>
+    <div className="w-full flex justify-center gap-3" role="group" aria-label={t('pairScreen.code')}>
       {digits.map((d, i) => (
         <input
           key={i}
           ref={(el) => {
             boxes.current[i] = el;
           }}
-          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-raised text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20"
+          className="flex-1 min-w-0 max-w-16 h-14 text-center text-2xl font-bold font-mono rounded-xl border border-transparent bg-stone-900/[0.06] dark:bg-white/[0.08] text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20"
           inputMode="numeric"
           autoComplete="one-time-code"
           aria-label={t('pairScreen.digit', { n: i + 1 })}
-          autoFocus={i === 0}
+          // Not by touch, where the keyboard would come up over the QR code, the usual way in (Lars, 2026-11-03).
+          autoFocus={i === 0 && !matchMedia('(pointer: coarse)').matches}
           value={d}
           onChange={(e) => {
             const v = e.target.value;
@@ -81,9 +84,39 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
   );
 }
 
+/**
+ * The address a TV opens, as a row: what to do, the address under it to read off, and at its end a round copy button,
+ * as iOS shows one, which turns to ✓ for two seconds once copied (Lars, 2026-11-03: a tap on the row alone did not say
+ * it copies). The whole row copies too; over plain http on the LAN as well (copyText.ts).
+ */
+function AddressRow({ url }: { url: string }) {
+  const [copied, copy] = useCopied();
+  return (
+    <AppButton
+      variant="plain"
+      className="w-full min-h-12 px-4 py-2.5 flex items-center gap-3.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+      onClick={() => copy(url)}
+    >
+      <LinkIcon className="size-5 shrink-0 text-stone-500 dark:text-stone-400" />
+      <span className="flex-1 min-w-0 flex flex-col text-left">
+        <span className="text-[17px]">{t('pairScreen.step1')}</span>
+        <span aria-label={t('pairScreen.url')} className="text-[13px] break-all select-all text-stone-500 dark:text-stone-400">
+          {url}
+        </span>
+      </span>
+      {/* Drawn as a button, inside the row's own (a button cannot hold another); what it does read out by its words. */}
+      <span className={`shrink-0 size-9 rounded-full flex items-center justify-center transition-colors ${SKY_TINT}`}>
+        {copied ? <CheckIcon className="size-5" /> : <CopyIcon className="size-5" />}
+        <span className="sr-only" aria-live="polite">
+          {t(copied ? 'pairScreen.copied' : 'displays.copy')}
+        </span>
+      </span>
+    </AppButton>
+  );
+}
+
 export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const base = useServerBase();
-  const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [paired, setPaired] = useState<LiveScreen | null>(null);
   const [wrong, setWrong] = useState(0);
@@ -142,75 +175,42 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
     else setWrong((n) => n + 1);
   };
 
-  const copy = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast(t('displays.copied'));
-    } catch {
-      // No clipboard over plain http on the LAN: the address is on screen to copy by hand.
-    }
-  };
-
   const displayUrl = `${base}${href({ page: 'display', id: null, name: null, token: null })}`;
   return (
-    <Dialog title={t('pairScreen.title')} onClose={onClose} maxWidthClass="max-w-sm">
+    <Sheet title={t('pairScreen.title')} onClose={onClose}>
       {paired ? (
-        <div className="flex flex-col items-center text-center gap-4 py-4" role="status">
+        <div className="flex flex-col items-center text-center gap-3 pt-2 pb-4" role="status">
           <div className="size-20 rounded-full bg-green-500 flex items-center justify-center">
             <TickIcon className="size-12 text-white" />
           </div>
           <div className="font-semibold text-lg">{t('pairScreen.done')}</div>
           <div className="text-sm text-stone-500 dark:text-stone-400">{t('pairScreen.doneText')}</div>
-          <AppButton onClick={onClose}>{t('common.close')}</AppButton>
         </div>
       ) : (
-        <>
-          <div className="space-y-3">
-            <h3 className="font-medium text-sm/5 text-stone-800 dark:text-stone-100">{t('pairScreen.scan')}</h3>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{t('pairScreen.scanHint')}</p>
+        <div className="flex flex-col gap-5">
+          <div className="space-y-2">
             <div className="flex justify-center">
-              <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+              <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&_.qr]:m-0">
                 {token && <QrCode value={`${base}${href({ page: 'display', id: null, name: null, token })}`} label={t('pairScreen.qr')} />}
               </div>
             </div>
+            <p className="text-sm text-stone-500 dark:text-stone-400 text-center">{t('pairScreen.scanHint')}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
-            <span className="text-sm text-stone-400 dark:text-stone-500">{t('pairScreen.or')}</span>
-            <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
-          </div>
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm/5 text-stone-800 dark:text-stone-100">{t('pairScreen.manual')}</h3>
-            <div className="space-y-2">
-              <Step n={1} text={t('pairScreen.step1')} />
-              <div className="pl-7">
-                <CopyField value={displayUrl} label={t('pairScreen.url')} copyLabel={t('displays.copy')} onCopy={() => void copy(displayUrl)} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Step n={2} text={t('pairScreen.step2')} />
+          <div className={ICON_GROUP}>
+            <AddressRow url={displayUrl} />
+            {/* The boxes centred under the row's line, across the whole card, as iOS sets a code's fields (Lars, 2026-11-03). */}
+            <div className="px-4 pt-3 pb-4 flex flex-col gap-3.5">
+              <span className="flex items-center gap-3.5 text-[17px]">
+                <DesktopIcon className="size-5 shrink-0 text-stone-500 dark:text-stone-400" />
+                {t('pairScreen.step2')}
+              </span>
               {/* A wrong code empties the boxes (LIVE-A19): new boxes, focused again. */}
               <CodeBoxes onComplete={(pin) => void submit(pin)} key={wrong} />
             </div>
           </div>
-          {wrong > 0 && <p className="text-sm text-red-500 dark:text-red-400">{t('pairScreen.wrong')}</p>}
-          <DialogButtons>
-            <AppButton variant="cancel" onClick={onClose}>
-              {t('common.cancel')}
-            </AppButton>
-          </DialogButtons>
-        </>
+          {wrong > 0 && <p className="px-4 -mt-2 text-sm text-red-500 dark:text-red-400">{t('pairScreen.wrong')}</p>}
+        </div>
       )}
-    </Dialog>
-  );
-}
-
-/** A numbered step: the number in a small sky circle (PairingCodeDialog.razor). */
-function Step({ n, text }: { n: number; text: string }) {
-  return (
-    <div className="flex items-start gap-2 text-sm text-stone-700 dark:text-stone-200">
-      <span className="size-5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-semibold shrink-0">{n}</span>
-      <span>{text}</span>
-    </div>
+    </Sheet>
   );
 }

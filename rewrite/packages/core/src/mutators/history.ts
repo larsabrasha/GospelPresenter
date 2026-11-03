@@ -4,6 +4,7 @@ import { labels, songArrangements, songParts, songs, songVersions } from '../sch
 import { parsePartIds } from '../slides.ts';
 import { id, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { ensureLabel } from './labels.ts';
+import { renameSongItems } from './presentations.ts';
 
 // Song history (spec 02 SONG-R20–R23 as decided in D9 and on 2026-10-31). Before the server runs a
 // change to a song, it keeps the song as it was: the whole song, so a restore brings back its fields,
@@ -130,6 +131,7 @@ export async function restoreSongVersion(tx: Tx, a: z.output<typeof restoreSongV
   await keepSongVersion(tx, a.songId, ctx, true);
   const snap = parseSongSnapshot(v.data);
   await tx.update(songs).set({ name: snap.name, author: snap.author, publisher: snap.publisher, year: snap.year, ccli: snap.ccli }).where(eq(songs.id, a.songId));
+  await renameSongItems(tx, a.songId, snap.name);
 
   const partIds = snap.parts.map((p) => p.id);
   const arrangementIds = snap.arrangements.map((x) => x.id);

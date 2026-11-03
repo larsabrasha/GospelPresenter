@@ -1,38 +1,12 @@
 import { useState } from 'react';
 import { language, setLanguage, t, type Language, type TextKey } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ChevronRightIcon, KeyIcon } from '../ui/icons.tsx';
-import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
+import { GROUP_ROW, Group, OpeningRow, PopUp, SwitchRow } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
-import { useDbStatus } from '../db/react.tsx';
-import { isHostWindow } from '../hostWindow.ts';
-import { setKeepComingSetting, useKeepComing } from '../ui/KeepOffline.tsx';
 import { autoOutputsSetting, setAutoOutputsSetting } from '../live/autoOutputs.ts';
-import { SWITCH } from '../ui/Toggle.tsx';
-import { StorageSection } from './Storage.tsx';
-
-/**
- * "Spara kommande presentationer offline" (TODO.md "Video"): this device keeps every presentation of the
- * coming seven days offline, videos too, as if each had been chosen by hand. Off at first. A desktop
- * host's own window keeps nothing, so it has no such choice; a device that keeps nothing says why.
- */
-function KeepComing() {
-  const on = useKeepComing();
-  const status = useDbStatus();
-  if (isHostWindow()) return null;
-  const unavailable = !!status && status.storage !== 'opfs';
-  return (
-    <SwitchRow
-      title={t('settings.keepComing')}
-      description={t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}
-      checked={on && !unavailable}
-      disabled={unavailable}
-      onChange={setKeepComingSetting}
-    />
-  );
-}
+import { StorageRow } from './Storage.tsx';
 
 /** Slå på utgångar automatiskt (live/autoOutputs.ts): in the desktop app only, where an output goes to a display. */
 function AutoOutputs() {
@@ -48,19 +22,6 @@ function AutoOutputs() {
         setOn(v);
       }}
     />
-  );
-}
-
-/** A setting of this device that is on or off: a row of its group, with what it does in grey under its name. */
-function SwitchRow({ title, description, checked, disabled, onChange }: { title: string; description: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <label className={`${GROUP_ROW} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}>
-      <span>
-        <span className="block">{title}</span>
-        <span className="block text-xs text-stone-500 dark:text-stone-400 mt-0.5">{description}</span>
-      </span>
-      <input type="checkbox" role="switch" className={SWITCH} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-    </label>
   );
 }
 
@@ -152,20 +113,14 @@ function LanguageRow() {
 function Account() {
   return (
     <Group title={t('settings.account')}>
-      <a href={href({ page: 'logins', error: null })} className={`${GROUP_ROW} no-underline text-inherit hover:bg-raised`}>
-        <span className="flex items-center gap-3">
-          <KeyIcon className="size-5 shrink-0 text-stone-400" />
-          {t('logins.title')}
-        </span>
-        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600" />
-      </a>
+      <OpeningRow label={t('logins.title')} href={href({ page: 'logins', error: null })} />
     </Group>
   );
 }
 
 /**
  * "Mina inställningar" (Pages/Settings.razor), as grouped rows (ui/Group.tsx): the colour theme and the language of
- * this device, what it keeps offline and does with its displays, its storage, and the ways to sign in. The version is
+ * this device, its storage (a page of its own) and what it does with its displays, and the ways to sign in. The version is
  * under Om Gospel Presenter.
  */
 export function Settings() {
@@ -180,18 +135,17 @@ export function Settings() {
           <LanguageRow />
         </Group>
         <DeviceGroup />
-        <StorageSection />
         <Account />
       </div>
     </PageContainer>
   );
 }
 
-/** Den här enheten: its switches; every device has one of them, the host's window the second. */
+/** Den här enheten: Lagring, a page of its own as iOS's iPhone-lagring (Lars, 2026-11-03), and in the desktop app its switch. */
 function DeviceGroup() {
   return (
     <Group title={t('settings.thisDevice')}>
-      <KeepComing />
+      <StorageRow />
       <AutoOutputs />
     </Group>
   );

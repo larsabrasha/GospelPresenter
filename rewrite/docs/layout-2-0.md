@@ -49,17 +49,24 @@ tapped shows nothing, and ▶ starts it.
   The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens the
   presentation's menu, the same as on a computer (Lars, 2026-11-02): Redigera detaljer… and Noter och länkar, Spara
   som mall…, and to the trash when not presented.
-- **…** holds only what the title's menu does not, in groups as on iOS (Lars, 2026-11-02): Utgångar, Overlays and
+- **…** holds only what the title's menu does not, in groups as on iOS (Lars, 2026-11-02): Utgångar, Överlägg and
   Fjärrstyrning; then Inställningar. Spara offline is the line under the running order while it is kept. "…" in a
   menu only where a dialog asks first. There is no
   Scenläge: the live view is it on a phone and a tablet (Lars, 2026-11-01).
 - **The description** sits at the top of the left column on a computer, on a flat card a step lighter than the column, as
   a group in iOS's Settings (Lars, 2026-11-02), three lines with mer at the end of the last to unfold the rest.
-  A phone leaves it out of the running order, to keep the room for the parts (Lars, 2026-11-02); Redigera detaljer…
-  has it. The picture while presenting is at most a fifth of the screen high, for the same reason.
-  A phone lying down has two columns: the running order at the left, the picture and ‹ Rensa › at the right, the +
+  A phone, with no side column, has it too (Lars, 2026-11-03, after leaving it out on 2026-11-02): before presenting
+  the same card at the top of the running order, scrolling away with it; while presenting a round button at the left
+  end of Rensa's row, in the room that keeps Rensa in the middle, which opens a sheet with the text and Redigera
+  detaljer…; with no description that room stays empty. The picture while presenting is at most a fifth of the screen
+  high, to keep the room for the parts.
+  A phone lying down has two columns: the running order at the left, the picture and Rensa at the right, the +
   at the foot of the order (Lars, 2026-11-02).
-- **The picture** that is shown, with **‹ Rensa ›** right under it (Rensa only blacks the outputs, and
+- **The picture** that is shown, with **‹ Rensa ›** right under it (on a phone Rensa alone: a part is shown by a tap
+  on it, and the arrows drew the eye there; Lars, 2026-11-03) (Starta presentation brings it in softly: on a phone its block takes its room first, on a computer the live column
+  slides in from the right as a macOS sidebar, then the picture fades in out of a slight blur; Avsluta presentation plays it backwards before the presentation ends, all of it by transform and opacity, which
+  the graphics card draws (the computer's slides narrow at once as the column starts in, and widen once it is out), "Mjuk" of the variants
+  tried, Lars, 2026-11-03; none of it with less motion asked for) (Rensa only blacks the outputs, and
   rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
   shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
@@ -81,7 +88,9 @@ tapped shows nothing, and ▶ starts it.
   The list goes to the new item and marks it; nothing changes on the outputs. Adding and removing can be undone.
 - **Utgångar** is a sheet as high as its content (centred on an iPad held upright, as iPadOS's form sheet, as are
   the other sheets): each output with its state and a switch, then Anslut tillfällig
-  skärm. The outputs are equals in the list, not nested.
+  utgång. The outputs are equals in the list, not nested. Anslut tillfällig utgång opens a sheet of its own as
+  Fjärrstyrning's (Lars, 2026-11-03): the QR code with one line under it, then the address to open (a tap copies it)
+  and the four code boxes as rows of one group, with no numbered steps and no "eller".
 
 ## Live, columns (computer, iPad lying down)
 
@@ -119,29 +128,32 @@ overlay.
 The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
 name (no role or organisation), Inställningar (Mina inställningar is a row in it), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
-what and offers Synka nu. The page keeps Visas nu at the top, then Idag, Kommande and Senast ändrade, each row with
+what and offers Synka nu. The page keeps Visas nu at the top (a card as the list's, red only in its pulsing dot and the line "Visas just nu", the whole card opening it with a ›, as Music's Now Playing; the row below has only a small red dot: Lars, 2026-11-03), then Idag, Kommande and Senast ändrade, each row with
 its time and place under its name and its number of items at the right, two lines at every width with no
 columns (Lars, 2026-11-02). The bar has Inställningar's cog beside the picture, as a presentation's bar has it. There is one Papperskorg, a row in
 Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 
 ## Inställningar
 
-On a phone a list as iOS's Settings: Mina inställningar as a profile cell at the top, then Bibliotek (Sånger,
-Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Etiketter), Visning (Fasta utgångar, Följ med, Teman, CCLI-rapport),
+On a phone a list as iOS's Settings: a search field at the top, which finds a row by its name or by words of its own ("projektor" finds Fasta utgångar) and what Mina inställningar holds (Färgtema, Språk, Lagring, Inloggningsmetoder) (Lars, 2026-11-03); Mina inställningar as a profile cell under it, then Bibliotek (Sånger,
+Biblar, Bilder, Ljud, Videor), Presentation (Överlägg, Etiketter; "Överlägg" in Swedish, as FreeShow says it, since it lies over the picture: Lars, 2026-11-03), Visning (Fasta utgångar, Följ med, Teman, CCLI-rapport),
 Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width, with a round ‹ alone at the left of the dialog's bar (one step up) and the page's name in
 its middle (Lars, 2026-11-02); Fasta utgångar (the church's projectors, TVs and computers) and Följ med (links
 and QR codes anyone opens in a browser) are pages of their own, each with its floating + (Lars, 2026-11-02: Utgångar
-is the word for all that shows, so neither page is "Skärmar" nor "Publika utgångar"). Overlays, Etiketter,
+is the word for all that shows, so neither page is "Skärmar" nor "Publika utgångar"). Överlägg, Etiketter,
 Fasta utgångar, Följ med, Teman, CCLI-rapport, Enheter and Organisationen
 open with a card as iOS's Settings has: the row's icon, the page's name and what it is for; the bar names the page
 once the card has scrolled away. On a computer, and on an iPad held upright (from 680 px wide and 500 high,
 the `split` variant; Lars, 2026-11-02), as macOS's and iPadOS's Settings: the same list at the
-left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
+left, the page at the right. It stays a dialog over the page the user is on (on a phone as iOS's page sheet: it slides up to a little under the top, its top corners rounded, the page dimmed behind it; Lars, 2026-11-03); the
 list replaces the dialog's side menu. Mina inställningar is grouped rows as iOS's Settings (`ui/Group.tsx`; Lars,
 2026-11-02: no box around each choice): Färgtema as three small window pictures side by side, the chosen one ringed
-(macOS's Appearance, iOS's Display & Brightness); Språk as a row with a pop-up menu; Den här enheten with its switches;
-the storage (Lagring, Sparat offline, Cache) and Konto, each a group. The other pages of settings follow it: Organisationens inställningar's remote control is a row with a pop-up
+(macOS's Appearance, iOS's Display & Brightness); Språk as a row with a pop-up menu; Den här enheten with a row
+Lagring (›, no size: Lars, 2026-11-03) and, in the desktop app, its switch; and Konto. Lagring is a page of its
+own, as iOS's iPhone-lagring under Allmänt (Lars, 2026-11-03): the switch Spara kommande presentationer offline, Sparat
+offline and Cache, each a group, with short texts and no row the user cannot act on;
+a device that keeps nothing between reloads says so once, under the switch. The other pages of settings follow it: Organisationens inställningar's remote control is a row with a pop-up
 menu and what the chosen one means under it, as macOS's; a user's and an organisation's page have their fields with no
 card around them, their logins or members as a group, and Radera … as a red row of its own.
 A song's page the same way (Lars, 2026-11-02, as Apple would): its facts as one card of rows (Namn, Upphovspersoner,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { songArrangements, songMaterials, songParts, songs, songVersions } from '../schema.ts';
 import { keepSongVersion, keepVersionOfPart } from './history.ts';
 import { ensureLabel } from './labels.ts';
+import { renameSongItems } from './presentations.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
@@ -34,6 +35,7 @@ export async function updateSong(tx: Tx, a: z.output<typeof updateSongArgs>, ctx
   if (!Object.keys(set).length) return;
   await keepSongVersion(tx, songId, ctx);
   await tx.update(songs).set(set).where(eq(songs.id, songId));
+  if (a.name !== undefined) await renameSongItems(tx, songId, a.name);
 }
 
 export const trashSongArgs = z.object({ id, at: z.number().int() });

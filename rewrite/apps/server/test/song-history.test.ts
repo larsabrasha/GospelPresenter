@@ -239,3 +239,67 @@ describe('restoring a version', () => {
     await expect(o.run('restoreSongVersion', { songId: 'OTHER', versionId: o.version })).rejects.toThrow('version not found');
   });
 });
+
+describe("a renamed song's items (PRES-R36)", () => {
+  /** The song "Ett" in presentation P (item I) and template T (item J). */
+  async function inPresentationAndTemplate() {
+    const o = await withSong();
+    await o.run('createPresentation', { id: 'P', name: 'Söndag' });
+    await o.run('addSongToPresentation', { itemId: 'I', presentationId: 'P', songId: 'S' });
+    await o.run('createTemplate', { id: 'T', name: 'Gudstjänst' });
+    await o.run('addSongToPresentation', { itemId: 'J', presentationId: 'T', songId: 'S' });
+    const titles = () => o.store.query('SELECT id, title FROM presentation_items ORDER BY id').map((r) => [r.id, r.title]);
+    return { ...o, titles };
+  }
+
+  it('take the new name in presentations and templates', async () => {
+    const o = await inPresentationAndTemplate();
+
+    await o.run('updateSong', { id: 'S', name: 'Två' });
+
+    expect(o.titles()).toEqual([
+      ['I', 'Två'],
+      ['J', 'Två'],
+    ]);
+  });
+
+  it('take the new name over a title of their own', async () => {
+    const o = await inPresentationAndTemplate();
+    await o.run('renameItem', { itemId: 'I', title: 'Inledning' });
+
+    await o.run('updateSong', { id: 'S', name: 'Två' });
+
+    expect(o.titles()).toEqual([
+      ['I', 'Två'],
+      ['J', 'Två'],
+    ]);
+  });
+
+  it('keep their titles when only the author changes', async () => {
+    const o = await inPresentationAndTemplate();
+    await o.run('renameItem', { itemId: 'I', title: 'Inledning' });
+
+    await o.run('updateSong', { id: 'S', author: 'B' });
+
+    expect(o.titles()).toEqual([
+      ['I', 'Inledning'],
+      ['J', 'Ett'],
+    ]);
+  });
+
+  it('take the name a restored version gives the song', async () => {
+    const o = await inPresentationAndTemplate();
+    o.clock.now += 31 * MIN;
+    await o.run('updateSong', { id: 'S', name: 'Två' });
+    o.clock.now += 31 * MIN;
+    await o.run('updateSong', { id: 'S', name: 'Tre' });
+    const named2 = o.versions().at(-1)!.id;
+
+    await o.run('restoreSongVersion', { songId: 'S', versionId: named2 });
+
+    expect(o.titles()).toEqual([
+      ['I', 'Två'],
+      ['J', 'Två'],
+    ]);
+  });
+});

@@ -9,8 +9,8 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { CARD } from '../ui/List.tsx';
-import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
-import { href, navigate } from '../ui/router.ts';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 
 /** How long the desktop app watches for a passkey or Google account added in the system browser (spec 06: 5 minutes). */
@@ -128,7 +128,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
   const failure = error ?? (typeof list === 'string' ? list : null);
   return (
     <PageContainer>
-      <DetailHeader backHref={href({ page: 'settings' })} title={t('logins.title')} className="px-5" />
+      <PageHeader title={t('logins.title')} />
       <div className={`${CARD} p-5 space-y-4`}>
         <p className="text-sm text-stone-500 dark:text-stone-400">{t('logins.text')}</p>
         {failure && (

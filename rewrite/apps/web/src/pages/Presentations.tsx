@@ -7,9 +7,10 @@ import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
+import { ROUND_CLOSE } from '../ui/glass.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CloseIcon, DocumentIcon, DocumentTextIcon } from '../ui/icons.tsx';
+import { ChevronRightIcon, CloseIcon, DocumentIcon, DocumentTextIcon } from '../ui/icons.tsx';
 import { CARD, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -69,7 +70,7 @@ function TemplatePicker({ templates, manage, onPick, onClose }: { templates: Pre
     <Dialog title={t('presentations.createTitle')} onClose={onClose}>
       <AppButton
         variant="plain"
-        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-raised cursor-pointer text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+        className={`absolute top-4 right-4 ${ROUND_CLOSE}`}
         title={t('common.close')}
         aria-label={t('common.close')}
         onClick={onClose}
@@ -103,23 +104,27 @@ function TemplatePicker({ templates, manage, onPick, onClose }: { templates: Pre
   );
 }
 
-/** What this window presents, at the top of the start page in red with Öppna (docs/layout-2-0.md). */
+/**
+ * What this window presents, at the top of the start page (docs/layout-2-0.md), as Music's Now Playing (Lars,
+ * 2026-11-03): a card as the list's, red only in its slowly pulsing dot and the line "Visas just nu", and the whole
+ * card opens it, with a › at its end rather than a button of its own.
+ */
 function OwnLive({ p }: { p: Presentation }) {
   return (
     <a
       href={href({ page: 'presentation', id: p.id })}
       aria-label={`${t('remote.nowShowing')}: ${p.name}`}
-      className="flex items-center gap-3.5 lg:gap-4 px-4 py-3.5 rounded-[22px] lg:rounded-xl bg-red-500/10 ring-1 ring-inset ring-red-500/35 no-underline text-inherit"
+      className={`${CARD} flex items-center gap-3.5 px-5 py-3 no-underline text-inherit hover:bg-stone-100 dark:hover:bg-raised/50`}
     >
-      <span className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-0.5 lg:gap-4">
-        <span className="flex items-center gap-1.5 text-xs lg:text-[11px] font-bold uppercase tracking-wider text-red-500">
-          <span className="size-[7px] rounded-full bg-red-500" />
+      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-red-500">
+          <span className="size-2 rounded-full bg-red-500 animate-pulse" />
           {t('remote.nowShowing')}
         </span>
         <span className="text-[17px] lg:text-[15px] font-semibold truncate">{p.name}</span>
-        <span className="text-[13px] text-stone-500 dark:text-stone-400 truncate">{[p.time, p.location].filter(Boolean).join(' · ')}</span>
+        <span className="text-[13px] text-stone-500 dark:text-stone-400 truncate empty:hidden">{[p.time, p.location].filter(Boolean).join(' · ')}</span>
       </span>
-      <span className="shrink-0 h-9 lg:h-[30px] px-4 rounded-full lg:rounded-lg flex items-center bg-red-500 text-white text-[15px] lg:text-[13px] font-semibold">{t('presentations.open')}</span>
+      <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
     </a>
   );
 }
@@ -196,12 +201,8 @@ function Row({
       nav={nav}
       end={
         <>
-          {live && (
-            <span className="shrink-0 inline-flex items-center gap-1 bg-red-500 text-white text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
-              <span className="size-1.5 rounded-full bg-white animate-pulse" />
-              {t('presentations.live')}
-            </span>
-          )}
+          {/* A small red dot, as Music marks what plays in a list: the card "Visas just nu" above says it (Lars, 2026-11-03). */}
+          {live && <span role="img" aria-label={t('presentations.live')} title={t('presentations.live')} className="shrink-0 size-2 rounded-full bg-red-500" />}
           <span className="shrink-0 text-[13px] text-stone-500 dark:text-stone-400">{count}</span>
         </>
       }

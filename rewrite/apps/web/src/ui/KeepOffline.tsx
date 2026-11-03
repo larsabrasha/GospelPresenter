@@ -7,7 +7,7 @@ import { isHostWindow } from '../hostWindow.ts';
 import { localToday } from '../pages/dashboard.ts';
 
 // Keeping a presentation offline (TODO.md "Video, and which files a device fetches"): a choice each
-// device makes, by hand per presentation, or for the coming seven days under Mina inställningar. A
+// device makes, by hand per presentation, or for the coming seven days under Lagring. A
 // presentation kept offline has every file here, its videos whole too, and its icon says so wherever
 // the presentation shows: not kept, being fetched (how far), or all here.
 

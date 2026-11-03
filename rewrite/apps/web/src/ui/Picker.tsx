@@ -9,7 +9,8 @@ import { CloseIcon, SearchIcon } from './icons.tsx';
 
 /**
  * The round search field with a magnifier, and a clear button once there is text.
- * `compact` is the song library's, a little lower and with smaller text (Pages/Admin/Songs.razor).
+ * `compact` is the song library's, a little lower and with smaller text (Pages/Admin/Songs.razor). `filled` is iOS's:
+ * no border, a soft grey fill, so it asks less than the rows under it (Inställningar's list; Lars, 2026-11-03).
  */
 export function SearchField({
   value,
@@ -19,6 +20,7 @@ export function SearchField({
   inputRef,
   autoFocus,
   compact,
+  filled,
   onClear,
 }: {
   value: string;
@@ -31,6 +33,7 @@ export function SearchField({
   inputRef?: Ref<HTMLInputElement>;
   autoFocus?: boolean;
   compact?: boolean;
+  filled?: boolean;
 }) {
   return (
     <div className="relative flex-1 min-w-0">
@@ -44,7 +47,7 @@ export function SearchField({
         placeholder={placeholder ?? label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-stone-200 dark:border-stone-600 bg-white dark:bg-raised text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
+        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full ${filled ? 'border border-transparent bg-stone-900/[0.06] dark:bg-white/[0.08] placeholder:text-stone-500 dark:placeholder:text-stone-400' : 'border border-stone-200 dark:border-stone-600 bg-white dark:bg-raised'} text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
       />
       {value && (
         <AppButton variant="icon" aria-label={t('common.clear')} onClick={onClear ?? (() => onChange(''))} className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6!">

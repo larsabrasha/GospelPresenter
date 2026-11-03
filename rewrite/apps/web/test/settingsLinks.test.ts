@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isOpen, MINE, settingsGroups } from '../src/pages/settings/settingsLinks.ts';
+import { t } from '../src/i18n.ts';
+import { isOpen, MINE, searchSettings, settingsGroups } from '../src/pages/settings/settingsLinks.ts';
 
 const labels = (role: 'user' | 'admin' | 'superAdmin', host = false) => settingsGroups({ role }, host).flatMap((g) => g.links.map((l) => l.label));
 
@@ -42,5 +43,44 @@ describe('isOpen', () => {
 
   it('the sign-in methods mark Mina inställningar', () => {
     expect(isOpen(MINE, { page: 'logins', error: null })).toBe(true);
+  });
+
+  it('Lagring marks Mina inställningar', () => {
+    expect(isOpen(MINE, { page: 'storage' })).toBe(true);
+  });
+});
+
+describe('searchSettings', () => {
+  const groups = settingsGroups({ role: 'admin' }, false);
+  const found = (query: string) => searchSettings(groups, query, t).map((l) => l.label);
+
+  it('finds a row by its name, whatever the case', () => {
+    expect(found('sÅNG')).toContain('nav.songs');
+  });
+
+  it('finds a row by a word of its own that its name does not hold', () => {
+    expect(found('projektor')).toEqual(['nav.displays']);
+  });
+
+  it("finds what Mina inställningar holds, such as Språk", () => {
+    expect(found('språk')).toEqual(['settings.language']);
+  });
+
+  it('says where a result from Mina inställningar lives, and nothing for a row of the list', () => {
+    const [language] = searchSettings(groups, 'språk', t);
+    const [displays] = searchSettings(groups, 'projektor', t);
+    expect([language?.where, displays?.where]).toEqual(['nav.settings', undefined]);
+  });
+
+  it('needs every word of the query', () => {
+    expect(found('qr länk')).toEqual(['displays.public']);
+  });
+
+  it('finds no row the user may not open', () => {
+    expect(searchSettings(settingsGroups({ role: 'admin' }, false), 'organisationer', t).map((l) => l.label)).not.toContain('nav.orgs');
+  });
+
+  it('finds nothing for an empty query', () => {
+    expect(found('  ')).toEqual([]);
   });
 });

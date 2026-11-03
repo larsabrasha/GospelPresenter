@@ -12,9 +12,9 @@ test.afterEach(async () => {
 });
 
 async function createOverlay(page: Page, title: string, text: string) {
-  await openAdmin(page, 'Overlays');
+  await openAdmin(page, 'Överlägg');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Skapa overlay' });
+  const dialog = page.getByRole('dialog', { name: 'Skapa överlägg' });
   await dialog.getByLabel('Namn').fill(title);
   await dialog.getByLabel('Namn').press('Enter');
   const content = page.getByLabel('Textinnehåll');
@@ -29,8 +29,8 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await setUpHost(host);
   await createOverlay(page, 'Kollekt', 'Swish 123 45');
   await createOverlay(page, 'Välkommen', 'Välkommen hit');
-  await openAdmin(page, 'Overlays');
-  await expect(page.getByRole('list', { name: 'Overlays' }).getByRole('listitem')).toHaveCount(2);
+  await openAdmin(page, 'Överlägg');
+  await expect(page.getByRole('list', { name: 'Överlägg' }).getByRole('listitem')).toHaveCount(2);
 
   await createSong(page, 'Sång A', [
     ['Verse 1', 'A ett'],
@@ -70,7 +70,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await pickItem(page, /^Sång A/); // its row names its overlay too
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
-  const toggles = page.getByRole('list', { name: 'Overlays' });
+  const toggles = page.getByRole('list', { name: 'Överlägg' });
   await toggles.getByLabel('Kollekt').uncheck();
   await expect(overlay).toHaveCount(0);
   await page.getByRole('button', { name: 'Sång A 2' }).click();
@@ -150,10 +150,10 @@ test('an overlay saves as you type, takes a dropped picture into Bilder, and goe
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await openAdmin(page, 'Overlays');
+  await openAdmin(page, 'Överlägg');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').fill('Kollekt');
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').press('Enter');
+  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill('Kollekt');
+  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
 
   // Saved 500 ms after typing, with "Sparad" in the header, without leaving the field (OverlayEditor.razor).
   await page.getByLabel('Textinnehåll').fill('Swish 123\nTack!');
@@ -168,7 +168,7 @@ test('an overlay saves as you type, takes a dropped picture into Bilder, and goe
 
   // The list shows the whole text, cut short by its width, not only its first line.
   await page.getByRole('link', { name: 'Tillbaka' }).click();
-  const row = page.getByRole('list', { name: 'Overlays' }).getByRole('listitem');
+  const row = page.getByRole('list', { name: 'Överlägg' }).getByRole('listitem');
   await expect(row).toContainText('Swish 123 Tack!');
 
   // Deleted: back to the list, with no toast.
@@ -176,7 +176,7 @@ test('an overlay saves as you type, takes a dropped picture into Bilder, and goe
   await page.getByRole('button', { name: 'Radera', exact: true }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page).toHaveURL(/\/admin\/overlays$/);
-  await expect(page.getByText('Inga overlays')).toBeVisible();
+  await expect(page.getByText('Inga överlägg')).toBeVisible();
   await expect(page.getByText('Kollekt borttagen')).toHaveCount(0);
 
   // An overlay that does not exist goes back to the list (OverlayDetail.razor).
@@ -201,9 +201,9 @@ test("on a phone an item's overlay is a row of its sheet, the chosen one in grey
   await order.getByRole('button', { name: 'Mer om Sång A' }).click();
   const sheet = page.getByRole('dialog', { name: 'Sång A' });
 
-  await sheet.getByRole('combobox', { name: 'Overlay' }).selectOption({ label: 'Kollekt' });
+  await sheet.getByRole('combobox', { name: 'Överlägg' }).selectOption({ label: 'Kollekt' });
 
-  await expect(sheet.getByRole('combobox', { name: 'Overlay' }).locator('option:checked')).toHaveText('Kollekt');
+  await expect(sheet.getByRole('combobox', { name: 'Överlägg' }).locator('option:checked')).toHaveText('Kollekt');
   await sheet.getByRole('button', { name: 'Stäng' }).click();
   await expect(order.getByRole('region', { name: 'Sång A' })).toContainText('Kollekt');
 });

@@ -5,12 +5,17 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ACTION_ROW, GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
+import { ACTION_ROW, GROUP_ROW, Group, OpeningRow, PopUp, SwitchRow } from '../ui/Group.tsx';
+import { setKeepComingSetting, useKeepComing } from '../ui/KeepOffline.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { formatBytes } from '../ui/formatBytes.ts';
 
-// "Lagring på den här enheten" under Mina inställningar (TODO.md "Video, and which files a device
-// fetches"), as Spotify's and the iPhone's storage pages: how much the app's files use here, what is
-// kept offline (each presentation, with a way to stop), and the cache, with its limit and "Rensa cache".
+// Lagring (`/storage`, TODO.md "Video, and which files a device fetches"): a page of its own under Mina
+// inställningar, as the iPhone's iPhone-lagring under Allmänt (Lars, 2026-11-03). The switch that keeps the coming
+// presentations, what is kept offline (each presentation, with a way to stop), and the cache, with its limit and
+// "Rensa cache"; short texts, and nothing the user cannot act on (Lars, 2026-11-03).
 
 const LIMIT_KEY = 'gp.cacheLimit';
 /** Fired when the cache limit changes in this window. */
@@ -40,22 +45,6 @@ function setCacheLimitSetting(bytes: number) {
     // Storage refused (a private window): the choice lasts until the page closes.
   }
   dispatchEvent(new Event(CACHE_LIMIT_CHANGED));
-}
-
-/** Bytes as a Swede reads them: "1,2 GB", "350 MB", "12 kB". */
-export function formatBytes(bytes: number): string {
-  const units: [number, string][] = [
-    [1e9, 'GB'],
-    [1e6, 'MB'],
-    [1e3, 'kB'],
-  ];
-  for (const [size, unit] of units) {
-    if (bytes >= size) {
-      const n = bytes / size;
-      return `${n.toLocaleString(locale(), { maximumFractionDigits: n < 10 ? 1 : 0 })} ${unit}`;
-    }
-  }
-  return `${bytes} B`;
 }
 
 /** A limit in the menu: "512 MB", "2 GB" (the binary sizes the limits are, named as people know them). */
@@ -107,23 +96,52 @@ function useStorageReport(): (StorageReport & { budget: number }) | null {
   return report;
 }
 
-/** "Lagring på den här enheten", as grouped rows (ui/Group.tsx). A desktop host's own window keeps no files, and says so. */
-export function StorageSection() {
-  if (isHostWindow())
-    return (
-      <div data-testid="storage">
-        <Group title={t('storage.title')}>
-          <p className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">{t('storage.host')}</p>
-        </Group>
-      </div>
-    );
-  return <DeviceStorage />;
+/** Lagring's row in Mina inställningar, with no size: nothing the user acts on (Lars, 2026-11-03). */
+export function StorageRow() {
+  return <OpeningRow label={t('storage.title')} href={href({ page: 'storage' })} />;
+}
+
+/** The page. A desktop host's own window keeps no files, and says so. */
+export function Storage() {
+  return (
+    <PageContainer>
+      <PageHeader title={t('storage.title')} />
+      {isHostWindow() ? (
+        <div data-testid="storage">
+          <Group>
+            <p className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">{t('storage.host')}</p>
+          </Group>
+        </div>
+      ) : (
+        <DeviceStorage />
+      )}
+    </PageContainer>
+  );
+}
+
+/**
+ * "Spara kommande presentationer offline" (TODO.md "Video"): this device keeps every presentation of the
+ * coming seven days offline, videos too, as if each had been chosen by hand. Off at first. A device that
+ * keeps nothing says why here, the one place it is said on this page.
+ */
+function KeepComing() {
+  const on = useKeepComing();
+  const status = useDbStatus();
+  const unavailable = !!status && status.storage !== 'opfs';
+  return (
+    <SwitchRow
+      title={t('settings.keepComing')}
+      description={t(unavailable ? 'offline.unavailable' : 'settings.keepComingDescription')}
+      checked={on && !unavailable}
+      disabled={unavailable}
+      onChange={setKeepComingSetting}
+    />
+  );
 }
 
 function DeviceStorage() {
   const db = useDb();
   const toast = useToast();
-  const status = useDbStatus();
   const report = useStorageReport();
   const presentations = useData(listPresentations, []);
   const pinned = useData(pinnedIds, []);
@@ -134,14 +152,11 @@ function DeviceStorage() {
   useEffect(() => {
     void limitRange(cache, cacheLimitSetting()).then(setMax);
   }, [cache]);
-  const persistent = status?.storage === 'opfs';
   const byId = new Map((presentations ?? []).map((p) => [p.id, p]));
   return (
     <div className="space-y-6" data-testid="storage">
-      <Group title={t('storage.title')} footer={!!status && !persistent && <span className="text-amber-700 dark:text-amber-300">{t('storage.memory')}</span>}>
-        <p className={GROUP_ROW} data-testid="storage-total">
-          {report ? t('storage.used', { size: formatBytes(report.total) }) : t('storage.loading')}
-        </p>
+      <Group>
+        <KeepComing />
       </Group>
 
       <Group title={t('storage.offline')}>

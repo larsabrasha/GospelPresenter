@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, type RefObject } from 'react';
 
 // Pulling a sheet down to close it, as on iOS (taken from the kropp app's useSheetDrag): anywhere on it, by its bar
-// always and by its content once that is scrolled to the top. The sheet follows the finger, and what is below it
+// always and by its content once that is scrolled to the top, whichever box in it scrolls (Inställningar's page does,
+// not the sheet). The sheet follows the finger, and what is below it
 // brightens as it goes (onPull). Let go, and the finger's speed at that moment decides: thrown or pulled far enough,
 // the sheet carries on down at that speed and closes; else it springs back. Pulled up by its bar, it gives a little
 // and no more. A mouse drags it the same way. A pull may begin on a button or a row, as on iOS; it then does not
@@ -44,6 +45,15 @@ export function closesOnRelease({ dy, speed, height }: { dy: number; speed: numb
   return dy > 0 && speed > -0.1 && (speed > THROW || dy + speed * PROJECT_MS > height * 0.5);
 }
 
+/** Whether nothing from `target` up to the sheet, the sheet included, is scrolled down: a pull there may move it. */
+function atTop(target: EventTarget | null, sheet: HTMLElement): boolean {
+  for (let n = target instanceof Element ? target : null; n; n = n.parentElement) {
+    if (n.scrollTop > 0) return false;
+    if (n === sheet) return true;
+  }
+  return sheet.scrollTop <= 0;
+}
+
 interface Pull {
   y: number;
   x: number;
@@ -63,9 +73,12 @@ export function useSheetDrag(
   dismiss: () => void,
   /** How far it is pulled, 0 at rest to 1 gone, for what is below to follow. */
   onPull: (progress: number, animateMs?: number) => void,
+  /** Whether a pull may begin now: Inställningar's dialog is a sheet on a phone only. Always, when left out. */
+  enabled?: () => boolean,
 ) {
   const closeNow = useEffectEvent(dismiss);
   const pulled = useEffectEvent(onPull);
+  const allowed = useEffectEvent(() => enabled?.() ?? true);
   useEffect(() => {
     const el = sheet.current;
     if (!el) return;
@@ -77,8 +90,9 @@ export function useSheetDrag(
     };
 
     const start = (x: number, y: number, time: number, target: EventTarget | null) => {
+      if (!allowed()) return;
       const fromBar = target instanceof Node && !!bar.current?.contains(target);
-      pull = { x, y, canPull: fromBar || el.scrollTop <= 0, fromBar, pulling: false, dy: 0, samples: [{ time, y }] };
+      pull = { x, y, canPull: fromBar || atTop(target, el), fromBar, pulling: false, dy: 0, samples: [{ time, y }] };
     };
 
     /** True while the move belongs to the sheet rather than to its content's scroll. */

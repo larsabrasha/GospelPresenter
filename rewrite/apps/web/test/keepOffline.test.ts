@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { videosToDrop, type KeptVideo } from '@gp/sync/client';
 import { keptByComing } from '../src/ui/KeepOffline.tsx';
-import { formatBytes } from '../src/pages/Storage.tsx';
+import { formatBytes } from '../src/ui/formatBytes.ts';
 
 // Keeping presentations offline (TODO.md "Video, and which files a device fetches").
 

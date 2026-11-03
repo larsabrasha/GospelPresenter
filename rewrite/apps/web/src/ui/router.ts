@@ -69,6 +69,8 @@ export type Route =
   | { page: 'settings' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
+  /** Lagring under Mina inställningar: what this device keeps, offline and in its cache. */
+  | { page: 'storage' }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
   | { page: 'invite'; token: string }
   /** Back from Google on the web: the page collects its session (`POST /auth/google/finish`). */
@@ -142,6 +144,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'display') return { page: 'display', id: query.get('id'), name: query.get('name'), token: query.get('token') };
   if (first === 'logins') return { page: 'logins', error: query.get('error') };
   if (first === 'settings') return { page: 'settings' };
+  if (first === 'storage') return { page: 'storage' };
   if (first === 'songs') return { page: 'songs' };
   return { page: 'presentations' };
 }
@@ -149,7 +152,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);

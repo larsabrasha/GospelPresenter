@@ -8,6 +8,7 @@ import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '.
 import { backToTemplates, href } from '../../ui/router.ts';
 import { templateDetails } from '../templates.ts';
 import { PresentationMenu } from '../presentation-editor/PresentationMenu.tsx';
+import { markLiveStarting, playLiveLeaving } from './liveMotion.ts';
 import { SyncCloud } from '../../TopBar.tsx';
 import { GREEN_SHADOW, LIFTED, RED_SHADOW, ROUND_BACK } from '../../ui/glass.ts';
 
@@ -57,6 +58,8 @@ export function PresentationBar({
   const end = async () => {
     const ok = await ask({ title: t('live.end'), text: t('live.endText'), confirm: t('live.end'), compact: true });
     if (!ok) return;
+    // The picture fades and its area closes first (liveMotion.ts), then the presentation ends.
+    await playLiveLeaving();
     live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
     // The output window closes with the presentation (Live.razor, Lars 2026-10-29); the page stays, editing.
     outputWindow().turn(false);
@@ -130,7 +133,13 @@ export function PresentationBar({
         </AppButton>
         {/* Start and stop at the far right: ▶ before, ■ while presented (only this window's session ends). */}
         {!presenting && canStart && (
-          <AppButton variant="plain" onClick={onStart} className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>
+          <AppButton
+            variant="plain"
+            onClick={() => {
+              markLiveStarting();
+              onStart();
+            }}
+            className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>
             <PlayIcon className="size-5" />
             <span className="max-lg:sr-only">{t('presentation.start')}</span>
           </AppButton>

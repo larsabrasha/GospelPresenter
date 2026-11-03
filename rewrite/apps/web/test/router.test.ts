@@ -40,6 +40,7 @@ describe('routes', () => {
       { page: 'display', id: null, name: null, token: 'Ab-_1' },
       { page: 'logins', error: null },
       { page: 'logins', error: 'login-taken' },
+      { page: 'storage' },
       { page: 'invite', token: 'gpin_abc-_123' },
       { page: 'signedIn' },
       { page: 'signIn', error: null },

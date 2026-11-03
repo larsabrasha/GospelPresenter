@@ -189,7 +189,7 @@ test('creating a user: every role is described, and a bad or taken address is sa
   const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
   // The roles this SuperAdmin may give, each with its bold label (Users.razor).
   await expect(dialog.getByTestId('role-descriptions').locator('div')).toHaveText([
-    'Användare: Kan skapa presentationer och hantera sånger och overlays.',
+    'Användare: Kan skapa presentationer och hantera sånger och överlägg.',
     'Admin: Allt en användare kan göra, plus hantera mallar och användare.',
     'Superadmin: Full åtkomst, inklusive hantering av organisationer.',
   ]);

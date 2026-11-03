@@ -9,7 +9,7 @@ import type { LiveChannel } from './live/live.ts';
 import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
 import { VideoEngine } from './live/video.ts';
 import { KEEP_COMING_CHANGED, keepComingSetting } from './ui/KeepOffline.tsx';
-import { CACHE_LIMIT_CHANGED, cacheLimitSetting } from './pages/Storage.tsx';
+import { CACHE_LIMIT_CHANGED, cacheLimitSetting, Storage } from './pages/Storage.tsx';
 import { useCcliCounter } from './live/ccli.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
@@ -114,6 +114,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {(route.page === 'songs' || route.page === 'admin') && <Songs />}
       {route.page === 'settings' && <Settings />}
       {route.page === 'logins' && <Logins error={route.error} />}
+      {route.page === 'storage' && <Storage />}
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} /> : <Refused text={t('users.forbidden')} />)}
@@ -230,6 +231,7 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   if (route.page === 'settings') return t('nav.settings');
   if (route.page === 'trash') return t('trash.title');
   if (route.page === 'logins') return t('logins.title');
+  if (route.page === 'storage') return t('storage.title');
   if (DETAIL_TITLES.has(route.page)) return settingsTitle(route, true);
   const link = settingsGroups(me, host).flatMap((g) => g.links).find((l) => l.route.page === route.page);
   return link ? t(link.label) : t('nav.admin');
@@ -249,7 +251,7 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'user' ? { page: 'users' }
     : route.page === 'overlay' ? { page: 'overlays' }
     : route.page === 'org' ? { page: 'orgs' }
-    : route.page === 'logins' ? { page: 'settings' }
+    : route.page === 'logins' || route.page === 'storage' ? { page: 'settings' }
     : { page: 'admin' };
   return { href: href(up), label: t('common.back') };
 }

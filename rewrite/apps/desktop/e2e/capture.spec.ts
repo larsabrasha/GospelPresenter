@@ -124,8 +124,8 @@ test('capture every page', async () => {
   ] as const) {
     await page.goto(`${host.base}/admin/overlays`);
     await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').fill(title);
-    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').press('Enter');
+    await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill(title);
+    await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
     await page.getByLabel('Textinnehåll').fill(content);
     await page.getByLabel('Textinnehåll').blur();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
@@ -270,7 +270,7 @@ test('capture every page', async () => {
           async (p: Page) => {
             await goLive(p);
             await (await remoteSwitch(p)).check();
-            await p.getByRole('region', { name: 'Fjärrstyr presentationen' }).waitFor();
+            await p.getByRole('img', { name: 'QR-kod för fjärrstyrning' }).waitFor();
             if (name === 'live-remote-on') await p.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
           },
           async (p: Page) => {
@@ -376,7 +376,7 @@ test('capture every page', async () => {
         await p.getByRole('img', { name: 'QR-kod för att ansluta en skärm' }).waitFor();
       },
       async (p) => {
-        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Avbryt' }).click();
+        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Stäng', exact: true }).click();
         await stopLive(p);
       },
     ],
@@ -394,7 +394,7 @@ test('capture every page', async () => {
         await dialog.getByText('Skärmen är ansluten').waitFor();
       },
       async (p) => {
-        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Stäng' }).click();
+        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Stäng', exact: true }).click();
         await stopLive(p);
       },
     ],
@@ -437,7 +437,7 @@ test('capture every page', async () => {
       await expect(toggle).toBeEnabled({ timeout: 10_000 });
       await toggle.check();
     }
-    await page.getByRole('list', { name: 'Overlays' }).getByLabel('Välkommen').check();
+    await page.getByRole('list', { name: 'Överlägg' }).getByLabel('Välkommen').check();
   };
   const besideLive: [string, (theme: string, width: number, height: number) => Promise<Page>][] = [
     [

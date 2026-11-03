@@ -156,4 +156,5 @@ took 71 s, 4 s of it starting the current app after an earlier build.
 
 **Captions in sentence case** (Lars, 2026-11-02, as iOS 26): the grey caption over a group or a list ("Idag",
 "Kommande", "Ordning", "Utgångar") is written as a sentence, semibold and grey, never in capitals. Capitals stay
-only in the logo and in status badges (LIVE, VISAS JUST NU, STANDARD).
+only in the logo and in status badges (LIVE, STANDARD, and Ta kontroll's VISAS JUST NU); this window's own Visas just nu card on
+the start page says it as a sentence, and its row has only a red dot (Lars, 2026-11-03).

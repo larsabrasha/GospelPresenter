@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import { ChevronRightIcon } from './icons.tsx';
 
 // The current app's lists: a light card of rows, with an optional small
 // caption above (Components/Presentations/PresentationSection.razor, PresentationRow.razor).
@@ -60,6 +61,8 @@ export function ListLinkRow({
           )}
         </div>
         {end}
+        {/* A row that opens a page says so, as iOS's lists do (Lars, 2026-11-03); not beside a control of its own. */}
+        {!after && <ChevronRightIcon className="size-4 shrink-0 -mr-1 text-stone-400 dark:text-stone-600" />}
       </a>
       {after && <div className="shrink-0 pr-3 -ml-2">{after}</div>}
     </li>

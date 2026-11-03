@@ -1,5 +1,5 @@
 import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type Song, type SongArrangement, type Theme } from '@gp/core';
-import { Children, useState, type ReactNode } from 'react';
+import { Children, useRef, useState, type ReactNode } from 'react';
 import { orgRemoteControl, type ShownOverlay } from '../../../db/queries.ts';
 import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
@@ -10,7 +10,7 @@ import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
 import { CheckSquareIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
-import { GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
+import { ICON_GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
 import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
@@ -18,6 +18,7 @@ import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
 import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
 import { PresentationBar } from '../PresentationBar.tsx';
+import { useLiveMotion } from '../liveMotion.ts';
 import { SyncLine } from '../../../TopBar.tsx';
 import { RunningOrder } from '../RunningOrder.tsx';
 import { SlideList } from '../SlideList.tsx';
@@ -27,9 +28,10 @@ import { OverlaysPanel } from '../OverlaysPanel.tsx';
 import { RemoteStatus } from '../RemotePanel.tsx';
 import { OutputsPanel } from '../OutputsPanel.tsx';
 import { VideoPlayer } from '../VideoPlayer.tsx';
-import { DisplayGlyph } from './LiveGlyphs.tsx';
+import { DescriptionGlyph, DisplayGlyph } from './LiveGlyphs.tsx';
+import { Description } from '../../presentation-editor/Description.tsx';
 
-type Open = null | 'display' | { item: PresentationItem } | { images: PresentationItem };
+type Open = null | 'display' | 'description' | { item: PresentationItem } | { images: PresentationItem };
 
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
@@ -105,13 +107,10 @@ export function PhoneLive({
   // Select mode (Markera), from an item's …: the item it was chosen on ticked first.
   const [editing, setEditing] = useState<string | null>(null);
   const owner = presenting?.owner ?? null;
+  // The picture's block, which takes its room before the picture fades in after a start (liveMotion.ts).
+  const pictureArea = useRef<HTMLDivElement>(null);
+  useLiveMotion(pictureArea, { shown: !!presenting });
 
-  const steps = items.flatMap((item) => (slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex })));
-  const at = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
-  const go = (to: number) => {
-    const target = steps[Math.max(0, Math.min(steps.length - 1, to))];
-    if (target) live.set({ ...target, black: false });
-  };
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const video = pointer.itemId ? slides.get(pointer.itemId)?.video : undefined;
 
@@ -145,7 +144,7 @@ export function PhoneLive({
       <div className="flex-1 min-h-0 flex flex-col landscape:flex-row-reverse">
       {/* Above the running order, so the buttons' shadows fall over it rather than being cut by its sticky headings. */}
       {presenting && (
-      <div className="relative z-[2] px-4 pt-3 shrink-0 landscape:w-[45%] landscape:pt-3">
+      <div ref={pictureArea} className="relative z-[2] px-4 pt-3 shrink-0 landscape:w-[45%] landscape:pt-3">
         {/* At most a fifth of the screen high, so a small phone keeps room for the running order (Lars, 2026-11-02);
             lying down, as wide as its column. */}
         <LivePicture
@@ -154,11 +153,10 @@ export function PhoneLive({
           theme={theme}
           overlay={overlay}
           black={pointer.black}
-          canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
-          onStep={(delta) => go(at + delta)}
           onClear={() => live.set({ black: true })}
           testId="phone-live-picture"
           // At the right end of ‹ Rensa ›'s row (LivePicture).
+          leading={presentation.description ? <DescriptionGlyph onClick={() => setOpen('description')} /> : undefined}
           trailing={
             (owner || !!overlays.length) && <DisplayGlyph link={owner ? presenting.link : null} sessionId={owner?.sessionId ?? ''} pointer={pointer} onClick={() => setOpen('display')} />
           }
@@ -211,13 +209,16 @@ export function PhoneLive({
           markedId={addedId}
           onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
           onItemMenu={(item) => setOpen({ item })}
+          // Before presenting, the description at the top of the list, as a computer has it atop its left column; while
+          // presenting, behind the button left of Rensa (Lars, 2026-11-03).
+          header={!presenting && !!presentation.description && <Description key={presentation.description} text={presentation.description} className="mt-4" />}
           // Whether it is kept offline and Fjärrstyrning at the foot of the list (Lars, 2026-11-02), as a computer has
           // them at the foot of its columns.
           footer={
             <>
               <SyncLine className="w-auto" fallback={onKeepOffline && <OfflineStatus presentation={presentation} onOpen={onKeepOffline} className="w-auto" />} />
               {owner && remotePolicy && remotePolicy !== 'never' && (
-                <RemoteStatus id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} className="w-auto" />
+                <RemoteStatus id={id} sessionId={owner.sessionId} always={remotePolicy === 'always'} className="w-auto" />
               )}
             </>
           }
@@ -225,6 +226,21 @@ export function PhoneLive({
       )}
       </div>
 
+      {/* Beskrivning: the text to read, and the way to change it (Lars, 2026-11-03). */}
+      {open === 'description' && presentation.description && (
+        <Sheet title={t('presentation.description')} onClose={() => setOpen(null)}>
+          <div className="flex flex-col gap-5">
+            <p className="rounded-[1.375rem] bg-sheet-cell px-4 py-3.5 text-[17px] whitespace-pre-line select-text" data-testid="description-sheet">
+              {presentation.description}
+            </p>
+            <MenuGroup>
+              <MenuRow icon={<PencilIcon className="size-5" />} onClick={onDetails}>
+                {t('presentation.editDetailsMenu')}
+              </MenuRow>
+            </MenuGroup>
+          </div>
+        </Sheet>
+      )}
       {/* Visning: the outputs and the overlays in one sheet, each its group (Lars, 2026-11-02). */}
       {open === 'display' && presenting && (
         <Sheet title={t('live.display')} onClose={() => setOpen(null)}>
@@ -300,7 +316,7 @@ export function PhoneLive({
 /** One rounded group of rows; with no row in it (each is conditional) it takes no room. */
 function MenuGroup({ children }: { children: ReactNode }) {
   if (!Children.toArray(children).length) return null;
-  return <div className={GROUP}>{children}</div>;
+  return <div className={ICON_GROUP}>{children}</div>;
 }
 
 function MenuRow({ icon, onClick, danger, disabled, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; children: ReactNode }) {

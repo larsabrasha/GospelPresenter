@@ -269,6 +269,7 @@ templates by `UpdatedAt` desc linking to `/templates/{id}`. Create → template 
 "Skapa mall" (name, weekday, time, location) → navigate to the template editor. Reloads on sync.
 
 ### 4. Overlays admin — `/admin/overlays`, `/admin/overlays/{id}`
+2.0 (Lars, 2026-11-03): in Swedish the page and its texts say **Överlägg** ("Skapa överlägg", "Inga överlägg"), as FreeShow does; English keeps "Overlays".
 Policy ManageOverlays (all roles). List: 16:9 thumb (image or placeholder), title, first line of
 text; empty state "Inga overlays" + "Overlays visas ovanpå den aktiva bilden under en presentation,
 t.ex. ett Swish-nummer vid kollekt." + **Skapa**. Create → name dialog "Skapa overlay" → detail page.
@@ -432,7 +433,9 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-R35 Start/stop/live state is per browser session; the dashboard "Live" pill reflects only the
   viewer's own session (`PresentationRow.razor:19`).
 - PRES-R36 Song item title is not kept in sync with the library automatically; it is updated only when
-  the song is edited from inside this editor (`Presentation.razor:1652-1676`).
+  the song is edited from inside this editor (`Presentation.razor:1652-1676`). 2.0 (Lars, 2026-11-03): a renamed
+  song renames its items, in presentations and templates, also by restoring a version; a title of the item's
+  own (MCP's `rename_item`) gives way to the song's name too.
 
 **Shortcuts**
 - PRES-R37 Only the topmost scope stack down to the first *blocking* scope receives keys; modals
@@ -652,6 +655,6 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 14. Mobile rename of items is effectively impossible (PRES-E8).
 15. Single-verse selection in browse mode requires a double pick (PRES-E4) — likely unintended.
 16. Song items reference the live song; the item title does not follow library renames (PRES-R36).
-    Keep, or show the current song name?
+    Keep, or show the current song name? 2.0 (Lars, 2026-11-03): the title follows the rename (PRES-R36).
 17. The editor offers delete/add/edit controls regardless of permission; with all current roles
     having ManagePresentations this is moot, but a read-only role would need UI gating.

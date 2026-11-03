@@ -2,6 +2,7 @@ import type { ReactNode, SelectHTMLAttributes } from 'react';
 import { AppButton } from './AppButton.tsx';
 import { ChevronDownIcon, ChevronRightIcon } from './icons.tsx';
 import { CARD } from './List.tsx';
+import { SWITCH } from './Toggle.tsx';
 
 // A page of settings as iOS's Settings and macOS's System Settings lay one out (Lars, 2026-11-02): groups of rows, a
 // small grey caption over each card, hairlines between its rows, what the group does in grey under it, and no box
@@ -48,15 +49,33 @@ export function PopUp({ children, ...rest }: SelectHTMLAttributes<HTMLSelectElem
   );
 }
 
-/** A row that opens something: its name, what it holds in grey, and ›. */
-export function OpeningRow({ label, value, onClick, testId }: { label: string; value?: string; onClick: () => void; testId?: string }) {
+/** A row that opens something, a sheet by `onClick` or a page by `href`: its name, what it holds in grey, and ›. */
+export function OpeningRow({ label, value, onClick, href, testId }: { label: string; value?: string; onClick?: () => void; href?: string; testId?: string }) {
   return (
-    <AppButton variant="plain" onClick={onClick} data-testid={testId} className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-raised`}>
+    <AppButton
+      variant="plain"
+      {...(href ? { href } : { onClick })}
+      data-testid={testId}
+      className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-raised`}
+    >
       <span className="shrink-0">{label}</span>
       <span className="flex-1 min-w-0 flex items-center justify-end gap-2 text-stone-500 dark:text-stone-400">
-        {value && <span className="truncate">{value}</span>}
+        {value && <span className="truncate tabular-nums">{value}</span>}
         <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
       </span>
     </AppButton>
+  );
+}
+
+/** A setting that is on or off: a row of its group, with what it does in grey under its name. */
+export function SwitchRow({ title, description, checked, disabled, onChange }: { title: string; description?: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className={`${GROUP_ROW} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}>
+      <span>
+        <span className="block">{title}</span>
+        {description && <span className="block text-xs text-stone-500 dark:text-stone-400 mt-0.5">{description}</span>}
+      </span>
+      <input type="checkbox" role="switch" className={SWITCH} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+    </label>
   );
 }

@@ -2,7 +2,7 @@ import type { LivePointer } from '@gp/core';
 import { t } from '../../../i18n.ts';
 import type { LiveLink } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
-import { DesktopIcon } from '../../../ui/icons.tsx';
+import { DesktopIcon, DocumentTextIcon } from '../../../ui/icons.tsx';
 import { LIFTED } from '../../../ui/glass.ts';
 import { useOutputs } from '../useOutputs.ts';
 
@@ -25,6 +25,18 @@ export function DisplayGlyph({ link, sessionId, pointer, onClick }: { link: Live
 }
 
 const OFF = 'text-stone-500 dark:text-stone-400';
+
+/**
+ * Beskrivning at the left end of Rensa's row on a phone, in the room that keeps Rensa in the middle, when the
+ * presentation has a description (Lars, 2026-11-03): a tap opens its sheet, the text to read there.
+ */
+export function DescriptionGlyph({ onClick }: { onClick: () => void }) {
+  return (
+    <AppButton variant="plain" aria-label={t('presentation.description')} title={t('presentation.description')} onClick={onClick} className={GLYPH}>
+      <DocumentTextIcon className={`size-[22px] ${OFF}`} />
+    </AppButton>
+  );
+}
 
 /** The glyph's screen, green while any of this window's outputs is on. */
 function OutputsOn({ link, sessionId }: { link: LiveLink; sessionId: string }) {

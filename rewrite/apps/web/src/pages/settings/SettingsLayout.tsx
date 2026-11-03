@@ -3,12 +3,13 @@ import type { Me } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { Avatar } from '../../TopBar.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { LIFTED, ROUND_BACK } from '../../ui/glass.ts';
+import { ROUND_BACK, ROUND_CLOSE } from '../../ui/glass.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '../../ui/icons.tsx';
 import { PageFloatSlot } from '../../ui/headerFloat.ts';
+import { SearchField } from '../../ui/Picker.tsx';
 import { PageAlone, PageBackInBar, PageBarSlot, PageFill, PageIntroProvider } from '../../ui/PageContainer.tsx';
 import { adminBack, aloneInSettings, href, type Route } from '../../ui/router.ts';
-import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks.ts';
+import { isOpen, MINE, searchSettings, settingsGroups, type SettingsLink } from './settingsLinks.ts';
 
 /**
  * A list row's height: 52 pt as iOS 27's inset grouped lists; in a computer's sidebar the running order's pill (36 px,
@@ -35,43 +36,68 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
         <link.icon className="size-[17px] split:size-3.5" />
       </span>
       <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] split:text-[15px] ${first ? '' : 'max-split:border-t-[0.5px] max-split:border-separator'}`}>
-        <span className="flex-1 truncate">{t(link.label)}</span>
+        <span className="flex-1 min-w-0 flex flex-col">
+          <span className="truncate">{t(link.label)}</span>
+          {link.where && <span className={`text-[13px] truncate ${open ? 'split:text-white/80' : 'text-stone-500 dark:text-stone-400'}`}>{t(link.where)}</span>}
+        </span>
         <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 split:hidden" />
       </span>
     </a>
   );
 }
 
-/** The list: Mina inställningar as a profile cell at the top, then the groups (settingsLinks.ts), the same sizes at every width. */
+/**
+ * The list: a search field at the top, as iOS's Settings has (Lars, 2026-11-03), then Mina inställningar as a profile
+ * cell and the groups (settingsLinks.ts), the same sizes at every width. While the field holds words, what they find
+ * stands in one group instead, the rows as in the list.
+ */
 function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route }) {
   const mine = isOpen(MINE, route);
+  const [query, setQuery] = useState('');
+  const groups = settingsGroups(me, host);
+  const found = searchSettings(groups, query, t);
   return (
     <nav className="flex flex-col gap-[22px] split:gap-4" aria-label={t('nav.adminMenu')}>
-      <a
-        href={href(MINE.route)}
-        aria-current={mine ? 'page' : undefined}
-        aria-label={t('nav.settings')}
-        className={`flex items-center gap-3.5 split:gap-3 p-3 split:p-2 rounded-[22px] split:rounded-full no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 split:bg-sky-500 split:text-white' : 'bg-surface split:bg-transparent split:hover:bg-black/5 dark:split:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
-      >
-        <Avatar name={me.name} className="size-14 text-xl split:size-10 split:text-base" />
-        <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-xl split:text-[15px] font-semibold truncate">{me.name}</span>
-          <span className={`text-[13px] truncate text-stone-500 dark:text-stone-400 ${mine ? 'split:text-white/80 dark:split:text-white/80' : ''}`}>{t('nav.settings')}</span>
-        </span>
-        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 split:hidden" />
-      </a>
-      {settingsGroups(me, host).map((g) => (
-        <section key={g.title ?? g.links[0]?.label} className="flex flex-col gap-1.5 split:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
-          {g.title && (
-            <h2 className="px-4 split:px-3 text-sm/5 font-semibold split:text-[13px]/5 text-stone-500 dark:text-stone-400">{t(g.title)}</h2>
-          )}
-          <div className="flex flex-col max-split:rounded-[22px] max-split:overflow-hidden max-split:bg-surface">
-            {g.links.map((l, i) => (
+      <SearchField compact filled value={query} onChange={setQuery} label={t('search.field')} />
+      {query.trim() ? (
+        found.length ? (
+          <section className="flex flex-col max-split:rounded-[22px] max-split:overflow-hidden max-split:bg-surface" aria-label={t('search.field')}>
+            {found.map((l, i) => (
               <Row key={l.label} link={l} route={route} first={i === 0} />
             ))}
-          </div>
-        </section>
-      ))}
+          </section>
+        ) : (
+          <p className="px-4 split:px-3 text-sm text-stone-500 dark:text-stone-400">{t('search.none', { query: query.trim() })}</p>
+        )
+      ) : (
+        <>
+          <a
+            href={href(MINE.route)}
+            aria-current={mine ? 'page' : undefined}
+            aria-label={t('nav.settings')}
+            className={`flex items-center gap-3.5 split:gap-3 p-3 split:p-2 rounded-[22px] split:rounded-full no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 split:bg-sky-500 split:text-white' : 'bg-surface split:bg-transparent split:hover:bg-black/5 dark:split:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
+          >
+            <Avatar name={me.name} className="size-14 text-xl split:size-10 split:text-base" />
+            <span className="flex-1 min-w-0 flex flex-col">
+              <span className="text-xl split:text-[15px] font-semibold truncate">{me.name}</span>
+              <span className={`text-[13px] truncate text-stone-500 dark:text-stone-400 ${mine ? 'split:text-white/80 dark:split:text-white/80' : ''}`}>{t('nav.settings')}</span>
+            </span>
+            <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 split:hidden" />
+          </a>
+          {groups.map((g) => (
+            <section key={g.title ?? g.links[0]?.label} className="flex flex-col gap-1.5 split:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
+              {g.title && (
+                <h2 className="px-4 split:px-3 text-sm/5 font-semibold split:text-[13px]/5 text-stone-500 dark:text-stone-400">{t(g.title)}</h2>
+              )}
+              <div className="flex flex-col max-split:rounded-[22px] max-split:overflow-hidden max-split:bg-surface">
+                {g.links.map((l, i) => (
+                  <Row key={l.label} link={l} route={route} first={i === 0} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
     </nav>
   );
 }
@@ -121,7 +147,7 @@ export function SettingsLayout({
       {/* A detail page's own name and Sparad (DetailHeader) take the title's place. */}
       <div ref={setSlot} data-bar-slot className="relative flex-1 min-w-0 flex items-center pr-20 empty:hidden" />
       {/* Stäng at the top right, as every dialog has it. */}
-      <AppButton variant="plain" onClick={bar.onClose} aria-label={t('common.close')} title={t('common.close')} className={`-mr-1 size-8 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-500 ${LIFTED}`}>
+      <AppButton variant="plain" onClick={bar.onClose} aria-label={t('common.close')} title={t('common.close')} className={`-mr-1 ${ROUND_CLOSE}`}>
         <CloseIcon className="size-4" />
       </AppButton>
     </div>

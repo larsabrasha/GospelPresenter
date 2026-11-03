@@ -41,6 +41,11 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await createSong(page, 'Sång C', [['Verse 1', 'C ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
+  const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
+  await details.getByLabel('Beskrivning').fill('Med nattvard');
+  await details.getByRole('button', { name: 'Spara' }).click();
   await page.setViewportSize(PHONE);
   await page.reload();
 
@@ -50,6 +55,8 @@ test('on a phone the presentation is one column before and while presenting; Lä
   const liveOrder = page.getByTestId('live-order');
   const start = live.getByRole('button', { name: 'Starta presentation' });
   await expect(liveOrder.getByText('A två')).toBeVisible();
+  // With no side column, the description stands at the top of the list (Lars, 2026-11-03).
+  await expect(liveOrder.getByTestId('description')).toContainText('Med nattvard');
   await expect(picture).toHaveCount(0);
   await onScreen(start);
 
@@ -80,8 +87,16 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(liveOrder.locator('section')).toHaveCount(2);
 
-  // Presenting: one column, the picture with ‹ Rensa › under it, and every part of every item with its text.
+  // Presenting: one column, the picture with Rensa under it, and every part of every item with its text. The list
+  // slides down to make room as the block with the picture comes (liveMotion.ts): an animation runs on it at once.
   await start.click();
+  await expect.poll(() => liveOrder.evaluate((el) => el.getAnimations().length), { intervals: [0, 20, 40] }).toBeGreaterThan(0);
+  // Presenting, the description is behind the button left of Rensa, in a sheet of its own.
+  await expect(liveOrder.getByTestId('description')).toHaveCount(0);
+  await live.getByRole('button', { name: 'Beskrivning' }).click();
+  await expect(page.getByTestId('description-sheet')).toHaveText('Med nattvard');
+  await page.getByRole('dialog', { name: 'Beskrivning' }).getByRole('button', { name: 'Stäng', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Beskrivning' })).toHaveCount(0);
   await expect(live).toBeVisible();
   // The title sits in the middle of the room between the back button and the buttons at the right, never under them.
   const title = (await live.getByRole('button', { name: 'Alternativ' }).boundingBox())!;
@@ -99,7 +114,9 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(picture).toContainText('A ett');
   await expect(liveOrder.getByRole('button', { name: /A ett/ })).toContainText('VISAS');
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('NÄSTA');
-  await page.getByRole('button', { name: 'Nästa bild' }).click();
+  // No ‹ › on a phone (Lars, 2026-11-03): a tap on the next part shows it.
+  await expect(page.getByRole('button', { name: 'Nästa bild' })).toHaveCount(0);
+  await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(picture).toContainText('A två');
 
   // Rensa blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not

@@ -2,6 +2,7 @@ import { createContext, useContext, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
+import { ROUND_CLOSE } from './glass.ts';
 import { CloseIcon } from './icons.tsx';
 import { useSheetDrag } from './sheetDrag.ts';
 
@@ -87,7 +88,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
               variant="plain"
               aria-label={t('common.close')}
               onClick={() => dismiss()}
-              className="justify-self-end size-11 rounded-full flex items-center justify-center cursor-pointer bg-stone-200 dark:bg-raised/60"
+              className={`justify-self-end ${ROUND_CLOSE}`}
             >
               <CloseIcon className="size-4" />
             </AppButton>
@@ -114,3 +115,10 @@ export function useSheetDismiss() {
 
 /** A group of rows in a sheet or a list, as iOS's inset grouped lists: rounded, the rows split by hairlines. */
 export const GROUP = 'rounded-[1.375rem] overflow-hidden bg-sheet-cell divide-y-[0.5px] divide-separator';
+
+/** A sheet card's hairlines, from the rows' text (16 px in, a 20 px icon and its 14 px gap) to the right edge, as iOS's. */
+export const INSET_HAIRLINES =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:top-0 [&>*+*]:before:left-[50px] [&>*+*]:before:right-0 [&>*+*]:before:h-[0.5px] [&>*+*]:before:bg-separator';
+
+/** A group whose rows have icons (Lars, 2026-11-03): the hairlines start where the rows' text does. */
+export const ICON_GROUP = `rounded-[1.375rem] overflow-hidden bg-sheet-cell ${INSET_HAIRLINES}`;

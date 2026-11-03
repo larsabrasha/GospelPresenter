@@ -42,6 +42,7 @@ export function SlideList({
   onItemMenu,
   onAddImages,
   footer,
+  header,
   template = false,
 }: {
   items: PresentationItem[];
@@ -65,6 +66,8 @@ export function SlideList({
   onAddImages?: (itemId: string) => void;
   /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
   footer?: ReactNode;
+  /** Above the items, scrolling with them: a phone's description while nothing is presented. */
+  header?: ReactNode;
   /** A template's editor: the empty list says the template is empty. */
   template?: boolean;
 }) {
@@ -90,6 +93,7 @@ export function SlideList({
       className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-24 lg:pb-12 max-lg:landscape:pt-3 bg-ground`}
       data-testid={wide ? 'live-slides' : 'live-order'}
     >
+      {header}
       {!items.length && (
         <div className="h-full flex flex-col items-center justify-center text-center px-6 py-12 select-none">
           <EmptySlidesPicture className="w-48 h-auto mb-6 text-stone-300 dark:text-stone-600" />
@@ -106,13 +110,17 @@ export function SlideList({
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
             {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It
                 sticks a pixel above the top, a pixel taller, so no sliver of a row's red frame shows above it where the
-                scroll lands between pixels (Lars, 2026-11-02). */}
+                scroll lands between pixels (Lars, 2026-11-02). Its name starts where the rows' text does, as the start
+                page's captions (Lars, 2026-11-03). */}
             <h3
-              className={`sticky -top-px z-[2] -mx-4 lg:-mx-6 px-5 lg:px-6 pt-[calc(1.25rem+1px)] lg:pt-[calc(0.875rem+1px)] pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
+              className={`sticky -top-px z-[2] -mx-4 lg:-mx-6 pl-8 pr-5 lg:pl-10 lg:pr-6 pt-[calc(1.25rem+1px)] lg:pt-[calc(0.875rem+1px)] pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
             >
               {/* The item's name, not renamed here: that confused (Lars, 2026-11-02). */}
-              <span className="min-w-0 truncate">{item.title}</span>
-              {item.id === pointer.itemId && !pointer.black && <span className="size-2 rounded-full bg-red-500 shrink-0" aria-label={t('live.badge')} />}
+              {/* The dot of the item shown stands in the room left of its name, so the name never moves (Lars, 2026-11-03). */}
+              <span className="relative min-w-0 flex">
+                {item.id === pointer.itemId && !pointer.black && <span className="absolute -left-3 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" aria-label={t('live.badge')} />}
+                <span className="min-w-0 truncate">{item.title}</span>
+              </span>
               <OverlayChip item={item} overlays={overlays} />
               {onItemMenu ? (
                 <AppButton

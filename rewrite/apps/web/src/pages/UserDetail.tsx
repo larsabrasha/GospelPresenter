@@ -13,7 +13,8 @@ import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
-import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
+import { acceptHere, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
+import { copyText } from '../ui/copyText.ts';
 
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
 /** Radera beside a login or the invite: red text, no box of its own. */
@@ -50,7 +51,6 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
   const [emailError, setEmailError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [input, setInput] = useState<HTMLInputElement | null>(null);
   /** Whether the server can send e-mail (`AuthState.mail`): then an invite can be mailed. */
   const [mail, setMail] = useState(false);
   const [mailing, setMailing] = useState(false);
@@ -326,11 +326,10 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                       <div className="space-y-2">
                         <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteText', { name: user.name })}</p>
                         <CopyField
-                          inputRef={setInput}
                           value={link}
                           label={t('userDetail.inviteLink')}
                           copyLabel={t('userDetail.copy')}
-                          onCopy={() => void copy(input, link).then(() => toast(t('users.copied')))}
+                          onCopy={() => void copyText(link).then((copied) => copied && toast(t('users.copied')))}
                         />
                         {/* Where the system's share sheet exists (phones, Safari): to send it in a message. */}
                         {'share' in navigator && (

@@ -21,6 +21,8 @@ test("a clicker's keys drive the live page: next and previous across items, and 
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
+  // The live column slides in from the right (liveMotion.ts): an animation runs on it at once.
+  await expect.poll(() => page.getByTestId('live-panel').evaluate((el) => el.getAnimations().length), { intervals: [0, 20, 40] }).toBeGreaterThan(0);
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
@@ -104,7 +106,7 @@ test('a presentation is presented on its own page, as the current app: the addre
 
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
   // Both the row, marked Live, and Visas just nu at the top open it.
-  await expect(page.getByRole('link', { name: /^Söndag/ }).getByText('Live')).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Söndag/ }).getByRole('img', { name: 'Live' })).toBeVisible();
   await page.getByRole('link', { name: 'Visas just nu: Söndag' }).click();
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByRole('button', { name: 'Avsluta' })).toBeVisible();

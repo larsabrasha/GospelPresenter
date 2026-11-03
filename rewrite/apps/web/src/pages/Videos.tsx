@@ -12,7 +12,7 @@ import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { formatBytes } from './Storage.tsx';
+import { formatBytes } from '../ui/formatBytes.ts';
 import { formatDuration } from './VideoTab.tsx';
 import { RemoveMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';

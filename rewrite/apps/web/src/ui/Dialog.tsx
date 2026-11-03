@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
-import { LIFTED } from './glass.ts';
+import { ROUND_CLOSE } from './glass.ts';
+import { useSheetDrag } from './sheetDrag.ts';
 
 /** The round close button in a dialog's corner (Components/Dialog.razor). */
 function CloseButton({ onClick }: { onClick: () => void }) {
@@ -11,7 +12,7 @@ function CloseButton({ onClick }: { onClick: () => void }) {
     <AppButton
       variant="plain"
       data-close
-      className={`absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full cursor-pointer text-stone-500 ${LIFTED}`}
+      className={`absolute top-2.5 touch:top-1.5 right-3 z-10 ${ROUND_CLOSE}`}
       title={t('common.close')}
       aria-label={t('common.close')}
       onClick={onClick}
@@ -42,12 +43,29 @@ function DialogFrame({
   className: string;
   children: (close: () => void) => ReactNode;
   /**
-   * A dialog of whole pages: the full screen on a phone, focus on the box rather than a field, so a phone shows no
-   * keyboard, and only the close button closes it, so a stray press or Escape loses no work.
+   * A dialog of whole pages: on a phone as iOS's page sheet (Lars, 2026-11-03: not the full screen), sliding up from
+   * below to a little under the top, its top corners rounded, the page dimmed behind it, and pulled down it closes, as
+   * a sheet does (`useSheetDrag`); focus on the box rather than a field, so a phone shows no keyboard, and otherwise
+   * only the close button closes it, so a stray press or Escape loses no work.
    */
   page?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const noBar = useRef<HTMLElement>(null);
+  // The page under it brightens as it is pulled away; only a dialog of pages on a phone, where it is a sheet.
+  useSheetDrag(
+    box,
+    noBar,
+    onClose,
+    (progress, ms) => {
+      const el = backdrop.current;
+      if (!el) return;
+      el.style.transition = ms ? `background-color ${ms}ms` : 'none';
+      el.style.backgroundColor = `rgb(0 0 0 / ${0.3 * (1 - progress)})`;
+    },
+    () => !!page && matchMedia('(width < 40rem)').matches,
+  );
   useEffect(() => {
     const el = box.current!;
     if (el.contains(document.activeElement)) return;
@@ -70,15 +88,16 @@ function DialogFrame({
   };
   return createPortal(
     <div
+      ref={backdrop}
       data-overlay="dialog"
-      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-4' : 'p-4'}`}
+      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-4 max-sm:items-end max-sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]' : 'p-4'}`}
       onMouseDown={(e) => {
         if (!page && e.target === e.currentTarget) close();
       }}
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"

@@ -46,18 +46,18 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
   // Anna allows it; the card appears on Bo's computer without a reload.
-  // Switched on, the QR code and the link show under the switch, in the same sheet.
+  // Switched on, the QR code shows in its place under the switch, in the same sheet, which keeps its size.
   const info = page.getByRole('region', { name: 'Fjärrstyr presentationen' });
   await (await remoteSwitch(page)).scrollIntoViewIfNeeded();
-  await expect(info).toHaveCount(0);
+  const qr = info.getByRole('img', { name: 'QR-kod för fjärrstyrning' });
+  await expect(qr).toHaveCount(0);
   await (await remoteSwitch(page)).check();
-  await expect(info.getByText('Skanna med kameran på enheten du vill fjärrstyra från.')).toBeVisible();
-  // The link to copy is folded away under the QR code, and is the code's link.
-  await info.getByRole('button', { name: 'Kopiera länken' }).click();
-  const remoteLink = info.getByLabel('Länk för fjärrstyrning');
-  await expect(remoteLink).toBeVisible();
-  await expect(remoteLink).toHaveValue(/\/presentations\/[\w-]+\?remote=true&session=[\w-]+$/);
-  await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await remoteLink.inputValue());
+  await expect(info.getByText('Skanna med kameran.')).toBeVisible();
+  // The code is the link, which Kopiera länk puts on the clipboard.
+  await expect(qr).toHaveAttribute('data-value', /\/presentations\/[\w-]+\?remote=true&session=[\w-]+$/);
+  const sheet = page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true });
+  await sheet.getByRole('button', { name: 'Kopiera länk' }).click();
+  await expect(sheet.getByRole('button', { name: 'Länk kopierad' })).toBeVisible();
   await page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
   await expect(page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true })).toHaveCount(0);
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
@@ -203,7 +203,7 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await expect(page.getByText('Alla i organisationen kan fjärrstyra presentationen.')).toBeVisible();
   await expect(page.getByLabel('Tillåt fjärrstyrning')).toHaveCount(0);
   // Always on, so the QR code shows in the sheet at once.
-  await expect(page.getByRole('region', { name: 'Fjärrstyr presentationen' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toBeVisible();
   await page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
   await expect(page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true })).toHaveCount(0); // it fades out first
   await openPresentations(secondApp.page);

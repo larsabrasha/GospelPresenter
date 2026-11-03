@@ -19,6 +19,9 @@ export const LIFTED = `bg-surface dark:bg-raised ${LIFT_SHADOW} hover:bg-raised 
 /** A way back, as iOS 27 draws it: a round ‹ alone, lifted. */
 export const ROUND_BACK = `size-9 touch:size-11 rounded-full flex items-center justify-center text-stone-700 dark:text-stone-200 no-underline ${LIFTED}`;
 
+/** Stäng, the round ✕ at a dialog's or a sheet's top right: as the ‹, its mark as clear as the text (Lars, 2026-11-03). */
+export const ROUND_CLOSE = `size-9 touch:size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-700 dark:text-stone-200 ${LIFTED}`;
+
 /**
  * A quiet button in a colour, as iOS's and macOS's tinted buttons: a wash of the colour and its words in it, flat, with
  * no shadow (Lars, 2026-11-02: a coloured shadow under a quiet button looked heavy).

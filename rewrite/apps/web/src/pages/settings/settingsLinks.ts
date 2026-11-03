@@ -3,12 +3,15 @@ import type { ReactNode } from 'react';
 import { can, type Me } from '@gp/core';
 import type { TextKey } from '../../i18n.ts';
 import {
+  AdjustmentsIcon,
+  ArrowDownTrayIcon,
   BarsIcon,
   BookOpenIcon,
   CcliReportIcon,
   CogIcon,
   DesktopIcon,
   DevicesIcon,
+  GlobeIcon,
   InformationCircleIcon,
   MusicalNoteIcon,
   PhotoIcon,
@@ -17,6 +20,7 @@ import {
   SquaresOverlapIcon,
   TagIcon,
   TrashIcon,
+  UserIcon,
   UsersIcon,
   VideoIcon,
   ViewGridIcon,
@@ -33,6 +37,10 @@ export interface SettingsLink {
   pages: Route['page'][];
   /** What the page is for, in a card at its top as iOS's Settings has (Lars, 2026-11-02): only where it is not plain. */
   intro?: TextKey;
+  /** Other words the search finds the row by, comma-separated (`searchSettings`), as iOS's Settings finds "projector". */
+  keywords?: TextKey;
+  /** Where a search result lives when it is not a row of the list, in grey under its name, as iOS's Settings shows it. */
+  where?: TextKey;
 }
 
 export interface SettingsGroup {
@@ -42,7 +50,7 @@ export interface SettingsGroup {
 }
 
 /** The profile cell at the top: Mina inställningar, and its sign-in methods under it. */
-export const MINE: Pick<SettingsLink, 'route' | 'pages'> = { route: { page: 'settings' }, pages: ['settings', 'logins'] };
+export const MINE: Pick<SettingsLink, 'route' | 'pages'> = { route: { page: 'settings' }, pages: ['settings', 'logins', 'storage'] };
 
 /** The groups of the list; a row the user may not open is left out (as the pages refuse them), and so is an empty group. */
 export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGroup[] {
@@ -50,44 +58,72 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
     {
       title: 'settings.group.library',
       links: [
-        { route: { page: 'songs' }, label: 'nav.songs', icon: MusicalNoteIcon, colour: 'bg-blue-500', pages: ['songs', 'song', 'songHistory'] },
-        can(me.role, 'ManageBibles') && { route: { page: 'bibles' }, label: 'nav.bibles', icon: BookOpenIcon, colour: 'bg-amber-700', pages: ['bibles'] },
-        can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', icon: PhotoIcon, colour: 'bg-rose-500', pages: ['images'] },
-        can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', icon: SpeakerWaveIcon, colour: 'bg-orange-500', pages: ['audios'] },
-        can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', icon: VideoIcon, colour: 'bg-purple-500', pages: ['videos'] },
+        { route: { page: 'songs' }, label: 'nav.songs', keywords: 'search.songs', icon: MusicalNoteIcon, colour: 'bg-blue-500', pages: ['songs', 'song', 'songHistory'] },
+        can(me.role, 'ManageBibles') && { route: { page: 'bibles' }, label: 'nav.bibles', keywords: 'search.bibles', icon: BookOpenIcon, colour: 'bg-amber-700', pages: ['bibles'] },
+        can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', keywords: 'search.images', icon: PhotoIcon, colour: 'bg-rose-500', pages: ['images'] },
+        can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', keywords: 'search.audios', icon: SpeakerWaveIcon, colour: 'bg-orange-500', pages: ['audios'] },
+        can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', keywords: 'search.videos', icon: VideoIcon, colour: 'bg-purple-500', pages: ['videos'] },
       ],
     },
     {
       title: 'settings.group.presentation',
       links: [
-        can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, colour: 'bg-indigo-500', pages: ['overlays', 'overlay'], intro: 'intro.overlays' },
-        can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', icon: TagIcon, colour: 'bg-green-500', pages: ['labels'], intro: 'intro.labels' },
+        can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', keywords: 'search.overlays', icon: SquaresOverlapIcon, colour: 'bg-indigo-500', pages: ['overlays', 'overlay'], intro: 'intro.overlays' },
+        can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', keywords: 'search.labels', icon: TagIcon, colour: 'bg-green-500', pages: ['labels'], intro: 'intro.labels' },
       ],
     },
     {
       title: 'settings.group.display',
       links: [
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'publicOutputs' }, label: 'displays.public', icon: QrCodeIcon, colour: 'bg-teal-500', pages: ['publicOutputs'], intro: 'intro.publicOutputs' },
-        { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes'], intro: 'themes.text' },
-        can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', keywords: 'search.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'publicOutputs' }, label: 'displays.public', keywords: 'search.publicOutputs', icon: QrCodeIcon, colour: 'bg-teal-500', pages: ['publicOutputs'], intro: 'intro.publicOutputs' },
+        { route: { page: 'themes' }, label: 'nav.themes', keywords: 'search.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes'], intro: 'themes.text' },
+        can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', keywords: 'search.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
       ],
     },
     {
       title: 'settings.group.church',
       links: [
-        can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, colour: 'bg-blue-500', pages: ['users', 'user'] },
-        host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, colour: 'bg-teal-500', pages: ['devices'], intro: 'intro.devices' },
-        can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, colour: 'bg-stone-500', pages: ['orgSettings'], intro: 'intro.orgSettings' },
+        can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', keywords: 'search.users', icon: UsersIcon, colour: 'bg-blue-500', pages: ['users', 'user'] },
+        host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', keywords: 'search.devices', icon: DevicesIcon, colour: 'bg-teal-500', pages: ['devices'], intro: 'intro.devices' },
+        can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', keywords: 'search.orgSettings', icon: CogIcon, colour: 'bg-stone-500', pages: ['orgSettings'], intro: 'intro.orgSettings' },
         // The SuperAdmin's pages, across organisations (spec 01 sidebar).
-        can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
+        can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', keywords: 'search.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
       ],
     },
     // The one trash for everything deleted (Lars, 2026-11-02), rather than one beside every list.
-    { title: null, links: [{ route: { page: 'trash', kind: null }, label: 'nav.trash', icon: TrashIcon, colour: 'bg-stone-500', pages: ['trash'] }] },
-    { title: null, links: [{ route: { page: 'about' }, label: 'nav.about', icon: InformationCircleIcon, colour: 'bg-stone-500', pages: ['about'] }] },
+    { title: null, links: [{ route: { page: 'trash', kind: null }, label: 'nav.trash', keywords: 'search.trash', icon: TrashIcon, colour: 'bg-stone-500', pages: ['trash'] }] },
+    { title: null, links: [{ route: { page: 'about' }, label: 'nav.about', keywords: 'search.about', icon: InformationCircleIcon, colour: 'bg-stone-500', pages: ['about'] }] },
   ];
   return groups.map((g) => ({ title: g.title, links: g.links.filter((l): l is SettingsLink => !!l) })).filter((g) => g.links.length > 0);
+}
+
+/**
+ * What Mina inställningar holds, for the search only: its choices and its pages, each found by its own name (Lars,
+ * 2026-11-03), and opening Mina inställningar or the page.
+ */
+const MINE_LINKS: SettingsLink[] = [
+  { route: { page: 'settings' }, label: 'settings.theme', icon: AdjustmentsIcon, colour: 'bg-blue-500', pages: [], keywords: 'search.theme', where: 'nav.settings' },
+  { route: { page: 'settings' }, label: 'settings.language', icon: GlobeIcon, colour: 'bg-sky-600', pages: [], keywords: 'search.language', where: 'nav.settings' },
+  { route: { page: 'storage' }, label: 'storage.title', icon: ArrowDownTrayIcon, colour: 'bg-stone-500', pages: ['storage'], keywords: 'search.storage', where: 'nav.settings' },
+  { route: { page: 'logins', error: null }, label: 'logins.title', icon: UserIcon, colour: 'bg-stone-500', pages: ['logins'], keywords: 'search.logins', where: 'nav.settings' },
+];
+
+/** Lower case, accents kept (å, ä and ö are letters of their own in Swedish). */
+const fold = (s: string) => s.toLocaleLowerCase('sv').trim();
+
+/**
+ * The rows `query` finds, in the list's order and then Mina inställningar's: a row whose name or one of whose words
+ * holds every word of the query. `text` gives a key's words (i18n `t`). Empty for an empty query.
+ */
+export function searchSettings(groups: SettingsGroup[], query: string, text: (key: TextKey) => string): SettingsLink[] {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const rows = [...groups.flatMap((g) => g.links), ...MINE_LINKS];
+  return rows.filter((l) => {
+    const said = fold([text(l.label), l.keywords ? text(l.keywords) : ''].join(','));
+    return words.every((w) => said.includes(w));
+  });
 }
 
 /** Whether `link` is the row of the page open; on a computer the list alone (`/admin`) shows the songs. */

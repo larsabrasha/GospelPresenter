@@ -19,6 +19,7 @@ import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { downloadQr, QrCode } from '../ui/QrCode.tsx';
 import { useServerBase } from '../ui/serverBase.ts';
+import { copyText } from '../ui/copyText.ts';
 
 /** A new public output code (LIVE-R30), from the browser's random source. */
 function randomDisplayCode(): string {
@@ -126,14 +127,9 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
   );
 }
 
-/** Copies a link and says so; over plain http there is no clipboard, and nothing happens. */
-export async function copyLink(url: string, done: () => void) {
-  try {
-    await navigator.clipboard.writeText(url);
-    done();
-  } catch {
-    // No clipboard over plain http on the LAN: the link is on screen to copy by hand.
-  }
+/** Copies a link and says so (copyText.ts: over plain http too). */
+async function copyLink(url: string, done: () => void) {
+  if (await copyText(url)) done();
 }
 
 /**

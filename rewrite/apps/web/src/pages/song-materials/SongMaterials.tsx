@@ -5,7 +5,7 @@ import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { linkSource, readSongFile, SONG_FILE_ACCEPT } from '../../media/songFiles.ts';
-import { formatBytes } from '../Storage.tsx';
+import { formatBytes } from '../../ui/formatBytes.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';

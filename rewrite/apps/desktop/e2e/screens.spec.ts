@@ -121,14 +121,14 @@ test('a TV shows a code; typed in "Anslut tillfällig utgång" it shows the sess
 
   await page.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
   const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
-  await expect(dialog.getByLabel('Adress för skärmen')).toHaveValue(`${origin}/display`);
+  await expect(dialog.getByLabel('Adress för skärmen')).toHaveText(`${origin}/display`);
   // A wrong code: the message, and empty boxes.
   await typeCode(page, code === '1000' ? '1001' : '1000');
   await expect(dialog.getByText('Ogiltig eller utgången kod')).toBeVisible();
   await expect(dialog.getByLabel('Siffra 1')).toHaveValue('');
   await typeCode(page, code);
   await expect(dialog.getByText('Skärmen är ansluten')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Stäng' }).click();
+  await dialog.getByRole('button', { name: 'Stäng', exact: true }).click();
 
   await expect(screen.getByTestId('output').getByTestId('slide-text')).toHaveText('A ett', { timeout: 5_000 });
   const outputs = page.getByRole('list', { name: 'Utgångar' });

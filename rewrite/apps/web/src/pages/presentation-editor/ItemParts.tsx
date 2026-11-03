@@ -11,8 +11,8 @@ import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { ChevronUpDownIcon, CloseIcon, PlusIcon, WarningIcon } from '../../ui/icons.tsx';
-import { GROUP } from '../../ui/Sheet.tsx';
+import { ChevronUpDownIcon, CloseIcon, PlusIcon, RectangleStackIcon, SquaresOverlapIcon, WarningIcon } from '../../ui/icons.tsx';
+import { ICON_GROUP } from '../../ui/Sheet.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useSortable } from '../../ui/sortable.ts';
 import { tileClass } from '../../ui/SlideTile.tsx';
@@ -200,13 +200,17 @@ export function ItemMedia({ item, set, players, shownId }: { item: PresentationI
 }
 
 /**
- * A choice in a phone's item sheet, as iOS's Settings has one: a row of the sheet's card, its name at the left and the
- * chosen value in grey at the right with ⌃⌄, the whole row opening the menu (Lars, 2026-11-02).
+ * A choice in a phone's item sheet, as iOS's Settings has one: a row of the sheet's card, its icon and name at the left
+ * as the sheet's other rows have them (Lars, 2026-11-03) and the chosen value in grey at the right with ⌃⌄, the whole
+ * row opening the menu (Lars, 2026-11-02).
  */
-function SheetChoice({ label, title, value, choices, onChoose }: { label: string; title?: string; value: string; choices: { id: string; title: string }[]; onChoose: (id: string) => void }) {
+function SheetChoice({ label, icon, title, value, choices, onChoose }: { label: string; icon: ReactNode; title?: string; value: string; choices: { id: string; title: string }[]; onChoose: (id: string) => void }) {
   return (
     <label className="relative w-full min-h-12 px-4 flex items-center justify-between gap-3 text-[17px] cursor-pointer" title={title}>
-      <span className="shrink-0">{label}</span>
+      <span className="shrink-0 flex items-center gap-3.5">
+        <span className="shrink-0 flex text-stone-500 dark:text-stone-400">{icon}</span>
+        {label}
+      </span>
       <span className="flex items-center gap-1 min-w-0 text-stone-500 dark:text-stone-400">
         <span className="truncate">{choices.find((c) => c.id === value)?.title}</span>
         <ChevronUpDownIcon className="size-4 shrink-0" />
@@ -236,10 +240,11 @@ export function ItemSettings({ item, song, arrangements, overlays }: { item: Pre
   const overlay = !!overlays.length;
   if (!arranging && !overlay) return null;
   return (
-    <div className={GROUP}>
+    <div className={ICON_GROUP}>
       {arranging && (
         <SheetChoice
           label={t('song.arrangements')}
+          icon={<RectangleStackIcon className="size-5" />}
           value={item.arrangementId ?? arrangements[0]!.id}
           choices={arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }))}
           onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
@@ -248,6 +253,7 @@ export function ItemSettings({ item, song, arrangements, overlays }: { item: Pre
       {overlay && (
         <SheetChoice
           label={t('overlays.itemOverlay')}
+          icon={<SquaresOverlapIcon className="size-5" />}
           title={t('overlays.itemHint')}
           value={item.overlayId ?? ''}
           choices={[{ id: '', title: t('overlays.itemNone') }, ...overlays.map((o) => ({ id: o.id, title: o.title }))]}

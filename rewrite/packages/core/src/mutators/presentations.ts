@@ -178,6 +178,14 @@ export async function addSongToPresentation(tx: Tx, a: z.output<typeof addSongTo
   });
 }
 
+/** A renamed song's items, in presentations and templates, take its new name, a title of their own too (PRES-R36). */
+export async function renameSongItems(tx: Tx, songId: string, songName: string) {
+  await tx
+    .update(presentationItems)
+    .set({ title: songName })
+    .where(and(eq(presentationItems.type, 'song'), eq(presentationItems.sourceId, songId), ne(presentationItems.title, songName)));
+}
+
 /** The add-item tab adds at most this many verses (BIBLE-R14, D13). */
 export const MAX_VERSES_PER_ITEM = 500;
 

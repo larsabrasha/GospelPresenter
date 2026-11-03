@@ -1,7 +1,7 @@
 // Keeping presentations offline (TODO.md "Video, and which files a device fetches"): a device keeps every
 // file of a presentation it was told to, its videos whole too, whatever its date, and fetches what is
 // added to it later without the presentation being opened. In a presentation a quiet line at the foot of the left
-// column says how far it has come, and opens Spara offline's dialog with the switch. "Spara kommande presentationer offline" under Mina inställningar does the same for
+// column says how far it has come, and opens Spara offline's dialog with the switch. "Spara kommande presentationer offline" under Lagring does the same for
 // the coming seven days.
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
@@ -87,7 +87,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   await second.page.getByTestId('offline-status').click();
   const dialog = second.page.getByRole('dialog', { name: 'Spara offline' });
   await expect(dialog.getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeChecked();
-  await expect(dialog).toContainText('Allt finns på den här enheten.');
+  await expect(dialog).toContainText('Allt finns på enheten');
   await dialog.getByRole('button', { name: 'Stäng' }).first().click();
   // On a phone the same line is at the foot of the list. The title opens the computer's menu, with no Spara offline.
   await second.page.setViewportSize({ width: 390, height: 844 });
@@ -106,20 +106,20 @@ test('a presentation kept offline by its line has its pictures and its video who
   await preview.evaluate((v: HTMLVideoElement) => v.play());
   await expect.poll(() => preview.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 10_000 }).toBeGreaterThan(0.3);
 
-  // Lagring på den här enheten lists it under Sparat offline, with its size: Mina inställningar in Inställningar, from the start page.
+  // Lagring lists it under Sparat offline, with its size: a page of its own under Mina inställningar, from the start page.
   await openPresentations(second.page);
   await openAdmin(second.page, 'Mina inställningar');
+  await second.page.getByRole('link', { name: /^Lagring/ }).click();
   const storage = second.page.getByTestId('storage');
   await expect(storage.getByRole('list', { name: 'Sparat offline' }).getByRole('listitem')).toHaveText([/Konsert.*(kB|MB)/]);
   await expect(storage.getByTestId('storage-cache')).toHaveText('0 B');
 
   // Kept no more ("Sluta spara"): its files are cache now, and Rensa cache drops them; the thumbnails stay.
   await storage.getByRole('button', { name: 'Sluta spara' }).click();
-  await expect(storage.getByText('Ingen presentation är sparad offline på den här enheten.')).toBeVisible();
+  await expect(storage.getByText('Inga presentationer.')).toBeVisible();
   await expect(storage.getByTestId('storage-cache')).not.toHaveText('0 B');
   await storage.getByRole('button', { name: 'Rensa cache' }).click();
   await expect(storage.getByTestId('storage-cache')).toHaveText('0 B');
-  await expect(storage.getByTestId('storage-total')).not.toContainText(' 0 B');
   await expect(storage.getByTestId('storage-limit').locator('option:checked')).toHaveText('2 GB (standard)');
 
   // In the presentation the line says it is not kept again.
@@ -138,15 +138,16 @@ test('"Spara kommande presentationer offline" keeps the coming seven days on a c
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   await openAdmin(second.page, 'Mina inställningar');
+  await second.page.getByRole('link', { name: /^Lagring/ }).click();
   const setting = second.page.getByRole('switch', { name: /Spara kommande presentationer offline/ });
   await expect(setting).not.toBeChecked();
-  await expect(second.page.getByText('Presentationer de närmaste sju dagarna hämtas till den här enheten, även video.')).toBeVisible();
+  await expect(second.page.getByText('De närmaste sju dagarna, även video.')).toBeVisible();
   await setting.check();
 
   const soon = await offlineLine(second.page, 'Söndag');
   await expect(soon).toHaveAttribute('data-state', 'kept', { timeout: 10_000 });
   await soon.click();
-  // Undone under Mina inställningar, not here.
+  // Undone under Lagring, not here.
   await expect(second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeDisabled();
   await second.page.getByRole('dialog', { name: 'Spara offline' }).getByRole('button', { name: 'Stäng' }).first().click();
   await expect(await offlineLine(second.page, 'Om en månad')).toHaveAttribute('data-state', 'none');
