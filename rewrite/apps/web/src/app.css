@@ -175,9 +175,6 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
  */
 .mac-frame [data-window-bar] {
   -webkit-app-region: drag;
-}
-/* Room for the window's buttons, in a bar at the window's left; not in one beside a column that reaches the top. */
-.mac-frame [data-window-bar]:not([data-window-bar='inner']) {
   padding-left: 88px;
 }
 .mac-frame [data-window-bar] :is(a, button, input, select, [role='menu']),

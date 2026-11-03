@@ -48,7 +48,7 @@ test('the start page shows what this window presents at the top, and each row it
   await addSongs(page, ['Sång A']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
 
-  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
+  await page.getByTestId('presentation-bar').getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
 
   await expect(page.getByRole('link', { name: 'Visas just nu: Söndag' })).toBeVisible();
   await expect(page.getByRole('link', { name: /^Söndag/ }).last()).toContainText('1 inslag');

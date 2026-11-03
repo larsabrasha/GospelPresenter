@@ -16,7 +16,7 @@ import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
-import { PresentationBack, PresentationBar } from '../live/PresentationBar.tsx';
+import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
@@ -324,15 +324,25 @@ export function PresentationEditor({
     onRemove: (item) => void removeItem(item),
   };
 
-  const banners = (
-    <>
-      {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
-      {presenting && !owner && <RemoteBanner />}
-    </>
-  );
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      {phone && banners}
+      {/* The bar on a computer, before and while presenting; below `lg` the app's bar and the drawer have it all. */}
+      {!phone && (
+        <PresentationBar
+          presentation={presentation}
+          live={live}
+          presenting={!!presenting}
+          owner={owner}
+          canStart={startable}
+          onStart={start}
+          onDetails={() => setDetails(true)}
+          onSaveAsTemplate={saveAsTemplate}
+          onMaterials={template ? undefined : () => setShowingMaterials(true)}
+          onTrash={() => void trash()}
+        />
+      )}
+      {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
+      {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
@@ -359,12 +369,9 @@ export function PresentationEditor({
             onTrash={() => void trash()}
           />
         )}
-        {/* On a computer the left column reaches to the top, the ‹ in it beside the window's buttons, as Inställningar's
-            list and macOS's sidebars (Lars, 2026-11-03); the bar and the banners are over the slides only. Below `lg`
-            the app's bar and the drawer have it all. */}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} top={<PresentationBack presentation={presentation} />}>
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
               <RunningOrder
                 items={items}
                 slides={slides}
@@ -384,59 +391,41 @@ export function PresentationEditor({
                 }}
               />
             </SideMenu>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <PresentationBar
-                presentation={presentation}
-                back={false}
-                live={live}
-                presenting={!!presenting}
-                owner={owner}
-                canStart={startable}
-                onStart={start}
-                onDetails={() => setDetails(true)}
-                onSaveAsTemplate={saveAsTemplate}
-                onMaterials={template ? undefined : () => setShowingMaterials(true)}
-                onTrash={() => void trash()}
-              />
-              {banners}
-              <div className="flex-1 min-h-0 flex relative">
-                <SlideList
-                  template={template}
-                  items={items}
-                  slides={slides}
-                  theme={theme}
-                  songs={songs}
-                  overlays={overlays}
-                  pointer={pointer}
-                  players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
-                  toItem={reveal}
-                  onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
-                  onAddImages={(itemId) => {
-                    setSelectedId(itemId);
-                    setAdding('images');
-                  }}
-                  menuSource={menuSource}
-                  editingImages={editingImages}
-                  onEditingImages={setEditingImages}
-                />
-                {presenting && (
-                  <LivePanel
-                    presentation={presentation}
-                    owner={owner}
-                    link={presenting.link}
-                    live={live}
-                    pointer={pointer}
-                    current={current}
-                    overlay={overlay}
-                    theme={theme}
-                    overlays={overlays}
-                    canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
-                    onStep={step}
-                  />
-                )}
-              </div>
-            </div>
+            <SlideList
+              template={template}
+              items={items}
+              slides={slides}
+              theme={theme}
+              songs={songs}
+              overlays={overlays}
+              pointer={pointer}
+              players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
+              toItem={reveal}
+              onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
+              onAddImages={(itemId) => {
+                setSelectedId(itemId);
+                setAdding('images');
+              }}
+              menuSource={menuSource}
+              editingImages={editingImages}
+              onEditingImages={setEditingImages}
+            />
           </>
+        )}
+        {!phone && presenting && (
+          <LivePanel
+            presentation={presentation}
+            owner={owner}
+            link={presenting.link}
+            live={live}
+            pointer={pointer}
+            current={current}
+            overlay={overlay}
+            theme={theme}
+            overlays={overlays}
+            canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
+            onStep={step}
+          />
         )}
         {!phone && adding && (
           <AddItemDialog

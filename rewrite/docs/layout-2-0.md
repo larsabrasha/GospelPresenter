@@ -62,9 +62,6 @@ tapped shows nothing, and ▶ starts it.
   high, to keep the room for the parts.
   A phone lying down has two columns: the running order at the left, the picture and Rensa at the right, the +
   at the foot of the order (Lars, 2026-11-02).
-- **The left column reaches the top** on a computer, as Inställningar's list and macOS's sidebars (Lars, 2026-11-03):
-  the round ‹ at its top, beside the desktop app's window buttons; the bar with the name, ⚙ and Starta presentation,
-  and the template's and remote control's banners, over the slides only.
 - **Before presenting**, a slide clicked (a computer's tile, a phone's part row) is outlined in blue and nothing else,
   to click around and point one out to someone (Lars, 2026-11-03, as the current app); Starta presentation still
   starts black and lets go of it.
