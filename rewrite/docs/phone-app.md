@@ -30,7 +30,18 @@ since it differs from the browser's by that one value. The native code is two fi
 and in a browser alike, and keeps what it draws out of the status bar, the notch or island, the corners and the home
 indicator: the body is padded by the safe area (`p-safe` in `apps/web/src/app.css`), and a layer fixed over the whole
 screen pads itself (a dialog with `p-safe-4`, at least 1rem; the phone's live view, a toast, the error bar, a public
-output's text). A background still reaches the edges. Tried on an iPhone 17 Pro simulator standing and lying down.
+output's text). A background still reaches the edges. Typing keeps it so too: the keyboard makes the web view shorter
+(Capacitor's Keyboard plugin, `resize: native`, `apps/mobile/capacitor.config.ts`) rather than pushing the page up under
+the status bar, the field being typed in is scrolled back into view when the page gets shorter (`apps/web/src/main.tsx`),
+and on iOS the page has a largest scale of 1, since iOS zooms into a field under 16 px and stays zoomed (the song's text
+is 15 px). Tried on an iPhone 17 Pro simulator, standing and lying down, with the keyboard up: the start page, the song
+page from a presentation, Skapa presentation, an item's sheet and the phone's live view. Not tried: an iPad, Safari, a
+phone without a notch.
+
+**A reload** (a change of language or organisation) once left the phone app blank: iOS's web view kept the old page's
+database worker, and the database file's lock with it. The page now ends its worker on `pagehide` (`apps/web/src/db/db.ts`), where the database is a
+file: a host window's is in memory, and ending its worker there left a reload under load hanging in the e2e tests,
+for a reason not found.
 
 **Signing in** runs as the desktop app's does (`apps/desktop/src/main.ts`): never in the app's own web view, since
 `capacitor://localhost` cannot be a passkey's RP ID and Google refuses a web view. The same `/api/app-login` opens in

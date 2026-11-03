@@ -23,6 +23,19 @@ installTheme();
 if (window.gpDesktop?.macFrame) document.documentElement.classList.add('mac-frame');
 // The desktop app behaves as a native app: nothing selects but what a native app lets you select (app.css `.native`).
 if (window.gpDesktop) document.documentElement.classList.add('native');
+// iOS zooms into a field whose text is under 16 px when it gets focus, and the page stays zoomed. A largest scale of 1
+// stops that; Safari still lets a pinch zoom. Only on iOS: Android never zooms on focus, and there it would stop the pinch.
+// An iPad says Macintosh, but has a touch screen.
+if (/iPhone|iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
+  const viewport = document.querySelector('meta[name=viewport]');
+  viewport?.setAttribute('content', `${viewport.getAttribute('content')}, maximum-scale=1`);
+}
+// The keyboard makes the page shorter (the phone app, docs/phone-app.md; Android's browser): the field being typed in
+// comes back into view in the box that scrolls it, rather than staying under the keyboard.
+addEventListener('resize', () => {
+  const field = document.activeElement;
+  if (field instanceof HTMLElement && field.matches('input, textarea, select, [contenteditable]')) field.scrollIntoView({ block: 'nearest' });
+});
 // How wide a scrollbar is beside the content, for a column that keeps the same margin whatever it is (app.css
 // `--beside-scrollbar`).
 const probe = document.createElement('div');

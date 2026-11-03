@@ -41,6 +41,11 @@ export class Db implements ReadDb {
 
   /** Opens the session's database and starts syncing it. */
   open(session: Session): Promise<string> {
+    // A page that leaves (a reload, as a change of language or organisation makes) lets go of its database file at
+    // once: iOS's web view kept the old page's worker, and the file's lock with it, past a reload, and the new page waited
+    // for it with a blank screen (the phone app, 2026-11-03). Only where there is a file: a host window's database is in
+    // memory, and ending its worker there left a reload under load hanging in the e2e tests.
+    if (!session.hostWindow && session.storage !== 'memory') addEventListener('pagehide', () => this.worker.terminate());
     return this.call({ op: 'open', session, locale: locale(), server: serverOrigin() });
   }
 

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@capacitor/core": "8.6.0",
-    "@capacitor/ios": "8.6.0"
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/keyboard": "8.0.6"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0"
