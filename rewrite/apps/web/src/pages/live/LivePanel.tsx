@@ -7,6 +7,7 @@ import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { LivePicture } from './LivePicture.tsx';
 import { useLiveMotion } from './liveMotion.ts';
 import { useFold } from '../../ui/sidePanels.ts';
+import { PanelToggle } from '../../ui/PanelToggle.tsx';
 import { OutputsPanel } from './OutputsPanel.tsx';
 import { OverlaysPanel } from './OverlaysPanel.tsx';
 import { RemoteStatus } from './RemotePanel.tsx';
@@ -30,6 +31,7 @@ export function LivePanel({
   canStep,
   onStep,
   open = true,
+  onFold,
 }: {
   presentation: Pick<Presentation, 'id' | 'name'>;
   owner: { sessionId: string } | null;
@@ -44,6 +46,8 @@ export function LivePanel({
   onStep: (delta: number) => void;
   /** Out, or folded off the right edge (ui/sidePanels.ts). */
   open?: boolean;
+  /** Folds it away, by the toggle at its foot. */
+  onFold?: () => void;
 }) {
   const remotePolicy = useData(orgRemoteControl, []);
   // The column, which slides in from the right before the picture fades in after a start (liveMotion.ts).
@@ -57,10 +61,11 @@ export function LivePanel({
       {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
       {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}
-      {/* The foot, always a row high: Fjärrstyrning at its right, the column's toggle at its left (ui/PanelToggle.tsx). */}
-      <div className="mt-auto -mx-2 -mb-3 touch:-mb-4 min-h-8 touch:min-h-11 pl-9 touch:pl-12 flex justify-end">
+      {/* The foot: the column's toggle at its left (ui/PanelToggle.tsx), Fjärrstyrning at its right. */}
+      <div className="mt-auto -mx-2 -mb-3 flex items-center gap-1 empty:hidden">
+        {onFold && <PanelToggle side="right" onFold={onFold} />}
         {owner && remotePolicy && remotePolicy !== 'never' && (
-          <RemoteStatus id={presentation.id} sessionId={owner.sessionId} always={remotePolicy === 'always'} className="w-auto min-w-0" />
+          <RemoteStatus id={presentation.id} sessionId={owner.sessionId} always={remotePolicy === 'always'} className="ml-auto w-auto min-w-0" />
         )}
       </div>
     </aside>

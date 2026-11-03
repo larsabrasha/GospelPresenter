@@ -1,8 +1,9 @@
-// A presentation's side columns folded away and out again, as iPadOS's and macOS's sidebars (ui/sidePanels.ts): the
-// running order by the button beside ‹, the live column by the one beside the cog while presenting, kept on the device.
+// A presentation's side columns folded away and out again, as iPadOS's and macOS's sidebars (ui/sidePanels.ts): away by
+// the toggle in the column's foot, out by the one floating at the middle's foot while it is folded (ui/PanelToggle.tsx),
+// the live column's while presenting, kept on the device.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -33,7 +34,7 @@ test('the running order and the live column fold away and out again, and stay as
   await expect(order).toBeHidden();
   await expect(live).toBeHidden();
   await expect(page.getByRole('button', { name: 'Sång A 1' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Visa sidofält' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Göm sidofält' })).toHaveCount(0);
   if (process.env.GP_PANELS_PICTURE) await page.screenshot({ path: `${process.env.GP_PANELS_PICTURE}/folded.png` });
 
   // A reload keeps them folded; the left one comes out again.
@@ -47,4 +48,27 @@ test('the running order and the live column fold away and out again, and stay as
   await page.getByRole('button', { name: 'Visa livekolumnen' }).click();
   await expect(live).toBeVisible();
   if (process.env.GP_PANELS_PICTURE) await page.screenshot({ path: `${process.env.GP_PANELS_PICTURE}/out.png` });
+});
+
+test('a start brings the live column out even when it was folded, its toggle in its foot', async () => {
+  // Arrange: presenting with the live column folded, then ended.
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Göm livekolumnen' }).click();
+  await expect(page.getByTestId('live-panel')).toBeHidden();
+  await endPresentation(page);
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
+
+  // Act
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+
+  // Assert: out, with its toggle in its own foot, and no floating one.
+  await expect(page.getByTestId('live-panel')).toBeVisible();
+  await expect(page.getByTestId('live-panel').getByRole('button', { name: 'Göm livekolumnen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Visa livekolumnen' })).toHaveCount(0);
 });

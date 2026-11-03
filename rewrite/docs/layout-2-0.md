@@ -125,13 +125,15 @@ overlay.
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
-- **Folding the columns away** (Lars, 2026-11-03): a button with a sidebar icon at the foot of each column, at its inner
-  edge beside its last line (the left column's at its right, beside the sync line; the live column's at its left, with
-  Fjärrstyrning moved to the right), folds it away and out again ("Göm sidofält" / "Visa sidofält", "Göm livekolumnen" /
-  "Visa livekolumnen"), as iPadOS's and macOS's sidebars. Folded, the button stays at the middle's edge and travels with
-  the column's edge as it slides (`apps/web/src/ui/PanelToggle.tsx`). Each slides off its edge
-  and back by transform only, the middle taking the room at once as it goes in and giving it back once it is out
-  (`apps/web/src/ui/sidePanels.ts`); whether each is out is kept on the device. Tested in `e2e/panels.spec.ts`.
+- **Folding the columns away** (Lars, 2026-11-03), as iPadOS's and macOS's sidebars: a quiet button with a sidebar
+  icon in each column's foot, at its inner edge beside its last line (the left column's at the right of the sync line;
+  the live column's at the left, Fjärrstyrning at the right), folds it away ("Göm sidofält", "Göm livekolumnen"); while
+  it is folded a round, lifted button floats at the middle's foot on its side and brings it out ("Visa sidofält",
+  "Visa livekolumnen"), coming in once the column has slid away. One of the two shows at a time; the first is the
+  column's own, so it comes and goes with the column, Starta and Avsluta presentation included
+  (`apps/web/src/ui/PanelToggle.tsx`). Each column slides off its edge and back by transform only, the middle taking
+  the room at once as it goes in and giving it back once it is out (`apps/web/src/ui/sidePanels.ts`); whether each is
+  out is kept on the device, and a start always brings the live column out. Tested in `e2e/panels.spec.ts`.
 - **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a
   clicker's keys (→ ← Space PageDown PageUp, B and .) work on the live page.
 - **Right:** the picture, ‹ Rensa ›, the next slide, the overlays as switches (one shown at a time, drawn on the

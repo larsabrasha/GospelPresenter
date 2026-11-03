@@ -23,12 +23,12 @@ function stored(): Open {
   }
 }
 
-/** Whether each column is out, and a toggle for each; kept on this device. */
+/** Whether each column is out, a toggle for each, and a way to bring one out; kept on this device. */
 export function useSidePanels() {
   const [open, setOpen] = useState(stored);
-  const toggle = useCallback((side: Side) => {
+  const set = useCallback((side: Side, out: (was: boolean) => boolean) => {
     setOpen((o) => {
-      const next = { ...o, [side]: !o[side] };
+      const next = { ...o, [side]: out(o[side]) };
       try {
         localStorage.setItem(KEY, JSON.stringify(next));
       } catch {
@@ -37,7 +37,9 @@ export function useSidePanels() {
       return next;
     });
   }, []);
-  return { open, toggle };
+  const toggle = useCallback((side: Side) => set(side, (was) => !was), [set]);
+  const show = useCallback((side: Side) => set(side, () => true), [set]);
+  return { open, toggle, show };
 }
 
 /**

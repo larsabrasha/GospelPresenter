@@ -1,30 +1,37 @@
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
+import { LIFTED } from './glass.ts';
 import { SidebarIcon } from './icons.tsx';
 
-/** Where a column's toggle stands: at its inner edge while it is out, at the middle's edge while it is folded. */
-const PLACE = {
-  left: { at: 'left-0', out: 'translate-x-[calc(300px-100%-0.5rem)]', folded: 'translate-x-2' },
-  right: { at: 'right-0', out: '-translate-x-[calc(340px-100%-0.5rem)]', folded: '-translate-x-2' },
-} as const;
+// A side column's toggles (ui/sidePanels.ts; Lars, 2026-11-03): one in the column's foot that folds it away, quiet as
+// the line beside it, and one floating at the middle's edge while it is folded that brings it out. One shows at a time:
+// the first is the column's own, so it comes and goes with it, a start and an end included.
+
+const QUIET = 'text-stone-500 dark:text-stone-400 hover:bg-stone-200/60 dark:hover:bg-white/[0.06]';
+
+/** Göm sidofält or Göm livekolumnen, at the column's inner edge in its foot. */
+export function PanelToggle({ side, onFold }: { side: 'left' | 'right'; onFold: () => void }) {
+  const label = t(side === 'left' ? 'presentation.hideSidebar' : 'presentation.hideLiveColumn');
+  return (
+    <AppButton variant="plain" onClick={onFold} aria-label={label} title={label} className={`shrink-0 size-9 touch:size-11 rounded-full flex items-center justify-center cursor-pointer ${QUIET}`}>
+      <SidebarIcon side={side} className="size-5" />
+    </AppButton>
+  );
+}
 
 /**
- * A side column's toggle (ui/sidePanels.ts) at the foot of the row, at the column's inner edge beside its last line
- * (Lars, 2026-11-03): the running order's at its right, the live column's at its left. Folded, it stays at the
- * middle's edge so the column can come out again, and it travels with the column's edge as it slides.
+ * Visa sidofält or Visa livekolumnen, floating at the middle's foot on the folded column's side, round and lifted as
+ * the bar's buttons; it comes in as the column has slid away (app.css `.float-in`).
  */
-export function PanelToggle({ side, open, onToggle }: { side: 'left' | 'right'; open: boolean; onToggle: () => void }) {
-  const label = t(open ? (side === 'left' ? 'presentation.hideSidebar' : 'presentation.hideLiveColumn') : side === 'left' ? 'presentation.showSidebar' : 'presentation.showLiveColumn');
-  const place = PLACE[side];
+export function FloatingPanelToggle({ side, onShow }: { side: 'left' | 'right'; onShow: () => void }) {
+  const label = t(side === 'left' ? 'presentation.showSidebar' : 'presentation.showLiveColumn');
   return (
     <AppButton
       variant="plain"
-      onClick={onToggle}
+      onClick={onShow}
       aria-label={label}
       title={label}
-      aria-pressed={open}
-      data-testid={`toggle-${side}`}
-      className={`absolute z-10 bottom-safe-1 touch:bottom-safe-0 ${place.at} ${open ? place.out : place.folded} size-8 touch:size-11 rounded-full flex items-center justify-center text-stone-500 dark:text-stone-400 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] cursor-pointer transition-transform duration-300 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none`}
+      className={`float-in absolute z-10 bottom-safe-4 ${side === 'left' ? 'left-4' : 'right-4'} size-9 touch:size-11 rounded-full flex items-center justify-center cursor-pointer text-stone-700 dark:text-stone-200 ${LIFTED}`}
     >
       <SidebarIcon side={side} className="size-5" />
     </AppButton>

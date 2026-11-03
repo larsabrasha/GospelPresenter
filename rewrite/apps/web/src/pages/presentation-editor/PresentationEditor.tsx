@@ -36,7 +36,7 @@ import { isHostWindow } from '../../hostWindow.ts';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog.tsx';
 import { SideMenu } from './SideMenu.tsx';
 import { useSidePanels } from '../../ui/sidePanels.ts';
-import { PanelToggle } from '../../ui/PanelToggle.tsx';
+import { FloatingPanelToggle } from '../../ui/PanelToggle.tsx';
 
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
@@ -318,7 +318,11 @@ export function PresentationEditor({
   const phone = !wide;
   // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
   const startable = !template && pointer.presentationId === null;
-  const start = () => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
+  // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
+  const start = () => {
+    panels.show('right');
+    live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
+  };
   const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
@@ -391,7 +395,7 @@ export function PresentationEditor({
         )}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} open={panels.open.left}>
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} open={panels.open.left} onFold={() => panels.toggle('left')}>
               <RunningOrder
                 items={items}
                 slides={slides}
@@ -437,9 +441,9 @@ export function PresentationEditor({
             />
           </>
         )}
-        {/* The columns' toggles at their feet, at their inner edges (ui/PanelToggle.tsx). */}
-        {!phone && <PanelToggle side="left" open={panels.open.left} onToggle={() => panels.toggle('left')} />}
-        {!phone && presenting && <PanelToggle side="right" open={panels.open.right} onToggle={() => panels.toggle('right')} />}
+        {/* A folded column's way back, floating at the middle's foot (ui/PanelToggle.tsx); its way away is in its foot. */}
+        {!phone && !panels.open.left && <FloatingPanelToggle side="left" onShow={() => panels.toggle('left')} />}
+        {!phone && presenting && !panels.open.right && <FloatingPanelToggle side="right" onShow={() => panels.toggle('right')} />}
         {!phone && presenting && (
           <LivePanel
             presentation={presentation}
@@ -454,6 +458,7 @@ export function PresentationEditor({
             canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
             onStep={step}
             open={panels.open.right}
+            onFold={() => panels.toggle('right')}
           />
         )}
         {!phone && adding && (
