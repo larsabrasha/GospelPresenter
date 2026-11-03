@@ -67,9 +67,11 @@ export function PresentationBar({
   return (
     // On a phone it floats over the slides, with a soft fade from the page's colour under it rather than an edge, as
     // iOS 26's bars (Lars, 2026-11-02); not while presenting, when the picture stands still under it and the fade only
-    // dimmed its red frame.
+    // dimmed its red frame. The name in the middle of the bar, not of the room between ‹ and the buttons at the right,
+    // which are wider (Lars, 2026-11-03): the sides share what is left alike, each no narrower than what is in it, and
+    // a long name is cut short.
     <div
-      className={`relative z-20 shrink-0 h-15 lg:h-13 lg:touch:h-15 grid grid-cols-[auto_minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:gap-4 px-4 bg-ground lg:border-b-[0.5px] lg:border-separator ${presenting ? '' : FADE}`}
+      className={`relative z-20 shrink-0 h-15 lg:h-13 lg:touch:h-15 grid grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] items-center gap-2 lg:gap-4 px-4 bg-ground lg:border-b-[0.5px] lg:border-separator ${presenting ? '' : FADE}`}
       data-testid="presentation-bar"
       data-window-bar
     >
