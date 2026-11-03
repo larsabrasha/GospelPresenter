@@ -122,7 +122,7 @@ export function SongMaterials({ id }: { id: string }) {
   return (
     <PageContainer className="pb-8">
       <DetailHeader backHref={href({ page: 'song', id })} title={t('material.title')} className="px-5" />
-      {song && !missing ? <MaterialsEditor songId={id} /> : <div className="px-7 text-stone-400">{t('common.loading')}</div>}
+      {song && !missing ? <MaterialsEditor songId={id} /> : <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>}
     </PageContainer>
   );
 }

@@ -48,7 +48,7 @@ export function SongArrangements({ id }: { id: string }) {
     return (
       <PageContainer>
         {header}
-        <div className="px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
       </PageContainer>
     );
   const { arrangements, parts, labels } = data;

@@ -183,7 +183,7 @@ export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind']
       </PageHeader>
       {kind === 'screen' && (
         <div className={CARD}>
-          {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+          {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
           {screens && !screens.length && (
             <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} />
           )}
@@ -212,7 +212,7 @@ export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind']
       )}
       {kind === 'public' && (
         <div className={CARD}>
-          {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+          {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
           {displays && !displays.length && (
             <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} />
           )}

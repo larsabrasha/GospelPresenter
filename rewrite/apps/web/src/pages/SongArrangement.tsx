@@ -38,7 +38,7 @@ export function SongArrangement({ id, arrangementId }: { id: string; arrangement
       {arrangement ? (
         <ArrangementEditor arrangement={arrangement} title={title} named={data!.arrangements.length > 1} parts={data!.parts} labels={data!.labels} showSaved={saved.show} />
       ) : (
-        <div className="px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
       )}
     </PageContainer>
   );

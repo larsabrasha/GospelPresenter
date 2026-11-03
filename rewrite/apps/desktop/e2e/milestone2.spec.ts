@@ -415,6 +415,9 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Radera presentation' }).click();
+  // Every deletion asks first (Lars, 2026-11-03), saying it goes to the trash.
+  await expect(page.getByRole('dialog', { name: 'Radera' })).toContainText('Vill du flytta Kväll till papperskorgen?');
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Kväll flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Kväll' })).toHaveCount(0);
 

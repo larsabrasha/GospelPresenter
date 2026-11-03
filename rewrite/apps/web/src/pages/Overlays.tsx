@@ -79,7 +79,7 @@ export function Overlays() {
         <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
       </PageHeader>
       <div className={CARD}>
-        {!overlays && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
+        {!overlays && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
         {overlays && !overlays.length && (
           <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} />
         )}
@@ -160,7 +160,7 @@ export function OverlayEditor({ id }: { id: string }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'overlays' })} title="" className="px-5" />
-        {!data && <div className="px-7 text-stone-400">{t('common.loading')}</div>}
+        {!data && <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>}
       </PageContainer>
     );
   const { overlay, image } = data;

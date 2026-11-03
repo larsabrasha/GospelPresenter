@@ -231,7 +231,8 @@ the Shared assembly as `Themes/aurora/background.webp`.
   sökning"; content: responsive grid (2/3/4/5/6 columns) of thumbnails (max height 128px) with file
   name below, newest first.
 - Each thumbnail has an always-visible "⋯" menu (2.0, Lars, 2026-11-03: none on the picture; a right click or a finger
-  held on it opens the menu at that point) with "Ta bort" → moves to trash without confirmation,
+  held on it opens the menu at that point) with "Ta bort" → moves to trash without confirmation (2.0, Lars,
+  2026-11-03: after a question, "Vill du flytta {name} till papperskorgen? Filen raderas permanent efter 30 dagar."),
   toast "{filnamn} flyttad till papperskorgen"; error → warning toast "Common.ErrorOccurred"
   (`…/Images.razor:308-326`).
 - The list reloads when an organisation sync announcement arrives, keeping the search text

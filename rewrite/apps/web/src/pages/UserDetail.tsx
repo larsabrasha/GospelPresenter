@@ -103,7 +103,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     return (
       <PageContainer>
         <DetailHeader backHref="/admin/users" title="" className="px-5" />
-        <div className={`px-7 ${user ? ERROR : 'text-stone-400'}`}>{user ?? t('common.loading')}</div>
+        <div className={`px-7 ${user ? ERROR : 'loading-line text-stone-400'}`}>{user ?? t('common.loading')}</div>
       </PageContainer>
     );
   }
@@ -237,7 +237,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
 
       {/* Inloggning as a group of rows, as Mina inställningar (ui/Group.tsx): each login a row, Radera in red text. */}
       <Group title={t('userDetail.login')}>
-        {logins === null && <div className={`${GROUP_ROW} text-stone-400`}>{t('common.loading')}</div>}
+        {logins === null && <div className={`loading-line ${GROUP_ROW} text-stone-400`}>{t('common.loading')}</div>}
         {typeof logins === 'string' && <div className={`${GROUP_ROW} ${ERROR}`}>{logins}</div>}
         {Array.isArray(logins) && logins.length > 0 && (
           <ul aria-label={t('userDetail.login')} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">

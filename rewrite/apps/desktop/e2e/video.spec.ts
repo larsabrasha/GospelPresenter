@@ -191,6 +191,7 @@ test('Videor lists the videos with length, size and codec, imports from the page
 
   await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();
   await page.getByRole('menuitem', { name: 'Radera' }).click();
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByText('Inga videor än')).toBeVisible();
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Dop\.mp4.*Video/]);

@@ -92,6 +92,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   // Radera is in the picture's menu, opened by a right click as in Photos.
   await page.getByLabel('Logotyp.png', { exact: true }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Radera' }).click();
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Logotyp.png flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByText('Inga bilder än')).toBeVisible();
   await expect(shown).toBeVisible();

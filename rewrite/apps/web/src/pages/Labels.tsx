@@ -108,7 +108,7 @@ export function Labels() {
         <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
       </PageHeader>
       <div className={CARD}>
-        {!labels && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {!labels && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {labels && !labels.length && (
           <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} />
         )}

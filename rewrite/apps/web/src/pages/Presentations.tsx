@@ -278,7 +278,7 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
       {!presentations && (
         <div className={CARD}>
-          <div className="px-4 py-3 text-stone-400">{t('common.loading')}</div>
+          <div className="loading-line px-4 py-3 text-stone-400">{t('common.loading')}</div>
         </div>
       )}
       {presentations && !presentations.length && <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} />}

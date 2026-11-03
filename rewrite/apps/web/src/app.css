@@ -90,6 +90,10 @@
 }
 .dialog-in { animation: dialog-in 200ms ease-out; }
 
+/* A loading line ("Laddar...") shows only once the wait is felt, 400 ms, and fades in then: a quick load shows nothing
+   rather than a flash of it (Lars, 2026-11-03). */
+.loading-line { animation: dialog-in 200ms ease-out 400ms both; }
+
 /* A sheet slides up from below on a phone, with iOS's sheet curve; centred (from `sm`) it grows out of its place
    instead, as a dialog in the middle should (Lars, 2026-11-02; ui/Sheet.tsx). */
 @keyframes sheet-in {
@@ -171,6 +175,9 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
  */
 .mac-frame [data-window-bar] {
   -webkit-app-region: drag;
+}
+/* Room for the window's buttons, in a bar at the window's left; not in one beside a column that reaches the top. */
+.mac-frame [data-window-bar]:not([data-window-bar='inner']) {
   padding-left: 88px;
 }
 .mac-frame [data-window-bar] :is(a, button, input, select, [role='menu']),

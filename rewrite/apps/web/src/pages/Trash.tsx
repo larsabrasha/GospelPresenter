@@ -136,7 +136,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     <PageContainer>
       {dialog}
       <PageHeader title={t('trash.title')} />
-      {!all && <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
+      {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
       {all && !entries.length && (
         <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
       )}

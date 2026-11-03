@@ -147,7 +147,7 @@ export function Templates() {
       </div>
       {!templates && (
         <div className={CARD}>
-          <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
+          <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
         </div>
       )}
       {templates && !templates.length && <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} />}

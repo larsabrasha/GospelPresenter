@@ -182,7 +182,7 @@ export function Users({ me }: { me: Me }) {
       {Array.isArray(users) && !!users.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(users) && !!users.length && !shown.length && <NoMatch query={query} />}
       <div className={`${CARD} ${Array.isArray(users) && !!users.length && !shown.length ? 'hidden' : ''}`}>
-        {users === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {users === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {empty && (
           <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} />
         )}

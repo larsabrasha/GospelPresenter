@@ -5,6 +5,7 @@ import { listImages } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { PhotoOutlineIcon } from '../ui/icons.tsx';
@@ -39,6 +40,7 @@ const trashedAt = () => Date.now();
 export function Images({ role }: { role: Role }) {
   const db = useDb();
   const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const images = useData(listImages, []);
   const [query, setQuery] = useState('');
@@ -51,10 +53,14 @@ export function Images({ role }: { role: Role }) {
     if (added.length && added.length === files.length) toast(t('images.imported', { n: added.length }));
   };
 
-  const remove = async (image: LibraryImage) => {
-    if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
-    toast(t('images.trashed', { name: image.fileName }));
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
+  const remove = (image: LibraryImage) =>
+    ask(
+      deleteAsk(t('images.trashConfirm', { name: image.fileName }), image.fileName, async () => {
+        if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
+        toast(t('images.trashed', { name: image.fileName }));
+      }),
+    );
 
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = images?.filter((i) => !q || i.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
@@ -62,6 +68,7 @@ export function Images({ role }: { role: Role }) {
   return (
     <PageContainer>
       <DropZone className="flex flex-col space-y-5" label={t('images.drop')} accept={IMAGE_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
+        {dialog}
         <PageHeader title={t('images.title')}>
           <div className="flex items-center gap-3">
             {manage && (
@@ -88,7 +95,7 @@ export function Images({ role }: { role: Role }) {
         {!!images?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
         {/* The pictures on the page itself, as Photos' grid, with no card around them (Lars, 2026-11-03: no box in a box). */}
         <div>
-          {!images && <div className="px-5 py-4 text-stone-400 text-sm">{t('presentation.loadingImages')}</div>}
+          {!images && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('presentation.loadingImages')}</div>}
           {images && !images.length && (
             <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('images.empty')} dropHint={manage ? t('drop.here') : undefined} />
           )}

@@ -47,7 +47,7 @@ export function SongHistory({ id }: { id: string }) {
     return (
       <PageContainer maxWidthClass="max-w-[1200px]">
         {header}
-        <div className="px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
       </PageContainer>
     );
 

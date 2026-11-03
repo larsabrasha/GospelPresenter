@@ -94,7 +94,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
     return (
       <Frame onEscape={adding?.onCancel ?? onBack}>
         <DetailHeader {...back} title="" className="px-5" />
-        <div className="px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
       </Frame>
     );
   const { song, parts, arrangements, labels } = data;

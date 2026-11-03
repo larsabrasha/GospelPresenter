@@ -355,7 +355,7 @@ export function BibleTab({
       </div>
       <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 flex flex-col md:pr-3">
-          {books === undefined && <p className="py-8 text-center text-sm text-stone-400">{t('bible.downloading')}</p>}
+          {books === undefined && <p className="loading-line py-8 text-center text-sm text-stone-400">{t('bible.downloading')}</p>}
           {books === null && <p className="py-8 text-center text-sm text-stone-400">{t('bible.unavailable')}</p>}
           {books && query.trim() && !found.length && (
             <div className="text-center text-stone-400 text-sm py-2">

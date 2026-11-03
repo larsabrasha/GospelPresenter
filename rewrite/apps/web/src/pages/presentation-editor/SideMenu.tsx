@@ -15,6 +15,7 @@ export function SideMenu({
   presentation,
   media = false,
   onOffline,
+  top,
   children,
 }: {
   presentation: Presentation;
@@ -22,11 +23,17 @@ export function SideMenu({
   media?: boolean;
   /** The line at the foot while it is kept offline opens the dialog. */
   onOffline: () => void;
+  /** At the column's top, the window's bar beside the slides' (Lars, 2026-11-03): the ‹ back. */
+  top: ReactNode;
   children: ReactNode;
 }) {
   const keep = useKeepOffline(presentation);
   return (
-    <aside className="w-[300px] shrink-0 h-full pt-3 flex flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
+    <aside className="w-[300px] shrink-0 h-full flex flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
+      {/* As high as the slides' bar beside it, and part of the window's bar: it drags the window, clear of its buttons. */}
+      <div data-window-bar className="shrink-0 h-15 lg:h-13 lg:touch:h-15 mb-3 flex items-center px-4">
+        {top}
+      </div>
       {/* The list's scrollbar room and padding too, so the box's edges line up with the rows' (Lars, 2026-11-02). */}
       {presentation.description && (
         <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-3 overflow-hidden [scrollbar-gutter:stable]">

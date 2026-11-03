@@ -28,7 +28,7 @@ export function OrgSettings() {
       <PageContainer>
         {/* The intro card while loading too, so the bar's name does not show and go (ui/PageContainer.tsx). */}
         <PageHeader title={t('orgSettings.title')} />
-        <p className="px-7 py-4 text-stone-400">{t('auth.loading')}</p>
+        <p className="loading-line px-7 py-4 text-stone-400">{t('auth.loading')}</p>
       </PageContainer>
     );
   const current = saving ?? saved; // optimistic while saving

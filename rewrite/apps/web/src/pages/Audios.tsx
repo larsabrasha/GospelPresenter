@@ -5,6 +5,7 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
@@ -25,6 +26,7 @@ const trashedAt = () => Date.now();
 export function Audios({ role }: { role: Role }) {
   const db = useDb();
   const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const audios = useData(listAudios, []);
   const [query, setQuery] = useState('');
@@ -37,10 +39,14 @@ export function Audios({ role }: { role: Role }) {
     if (added.length && added.length === files.length) toast(t('audios.imported', { n: added.length }));
   };
 
-  const remove = async (a: LibraryAudio) => {
-    if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
-    toast(t('audios.trashed', { name: a.fileName }));
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
+  const remove = (a: LibraryAudio) =>
+    ask(
+      deleteAsk(t('images.trashConfirm', { name: a.fileName }), a.fileName, async () => {
+        if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
+        toast(t('audios.trashed', { name: a.fileName }));
+      }),
+    );
 
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = audios?.filter((a) => !q || a.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
@@ -48,6 +54,7 @@ export function Audios({ role }: { role: Role }) {
   return (
     <PageContainer>
       <DropZone className="flex flex-col space-y-5" label={t('audios.drop')} accept={AUDIO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
+        {dialog}
         <PageHeader title={t('audios.title')}>
           <div className="flex items-center gap-3">
             {manage && (
@@ -74,7 +81,7 @@ export function Audios({ role }: { role: Role }) {
         {!!audios?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          {!audios && <div className="px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
+          {!audios && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
           {audios && !audios.length && (
             <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} dropHint={manage ? t('drop.here') : undefined} />
           )}

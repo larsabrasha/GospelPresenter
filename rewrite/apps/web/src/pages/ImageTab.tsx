@@ -7,6 +7,7 @@ import { newId } from '../ids.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
@@ -41,6 +42,7 @@ export function ImageTab({
 }) {
   const db = useDb();
   const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const images = useData(listImages, []);
   const imports = useMediaImport('image');
@@ -77,11 +79,15 @@ export function ImageTab({
     }
   };
 
-  const remove = async (image: LibraryImage) => {
-    if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
-    setPicked((p) => p.filter((x) => x !== image.id));
-    toast(t('images.trashed', { name: image.fileName }));
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
+  const remove = (image: LibraryImage) =>
+    ask(
+      deleteAsk(t('images.trashConfirm', { name: image.fileName }), image.fileName, async () => {
+        if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
+        setPicked((p) => p.filter((x) => x !== image.id));
+        toast(t('images.trashed', { name: image.fileName }));
+      }),
+    );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
     if (isAddKey(e)) {
@@ -92,6 +98,7 @@ export function ImageTab({
 
   return (
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('images.drop')} accept={IMAGE_ACCEPT} onFiles={(files) => void imports.run(files)}>
+      {dialog}
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
           <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" secondary onFiles={(files) => void imports.run(files)} />
@@ -105,7 +112,7 @@ export function ImageTab({
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!images && <p className="flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}
+          {!images && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}
           {images && !images.length && (
             <EmptyTab icon={<PhotoIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
               <p>{t('presentation.noImages')}</p>

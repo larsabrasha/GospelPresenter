@@ -91,6 +91,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Härlig är jorden/]);
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Radera mall' }).click();
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Påsk flyttad till papperskorgen')).toBeVisible();
   await expect(list.getByRole('listitem')).toHaveText([/^Söndag/]);
   await openAdmin(page, 'Papperskorg');

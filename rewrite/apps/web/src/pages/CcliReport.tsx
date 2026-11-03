@@ -93,7 +93,7 @@ export function CcliReport({ role }: { role: Role }) {
         </PillTabs>
       </div>
       {!data ? (
-        <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>
       ) : !cards.length ? (
         <div className={`${CARD} overflow-hidden`}>
           <EmptyPicture picture={<CcliPicture className={PICTURE} />} title={t('ccli.empty')} />

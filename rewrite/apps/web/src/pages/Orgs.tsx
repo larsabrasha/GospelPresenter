@@ -101,7 +101,7 @@ export function Orgs() {
       {Array.isArray(orgs) && !!orgs.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(orgs) && !!orgs.length && !shown.length && <NoMatch query={query} />}
       <div className={`${CARD} ${Array.isArray(orgs) && !!orgs.length && !shown.length ? 'hidden' : ''}`}>
-        {orgs === null && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {orgs === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
         {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('orgs.empty')} />}
         <ul aria-label={t('orgs.title')}>
           {shown.map((o) => (
@@ -201,7 +201,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'orgs' })} title="" className="px-5" />
-        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'text-stone-400'}`}>{org ?? t('common.loading')}</div>
+        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{org ?? t('common.loading')}</div>
       </PageContainer>
     );
   return (

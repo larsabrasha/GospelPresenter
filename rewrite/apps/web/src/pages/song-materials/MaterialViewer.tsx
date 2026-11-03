@@ -75,7 +75,7 @@ export function MaterialViewer({ material, onClose }: { material: SongMaterial; 
         )}
       </div>
       <div className="flex-1 min-h-0 overflow-auto bg-stone-200 dark:bg-stone-900" data-testid="material-viewer">
-        {file === 'loading' && <p className="p-6 text-sm text-stone-500">{t('material.loading')}</p>}
+        {file === 'loading' && <p className="loading-line p-6 text-sm text-stone-500">{t('material.loading')}</p>}
         {file === null && <p className="p-6 text-sm text-stone-500">{t('material.unavailable')}</p>}
         {loaded && pdf && <PdfPages bytes={loaded.bytes} zoom={ZOOMS[zoom]!} title={material.title} />}
         {loaded && !pdf && url && (

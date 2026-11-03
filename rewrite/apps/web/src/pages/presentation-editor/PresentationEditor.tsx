@@ -7,7 +7,7 @@ import { slidesOfItems } from '../../live/live.ts';
 import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { useConfirm } from '../../ui/Dialog.tsx';
+import { deleteAsk, useConfirm } from '../../ui/Dialog.tsx';
 import { backToTemplates, href, navigate } from '../../ui/router.ts';
 import { songPage } from '../live/songPage.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
@@ -16,7 +16,7 @@ import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
-import { PresentationBar } from '../live/PresentationBar.tsx';
+import { PresentationBack, PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
@@ -275,13 +275,17 @@ export function PresentationEditor({
       </section>
     );
 
-  const trash = async () => {
-    // To the trash without a dialog, with a toast that says where it went (PRES-R29).
-    if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
-    toast(t('presentation.trashed', { name: presentation.name }));
-    if (template) backToTemplates();
-    else navigate({ page: 'presentations' });
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03; PRES-R29 had none), then a toast that
+  // says where it went.
+  const trash = () =>
+    void ask(
+      deleteAsk(t(template ? 'templates.trashConfirm' : 'presentation.trashConfirm', { name: presentation.name }), presentation.name, async () => {
+        if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
+        toast(t('presentation.trashed', { name: presentation.name }));
+        if (template) backToTemplates();
+        else navigate({ page: 'presentations' });
+      }),
+    );
 
   // A row chosen in the running order; on a computer the slides scroll to it, each choice anew.
   const select = (itemId: string) => {
@@ -320,25 +324,15 @@ export function PresentationEditor({
     onRemove: (item) => void removeItem(item),
   };
 
-  return (
-    <div className="flex-1 min-h-0 flex flex-col">
-      {/* The bar on a computer, before and while presenting; below `lg` the app's bar and the drawer have it all. */}
-      {!phone && (
-        <PresentationBar
-          presentation={presentation}
-          live={live}
-          presenting={!!presenting}
-          owner={owner}
-          canStart={startable}
-          onStart={start}
-          onDetails={() => setDetails(true)}
-          onSaveAsTemplate={saveAsTemplate}
-          onMaterials={template ? undefined : () => setShowingMaterials(true)}
-          onTrash={() => void trash()}
-        />
-      )}
+  const banners = (
+    <>
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
+    </>
+  );
+  return (
+    <div className="flex-1 min-h-0 flex flex-col">
+      {phone && banners}
       {presenting && <LiveKeys />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
@@ -365,9 +359,12 @@ export function PresentationEditor({
             onTrash={() => void trash()}
           />
         )}
+        {/* On a computer the left column reaches to the top, the ‹ in it beside the window's buttons, as Inställningar's
+            list and macOS's sidebars (Lars, 2026-11-03); the bar and the banners are over the slides only. Below `lg`
+            the app's bar and the drawer have it all. */}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} top={<PresentationBack presentation={presentation} />}>
               <RunningOrder
                 items={items}
                 slides={slides}
@@ -387,41 +384,59 @@ export function PresentationEditor({
                 }}
               />
             </SideMenu>
-            <SlideList
-              template={template}
-              items={items}
-              slides={slides}
-              theme={theme}
-              songs={songs}
-              overlays={overlays}
-              pointer={pointer}
-              players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
-              toItem={reveal}
-              onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
-              onAddImages={(itemId) => {
-                setSelectedId(itemId);
-                setAdding('images');
-              }}
-              menuSource={menuSource}
-              editingImages={editingImages}
-              onEditingImages={setEditingImages}
-            />
+            <div className="flex-1 min-w-0 flex flex-col">
+              <PresentationBar
+                presentation={presentation}
+                back={false}
+                live={live}
+                presenting={!!presenting}
+                owner={owner}
+                canStart={startable}
+                onStart={start}
+                onDetails={() => setDetails(true)}
+                onSaveAsTemplate={saveAsTemplate}
+                onMaterials={template ? undefined : () => setShowingMaterials(true)}
+                onTrash={() => void trash()}
+              />
+              {banners}
+              <div className="flex-1 min-h-0 flex relative">
+                <SlideList
+                  template={template}
+                  items={items}
+                  slides={slides}
+                  theme={theme}
+                  songs={songs}
+                  overlays={overlays}
+                  pointer={pointer}
+                  players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
+                  toItem={reveal}
+                  onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
+                  onAddImages={(itemId) => {
+                    setSelectedId(itemId);
+                    setAdding('images');
+                  }}
+                  menuSource={menuSource}
+                  editingImages={editingImages}
+                  onEditingImages={setEditingImages}
+                />
+                {presenting && (
+                  <LivePanel
+                    presentation={presentation}
+                    owner={owner}
+                    link={presenting.link}
+                    live={live}
+                    pointer={pointer}
+                    current={current}
+                    overlay={overlay}
+                    theme={theme}
+                    overlays={overlays}
+                    canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
+                    onStep={step}
+                  />
+                )}
+              </div>
+            </div>
           </>
-        )}
-        {!phone && presenting && (
-          <LivePanel
-            presentation={presentation}
-            owner={owner}
-            link={presenting.link}
-            live={live}
-            pointer={pointer}
-            current={current}
-            overlay={overlay}
-            theme={theme}
-            overlays={overlays}
-            canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
-            onStep={step}
-          />
         )}
         {!phone && adding && (
           <AddItemDialog

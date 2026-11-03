@@ -28,6 +28,7 @@ const FADE = 'max-lg:after:absolute max-lg:after:inset-x-0 max-lg:after:top-full
  */
 export function PresentationBar({
   presentation,
+  back = true,
   live,
   presenting,
   owner,
@@ -39,6 +40,8 @@ export function PresentationBar({
   onTrash,
 }: {
   presentation: Presentation;
+  /** The round ‹ at the bar's left; false on a computer, where it is at the top of the left column. */
+  back?: boolean;
   live: LiveControl;
   presenting: boolean;
   /** This window's own session, which ■ ends; null while controlling one elsewhere, or not presenting. */
@@ -71,24 +74,12 @@ export function PresentationBar({
     <div
       className={`relative z-20 shrink-0 h-15 lg:h-13 lg:touch:h-15 grid grid-cols-[auto_minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:gap-4 px-4 bg-ground lg:border-b-[0.5px] lg:border-separator ${presenting ? '' : FADE}`}
       data-testid="presentation-bar"
-      data-window-bar
+      // A bar of the window that drags it; beside the left column, not under the window's buttons (app.css).
+      data-window-bar={back ? '' : 'inner'}
     >
       {dialog}
-      {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
-      {/* A template's goes back to Mallar, where templates are kept. */}
-      <a
-        href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
-        onClick={(e) => {
-          if (!presentation.isTemplate) return;
-          e.preventDefault();
-          backToTemplates();
-        }}
-        aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
-        title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
-        className={`justify-self-start ${ROUND_BACK}`}
-      >
-        <ChevronLeftIcon className="size-5" />
-      </a>
+      {/* On a computer the ‹ is at the top of the left column (PresentationBack); this room keeps the name in the middle. */}
+      {back ? <PresentationBack presentation={presentation} /> : <span />}
       {/* The page's heading, for screen readers; the button shows the name. */}
       <h1 className="sr-only">{presentation.name}</h1>
       {/* The name opens the presentation's menu, as a title menu on iPadOS and macOS. */}
@@ -153,5 +144,27 @@ export function PresentationBar({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Back from a presentation, as iOS 27's: a round ‹ alone (Lars, 2026-11-02), at the top of the left column beside the
+ * window's buttons (Lars, 2026-11-03). A template's goes back to Mallar, where templates are kept.
+ */
+export function PresentationBack({ presentation }: { presentation: Presentation }) {
+  return (
+    <a
+      href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
+      onClick={(e) => {
+        if (!presentation.isTemplate) return;
+        e.preventDefault();
+        backToTemplates();
+      }}
+      aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+      title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+      className={`justify-self-start ${ROUND_BACK}`}
+    >
+      <ChevronLeftIcon className="size-5" />
+    </a>
   );
 }

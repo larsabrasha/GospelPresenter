@@ -76,7 +76,7 @@ export function Invite({ token, methods, onSignedIn }: { token: string; methods:
     );
   }, [token]);
 
-  if (state === null) return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-stone-400" />;
+  if (state === null) return <AuthCard title={t('auth.loading')} titleClassName="loading-line text-base/6 font-normal text-stone-400" />;
   if (state === 'offline')
     return (
       <AuthCard title={t('auth.signIn')}>

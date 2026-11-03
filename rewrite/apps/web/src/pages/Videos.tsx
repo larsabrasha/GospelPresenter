@@ -5,6 +5,7 @@ import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropMore, DropZone } from '../ui/DropZone.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { VideoIcon } from '../ui/icons.tsx';
@@ -37,6 +38,7 @@ function Thumb({ video }: { video: LibraryVideo }) {
 export function Videos({ role }: { role: Role }) {
   const db = useDb();
   const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const videos = useData(listVideos, []);
   const [query, setQuery] = useState('');
@@ -49,10 +51,14 @@ export function Videos({ role }: { role: Role }) {
     if (added.length && added.length === files.length) toast(t('videos.imported', { n: added.length }));
   };
 
-  const remove = async (v: LibraryVideo) => {
-    if (!(await trySave(db.mutate('trashVideo', { id: v.id, at: trashedAt() })))) return;
-    toast(t('videos.trashed', { name: v.fileName }));
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
+  const remove = (v: LibraryVideo) =>
+    ask(
+      deleteAsk(t('images.trashConfirm', { name: v.fileName }), v.fileName, async () => {
+        if (!(await trySave(db.mutate('trashVideo', { id: v.id, at: trashedAt() })))) return;
+        toast(t('videos.trashed', { name: v.fileName }));
+      }),
+    );
 
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = videos?.filter((v) => !q || v.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
@@ -61,6 +67,7 @@ export function Videos({ role }: { role: Role }) {
   return (
     <PageContainer>
       <DropZone className="flex flex-col space-y-5" label={t('videos.drop')} accept={VIDEO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
+        {dialog}
         <PageHeader title={t('videos.page')}>
           <div className="flex items-center gap-3">
             {manage && (
@@ -89,7 +96,7 @@ export function Videos({ role }: { role: Role }) {
         {!!videos?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
         {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
         <div className={CARD.replace(' overflow-hidden', '')}>
-          {!videos && <div className="px-5 py-4 text-stone-400 text-sm">{t('videos.loading')}</div>}
+          {!videos && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('videos.loading')}</div>}
           {videos && !videos.length && <EmptySmall icon={<VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('presentation.noVideos')} dropHint={manage ? t('drop.here') : undefined} />}
           {!!videos?.length && !shown.length && <CardNote>{t('videos.noMatch')}</CardNote>}
           <ul aria-label={t('videos.page')}>

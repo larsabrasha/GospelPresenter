@@ -148,8 +148,10 @@ nothing.
   - **Spara som mall** (presentations only, ManageTemplates only) → name dialog prefilled with the
     presentation name → toast "Sparad som mall".
   - **Markera** — toggles multi-select mode.
-  - **Radera presentation** / **Radera mall** (red) — no confirmation; moves to trash, toast
-    "{name} flyttad till papperskorgen", navigates to `/` (template: `/templates`, the templates page).
+  - **Radera presentation** / **Radera mall** (red) — no confirmation (2.0, Lars, 2026-11-03: every deletion asks
+    first, "Vill du flytta {name} till papperskorgen? Presentationen raderas permanent efter 30 dagar.", Mallen for a
+    template); moves to trash, toast "{name} flyttad till papperskorgen", navigates to `/` (template: `/templates`,
+    the templates page).
 - Under the name: schedule line (presentation: short date + short time in UI culture; template:
   weekday + `HH:mm`) and location.
 - Item list: icon by type (note, book, photo, speaker, stack), title, a pulsing red dot on the item
@@ -414,7 +416,8 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   leaves the rest) (`TrashService.cs:77-113, 179-204`; tests `TrashServiceTests.cs:132-161, 242`).
 - PRES-R29 Items, parts and overlays have no trash: removing them is permanent and confirmed by a
   dialog; whole presentations/templates and media files go to trash without a dialog, with a toast
-  naming where they went (CLAUDE.md "Feedback"; `Presentation.razor:1479-1514`).
+  naming where they went (CLAUDE.md "Feedback"; `Presentation.razor:1479-1514`). 2.0 (Lars, 2026-11-03): they ask
+  first too, saying they go to the trash for 30 days; the toast stays.
 
 **Templates**
 - PRES-R30 Create-from-template copies, in one transaction: items (type, title, sourceId, sortOrder)
@@ -564,7 +567,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-A21 Given the editor menu, when the user chooses **Redigera detaljer**, sets a date, location and
   theme "X" and saves, then the sidebar shows date/location, the slides use theme X, and the dashboard
   shows the presentation under the right section.
-- PRES-A22 Given a presentation, when the user chooses **Radera presentation**, then no dialog appears,
+- PRES-A22 Given a presentation, when the user chooses **Radera presentation**, then no dialog appears (2.0: a question first, then),
   they are taken to `/`, a toast "{name} flyttad till papperskorgen" shows, and the presentation is
   listed at `/trash?kind=Presentation` with "30 dagar kvar"; **Återställ** brings it back to the
   dashboard with all items and slide pages intact.

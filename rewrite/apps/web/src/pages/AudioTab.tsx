@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
@@ -26,6 +27,7 @@ const trashedAt = () => Date.now();
 export function AudioTab({ presentationId, afterItemId, onAdded, active }: { presentationId: string; afterItemId: string | null; onAdded: (itemId: string) => void; active: boolean }) {
   const db = useDb();
   const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const audios = useData(listAudios, []);
   const imports = useMediaImport('audio');
@@ -59,11 +61,15 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
     }
   };
 
-  const remove = async (a: LibraryAudio) => {
-    if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
-    setPicked((p) => p.filter((x) => x !== a.id));
-    toast(t('audios.trashed', { name: a.fileName }));
-  };
+  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
+  const remove = (a: LibraryAudio) =>
+    ask(
+      deleteAsk(t('images.trashConfirm', { name: a.fileName }), a.fileName, async () => {
+        if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
+        setPicked((p) => p.filter((x) => x !== a.id));
+        toast(t('audios.trashed', { name: a.fileName }));
+      }),
+    );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
     if (isAddKey(e)) {
@@ -75,6 +81,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
 
   return (
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('audios.drop')} accept={AUDIO_ACCEPT} onFiles={(files) => void imports.run(files)}>
+      {dialog}
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
           <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!imports.progress} testId="audio-tab-file" secondary onFiles={(files) => void imports.run(files)} />
@@ -88,7 +95,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!audios && <p className="flex items-center justify-center py-12 text-stone-400 text-sm">{t('audios.loading')}</p>}
+          {!audios && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('audios.loading')}</p>}
           {audios && !audios.length && (
             <EmptyTab icon={<SpeakerWaveIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
               <p>{t('presentation.noAudios')}</p>
