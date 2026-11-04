@@ -259,7 +259,11 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       ) : (
         held(
           item,
-          p.preview ? (
+          p.open ? (
+            <a href={p.open(item)} className={`${TILE} no-underline`} aria-label={item.name}>
+              {p.renderTile?.(item)}
+            </a>
+          ) : p.preview ? (
             <AppButton variant="plain" className={`${TILE} cursor-pointer`} aria-label={item.name} onClick={() => setLooking(item.id)}>
               {p.renderTile?.(item)}
             </AppButton>

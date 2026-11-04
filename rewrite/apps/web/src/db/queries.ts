@@ -68,7 +68,7 @@ const presentation = (r: Row): Presentation => ({
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'slides' || r.type === 'video' ? r.type : 'song',
+  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'slides' || r.type === 'video' || r.type === 'custom' ? r.type : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
@@ -204,7 +204,7 @@ export async function getPresentation(db: ReadDb, id: string): Promise<Presentat
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video';
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
   id: string;
   name: string;
   /** The event date of a presentation, the author of a song. */
@@ -221,7 +221,9 @@ export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
   const trashedImages = (await db.query('SELECT * FROM images WHERE deleted_at IS NOT NULL')).map(libraryImage);
   const trashedAudios = (await db.query('SELECT * FROM audios WHERE deleted_at IS NOT NULL')).map(libraryAudio);
   const trashedVideos = (await db.query('SELECT * FROM videos WHERE deleted_at IS NOT NULL')).map(libraryVideo);
+  const trashedSlides = await db.query<{ id: string; name: string; deleted_at: number }>('SELECT id, name, deleted_at FROM custom_slides WHERE deleted_at IS NOT NULL');
   const entries: TrashEntry[] = [
+    ...trashedSlides.map((s) => ({ kind: 'Slide' as const, id: s.id, name: s.name, detail: null, deletedAt: Number(s.deleted_at) })),
     ...trashedVideos.map((v) => ({ kind: 'Video' as const, id: v.id, name: v.fileName, detail: null, deletedAt: v.deletedAt! })),
     ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
     ...trashedAudios.map((a) => ({ kind: 'Audio' as const, id: a.id, name: a.fileName, detail: null, deletedAt: a.deletedAt! })),

@@ -9,7 +9,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
 import { PageFill } from '../../ui/PageContainer.tsx';
-import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
+import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon, VideoIcon, ShapesIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -20,6 +20,7 @@ import { ImageTab } from '../ImageTab.tsx';
 import { SongEditor } from '../SongEditor.tsx';
 import { VideoTab } from '../VideoTab.tsx';
 import { SlidesTab } from './SlidesTab.tsx';
+import { CustomTab } from '../custom-slides/CustomTab.tsx';
 import { SongTab } from './SongTab.tsx';
 
 export interface TabProps {
@@ -32,9 +33,9 @@ export interface TabProps {
   active: boolean;
 }
 
-type Tab = 'songs' | 'bible' | 'images' | 'audio' | 'slides' | 'video';
-/** Video last, so the tabs before it keep their keys. */
-const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides', 'video'];
+type Tab = 'songs' | 'bible' | 'images' | 'audio' | 'slides' | 'video' | 'custom';
+/** Video and Egna slides last, so the tabs before them keep their keys. */
+const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides', 'video', 'custom'];
 
 /**
  * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud, PowerPoint and Video; Ctrl/⌘+1 to
@@ -53,6 +54,7 @@ const KEYS: ShortcutGroup = {
     { keys: ['Ctrl+4'], text: t('shortcuts.tab.audio') },
     { keys: ['Ctrl+5'], text: t('shortcuts.tab.slides') },
     { keys: ['Ctrl+6'], text: t('shortcuts.tab.video') },
+    { keys: ['Ctrl+7'], text: t('shortcuts.tab.custom') },
     { keys: ['Ctrl+Enter'], text: t('shortcuts.add') },
     { keys: ['ArrowDown'], text: t('shortcuts.moveThroughResults') },
   ],
@@ -120,6 +122,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
     ['slides', t('slides.tab'), RectangleStackIcon],
     ['video', t('presentation.videoTab'), VideoIcon],
+    ['custom', t('nav.customSlides'), ShapesIcon],
   ];
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');
   const tabProps = (key: Tab): TabProps => ({ ...props, onClose: close, active: !editingSongId && tab === key });
@@ -183,6 +186,9 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
         </div>
         <div className={shown('video')}>
           <VideoTab {...tabProps('video')} />
+        </div>
+        <div className={shown('custom')}>
+          <CustomTab {...tabProps('custom')} />
         </div>
       </div>
     </Modal>

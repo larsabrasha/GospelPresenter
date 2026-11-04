@@ -23,6 +23,7 @@ import {
   UserIcon,
   UsersIcon,
   VideoIcon,
+  ShapesIcon,
   ViewGridIcon,
 } from '../../ui/icons.tsx';
 import { SONG_PAGES, type Route } from '../../ui/router.ts';
@@ -63,6 +64,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
         can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', keywords: 'search.images', icon: PhotoIcon, colour: 'bg-rose-500', pages: ['images'] },
         can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', keywords: 'search.audios', icon: SpeakerWaveIcon, colour: 'bg-orange-500', pages: ['audios'] },
         can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', keywords: 'search.videos', icon: VideoIcon, colour: 'bg-purple-500', pages: ['videos'] },
+        can(me.role, 'ManagePresentations') && { route: { page: 'customSlides' }, label: 'nav.customSlides', keywords: 'search.customSlides', icon: ShapesIcon, colour: 'bg-teal-500', pages: ['customSlides', 'customSlide'] },
       ],
     },
     {

@@ -5,7 +5,7 @@ import { listTrash, type TrashEntry } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon, VideoOutlineIcon } from '../ui/icons.tsx';
+import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, ShapesIcon, TrashIcon, VideoOutlineIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
 import { DANGER_ROW, Group } from '../ui/Group.tsx';
@@ -23,9 +23,10 @@ const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
   Image: 'ManageImages',
   Audio: 'ManageAudios',
   Video: 'ManageVideos',
+  Slide: 'ManagePresentations',
 };
-const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo' } as const;
+const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo', Slide: 'restoreCustomSlide' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo', Slide: 'purgeCustomSlide' } as const;
 
 /** Each kind's icon at the start of its row (Trash.razor). */
 function KindIcon({ kind }: { kind: TrashKind }) {
@@ -43,6 +44,8 @@ function KindIcon({ kind }: { kind: TrashKind }) {
       return <SpeakerOutlineIcon className={className} />;
     case 'Video':
       return <VideoOutlineIcon className={className} />;
+    case 'Slide':
+      return <ShapesIcon className={className} />;
   }
 }
 

@@ -266,3 +266,18 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
 [data-bar]:has([data-bar-slot]:not(:empty)) [data-bar-title] {
   display: none;
 }
+
+/* The custom slide editor's handles (react-moveable, pages/custom-slides/EditorCanvas.tsx): a size a finger can hold
+   on a touch screen, and the app's blue. */
+.moveable-control-box { --moveable-color: #0ea5e9; }
+/* Lined up with the page's middle or another element: Keynote's yellow. */
+.moveable-control-box .moveable-line.moveable-guideline,
+.moveable-control-box .moveable-line.moveable-gap { background: #facc15 !important; }
+@media (pointer: coarse) {
+  .moveable-control-box .moveable-control {
+    width: 24px !important;
+    height: 24px !important;
+    margin-top: -12px !important;
+    margin-left: -12px !important;
+  }
+}

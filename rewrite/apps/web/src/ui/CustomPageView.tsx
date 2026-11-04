@@ -7,11 +7,11 @@ import { mainCss } from '../themes.ts';
 // colour and font of its song slides, and the stage under the page is the theme's background.
 
 /** A picture of Bilder: this device's full copy, else its thumbnail; or, on a page with no database, `media`'s URL. */
-function PagePicture({ hash, thumb, media, style }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties }) {
+function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
   const full = useBlobUrl(media ? null : hash);
   const small = useBlobUrl(media || full || thumb === hash ? null : thumb);
   const url = media ? media(hash) : (full ?? small);
-  return url ? <img src={url} alt="" draggable={false} style={style} /> : null;
+  return url ? <img src={url} alt="" draggable={false} style={style} data-element={id} /> : <div style={style} data-element={id} />;
 }
 
 /** Where an element sits: its box, and a line's from its start to its end, whichever way it runs. */
@@ -25,6 +25,7 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
     const main = mainCss(theme, 'song');
     return (
       <div
+        data-element={e.id}
         style={{
           ...box,
           ...main,
@@ -43,14 +44,14 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
   }
   if (e.kind === 'image') {
     const picture = shown.images[e.imageId];
-    return picture ? <PagePicture hash={picture.full} thumb={picture.thumb} media={media} style={{ ...box, objectFit: e.fit }} /> : null;
+    return picture ? <PagePicture id={e.id} hash={picture.full} thumb={picture.thumb} media={media} style={{ ...box, objectFit: e.fit }} /> : <div data-element={e.id} style={box} />;
   }
   if (e.kind === 'line') {
     const { left, top, width, height } = box as { left: number; top: number; width: number; height: number };
     // Drawn from its start to its end inside its box, with room for its width on every side.
     const pad = e.strokeWidth;
     return (
-      <svg style={{ position: 'absolute', left: left - pad, top: top - pad, width: width + 2 * pad, height: height + 2 * pad, overflow: 'visible' }}>
+      <svg data-element={e.id} style={{ position: 'absolute', left: left - pad, top: top - pad, width: width + 2 * pad, height: height + 2 * pad, overflow: 'visible' }}>
         <line
           x1={e.x - left + pad}
           y1={e.y - top + pad}
@@ -65,6 +66,7 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
   }
   return (
     <div
+      data-element={e.id}
       style={{
         ...box,
         boxSizing: 'border-box',
@@ -77,15 +79,14 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
 }
 
 /** The page's own background, its elements in drawing order, and `children` above them (the editor's handles). */
-export function CustomPageView({ shown, theme, media, children }: { shown: ShownPage; theme: Theme; media?: (hash: string) => string; children?: ReactNode }) {
+export function CustomPageView({ shown, theme, media, hide, children }: { shown: ShownPage; theme: Theme; media?: (hash: string) => string; hide?: string; children?: ReactNode }) {
   const { page } = shown;
   const background = page.backgroundImageId ? shown.images[page.backgroundImageId] : undefined;
   return (
     <div className="absolute inset-0 overflow-hidden" style={page.background ? { background: page.background } : undefined} data-testid="custom-page">
       {background && <PagePicture hash={background.full} thumb={background.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-      {page.elements.map((e) => (
-        <Element key={e.id} e={e} shown={shown} theme={theme} media={media} />
-      ))}
+      {/* `hide`: the text the editor writes over (pages/custom-slides/EditorCanvas.tsx). */}
+      {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} shown={shown} theme={theme} media={media} />))}
       {children}
     </div>
   );

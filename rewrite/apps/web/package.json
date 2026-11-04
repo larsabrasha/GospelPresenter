@@ -16,6 +16,7 @@
     "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-moveable": "0.56.0",
     "uqr": "0.1.2"
   },
   "devDependencies": {

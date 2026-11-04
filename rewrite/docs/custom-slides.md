@@ -50,13 +50,32 @@ text.
 
 ## The editor
 
-The page at its size in the window; a tap picks an element, a drag moves it, the handles at its corners size it,
-and a toolbar adds Text, Bild, Rektangel, Ellips and Linje. What the picked element is (its text, size, colours,
-order, Radera) is a panel: beside the page on a computer, a sheet under it on a phone. Pages are a row of thumbnails
-to add, reorder and remove. It saves as it goes, as the song editor does.
+As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
+
+- **Above the page**, Ångra and Gör om at the left, + and Format (the brush) at the right. + adds a text, a picture
+  of Bilder, or a shape (rektangel, rundad rektangel, ellips, linje) in the middle of the page.
+- **The page** is drawn as the outputs draw it (`CustomPageView`), scaled to the column. A tap picks an element,
+  a tap beside them all picks none; the picked one is dragged and sized by its handles (react-moveable, larger
+  on a touch screen), and lines up with the page's edges and middle and with the other elements by yellow guides.
+  A text tapped twice is written on the slide itself. A held finger or a right click opens Klipp ut, Kopiera,
+  Klistra in, Duplicera and Ta bort; on a computer ⌘Z, ⇧⌘Z, ⌘C, ⌘X, ⌘V, ⌘D and Delete do the same.
+- **Format** has the picked element's tabs: Text (words, size, bold, italic, alignment, colour) or Stil (fill,
+  outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
+  (to front, forward, backward, to back, Duplicera, Ta bort). With nothing picked it has the slide's name and the
+  page's background (a colour, the theme's, or a picture). It stands at the right where the editor is wide enough
+  (its own width, `@4xl`: Inställningar's column is narrower than the window), else it is a sheet over the lower
+  part of the screen, pulled down to close.
+- **The pages** are a column of numbered thumbnails at the left where the editor is wide, a row under the page
+  otherwise; + adds a page after the open one, and a page's menu (held, or a right click) duplicates, moves or
+  removes it.
+- **Ångra** keeps the last 100 steps; a run of the same change of one element within 0.6 s (a slider pulled, a
+  word typed) is one step, while adding, removing and a page's change are always steps of their own (`history.ts`).
+- It saves as it goes, all the pages, half a second after the last change, and at once on leaving. A version saved
+  by another device is taken over when it is newer than the last one saved here and nothing waits to be saved.
 
 ## In steps
 
-1. The slide's model, its table and mutators; the editor; Egna slides in Inställningar's library and in Lägg till;
-   the item drawn in the app and in the output window; a public output's text.
+1. The slide's model, its table and mutators; the editor; Egna slides in Inställningar's library and in Lägg till
+   (Ctrl/⌘+7, Skapa makes one, puts it in and opens it); the item drawn in the app and in the output window; a
+   public output's text; the trash. Done 2026-11-04.
 2. Overlays in the same format, the old ones dropped; paired screens' canvas and the server's picture gate for both.

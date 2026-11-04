@@ -16,6 +16,8 @@ import type { LiveLink } from './live/remote.ts';
 import { About } from './pages/About.tsx';
 import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
+import { CustomSlides } from './pages/custom-slides/CustomSlides.tsx';
+import { SlideEditor } from './pages/custom-slides/SlideEditor.tsx';
 import { Videos } from './pages/Videos.tsx';
 import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
@@ -127,6 +129,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
       {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
+      {route.page === 'customSlides' && <CustomSlides />}
+      {route.page === 'customSlide' && <SlideEditor key={route.id} id={route.id} />}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
@@ -228,6 +232,8 @@ function settingsTitle(route: Route, detail = false): string {
       return t('users.title');
     case 'overlay':
       return t('overlays.itemOverlay');
+    case 'customSlide':
+      return t('nav.customSlides');
     case 'org':
       return t('orgs.one');
     default:
@@ -250,7 +256,7 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   return link ? t(link.label) : t('nav.admin');
 }
 
-const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org']);
+const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide']);
 
 /**
  * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
@@ -264,6 +270,7 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'songHistory' || route.page === 'songArrangements' || route.page === 'songMaterials' ? { page: 'song', id: route.id }
     : route.page === 'user' ? { page: 'users' }
     : route.page === 'overlay' ? { page: 'overlays' }
+    : route.page === 'customSlide' ? { page: 'customSlides' }
     : route.page === 'org' ? { page: 'orgs' }
     : route.page === 'logins' || route.page === 'storage' ? { page: 'settings' }
     : { page: 'admin' };

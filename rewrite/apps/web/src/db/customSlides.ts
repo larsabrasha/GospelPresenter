@@ -21,6 +21,11 @@ const customSlide = (r: Record<string, unknown>): LibraryCustomSlide => ({
   deletedAt: (r.deleted_at as number | null) ?? null,
 });
 
+/** The library, by name, without the trash. */
+export async function listCustomSlides(db: ReadDb): Promise<LibraryCustomSlide[]> {
+  return (await db.query('SELECT * FROM custom_slides WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE, id')).map(customSlide);
+}
+
 /** A slide by id, trashed or not: a trashed one still shows where a presentation uses it. */
 export async function getCustomSlide(db: ReadDb, id: string): Promise<LibraryCustomSlide | null> {
   const [r] = await db.query('SELECT * FROM custom_slides WHERE id = ?', [id]);

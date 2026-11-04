@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video'] as const;
+export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video', 'Slide'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -55,6 +55,9 @@ export type Route =
   | { page: 'orgs' }
   | { page: 'org'; id: string }
   | { page: 'overlay'; id: string }
+  /** Egna slides (docs/custom-slides.md), and one of them in its editor. */
+  | { page: 'customSlides' }
+  | { page: 'customSlide'; id: string }
   | { page: 'displays' }
   /** Publika utgångar, apart from Skärmar (Lars, 2026-11-02). */
   | { page: 'publicOutputs' }
@@ -124,6 +127,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'audios') return { page: 'audios' };
     if (second === 'videos') return { page: 'videos' };
     if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
+    if (second === 'custom-slides') return third ? { page: 'customSlide', id: third } : { page: 'customSlides' };
     // Mallar was a page of Inställningar until 2026-11-02; its old address still opens it.
     if (second === 'templates') return { page: 'templates' };
     if (second === 'labels') return { page: 'labels' };
@@ -163,20 +167,20 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'customSlides', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
 /** The pages pushed in from a song's page. */
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
-const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org']);
+const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide']);
 
 /**
  * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
@@ -215,6 +219,10 @@ export function href(r: Route): string {
     }
     case 'overlay':
       return `/admin/overlays/${encodeURIComponent(r.id)}`;
+    case 'customSlides':
+      return '/admin/custom-slides';
+    case 'customSlide':
+      return `/admin/custom-slides/${encodeURIComponent(r.id)}`;
     case 'user':
       return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':
