@@ -80,6 +80,7 @@ export function Images({ role }: { role: Role }) {
       items={items}
       layout="grid"
       renderTile={(image) => <ImageThumb image={image} />}
+      preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
       remove={{ ...trashTexts('images.trashed'), run: (image) => db.mutate('trashImage', { id: image.id, at: Date.now() }) }}

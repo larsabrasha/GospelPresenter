@@ -34,6 +34,7 @@ export function Audios({ role }: { role: Role }) {
       items={items}
       layout="list"
       renderRow={() => ({ leading: <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" /> })}
+      preview={(a) => ({ kind: 'audio', hash: a.hash })}
       manage={manage}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
       remove={{ ...trashTexts('audios.trashed'), run: (a) => db.mutate('trashAudio', { id: a.id, at: Date.now() }) }}

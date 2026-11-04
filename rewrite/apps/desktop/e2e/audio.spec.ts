@@ -29,6 +29,12 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await expect(page.getByTestId('audio-failures')).toContainText('2 fil(er) kunde inte importeras');
   await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Ljud' }).getByRole('listitem')).toHaveText([/Preludium\.wav/]);
+  // A tap looks at it, as Quick Look: it plays there, and Escape closes the look and nothing else.
+  await page.getByRole('list', { name: 'Ljud' }).getByRole('button', { name: 'Preludium.wav', exact: true }).click();
+  await expect(page.getByTestId('quick-look-audio')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('quick-look')).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Ljud' })).toBeVisible();
 
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();

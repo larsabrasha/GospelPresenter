@@ -562,9 +562,20 @@ export function VideoOutlineIcon({ className }: IconProps) {
   );
 }
 
+/** A custom slide (docs/custom-slides.md): a square, a circle and a line, as the shapes it is made of. */
+function ShapesIcon({ className }: IconProps) {
+  return (
+    <Solid className={className}>
+      <rect x="2.25" y="2.25" width="10.5" height="10.5" rx="2" />
+      <circle cx="16.5" cy="16.5" r="5.25" />
+      <path d="M3.22 20.78a.75.75 0 0 1 0-1.06l5.5-5.5a.75.75 0 1 1 1.06 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0Z" />
+    </Solid>
+  );
+}
+
 /** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, slides: RectangleStackIcon, video: VideoIcon }[type];
+  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, slides: RectangleStackIcon, video: VideoIcon, custom: ShapesIcon }[type];
   return <Icon className={className} />;
 }
 

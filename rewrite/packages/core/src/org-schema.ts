@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -39,6 +39,9 @@ const songMaterialsDdl = [
 
 const ccliEntriesDdl = `CREATE TABLE IF NOT EXISTS ccli_entries (id TEXT PRIMARY KEY NOT NULL, song_id TEXT NOT NULL, song_name TEXT NOT NULL,
      ccli TEXT NOT NULL, presentation_id TEXT NOT NULL, presentation_name TEXT NOT NULL, date TEXT NOT NULL, reported_at INTEGER)`;
+
+const customSlidesDdl = `CREATE TABLE IF NOT EXISTS custom_slides (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, pages TEXT NOT NULL,
+     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)`;
 
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      codec TEXT NOT NULL, hash TEXT NOT NULL, size INTEGER NOT NULL, duration INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
@@ -90,6 +93,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
   videoFilesDdl,
+  customSlidesDdl,
   ...orgIndexes,
 ];
 
@@ -107,6 +111,8 @@ export const orgMigrations: Record<number, string[]> = {
   16: [ccliEntriesDdl],
   // Sheet music and links on a song (spec 02 "Song material").
   17: songMaterialsDdl,
+  // Custom slides (docs/custom-slides.md).
+  18: [customSlidesDdl],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

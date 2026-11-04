@@ -4,24 +4,27 @@ import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { useTrySave } from './AutoSave.tsx';
 import { CONTEXT_ROW } from './ContextMenu.tsx';
+import { Dropdown, MENU_ITEM } from './Dropdown.tsx';
 import { deleteAsk, useConfirm } from './Dialog.tsx';
 import { DropMore, DropZone } from './DropZone.tsx';
 import { EmptySmall } from './Empty.tsx';
 import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
 import { useHeaderFloat } from './headerFloat.ts';
-import { CheckIcon, PencilIcon } from './icons.tsx';
+import { CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { NameDialog } from './NameDialog.tsx';
 import { PageContainer, PageHeader } from './PageContainer.tsx';
-import { HoldMenu, RemoveRow } from './RemoveMenu.tsx';
+import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
+import { HoldMenu } from './RemoveMenu.tsx';
 import { useToast } from './Toast.tsx';
 
 // Sånger, Biblar, Bilder, Ljud and Videor alike (Lars, 2026-11-04: "härma iOS 27"): the title, the search under it,
 // the items as a list (Files) or a grid (Photos), how many in grey under them, and + floating at the bottom right.
-// Välj, at the top right as iOS's, marks items with a round tick and floats a toolbar with Radera in place of +; a
-// finger held on an item, or a right click, opens its menu: Byt namn and Radera.
+// Välj, at the top right as iOS's, marks items with a round tick and floats a toolbar with Radera in place of +. Each
+// item shows its ⋯ menu, Byt namn and Radera, which a finger held on it or a right click opens too; a tap on a
+// picture, a video or a sound looks at it, as Quick Look does (ui/QuickLook.tsx).
 
 export interface LibraryEntry {
   id: string;
@@ -48,8 +51,10 @@ export interface LibraryProps<T extends LibraryEntry> {
   renderTile?: (item: T) => ReactNode;
   /** Sections with a caption, while nothing is searched (Sånger's letters); an index along the edge when long. */
   sections?: (shown: T[]) => { key: string; title: string; items: T[] }[];
-  /** Where an item opens (a song's page); else a tap does nothing but mark it while Välj is on. */
+  /** Where an item opens (a song's page). */
   open?: (item: T) => string;
+  /** What a tap on an item looks at (a picture, a video, a sound). */
+  preview?: (item: T) => QuickLookContent;
   manage: boolean;
   rename?: { title: string; label: string; maxLength: number; run: (item: T, name: string) => Promise<unknown> };
   remove: {
@@ -73,6 +78,9 @@ export interface LibraryProps<T extends LibraryEntry> {
   testId: string;
 }
 
+/** Radera in an item's ⋯ menu: as its other choices, in red. */
+const MENU_DANGER = MENU_ITEM.replace('text-stone-700 dark:text-stone-200', 'text-red-600 dark:text-red-400');
+
 /** From how many items a sectioned list has an index along its edge to jump by its captions. */
 const INDEX_FROM = 20;
 
@@ -84,6 +92,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [renaming, setRenaming] = useState<T | null>(null);
+  const [looking, setLooking] = useState<string | null>(null);
 
   const query = p.search?.query ?? ownQuery;
   const shown = p.search ? p.search.shown : p.items?.filter((i) => matches(query, i.name, ...(p.words?.(i) ?? [])));
@@ -91,6 +100,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const sections = p.sections && shown && !searching ? p.sections(shown) : null;
   const pickedItems = (p.items ?? []).filter((i) => picked.has(i.id));
   const allPicked = !!shown?.length && shown.every((i) => picked.has(i.id));
+  const lookedIndex = looking ? (shown ?? []).findIndex((i) => i.id === looking) : -1;
+  const lookedAt = lookedIndex >= 0 ? { item: shown![lookedIndex]!, before: shown![lookedIndex - 1], after: shown![lookedIndex + 1] } : null;
 
   const stopSelecting = () => {
     setSelecting(false);
@@ -114,22 +125,38 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     if (!confirmed || !removed.length) return;
     toast(p.remove.done(removed));
     stopSelecting();
+    if (removed.some((i) => i.id === looking)) setLooking(null);
   };
 
-  const menu = (item: T) => (
+  /** An item's choices: in its ⋯ menu (`row` MENU_ITEM) or in the menu a held finger opens (CONTEXT_ROW). */
+  const menu = (item: T, row: string, danger: string) => (
     <>
       {p.rename && (
-        <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => setRenaming(item)}>
+        <AppButton variant="plain" role="menuitem" className={row} onClick={() => setRenaming(item)}>
           <PencilIcon className="size-4" />
           {t('library.rename')}
         </AppButton>
       )}
-      <RemoveRow onRemove={() => void remove([item])} />
+      <AppButton variant="plain" role="menuitem" className={danger} onClick={() => void remove([item])}>
+        <TrashIcon className="size-4" strokeWidth={1.5} />
+        {t('images.remove')}
+      </AppButton>
     </>
   );
+  const more = (item: T) =>
+    p.manage && (
+      <Dropdown
+        menuClassName="min-w-40 right-0"
+        className="relative shrink-0"
+        button={{ className: 'size-8 flex items-center justify-center rounded-full text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-raised-2 cursor-pointer', 'aria-label': t('images.more', { name: item.name }) }}
+        trigger={<EllipsisIcon className="size-4" />}
+      >
+        {menu(item, MENU_ITEM, MENU_DANGER)}
+      </Dropdown>
+    );
   const held = (item: T, node: ReactNode, className?: string) =>
     p.manage ? (
-      <HoldMenu label={t('images.more', { name: item.name })} menu={menu(item)} className={className}>
+      <HoldMenu label={t('images.more', { name: item.name })} menu={menu(item, CONTEXT_ROW, `${CONTEXT_ROW} text-red-600 dark:text-red-400`)} className={className}>
         {node}
       </HoldMenu>
     ) : (
@@ -163,6 +190,10 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
                 {body}
                 {!r.end && <RowChevron />}
               </a>
+            ) : p.preview ? (
+              <AppButton variant="plain" className={`${rowClass} cursor-pointer`} onClick={() => setLooking(item.id)}>
+                {body}
+              </AppButton>
             ) : (
               <div className={rowClass} tabIndex={p.manage ? 0 : undefined}>
                 {body}
@@ -171,7 +202,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
             'flex-1 min-w-0 flex',
           )
         )}
-        {!selecting && r.end && <div className="shrink-0 pr-4">{r.end}</div>}
+        {!selecting && r.end && <div className={`shrink-0 ${p.manage ? 'pr-1' : 'pr-4'}`}>{r.end}</div>}
+        {!selecting && p.manage && <div className="shrink-0 pr-2">{more(item)}</div>}
       </li>
     );
   };
@@ -186,14 +218,24 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       ) : (
         held(
           item,
-          <div className="relative rounded-lg" tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
-            {p.renderTile?.(item)}
-          </div>,
+          p.preview ? (
+            <AppButton variant="plain" className="relative rounded-lg cursor-pointer" aria-label={item.name} onClick={() => setLooking(item.id)}>
+              {p.renderTile?.(item)}
+            </AppButton>
+          ) : (
+            <div className="relative rounded-lg" tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
+              {p.renderTile?.(item)}
+            </div>
+          ),
         )
       )}
-      <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={item.name}>
-        {item.name}
-      </p>
+      {/* The name, and the ⋯ that says there is a menu (Lars, 2026-11-04: seen, not only held for). */}
+      <div className="mt-1 w-full min-w-0 flex items-center justify-center gap-0.5">
+        <p className="text-xs text-stone-500 dark:text-stone-400 truncate" title={item.name}>
+          {item.name}
+        </p>
+        {!selecting && more(item)}
+      </div>
     </li>
   );
 
@@ -239,6 +281,16 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           submit={async (name) => {
             if (await trySave(p.rename!.run(renaming, name))) setRenaming(null);
           }}
+        />
+      )}
+      {lookedAt && p.preview && (
+        <QuickLook
+          name={lookedAt.item.name}
+          content={p.preview(lookedAt.item)}
+          menu={p.manage && menu(lookedAt.item, MENU_ITEM, MENU_DANGER)}
+          onPrevious={lookedAt.before ? () => setLooking(lookedAt.before!.id) : undefined}
+          onNext={lookedAt.after ? () => setLooking(lookedAt.after!.id) : undefined}
+          onClose={() => setLooking(null)}
         />
       )}
       {p.notices}

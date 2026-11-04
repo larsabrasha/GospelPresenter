@@ -167,6 +167,7 @@ export function ItemWarnings({ item, set, songName }: { item: PresentationItem; 
       {set?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
       {set?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
       {set?.problem === 'video-missing' && <ItemWarning>{t('presentation.videoMissing')}</ItemWarning>}
+      {set?.problem === 'custom-missing' && <ItemWarning>{t('presentation.customMissing')}</ItemWarning>}
     </>
   );
 }

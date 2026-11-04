@@ -1,6 +1,7 @@
 import {
   applyLiveChange,
   bibleItemSlides,
+  customPageText,
   IDLE,
   imageItemIds,
   imageSlide,
@@ -23,6 +24,7 @@ import {
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import type { OutputVideo } from './video.ts';
+import { getCustomSlide, shownPages } from '../db/customSlides.ts';
 import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
@@ -155,7 +157,7 @@ export class LiveChannel {
 export interface ItemSlides {
   slides: Slide[];
   /** Why the item has no slides, if it has none. An audio item has none by nature. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | null;
+  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | 'custom-missing' | null;
   /** An audio item's file: played on the presenting computer, never shown (LIVE-R6). */
   audio?: { hash: string; fileName: string };
   /** A video item's video: its one slide plays it on the outputs, its sound on the presenting computer. */
@@ -213,6 +215,14 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
   if (item.type === 'video') {
     const video = await getVideo(db, item.sourceId);
     return video ? { slides: [videoSlide(video)], problem: null, video } : { slides: [], problem: 'video-missing' };
+  }
+  if (item.type === 'custom') {
+    // A reference as a song is: the slide as it is in the library now, a page a slide; trashed, it still shows.
+    const custom = await getCustomSlide(db, item.sourceId);
+    if (!custom) return { slides: [], problem: 'custom-missing' };
+    const pages = await shownPages(db, custom.pages);
+    const slides = pages.map((shown, i): Slide => ({ key: `page${i}`, kind: 'song', image: null, text: customPageText(shown.page), verses: null, label: null, credits: null, custom: shown }));
+    return { slides, problem: null };
   }
   if (item.type === 'image') {
     // A slide per picture. A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.

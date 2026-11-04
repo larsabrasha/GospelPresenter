@@ -57,6 +57,7 @@ export function Videos({ role }: { role: Role }) {
       items={items}
       layout="grid"
       renderTile={(v) => <Still video={v} />}
+      preview={(v) => ({ kind: 'video', hash: v.hash, still: v.stillHash, type: v.contentType, codec: v.codec })}
       manage={manage}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (v, fileName) => db.mutate('renameVideo', { id: v.id, fileName }) }}
       remove={{ ...trashTexts('videos.trashed'), run: (v) => db.mutate('trashVideo', { id: v.id, at: Date.now() }) }}

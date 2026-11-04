@@ -146,14 +146,15 @@ export const presentations = sqliteTable('presentations', {
  * holds its slides, split once when it was added (BIBLE-R12, D25). An image
  * item is a reference too: `sourceId` names the library image. A slide deck
  * is a snapshot: `content` holds its pages' picture hashes, and `sourceId`
- * is the item's own id, as there is no deck table (`SlidesItemContent`).
+ * is the item's own id, as there is no deck table (`SlidesItemContent`). A
+ * custom slide is a reference: `sourceId` names the `custom_slides` row.
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'slides', 'video'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'slides', 'video', 'custom'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
@@ -241,6 +242,20 @@ export const videos = sqliteTable('videos', {
   thumbHash: text('thumb_hash').notNull(),
   createdAt: integer('created_at').notNull(),
   /** Set while the video is in the trash (MEDIA-R8). */
+  deletedAt: integer('deleted_at'),
+});
+
+/**
+ * A custom slide of the library (docs/custom-slides.md): `pages` holds its pages as JSON (`CustomPage[]`), each a
+ * 1920×1080 stage of texts, pictures and shapes. A save writes all of them. In the trash as a song is.
+ */
+export const customSlides = sqliteTable('custom_slides', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  pages: text('pages').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  /** Set while the slide is in the trash. */
   deletedAt: integer('deleted_at'),
 });
 
@@ -370,6 +385,7 @@ export const schema = {
   audios,
   overlays,
   videos,
+  customSlides,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
@@ -379,7 +395,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -395,4 +411,5 @@ export type LibraryImage = typeof images.$inferSelect;
 export type Display = typeof displays.$inferSelect;
 export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
+export type CustomSlide = typeof customSlides.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;

@@ -3,6 +3,7 @@ import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import type { ShownOverlay } from '../db/queries.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
+import { CustomPageView } from './CustomPageView.tsx';
 import { Highlight } from './Highlight.tsx';
 
 const STAGE_WIDTH = CANVAS.width;
@@ -148,7 +149,9 @@ export function SlideView({
                 {slide.label.text}
               </span>
             )}
-            {slide.kind === 'media' ? (
+            {slide.custom ? (
+              <CustomPageView shown={slide.custom} theme={theme} media={media} />
+            ) : slide.kind === 'media' ? (
               <>
                 {slide.image && <Picture hash={slide.image} thumb={slide.thumb} media={media} className="slide-image" testId="slide-image" />}
                 {slide.video && video}

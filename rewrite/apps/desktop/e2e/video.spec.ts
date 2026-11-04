@@ -189,8 +189,12 @@ test('Videor shows the videos as a grid with their lengths, imports from the pag
   await expect(page.getByText('1 video', { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('video-card')).toHaveText([/0:20\s*Dop\.mp4/]);
   await expect(page.getByTitle('0:20 · 66 kB · H.264')).toBeVisible();
+  await page.getByRole('button', { name: 'Dop.mp4', exact: true }).click();
+  await expect(page.getByTestId('quick-look-video')).toBeVisible();
+  await page.getByRole('dialog', { name: 'Dop.mp4' }).getByRole('button', { name: 'Stäng' }).click();
 
-  await page.getByLabel('Dop.mp4', { exact: true }).click({ button: 'right' });
+  // Radera in its ⋯ menu, seen beside its name.
+  await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByText('Inga videor än')).toBeVisible();

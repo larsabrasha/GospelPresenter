@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { MutationError, type MutatorCtx, type Tx } from './base.ts';
 import {
+  createCustomSlideArgs,
+  createCustomSlide,
+  updateCustomSlideArgs,
+  updateCustomSlide,
+  trashCustomSlideArgs,
+  trashCustomSlide,
+  restoreCustomSlideArgs,
+  restoreCustomSlide,
+  purgeCustomSlideArgs,
+  purgeCustomSlide,
+  addCustomSlideToPresentationArgs,
+  addCustomSlideToPresentation,
+} from './custom-slides.ts';
+import {
   createSongArgs,
   createSong,
   updateSongArgs,
@@ -275,6 +289,12 @@ export const mutators = {
   renameVideo: m(renameVideoArgs, renameVideo),
   restoreVideo: m(restoreVideoArgs, restoreVideo),
   purgeVideo: m(purgeVideoArgs, purgeVideo),
+  createCustomSlide: m(createCustomSlideArgs, createCustomSlide),
+  updateCustomSlide: m(updateCustomSlideArgs, updateCustomSlide),
+  trashCustomSlide: m(trashCustomSlideArgs, trashCustomSlide),
+  restoreCustomSlide: m(restoreCustomSlideArgs, restoreCustomSlide),
+  purgeCustomSlide: m(purgeCustomSlideArgs, purgeCustomSlide),
+  addCustomSlideToPresentation: m(addCustomSlideToPresentationArgs, addCustomSlideToPresentation),
   createOverlay: m(createOverlayArgs, createOverlay),
   updateOverlay: m(updateOverlayArgs, updateOverlay),
   deleteOverlay: m(deleteOverlayArgs, deleteOverlay),

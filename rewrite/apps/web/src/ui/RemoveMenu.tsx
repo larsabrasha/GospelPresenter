@@ -35,7 +35,7 @@ export function PictureMenu({ name, onRemove, children }: { name: string; onRemo
 }
 
 /** Radera, red, in a HoldMenu. */
-export function RemoveRow({ onRemove }: { onRemove: () => void }) {
+function RemoveRow({ onRemove }: { onRemove: () => void }) {
   return (
     <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} onClick={onRemove}>
       <TrashIcon className="size-4" strokeWidth={1.5} />
