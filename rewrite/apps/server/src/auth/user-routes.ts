@@ -1,7 +1,18 @@
 // The organisation's users: list, create, one user (the detail page), change
 // name, e-mail and role, remove, invite, and an admin's view of a user's logins.
 import type { Hono } from 'hono';
-import { createUserRefusal, createUserRequest, inviteRefusal, mailInviteRequest, removeUserRefusal, roleChangeRefusal, updateUserRequest, userEditRefusal } from '@gp/core';
+import {
+  createUserRefusal,
+  createUserRequest,
+  inviteRefusal,
+  legacyUsersSchema,
+  mailInviteRequest,
+  removeUserRefusal,
+  roleChangeRefusal,
+  updateUserRequest,
+  userEditRefusal,
+} from '@gp/core';
+import type { LegacyUserOutcome } from '../global/legacy-users.ts';
 import { inviteLink, inviteMail } from '../mail.ts';
 import { body, fail, type AuthKit } from './kit.ts';
 
@@ -25,6 +36,18 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       const r = await accounts.members.createUser(caller.orgId, a);
       if (typeof r === 'string') return fail(c, 409, r);
       return c.json(r);
+    }),
+  );
+
+  // The users of a 1.x organisation (docs/import-from-1x.md): created, made members or kept, one by one.
+  app.post(
+    '/api/import/users',
+    withCaller('ManageUsers', async (c, caller) => {
+      const users = await body(c, legacyUsersSchema);
+      if (!users) return fail(c, 400, 'invalid-request');
+      const outcomes: Record<LegacyUserOutcome, number> = { created: 0, member: 0, kept: 0, limit: 0 };
+      for (const u of users) outcomes[await accounts.legacy.import(caller.orgId, u)]++;
+      return c.json(outcomes);
     }),
   );
 

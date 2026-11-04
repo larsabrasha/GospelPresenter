@@ -1,5 +1,5 @@
 // Each package uses only the ones below it: core, then sync, then the server and the web app, then the desktop host
-// that embeds the server. Shipped code never reaches into another package by a relative path.
+// that embeds the server; the export from 1.x uses only core. Shipped code never reaches into another package by a relative path.
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FILES, importsOf } from './source.ts';
@@ -10,6 +10,8 @@ const MAY_USE: Record<string, string[]> = {
   'apps/server': ['@gp/core', '@gp/sync'],
   'apps/web': ['@gp/core', '@gp/sync'],
   'apps/desktop': ['@gp/core', '@gp/sync', '@gp/server'],
+  // The export from 1.x, a command run beside the old app's database.
+  'apps/legacy': ['@gp/core'],
 };
 
 const imports = (pkg: string) => FILES.filter((f) => f.pkg === pkg && f.kind === 'source').flatMap((f) => importsOf(f).map((i) => ({ ...i, file: f.path })));

@@ -46,6 +46,8 @@ this order:
    when Lars is done. Setup and sign-in with a passkey there work in a browser, tried by hand.
 3. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app (ADR 0007 (7)).
+   The import is built since 2026-11-03 (see [import-from-1x.md](import-from-1x.md)): an export zip made beside the
+   old database, imported under Organisationen. Left: running it against a dump of Lars's own organisation.
    The desktop app's packages are made since 2026-11-03, tried on a Mac (see [desktop-app.md](desktop-app.md)); its
    built-in Google client, its updates and the Windows and Linux builds are left. The Capacitor app is
    now next and iOS first (Lars, 2026-11-03): the web app talks to a chosen server and the server lets the app's

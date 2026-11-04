@@ -22,6 +22,9 @@
       // Not imported: listed so turbo builds the web app before the desktop's e2e runs it.
       "ignoreDependencies": ["@gp/web"]
     },
+    "apps/legacy": {
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "packages/core": {
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },

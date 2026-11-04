@@ -1,0 +1,9 @@
+# Only what the Dockerfile copies: the lockfile, the workspace files, and core's and the export's sources.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!packages/core/package.json
+!packages/core/src
+!apps/legacy/package.json
+!apps/legacy/src

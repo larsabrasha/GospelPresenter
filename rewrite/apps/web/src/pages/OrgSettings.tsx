@@ -6,6 +6,7 @@ import { t, type TextKey } from '../i18n.ts';
 import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { LegacyImport } from './LegacyImport.tsx';
 
 const POLICIES: { value: RemoteControlPolicy; label: TextKey; description: TextKey }[] = [
   { value: 'never', label: 'orgSettings.remoteNever', description: 'orgSettings.remoteNeverDescription' },
@@ -15,7 +16,7 @@ const POLICIES: { value: RemoteControlPolicy; label: TextKey; description: TextK
 
 /**
  * The organisation's settings (`/admin/settings`, TODO.md "Remote control for
- * the whole organisation"): remote control so far. There is no such page in
+ * the whole organisation"): remote control, and the import from 1.x (docs/import-from-1x.md). There is no such page in
  * the current app; it looks like "Mina inställningar" (Pages/Settings.razor).
  */
 export function OrgSettings() {
@@ -52,18 +53,21 @@ export function OrgSettings() {
   return (
     <PageContainer>
       <PageHeader title={t('orgSettings.title')} />
-      <Group footer={t(chosen.description)}>
-        <label className={GROUP_ROW}>
-          <span>{t('orgSettings.remote')}</span>
-          <PopUp value={current} disabled={saving !== null} onChange={(e) => void choose(e.target.value as RemoteControlPolicy)}>
-            {POLICIES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {t(label)}
-              </option>
-            ))}
-          </PopUp>
-        </label>
-      </Group>
+      <div className="space-y-6">
+        <Group footer={t(chosen.description)}>
+          <label className={GROUP_ROW}>
+            <span>{t('orgSettings.remote')}</span>
+            <PopUp value={current} disabled={saving !== null} onChange={(e) => void choose(e.target.value as RemoteControlPolicy)}>
+              {POLICIES.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {t(label)}
+                </option>
+              ))}
+            </PopUp>
+          </label>
+        </Group>
+        <LegacyImport />
+      </div>
     </PageContainer>
   );
 }

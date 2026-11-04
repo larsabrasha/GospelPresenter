@@ -22,3 +22,4 @@ export * from './displays.ts';
 export * from './sha256.ts';
 export * from './video.ts';
 export * from './propresenter.ts';
+export * from './legacy.ts';

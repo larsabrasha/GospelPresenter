@@ -23,6 +23,7 @@
         "^typecheck"
       ],
       "env": [
+        "GP_LEGACY_PG",
         "GP_REAL_BIBLE_ZIP",
         "SYNC_ADAPTERS",
         "SYNC_REMOTE_URL"

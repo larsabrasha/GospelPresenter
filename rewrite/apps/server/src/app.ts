@@ -28,6 +28,7 @@ import {
 } from '@gp/core';
 import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoalescer, type SerialQueue } from '@gp/sync/server';
 import type { Caller } from './auth/index.ts';
+import { legacyRoutes } from './legacy-routes.ts';
 import type { LiveHub } from './live-hub.ts';
 import type { Viewer } from './live-viewers.ts';
 import type { MediaStorage } from './media.ts';
@@ -107,6 +108,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null, playTokens = null } = opts;
   const app = new Hono();
   app.route('/', videoRoutes(resolve, { media, playTokens, partBytes: opts.videoPartBytes }));
+  app.route('/', legacyRoutes(resolve, watch));
 
   app.post('/api/sync/push', async (c) => {
     const r = await resolve(c);

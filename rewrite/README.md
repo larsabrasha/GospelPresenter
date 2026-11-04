@@ -23,6 +23,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
 | `apps/desktop` | Electron: the embedded server, the main window and the output window |
 | `apps/mobile` | Capacitor: the web app in an iOS shell, with its sign-in sheet (docs/phone-app.md) |
+| `apps/legacy` | The export from the current app: one organisation from its PostgreSQL and Garage to a zip the new app imports (docs/import-from-1x.md) |
 
 ```sh
 pnpm install
@@ -68,6 +69,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [lan-https-and-addresses.md](docs/lan-https-and-addresses.md) | A tablet over plain http, https on the LAN, the service worker that starts the app without the host, a reverse proxy, and the app's addresses |
 | [desktop-app.md](docs/desktop-app.md) | The desktop app's packages: making them, what they hold, signing, what was tried and what is left |
 | [phone-app.md](docs/phone-app.md) | The Capacitor app for iOS and Android: which server it talks to and how a church changes it, CORS for its origins, its sign-in, and updates from the server outside the App Store |
+| [import-from-1x.md](docs/import-from-1x.md) | The one-way import from the current app: the export zip, the import in Inställningar, and what maps to what |
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |
 | [performance.md](docs/performance.md) | How fast the most used flows are, measured before and after, and what made them so |
 | [scenarios.md](docs/scenarios.md) | What a church does with the app, most common first, and the e2e tests that run each scenario, whole Sundays included |

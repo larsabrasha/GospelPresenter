@@ -319,6 +319,13 @@ export async function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy>
   return remoteControlPolicy(r?.value);
 }
 
+/** Whether the organisation holds nothing an import from 1.x would mix with (docs/import-from-1x.md); the server checks too. */
+export async function orgIsEmpty(db: ReadDb): Promise<boolean> {
+  const tables = ['songs', 'presentations', 'bibles', 'images', 'audios', 'videos', 'overlays', 'displays', 'ccli_entries'];
+  const [r] = await db.query<{ n: number }>(`SELECT ${tables.map((t) => `(SELECT count(*) FROM ${t})`).join(' + ')} AS n`);
+  return Number(r?.n ?? 0) === 0;
+}
+
 /** Whether CCLI collection is on (SONG-R49): only `"true"` is. */
 export async function ccliCollectionOn(db: ReadDb): Promise<boolean> {
   const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [CCLI_COLLECTION_SETTING]);
