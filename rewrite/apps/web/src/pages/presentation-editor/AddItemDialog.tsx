@@ -9,7 +9,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
 import { PageFill } from '../../ui/PageContainer.tsx';
-import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
+import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, SlideshowIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -118,7 +118,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     ['bible', t('bible.tab'), BookOpenIcon],
     ['images', t('presentation.imagesTab'), PhotoIcon],
     ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
-    ['slides', t('nav.customSlides'), RectangleStackIcon],
+    ['slides', t('nav.customSlides'), SlideshowIcon],
     ['video', t('presentation.videoTab'), VideoIcon],
   ];
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');

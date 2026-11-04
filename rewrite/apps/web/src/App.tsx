@@ -142,8 +142,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'songArrangement' && <SongArrangement key={route.arrangementId} id={route.id} arrangementId={route.arrangementId} />}
       {route.page === 'songMaterials' && <SongMaterials key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
-      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="screen" link={link} kind="screen" /> : <Refused text={t('displays.forbidden')} />)}
-      {route.page === 'publicOutputs' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="public" link={link} kind="public" /> : <Refused text={t('displays.forbidden')} />)}
+      {/* One page for both (Lars, 2026-11-04); /admin/public-outputs, the page of before, opens it too. */}
+      {(route.page === 'displays' || route.page === 'publicOutputs') && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
       {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}

@@ -15,8 +15,7 @@ import {
   InformationCircleIcon,
   MusicalNoteIcon,
   PhotoIcon,
-  QrCodeIcon,
-  ShapesIcon,
+  SlideshowIcon,
   SpeakerWaveIcon,
   SquaresOverlapIcon,
   TagIcon,
@@ -64,7 +63,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
         can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', keywords: 'search.images', icon: PhotoIcon, colour: 'bg-rose-500', pages: ['images'] },
         can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', keywords: 'search.audios', icon: SpeakerWaveIcon, colour: 'bg-orange-500', pages: ['audios'] },
         can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', keywords: 'search.videos', icon: VideoIcon, colour: 'bg-purple-500', pages: ['videos'] },
-        can(me.role, 'ManagePresentations') && { route: { page: 'customSlides' }, label: 'nav.customSlides', keywords: 'search.customSlides', icon: ShapesIcon, colour: 'bg-teal-500', pages: ['customSlides', 'customSlide'] },
+        can(me.role, 'ManagePresentations') && { route: { page: 'customSlides' }, label: 'nav.customSlides', keywords: 'search.customSlides', icon: SlideshowIcon, colour: 'bg-orange-700', pages: ['customSlides', 'customSlide'] },
       ],
     },
     {
@@ -77,8 +76,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
     {
       title: 'settings.group.display',
       links: [
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', keywords: 'search.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'publicOutputs' }, label: 'displays.public', keywords: 'search.publicOutputs', icon: QrCodeIcon, colour: 'bg-teal-500', pages: ['publicOutputs'], intro: 'intro.publicOutputs' },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', keywords: 'search.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays', 'publicOutputs'], intro: 'intro.displays' },
         { route: { page: 'themes' }, label: 'nav.themes', keywords: 'search.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes'], intro: 'themes.text' },
         can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', keywords: 'search.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
       ],

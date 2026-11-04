@@ -344,6 +344,8 @@ export function PresentationEditor({
     onTick: (item) => {
       setTickFirst(item.id);
       setTicking(true);
+      // The ticks are in the running order: folded away, it opens to show them (Lars, 2026-11-04).
+      panels.show('left');
     },
     onRemove: (item) => void removeItem(item),
   };

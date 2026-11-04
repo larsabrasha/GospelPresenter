@@ -43,7 +43,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   // The organisation's default theme: Midnatt.
   await openAdmin(page, 'Teman');
   await expect(page.getByTestId('theme-classic').getByText('Standard', { exact: true })).toBeVisible();
-  await page.getByTestId('theme-midnight').getByRole('button', { name: 'Använd som standard' }).click();
+  await page.getByTestId('theme-midnight').getByRole('button', { name: 'Midnatt' }).click();
+  await page.getByRole('dialog', { name: 'Midnatt' }).getByRole('button', { name: 'Använd som standard' }).click();
   await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
   await expect(page.getByTestId('theme-midnight').getByText('Standard', { exact: true })).toBeVisible();
 

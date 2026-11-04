@@ -649,8 +649,8 @@ test('a slide step reaches the output window and a paired screen at once, measur
   await addSongs(page, ['Sång A']);
 
   // A paired screen, switched on under Utgångar.
-  await openAdmin(page, 'Fasta utgångar');
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await openAdmin(page, 'Utgångar');
+  await page.getByRole('button', { name: 'Lägg till utgång', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByRole('button', { name: 'Lägg till' }).click();
   const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();

@@ -192,14 +192,14 @@ test('capture every page', async () => {
   const makeOutputs = async (p: Page) => {
     for (const [path, add, name] of [
       ['/admin/public-outputs', 'Skapa länk', 'Mobiler'],
-      ['/admin/displays', 'Lägg till', 'Kyrksalen'],
+      ['/admin/displays', 'Lägg till utgång', 'Kyrksalen'],
     ] as const) {
       await p.goto(`${host!.base}${path}`);
       await closeAdminMenu(p);
       if (await p.getByRole('listitem', { name }).count()) continue;
       await p.getByRole('button', { name: add, exact: true }).first().click();
       await p.getByRole('dialog').last().getByLabel('Namn').fill(name);
-      await p.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
+      await p.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till utgång' ? 'Lägg till' : 'Skapa' }).click();
       await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
     }
   };
@@ -371,8 +371,8 @@ test('capture every page', async () => {
     // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app; each on its
     // own page, the screen's shown.
     ['displays-filled', '/admin/displays', (p) => makeOutputs(p)],
-    ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
-    ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
+    ['displays-link', '/admin/displays', (p) => closeAdminMenu(p).then(() => p.getByRole('button', { name: 'Visa länk' }).first().click())],
+    ['displays-qr', '/admin/displays', (p) => closeAdminMenu(p).then(() => p.getByRole('button', { name: 'Visa QR-kod' }).first().click())],
     // "Anslut tillfällig utgång" (PairingCodeDialog.razor), and after a TV beside it has been paired.
     [
       'pair-screen',
@@ -418,7 +418,7 @@ test('capture every page', async () => {
     await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     await page.goto(`${host!.base}/admin/displays`);
     await closeAdminMenu(page);
-    await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Visa länk' }).first().click();
     const screen = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
     await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     return (links = { screen, watch });

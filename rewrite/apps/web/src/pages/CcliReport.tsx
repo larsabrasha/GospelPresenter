@@ -7,6 +7,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { CcliPicture } from '../ui/icons.tsx';
+import { GROUP_ROW, Group } from '../ui/Group.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
@@ -68,8 +69,10 @@ export function CcliReport({ role }: { role: Role }) {
   return (
     <PageContainer>
       <PageHeader title={t('ccli.title')} />
-      <div className="px-5 pb-2">
-        <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
+      {/* The setting as a row of a group, what it does in grey under it, as iOS's (Lars, 2026-11-04). */}
+      <Group footer={t('ccli.collectionText')}>
+        <label className={`${GROUP_ROW} cursor-pointer select-none`}>
+          <span className="dark:text-stone-200">{t('ccli.collection')}</span>
           <input
             // A new switch once the setting has loaded, so it shows as it is rather than sliding there.
             key={data ? 'loaded' : 'loading'}
@@ -79,10 +82,8 @@ export function CcliReport({ role }: { role: Role }) {
             disabled={!data || !can(role, 'ManageOrganizationSettings')}
             onChange={(e) => ask(COLLECTION, e.target.checked, db.mutate('setCcliCollection', { on: e.target.checked }))}
           />
-          <span className="text-sm dark:text-stone-200">{t('ccli.collection')}</span>
         </label>
-        <p className="text-xs text-stone-400 dark:text-stone-500 mt-1 ml-12">{t('ccli.collectionText')}</p>
-      </div>
+      </Group>
       <div className="px-5 pb-2">
         <PillTabs label={t('ccli.filter')}>
           {ccliFilters.map((f) => (

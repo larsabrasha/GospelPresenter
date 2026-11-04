@@ -10,7 +10,7 @@ import { AddButton, RoundButton } from '../../ui/AddButton.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
-import { ArrowDownTrayIcon, ArrowsRightLeftIcon, ShapesIcon } from '../../ui/icons.tsx';
+import { ArrowDownTrayIcon, ArrowsRightLeftIcon, SlideshowIcon } from '../../ui/icons.tsx';
 import { Library } from '../../ui/Library.tsx';
 import { NameDialog } from '../../ui/NameDialog.tsx';
 import { href, navigate } from '../../ui/router.ts';
@@ -118,7 +118,7 @@ export function CustomSlides() {
           </>
         }
         loading={t('common.loading')}
-        empty={{ icon: <ShapesIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty') }}
+        empty={{ icon: <SlideshowIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty') }}
         noMatch={t('customSlides.noMatch')}
         count={(n) => t(n === 1 ? 'customSlides.count.one' : 'customSlides.count.many', { n })}
         testId="custom-slide"

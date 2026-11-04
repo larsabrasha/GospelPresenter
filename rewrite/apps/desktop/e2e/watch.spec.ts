@@ -19,7 +19,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await setUpHost(host);
 
   // Följ med: make one and take its link.
-  await openAdmin(page, 'Följ med');
+  await openAdmin(page, 'Utgångar');
   await expect(page.getByText('Inga länkar ännu')).toBeVisible();
   await page.getByRole('button', { name: 'Skapa länk' }).click();
   await page.getByRole('dialog', { name: 'Skapa länk' }).getByLabel('Namn').fill('Kyrkkaffet');
@@ -87,7 +87,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(phone.getByTestId('watch-text')).toHaveText('A två');
 
   // Följ med says what it sends and to how many.
-  await openAdmin(page, 'Följ med');
+  await openAdmin(page, 'Utgångar');
   await expect(row).toContainText('Sänder från Söndag');
   await expect(row).toContainText('1 enhet');
 

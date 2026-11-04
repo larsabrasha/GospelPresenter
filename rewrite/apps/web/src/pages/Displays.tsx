@@ -1,19 +1,18 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { displayCode, type Display } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
-import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
 import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
-import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { ArrowDownTrayIcon, LinkIcon, PublicOutputsPicture, QrCodeIcon, ScreenIcon, ScreensPicture } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
+import { ArrowDownTrayIcon, PlusIcon, QrCodeIcon, ScreenIcon } from '../ui/icons.tsx';
+import { RowChevron } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -84,7 +83,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
  * link. A public output's also has "Ladda ner som bild" and, under a line,
  * "Ny kod" (`renew`).
  */
-function LinkDialog({ title, url, download, renew, onClose }: { title: string; url: string; download?: string; renew?: () => void; onClose: () => void }) {
+function LinkDialog({ title, url, download, renew, onRemove, onClose }: { title: string; url: string; download?: string; renew?: () => void; onRemove: () => void; onClose: () => void }) {
   const toast = useToast();
   const screen = !download;
   return (
@@ -124,6 +123,14 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
           </AppButton>
         </div>
       )}
+      {/* Radera in a group of its own, as every page has it. */}
+      <div className="mt-6!">
+        <Group>
+          <AppButton variant="plain" className={DANGER_ROW} onClick={onRemove}>
+            {t('displays.delete')}
+          </AppButton>
+        </Group>
+      </div>
     </Dialog>
   );
 }
@@ -133,15 +140,48 @@ async function copyLink(url: string, done: () => void) {
   if (await copyText(url)) done();
 }
 
+/** An output's row: its kind's icon, its name and a line under it, its status at the end; a tap opens its link. */
+function OutputRow({ icon, name, line, status, live, label, onOpen }: { icon: ReactNode; name: string; line?: string | null; status: string; live: boolean; label: string; onOpen: () => void }) {
+  return (
+    <li aria-label={name}>
+      <AppButton variant="plain" aria-label={label} className="flex items-center gap-3 w-full px-4 min-h-12 py-2 text-left cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]" onClick={onOpen}>
+        <span className={`shrink-0 ${live ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`}>{icon}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block truncate">{name}</span>
+          {line && <span className="block text-xs text-stone-500 dark:text-stone-400 truncate">{line}</span>}
+        </span>
+        <span className={`text-sm ${live ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{status}</span>
+        <RowChevron />
+      </AppButton>
+    </li>
+  );
+}
+
+/** A group's rows: its outputs, a grey line when there is none, and the row that adds one. */
+function OutputGroup({ title, label, empty, add, onAdd, children }: { title: string; label: string; empty: string | null; add: string; onAdd: () => void; children: ReactNode }) {
+  return (
+    <Group title={title}>
+      <ul aria-label={label} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
+        {children}
+      </ul>
+      {empty && <p className={`${GROUP_ROW} text-stone-400 dark:text-stone-500`}>{empty}</p>}
+      <AppButton variant="plain" className={ACTION_ROW} onClick={onAdd}>
+        <span className="flex items-center gap-2">
+          <PlusIcon className="size-4" />
+          {add}
+        </span>
+      </AppButton>
+    </Group>
+  );
+}
+
 /**
- * Skärmar (spec 04 §7): the organisation's saved screens, online or not, and
- * its public outputs, what each sends and how many watch. Admins only.
+ * Utgångar (spec 04 §7) as iOS's Bluetooth and AirPlay (Lars, 2026-11-04): where the presentation shows, on one
+ * page. Fasta utgångar, the church's projectors, TVs and computers, each online or not; and Följ med, the links and
+ * QR codes for phones, each what it sends and to how many. A tap opens an output's link and QR code, with Radera;
+ * each group has its row that adds one. Admins only.
  */
-/**
- * Skärmar (`kind` screen) or Publika utgångar (public), each a page of its own in Inställningar (Lars, 2026-11-02):
- * its list, and its + floating at the bottom right.
- */
-export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind'] }) {
+export function Displays({ link }: { link: LiveLink }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -169,76 +209,50 @@ export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind']
   };
 
   const remove = async (d: Display) => {
-    await ask(deleteAsk(t('displays.deleteConfirm', { name: d.name }), d.name, () => trySave(db.mutate('deleteDisplay', { id: d.id }))));
+    if (await ask(deleteAsk(t('displays.deleteConfirm', { name: d.name }), d.name, () => trySave(db.mutate('deleteDisplay', { id: d.id }))))) setShowing(null);
   };
-
-  const ROW = 'flex flex-wrap items-center gap-3 px-7 py-3 border-b border-separator last:border-b-0';
-  const SMALL = 'text-xs flex items-center gap-1.5';
 
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={kind === 'screen' ? t('displays.title') : t('displays.public')}>
-        <AddButton label={kind === 'screen' ? t('screens.add') : t('displays.create')} onClick={() => setCreating(kind)} />
-      </PageHeader>
-      {kind === 'screen' && (
-        <div className={CARD}>
-          {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
-          {screens && !screens.length && (
-            <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} />
-          )}
-          <ul aria-label={t('screens.title')}>
+      <PageHeader title={t('nav.displays')} />
+      {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {all && (
+        <>
+          <OutputGroup title={t('screens.title')} label={t('screens.title')} empty={screens?.length ? null : t('screens.empty')} add={t('screens.addTitle')} onAdd={() => setCreating('screen')}>
             {screens?.map((d) => {
               const on = online.includes(d.id);
               return (
-                <li key={d.id} className={ROW} aria-label={d.name}>
-                  <ScreenIcon className={`size-5 ${on ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} offline={!on} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{d.name}</div>
-                  </div>
-                  <div className={`text-xs ${on ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{on ? t('screens.online') : t('screens.offline')}</div>
-                  <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
-                    <LinkIcon className="size-3.5" />
-                    {t('screens.showLink')}
-                  </AppButton>
-                  <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
-                    {t('displays.delete')}
-                  </AppButton>
-                </li>
+                <OutputRow
+                  key={d.id}
+                  icon={<ScreenIcon className="size-5" offline={!on} />}
+                  name={d.name}
+                  status={on ? t('screens.online') : t('screens.offline')}
+                  live={on}
+                  label={t('screens.showLinkFor', { name: d.name })}
+                  onOpen={() => setShowing(d)}
+                />
               );
             })}
-          </ul>
-        </div>
-      )}
-      {kind === 'public' && (
-        <div className={CARD}>
-          {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
-          {displays && !displays.length && (
-            <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} />
-          )}
-          <ul aria-label={t('displays.public')}>
+          </OutputGroup>
+          <OutputGroup title={t('displays.public')} label={t('displays.public')} empty={displays?.length ? null : t('displays.empty')} add={t('displays.create')} onAdd={() => setCreating('public')}>
             {displays?.map((d) => {
               const { sending, viewers } = status(d);
               return (
-                <li key={d.id} className={ROW} aria-label={d.name}>
-                  <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{d.name}</div>
-                    {sending && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{t('displays.sending', { name: sending })}</div>}
-                  </div>
-                  <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</div>
-                  <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
-                    <QrCodeIcon className="size-3.5" />
-                    {t('displays.showQr')}
-                  </AppButton>
-                  <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
-                    {t('displays.delete')}
-                  </AppButton>
-                </li>
+                <OutputRow
+                  key={d.id}
+                  icon={<QrCodeIcon className="size-5" />}
+                  name={d.name}
+                  line={sending && t('displays.sending', { name: sending })}
+                  status={viewersText(viewers)}
+                  live={viewers > 0 || !!sending}
+                  label={t('displays.showQrFor', { name: d.name })}
+                  onOpen={() => setShowing(d)}
+                />
               );
             })}
-          </ul>
-        </div>
+          </OutputGroup>
+        </>
       )}
       {creating && (
         <CreateDialog
@@ -255,6 +269,7 @@ export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind']
           url={showing.kind === 'screen' ? screenUrl(showing, base) : watchUrl(showing.code, base)}
           download={showing.kind === 'public' ? `qr-${showing.code}.png` : undefined}
           renew={showing.kind === 'public' ? () => void renew(showing) : undefined}
+          onRemove={() => void remove(showing)}
           onClose={() => setShowing(null)}
         />
       )}

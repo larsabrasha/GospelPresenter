@@ -10,7 +10,7 @@ import {
   MapIcon,
   MusicalNoteOutlineIcon,
   PhotoOutlineIcon,
-  ShapesIcon,
+  SlideshowIcon,
   SpeakerOutlineIcon,
   TrashIcon,
   VideoOutlineIcon,
@@ -54,7 +54,7 @@ function KindIcon({ kind }: { kind: TrashKind }) {
     case 'Video':
       return <VideoOutlineIcon className={className} />;
     case 'Slide':
-      return <ShapesIcon className={className} />;
+      return <SlideshowIcon className={className} />;
   }
 }
 

@@ -438,7 +438,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
 }
 
 /** Välj, Klar and Markera alla: words in the app's colour, as iOS's bar buttons. */
-const HEADER_TEXT = 'h-11 px-3 rounded-full text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2';
+export const HEADER_TEXT = 'h-11 px-3 rounded-full text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2';
 
 /** A round tick, as iOS marks a chosen item: empty, or filled in the app's colour with a check. */
 function Tick({ on, className }: { on: boolean; className?: string }) {

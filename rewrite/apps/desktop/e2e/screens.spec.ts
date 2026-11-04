@@ -46,11 +46,11 @@ async function typeCode(page: Page, code: string) {
 test('a saved screen is online while its page is open, shows the slide when switched on, and goes off when the page closes (LIVE-A20, A21)', async () => {
   const page = await presenting();
   const origin = new URL(page.url()).origin;
-  await openAdmin(page, 'Fasta utgångar');
+  await openAdmin(page, 'Utgångar');
   await expect(page.getByText('Inga fasta utgångar')).toBeVisible();
   // An empty list shows its picture and heading only; the intro card at the top says what fixed outputs are.
   await expect(page.getByText(/^Projektorer, TV-apparater och datorer som kyrkan har satt upp/)).toBeVisible();
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('button', { name: 'Lägg till utgång', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByRole('button', { name: 'Lägg till' }).click();
   const shown = page.getByRole('dialog', { name: 'Kyrksal' });
@@ -89,8 +89,8 @@ test('a saved screen is online while its page is open, shows the slide when swit
 
 test('a saved screen whose session ended draws black, and its name again once its page is opened anew (Display.razor)', async () => {
   const page = await presenting();
-  await openAdmin(page, 'Fasta utgångar');
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await openAdmin(page, 'Utgångar');
+  await page.getByRole('button', { name: 'Lägg till utgång', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByRole('button', { name: 'Lägg till' }).click();
   const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();

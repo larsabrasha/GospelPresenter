@@ -620,19 +620,21 @@ export function VideoOutlineIcon({ className }: IconProps) {
 }
 
 /** A custom slide (docs/custom-slides.md): a square, a circle and a line, as the shapes it is made of. */
-export function ShapesIcon({ className }: IconProps) {
+/** A slideshow (Bildspel): a slide with a pie chart on a stand, as PowerPoint's, which most know (Lars, 2026-11-04). */
+export function SlideshowIcon({ className }: IconProps) {
   return (
     <Solid className={className}>
-      <rect x="2.25" y="2.25" width="10.5" height="10.5" rx="2" />
-      <circle cx="16.5" cy="16.5" r="5.25" />
-      <path d="M3.22 20.78a.75.75 0 0 1 0-1.06l5.5-5.5a.75.75 0 1 1 1.06 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0Z" />
+      <path fillRule="evenodd" d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm.5 1.75a.75.75 0 0 0-.75.75v9c0 .41.34.75.75.75h15a.75.75 0 0 0 .75-.75v-9a.75.75 0 0 0-.75-.75h-15Z" />
+      <path d="M10.5 6.75a3.25 3.25 0 1 0 3.25 3.25H10.5V6.75Z" />
+      <path d="M11.75 5.5v3.25H15a3.25 3.25 0 0 0-3.25-3.25Z" opacity=".75" />
+      <path d="M11.25 17h1.5v2.75h3.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5h3.5V17Z" />
     </Solid>
   );
 }
 
 /** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, slides: RectangleStackIcon, video: VideoIcon, custom: ShapesIcon }[type];
+  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon }[type];
   return <Icon className={className} />;
 }
 
@@ -802,19 +804,6 @@ function Picture({ className, children }: IconProps & { children: ReactNode }) {
   );
 }
 
-/** No screens: a monitor and a plus (Displays.razor). */
-export function ScreensPicture({ className }: IconProps) {
-  return (
-    <Picture className={className}>
-      <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <rect x="45" y="35" width="110" height="60" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.4" />
-      <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <PlusBadge />
-    </Picture>
-  );
-}
-
 /** No labels: two label pills (Labels.razor). */
 export function LabelsPicture({ className }: IconProps) {
   return (
@@ -840,23 +829,6 @@ export function CcliPicture({ className }: IconProps) {
       <line x1="60" y1="100" x2="110" y2="100" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
       <circle cx="155" cy="120" r="16" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
       <path d="M149 120h12M155 114v12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
-    </Picture>
-  );
-}
-
-/** No public outputs: a QR code and a phone (Displays.razor). */
-export function PublicOutputsPicture({ className }: IconProps) {
-  return (
-    <Picture className={className}>
-      <rect x="55" y="15" width="90" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <rect x="68" y="28" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
-      <rect x="112" y="28" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
-      <rect x="68" y="72" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
-      <rect x="98" y="58" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
-      <rect x="112" y="72" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
-      <rect x="124" y="84" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
-      <rect x="82" y="115" width="36" height="34" rx="5" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <line x1="94" y1="143" x2="106" y2="143" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </Picture>
   );
 }

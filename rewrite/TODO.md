@@ -2,6 +2,12 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
+## Themes of our own (from Lars 2026-11-04; not started)
+
+More advanced themes, and themes a church makes itself: its own fonts, colours, backgrounds (a picture or a video),
+text placement and sizes for songs and Bible text, credits, and the like. Teman today lists the built-in ones only
+and picks the organisation's default (ADR 0001: the editor comes later).
+
 ## Shortcuts in the admin dialog (from Lars 2026-10-31; not started)
 
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare
