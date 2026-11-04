@@ -256,7 +256,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     <li key={item.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid={`${p.testId}-card`}>
       {selecting ? (
         <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
-          <span className={picked.has(item.id) ? 'block opacity-80' : 'block'}>{p.renderTile?.(item)}</span>
+          {/* The cell's width, as the tile has it outside Välj: a tile drawn at its width (a slide's page) is not 0 wide. */}
+          <span className={`flex w-full justify-center ${picked.has(item.id) ? 'opacity-80' : ''}`}>{p.renderTile?.(item)}</span>
           <Tick on={picked.has(item.id)} className="absolute bottom-1.5 right-1.5" />
         </AppButton>
       ) : (
@@ -338,19 +339,27 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       {/* The search first, then a row with the order at the left and Välj at the right (Lars, 2026-11-04). */}
       {!!p.items?.length && (p.search ? <ListSearch query={query} onChange={p.search.onQuery} /> : <ListSearch query={query} onChange={setOwnQuery} />)}
       {!!p.items?.length && (p.sorts || p.manage || p.switchable) && (
-        <div className="flex items-center justify-between gap-2 px-4 -mt-3 -mb-1">
+        <div className="flex items-center justify-between gap-2 px-4 -mt-3 mb-3">
           <span className="flex items-center gap-1">
             {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
+            {/* The two looks as a segmented control, as Photos' and Finder's, the one shown picked (Lars, 2026-11-04). */}
             {p.switchable && (
-              <AppButton
-                variant="plain"
-                className="size-11 flex items-center justify-center rounded-full text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2"
-                aria-label={t(asGrid ? 'library.asList' : 'library.asGrid')}
-                title={t(asGrid ? 'library.asList' : 'library.asGrid')}
-                onClick={() => setLayout(asGrid ? 'list' : 'grid')}
-              >
-                {asGrid ? <ListBulletIcon className="size-5" /> : <Squares2x2Icon className="size-5" />}
-              </AppButton>
+              <span className="ml-2 flex rounded-full bg-stone-200/80 dark:bg-raised p-0.5" role="radiogroup" aria-label={t('library.layout')}>
+                {(['list', 'grid'] as const).map((l) => (
+                  <AppButton
+                    key={l}
+                    variant="plain"
+                    role="radio"
+                    aria-checked={layout === l}
+                    aria-label={t(l === 'list' ? 'library.asList' : 'library.asGrid')}
+                    title={t(l === 'list' ? 'library.asList' : 'library.asGrid')}
+                    className={`h-7 w-9 flex items-center justify-center rounded-full cursor-pointer ${layout === l ? 'bg-white dark:bg-raised-2 shadow-sm text-stone-800 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400'}`}
+                    onClick={() => setLayout(l)}
+                  >
+                    {l === 'list' ? <ListBulletIcon className="size-4" /> : <Squares2x2Icon className="size-4" />}
+                  </AppButton>
+                ))}
+              </span>
             )}
           </span>
           {p.manage && (
@@ -380,9 +389,10 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
               </li>
             ))}
           </ul>
-          {/* The index along the edge, as Contacts': a tap jumps to the caption. */}
+          {/* The index along the edge, as Contacts' on an iPhone: a tap jumps to the caption. Only on a touch screen,
+              where a long list is slow to scroll; with a mouse or a trackpad, as Contacts on a Mac, there is none. */}
           {shown!.length >= INDEX_FROM && (
-            <nav aria-label={t('songs.index')} className="sticky top-2 self-start flex flex-col items-center py-1">
+            <nav aria-label={t('songs.index')} className="sticky top-2 self-start hidden pointer-coarse:flex flex-col items-center py-1">
               {sections.map((s) => (
                 <AppButton
                   key={s.key}

@@ -73,9 +73,18 @@ export function PageHeader({ title, large, children }: { title: string; large?: 
         {actions && <div className="flex items-center justify-end gap-2 px-2 -mt-2 empty:hidden">{actions}</div>}
       </>
     );
+  // With the name in the bar, the row is only its actions, and none where they float: an empty row would still be
+  // spaced as one, a gap above the page's first line (Lars, 2026-11-04).
+  if (inBar)
+    return (
+      <>
+        <h1 className="sr-only">{title}</h1>
+        {actions && <div className="relative flex items-center justify-end px-5 empty:hidden">{actions}</div>}
+      </>
+    );
   return (
-    <div className={`relative flex items-center justify-between px-5 ${inBar ? 'justify-end' : ''}`}>
-      <h1 className={`text-xl/7 font-bold dark:text-stone-100 ${large ? 'max-sm:text-[34px]/tight' : ''} ${inBar ? 'sr-only' : ''}`}>{title}</h1>
+    <div className="relative flex items-center justify-between px-5">
+      <h1 className={`text-xl/7 font-bold dark:text-stone-100 ${large ? 'max-sm:text-[34px]/tight' : ''}`}>{title}</h1>
       {actions}
     </div>
   );

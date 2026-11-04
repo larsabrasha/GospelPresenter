@@ -35,6 +35,12 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await page.getByRole('button', { name: 'Gör om' }).click();
   await expect(canvas.locator('[data-element]')).toHaveCount(2);
   await expect(page.getByTestId('saved')).toBeVisible();
+
+  // In the library under Välj, the slide is drawn as wide as outside it (it was 0 wide once).
+  await page.getByRole('link', { name: 'Tillbaka' }).click();
+  await page.getByRole('button', { name: 'Välj', exact: true }).click();
+  await expect.poll(async () => (await page.getByRole('checkbox', { name: 'Kollekt' }).getByTestId('custom-page').boundingBox())?.width ?? 0).toBeGreaterThan(50);
+  await page.getByRole('button', { name: 'Klar', exact: true }).click();
   await closeAdmin(page);
 
   await createPresentation(page, 'Söndag');
