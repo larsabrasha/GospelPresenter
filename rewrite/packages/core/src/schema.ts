@@ -260,17 +260,18 @@ export const customSlides = sqliteTable('custom_slides', {
 });
 
 /**
- * An overlay (spec 03 "OverlaySlide"): text, a picture, or both, shown above
- * the live slide (LIVE-R15). The picture is one of the media library's, by
- * id: a trashed picture still shows, a purged one is left out. `sort` is the
- * order of creation (spec 03 has no reordering).
+ * An overlay (docs/custom-slides.md): one page of a custom slide, drawn above the live slide (LIVE-R15), with no
+ * background of its own. `content` holds the page (JSON, `CustomPage`); the overlays of before (a text and a picture,
+ * `image_id`) were dropped at schema 19. `sort` is the order of creation.
  */
 export const overlays = sqliteTable('overlays', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content'),
+  /** Unused since schema 19: an overlay's pictures are in its page. */
   imageId: text('image_id'),
   sort: integer('sort').notNull(),
+  updatedAt: integer('updated_at'),
 });
 
 /**

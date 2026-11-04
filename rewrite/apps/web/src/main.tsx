@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { App, OutputApp } from './App.tsx';
 import { storedSession, workerSession } from './auth/session.ts';
 import { Boot, REPAIR_KEY } from './Boot.tsx';
+import { CrashGuard, errorMessage, Stopped } from './Stopped.tsx';
+import { Starting } from './pages/AuthCard.tsx';
 import { keepApp } from './keepApp.ts';
 import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
@@ -81,21 +83,34 @@ if (route.page === 'watch') {
     );
   } else root.render(<div className="fixed inset-0 bg-black cursor-none" data-testid="output" />);
 } else if (stored && route.page !== 'invite' && route.page !== 'signedIn' && !sessionStorage.getItem(REPAIR_KEY)) {
-  // Signed in: straight into the local database, with or without a network.
+  // Signed in: straight into the local database, with or without a network. A start that fails, or waits on the
+  // database for long, says so with a way out rather than staying blank: a reload can wait some seconds for the
+  // page before to let go of the database file.
   const session = workerSession(stored);
   const db = new Db();
-  await db.open(session);
-  // One live channel per window, for the window's lifetime.
-  const live = new LiveChannel(session.orgId, 'operator');
-  // The organisation's live sessions, and this window's own (spec 04 §2).
-  const link = new LiveLink(socketProtocols({ token: session.token, device: session.device }));
-  root.render(
-    <StrictMode>
-      <DbProvider db={db}>
-        <App me={stored.me} live={live} link={link} sessionId={windowSessionId()} />
-      </DbProvider>
-    </StrictMode>,
-  );
+  const waiting = setTimeout(() => root.render(<Starting />), 1000);
+  const slow = setTimeout(() => root.render(<Stopped why={{ kind: 'slow' }} />), 10_000);
+  try {
+    await db.open(session);
+    // One live channel per window, for the window's lifetime.
+    const live = new LiveChannel(session.orgId, 'operator');
+    // The organisation's live sessions, and this window's own (spec 04 §2).
+    const link = new LiveLink(socketProtocols({ token: session.token, device: session.device }));
+    root.render(
+      <StrictMode>
+        <CrashGuard>
+          <DbProvider db={db}>
+            <App me={stored.me} live={live} link={link} sessionId={windowSessionId()} />
+          </DbProvider>
+        </CrashGuard>
+      </StrictMode>,
+    );
+  } catch (e) {
+    root.render(<Stopped why={{ kind: 'failed', error: errorMessage(e) }} />);
+  } finally {
+    clearTimeout(waiting);
+    clearTimeout(slow);
+  }
 } else {
   root.render(
     <StrictMode>

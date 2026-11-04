@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { shownPageSchema, type ShownPage } from './custom-slides.ts';
 import { OVERLAY_LIMITS } from './live.ts';
 import { VIDEO_CODECS, VIDEO_TYPES } from './video.ts';
 
@@ -45,7 +46,7 @@ export const publicSlideSchema = z.object({
   image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
   credits: z.string().max(PUBLIC_SLIDE_LIMITS.credits).nullable(),
   themeId: z.string().max(100),
-  /** The overlay's text, if one is shown (spec 04 §6). Its picture is not sent: a public output shows text only. */
+  /** The overlay's texts, if one is shown (spec 04 §6). Its pictures and shapes are not sent: a public output shows text only. */
   overlay: z.string().max(OVERLAY_LIMITS.content).nullable().default(null),
 });
 export type PublicSlide = z.infer<typeof publicSlideSchema>;
@@ -98,49 +99,64 @@ export type LiveVideo = z.infer<typeof liveVideoSchema>;
 
 /**
  * What a paired screen draws (spec 04 §5: "same rendering as /live"): the
- * projector's canvas, so the slide, its theme and the overlay with its
- * picture. A paired screen is bound to the session by an operator, like the
+ * projector's canvas, so the slide, its theme and the overlay's page with its
+ * pictures. A paired screen is bound to the session by an operator, like the
  * projector, so it gets what the projector draws; a public output gets the
  * PublicSlide only. The slide is cut to PUBLIC_SLIDE_LIMITS like the public
- * one. `slide` null with an overlay: the overlay on a black stage, as the
- * projector draws it with nothing selected. The whole canvas null: black.
+ * one, and a page to CANVAS_PAGE_MAX. `slide` null with an overlay: the overlay
+ * on a black stage, as the projector draws it with nothing selected. The whole
+ * canvas null: black.
  */
 export const canvasSchema = z.object({
-  /** A video slide carries its video and where it is; its `image` is the still, for a screen that cannot play it. */
-  slide: publicSlideSchema.pick({ kind: true, text: true, verses: true, image: true, credits: true }).extend({ video: liveVideoSchema.nullable().optional() }).nullable(),
-  themeId: z.string().max(100),
-  overlay: z
-    .object({
-      text: z.string().max(OVERLAY_LIMITS.content).nullable(),
-      /** The overlay picture's `full` blob, served at the screen's `/image/{hash}` while it is shown. */
-      image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
-    })
+  /**
+   * A video slide carries its video and where it is; its `image` is the still, for a screen that cannot play it. A
+   * custom slide carries its page, its pictures' blobs served at the screen's `/image/{hash}` while it is shown.
+   */
+  slide: publicSlideSchema
+    .pick({ kind: true, text: true, verses: true, image: true, credits: true })
+    .extend({ video: liveVideoSchema.nullable().optional(), custom: shownPageSchema.optional() })
     .nullable(),
+  themeId: z.string().max(100),
+  /** The overlay switched on (docs/custom-slides.md): its page, drawn above the slide, its pictures served as a custom slide's. */
+  overlay: shownPageSchema.nullable(),
 });
 export type Canvas = z.infer<typeof canvasSchema>;
 
-/** The canvas of `slide` (null: nothing selected) and the overlay, cut to what a report may carry; `video` where the slide is a video's. */
+/**
+ * How long a page on a canvas may be, as JSON: two of them (the slide's and the overlay's) and the slide's text, each
+ * cut to its limit, fit in one report (LIVE_MESSAGE_MAX). A page is far smaller unless it is mostly long texts.
+ */
+export const CANVAS_PAGE_MAX = 20 * 1024;
+
+/** A page cut to CANVAS_PAGE_MAX: the elements drawn last (on top) go first. */
+function cutPage(shown: ShownPage): ShownPage {
+  let elements = shown.page.elements;
+  while (elements.length && JSON.stringify({ ...shown, page: { ...shown.page, elements } }).length > CANVAS_PAGE_MAX) elements = elements.slice(0, -1);
+  return elements === shown.page.elements ? shown : { ...shown, page: { ...shown.page, elements } };
+}
+
+/** The canvas of `slide` (null: nothing selected) and the overlay's page, cut to what a report may carry; `video` where the slide is a video's. */
 export function toCanvas(
-  slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> | null,
+  slide: (Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> & { custom?: ShownPage }) | null,
   themeId: string,
-  overlay: { text: string | null; image: string | null } | null,
+  overlay: ShownPage | null,
   video: LiveVideo | null = null,
 ): Canvas {
   const cut = slide && toPublicSlide(slide, themeId);
   return {
-    slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits, ...(video ? { video } : {}) },
+    slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits, ...(video ? { video } : {}), ...(slide.custom ? { custom: cutPage(slide.custom) } : {}) },
     themeId,
-    overlay: overlay && (overlay.text || overlay.image) ? { text: overlay.text?.slice(0, OVERLAY_LIMITS.content) ?? null, image: overlay.image } : null,
+    overlay: overlay?.page.elements.length ? cutPage(overlay) : null,
   };
 }
 
 /**
- * The canvas a report without one stands for: an owner of an older build
- * sends only the public slide, so its screens draw that, without the overlay's picture.
+ * The canvas a report without one stands for: an owner of an older build sends only the public slide, so its screens
+ * draw that, without the overlay (its text alone is no page).
  */
 export function canvasOfPublicSlide(slide: PublicSlide): Canvas {
-  const { overlay, themeId, ...rest } = slide;
-  return { slide: rest, themeId, overlay: overlay ? { text: overlay, image: null } : null };
+  const { kind, text, verses, image, credits, themeId } = slide;
+  return { slide: { kind, text, verses, image, credits }, themeId, overlay: null };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { customPageText, followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { getOverlay, getPresentation, getVideo, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
@@ -100,13 +100,13 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): P
   if (!p.presentationId || p.black) return { slide: null, canvas: null };
   const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
   const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
-  const shown = await shownOverlay(db, p.overlayId);
-  const overlay = shown && { text: shown.content, image: shown.imageHash };
-  if (!slide && !overlay?.text && !overlay?.image) return { slide: null, canvas: null };
+  const overlay = await shownOverlay(db, p.overlayId);
+  const overlayText = (overlay && customPageText(overlay.page)) || null;
+  if (!slide && !overlay?.page.elements.length) return { slide: null, canvas: null };
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
   return {
     // An overlay with nothing selected is shown on its own, as the projector shows it.
-    slide: slide || overlay?.text ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlay?.text ?? null) : null,
+    slide: slide || overlayText ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlayText) : null,
     // A video slide carries where the video is, for the paired screens to follow; the public outputs get its still.
     canvas: toCanvas(slide, theme.id, overlay, slide?.video ? (video.live() ?? { ...slide.video, playing: false, position: 0, at: Date.now() }) : null),
   };

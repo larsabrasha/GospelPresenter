@@ -102,7 +102,6 @@ function Slide({ base, shown }: { base: string; shown: Shown }) {
     const { video, ...rest } = drawn.slide;
     return { ...rest, key: '', label: null, ...(video ? { video: { hash: video.hash, type: video.type, codec: video.codec } } : {}) };
   }, [drawn]);
-  const overlay = useMemo(() => (drawn?.overlay ? { content: drawn.overlay.text, imageHash: drawn.overlay.image } : null), [drawn]);
   // A video plays here muted, streamed by this screen itself, where the server's clock says it should be; one this
   // browser cannot play shows its still (TODO.md "Video on the outputs").
   const video = drawn?.slide?.video ?? null;
@@ -116,7 +115,7 @@ function Slide({ base, shown }: { base: string; shown: Shown }) {
         slide={slide}
         theme={resolveTheme(drawn?.themeId ?? null, null)}
         label={false}
-        overlay={overlay}
+        overlay={drawn?.overlay ?? null}
         black={!canvas}
         media={(hash) => `${base}/image/${hash}`}
         video={playable && video ? <FollowingVideo key={video.hash} src={`${base}/video/${video.hash}`} video={video} clock={clock} /> : null}

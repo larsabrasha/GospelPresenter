@@ -1,27 +1,14 @@
-// Overlays (spec 03 §4, spec 04 LIVE-R15, R16 as changed in TODO.md): made under
-// Overlays, carried by an item, toggled during live, switched off by Rensa.
-import { expect, test, type Page } from '@playwright/test';
+// Overlays (spec 03 §4, spec 04 LIVE-R15, R16 as changed in TODO.md, docs/custom-slides.md): made under Överlägg
+// in the custom slides' editor, carried by an item, toggled during live, switched off by Rensa.
+import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, dropFiles, openAdmin, pickItem, setUpHost } from './flows.ts';
-import { solidPng } from './png.ts';
+import { addSongs, createOverlay, createPresentation, createSong, openAdmin, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
   await host?.app.close();
   host = undefined;
 });
-
-async function createOverlay(page: Page, title: string, text: string) {
-  await openAdmin(page, 'Överlägg');
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Skapa överlägg' });
-  await dialog.getByLabel('Namn').fill(title);
-  await dialog.getByLabel('Namn').press('Enter');
-  const content = page.getByLabel('Textinnehåll');
-  await content.fill(text);
-  await content.blur();
-  await expect(page.getByTestId('slide-overlay')).toHaveText(text); // the preview
-}
 
 test('an item carries its overlay while live; a manual toggle lasts until the item changes; Rensa switches it off', async () => {
   host = await launch();
@@ -30,7 +17,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await createOverlay(page, 'Kollekt', 'Swish 123 45');
   await createOverlay(page, 'Välkommen', 'Välkommen hit');
   await openAdmin(page, 'Överlägg');
-  await expect(page.getByRole('list', { name: 'Överlägg' }).getByRole('listitem')).toHaveCount(2);
+  await expect(page.getByTestId('overlay-card')).toHaveCount(2);
 
   await createSong(page, 'Sång A', [
     ['Verse 1', 'A ett'],
@@ -126,13 +113,11 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await createOverlay(page, 'Kollekt', 'Swish 123 45');
   const failed = page.getByRole('alert').getByText('Kunde inte spara');
 
-  // The text is at most 2 000 characters; without the field's own limit, the write is refused.
-  const content = page.getByLabel('Textinnehåll');
-  await content.evaluate((el) => el.removeAttribute('maxlength'));
-  await content.fill('x'.repeat(2001));
-  await content.blur();
+  // A text is at most 2 000 characters; without the field's own limit, the page's write is refused.
+  const field = page.getByRole('textbox', { name: 'Text', exact: true });
+  await field.evaluate((el) => el.removeAttribute('maxlength'));
+  await field.fill('x'.repeat(2001));
   await expect(failed).toBeVisible();
-  await expect(page.getByTestId('slide-overlay')).toHaveText('Swish 123 45');
 
   // An overlay that does not exist, chosen for an item: refused, and the item carries none.
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
@@ -151,45 +136,26 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await expect(page.getByRole('menuitemradio', { name: 'Ingen' })).toHaveAttribute('aria-checked', 'true');
 });
 
-test('an overlay saves as you type, takes a dropped picture into Bilder, and goes back to the list when deleted or unknown', async () => {
+test('an overlay is one page in the editor, shown in the list, and deleted from it after a question', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await openAdmin(page, 'Överlägg');
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill('Kollekt');
-  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
 
-  // Saved 500 ms after typing, with "Sparad" in the header, without leaving the field (OverlayEditor.razor).
-  await page.getByLabel('Textinnehåll').fill('Swish 123\nTack!');
-  await expect(page.getByTestId('saved')).toBeVisible();
-  await expect(page.getByTestId('slide-overlay')).toHaveText('Swish 123\nTack!');
+  await createOverlay(page, 'Kollekt', 'Swish 123\nTack!');
 
-  // A picture dropped on the picture's area goes into Bilder and becomes the overlay's.
-  const area = page.locator('[data-dropzone]').filter({ hasText: 'Bild (valfritt)' });
-  await dropFiles(area, [{ name: 'Swish.png', mimeType: 'image/png', buffer: solidPng(320, 180, [14, 165, 233]) }]);
-  await expect(page.getByRole('button', { name: 'Byt bild' })).toBeVisible();
-  await expect(area.getByRole('img', { name: 'Swish.png' })).toBeVisible();
-
-  // The list shows the whole text, cut short by its width, not only its first line.
+  // One page: no pages to add, as a custom slide has.
+  await expect(page.getByRole('button', { name: 'Ny sida' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Tillbaka' }).click();
-  const row = page.getByRole('list', { name: 'Överlägg' }).getByRole('listitem');
-  await expect(row).toContainText('Swish 123 Tack!');
+  const card = page.getByTestId('overlay-card');
+  await expect(card).toContainText('Swish 123');
+  await expect(card).toContainText('Kollekt');
 
-  // Deleted: back to the list, with no toast.
-  await row.getByRole('link').click();
-  await page.getByRole('button', { name: 'Radera', exact: true }).click();
+  // Deleting is permanent, after a question (PRES-R29).
+  await card.getByRole('link', { name: 'Kollekt' }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
-  await expect(page).toHaveURL(/\/admin\/overlays$/);
   await expect(page.getByText('Inga överlägg')).toBeVisible();
-  await expect(page.getByText('Kollekt borttagen')).toHaveCount(0);
-
-  // An overlay that does not exist goes back to the list (OverlayDetail.razor).
-  await page.goto(`${host.base}/admin/overlays/no-such-overlay`);
-  await expect(page).toHaveURL(/\/admin\/overlays$/);
-
-  await openAdmin(page, 'Bilder');
-  await expect(page.getByTestId('image-card').getByRole('img', { name: 'Swish.png' })).toBeVisible();
+  await expect(page.getByText('Kollekt borttaget')).toBeVisible();
 });
 
 test("on a phone an item's overlay is a row of its sheet, the chosen one in grey, and it shows by the item's heading", async () => {

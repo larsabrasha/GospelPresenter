@@ -185,7 +185,7 @@ picture's thumbnail where its full picture is not on the device (`SlideView`), a
 streams it when played and keeps nothing.
 
 **Presenting:** Starta presentation fetches that presentation's files at once, quietly: its full pictures, its
-audio, its videos' stills, its slide decks' pages (both sizes) and every overlay's picture (any can be switched on).
+audio, its videos' stills, its slide decks' pages (both sizes) its custom slides' pictures, and every overlay's pictures (any can be switched on).
 Never a video: it streams, and its start buffers when the item before it goes live. What presenting fetched stays
 afterwards as cache.
 

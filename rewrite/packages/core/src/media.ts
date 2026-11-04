@@ -150,11 +150,22 @@ export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, 
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single
- * picture, the content's list of one with several (slides.ts `imageItemIds`).
+ * picture, the content's list of one with several (slides.ts `imageItemIds`); and every picture of Bilder a custom
+ * slide's pages draw, their backgrounds and their elements (docs/custom-slides.md).
  */
 export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_id FROM presentation_items p WHERE p.type = 'image' AND p.content IS NULL
   UNION ALL
-  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
+  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL
+  UNION ALL
+  SELECT p.presentation_id, json_extract(pg.value, '$.backgroundImageId') AS image_id FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg
+    WHERE p.type = 'custom' AND json_extract(pg.value, '$.backgroundImageId') IS NOT NULL
+  UNION ALL
+  SELECT p.presentation_id, json_extract(e.value, '$.imageId') AS image_id FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg, json_each(pg.value, '$.elements') e
+    WHERE p.type = 'custom' AND json_extract(e.value, '$.kind') = 'image'`;
+
+/** Every picture of Bilder an overlay's page draws, with the overlay and its place in the list (docs/custom-slides.md). */
+export const OVERLAY_IMAGES_SQL = `SELECT o.id AS overlay_id, o.sort, json_extract(e.value, '$.imageId') AS image_id FROM overlays o, json_each(o.content, '$.elements') e
+  WHERE json_extract(e.value, '$.kind') = 'image'`;
 
 /** The blobs no image, audio file, video, slide deck or song's sheet music names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs

@@ -116,6 +116,25 @@ export async function backToSong(page: Page) {
 }
 
 /** Creates a song with labelled parts and stays in its editor. */
+/**
+ * An overlay made under Överlägg (docs/custom-slides.md): named, then a text put on its page in the editor, and
+ * saved. The editor is left open. Its Format panel is a sheet where the editor is narrow.
+ */
+export async function createOverlay(page: Page, title: string, text: string) {
+  await openAdmin(page, 'Överlägg');
+  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Skapa överlägg' });
+  await dialog.getByLabel('Namn').fill(title);
+  await dialog.getByLabel('Namn').press('Enter');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
+  const field = page.getByRole('textbox', { name: 'Text', exact: true });
+  if (!(await field.isVisible())) await page.getByRole('button', { name: 'Format', exact: true }).click();
+  await field.fill(text);
+  await expect(page.getByTestId('slide-canvas')).toContainText(text);
+  await expect(page.getByTestId('saved')).toBeVisible();
+}
+
 export async function createSong(page: Page, name: string, parts: [string, string][]) {
   await openAdmin(page, 'Sånger');
   await newSong(page);

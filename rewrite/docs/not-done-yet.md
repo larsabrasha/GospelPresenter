@@ -17,9 +17,10 @@ From templates: the keyboard in the template picker; a template is not pictured 
 template's time and place reach a new presentation, and the start page's `n` shortcut is built; an e2e test checks
 neither (templates.spec.ts asserts only the date).
 
-From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there).
-An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
-picture in an overlay is tested in the unit tests (which files are fetched), not drawn in an e2e test.
+From overlays: the pictures and shapes on a public output (only the texts are sent); reordering (spec 03 Q11, as
+there). An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled).
+The pictures in an overlay are tested in the unit tests (which files are fetched, which a screen may fetch), not
+drawn in an e2e test.
 
 From the service worker: a tablet over plain http keeps no page (no secure context). Nothing tells the user that
 a newer build is waiting while the app runs from its kept copy; the sync's update message is all, and a reload

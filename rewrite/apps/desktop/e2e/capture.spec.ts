@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { addSongs, backToSong, createPresentation, createSong, endPresentation, newSong, openAdmin, openArrangement, remoteSwitch, setUpHost, signOut } from './flows.ts';
+import { addSongs, backToSong, createOverlay, createPresentation, createSong, endPresentation, newSong, openAdmin, openArrangement, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';
 import { toneWav } from './wav.ts';
 
@@ -121,17 +121,11 @@ test('capture every page', async () => {
     ['Kollekt', 'Kollekt · Swish 123-456 78 90'],
     ['Fika', 'Fika serveras i källaren efter gudstjänsten'],
   ] as const) {
-    await page.goto(`${host.base}/admin/overlays`);
-    await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill(title);
-    await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
-    await page.getByLabel('Textinnehåll').fill(content);
-    await page.getByLabel('Textinnehåll').blur();
-    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    await createOverlay(page, title, content);
   }
   const overlay = await (async () => {
     await page.goto(`${host!.base}/admin/overlays`);
-    return (await page.getByRole('link', { name: /^Välkommen/ }).getAttribute('href'))!;
+    return (await page.getByRole('link', { name: 'Välkommen', exact: true }).getAttribute('href'))!;
   })();
 
   // An invite for Eva, accepted at the host: its address is the invite page (InvitePage.razor).

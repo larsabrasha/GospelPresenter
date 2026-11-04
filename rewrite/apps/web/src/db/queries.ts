@@ -2,6 +2,7 @@ import {
   CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
+  parseCustomPage,
   REMOTE_CONTROL_SETTING,
   remoteControlPolicy,
   resolveTheme,
@@ -21,10 +22,12 @@ import {
   type SongArrangement,
   type SongMaterial,
   type SongPart,
+  type ShownPage,
   type SongVersion,
   type Theme,
 } from '@gp/core';
 import { locale } from '../i18n.ts';
+import { shownPages } from './customSlides.ts';
 import type { ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
@@ -454,8 +457,9 @@ const overlay = (r: Row): Overlay => ({
   id: String(r.id),
   title: String(r.title),
   content: (r.content as string | null) ?? null,
-  imageId: (r.image_id as string | null) ?? null,
+  imageId: null,
   sort: Number(r.sort),
+  updatedAt: (r.updated_at as number | null) ?? null,
 });
 
 /** The organisation's overlays, in the order they were made (PRES-R18). */
@@ -468,18 +472,9 @@ export async function getOverlay(db: ReadDb, id: string): Promise<Overlay | null
   return r ? overlay(r) : null;
 }
 
-/** What an overlay shows: its text, and its picture's `full` blob (its `thumb` where the full is not here). A purged picture is left out. */
-export interface ShownOverlay {
-  content: string | null;
-  imageHash: string | null;
-  thumbHash?: string | null;
-}
-
-export async function shownOverlay(db: ReadDb, id: string | null): Promise<ShownOverlay | null> {
+/** What an overlay shows: its page, with the pictures it draws (docs/custom-slides.md). */
+export async function shownOverlay(db: ReadDb, id: string | null): Promise<ShownPage | null> {
   if (!id) return null;
-  const [r] = await db.query<{ content: string | null; full_hash: string | null; thumb_hash: string | null }>(
-    'SELECT o.content, i.full_hash, i.thumb_hash FROM overlays o LEFT JOIN images i ON i.id = o.image_id WHERE o.id = ?',
-    [id],
-  );
-  return r ? { content: r.content, imageHash: r.full_hash, thumbHash: r.thumb_hash } : null;
+  const [r] = await db.query<{ content: string | null }>('SELECT content FROM overlays WHERE id = ?', [id]);
+  return r ? ((await shownPages(db, [parseCustomPage(r.content)]))[0] ?? null) : null;
 }

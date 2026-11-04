@@ -4,7 +4,7 @@ import { api } from './auth/api.ts';
 import { errorText } from './auth/errors.ts';
 import { deviceName, saveDeviceToken, saveSession, storedSession } from './auth/session.ts';
 import { t } from './i18n.ts';
-import { AUTH_TEXT, AuthCard, FormError } from './pages/AuthCard.tsx';
+import { AUTH_TEXT, AuthCard, FormError, Starting } from './pages/AuthCard.tsx';
 import { Invite } from './pages/Invite.tsx';
 import { Pair } from './pages/Pair.tsx';
 import { Setup } from './pages/Setup.tsx';
@@ -97,7 +97,7 @@ export function Boot({ boot }: { boot: BootFor }) {
 
   switch (screen) {
     case 'loading':
-      return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-stone-400" />;
+      return <Starting />;
     case 'offline':
       return (
         <AuthCard title={t('auth.signIn')} centered>

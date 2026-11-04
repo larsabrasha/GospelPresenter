@@ -2,18 +2,18 @@
 
 ## Overlays
 
-Text, a picture, or both, shown above the live slide (spec 03 §4, spec 04 LIVE-R15). An overlay is a synced row in
-`overlays` (title, text up to 2 000 characters, the id of a library picture, `sort` in the order of creation), and an
-item names the one it carries in `presentation_items.overlay_id`. Everyone may make,
-change and delete them (ManageOverlays is every role's, as in spec 01), at most 200. Overlays (`/admin/overlays`)
-lists them with a preview; one overlay's page has Titel, Textinnehåll and a picture chosen from Bilder (or dropped
-on it, which imports it into Bilder first), each saved 500 ms after typing with "Sparad" in the header, a preview,
-and Radera, which asks first and is permanent (no trash), then goes back to the list. Deleting one leaves no item
-carrying it.
+A page of texts, pictures and shapes shown above the live slide (spec 03 §4, spec 04 LIVE-R15), made as a custom
+slide's page is ([custom-slides.md](custom-slides.md)), with no background. An overlay is a synced row in `overlays`
+(title, the page as JSON in `content`, `sort` in the order of creation, `updated_at`), and an item names the one it
+carries in `presentation_items.overlay_id`. Everyone may make, change and delete them (ManageOverlays is every
+role's, as in spec 01), at most 200. Överlägg (`/admin/overlays`) is a library (`ui/Library.tsx`): a grid of the
+overlays, each drawn above an empty slide of the organisation's theme, sorted by last changed, newest or name; a
+tap opens the custom slides' editor with its one page, + names a new one and opens it. Radera, in an overlay's
+menu (held or right-clicked) or for several under Välj, asks first and is permanent (no trash). Deleting one leaves
+no item carrying it. The overlays of before schema 19 (a text and a picture) were dropped (Lars, 2026-11-04).
 
 **During live.** The live pointer carries `overlayId`, so the overlay travels with the slide in the same message
-and every output draws it above the slide (text top left, 40 px, 60 % white; the picture over the whole stage,
-contained). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on. The rules are one pure function, `applyLiveChange` in
+and every output draws its page above the slide, in the presentation's theme (`SlideView`). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on. The rules are one pure function, `applyLiveChange` in
 `packages/core/src/live.ts`, which the presenting window runs for its own clicks and for a controller's commands:
 
 - An item that carries an overlay switches it on when it goes live and off when it leaves, if it is still the one
@@ -31,11 +31,11 @@ contained). The live page has Overlays (collapsed, a dot while one is on) with a
   and z-index), not frame by frame.
 
 A controller sends `overlayId` only when it toggles; its slide commands leave the overlay to the presenting
-window. A public output gets the overlay's text with the slide, centred near the top (spec 04 §6), but not its
-picture. The editor has an Overlay choice for the selected item, draws the overlay on the item's tiles, and the
+window. A public output gets the overlay's texts with the slide, top to bottom, centred near the top (spec 04 §6),
+but not its pictures or shapes. The editor has an Overlay choice for the selected item, draws the overlay on the item's tiles, and the
 running order and the live page name the overlay an item carries.
 
-**Files.** Every overlay's picture is fetched with the presentation's files: ahead on a device that keeps its
+**Files.** Every overlay's pictures are fetched with the presentation's files: ahead on a device that keeps its
 data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
 finns på den här enheten" counts them.
 
@@ -116,14 +116,16 @@ from it and takes it out of the address. They are drawn in the page with `uqr` (
 built against the host's LAN address on a desktop host.
 
 **What a screen gets.** It has no database, so the owner reports, beside the public slide, the canvas
-(`canvasSchema` in `live-protocol.ts`): the slide as data, the theme's id, and the overlay's text and picture;
-null is black. The hub sends a screen `canvas` events and a public output `slide` events as before, so `/watch`
+(`canvasSchema` in `live-protocol.ts`): the slide as data (a custom slide's with its page), the theme's id, and the
+overlay's page, each page with the hashes of its pictures and cut to 20 KiB of JSON (`CANVAS_PAGE_MAX`, the
+elements drawn last going first), so a report stays under its limit; null is black. The hub sends a screen `canvas` events and a public output `slide` events as before, so `/watch`
 gets nothing new. A screen is bound to the session by an operator, as the projector is, so it gets what the
-projector draws; what that adds to the public slide is only the overlay's picture and "nothing selected". Its
-pictures come through its own path (`/api/screen/{id}/image/{hash}`, `/api/display/{code}/image/{hash}`): the
-slide's under the public output's rule (LIVE-R32), and the overlay's only while that overlay is the one the
-session's pointer has on and has that picture (LIVE-R34). An owner of an older build sends no canvas: its screens
-draw the public slide on the canvas, without the overlay's picture. A screen that is bound draws black while the
+projector draws; what that adds to the public slide is the pages (a custom slide's, the overlay's) and "nothing
+selected". Its pictures come through its own path (`/api/screen/{id}/image/{hash}`,
+`/api/display/{code}/image/{hash}`): the slide's under the public output's rule (LIVE-R32), a custom slide's page's
+if its canvas draws it and a custom slide of the presentation has it, and the overlay's only while that overlay is
+the one the session's pointer has on and its page has that picture (LIVE-R34; `live-output-gate.ts`). An owner of
+an older build sends no canvas: its screens draw the public slide on the canvas, without the overlay. A screen that is bound draws black while the
 session is black, rather than waiting with its name, as `Display.razor`. So does a saved screen whose session
 ended (the hub sends it a null canvas, not `idle`): the old app kept the pairing when the presentation stopped.
 It shows its name again once switched off, or when its page is opened anew. The live socket has no version number:
@@ -132,7 +134,8 @@ slide twice.
 
 Tested in `apps/server/test/screens.test.ts` (three adapters: code, QR token, single use, letting go, a saved
 screen online and off, another organisation; the canvas to a screen and the public slide to `/watch` from the
-same session, an older owner, black, and the overlay's picture to a screen and never to `/watch`) and
+same session, an older owner, black, the overlay's picture to a screen and never to `/watch`, and a custom slide's
+picture only if the slide is in the presentation) and
 `apps/desktop/e2e/screens.spec.ts` (LIVE-A17 to A21, a TV played by Playwright's Chromium; the canvas, its theme,
 black, and a picture item's picture); the QR codes in `watch.spec.ts`, `remote.spec.ts` and, through `pair()`,
 `https.spec.ts`.

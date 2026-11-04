@@ -270,6 +270,8 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
 /* The custom slide editor's handles (react-moveable, pages/custom-slides/EditorCanvas.tsx): a size a finger can hold
    on a touch screen, and the app's blue. */
 .moveable-control-box { --moveable-color: #0ea5e9; }
+/* Above the slide, under every menu and sheet: Moveable's own 3000 put the handles over the + menu (Lars, 2026-11-04). */
+.moveable-control-box { z-index: 5 !important; }
 /* Lined up with the page's middle or another element: Keynote's yellow. */
 .moveable-control-box .moveable-line.moveable-guideline,
 .moveable-control-box .moveable-line.moveable-gap { background: #facc15 !important; }

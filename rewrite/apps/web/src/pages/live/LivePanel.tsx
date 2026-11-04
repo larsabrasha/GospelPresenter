@@ -1,6 +1,6 @@
-import type { LivePointer, Overlay, Presentation, Slide, Theme } from '@gp/core';
+import type { LivePointer, Overlay, Presentation, ShownPage, Slide, Theme } from '@gp/core';
 import { useRef } from 'react';
-import { orgRemoteControl, type ShownOverlay } from '../../db/queries.ts';
+import { orgRemoteControl } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
@@ -39,7 +39,7 @@ export function LivePanel({
   live: LiveControl;
   pointer: LivePointer;
   current: Slide | null;
-  overlay: ShownOverlay | null;
+  overlay: ShownPage | null;
   theme: Theme;
   overlays: Overlay[];
   canStep: { back: boolean; forward: boolean };

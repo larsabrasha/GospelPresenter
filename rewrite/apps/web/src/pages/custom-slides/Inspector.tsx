@@ -7,7 +7,7 @@ import { ACTION_ROW, Group } from '../../ui/Group.tsx';
 import { ColorChoice, ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './ElementPanel.tsx';
 
 // Keynote's Format (docs/custom-slides.md): with an element picked, its tabs (Text or Stil or Bild, and Ordna); with
-// none, the slide's name and the page's background.
+// none, the slide's name and the page's background (an overlay's page has none).
 
 export function Inspector({
   name,
@@ -16,6 +16,7 @@ export function Inspector({
   element,
   textRef,
   onRename,
+  hasBackground,
   onSaved,
   onPage,
   onElement,
@@ -30,6 +31,7 @@ export function Inspector({
   element: CustomElement | undefined;
   textRef: RefObject<HTMLTextAreaElement | null>;
   onRename: (name: string) => Promise<unknown>;
+  hasBackground: boolean;
   onSaved: () => void;
   onPage: (key: string, fn: (page: CustomPage) => CustomPage) => void;
   onElement: (key: string, patch: Partial<CustomElement>) => void;
@@ -64,17 +66,19 @@ export function Inspector({
       <Group>
         <AutoSaveField label={t('song.name')} maxLength={200} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
-      <Group title={t('slideEditor.page', { n: pageAt + 1 })}>
-        <ColorChoice label={t('slideEditor.background')} value={page.background} empty="theme" onChange={(background) => onPage('background', (p) => ({ ...p, background }))} />
-        <AppButton variant="plain" className={ACTION_ROW} onClick={() => onChoose('background')}>
-          {t(page.backgroundImageId ? 'slideEditor.replaceBackground' : 'slideEditor.backgroundImage')}
-        </AppButton>
-        {page.backgroundImageId && (
-          <AppButton variant="plain" className={ACTION_ROW} onClick={() => onPage('background', (p) => ({ ...p, backgroundImageId: null }))}>
-            {t('slideEditor.removeBackground')}
+      {hasBackground && (
+        <Group title={t('slideEditor.page', { n: pageAt + 1 })}>
+          <ColorChoice label={t('slideEditor.background')} value={page.background} empty="theme" onChange={(background) => onPage('background', (p) => ({ ...p, background }))} />
+          <AppButton variant="plain" className={ACTION_ROW} onClick={() => onChoose('background')}>
+            {t(page.backgroundImageId ? 'slideEditor.replaceBackground' : 'slideEditor.backgroundImage')}
           </AppButton>
-        )}
-      </Group>
+          {page.backgroundImageId && (
+            <AppButton variant="plain" className={ACTION_ROW} onClick={() => onPage('background', (p) => ({ ...p, backgroundImageId: null }))}>
+              {t('slideEditor.removeBackground')}
+            </AppButton>
+          )}
+        </Group>
+      )}
     </div>
   );
 }

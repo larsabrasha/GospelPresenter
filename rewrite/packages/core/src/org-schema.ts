@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -82,7 +82,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
-     sort INTEGER NOT NULL)`,
+     sort INTEGER NOT NULL, updated_at INTEGER)`,
   videosDdl,
   // Not synced: what this database keeps for itself (see the tables in schema.ts).
   `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
@@ -113,6 +113,9 @@ export const orgMigrations: Record<number, string[]> = {
   17: songMaterialsDdl,
   // Custom slides (docs/custom-slides.md).
   18: [customSlidesDdl],
+  // Overlays as a custom slide's page (docs/custom-slides.md): the overlays of before are dropped, and the items
+  // that carried one carry none (Lars, 2026-11-04).
+  19: ['DELETE FROM overlays', 'UPDATE presentation_items SET overlay_id = NULL WHERE overlay_id IS NOT NULL', 'ALTER TABLE overlays ADD COLUMN updated_at INTEGER'],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

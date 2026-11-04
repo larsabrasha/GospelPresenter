@@ -4,6 +4,7 @@ import {
   CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
   isKnownTheme,
+  legacyOverlayPage,
   serializeBibleText,
   sortBibleBooks,
   verseCount,
@@ -74,7 +75,7 @@ function mapOverlays(data: OldData, media: Media, now: number): { overlays: Lega
     const picture = media.overlayImages.get(o.Id);
     const imageId = picture ? `${o.Id}-image` : null;
     if (picture) images.push(imageRow(imageId!, `${o.Title || 'Overlay'}.${picture.contentType === 'image/jpeg' ? 'jpg' : 'webp'}`, picture, now, null));
-    return { id: o.Id, title: o.Title, content: o.Content, image_id: imageId, sort };
+    return { id: o.Id, title: o.Title, content: JSON.stringify(legacyOverlayPage(o.Content, imageId)), image_id: null, sort, updated_at: now };
   });
   return { overlays, images };
 }

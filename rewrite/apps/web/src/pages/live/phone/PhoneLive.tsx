@@ -1,6 +1,6 @@
-import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type Song, type SongArrangement, type Theme } from '@gp/core';
+import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type ShownPage, type Song, type SongArrangement, type Theme } from '@gp/core';
 import { Children, useRef, useState, type ReactNode } from 'react';
-import { orgRemoteControl, type ShownOverlay } from '../../../db/queries.ts';
+import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { addAfter } from '../../../live/liveList.ts';
@@ -73,7 +73,7 @@ export function PhoneLive({
   songs: Map<string, Song>;
   arrangements: SongArrangement[];
   overlays: Overlay[];
-  overlay: ShownOverlay | null;
+  overlay: ShownPage | null;
   live: LiveControl;
   pointer: LivePointer;
   /** While presenting; before, the list only edits. */

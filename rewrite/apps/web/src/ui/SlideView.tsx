@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
+import { CANVAS, CLASSIC, type ShownPage, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
-import type { ShownOverlay } from '../db/queries.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { CustomPageView } from './CustomPageView.tsx';
 import { Highlight } from './Highlight.tsx';
@@ -48,15 +47,11 @@ function Picture({ hash, thumb = null, media, className, testId }: { hash: strin
   return hash ? <img className={className} src={media(hash)} alt="" data-testid={testId} draggable={false} /> : null;
 }
 
-/**
- * An overlay above the slide (LIVE-R15): its picture over the whole stage,
- * contained, and its text at the top left. Outside the theme.
- */
-function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media }) {
+/** An overlay above the slide (LIVE-R15, docs/custom-slides.md): its page, with no background, in the slide's theme. */
+function OverlayLayer({ overlay, theme, media }: { overlay: ShownPage; theme: Theme; media: Media }) {
   return (
     <div className="slide-overlay" data-testid="slide-overlay">
-      <Picture hash={overlay.imageHash} thumb={overlay.thumbHash} media={media} className="slide-overlay-image" testId="slide-overlay-image" />
-      {overlay.content && <div className="slide-overlay-text">{overlay.content}</div>}
+      <CustomPageView shown={overlay} theme={theme} media={media} />
     </div>
   );
 }
@@ -69,7 +64,7 @@ const BLACK_FADE_MS = 500;
  * render that was not black, for BLACK_FADE_MS, then nothing, so a blacked-out
  * output holds no slide. Not black, what it is given.
  */
-function useBlackFade(black: boolean, slide: Slide | null, overlay: ShownOverlay | null): { slide: Slide | null; overlay: ShownOverlay | null } {
+function useBlackFade(black: boolean, slide: Slide | null, overlay: ShownPage | null): { slide: Slide | null; overlay: ShownPage | null } {
   const [last, setLast] = useState({ slide, overlay });
   const [fading, setFading] = useState(false);
   const [wasBlack, setWasBlack] = useState(black);
@@ -116,7 +111,7 @@ export function SlideView({
   theme?: Theme;
   label?: boolean;
   credits?: boolean;
-  overlay?: ShownOverlay | null;
+  overlay?: ShownPage | null;
   media?: (hash: string) => string;
   highlight?: string;
   black?: boolean;
@@ -173,7 +168,7 @@ export function SlideView({
             )}
           </>
         )}
-        {overlay && <OverlayLayer overlay={overlay} media={media} />}
+        {overlay && <OverlayLayer overlay={overlay} theme={theme} media={media} />}
         {black !== undefined && (
           <div className={`absolute inset-0 z-60 bg-black transition-opacity duration-500 ease-in-out ${black ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} data-testid="black-cover" />
         )}

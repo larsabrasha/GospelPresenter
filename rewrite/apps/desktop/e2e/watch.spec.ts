@@ -2,7 +2,7 @@
 // in a browser, with no sign-in, and follows what the host presents.
 import { chromium, expect, test, type Browser } from '@playwright/test';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createOverlay, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -57,12 +57,7 @@ test('a public output follows the presentation in a browser without signing in; 
     ['Verse 1', 'A ett'],
     ['Chorus', 'A två'],
   ]);
-  await openAdmin(page, 'Överlägg');
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').fill('Kollekt');
-  await page.getByRole('dialog', { name: 'Skapa överlägg' }).getByLabel('Namn').press('Enter');
-  await page.getByLabel('Textinnehåll').fill('Swish 123 45');
-  await page.getByLabel('Textinnehåll').blur();
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();

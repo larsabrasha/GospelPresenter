@@ -1,15 +1,20 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
 import { parseBibleContent } from './bible.ts';
+import { blankPage, CUSTOM_LIMITS, type CustomElement, type CustomPage } from './custom-slides.ts';
 import { parseSlidesContent } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
+import { CANVAS } from './themes.ts';
 
 // The zip one organisation of the current app (1.x) is exported as, and the import that reads it
 // (docs/import-from-1x.md). The export maps the old rows to the new tables, so what is here is only the
 // shape of the file and the checks the server and the web app make on it.
 
-/** Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. */
-export const LEGACY_FORMAT = 1;
+/**
+ * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay
+ * is a page (docs/custom-slides.md); an import reads a zip of 1 too (`upgradeLegacyRows`).
+ */
+export const LEGACY_FORMAT = 2;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -70,6 +75,39 @@ const legacyUserSchema = z.object({
 });
 export type LegacyUser = z.infer<typeof legacyUserSchema>;
 export const legacyUsersSchema = z.array(legacyUserSchema).max(1000);
+
+/**
+ * A 1.x overlay as a page (docs/custom-slides.md), drawn as 1.x drew it: its picture over the whole stage, fitted,
+ * and its text above it at the top left, white.
+ */
+export function legacyOverlayPage(content: string | null, imageId: string | null): CustomPage {
+  const text = content?.trim().slice(0, CUSTOM_LIMITS.text) ?? '';
+  const elements: CustomElement[] = [];
+  if (imageId) elements.push({ id: 'image', kind: 'image', x: 0, y: 0, w: CANVAS.width, h: CANVAS.height, imageId, fit: 'contain' });
+  if (text) {
+    const h = Math.min(CANVAS.height - 64, text.split('\n').length * 60);
+    elements.push({ id: 'text', kind: 'text', x: 80, y: 32, w: CANVAS.width - 160, h, text, size: 40, bold: false, italic: false, align: 'left', color: '#ffffff' });
+  }
+  return { ...blankPage(), elements };
+}
+
+/** The formats an import reads: this one, and 1, whose overlays were a text and a picture. */
+export const LEGACY_FORMATS_READ: readonly number[] = [1, LEGACY_FORMAT];
+
+/** A zip's rows as this format has them. */
+export function upgradeLegacyRows(format: number, rows: LegacyRows): LegacyRows {
+  if (format !== 1) return rows;
+  const text = (v: LegacyRow[string] | undefined) => (typeof v === 'string' ? v : null);
+  const overlays = rows.overlays.map((o) => ({
+    id: o.id ?? null,
+    title: o.title ?? null,
+    content: JSON.stringify(legacyOverlayPage(text(o.content), text(o.image_id))),
+    image_id: null,
+    sort: o.sort ?? null,
+    updated_at: null,
+  }));
+  return { ...rows, overlays };
+}
 
 /** What the server answers when it refuses an import, with a `detail` naming the row. */
 export type LegacyImportRefusal = 'invalid-rows' | 'missing-media' | 'missing-bible' | 'write-failed';

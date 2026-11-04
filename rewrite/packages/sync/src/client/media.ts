@@ -4,7 +4,7 @@
 // `addAudio`, `addVideo`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names. A video itself is never kept on a device: it was uploaded before its
 // `addVideo` was queued, is recorded here without its bytes, and streams from the server.
-import { ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
+import { ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, OVERLAY_IMAGES_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -96,7 +96,7 @@ export async function keptPresentations(client: Query, policy: Pick<MediaPolicy,
   return [...new Set([...pinned, ...coming].map((p) => p.id))];
 }
 
-/** Every file a presentation needs live, but its videos: full pictures, audio, stills, slide pages (both sizes). */
+/** Every file a presentation needs live, but its videos: full pictures (its custom slides' too), audio, stills, slide pages (both sizes). */
 async function presentationFiles(client: Query, presentationId: string): Promise<string[]> {
   const rows = (await client.query(
     `SELECT i.full_hash AS hash FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
@@ -143,7 +143,7 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
   const order = [...new Set([...(policy.presenting ? [policy.presenting] : []), ...(await keptPresentations(client, policy))])];
   // Every overlay's picture: any of them can be switched on during live.
   if (order.length) {
-    const overlayImages = (await client.query('SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id ORDER BY o.sort')) as { hash: string }[];
+    const overlayImages = (await client.query(`SELECT i.full_hash AS hash FROM (${OVERLAY_IMAGES_SQL}) o JOIN images i ON i.id = o.image_id ORDER BY o.sort`)) as { hash: string }[];
     hashes.push(...overlayImages.map((o) => o.hash));
   }
   for (const presentationId of order) hashes.push(...(await presentationFiles(client, presentationId)));
@@ -227,7 +227,7 @@ export async function presentationMediaState(
        UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
        UNION SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
-       UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,
+       UNION SELECT i.full_hash AS hash FROM (${OVERLAY_IMAGES_SQL}) o JOIN images i ON i.id = o.image_id) h`,
     [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId],
   )) as { hash: string; present: number }[];
   return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };
@@ -246,7 +246,7 @@ export async function presentationOfflineState(client: Query, presentationId: st
        UNION SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION SELECT s.thumb_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
-       UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,
+       UNION SELECT i.full_hash AS hash FROM (${OVERLAY_IMAGES_SQL}) o JOIN images i ON i.id = o.image_id) h`,
     [presentationId, presentationId, presentationId, presentationId, presentationId],
   )) as { hash: string; present: number }[];
   const videos = (await client.query(
@@ -402,7 +402,7 @@ export async function storageReport(client: SyncClient, policy: MediaPolicy): Pr
   const wanted = new Set([...(await wantedBlobs(client, policy)), ...queued, ...(await wantedVideos(client, policy)).map((v) => v.hash)]);
   const sum = (hashes: Iterable<string>) => [...new Set(hashes)].reduce((n, h) => n + (sizes.get(h) ?? 0), 0);
   const kept = await keptPresentations(client, policy);
-  const overlays = ((await client.query('SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id')) as { hash: string }[]).map((o) => o.hash);
+  const overlays = ((await client.query(`SELECT i.full_hash AS hash FROM (${OVERLAY_IMAGES_SQL}) o JOIN images i ON i.id = o.image_id`)) as { hash: string }[]).map((o) => o.hash);
   const offline: StorageReport['offline'] = [];
   const keptFiles: string[] = [];
   for (const presentationId of kept) {

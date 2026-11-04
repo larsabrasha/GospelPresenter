@@ -1,10 +1,11 @@
 import {
   inflateRaw,
   LEGACY_ENTRIES,
-  LEGACY_FORMAT,
+  LEGACY_FORMATS_READ,
   LEGACY_TABLES,
   legacyManifestSchema,
   legacyUsersSchema,
+  upgradeLegacyRows,
   utf8Decode,
   type LegacyManifest,
   type LegacyRows,
@@ -112,7 +113,7 @@ async function put(path: string, body: Uint8Array, contentType: string) {
 export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
   const parsed = legacyManifestSchema.safeParse(await json((await readZipFile(file)).get(LEGACY_ENTRIES.manifest)));
   if (!parsed.success) throw new LegacyImportError('not-export');
-  if (parsed.data.format !== LEGACY_FORMAT) throw new LegacyImportError('format');
+  if (!LEGACY_FORMATS_READ.includes(parsed.data.format)) throw new LegacyImportError('format');
   return parsed.data;
 }
 
@@ -124,7 +125,8 @@ export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
 export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => void): Promise<LegacyImportResult> {
   const entries = await readZipFile(file);
   const manifest = await readLegacyManifest(file);
-  const rows = Object.fromEntries(await Promise.all(LEGACY_TABLES.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as LegacyRows;
+  const read = Object.fromEntries(await Promise.all(LEGACY_TABLES.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as LegacyRows;
+  const rows = upgradeLegacyRows(manifest.format, read);
   const users = legacyUsersSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.users)));
   if (!users.success) throw new LegacyImportError('not-export');
 

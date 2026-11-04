@@ -802,20 +802,6 @@ function Picture({ className, children }: IconProps & { children: ReactNode }) {
   );
 }
 
-/** No overlays: a slide with a dashed box over it (Overlays.razor). */
-export function OverlaysPicture({ className }: IconProps) {
-  return (
-    <Picture className={className}>
-      <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
-      <line x1="50" y1="50" x2="150" y2="50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
-      <line x1="50" y1="65" x2="130" y2="65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
-      <rect x="55" y="45" width="100" height="60" rx="6" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" fill="none" opacity="0.7" />
-      <line x1="75" y1="70" x2="135" y2="70" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
-      <line x1="85" y1="82" x2="125" y2="82" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
-    </Picture>
-  );
-}
-
 /** No screens: a monitor and a plus (Displays.razor). */
 export function ScreensPicture({ className }: IconProps) {
   return (

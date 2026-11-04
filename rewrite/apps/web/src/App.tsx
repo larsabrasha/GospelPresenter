@@ -19,7 +19,7 @@ import { Audios } from './pages/Audios.tsx';
 import { CustomSlides } from './pages/custom-slides/CustomSlides.tsx';
 import { SlideEditor } from './pages/custom-slides/SlideEditor.tsx';
 import { Videos } from './pages/Videos.tsx';
-import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
+import { Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Displays } from './pages/Displays.tsx';
 import { Images } from './pages/Images.tsx';
@@ -132,7 +132,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'customSlides' && <CustomSlides />}
       {route.page === 'customSlide' && <SlideEditor key={route.id} id={route.id} />}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
-      {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
+      {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <SlideEditor key={route.id} id={route.id} edits="overlay" /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'org' && (can(me.role, 'ManageOrganizations') ? <OrgDetail key={route.id} id={route.id} me={me} /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}

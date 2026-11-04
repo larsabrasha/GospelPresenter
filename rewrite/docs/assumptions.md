@@ -308,7 +308,7 @@ the streaming and who plays what; these are the choices the implementer made whe
 Which files a device fetches, keeping offline and storage (TODO.md, the same section; Lars decided the rules, these
 are the implementer's choices within them):
 
-- **Looking around shows thumbnails where the full picture is not here**: tiles, previews and the overlay editor
+- **Looking around shows thumbnails where the full picture is not here**: tiles, previews and the custom slides' editor
   draw a picture's `thumb` (every device keeps it) until presenting or keeping offline has fetched the `full`. The
   live preview on a controller does the same, as a controller fetches nothing.
 - **"Hämtar bilder och ljud" while presenting is quiet**: said to screen readers only; the line shows only when files

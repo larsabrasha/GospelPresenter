@@ -95,10 +95,11 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   });
 
   it('a version 11 file gets the columns and the indexes of 12, as a new file has them', () => {
-    // Version 11: today's tables without what 12 and later added (song history came in 15, the CCLI report in 16), and no indexes.
+    // Version 11: today's tables without what 12 and later added (song history came in 15, the CCLI report in 16, an
+    // overlay's updated_at in 19), and no indexes.
     const v11 = orgDdl
       .filter((s) => !orgIndexes.includes(s) && !s.includes('song_versions') && !s.includes('ccli_entries'))
-      .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')'));
+      .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')').replace('sort INTEGER NOT NULL, updated_at INTEGER)', 'sort INTEGER NOT NULL)'));
     const file = fileWith(driver, [...v11, schemaMetaDdl, 'INSERT INTO _schema (one, version) VALUES (1, 11)']);
     const fresh = openSqlite(fileWith(driver, []), driver);
     nodeOrgStore(fresh);
@@ -111,6 +112,24 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     expect(indexesOf(f.query)).toHaveLength(orgIndexes.length + 2); // and song_versions_by_song, from 15, and song_materials_by_song, from 17
     f.close();
     fresh.close();
+  });
+
+  it('a version 18 file loses its overlays of before (a text and a picture), and its items carry none', () => {
+    const v18 = orgDdl.map((s) => s.replace('sort INTEGER NOT NULL, updated_at INTEGER)', 'sort INTEGER NOT NULL)'));
+    const file = fileWith(driver, [
+      ...v18,
+      schemaMetaDdl,
+      'INSERT INTO _schema (one, version) VALUES (1, 18)',
+      `INSERT INTO overlays (id, title, content, image_id, sort) VALUES ('O1', 'Kollekt', 'Swish 123', NULL, 0)`,
+      `INSERT INTO presentations (id, name) VALUES ('P', 'Söndag')`,
+      `INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort, overlay_id) VALUES ('I1', 'P', 'song', 'A', 'S1', 0, 'O1')`,
+    ]);
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    expect([f.query('SELECT id FROM overlays'), f.query('SELECT overlay_id FROM presentation_items')]).toEqual([[], [{ overlay_id: null }]]);
+    f.close();
   });
 
   it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {

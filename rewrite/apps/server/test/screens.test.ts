@@ -4,7 +4,7 @@
 // screen is online while its page is open.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { storeMediaBlob } from '@gp/sync/client';
-import type { Canvas, LiveServerMessage, PublicSlide } from '@gp/core';
+import { blankPage, type Canvas, type CustomPage, type LiveServerMessage, type PublicSlide, type ShownPage } from '@gp/core';
 import { api, device, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { ownState, Window } from './live-window.ts';
 import { Viewer } from './sse-viewer.ts';
@@ -15,6 +15,10 @@ const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split
 const slide = (text: string): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: null, themeId: 'classic', overlay: null });
 /** What a screen draws for `text` (spec 04 §5): the projector's canvas. */
 const canvas = (text: string, over: Partial<Canvas> = {}): Canvas => ({ slide: { kind: 'song', text, verses: null, image: null, credits: 'Anna' }, themeId: 'midnight', overlay: null, ...over });
+/** A page with one picture of Bilder, `imageId`. */
+const pageWith = (imageId: string): CustomPage => ({ ...blankPage(), elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId, fit: 'contain' }] });
+/** The page as a canvas carries it, its picture's blobs `hash`. */
+const shownWith = (imageId: string, hash: string): ShownPage => ({ page: pageWith(imageId), images: { [imageId]: { full: hash, thumb: hash } } });
 type Sessions = Extract<LiveServerMessage, { type: 'sessions' }>;
 const isSessions = (m: LiveServerMessage): m is Sessions => m.type === 'sessions';
 type Start = { id: string; pin?: string; expiresAt?: number; paired?: true };
@@ -239,7 +243,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     const id = await pairedScreen(owner);
     const screen = track(await Viewer.open(h, id, undefined, 'screen'));
     const viewer = track(await Viewer.open(h, 'pqrstuv'));
-    const shown = canvas('Härlig är jorden', { overlay: { text: 'Välkommen', image: 'a'.repeat(64) } });
+    const shown = canvas('Härlig är jorden', { overlay: shownWith('IMG', 'a'.repeat(64)) });
 
     owner.send({ type: 'own', state: ownState('S1', { outputs: [id, 'D1'], slide: slide('Härlig är jorden'), canvas: shown }) });
 
@@ -248,7 +252,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect(viewer.events.some((e) => e.type === 'canvas')).toBe(false);
   });
 
-  it("a screen draws an older owner's public slide when the report has no canvas", async () => {
+  it("a screen draws an older owner's public slide when the report has no canvas, without the overlay", async () => {
     const owner = track(await Window.open(h, org, 'anna'));
     owner.send({ type: 'own', state: ownState('S1') });
     await owner.sessions((s) => s.length === 1);
@@ -258,7 +262,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     owner.send({ type: 'own', state: ownState('S1', { outputs: [id], slide: { ...slide('Före'), overlay: 'Välkommen' }, canvas: null }) });
 
     const e = await screen.next((x) => x.type === 'canvas');
-    expect(e).toEqual({ type: 'canvas', now: expect.any(Number), canvas: { slide: { kind: 'song', text: 'Före', verses: null, image: null, credits: null }, themeId: 'classic', overlay: { text: 'Välkommen', image: null } } });
+    expect(e).toEqual({ type: 'canvas', now: expect.any(Number), canvas: { slide: { kind: 'song', text: 'Före', verses: null, image: null, credits: null }, themeId: 'classic', overlay: null } });
   });
 
   it('a bound screen draws black when the session is black, rather than waiting', async () => {
@@ -303,7 +307,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
   it("serves the overlay's picture to a screen only while that overlay is switched on, and never to a public output (LIVE-R34)", async () => {
     await publicOutput('qrstuvw');
     const shownHash = await picture('IMG1', 51);
-    await admin.client.mutate('createOverlay', { id: 'O1', title: 'Välkommen', imageId: 'IMG1' });
+    await admin.client.mutate('createOverlay', { id: 'O1', title: 'Välkommen', page: pageWith('IMG1'), at: 1 });
     await admin.client.sync();
     expect(admin.client.rejected).toEqual([]);
     const owner = track(await Window.open(h, org, 'anna'));
@@ -314,7 +318,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     const fromPublic = (hash: string) => fetch(`${h.url}/api/watch/qrstuvw/image/${hash}`).then((r) => r.status);
     const on = { itemId: 'I1', partIndex: 0, black: false, overlayId: 'O1', rev: 2 };
 
-    owner.send({ type: 'own', state: ownState('S1', { pointer: on, outputs: [id, 'D1'], slide: slide('A'), canvas: canvas('A', { overlay: { text: null, image: shownHash } }) }) });
+    owner.send({ type: 'own', state: ownState('S1', { pointer: on, outputs: [id, 'D1'], slide: slide('A'), canvas: canvas('A', { overlay: shownWith('IMG1', shownHash) }) }) });
     await owner.sessions((s) => s[0]?.pointer.rev === 2 && s[0].outputs.length === 2);
 
     expect(await fromScreen(shownHash)).toBe(200);
@@ -323,7 +327,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
 
   it("refuses a picture a screen's canvas names when it is not the switched-on overlay's", async () => {
     const otherHash = await picture('IMG3', 53);
-    await admin.client.mutate('createOverlay', { id: 'O2', title: 'Text', content: 'Hej' });
+    await admin.client.mutate('createOverlay', { id: 'O2', title: 'Text', at: 1 });
     await admin.client.sync();
     const owner = track(await Window.open(h, org, 'anna'));
     owner.send({ type: 'own', state: ownState('S1') });
@@ -331,7 +335,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     const id = await pairedScreen(owner);
     const on = { itemId: 'I1', partIndex: 0, black: false, overlayId: 'O2', rev: 2 };
 
-    owner.send({ type: 'own', state: ownState('S1', { pointer: on, outputs: [id], slide: slide('A'), canvas: canvas('A', { overlay: { text: 'Hej', image: otherHash } }) }) });
+    owner.send({ type: 'own', state: ownState('S1', { pointer: on, outputs: [id], slide: slide('A'), canvas: canvas('A', { overlay: shownWith('IMG3', otherHash) }) }) });
     await owner.sessions((s) => s[0]?.pointer.rev === 2 && s[0].outputs.length === 1);
 
     expect((await fetch(`${h.url}/api/screen/${id}/image/${otherHash}`)).status).toBe(404);
@@ -339,13 +343,13 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
 
   it('serves the overlay picture to a screen no longer once the overlay is switched off', async () => {
     const hash = await picture('IMG4', 54);
-    await admin.client.mutate('createOverlay', { id: 'O3', title: 'Bild', imageId: 'IMG4' });
+    await admin.client.mutate('createOverlay', { id: 'O3', title: 'Bild', page: pageWith('IMG4'), at: 1 });
     await admin.client.sync();
     const owner = track(await Window.open(h, org, 'anna'));
     owner.send({ type: 'own', state: ownState('S1') });
     await owner.sessions((s) => s.length === 1);
     const id = await pairedScreen(owner);
-    const named = canvas('A', { overlay: { text: null, image: hash } });
+    const named = canvas('A', { overlay: shownWith('IMG4', hash) });
     owner.send({ type: 'own', state: ownState('S1', { pointer: { itemId: 'I1', partIndex: 0, black: false, overlayId: 'O3', rev: 2 }, outputs: [id], slide: slide('A'), canvas: named }) });
     await owner.sessions((s) => s[0]?.pointer.rev === 2 && s[0].outputs.length === 1);
 
@@ -354,5 +358,27 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     await owner.sessions((s) => s[0]?.pointer.rev === 3);
 
     expect((await fetch(`${h.url}/api/screen/${id}/image/${hash}`)).status).toBe(404);
+  });
+
+  it("serves a custom slide's picture to a screen while its canvas draws it, only if the slide is in the presentation", async () => {
+    const inHash = await picture('IMG5', 55);
+    const outHash = await picture('IMG6', 56);
+    await admin.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await admin.client.mutate('createCustomSlide', { id: 'CS1', name: 'Kollekt', pages: [pageWith('IMG5')], at: 1 });
+    await admin.client.mutate('createCustomSlide', { id: 'CS2', name: 'Annan', pages: [pageWith('IMG6')], at: 1 });
+    await admin.client.mutate('addCustomSlideToPresentation', { itemId: 'I1', presentationId: 'P', slideId: 'CS1', afterItemId: null });
+    await admin.client.sync();
+    expect(admin.client.rejected).toEqual([]);
+    const owner = track(await Window.open(h, org, 'anna'));
+    owner.send({ type: 'own', state: ownState('S1') });
+    await owner.sessions((s) => s.length === 1);
+    const id = await pairedScreen(owner);
+    const custom = { page: { ...blankPage(), elements: [...pageWith('IMG5').elements, { ...pageWith('IMG6').elements[0]!, id: 'e2' }] }, images: { ...shownWith('IMG5', inHash).images, ...shownWith('IMG6', outHash).images } };
+    const shown = canvas('', { slide: { kind: 'song', text: '', verses: null, image: null, credits: null, custom } });
+
+    owner.send({ type: 'own', state: ownState('S1', { pointer: { itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 2 }, outputs: [id], slide: slide(''), canvas: shown }) });
+    await owner.sessions((s) => s[0]?.pointer.rev === 2 && s[0].outputs.length === 1);
+
+    expect([(await fetch(`${h.url}/api/screen/${id}/image/${inHash}`)).status, (await fetch(`${h.url}/api/screen/${id}/image/${outHash}`)).status]).toEqual([200, 404]);
   });
 });

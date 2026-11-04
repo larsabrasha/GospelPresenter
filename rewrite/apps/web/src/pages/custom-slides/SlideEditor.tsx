@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { resolveTheme, type CustomElement, type CustomPage } from '@gp/core';
-import { getCustomSlide, shownPages } from '../../db/customSlides.ts';
+import { shownPages } from '../../db/customSlides.ts';
 import { orgDefaultThemeId } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -11,6 +11,7 @@ import { CONTEXT_ROW } from '../../ui/ContextMenu.tsx';
 import { ArrowUturnLeftIcon, ArrowUturnRightIcon, PaintBrushIcon } from '../../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../../ui/PageContainer.tsx';
 import { href } from '../../ui/router.ts';
+import { readEdited, renameEdited, savePages, type EditedKind } from './edited.ts';
 import { EditorCanvas } from './EditorCanvas.tsx';
 import { FormatSheet } from './FormatSheet.tsx';
 import * as history from './history.ts';
@@ -22,7 +23,8 @@ import * as model from './slideModel.ts';
 
 // A custom slide's editor (docs/custom-slides.md), as Keynote's: Ångra, Gör om, + and Format above the page; the
 // pages in a column at the left on a computer and an iPad, under the page on a phone; Format's panel at the right, or
-// a sheet on a phone. It saves as it goes, all the pages at once, half a second after the last change.
+// a sheet on a phone. It saves as it goes, all the pages at once, half a second after the last change. An overlay is
+// edited by the same editor, with its one page and no pages to add or background to set.
 
 const SAVE_AFTER_MS = 500;
 
@@ -34,11 +36,11 @@ type Choosing = 'add' | 'replace' | 'background' | null;
 /** Whether a key is the user's typing, not a command (a field has it). */
 const typing = (e: ReactKeyboardEvent) => e.target instanceof HTMLElement && !!e.target.closest('input, textarea, [contenteditable]');
 
-export function SlideEditor({ id }: { id: string }) {
+export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: EditedKind }) {
   const db = useDb();
   const trySave = useTrySave();
   const saved = useSavedIndicator();
-  const slide = useData((d) => getCustomSlide(d, id), [id]);
+  const slide = useData((d) => readEdited(d, edits, id), [edits, id]);
   const theme = resolveTheme(null, useData(orgDefaultThemeId, []));
   const [h, setH] = useState<history.History<CustomPage[]> | null>(null);
   const [at, setAt] = useState(0);
@@ -64,7 +66,7 @@ export function SlideEditor({ id }: { id: string }) {
     dirty.current = false;
     const when = Math.max(Date.now(), known.current + 1);
     known.current = when;
-    if (await trySave(db.mutate('updateCustomSlide', { id, pages: next, at: when }))) saved.show();
+    if (await trySave(savePages(db, edits, id, next, when))) saved.show();
   };
   useEffect(() => {
     if (!pages || !dirty.current) return;
@@ -172,7 +174,8 @@ export function SlideEditor({ id }: { id: string }) {
       pageAt={pageAt}
       element={element}
       textRef={textRef}
-      onRename={(name) => db.mutate('updateCustomSlide', { id, name, at: Date.now() })}
+      onRename={(name) => renameEdited(db, edits, id, name)}
+      hasBackground={edits === 'slide'}
       onSaved={saved.show}
       onPage={onPage}
       onElement={(key, patch) => element && onPage(`${element.id}:${key}`, (p) => model.changeElement(p, element.id, patch))}
@@ -185,24 +188,26 @@ export function SlideEditor({ id }: { id: string }) {
 
   return (
     <PageContainer maxWidthClass="max-w-[1400px]" className="pb-8">
-      <DetailHeader backHref={href({ page: 'customSlides' })} title={slide.name} saved={saved.node} className="px-5" />
+      <DetailHeader backHref={href({ page: edits === 'slide' ? 'customSlides' : 'overlays' })} title={slide.name} saved={saved.node} className="px-5" />
       {/* Three columns where the editor is wide enough (its own width: Inställningar's column is narrower than the
           window), else the page with its pages under it and Format as a sheet. */}
       <div className="@container">
       <div className="flex flex-col @4xl:flex-row gap-4 @4xl:gap-6" onKeyDown={onKeyDown}>
-        <div className="order-3 @4xl:order-1 @4xl:w-44 shrink-0 @4xl:max-h-[75svh] @4xl:overflow-y-auto">
-          <PageNavigator
-            pages={pages}
-            shown={shown}
-            theme={theme}
-            at={pageAt}
-            onOpen={openPage}
-            onAdd={() => (change('', (p) => model.addPage(p, pageAt, false, newId)), openPage(pageAt + 1))}
-            onDuplicate={(i) => (change('', (p) => model.addPage(p, i, true, newId)), openPage(i + 1))}
-            onMove={(i, to) => (change('', (p) => model.movePage(p, i, to)), openPage(to))}
-            onRemove={(i) => (change('', (p) => model.removePage(p, i)), openPage(Math.max(0, i - 1)))}
-          />
-        </div>
+        {edits === 'slide' && (
+          <div className="order-3 @4xl:order-1 @4xl:w-44 shrink-0 @4xl:max-h-[75svh] @4xl:overflow-y-auto">
+            <PageNavigator
+              pages={pages}
+              shown={shown}
+              theme={theme}
+              at={pageAt}
+              onOpen={openPage}
+              onAdd={() => (change('', (p) => model.addPage(p, pageAt, false, newId)), openPage(pageAt + 1))}
+              onDuplicate={(i) => (change('', (p) => model.addPage(p, i, true, newId)), openPage(i + 1))}
+              onMove={(i, to) => (change('', (p) => model.movePage(p, i, to)), openPage(to))}
+              onRemove={(i) => (change('', (p) => model.removePage(p, i)), openPage(Math.max(0, i - 1)))}
+            />
+          </div>
+        )}
         <div className="order-1 @4xl:order-2 flex-1 min-w-0 space-y-3">
           {/* Keynote's toolbar: Ångra and Gör om at the left, + and Format at the right. */}
           <div className="flex items-center gap-1" role="toolbar" aria-label={t('slideEditor.add')}>

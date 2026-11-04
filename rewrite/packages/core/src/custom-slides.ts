@@ -71,6 +71,16 @@ export function parseCustomPages(json: string | null): CustomPage[] {
   }
 }
 
+/** An overlay's page as stored, or a blank one where it does not read. */
+export function parseCustomPage(json: string | null): CustomPage {
+  try {
+    const parsed = customPageSchema.safeParse(JSON.parse(json ?? ''));
+    return parsed.success ? parsed.data : blankPage();
+  } catch {
+    return blankPage();
+  }
+}
+
 /** A page's texts as a public output shows them: top to bottom, then left to right, one to a line. */
 export function customPageText(page: CustomPage): string {
   return page.elements
@@ -94,3 +104,12 @@ export interface ShownPage {
   page: CustomPage;
   images: Record<string, { full: string; thumb: string }>;
 }
+
+const blobHash = z.string().regex(/^[0-9a-f]{64}$/);
+/** A shown page as a paired screen gets it (live-protocol's canvas): the page, and the blobs of its pictures. */
+export const shownPageSchema = z.object({
+  page: customPageSchema,
+  images: z
+    .record(z.string().max(100), z.object({ full: blobHash, thumb: blobHash }))
+    .refine((images) => Object.keys(images).length <= CUSTOM_LIMITS.elements + 1, 'too many pictures'),
+});

@@ -2,7 +2,7 @@
 // picture is two blobs named by their SHA-256, uploaded once and downloaded
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes } from '@gp/core';
+import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes, type CustomPage } from '@gp/core';
 import { hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, type AdapterName, type Device, type Harness } from './harness.ts';
 import { downloader, get, imageArgs, jpeg, presentingP, put, refusedAsTooLarge, TODAY, uploaded, webp } from './media-fixtures.ts';
@@ -437,28 +437,29 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
     bob = await device(h, org, 'bob', 'user');
   });
 
-  it('a user makes and edits one with a library picture; an item carries it until it is deleted', async () => {
+  it('a user makes one and puts a page on it, without a background; an item carries it until it is deleted', async () => {
+    const page: CustomPage = { background: '#000000', backgroundImageId: 'IMG', elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId: 'IMG', fit: 'contain' }] };
     const p = await uploaded(h, org, bob, 'swish');
     await bob.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash));
-    await bob.client.mutate('createOverlay', { id: 'O1', title: ' Kollekt ', content: 'Swish 123 456\n ' });
-    await bob.client.mutate('createOverlay', { id: 'O2', title: 'Välkommen' });
-    await bob.client.mutate('updateOverlay', { id: 'O1', imageId: 'IMG' });
+    await bob.client.mutate('createOverlay', { id: 'O1', title: ' Kollekt ', at: 1 });
+    await bob.client.mutate('createOverlay', { id: 'O2', title: 'Välkommen', at: 1 });
+    await bob.client.mutate('updateOverlay', { id: 'O1', page, at: 2 });
     await bob.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
     await bob.client.mutate('addImageToPresentation', { itemId: 'I1', presentationId: 'P', imageId: 'IMG' });
     await bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'O1' });
     await bob.client.sync();
     expect(bob.client.rejected).toEqual([]);
     let s = await serverDump(h, org, 'bob');
-    expect(s.tables.overlays).toEqual([
-      { id: 'O1', title: 'Kollekt', content: 'Swish 123 456', image_id: 'IMG', sort: 0 },
-      { id: 'O2', title: 'Välkommen', content: null, image_id: null, sort: 1 },
+    expect(s.tables.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as CustomPage }))).toEqual([
+      { id: 'O1', title: 'Kollekt', content: { ...page, background: null, backgroundImageId: null }, image_id: null, sort: 0, updated_at: 2 },
+      { id: 'O2', title: 'Välkommen', content: blankPage(), image_id: null, sort: 1, updated_at: 1 },
     ]);
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: 'O1' }]);
 
-    // An overlay that does not exist, or a picture that does not, is refused; a blank title never saves (PRES-E18).
+    // An overlay that does not exist, or a page that is not one, is refused; a blank title never saves (PRES-E18).
     await expect(bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'NOPE' })).rejects.toThrow('overlay not found');
-    await expect(bob.client.mutate('updateOverlay', { id: 'O1', imageId: 'NOPE' })).rejects.toThrow('image not found');
-    await expect(bob.client.mutate('updateOverlay', { id: 'O1', title: '  ' })).rejects.toThrow();
+    await expect(bob.client.mutate('updateOverlay', { id: 'O1', page: { elements: 'none' }, at: 3 } as never)).rejects.toThrow();
+    await expect(bob.client.mutate('updateOverlay', { id: 'O1', title: '  ', at: 3 })).rejects.toThrow();
 
     // Deleting is permanent, and the item no longer carries it.
     await bob.client.mutate('deleteOverlay', { id: 'O1' });

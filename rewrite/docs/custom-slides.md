@@ -9,7 +9,8 @@ overlays are made the same way. One editor for both, on a phone too.
   from Lägg till's tab Egna slides, or made there as a song is, and it is a reference, as a song is: a change in the
   library shows in every presentation that uses it, old ones too.
 - **An overlay** is one page with no background of its own, drawn above an item's slides when the item carries it,
-  as today (LIVE-R15, `applyLiveChange`). The overlays of before (a text and a picture) are dropped, not converted.
+  as today (LIVE-R15, `applyLiveChange`). The overlays of before (a text and a picture) are dropped, not converted;
+  an import from 1.x makes its overlays pages ([import-from-1x.md](import-from-1x.md)).
 - Both are stored apart, as their own types, and edited by the same editor.
 
 ## A page
@@ -78,4 +79,6 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
 1. The slide's model, its table and mutators; the editor; Egna slides in Inställningar's library and in Lägg till
    (Ctrl/⌘+7, Skapa makes one, puts it in and opens it); the item drawn in the app and in the output window; a
    public output's text; the trash. Done 2026-11-04.
-2. Overlays in the same format, the old ones dropped; paired screens' canvas and the server's picture gate for both.
+2. Overlays in the same format, the old ones dropped (schema 19); Överlägg a library of them and the editor's
+   overlay mode (one page, no background, `pages/custom-slides/edited.ts`); paired screens' canvas and the server's
+   picture gate for both; the pictures fetched with a presentation's files. Done 2026-11-04.

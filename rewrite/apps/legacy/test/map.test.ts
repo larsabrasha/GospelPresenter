@@ -1,4 +1,4 @@
-import { labelId, parseSongSnapshot } from '@gp/core';
+import { labelId, legacyOverlayPage, parseSongSnapshot } from '@gp/core';
 import { describe, expect, it } from 'vitest';
 import { bibleSlideFromHtml } from '../src/bible-html.ts';
 import { booksOf, mapOrg, mapUsers } from '../src/map.ts';
@@ -284,7 +284,9 @@ describe('the rest', () => {
 
     const { rows } = await mapOrg(data, media, 1000);
 
-    expect(rows.overlays).toEqual([{ id: 'ov', title: 'Kollekt', content: null, image_id: 'ov-image', sort: 0 }]);
+    expect(rows.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as unknown }))).toEqual([
+      { id: 'ov', title: 'Kollekt', content: legacyOverlayPage(null, 'ov-image'), image_id: null, sort: 0, updated_at: 1000 },
+    ]);
     expect(rows.images).toEqual([{ id: 'ov-image', file_name: 'Kollekt.webp', content_type: 'image/webp', full_hash: 'f', thumb_hash: 't', width: 800, height: 600, created_at: 1000, deleted_at: null }]);
   });
 });

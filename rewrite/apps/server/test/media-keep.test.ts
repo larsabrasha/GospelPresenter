@@ -132,7 +132,8 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     const p = await presentation('P', null, 'with-overlay');
     const o = await uploaded(h, org, alice, 'overlay');
     await alice.client.mutate('addImage', imageArgs('OVL-IMG', o.fullHash, o.thumbHash));
-    await alice.client.mutate('createOverlay', { id: 'O', title: 'Kollekt', imageId: 'OVL-IMG' });
+    const page = { background: null, backgroundImageId: null, elements: [{ id: 'e1', kind: 'image' as const, x: 0, y: 0, w: 960, h: 540, imageId: 'OVL-IMG', fit: 'contain' as const }] };
+    await alice.client.mutate('createOverlay', { id: 'O', title: 'Kollekt', page, at: 1 });
     await alice.client.sync();
     expect(alice.client.rejected).toEqual([]);
     await bob.client.sync();

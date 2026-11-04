@@ -248,6 +248,8 @@ function PartRow({
   picked: boolean;
   onShow: () => void;
 }) {
+  // A picture, a video and a custom slide show small, as their slide; a song or a reading by its words.
+  const pictured = slide.kind === 'media' || !!slide.custom;
   return (
     <AppButton
       variant="plain"
@@ -258,9 +260,9 @@ function PartRow({
       data-picked={picked || undefined}
       onClick={onShow}
       // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
-      className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : picked ? 'bg-surface border-sky-500' : 'bg-surface border-transparent'}`}
+      className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : picked ? 'bg-surface border-sky-500' : 'bg-surface border-transparent'}`}
     >
-      {slide.kind === 'media' && (
+      {pictured && (
         <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
           <SlideView slide={slide} theme={theme} label={false} credits={false} />
         </span>
@@ -274,11 +276,11 @@ function PartRow({
               {slide.label.text}
             </span>
           ) : (
-            !(alone && slide.kind === 'media') && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
+            !(alone && pictured) && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
           )}
           {mark && <SlideMark kind={mark} />}
         </span>
-        {slide.kind !== 'media' && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
+        {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
       </span>
     </AppButton>
   );

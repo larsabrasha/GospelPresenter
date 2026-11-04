@@ -1,6 +1,5 @@
-import type { Slide, Theme } from '@gp/core';
+import type { ShownPage, Slide, Theme } from '@gp/core';
 import type { ReactNode } from 'react';
-import type { ShownOverlay } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { LIFTED } from '../../ui/glass.ts';
@@ -33,7 +32,7 @@ export function LivePicture({
 }: {
   slide: Slide | null;
   theme: Theme;
-  overlay: ShownOverlay | null;
+  overlay: ShownPage | null;
   black: boolean;
   canStep?: { back: boolean; forward: boolean };
   onStep?: (delta: number) => void;

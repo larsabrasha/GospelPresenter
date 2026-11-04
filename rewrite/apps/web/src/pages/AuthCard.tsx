@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { t } from '../i18n.ts';
 import { LogoIcon } from '../ui/icons.tsx';
 
 /** The logo and the name in two blues (Login.razor, Setup.razor). */
@@ -48,4 +49,9 @@ export function FormError({ text, center }: { text: string | null; center?: bool
       {text}
     </p>
   ) : null;
+}
+
+/** The app on its way: the logo and Laddar..., as long as there is nothing else to show. */
+export function Starting() {
+  return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-stone-400" />;
 }
