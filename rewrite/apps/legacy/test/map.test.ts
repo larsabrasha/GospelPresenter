@@ -1,4 +1,4 @@
-import { labelId, legacyOverlayPage, parseSongSnapshot } from '@gp/core';
+import { labelId, legacyOverlayPage, parseSongSnapshot, pdfPages } from '@gp/core';
 import { describe, expect, it } from 'vitest';
 import { bibleSlideFromHtml } from '../src/bible-html.ts';
 import { booksOf, mapOrg, mapUsers } from '../src/map.ts';
@@ -190,7 +190,7 @@ describe('presentations', () => {
     expect(JSON.parse(String(row!.content))).toEqual({ translation: '', slides: [[{ n: 16, t: 'Ty så' }]] });
   });
 
-  it('makes a deck of the library of the pages a slide deck item shows, in the item’s order, which the item names', () => {
+  it('makes a slideshow of PDF pages of the pages a slide deck item shows, in the item’s order, which the item names', () => {
     const media = noMedia();
     media.decks.set(
       'd1',
@@ -211,10 +211,11 @@ describe('presentations', () => {
 
     const { rows, decks } = mapItems(data, media, 1000);
 
-    expect([rows[0]?.source_id, rows[0]?.content, decks]).toEqual([
+    expect([rows[0]?.type, rows[0]?.source_id, rows[0]?.content, decks]).toEqual([
+      'custom',
       'i1',
       null,
-      [{ id: 'i1', name: 'Predikan.pdf', pages: JSON.stringify([{ full: 'f1', thumb: 't1' }, { full: 'f0', thumb: 't0' }]), created_at: 1000, updated_at: 1000, deleted_at: null }],
+      [{ id: 'i1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages([{ full: 'f1', thumb: 't1' }, { full: 'f0', thumb: 't0' }])), created_at: 1000, updated_at: 1000, deleted_at: null }],
     ]);
   });
 });

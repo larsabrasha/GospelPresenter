@@ -1,6 +1,6 @@
-// Slide decks (D29, PRES-R11, docs/media-and-files.md "Slide decks"): a PDF is rendered on the device by pdf.js,
-// one picture per page, kept there, uploaded to the host and shown on the output. A PowerPoint is refused with how
-// to save it as PDF. A deck is in the library (Inställningar → PowerPoint), and an item names it.
+// PDFs (D29, PRES-R11, docs/custom-slides.md): a PDF is rendered on the device by pdf.js, one picture per page,
+// kept there, uploaded to the host and shown on the output. A PowerPoint is refused with how to save it as PDF. A
+// PDF is a slideshow of the library (Inställningar → Bildspel), its pages its pages' pictures, and an item names it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -22,7 +22,7 @@ function storedBlobs(dataDir: string): Buffer[] {
     .map((e) => readFileSync(join(e.parentPath, e.name)));
 }
 
-test('a three-page PDF becomes a slide deck item whose pages show on the output; a PowerPoint and a 101-page PDF are refused', async () => {
+test('a three-page PDF becomes a slideshow item whose pages show on the output; a PowerPoint and a 101-page PDF are refused', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -30,7 +30,7 @@ test('a three-page PDF becomes a slide deck item whose pages show on the output;
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Lägg till' });
   await page.keyboard.press('Control+5');
-  await expect(dialog.getByRole('tab', { name: 'PowerPoint' })).toHaveAttribute('aria-selected', 'true');
+  await expect(dialog.getByRole('tab', { name: 'Bildspel' })).toHaveAttribute('aria-selected', 'true');
   const file = dialog.getByTestId('slides-file');
 
   // A PowerPoint is refused with how to save it as PDF.
@@ -58,7 +58,7 @@ test('a three-page PDF becomes a slide deck item whose pages show on the output;
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Predikan.pdf 1' }).click();
-  const shown = output.getByTestId('slide-image');
+  const shown = output.getByTestId('custom-page').locator('img');
   await expect(shown).toBeVisible();
   await expect(output.getByTestId('slide-stage')).toHaveAttribute('data-kind', 'media');
   await expect.poll(() => shown.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight])).toEqual([1920, 1080]);
@@ -66,14 +66,14 @@ test('a three-page PDF becomes a slide deck item whose pages show on the output;
   expect(host.events.filter((e) => e.event === 'blocked-request')).toEqual([]);
 });
 
-test('a deck imported into the library goes into a presentation as a reference, and a new PDF changes it there', async () => {
+test('a PDF imported into the library goes into a presentation as a reference, and a new PDF changes it there', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await openAdmin(page, 'PowerPoint');
+  await openAdmin(page, 'Bildspel');
   await page.getByTestId('slide-deck-file').setInputFiles({ name: 'Predikan.pdf', mimeType: 'application/pdf', buffer: colouredPdf(2) });
-  const card = page.getByTestId('slide-deck-card');
-  await expect(card).toContainText('2 sidor', { timeout: 15_000 });
+  const card = page.getByTestId('custom-slide-card');
+  await expect(card).toContainText('Predikan.pdf', { timeout: 15_000 });
   await closeAdmin(page);
 
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
@@ -86,12 +86,13 @@ test('a deck imported into the library goes into a presentation as a reference, 
   const parts = page.getByRole('list', { name: 'Predikan.pdf' }).getByRole('listitem');
   await expect(parts).toHaveCount(2);
 
-  // Ersätt med ny PDF, in the deck's menu: the presentation shows the new pages.
-  await openAdmin(page, 'PowerPoint');
-  await card.getByRole('button', { name: 'Predikan.pdf', exact: true }).click({ button: 'right' });
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('menuitem', { name: 'Ersätt med ny PDF' }).click()]);
+  // Ersätt med ny PDF, in the slideshow's menu, after a question: the presentation shows the new pages.
+  await openAdmin(page, 'Bildspel');
+  await card.getByRole('link', { name: 'Predikan.pdf', exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Ersätt med ny PDF' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog', { name: 'Ersätt med ny PDF' }).getByRole('button', { name: 'Välj PDF' }).click()]);
   await chooser.setFiles({ name: 'Predikan v2.pdf', mimeType: 'application/pdf', buffer: colouredPdf(3) });
-  await expect(card).toContainText('3 sidor', { timeout: 15_000 });
+  await expect(page.getByRole('status').getByText('Predikan.pdf har fått nya sidor')).toBeVisible({ timeout: 15_000 });
   await closeAdmin(page);
   await expect(parts).toHaveCount(3);
 });

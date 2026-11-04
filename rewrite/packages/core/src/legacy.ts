@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
 import { parseBibleContent } from './bible.ts';
-import { blankPage, CUSTOM_LIMITS, type CustomElement, type CustomPage } from './custom-slides.ts';
-import { parseSlideDeckPages, slideDeckPagesSchema } from './slides.ts';
+import { blankPage, CUSTOM_LIMITS, customPagesSchema, pdfPages, type CustomElement, type CustomPage } from './custom-slides.ts';
+import { slideDeckPagesSchema } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
 import { CANVAS } from './themes.ts';
 
@@ -12,10 +12,11 @@ import { CANVAS } from './themes.ts';
 
 /**
  * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay
- * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. An import reads
- * the older ones too (`upgradeLegacyRows`).
+ * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. 4: a slide
+ * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. An import reads the older ones
+ * too (`upgradeLegacyRows`).
  */
-export const LEGACY_FORMAT = 3;
+export const LEGACY_FORMAT = 4;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -40,7 +41,7 @@ export const LEGACY_TABLES = [
   'song_arrangements',
   'song_versions',
   'presentations',
-  'slide_decks',
+  'custom_slides',
   'presentation_items',
   'ccli_entries',
 ] as const;
@@ -93,34 +94,54 @@ export function legacyOverlayPage(content: string | null, imageId: string | null
   return { ...blankPage(), elements };
 }
 
-/** The formats an import reads: this one, 2, whose decks were on their items, and 1, whose overlays were a text and a picture too. */
-export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, LEGACY_FORMAT];
+/** The formats an import reads: this one, 3 (decks of their own), 2 (decks on their items), 1 (overlays of a text and a picture too). */
+export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, LEGACY_FORMAT];
 
 const text = (v: LegacyRow[string] | undefined) => (typeof v === 'string' ? v : null);
 /** A deck item's content before format 3: the file's name and its pages. */
 const deckContentSchema = z.object({ pages: slideDeckPagesSchema });
 
+/** A slideshow row of a PDF's pages, as schema 21 made them of the decks already here. */
+const slideshowRow = (id: LegacyRow[string] | undefined, name: LegacyRow[string] | undefined, pages: unknown): LegacyRow => ({
+  id: id ?? null,
+  name: name ?? null,
+  pages: JSON.stringify(pdfPages(slideDeckPagesSchema.parse(pages))),
+  created_at: 0,
+  updated_at: 0,
+  deleted_at: null,
+});
+
+/** The rows of a zip before format 4: `custom_slides` missing, `slide_decks` there in 3. */
+type OlderRows = Omit<LegacyRows, 'custom_slides'> & { custom_slides?: LegacyRow[]; slide_decks?: LegacyRow[] };
+
 /**
- * A zip's rows as this format has them. `slide_decks` is missing from a zip before 3: each deck item's pages
- * become a deck of the item's id, as schema 20 made them of the decks already here.
+ * A zip's rows as this format has them. Before 4 a deck's pages become a slideshow of PDF pages that its item
+ * names: in 3 each `slide_decks` row, before 3 each deck item's own pages, as the item's id.
  */
-export function upgradeLegacyRows(format: number, rows: Omit<LegacyRows, 'slide_decks'> & Partial<Pick<LegacyRows, 'slide_decks'>>): LegacyRows {
-  if (format >= LEGACY_FORMAT) return { ...rows, slide_decks: rows.slide_decks ?? [] };
-  const decks: LegacyRow[] = [];
-  const items = rows.presentation_items.map((item) => {
-    if (item.type !== 'slides') return item;
-    let pages: unknown = null;
+export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
+  const { slide_decks: decks = [], custom_slides: slideshows = [], ...rest } = rows;
+  if (format >= LEGACY_FORMAT) return { ...rest, custom_slides: slideshows };
+  const made: LegacyRow[] = [];
+  for (const d of decks) {
     try {
-      pages = deckContentSchema.parse(JSON.parse(text(item.content) ?? '')).pages;
+      made.push(slideshowRow(d.id, d.name, JSON.parse(text(d.pages) ?? '')));
+    } catch {
+      made.push({ ...d, pages: null }); // left for legacyRowsProblem to name
+    }
+  }
+  const items = rest.presentation_items.map((item) => {
+    if (item.type !== 'slides') return item;
+    if (format >= 3) return { ...item, type: 'custom' };
+    try {
+      made.push(slideshowRow(item.id, item.title, deckContentSchema.parse(JSON.parse(text(item.content) ?? '')).pages));
     } catch {
       return item; // left for legacyRowsProblem to name
     }
-    decks.push({ id: item.id ?? null, name: item.title ?? null, pages: JSON.stringify(pages), created_at: 0, updated_at: 0, deleted_at: null });
-    return { ...item, source_id: item.id ?? null, content: null };
+    return { ...item, type: 'custom', source_id: item.id ?? null, content: null };
   });
   const overlays =
     format === 1
-      ? rows.overlays.map((o) => ({
+      ? rest.overlays.map((o) => ({
           id: o.id ?? null,
           title: o.title ?? null,
           content: JSON.stringify(legacyOverlayPage(text(o.content), text(o.image_id))),
@@ -128,9 +149,17 @@ export function upgradeLegacyRows(format: number, rows: Omit<LegacyRows, 'slide_
           sort: o.sort ?? null,
           updated_at: null,
         }))
-      : rows.overlays;
-  return { ...rows, overlays, presentation_items: items, slide_decks: decks };
+      : rest.overlays;
+  return { ...rest, overlays, presentation_items: items, custom_slides: made };
 }
+
+const readsAsPages = (json: string | null) => {
+  try {
+    return customPagesSchema.safeParse(JSON.parse(json ?? '')).success;
+  } catch {
+    return false;
+  }
+};
 
 /** What the server answers when it refuses an import, with a `detail` naming the row. */
 export type LegacyImportRefusal = 'invalid-rows' | 'missing-media' | 'missing-bible' | 'write-failed';
@@ -162,10 +191,10 @@ export function legacyRowsProblem(rows: LegacyRows): string | null {
   }
   // An output's code is not checked: one 2.0 does not use (1.x let a code be typed, "scene") gets a new one.
   for (const d of rows.displays) if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${String(d.id)}: no kind "${String(d.kind)}"`;
-  for (const d of rows.slide_decks) if (!parseSlideDeckPages(text(d.pages)).length) return `slide_decks ${String(d.id)}: pages that do not read`;
+  for (const c of rows.custom_slides) if (!readsAsPages(text(c.pages))) return `custom_slides ${String(c.id)}: pages that do not read`;
   for (const item of rows.presentation_items) {
     const content = typeof item.content === 'string' ? item.content : null;
-    if (item.type === 'slides' && content !== null) return `presentation_items ${String(item.id)}: a slide deck item with its pages on it, not in slide_decks`;
+    if (item.type === 'slides') return `presentation_items ${String(item.id)}: a slide deck item, not a slideshow`;
     if (item.type === 'bible' && !parseBibleContent(content)) return `presentation_items ${String(item.id)}: a Bible passage that does not read`;
   }
   return null;

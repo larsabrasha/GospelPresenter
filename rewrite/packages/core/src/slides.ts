@@ -138,25 +138,22 @@ export function imageItemIds(item: { sourceId: string; content: string | null })
   }
 }
 
-// ------------------------------------------------------------------ slide decks (PRES-R11, D29)
+// ------------------------------------------------------------------ PDFs (PRES-R11, D29): a slideshow's pages
 
-/** At most this many pages in one slide deck (PRES-R11). */
+/** At most this many pages in a PDF the import takes (PRES-R11). */
 export const MAX_SLIDE_PAGES = 100;
 
 /** The largest PDF the import takes (PRES-R11): 50 MB. */
 export const MAX_SLIDES_SOURCE_BYTES = 50 * 1024 * 1024;
 
-/** One page of a slide deck: the hashes of its two pictures, as a library picture has (MEDIA-R4). */
+/** One page of a PDF, rendered at import: the hashes of its two pictures, as a library picture has (MEDIA-R4). */
 export interface SlidePage {
   full: string;
   thumb: string;
 }
 
-/** At most this many slide decks in the library, the trash not counted. */
-export const MAX_SLIDE_DECKS = 1000;
-
 const slidePageSchema = z.object({ full: z.string().regex(MEDIA_HASH), thumb: z.string().regex(MEDIA_HASH) });
-/** A deck's pages as stored (`slide_decks.pages`), rendered once at import. */
+/** A PDF's pages, rendered at import: what `addSlides` takes, and a deck of before (schema 20, a zip of format 3). */
 export const slideDeckPagesSchema = z.array(slidePageSchema).min(1).max(MAX_SLIDE_PAGES);
 
 /** A deck's pages, or none where they do not read. */
@@ -167,9 +164,4 @@ export function parseSlideDeckPages(json: string | null): SlidePage[] {
   } catch {
     return [];
   }
-}
-
-/** A slide deck's slides: each page a picture filling the stage, like an image item. */
-export function slideDeckSlides(pages: SlidePage[]): Slide[] {
-  return pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, thumb: page.thumb, label: null, credits: null }));
 }

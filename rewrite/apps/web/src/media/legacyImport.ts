@@ -9,7 +9,6 @@ import {
   upgradeLegacyRows,
   utf8Decode,
   type LegacyManifest,
-  type LegacyRows,
 } from '@gp/core';
 import { api, authHeaders } from '../auth/api.ts';
 import { serverUrl } from '../server.ts';
@@ -126,9 +125,10 @@ export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
 export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => void): Promise<LegacyImportResult> {
   const entries = await readZipFile(file);
   const manifest = await readLegacyManifest(file);
-  // A zip of an older format lacks the tables added since (`slide_decks` before 3); the upgrade makes them.
-  const tables = LEGACY_TABLES.filter((t) => manifest.format >= LEGACY_FORMAT || t !== 'slide_decks');
-  const read = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as Omit<LegacyRows, 'slide_decks'>;
+  // A zip of an older format has the tables of its own: `slide_decks` in 3, and no `custom_slides` before 4. The
+  // upgrade makes this format's of them.
+  const tables = manifest.format >= LEGACY_FORMAT ? [...LEGACY_TABLES] : [...LEGACY_TABLES.filter((t) => t !== 'custom_slides'), ...(manifest.format === 3 ? ['slide_decks'] : [])];
+  const read = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as Parameters<typeof upgradeLegacyRows>[1];
   const rows = upgradeLegacyRows(manifest.format, read);
   const users = legacyUsersSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.users)));
   if (!users.success) throw new LegacyImportError('not-export');

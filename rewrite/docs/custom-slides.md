@@ -1,13 +1,15 @@
-# Custom slides and overlays
+# Slideshows (Bildspel) and overlays
 
 Decided with Lars on 2026-11-04: a church makes its own slides by placing texts, pictures and shapes freely, and
-overlays are made the same way. One editor for both, on a phone too.
+overlays are made the same way. One editor for both, on a phone too. A PDF (a PowerPoint or Keynote deck saved as
+PDF) is a slideshow too, its pages its pages' pictures: one kind of thing, Bildspel, made here or imported.
 
 ## What it is
 
-- **A custom slide** (Egna slides) is an item of the library with one or more pages. It is added to a presentation
-  from Lägg till's tab Egna slides, or made there as a song is, and it is a reference, as a song is: a change in the
-  library shows in every presentation that uses it, old ones too.
+- **A slideshow** (Bildspel; `custom_slides`, a custom slide in the code) is an item of the library with one or more
+  pages, made in the editor or imported from a PDF. It is added to a presentation from Lägg till's tab Bildspel
+  (Ctrl/⌘+5), or made or imported there, and it is a reference, as a song is: a change in the library shows in every
+  presentation that uses it, old ones too.
 - **An overlay** is one page with no background of its own, drawn above an item's slides when the item carries it,
   as today (LIVE-R15, `applyLiveChange`). The overlays of before (a text and a picture) are dropped, not converted;
   an import from 1.x makes its overlays pages ([import-from-1x.md](import-from-1x.md)).
@@ -24,12 +26,13 @@ each with a box in stage pixels (`x`, `y`, `w`, `h`):
 - **rect** (with a corner radius), **ellipse**: a fill and an outline, each a colour or none;
 - **line**: from the box's one corner to the other, a colour and a width.
 
-A page's background is a colour, a picture of Bilder, or nothing. Nothing, and a colour or a font that is not set,
+A page's background is a colour, a picture of Bilder, or nothing, and over it a PDF's page (`backgroundPage`, the
+hashes of its `full` and `thumb` blobs), fitted to the stage, where the slideshow was imported. Nothing, and a colour or a font that is not set,
 follow the presentation's theme: the background, the font and the text colour of its song slides. So the same slide
 fits a dark and a light theme, and what is set stays as set. An overlay's page has no background.
 
-Limits, so a page stays small enough to sync and draw: 100 elements a page, 50 pages a slide, 2 000 characters a
-text.
+Limits, so a page stays small enough to sync and draw: 100 elements a page, 100 pages a slideshow (a PDF's most),
+2 000 characters a text, 1 000 slideshows outside the trash.
 
 ## Where it lives
 
@@ -41,6 +44,26 @@ text.
   now, one per page (`apps/web/src/live/live.ts`).
 - `overlays` keeps its table and ids, so items, the live pointer and the outputs keep naming overlays as now; its
   `content` holds the page (JSON), and `image_id` is no longer used.
+
+## PDFs
+
+A PDF, picked or dropped in Lägg till's Bildspel or in Inställningar → Bildspel, is rendered on the device, one
+picture per page ([media-and-files.md](media-and-files.md#slide-decks)), and becomes a slideshow named by the
+file, each page the picture of its PDF page on black (`pdfPages`) with nothing on it: Lägg till puts it in the
+presentation at once (`addSlides`). It is then a slideshow as any other: its pages can be removed, moved, and have
+texts put on them, and a page's PDF picture taken away (Format, with nothing picked). A slideshow with a PDF page
+has Ersätt med ny PDF in its menu: after a question, all its pages are the new PDF's, what was put on them gone,
+in every presentation that shows it. A page with a PDF picture is a picture slide for the outputs: a public output
+gets its picture (and its texts), as an image item's.
+
+The PDF's blobs are kept while a slideshow of the library, the trash too, names them (`ORPHAN_BLOBS_SQL`); the
+server cleans up after a slideshow is made, changed or purged. A slideshow's mutators are refused with
+`media-missing` if a PDF page's blob is unknown where they run, and `MediaUploads` uploads them before the push.
+
+Until schema 20 a PDF was a snapshot on its item, and until 21 a deck of a table of its own (`slide_decks`):
+schema 20 made each item's pages a deck, and 21 made each deck a slideshow of its id, its items slideshow items,
+and dropped the table. An import from 1.x writes slideshows; a zip of an older format is upgraded
+(`upgradeLegacyRows`).
 
 ## The outputs
 
@@ -82,3 +105,4 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
 2. Overlays in the same format, the old ones dropped (schema 19); Överlägg a library of them and the editor's
    overlay mode (one page, no background, `pages/custom-slides/edited.ts`); paired screens' canvas and the server's
    picture gate for both; the pictures fetched with a presentation's files. Done 2026-11-04.
+3. A PDF is a slideshow (schema 21): one library and one tab, Bildspel, for both (Lars, 2026-11-04). Done 2026-11-04.

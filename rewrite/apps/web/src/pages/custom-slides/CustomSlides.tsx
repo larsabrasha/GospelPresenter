@@ -1,17 +1,21 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { blankPage, resolveTheme } from '@gp/core';
 import { listCustomSlides, shownPages, type LibraryCustomSlide } from '../../db/customSlides.ts';
 import { orgDefaultThemeId } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
-import { AddButton } from '../../ui/AddButton.tsx';
+import { useDeckImport } from '../../media/deckImport.ts';
+import { AddButton, RoundButton } from '../../ui/AddButton.tsx';
+import { AppButton } from '../../ui/AppButton.tsx';
+import { useConfirm } from '../../ui/Dialog.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
-import { ShapesIcon } from '../../ui/icons.tsx';
+import { ArrowDownTrayIcon, ArrowsRightLeftIcon, ShapesIcon } from '../../ui/icons.tsx';
 import { Library } from '../../ui/Library.tsx';
 import { NameDialog } from '../../ui/NameDialog.tsx';
 import { href, navigate } from '../../ui/router.ts';
 import { SlideView } from '../../ui/SlideView.tsx';
+import { useToast } from '../../ui/Toast.tsx';
 import { trashTexts } from '../Images.tsx';
 import { pageSlide } from './PageNavigator.tsx';
 
@@ -26,54 +30,101 @@ export function FirstPage({ slide, themeId }: { slide: LibraryCustomSlide; theme
   );
 }
 
+const PDF = 'application/pdf,.pdf';
+
 /**
- * Egna slides (docs/custom-slides.md): the organisation's own slides, as a grid of their first pages; a tap opens
- * one's editor, + makes a new one, named first, and opens it.
+ * Bildspel (docs/custom-slides.md): the organisation's slideshows, made here or imported from a PDF, as a grid of
+ * their first pages; a tap opens one's editor, + makes a new one, named first, and opens it, and Importera (or a
+ * drop) takes a PDF. A slideshow of a PDF's pages has Ersätt med ny PDF in its menu: after a question, its pages
+ * are the new PDF's, what was put on them gone, in every presentation that shows it.
  */
 export function CustomSlides() {
   const db = useDb();
   const trySave = useTrySave();
+  const toast = useToast();
+  const { dialog, ask } = useConfirm();
   const slides = useData(listCustomSlides, []);
   const themeId = useData(orgDefaultThemeId, []);
   const [creating, setCreating] = useState(false);
+  const { importing, error, run } = useDeckImport();
+  const picker = useRef<HTMLInputElement>(null);
+  /** What the next picked PDF is for: a new slideshow, or the pages of this one. */
+  const replacing = useRef<LibraryCustomSlide | null>(null);
   const byName = (a: LibraryCustomSlide, b: LibraryCustomSlide) => a.name.localeCompare(b.name, 'sv', { numeric: true });
+  const pick = (slide: LibraryCustomSlide | null) => {
+    replacing.current = slide;
+    picker.current?.click();
+  };
+  const picked = async (file: File | undefined) => {
+    const slide = replacing.current;
+    if (!slide) await run(file, { deckId: newId(), into: 'library' });
+    else if (await run(file, { deckId: slide.id, into: 'replace' })) toast(t('slideDecks.replaced', { name: slide.name }));
+  };
+  const replace = async (slide: LibraryCustomSlide) => {
+    if (await ask({ title: t('slideDecks.replace'), text: t('slideDecks.replaceAsk', { name: slide.name }), bold: slide.name, confirm: t('slideDecks.replaceConfirm') })) pick(slide);
+  };
 
   return (
-    <Library
-      title={t('nav.customSlides')}
-      items={slides}
-      layout="grid"
-      renderTile={(s) => <FirstPage slide={s} themeId={themeId} />}
-      open={(s) => href({ page: 'customSlide', id: s.id })}
-      sorts={[
-        { key: 'changed', label: t('library.sort.changed'), compare: (a, b) => b.updatedAt - a.updatedAt || byName(a, b) },
-        { key: 'newest', label: t('library.sort.newest'), compare: (a, b) => b.createdAt - a.createdAt || byName(a, b) },
-        { key: 'name', label: t('library.sort.name'), compare: byName },
-      ]}
-      manage
-      rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateCustomSlide', { id: s.id, name, at: Date.now() }) }}
-      remove={{ ...trashTexts('customSlides.trashed'), run: (s) => db.mutate('trashCustomSlide', { id: s.id, at: Date.now() }) }}
-      add={<AddButton label={t('customSlides.new')} onClick={() => setCreating(true)} />}
-      notices={
-        creating && (
-          <NameDialog
-            title={t('customSlides.createTitle')}
-            label={t('song.name')}
-            maxLength={200}
-            initial=""
-            onClose={() => setCreating(false)}
-            submit={async (name) => {
-              const id = newId();
-              if (await trySave(db.mutate('createCustomSlide', { id, name, pages: [blankPage()], at: Date.now() }))) navigate({ page: 'customSlide', id });
-            }}
-          />
-        )
-      }
-      loading={t('common.loading')}
-      empty={{ icon: <ShapesIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty') }}
-      noMatch={t('customSlides.noMatch')}
-      count={(n) => t(n === 1 ? 'customSlides.count.one' : 'customSlides.count.many', { n })}
-      testId="custom-slide"
-    />
+    <>
+      {dialog}
+      <input ref={picker} type="file" accept={PDF} hidden data-testid="slide-deck-file" onChange={(e) => (void picked(e.target.files?.[0]), (e.target.value = ''))} />
+      <Library
+        title={t('nav.customSlides')}
+        items={slides}
+        layout="grid"
+        renderTile={(s) => <FirstPage slide={s} themeId={themeId} />}
+        open={(s) => href({ page: 'customSlide', id: s.id })}
+        sorts={[
+          { key: 'changed', label: t('library.sort.changed'), compare: (a, b) => b.updatedAt - a.updatedAt || byName(a, b) },
+          { key: 'newest', label: t('library.sort.newest'), compare: (a, b) => b.createdAt - a.createdAt || byName(a, b) },
+          { key: 'name', label: t('library.sort.name'), compare: byName },
+        ]}
+        manage
+        renderActions={(s, row) =>
+          s.pages.some((page) => page.backgroundPage) && (
+            <AppButton variant="plain" role="menuitem" className={row} onClick={() => void replace(s)}>
+              <ArrowsRightLeftIcon className="size-4" />
+              {t('slideDecks.replace')}
+            </AppButton>
+          )
+        }
+        rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateCustomSlide', { id: s.id, name, at: Date.now() }) }}
+        remove={{ ...trashTexts('customSlides.trashed'), run: (s) => db.mutate('trashCustomSlide', { id: s.id, at: Date.now() }) }}
+        add={
+          <>
+            <RoundButton text={t('slides.importShort')} title={t('slides.import')} icon={<ArrowDownTrayIcon className="size-5" />} disabled={importing} onClick={() => pick(null)} />
+            <AddButton label={t('customSlides.new')} onClick={() => setCreating(true)} />
+          </>
+        }
+        drop={{ label: t('slides.dropHere'), accept: PDF, multiple: false, onFiles: (files) => void run(files[0], { deckId: newId(), into: 'library' }) }}
+        notices={
+          <>
+            {(importing || error) && (
+              <p className={`px-5 text-sm ${error ? 'text-red-500 dark:text-red-400' : 'text-stone-500 dark:text-stone-400'}`} role={error ? 'alert' : 'status'}>
+                {error ?? t('slides.importing')}
+              </p>
+            )}
+            {creating && (
+              <NameDialog
+                title={t('customSlides.createTitle')}
+                label={t('song.name')}
+                maxLength={200}
+                initial=""
+                onClose={() => setCreating(false)}
+                submit={async (name) => {
+                  const id = newId();
+                  if (await trySave(db.mutate('createCustomSlide', { id, name, pages: [blankPage()], at: Date.now() }))) navigate({ page: 'customSlide', id });
+                }}
+              />
+            )}
+          </>
+        }
+        loading={t('common.loading')}
+        empty={{ icon: <ShapesIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty') }}
+        noMatch={t('customSlides.noMatch')}
+        count={(n) => t(n === 1 ? 'customSlides.count.one' : 'customSlides.count.many', { n })}
+        testId="custom-slide"
+      />
+    </>
   );
 }

@@ -77,6 +77,12 @@ export function Inspector({
               {t('slideEditor.removeBackground')}
             </AppButton>
           )}
+          {/* A PDF's page under the elements: taken away, the page is its background and elements only. */}
+          {page.backgroundPage && (
+            <AppButton variant="plain" className={ACTION_ROW} onClick={() => onPage('background', (p) => ({ ...p, backgroundPage: null }))}>
+              {t('slideEditor.removePdfPage')}
+            </AppButton>
+          )}
         </Group>
       )}
     </div>

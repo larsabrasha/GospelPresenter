@@ -7,7 +7,6 @@ import {
   imageSlide,
   newer,
   parseBibleContent,
-  slideDeckSlides,
   songSlides,
   type LivePointer,
   type Label,
@@ -24,7 +23,6 @@ import {
 import type { ReadDb } from '../db/share.ts';
 import type { OutputVideo } from './video.ts';
 import { getCustomSlide, shownPages } from '../db/customSlides.ts';
-import { getSlideDeck } from '../db/slideDecks.ts';
 import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
@@ -157,7 +155,7 @@ export class LiveChannel {
 export interface ItemSlides {
   slides: Slide[];
   /** Why the item has no slides, if it has none. An audio item has none by nature. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | 'custom-missing' | 'deck-missing' | null;
+  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | 'custom-missing' | null;
   /** An audio item's file: played on the presenting computer, never shown (LIVE-R6). */
   audio?: { hash: string; fileName: string };
   /** A video item's video: its one slide plays it on the outputs, its sound on the presenting computer. */
@@ -167,8 +165,8 @@ export interface ItemSlides {
 /**
  * The slides of one item. A song item is a reference: its slides come from
  * the current song in the item's arrangement (spec 03). A Bible item carries
- * its own slides, frozen when it was added (BIBLE-R12); a slide deck item
- * names a deck of the library, whose pages were rendered once at import (D29).
+ * its own slides, frozen when it was added (BIBLE-R12); a slideshow item
+ * names a slideshow of the library, a PDF's pages too (D29).
  */
 export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
   return (await slidesOfItems(db, [item])).get(item.id)!;
@@ -203,10 +201,6 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
     const slides = content ? bibleItemSlides(item.title, content) : [];
     return { slides, problem: slides.length ? null : 'no-parts' };
   }
-  if (item.type === 'slides') {
-    const deck = await getSlideDeck(db, item.sourceId);
-    return deck ? { slides: slideDeckSlides(deck.pages), problem: null } : { slides: [], problem: 'deck-missing' };
-  }
   if (item.type === 'audio') {
     const audio = await getAudio(db, item.sourceId);
     return audio ? { slides: [], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
@@ -220,7 +214,11 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
     const custom = await getCustomSlide(db, item.sourceId);
     if (!custom) return { slides: [], problem: 'custom-missing' };
     const pages = await shownPages(db, custom.pages);
-    const slides = pages.map((shown, i): Slide => ({ key: `page${i}`, kind: 'song', image: null, text: customPageText(shown.page), verses: null, label: null, credits: null, custom: shown }));
+    // A PDF's page is a picture slide too: a public output and a screen show its picture (the gate's SLIDE_PAGES_SQL).
+    const slides = pages.map((shown, i): Slide => {
+      const pdf = shown.page.backgroundPage;
+      return { key: `page${i}`, kind: pdf ? 'media' : 'song', image: pdf?.full ?? null, thumb: pdf?.thumb ?? null, text: customPageText(shown.page), verses: null, label: null, credits: null, custom: shown };
+    });
     return { slides, problem: null };
   }
   if (item.type === 'image') {

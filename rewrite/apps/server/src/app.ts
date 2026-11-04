@@ -56,7 +56,8 @@ export interface Org {
 /**
  * The pushes after which blobs may be unused: a purge, the expired trash, and
  * an add (whose upload may have left a refused add's blobs behind), of pictures,
- * audio, videos and slide decks, and a deck's new PDF, which leaves the old pages.
+ * audio, videos and PDFs, and a slideshow's change, which may leave a PDF's pages behind (a new PDF, a page
+ * removed).
  */
 const MEDIA_GC_MUTATORS: readonly string[] = [
   'purgeImage',
@@ -67,9 +68,9 @@ const MEDIA_GC_MUTATORS: readonly string[] = [
   'purgeVideo',
   'addVideo',
   'addSlides',
-  'addSlideDeck',
-  'updateSlideDeck',
-  'purgeSlideDeck',
+  'createCustomSlide',
+  'updateCustomSlide',
+  'purgeCustomSlide',
 ];
 
 /**

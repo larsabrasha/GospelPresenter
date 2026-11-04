@@ -107,7 +107,7 @@ export interface ImageImport {
   thumb: Uint8Array;
 }
 
-/** Where a rendered PDF goes: a new deck of the library, one put in a presentation too, or a deck's new pages. */
+/** Where a rendered PDF goes: a new slideshow of the library, one put in a presentation too, or a slideshow's new pages. */
 export type SlidesTarget = { deckId: string; into: 'library' | 'replace' | { presentationId: string; itemId: string; afterItemId: string | null } };
 
 /** A PDF the page has rendered (`media/slides.ts`), ready to be kept and added. */

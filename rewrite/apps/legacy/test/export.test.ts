@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LEGACY_ENTRIES, legacyManifestSchema, readZip, sniffStoredImage, utf8Decode, type LegacyRows } from '@gp/core';
+import { LEGACY_ENTRIES, LEGACY_FORMAT, legacyManifestSchema, readZip, sniffStoredImage, utf8Decode, type LegacyRows } from '@gp/core';
 import { Client } from 'pg';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -59,7 +59,7 @@ describe.skipIf(!URL)('the export from a 1.x database', () => {
   it('writes a manifest of the format the import reads, with the organisation’s name', () => {
     const manifest = legacyManifestSchema.parse(JSON.parse(utf8Decode(entries.get(LEGACY_ENTRIES.manifest)!)));
 
-    expect(manifest).toMatchObject({ format: 1, orgName: 'Testkyrkan' });
+    expect(manifest).toMatchObject({ format: LEGACY_FORMAT, orgName: 'Testkyrkan' });
   });
 
   it('moves only the chosen organisation’s rows', () => {
@@ -118,7 +118,7 @@ describe.skipIf(!URL)('the export from a 1.x database', () => {
       ['bible', 1],
       ['image', 2],
       ['audio', 3],
-      ['slides', 4],
+      ['custom', 4],
     ]);
     expect(report.skipped).toEqual([{ presentationId: 'pres-1', title: 'Rensad sång', reason: 'no-song' }]);
   });

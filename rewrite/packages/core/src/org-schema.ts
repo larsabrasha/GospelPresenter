@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -97,7 +97,6 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
   videoFilesDdl,
   customSlidesDdl,
-  slideDecksDdl,
   ...orgIndexes,
 ];
 
@@ -129,6 +128,19 @@ export const orgMigrations: Record<number, string[]> = {
        SELECT id, title, json_extract(content, '$.pages'), 0, 0, NULL FROM presentation_items
        WHERE type = 'slides' AND (CASE WHEN json_valid(content) THEN json_array_length(content, '$.pages') ELSE 0 END) > 0`,
     `UPDATE presentation_items SET source_id = id, content = NULL WHERE type = 'slides'`,
+  ],
+  // One kind of slideshow (Bildspel, docs/custom-slides.md): each deck becomes a slideshow of its id whose pages
+  // have the PDF's pages as their pictures, its items name it as a slideshow, and the decks' table goes.
+  21: [
+    `INSERT OR IGNORE INTO custom_slides (id, name, pages, created_at, updated_at, deleted_at)
+       SELECT d.id, d.name,
+         (SELECT json_group_array(json_object('background', '#000000', 'backgroundImageId', NULL,
+            'backgroundPage', json_object('full', json_extract(j.value, '$.full'), 'thumb', json_extract(j.value, '$.thumb')),
+            'elements', json('[]'))) FROM json_each(d.pages) j),
+         d.created_at, d.updated_at, d.deleted_at
+       FROM slide_decks d`,
+    `UPDATE presentation_items SET type = 'custom' WHERE type = 'slides'`,
+    'DROP TABLE slide_decks',
   ],
 };
 

@@ -142,14 +142,16 @@ export function recordMediaBlobSql(hash: string, contentType: string, size: numb
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
 /**
- * Every page of every slide deck item, with the presentation it is in: the pictures the deck it names has. A row
- * per page.
+ * Every PDF page of every slideshow a presentation's items name, with the presentation: a row per page
+ * (docs/custom-slides.md).
  */
-export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash
-  FROM presentation_items p JOIN slide_decks d ON d.id = p.source_id, json_each(d.pages) j WHERE p.type = 'slides'`;
+export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.backgroundPage.full') AS full_hash, json_extract(j.value, '$.backgroundPage.thumb') AS thumb_hash
+  FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) j
+  WHERE p.type = 'custom' AND json_extract(j.value, '$.backgroundPage') IS NOT NULL`;
 
-/** Every page of every slide deck of the library, the trash too: blobs a deck still names. */
-const DECK_PAGES_SQL = `SELECT json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash FROM slide_decks d, json_each(d.pages) j`;
+/** Every PDF page of every slideshow of the library, the trash too: blobs a slideshow still names. */
+const DECK_PAGES_SQL = `SELECT json_extract(j.value, '$.backgroundPage.full') AS full_hash, json_extract(j.value, '$.backgroundPage.thumb') AS thumb_hash
+  FROM custom_slides c, json_each(c.pages) j WHERE json_extract(j.value, '$.backgroundPage') IS NOT NULL`;
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single

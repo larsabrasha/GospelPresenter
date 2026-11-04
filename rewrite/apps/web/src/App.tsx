@@ -18,7 +18,6 @@ import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
 import { CustomSlides } from './pages/custom-slides/CustomSlides.tsx';
 import { SlideEditor } from './pages/custom-slides/SlideEditor.tsx';
-import { SlideDecks } from './pages/SlideDecks.tsx';
 import { Videos } from './pages/Videos.tsx';
 import { Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
@@ -131,7 +130,6 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
       {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
       {route.page === 'customSlides' && <CustomSlides />}
-      {route.page === 'slideDecks' && <SlideDecks />}
       {route.page === 'customSlide' && <SlideEditor key={route.id} id={route.id} />}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <SlideEditor key={route.id} id={route.id} edits="overlay" /> : <Refused text={t('overlays.forbidden')} />)}

@@ -1,4 +1,4 @@
-import { recordMediaBlobSql } from '@gp/core';
+import { pdfPages, recordMediaBlobSql } from '@gp/core';
 import { storeMediaBlob, type SyncClient } from '@gp/sync/client';
 import type { AudioImport, ImageImport, SlidesImport, SongFileImport, VideoImport } from './protocol.ts';
 
@@ -81,8 +81,8 @@ export function mediaAdds({ client, serialStore, added }: { client: () => SyncCl
         pages.push({ full: await storeMediaBlob(client(), page.full, s.contentType), thumb: await storeMediaBlob(client(), page.thumb, s.contentType) });
       }
       const at = Date.now();
-      if (s.into === 'library') await client().mutate('addSlideDeck', { id: s.deckId, name: s.fileName, pages, at });
-      else if (s.into === 'replace') await client().mutate('updateSlideDeck', { id: s.deckId, pages, at });
+      if (s.into === 'library') await client().mutate('createCustomSlide', { id: s.deckId, name: s.fileName, pages: pdfPages(pages), at });
+      else if (s.into === 'replace') await client().mutate('updateCustomSlide', { id: s.deckId, pages: pdfPages(pages), at });
       else await client().mutate('addSlides', { ...s.into, deckId: s.deckId, fileName: s.fileName, pages, at });
       added();
     });

@@ -10,7 +10,6 @@ import {
   MapIcon,
   MusicalNoteOutlineIcon,
   PhotoOutlineIcon,
-  RectangleStackIcon,
   ShapesIcon,
   SpeakerOutlineIcon,
   TrashIcon,
@@ -34,10 +33,9 @@ const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
   Audio: 'ManageAudios',
   Video: 'ManageVideos',
   Slide: 'ManagePresentations',
-  Deck: 'ManagePresentations',
 };
-const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo', Slide: 'restoreCustomSlide', Deck: 'restoreSlideDeck' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo', Slide: 'purgeCustomSlide', Deck: 'purgeSlideDeck' } as const;
+const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo', Slide: 'restoreCustomSlide' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo', Slide: 'purgeCustomSlide' } as const;
 
 /** Each kind's icon at the start of its row (Trash.razor). */
 function KindIcon({ kind }: { kind: TrashKind }) {
@@ -57,8 +55,6 @@ function KindIcon({ kind }: { kind: TrashKind }) {
       return <VideoOutlineIcon className={className} />;
     case 'Slide':
       return <ShapesIcon className={className} />;
-    case 'Deck':
-      return <RectangleStackIcon className={className} />;
   }
 }
 

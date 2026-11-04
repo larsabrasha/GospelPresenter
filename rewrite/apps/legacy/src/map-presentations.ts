@@ -1,4 +1,4 @@
-import { isKnownTheme, MAX_SLIDE_PAGES, type BibleItemContent, type LegacyRow, type SlidePage } from '@gp/core';
+import { isKnownTheme, MAX_SLIDE_PAGES, pdfPages, type BibleItemContent, type LegacyRow, type SlidePage } from '@gp/core';
 import { bibleSlideFromHtml } from './bible-html.ts';
 import { ms } from './map-songs.ts';
 import type { Media } from './media.ts';
@@ -39,8 +39,8 @@ const TYPES = ['song', 'bible', 'image', 'audio', 'slides'] as const;
 /**
  * The running orders. A song, a picture and a sound are references, and an item whose song, picture or sound
  * is gone is left out (1.x showed a copy; 2.0 has none). A Bible item's slides are copied onto the item, as 2.0
- * keeps them (D25). A slide deck item's pages, those 1.x's item shows in its order, become a deck of the library of
- * the item's id, which the item names. `sort` is counted from 0 per presentation.
+ * keeps them (D25). A slide deck item's pages, those 1.x's item shows in its order, become a slideshow of PDF pages
+ * of the item's id (docs/custom-slides.md), which the item names. `sort` is counted from 0 per presentation.
  */
 export function mapItems(data: OldData, media: Media, now: number): { rows: LegacyRow[]; decks: LegacyRow[]; skipped: Skipped[] } {
   const songs = new Set(data.songs.map((s) => s.Id));
@@ -59,10 +59,11 @@ export function mapItems(data: OldData, media: Media, now: number): { rows: Lega
     const type = TYPES[item.Type];
     if (!type) continue;
     const skip = (reason: Skipped['reason']) => skipped.push({ presentationId: item.PresentationId, title: item.Title, reason });
-    const row = (sourceId: string, content: string | null, arrangementId: string | null = null) => {
+    /** The item's row; a deck is a slideshow item here (`custom`). */
+    const row = (sourceId: string, content: string | null, arrangementId: string | null = null, as: string = type) => {
       const n = sort.get(item.PresentationId) ?? 0;
       sort.set(item.PresentationId, n + 1);
-      rows.push({ id: item.Id, presentation_id: item.PresentationId, type, title: item.Title, source_id: sourceId, sort: n, arrangement_id: arrangementId, content, overlay_id: null });
+      rows.push({ id: item.Id, presentation_id: item.PresentationId, type: as, title: item.Title, source_id: sourceId, sort: n, arrangement_id: arrangementId, content, overlay_id: null });
     };
     if (type === 'song') {
       if (!item.SourceId || !songs.has(item.SourceId)) skip('no-song');
@@ -79,8 +80,8 @@ export function mapItems(data: OldData, media: Media, now: number): { rows: Lega
       const deck = slideDeck(item, oldDecks.get(item.SourceId ?? '')?.FileName, partsOf.get(item.Id) ?? [], media);
       if (typeof deck === 'string') skip(deck);
       else {
-        decks.push({ id: item.Id, name: deck.fileName, pages: JSON.stringify(deck.pages), created_at: now, updated_at: now, deleted_at: null });
-        row(item.Id, null);
+        decks.push({ id: item.Id, name: deck.fileName, pages: JSON.stringify(pdfPages(deck.pages)), created_at: now, updated_at: now, deleted_at: null });
+        row(item.Id, null, null, 'custom');
       }
     }
   }

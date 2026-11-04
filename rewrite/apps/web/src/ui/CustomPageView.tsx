@@ -3,8 +3,9 @@ import type { CustomElement, ShownPage, Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
 
-// A custom slide's page on the 1920×1080 stage (docs/custom-slides.md): what is not set follows the theme, the text
-// colour and font of its song slides, and the stage under the page is the theme's background.
+// A slideshow's page on the 1920×1080 stage (docs/custom-slides.md): what is not set follows the theme, the text
+// colour and font of its song slides, and the stage under the page is the theme's background. A PDF's page is a
+// picture under the elements.
 
 /** A picture of Bilder: this device's full copy, else its thumbnail; or, on a page with no database, `media`'s URL. */
 function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
@@ -85,6 +86,10 @@ export function CustomPageView({ shown, theme, media, hide, children }: { shown:
   return (
     <div className="absolute inset-0 overflow-hidden" style={page.background ? { background: page.background } : undefined} data-testid="custom-page">
       {background && <PagePicture hash={background.full} thumb={background.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {/* A PDF's page, fitted as it was rendered (to 1920×1080), on the page's background. */}
+      {page.backgroundPage && (
+        <PagePicture hash={page.backgroundPage.full} thumb={page.backgroundPage.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+      )}
       {/* `hide`: the text the editor writes over (pages/custom-slides/EditorCanvas.tsx). */}
       {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} shown={shown} theme={theme} media={media} />))}
       {children}

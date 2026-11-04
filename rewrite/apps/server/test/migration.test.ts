@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, orgDdl, orgIndexes, schemaMetaDdl, tableInfo } from '@gp/core';
+import { SCHEMA_VERSION, orgDdl, orgIndexes, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
@@ -132,10 +132,10 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     f.close();
   });
 
-  it("a version 19 file makes each deck item's pages a deck of the library, which the item names", () => {
+  it("a version 19 file makes each deck item's pages a slideshow of PDF pages, which the item names (schemas 20 and 21)", () => {
     const pages = [{ full: 'a'.repeat(64), thumb: 'b'.repeat(64) }];
     const file = fileWith(driver, [
-      ...orgDdl.filter((s) => !s.includes('slide_decks')),
+      ...orgDdl,
       schemaMetaDdl,
       'INSERT INTO _schema (one, version) VALUES (1, 19)',
       `INSERT INTO presentations (id, name) VALUES ('P', 'Söndag')`,
@@ -145,10 +145,12 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     const f = openSqlite(file, driver);
     nodeOrgStore(f);
 
-    expect([f.query('SELECT id, name, pages, deleted_at FROM slide_decks'), f.query('SELECT source_id, content FROM presentation_items')]).toEqual([
-      [{ id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify(pages), deleted_at: null }],
-      [{ source_id: 'I1', content: null }],
-    ]);
+    const [slideshow] = f.query('SELECT id, name, pages, deleted_at FROM custom_slides');
+    expect([
+      { ...slideshow, pages: JSON.parse(String(slideshow?.pages)) as unknown },
+      f.query('SELECT type, source_id, content FROM presentation_items'),
+      f.query("SELECT name FROM sqlite_master WHERE name = 'slide_decks'"),
+    ]).toEqual([{ id: 'I1', name: 'Predikan.pdf', pages: pdfPages(pages), deleted_at: null }, [{ type: 'custom', source_id: 'I1', content: null }], []]);
     f.close();
   });
 

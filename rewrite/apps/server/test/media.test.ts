@@ -2,7 +2,7 @@
 // picture is two blobs named by their SHA-256, uploaded once and downloaded
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes, type CustomPage } from '@gp/core';
+import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, pdfPages, sha256HexBytes, type CustomPage } from '@gp/core';
 import { hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, type AdapterName, type Device, type Harness } from './harness.ts';
 import { downloader, get, imageArgs, jpeg, presentingP, put, refusedAsTooLarge, TODAY, uploaded, webp } from './media-fixtures.ts';
@@ -438,7 +438,7 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
   });
 
   it('a user makes one and puts a page on it, without a background; an item carries it until it is deleted', async () => {
-    const page: CustomPage = { background: '#000000', backgroundImageId: 'IMG', elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId: 'IMG', fit: 'contain' }] };
+    const page: CustomPage = { background: '#000000', backgroundImageId: 'IMG', backgroundPage: null, elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId: 'IMG', fit: 'contain' }] };
     const p = await uploaded(h, org, bob, 'swish');
     await bob.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash));
     await bob.client.mutate('createOverlay', { id: 'O1', title: ' Kollekt ', at: 1 });
@@ -471,7 +471,7 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
   });
 });
 
-describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName) => {
+describe.each(adapters)('%s adapter: PDFs as slideshows (PRES-R11, D29, docs/custom-slides.md)', (adapterName) => {
   let h: Harness;
   let org: string;
   let alice: Device;
@@ -511,7 +511,7 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     return out;
   }
 
-  it('imports a deck into the library and a presentation in one step: the item names the deck, titled by the file name', async () => {
+  it('imports a PDF into the library and a presentation in one step: a slideshow of its pages, which the item names, titled by the file name', async () => {
     const deck = await pages(alice, 'syncs', 2);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
 
@@ -520,19 +520,19 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
 
     expect(alice.client.rejected).toEqual([]);
     const s = await serverDump(h, org, 'alice');
-    expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', type: 'slides', title: 'Predikan.pdf', source_id: 'D1', content: null }]);
-    expect(s.tables.slide_decks).toEqual([{ id: 'D1', name: 'Predikan.pdf', pages: JSON.stringify(deck), created_at: 5, updated_at: 5, deleted_at: null }]);
+    expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', type: 'custom', title: 'Predikan.pdf', source_id: 'D1', content: null }]);
+    expect(s.tables.custom_slides).toEqual([{ id: 'D1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages(deck)), created_at: 5, updated_at: 5, deleted_at: null }]);
   });
 
-  it('shows a new PDF of a deck in every presentation that names it', async () => {
+  it('shows a new PDF of a slideshow in every presentation that names it', async () => {
     const [first, second] = [await pages(alice, 'first', 1), await pages(alice, 'second', 2)];
-    await alice.client.mutate('addSlideDeck', { id: 'D1', name: 'Predikan.pdf', pages: first, at: 1 });
+    await alice.client.mutate('createCustomSlide', { id: 'D1', name: 'Predikan.pdf', pages: pdfPages(first), at: 1 });
     for (const p of ['P', 'Q']) {
       await alice.client.mutate('createPresentation', { id: p, name: p });
-      await alice.client.mutate('addSlideDeckToPresentation', { itemId: `${p}1`, presentationId: p, deckId: 'D1' });
+      await alice.client.mutate('addCustomSlideToPresentation', { itemId: `${p}1`, presentationId: p, slideId: 'D1' });
     }
 
-    await alice.client.mutate('updateSlideDeck', { id: 'D1', pages: second, at: 2 });
+    await alice.client.mutate('updateCustomSlide', { id: 'D1', pages: pdfPages(second), at: 2 });
     await alice.client.sync();
 
     expect(alice.client.rejected).toEqual([]);
@@ -563,44 +563,41 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
   });
 
-  it('keeps the pages while the deck is in the library, named by no item or in the trash, and removes them when it is purged', async () => {
+  it('keeps the pages while the slideshow is in the library, named by no item or in the trash, and removes them when it is purged', async () => {
     const deck = await pages(alice, 'kept', 1);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
     await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
     await alice.client.mutate('removeItem', { itemId: 'I1' });
-    await alice.client.mutate('trashSlideDeck', { id: 'I1', at: 1 });
+    await alice.client.mutate('trashCustomSlide', { id: 'I1', at: 1 });
     await alice.client.sync(); // a change: the server cleans up after it
     expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
-    await expect(alice.client.mutate('purgeSlideDeck', { id: 'NOPE' })).resolves.toBeUndefined();
-
-    await alice.client.mutate('purgeSlideDeck', { id: 'I1' });
+    await alice.client.mutate('purgeCustomSlide', { id: 'I1' });
     await alice.client.sync();
 
     expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(404);
     expect(await h.mediaKeys()).not.toContain(mediaKey(org, deck[0]!.thumb));
   });
 
-  it('refuses to purge a deck that is not in the trash, and a template names the same deck as its presentation', async () => {
+  it('a template names the same slideshow as its presentation', async () => {
     const deck = await pages(alice, 'template', 1);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
     await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', deckId: 'D1', fileName: 'Predikan.pdf', pages: deck });
 
     await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: [{ from: 'I1', id: 'T1' }] });
 
-    await expect(alice.client.mutate('purgeSlideDeck', { id: 'D1' })).rejects.toThrow('not in the trash');
     expect((await alice.client.dump()).presentation_items.map((i) => [i.id, i.source_id, i.content])).toEqual([
       ['I1', 'D1', null],
       ['T1', 'D1', null],
     ]);
   });
 
-  it('uploads the pages of a deck put in the library offline, and of its new PDF, before they are pushed', async () => {
+  it('uploads the pages of a PDF put in the library offline, and of its new PDF, before they are pushed', async () => {
     const uploads = new MediaUploads(async (hash, b) => (await put(h, org, 'alice', hash, b)).status);
     const d = await device(h, org, 'alice', 'admin', { beforePush: uploads.beforePush });
     try {
       const [first, second] = [await pages(d, 'library', 1, false), await pages(d, 'replaced', 1, false)];
-      await d.client.mutate('addSlideDeck', { id: 'D1', name: 'Predikan.pdf', pages: first, at: 1 });
-      await d.client.mutate('updateSlideDeck', { id: 'D1', pages: second, at: 2 });
+      await d.client.mutate('createCustomSlide', { id: 'D1', name: 'Predikan.pdf', pages: pdfPages(first), at: 1 });
+      await d.client.mutate('updateCustomSlide', { id: 'D1', pages: pdfPages(second), at: 2 });
 
       await d.client.sync();
 

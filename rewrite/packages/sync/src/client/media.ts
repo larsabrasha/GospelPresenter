@@ -262,8 +262,8 @@ export async function presentationOfflineState(client: Query, presentationId: st
 }
 
 /** The mutations that name blobs the device must upload first. */
-/** The mutators that name blobs a device kept first; a deck's new PDF (`updateSlideDeck` with pages) is one too. */
-const DECK_PAGES = new Set(['addSlides', 'addSlideDeck', 'updateSlideDeck']);
+/** The mutators that may name a PDF's pages a device kept first: an import, and a slideshow made or changed. */
+const DECK_PAGES = new Set(['addSlides', 'createCustomSlide', 'updateCustomSlide']);
 const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES]);
 
 /**
@@ -275,8 +275,9 @@ function blobsOf(m: PendingMutation): Set<string> {
   if (m.name === 'addAudio' || m.name === 'addSongFile') return new Set([String(a.hash)]);
   if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
   if (DECK_PAGES.has(m.name)) {
-    const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];
-    return new Set(pages.flatMap((p) => [String(p?.full), String(p?.thumb)]));
+    // `addSlides` names the pages themselves, a slideshow's pages each its PDF page, if any.
+    const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown; backgroundPage?: { full?: unknown; thumb?: unknown } | null }[]) : [];
+    return new Set(pages.flatMap((p) => (m.name === 'addSlides' ? [String(p?.full), String(p?.thumb)] : p?.backgroundPage ? [String(p.backgroundPage.full), String(p.backgroundPage.thumb)] : [])));
   }
   return new Set([String(a.fullHash), String(a.thumbHash)]);
 }

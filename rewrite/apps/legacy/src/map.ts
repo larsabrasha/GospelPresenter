@@ -122,7 +122,7 @@ export async function mapOrg(data: OldData, media: Media, now = Date.now()): Pro
     song_arrangements: mapArrangements(data),
     song_versions: mapVersions(data),
     presentations: mapPresentations(data),
-    slide_decks: items.decks,
+    custom_slides: items.decks,
     presentation_items: items.rows,
     ccli_entries: mapCcli(data),
   };

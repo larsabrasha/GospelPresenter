@@ -6,7 +6,8 @@ import {
   LEGACY_TABLES,
   legacyRowsProblem,
   legacyRowsSchema,
-  parseSlideDeckPages,
+  customPageBlobs,
+  parseCustomPages,
   tableByName,
   type LegacyImportRefusal,
   type LegacyRow,
@@ -43,7 +44,7 @@ function refusal(store: OrgStore, rows: LegacyRows): Refused | null {
   const hashes: [string, string][] = [];
   for (const i of rows.images) hashes.push([String(i.full_hash), `images ${String(i.id)}`], [String(i.thumb_hash), `images ${String(i.id)}`]);
   for (const a of rows.audios) hashes.push([String(a.hash), `audios ${String(a.id)}`]);
-  for (const d of rows.slide_decks) for (const p of parseSlideDeckPages(d.pages as string)) hashes.push([p.full, `slide_decks ${String(d.id)}`], [p.thumb, `slide_decks ${String(d.id)}`]);
+  for (const c of rows.custom_slides) for (const hash of customPageBlobs(parseCustomPages(c.pages as string))) hashes.push([hash, `custom_slides ${String(c.id)}`]);
   const known = new Set(store.query('SELECT hash FROM media_blobs').map((r) => String(r.hash)));
   const missing = hashes.find(([h]) => !known.has(h));
   if (missing) return { error: 'missing-media', detail: `${missing[1]}: no file ${missing[0]}` };

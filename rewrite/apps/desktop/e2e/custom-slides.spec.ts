@@ -1,5 +1,5 @@
-// Custom slides (docs/custom-slides.md): one made in Inställningar → Egna slides, a text and a shape put on it from
-// +, undone and done again, and the slide added to a presentation from Lägg till's Egna slides, drawn there.
+// Slideshows (Bildspel, docs/custom-slides.md): one made in Inställningar → Bildspel, a text and a shape put on it
+// from +, undone and done again, and the slideshow added to a presentation from Lägg till's Bildspel, drawn there.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { closeAdmin, createPresentation, openAdmin, setUpHost } from './flows.ts';
@@ -15,9 +15,9 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   const page = host.page;
   await setUpHost(host);
 
-  await openAdmin(page, 'Egna slides');
-  await page.getByRole('button', { name: 'Ny slide' }).click();
-  const naming = page.getByRole('dialog', { name: 'Ny slide' });
+  await openAdmin(page, 'Bildspel');
+  await page.getByRole('button', { name: 'Nytt bildspel' }).click();
+  const naming = page.getByRole('dialog', { name: 'Nytt bildspel' });
   await naming.getByLabel('Namn').fill('Kollekt');
   await naming.getByLabel('Namn').press('Enter');
   const canvas = page.getByTestId('slide-canvas');
@@ -46,7 +46,7 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+7');
+  await page.keyboard.press('Control+5');
   await picker.getByRole('checkbox', { name: 'Kollekt' }).click();
   await picker.getByRole('button', { name: 'Lägg till Kollekt' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();

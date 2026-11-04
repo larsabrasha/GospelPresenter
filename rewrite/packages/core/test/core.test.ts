@@ -28,7 +28,7 @@ import {
   parseSlideDeckPages,
   SCHEMA_BASELINE,
   SCHEMA_VERSION,
-  slideDeckSlides,
+  pdfPages,
   searchSongs,
   songCredits,
   songSlides,
@@ -388,15 +388,15 @@ describe('live pointer', () => {
   });
 });
 
-describe('slide decks', () => {
+describe('PDFs', () => {
   const page = (n: number) => ({ full: String(n).repeat(64).slice(0, 64), thumb: String(n + 1).repeat(64).slice(0, 64) });
 
-  it('shows each page as a picture filling the stage, in order', () => {
-    const slides = slideDeckSlides([page(1), page(3)]);
+  it("makes each page a slideshow's page with the PDF's page as its picture on black, in order", () => {
+    const pages = pdfPages([page(1), page(3)]);
 
-    expect(slides.map((s) => [s.key, s.kind, s.image, s.text])).toEqual([
-      ['s0', 'media', page(1).full, ''],
-      ['s1', 'media', page(3).full, ''],
+    expect(pages.map((p) => [p.background, p.backgroundPage, p.elements])).toEqual([
+      ['#000000', page(1), []],
+      ['#000000', page(3), []],
     ]);
   });
 
