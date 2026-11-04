@@ -237,12 +237,19 @@ the Shared assembly as `Themes/aurora/background.webp`.
   (`…/Images.razor:308-326`).
 - The list reloads when an organisation sync announcement arrives, keeping the search text
   (`RefreshOnSync`, `…/Images.razor:23, 183-198`).
-- No preview step before upload; no rename; no detail view.
+- No preview step before upload; no rename; no detail view. 2.0 (Lars, 2026-11-04: the libraries alike, as iOS 27):
+  the menu holds "Byt namn" too (`renameImage`, the library's name only; items keep their titles), and "Välj" at the
+  top right marks pictures with a round tick ("Markera alla", "Klar"; Escape ends it) and floats a toolbar in place of
+  + with "{n} markerad(e)" and "Radera", which asks once ("Vill du flytta {n} till papperskorgen? …") and trashes them
+  all. Sånger, Biblar, Ljud and Videor have the same page (apps/web/src/ui/Library.tsx); Sånger renames by
+  `updateSong`, Biblar by `renameBible` (the abbreviation stays), and a Bible deleted from the toolbar is deleted
+  for good as one deleted alone.
 
 ### `/admin/audios` — Audio (nav "Ljud")
 Identical to Images except: policy `ManageOrganizationAudios`; accept
 `audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm,audio/x-m4a`; trash link `/trash?kind=Audio`;
-list rows (speaker icon + file name + "⋯" menu) instead of a grid; strings "Ljud", "Alla ljudfiler",
+list rows (speaker icon + file name + "⋯" menu; 2.0: no ⋯, the row's menu opens as a picture's, with "Byt namn"
+and "Radera") instead of a grid; strings "Ljud", "Alla ljudfiler",
 "Laddar ljudfiler...", "Inga ljudfiler än", "Importera ljudfiler för att spela upp under
 presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte importeras"
 (`GospelPresenter/GospelPresenter.Shared/Pages/Admin/Audios.razor`). No playback/preview on this page.

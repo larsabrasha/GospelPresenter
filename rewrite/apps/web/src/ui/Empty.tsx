@@ -31,8 +31,3 @@ export function EmptySmall({ icon, title, dropHint }: { icon: ReactNode; title: 
     </div>
   );
 }
-
-/** A grey line in a card: "Inga bilder matchar din sökning", or a loading line. */
-export function CardNote({ children }: { children: ReactNode }) {
-  return <p className="px-5 py-4 text-stone-400 text-sm">{children}</p>;
-}

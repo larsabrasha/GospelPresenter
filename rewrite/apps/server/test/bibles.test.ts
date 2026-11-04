@@ -271,6 +271,19 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(await loadBibleText(bob.client, hash)).toBeNull();
   });
 
+  it('renames a translation, keeping its abbreviation and id; a user may not', async () => {
+    const hash = await upload(h, org, alice, SAMPLE);
+    await alice.client.mutate('importBible', importArgs(hash));
+    await alice.client.sync();
+    await bob.client.sync();
+
+    await alice.client.mutate('renameBible', { id: 'bible:web', name: 'Webbibeln' });
+    await alice.client.sync();
+
+    expect((await serverDump(h, org, 'alice')).tables.bibles).toMatchObject([{ id: 'bible:web', name: 'Webbibeln', abbreviation: 'WEB' }]);
+    await expect(bob.client.mutate('renameBible', { id: 'bible:web', name: 'x' })).rejects.toThrow(/may not/);
+  });
+
   it('re-importing the same abbreviation replaces the text and drops the old one everywhere (BIBLE-R5)', async () => {
     const old = await upload(h, org, alice, SAMPLE);
     await alice.client.mutate('importBible', importArgs(old));

@@ -58,6 +58,15 @@ export async function trashImage(tx: Tx, a: z.output<typeof trashImageArgs>, ctx
   await tx.update(images).set({ deletedAt: a.at }).where(eq(images.id, a.id));
 }
 
+const fileName = z.string().trim().min(1).max(MEDIA_LIMITS.fileName);
+
+export const renameImageArgs = z.object({ id, fileName });
+/** A library picture's name, as the library lists it; presentations keep the item titles they have. */
+export async function renameImage(tx: Tx, a: z.output<typeof renameImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  await tx.update(images).set({ fileName: a.fileName }).where(eq(images.id, a.id));
+}
+
 export const restoreImageArgs = z.object({ id });
 /** Restoring may exceed the maximum (MEDIA-R8). */
 export async function restoreImage(tx: Tx, a: z.output<typeof restoreImageArgs>, ctx: MutatorCtx) {
@@ -196,6 +205,12 @@ export async function trashAudio(tx: Tx, a: z.output<typeof trashAudioArgs>, ctx
   await tx.update(audios).set({ deletedAt: a.at }).where(eq(audios.id, a.id));
 }
 
+export const renameAudioArgs = z.object({ id, fileName });
+export async function renameAudio(tx: Tx, a: z.output<typeof renameAudioArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageAudios');
+  await tx.update(audios).set({ fileName: a.fileName }).where(eq(audios.id, a.id));
+}
+
 export const restoreAudioArgs = z.object({ id });
 export async function restoreAudio(tx: Tx, a: z.output<typeof restoreAudioArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageAudios');
@@ -279,6 +294,12 @@ export const trashVideoArgs = z.object({ id, at: z.number().int() });
 export async function trashVideo(tx: Tx, a: z.output<typeof trashVideoArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageVideos');
   await tx.update(videos).set({ deletedAt: a.at }).where(eq(videos.id, a.id));
+}
+
+export const renameVideoArgs = z.object({ id, fileName });
+export async function renameVideo(tx: Tx, a: z.output<typeof renameVideoArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageVideos');
+  await tx.update(videos).set({ fileName: a.fileName }).where(eq(videos.id, a.id));
 }
 
 export const restoreVideoArgs = z.object({ id });

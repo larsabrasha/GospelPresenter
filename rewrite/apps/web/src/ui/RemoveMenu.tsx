@@ -25,12 +25,31 @@ export function RemoveMenu({ name, onRemove }: { name: string; onRemove: () => v
 const HOLD_MS = 500;
 const HOLD_SLOP = 10;
 
-/**
- * A picture's menu as Photos opens one (Lars, 2026-11-03: no … on the picture): a right click, the keyboard's menu key,
- * or a finger held still on it opens Radera at that point, in the menu an item has. Presses in the menu itself, which
- * reach here through React's tree from its portal, are left alone.
- */
+/** A picture's menu as Photos opens one (Lars, 2026-11-03: no … on the picture), with Radera in it. */
 export function PictureMenu({ name, onRemove, children }: { name: string; onRemove: () => void; children: ReactNode }) {
+  return (
+    <HoldMenu label={t('images.more', { name })} menu={<RemoveRow onRemove={onRemove} />}>
+      {children}
+    </HoldMenu>
+  );
+}
+
+/** Radera, red, in a HoldMenu. */
+export function RemoveRow({ onRemove }: { onRemove: () => void }) {
+  return (
+    <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} onClick={onRemove}>
+      <TrashIcon className="size-4" strokeWidth={1.5} />
+      {t('images.remove')}
+    </AppButton>
+  );
+}
+
+/**
+ * An item's menu as iOS and macOS open one: a right click, the keyboard's menu key, or a finger held still on it opens
+ * `menu` at that point. Presses in the menu itself, which reach here through React's tree from its portal, are left
+ * alone; the click a held finger makes as it lifts is not a click on the item.
+ */
+export function HoldMenu({ label, menu, className, children }: { label: string; menu: ReactNode; className?: string; children: ReactNode }) {
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -43,7 +62,7 @@ export function PictureMenu({ name, onRemove, children }: { name: string; onRemo
   };
   return (
     <div
-      className="[-webkit-touch-callout:none]"
+      className={`[-webkit-touch-callout:none] ${className ?? ''}`}
       onContextMenu={(e) => {
         if (!mine(e)) return;
         e.preventDefault();
@@ -74,11 +93,8 @@ export function PictureMenu({ name, onRemove, children }: { name: string; onRemo
     >
       {children}
       {at && (
-        <ContextMenu at={at} label={t('images.more', { name })} onClose={() => setAt(null)}>
-          <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} onClick={onRemove}>
-            <TrashIcon className="size-4" strokeWidth={1.5} />
-            {t('images.remove')}
-          </AppButton>
+        <ContextMenu at={at} label={label} onClose={() => setAt(null)}>
+          {menu}
         </ContextMenu>
       )}
     </div>

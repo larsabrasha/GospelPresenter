@@ -46,8 +46,8 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await player.getByRole('button', { name: 'Pausa' }).click();
 
   await openAdmin(page, 'Ljud');
-  // Radera is in the ⋯ menu.
-  await page.getByRole('button', { name: 'Fler val för Preludium.wav' }).click();
+  // Radera is in the row's menu, opened by a right click or a finger held on it.
+  await page.getByRole('list', { name: 'Ljud' }).getByText('Preludium.wav').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();

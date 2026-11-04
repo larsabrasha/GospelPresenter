@@ -1,35 +1,24 @@
-import { useState } from 'react';
-import { can, type LibraryAudio, type Role } from '@gp/core';
+import { useMemo } from 'react';
+import { can, MEDIA_LIMITS, type Role } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
-import { useTrySave } from '../ui/AutoSave.tsx';
-import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropMore, DropZone } from '../ui/DropZone.tsx';
-import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
-import { ROW_HOVER, CARD } from '../ui/List.tsx';
-import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
-import { SearchField } from '../ui/Picker.tsx';
-import { useToast } from '../ui/Toast.tsx';
-import { RemoveMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
-
-/** When a file goes to the trash: this device's clock, as for songs and presentations. */
-const trashedAt = () => Date.now();
+import { Library } from '../ui/Library.tsx';
+import { useToast } from '../ui/Toast.tsx';
+import { ImportNotices, named, trashTexts } from './Images.tsx';
 
 /**
- * Ljud (spec 05 `/admin/audios`): the organisation's audio files, as a list.
+ * Ljud (spec 05 `/admin/audios`): the organisation's audio files, as a list (ui/Library.tsx).
  * No playback here (spec 05); a file plays where a presentation uses it.
  */
 export function Audios({ role }: { role: Role }) {
   const db = useDb();
-  const trySave = useTrySave();
-  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const audios = useData(listAudios, []);
-  const [query, setQuery] = useState('');
+  const items = useMemo(() => named(audios), [audios]);
   const { run, progress, failures } = useMediaImport('audio');
   const manage = can(role, 'ManageAudios');
 
@@ -39,72 +28,23 @@ export function Audios({ role }: { role: Role }) {
     if (added.length && added.length === files.length) toast(t('audios.imported', { n: added.length }));
   };
 
-  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
-  const remove = (a: LibraryAudio) =>
-    ask(
-      deleteAsk(t('images.trashConfirm', { name: a.fileName }), a.fileName, async () => {
-        if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
-        toast(t('audios.trashed', { name: a.fileName }));
-      }),
-    );
-
-  const q = query.trim().toLocaleLowerCase('sv');
-  const shown = audios?.filter((a) => !q || a.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
-
   return (
-    <PageContainer>
-      <DropZone className="flex flex-col space-y-5" label={t('audios.drop')} accept={AUDIO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
-        {dialog}
-        <PageHeader title={t('audios.title')}>
-          <div className="flex items-center gap-3">
-            {manage && (
-              <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
-            )}
-          </div>
-        </PageHeader>
-        {progress && (
-          <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status">
-            {t('images.importing', progress)}
-          </p>
-        )}
-        {!!failures.length && (
-          <div className="px-5 text-sm text-red-500 dark:text-red-400" role="alert" data-testid="audio-failures">
-            <p>{t('audios.failed', { n: failures.length })}</p>
-            <ul className="list-disc pl-5">
-              {failures.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {/* Under the title, as Sånger's (Lars, 2026-11-03: the pages alike, no box in a box). */}
-        {!!audios?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
-        {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
-        <div className={CARD.replace(' overflow-hidden', '')}>
-          {!audios && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('audios.loading')}</div>}
-          {audios && !audios.length && (
-            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('audios.empty')} dropHint={manage ? t('drop.here') : undefined} />
-          )}
-          {!!audios?.length && !shown.length && <CardNote>{t('audios.noMatch')}</CardNote>}
-          <ul aria-label={t('audios.title')}>
-            {shown.map((a) => (
-              <li
-                key={a.id}
-                className={`flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl ${ROW_HOVER}`}
-                aria-label={a.fileName}
-              >
-                <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" />
-                <span className="text-sm truncate flex-1">{a.fileName}</span>
-                {manage && (
-                  <RemoveMenu name={a.fileName} onRemove={() => void remove(a)} />
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-        {!!shown.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'audios.count.one' : 'audios.count.many', { n: shown.length })}</p>}
-        {manage && !!audios?.length && <DropMore />}
-      </DropZone>
-    </PageContainer>
+    <Library
+      title={t('audios.title')}
+      items={items}
+      layout="list"
+      renderRow={() => ({ leading: <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" /> })}
+      manage={manage}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
+      remove={{ ...trashTexts('audios.trashed'), run: (a) => db.mutate('trashAudio', { id: a.id, at: Date.now() }) }}
+      add={manage && <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />}
+      notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('audios.failed', { n: failures.length })} testId="audio" />}
+      loading={t('audios.loading')}
+      empty={{ icon: <SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('audios.empty') }}
+      noMatch={t('audios.noMatch')}
+      count={(n) => t(n === 1 ? 'audios.count.one' : 'audios.count.many', { n })}
+      drop={{ label: t('audios.drop'), accept: AUDIO_ACCEPT, onFiles: (files) => void importFiles(files) }}
+      testId="audio"
+    />
   );
 }

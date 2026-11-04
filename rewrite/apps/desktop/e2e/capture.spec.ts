@@ -338,7 +338,14 @@ test('capture every page', async () => {
       },
     ],
     ['audios', '/admin/audios', closeAdminMenu],
-    ['audios-menu', '/admin/audios', (p) => clickFirst(p, 'Fler val för Preludium.wav')],
+    [
+      'audios-menu',
+      '/admin/audios',
+      async (p) => {
+        await closeAdminMenu(p);
+        await p.getByRole('list', { name: 'Ljud' }).getByText('Preludium.wav').click({ button: 'right' });
+      },
+    ],
     ['bibles', '/admin/bibles', closeAdminMenu],
     ['overlays', '/admin/overlays', closeAdminMenu],
     ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],

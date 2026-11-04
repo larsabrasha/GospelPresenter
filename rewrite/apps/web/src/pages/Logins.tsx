@@ -7,8 +7,8 @@ import { addPasskey, linkGoogle } from '../auth/passkey.ts';
 import { deviceName } from '../auth/session.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
-import { FloatingInput } from '../ui/Floating.tsx';
+import { useConfirm } from '../ui/Dialog.tsx';
+import { NameDialog } from '../ui/NameDialog.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
@@ -29,37 +29,6 @@ async function fetchLogins(): Promise<LoginMethod[] | string> {
 
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale());
 const label = (l: LoginMethod) => l.name ?? (l.provider === 'google' ? t('logins.google') : t('logins.passkey'));
-
-/** Asks for a name, then the passkey. */
-function NameDialog({ title, text, initial, submit, onClose }: { title: string; text?: string; initial: string; submit: (name: string) => Promise<void>; onClose: () => void }) {
-  const [name, setName] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  return (
-    <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
-      {text && <p className="text-sm text-stone-600 dark:text-stone-300">{text}</p>}
-      <form
-        className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!name.trim() || busy) return;
-          setBusy(true);
-          await submit(name.trim());
-          setBusy(false);
-        }}
-      >
-        <FloatingInput label={t('logins.name')} autoFocus maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-        <DialogButtons>
-          <AppButton variant="cancel" onClick={onClose}>
-            {t('common.cancel')}
-          </AppButton>
-          <AppButton type="submit" disabled={!name.trim() || busy}>
-            {t('common.save')}
-          </AppButton>
-        </DialogButtons>
-      </form>
-    </Dialog>
-  );
-}
 
 /**
  * "Inloggningsmetoder": the signed-in user's own passkeys and Google

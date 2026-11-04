@@ -1,19 +1,13 @@
-import { useState } from 'react';
-import { can, type LibraryImage, type Role } from '@gp/core';
+import { useMemo, type ReactNode } from 'react';
+import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/queries.ts';
-import { t } from '../i18n.ts';
+import { t, type TextKey } from '../i18n.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
-import { useTrySave } from '../ui/AutoSave.tsx';
-import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropMore, DropZone } from '../ui/DropZone.tsx';
-import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { PhotoOutlineIcon } from '../ui/icons.tsx';
-import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
-import { SearchField } from '../ui/Picker.tsx';
-import { useToast } from '../ui/Toast.tsx';
-import { PictureMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
+import { Library } from '../ui/Library.tsx';
+import { useToast } from '../ui/Toast.tsx';
 
 /**
  * A library picture's thumbnail, from this device's own copy, rounded and at
@@ -28,22 +22,49 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
   );
 }
 
-/** When a picture goes to the trash: this device's clock, as for songs and presentations. */
-const trashedAt = () => Date.now();
+/** The messages of an import: how far it is, and the files it could not take. */
+export function ImportNotices({ progress, failures, failed, testId }: { progress: ReactNode; failures: string[]; failed: string; testId: string }) {
+  return (
+    <>
+      {progress && (
+        <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status" data-testid={`${testId}-progress`}>
+          {progress}
+        </p>
+      )}
+      {!!failures.length && (
+        <div className="px-5 text-sm text-red-500 dark:text-red-400" role="alert" data-testid={`${testId}-failures`}>
+          <p>{failed}</p>
+          <ul className="list-disc pl-5">
+            {failures.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** A file's name as a library item's. */
+export const named = <T extends { fileName: string }>(items: T[] | undefined) => items?.map((i) => ({ ...i, name: i.fileName }));
+
+/** The question and the toast of trashing files: one named, or how many. */
+export const trashTexts = (doneOne: TextKey) => ({
+  ask: (items: { name: string }[]) =>
+    items.length === 1 ? { text: t('images.trashConfirm', { name: items[0]!.name }), bold: items[0]!.name } : { text: t('library.trashMany', { n: items.length }) },
+  done: (items: { name: string }[]) => (items.length === 1 ? t(doneOne, { name: items[0]!.name }) : t('library.trashedMany', { n: items.length })),
+});
 
 /**
- * Bilder (spec 05 `/admin/images`): the organisation's pictures. Each file is
- * fitted and re-encoded here (`media/process.ts`), kept on this device and
- * uploaded when the server can be reached (docs/media-and-files.md, "Media"). No preview step,
- * no rename, no detail view (spec 05).
+ * Bilder (spec 05 `/admin/images`): the organisation's pictures, as Photos' grid (ui/Library.tsx). Each file is
+ * fitted and re-encoded here (`media/process.ts`), kept on this device and uploaded when the server can be reached
+ * (docs/media-and-files.md, "Media").
  */
 export function Images({ role }: { role: Role }) {
   const db = useDb();
-  const trySave = useTrySave();
-  const { dialog, ask } = useConfirm();
   const toast = useToast();
   const images = useData(listImages, []);
-  const [query, setQuery] = useState('');
+  const items = useMemo(() => named(images), [images]);
   const { run, progress, failures } = useMediaImport('image');
   const manage = can(role, 'ManageImages');
 
@@ -53,79 +74,23 @@ export function Images({ role }: { role: Role }) {
     if (added.length && added.length === files.length) toast(t('images.imported', { n: added.length }));
   };
 
-  // To the trash after a question, as every deletion asks (Lars, 2026-11-03).
-  const remove = (image: LibraryImage) =>
-    ask(
-      deleteAsk(t('images.trashConfirm', { name: image.fileName }), image.fileName, async () => {
-        if (!(await trySave(db.mutate('trashImage', { id: image.id, at: trashedAt() })))) return;
-        toast(t('images.trashed', { name: image.fileName }));
-      }),
-    );
-
-  const q = query.trim().toLocaleLowerCase('sv');
-  const shown = images?.filter((i) => !q || i.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
-
   return (
-    <PageContainer>
-      <DropZone className="flex flex-col space-y-5" label={t('images.drop')} accept={IMAGE_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
-        {dialog}
-        <PageHeader title={t('images.title')}>
-          <div className="flex items-center gap-3">
-            {manage && (
-              <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />
-            )}
-          </div>
-        </PageHeader>
-        {progress && (
-          <p className="px-5 text-sm text-stone-500 dark:text-stone-400" role="status" data-testid="image-progress">
-            {t('images.importing', progress)}
-          </p>
-        )}
-        {!!failures.length && (
-          <div className="px-5 text-sm text-red-500 dark:text-red-400" role="alert" data-testid="image-failures">
-            <p>{t('images.failed', { n: failures.length })}</p>
-            <ul className="list-disc pl-5">
-              {failures.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {/* Under the title, as Sånger's (Lars, 2026-11-03: the pages alike, no box in a box). */}
-        {!!images?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} />}
-        {/* The pictures on the page itself, as Photos' grid, with no card around them (Lars, 2026-11-03: no box in a box). */}
-        <div>
-          {!images && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('presentation.loadingImages')}</div>}
-          {images && !images.length && (
-            <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('images.empty')} dropHint={manage ? t('drop.here') : undefined} />
-          )}
-          {!!images?.length && !shown.length && <CardNote>{t('images.noMatch')}</CardNote>}
-          {/* Columns by its own width, not the window's: Inställningar's page column is narrow on an iPad held upright. */}
-          <div className="@container">
-          <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 -mx-2 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
-            {shown.map((image) => (
-              <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid="image-card">
-                {/* Radera on a right click or a finger held on it, as Photos (PictureMenu); nothing on the picture. */}
-                {manage ? (
-                  <PictureMenu name={image.fileName} onRemove={() => void remove(image)}>
-                    <div className="relative rounded-lg" tabIndex={0} aria-label={image.fileName}>
-                      <ImageThumb image={image} />
-                    </div>
-                  </PictureMenu>
-                ) : (
-                  <ImageThumb image={image} />
-                )}
-                <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
-                  {image.fileName}
-                </p>
-              </li>
-            ))}
-          </ul>
-          </div>
-        </div>
-        {!!shown.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'images.count.one' : 'images.count.many', { n: shown.length })}</p>}
-        {manage && !!images?.length && <DropMore />}
-      </DropZone>
-    </PageContainer>
+    <Library
+      title={t('images.title')}
+      items={items}
+      layout="grid"
+      renderTile={(image) => <ImageThumb image={image} />}
+      manage={manage}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
+      remove={{ ...trashTexts('images.trashed'), run: (image) => db.mutate('trashImage', { id: image.id, at: Date.now() }) }}
+      add={manage && <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />}
+      notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('images.failed', { n: failures.length })} testId="image" />}
+      loading={t('presentation.loadingImages')}
+      empty={{ icon: <PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('images.empty') }}
+      noMatch={t('images.noMatch')}
+      count={(n) => t(n === 1 ? 'images.count.one' : 'images.count.many', { n })}
+      drop={{ label: t('images.drop'), accept: IMAGE_ACCEPT, onFiles: (files) => void importFiles(files) }}
+      testId="image"
+    />
   );
 }

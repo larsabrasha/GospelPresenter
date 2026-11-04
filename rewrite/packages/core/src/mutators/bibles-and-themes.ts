@@ -45,6 +45,13 @@ export async function importBible(tx: Tx, a: z.output<typeof importBibleArgs>, c
   if (existing && existing.contentHash !== a.contentHash) await dropUnusedText(tx, existing.contentHash);
 }
 
+export const renameBibleArgs = z.object({ id, name: z.string().trim().min(1).max(200) });
+/** A translation's name; its abbreviation, and so its id, stay. */
+export async function renameBible(tx: Tx, a: z.output<typeof renameBibleArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageBibles');
+  await tx.update(bibles).set({ name: a.name }).where(eq(bibles.id, a.id));
+}
+
 export const deleteBibleArgs = z.object({ id });
 /** Deletes a translation (BIBLE-R7): no trash, and items made from it keep their text. A no-op if it is gone. */
 export async function deleteBible(tx: Tx, a: z.output<typeof deleteBibleArgs>, ctx: MutatorCtx) {

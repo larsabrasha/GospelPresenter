@@ -100,7 +100,8 @@ A paired screen draws the projector's canvas, as the output window (see [Paired 
 current ones (Avbryt and Stäng in the pairing dialog), they keep what they do and only take the look.
 
 Where the look would change what the app does, Lars decided (2026-10-27) to follow the current app: Bilder and
-Ljud trash from a ⋯ menu; the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
+Ljud trash from a ⋯ menu (since 2026-11-04 the libraries are one page as iOS 27's, `ui/Library.tsx`: an item's menu
+opens on a right click or a held finger, with Byt namn and Radera, and Välj marks several for Radera); the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
 Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
 coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Rensa and B only
 blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows

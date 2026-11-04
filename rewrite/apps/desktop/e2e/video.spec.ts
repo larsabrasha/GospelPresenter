@@ -178,7 +178,7 @@ test('live: a paired screen that cannot play HEVC shows the still, while the out
   await expect(screen.getByTestId('slide-video')).toHaveCount(0);
 });
 
-test('Videor lists the videos with length, size and codec, imports from the page and trashes from ⋯', async () => {
+test('Videor shows the videos as a grid with their lengths, imports from the page and trashes from a video’s menu', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -187,9 +187,10 @@ test('Videor lists the videos with length, size and codec, imports from the page
   await expect(page.getByText('Inga videor än')).toBeVisible();
   await page.getByTestId('video-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: fixture('h264-long.mp4') });
   await expect(page.getByText('1 video', { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('list', { name: 'Videor' }).getByRole('listitem')).toHaveText([/Dop\.mp4\s*0:20 · 66 kB · H\.264/]);
+  await expect(page.getByTestId('video-card')).toHaveText([/0:20\s*Dop\.mp4/]);
+  await expect(page.getByTitle('0:20 · 66 kB · H.264')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();
+  await page.getByLabel('Dop.mp4', { exact: true }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByText('Inga videor än')).toBeVisible();

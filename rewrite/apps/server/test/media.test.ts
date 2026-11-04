@@ -190,6 +190,18 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     expect(await syncMedia(alice.client, async () => null, Date.now() + 2 * 3_600_000)).toMatchObject({ removed: 2 });
   });
 
+  it('renames a picture, as a user too, trimming the name', async () => {
+    const p = await uploaded(h, org, alice, 'named');
+    await alice.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash, 'gammal.jpg'));
+    await alice.client.sync();
+    await bob.client.sync();
+
+    await bob.client.mutate('renameImage', { id: 'IMG', fileName: ' Ny bild ' });
+    await bob.client.sync();
+
+    expect((await serverDump(h, org, 'alice')).tables.images[0]?.file_name).toBe('Ny bild');
+  });
+
   it('a blob shared by two images is kept until both are gone', async () => {
     const p = await uploaded(h, org, alice, 'shared');
     await alice.client.mutate('addImage', imageArgs('A', p.fullHash, p.thumbHash, 'a.jpg'));
@@ -351,6 +363,18 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     // A picture is held to its own 10 MiB, sound or not.
     const bigPicture = jpeg('big-picture', MEDIA_LIMITS.blobBytes + 1);
     expect(await refusedAsTooLarge(put(h, org, 'bob', await sha256HexBytes(bigPicture), bigPicture))).toBe(true);
+  });
+
+  it('renames a sound', async () => {
+    const bytes = ogg('named');
+    const hash = await storeMediaBlob(alice.client, bytes, 'audio/ogg');
+    await put(h, org, 'alice', hash, bytes);
+    await alice.client.mutate('addAudio', { id: 'AUD', fileName: 'gammal.ogg', contentType: 'audio/ogg', hash, size: bytes.length, createdAt: 1 });
+
+    await alice.client.mutate('renameAudio', { id: 'AUD', fileName: 'Nytt ljud' });
+    await alice.client.sync();
+
+    expect((await serverDump(h, org, 'alice')).tables.audios[0]?.file_name).toBe('Nytt ljud');
   });
 
   it('syncs one row; a device fetches the file only when it presents a presentation that uses it; purged, it goes', async () => {

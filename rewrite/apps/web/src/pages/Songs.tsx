@@ -1,5 +1,4 @@
-import type { Song } from '@gp/core';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
@@ -10,15 +9,10 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
-import { EmptySmall } from '../ui/Empty.tsx';
 import { ArrowDownTrayIcon, MusicalNoteOutlineIcon } from '../ui/icons.tsx';
-import { DropMore, DropZone } from '../ui/DropZone.tsx';
-import { ListCard, ListLinkRow } from '../ui/List.tsx';
-import { CAPTION } from '../ui/Group.tsx';
 import { byLetter } from './songLetters.ts';
-import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
-import { SearchField } from '../ui/Picker.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { Library } from '../ui/Library.tsx';
 import { useSongImport } from './SongImport.tsx';
 
 /** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2; Components/Presentations/NameDialog.razor). */
@@ -62,36 +56,37 @@ function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: stri
   );
 }
 
-/** From how many songs the list has an index along its edge to jump by letter. */
-const INDEX_FROM = 20;
-
 /**
  * The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor), as Music's Låtar and Contacts (Lars,
- * 2026-11-02): the search under the title, the songs in sections by letter with an index along the edge when the list
- * is long, how many in grey under it, + for Ny sång and beside it a round button for the ProPresenter import. Dropped
- * .pro files import anywhere on the page.
+ * 2026-11-02) on the libraries' common page (ui/Library.tsx): the songs in sections by letter with an index along the
+ * edge when the list is long, + for Ny sång and beside it a round button for the ProPresenter import. Dropped .pro
+ * files import anywhere on the page.
  */
 export function Songs() {
+  const db = useDb();
   const [query, setQuery] = useState('');
   const { songs, shown, shownQuery } = useSongSearch(query);
   const [creating, setCreating] = useState(false);
   const songImport = useSongImport(songs);
-  const searching = !!shownQuery.trim();
-  const sections = useMemo(() => (shown && !searching ? byLetter(shown) : null), [shown, searching]);
-  const row = (s: Song) => (
-    <ListLinkRow
-      key={s.id}
-      href={href({ page: 'song', id: s.id })}
-      title={<Highlight text={s.name} query={shownQuery} />}
-      subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : undefined}
-    />
-  );
 
   return (
-    <PageContainer>
-      {/* The whole page takes dropped .pro files (spec 02). */}
-      <DropZone className="flex flex-col space-y-4" label={t('songs.import.drop')} accept=".pro" enabled={!songImport.busy} onFiles={(files) => void songImport.files(files)}>
-        <PageHeader title={t('nav.songs')}>
+    <Library
+      title={t('nav.songs')}
+      items={songs}
+      search={{ query, onQuery: setQuery, shown }}
+      layout="list"
+      renderRow={(s) => ({ title: <Highlight text={s.name} query={shownQuery} />, subtitle: s.author ? <Highlight text={s.author} query={shownQuery} /> : undefined })}
+      sections={(list) => byLetter(list).map((section) => ({ key: section.letter, title: section.letter, items: section.songs }))}
+      open={(s) => href({ page: 'song', id: s.id })}
+      manage
+      rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateSong', { id: s.id, name }) }}
+      remove={{
+        ask: (items) => (items.length === 1 ? { text: t('song.trashConfirm', { name: items[0]!.name }), bold: items[0]!.name } : { text: t('library.trashMany', { n: items.length }) }),
+        done: (items) => (items.length === 1 ? t('song.trashed', { name: items[0]!.name }) : t('library.trashedMany', { n: items.length })),
+        run: (s) => db.mutate('trashSong', { id: s.id, at: Date.now() }),
+      }}
+      add={
+        <>
           {/* The import floats beside +, quieter than it (Lars, 2026-11-02). */}
           <RoundButton
             text={songImport.busy ? t('songs.import.busy') : t('songs.import.short')}
@@ -101,45 +96,22 @@ export function Songs() {
             onClick={songImport.pick}
           />
           <AddButton label={t('songs.new')} onClick={() => setCreating(true)} />
-        </PageHeader>
-        {songImport.input}
-        {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
-        {songImport.status}
-        {songImport.dialog}
-        {!!songs?.length && <SearchField compact filled value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} />}
-        {songs && !songs.length && <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} dropHint={t('songs.import.drop')} />}
-        {!!songs?.length && shown && !shown.length && <p className="px-5 text-stone-400 text-sm">{t('songs.noHits')}</p>}
-        {searching && !!shown?.length && <ListCard label={t('nav.songs')}>{shown.map(row)}</ListCard>}
-        {sections && !!sections.length && (
-          <div className="flex gap-1">
-            <ul className="flex-1 min-w-0 space-y-4" aria-label={t('nav.songs')}>
-              {sections.map((section) => (
-                <li key={section.letter} id={`songs-${section.letter}`} className="space-y-1.5 scroll-mt-4">
-                  <h2 className={CAPTION}>{section.letter}</h2>
-                  <ListCard>{section.songs.map(row)}</ListCard>
-                </li>
-              ))}
-            </ul>
-            {/* The index along the edge, as Contacts': a tap jumps to the letter. */}
-            {shown!.length >= INDEX_FROM && (
-              <nav aria-label={t('songs.index')} className="sticky top-2 self-start flex flex-col items-center py-1">
-                {sections.map((section) => (
-                  <AppButton
-                    key={section.letter}
-                    variant="plain"
-                    onClick={() => document.getElementById(`songs-${section.letter}`)?.scrollIntoView({ block: 'start' })}
-                    className="w-5 text-[11px]/4 font-semibold text-sky-600 dark:text-sky-400 cursor-pointer hover:underline"
-                  >
-                    {section.letter}
-                  </AppButton>
-                ))}
-              </nav>
-            )}
-          </div>
-        )}
-        {!!shown?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'songs.count.one' : 'songs.count.many', { n: shown.length })}</p>}
-        {!!songs?.length && <DropMore text={t('songs.import.drop')} />}
-      </DropZone>
-    </PageContainer>
+        </>
+      }
+      notices={
+        <>
+          {songImport.input}
+          {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
+          {songImport.status}
+          {songImport.dialog}
+        </>
+      }
+      loading={t('common.loading')}
+      empty={{ icon: <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('songs.emptyTitle') }}
+      noMatch={t('songs.noHits')}
+      count={(n) => t(n === 1 ? 'songs.count.one' : 'songs.count.many', { n })}
+      drop={{ label: t('songs.import.drop'), accept: '.pro', onFiles: (files) => void (songImport.busy || songImport.files(files)) }}
+      testId="songs"
+    />
   );
 }
