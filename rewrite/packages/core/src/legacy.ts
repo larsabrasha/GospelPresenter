@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
+import { parseBibleContent } from './bible.ts';
+import { DISPLAY_CODE } from './displays.ts';
+import { parseSlidesContent } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
 
 // The zip one organisation of the current app (1.x) is exported as, and the import that reads it
@@ -69,19 +72,42 @@ const legacyUserSchema = z.object({
 export type LegacyUser = z.infer<typeof legacyUserSchema>;
 export const legacyUsersSchema = z.array(legacyUserSchema).max(1000);
 
-/** What the server answers when it refuses an import. */
-export type LegacyImportRefusal = 'not-empty' | 'invalid-rows' | 'missing-media' | 'missing-bible';
+/** What the server answers when it refuses an import, with a `detail` naming the row. */
+export type LegacyImportRefusal = 'invalid-rows' | 'missing-media' | 'missing-bible' | 'write-failed';
 
 /**
  * Why a row does not fit its table, or null: it must name exactly the table's columns. A song version's
  * `user_id` is the importing admin's, set by the server, as 1.x does not record whose change it was.
  */
-export function legacyRowProblem(table: LegacyTable, row: LegacyRow): string | null {
+function legacyRowProblem(table: LegacyTable, row: LegacyRow): string | null {
   const columns = tableByName.get(table)!.columns;
   const keys = Object.keys(row);
   const missing = columns.filter((c) => !(c in row));
   const extra = keys.filter((k) => !columns.includes(k));
-  if (missing.length || extra.length) return `${table}: ${[...missing.map((c) => `no ${c}`), ...extra.map((c) => `unknown ${c}`)].join(', ')}`;
-  if (typeof row.id !== 'string' || !row.id) return `${table}: no id`;
+  if (missing.length || extra.length) return [...missing.map((c) => `no ${c}`), ...extra.map((c) => `unknown ${c}`)].join(', ');
+  if (typeof row.id !== 'string' || !row.id) return 'no id';
+  return null;
+}
+
+/**
+ * The first row the server would refuse, named by its table and id, or null. The export checks its rows with
+ * this before it writes a zip, and the server again before it writes them.
+ */
+export function legacyRowsProblem(rows: LegacyRows): string | null {
+  for (const t of LEGACY_TABLES) {
+    for (const r of rows[t]) {
+      const problem = legacyRowProblem(t, r);
+      if (problem) return `${t} ${String(r.id)}: ${problem}`;
+    }
+  }
+  for (const d of rows.displays) {
+    if (!DISPLAY_CODE.test(String(d.code))) return `displays ${String(d.id)}: the code "${String(d.code)}" is not one 2.0 uses`;
+    if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${String(d.id)}: no kind "${String(d.kind)}"`;
+  }
+  for (const item of rows.presentation_items) {
+    const content = typeof item.content === 'string' ? item.content : null;
+    if (item.type === 'slides' && !parseSlidesContent(content)) return `presentation_items ${String(item.id)}: a slide deck that does not read`;
+    if (item.type === 'bible' && !parseBibleContent(content)) return `presentation_items ${String(item.id)}: a Bible passage that does not read`;
+  }
   return null;
 }

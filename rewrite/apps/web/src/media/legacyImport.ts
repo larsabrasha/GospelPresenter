@@ -65,13 +65,23 @@ async function readZipFile(file: Blob): Promise<Map<string, Entry>> {
   return entries;
 }
 
-export type LegacyImportReason = 'not-zip' | 'not-export' | 'format' | 'not-empty' | 'upload' | 'refused';
+export type LegacyImportReason = 'not-zip' | 'not-export' | 'format' | 'upload' | 'refused';
 
 export class LegacyImportError extends Error {
-  constructor(readonly reason: LegacyImportReason) {
+  /** What the server said, when it said why: the admin can read which row or file stopped the import. */
+  constructor(
+    readonly reason: LegacyImportReason,
+    readonly detail = '',
+  ) {
     super(reason);
   }
 }
+
+/** The server's answer as a detail: its error and, when it names one, the row. */
+const said = (r: { error: string | null; body: unknown }) => {
+  const detail = (r.body as { detail?: unknown } | null)?.detail;
+  return typeof detail === 'string' && detail ? `${r.error}: ${detail}` : (r.error ?? '');
+};
 
 export interface LegacyProgress {
   step: 'files' | 'rows' | 'users';
@@ -95,7 +105,7 @@ const PARALLEL = 4;
 
 async function put(path: string, body: Uint8Array, contentType: string) {
   const res = await fetch(serverUrl(path), { method: 'PUT', headers: { 'content-type': contentType, ...authHeaders() }, body: body as BodyInit });
-  if (!res.ok) throw new LegacyImportError('upload');
+  if (!res.ok) throw new LegacyImportError('upload', `${path}: http-${res.status}`);
 }
 
 /** The manifest of an export zip, or why it is not one this build imports. */
@@ -107,9 +117,9 @@ export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
 }
 
 /**
- * The import, in the order that lets a failed one be run again: the server is asked whether it would take the rows
- * before anything goes up; the users go first, as a second run keeps them as they are; the rows go last, in one
- * transaction, so an import is either done or not begun.
+ * The import, in the order that lets a failed one be run again: the users go first, as a second run keeps them as
+ * they are; the rows go last, in one transaction, so an import is either done or not begun. The organisation keeps
+ * what it has: a second run adds only what is new.
  */
 export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => void): Promise<LegacyImportResult> {
   const entries = await readZipFile(file);
@@ -117,13 +127,10 @@ export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => 
   const rows = Object.fromEntries(await Promise.all(LEGACY_TABLES.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as LegacyRows;
   const users = legacyUsersSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.users)));
   if (!users.success) throw new LegacyImportError('not-export');
-  const state = await api<{ empty: boolean }>('GET', '/api/import/legacy');
-  if (state.error) throw new LegacyImportError('refused');
-  if (!state.body.empty) throw new LegacyImportError('not-empty');
 
   progress({ step: 'users', done: 0, total: users.data.length });
   const added = await api<LegacyImportResult['users']>('POST', '/api/import/users', users.data);
-  if (added.error) throw new LegacyImportError('refused');
+  if (added.error) throw new LegacyImportError('refused', said(added));
 
   const files = [...entries.values()].filter((e) => e.name.startsWith('blobs/') || e.name.startsWith('bibles/'));
   let done = 0;
@@ -149,7 +156,6 @@ export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => 
 
   progress({ step: 'rows', done: 0, total: 1 });
   const imported = await api('POST', '/api/import/legacy', rows);
-  if (imported.error === 'not-empty') throw new LegacyImportError('not-empty');
-  if (imported.error) throw new LegacyImportError('refused');
+  if (imported.error) throw new LegacyImportError('refused', said(imported));
   return { manifest, users: added.body };
 }

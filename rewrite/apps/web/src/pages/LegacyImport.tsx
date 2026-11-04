@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import type { LegacyManifest } from '@gp/core';
-import { orgIsEmpty } from '../db/queries.ts';
-import { useData } from '../db/react.tsx';
 import { isTextKey, t } from '../i18n.ts';
 import { importLegacy, LegacyImportError, readLegacyManifest, type LegacyImportResult, type LegacyProgress } from '../media/legacyImport.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -18,7 +16,8 @@ type State =
 function errorText(e: unknown): string {
   const reason = e instanceof LegacyImportError ? e.reason : e instanceof Error ? e.message : String(e);
   const key = `legacy.error.${reason}`;
-  return isTextKey(key) ? t(key) : reason;
+  const text = isTextKey(key) ? t(key) : reason;
+  return e instanceof LegacyImportError && e.detail ? `${text} (${e.detail})` : text;
 }
 
 function progressText(p: LegacyProgress): string {
@@ -31,10 +30,9 @@ const summary = (m: LegacyManifest) =>
 
 /**
  * "Importera från version 1" (docs/import-from-1x.md): an export zip of the current app picked, what it holds shown,
- * then its files, rows and users sent to the server. Only an empty organisation takes it; the server checks that too.
+ * then its users, files and rows sent to the server. What the organisation has already is kept.
  */
 export function LegacyImport() {
-  const empty = useData(orgIsEmpty, []);
   const [state, setState] = useState<State>({ at: 'idle' });
 
   const pick = async (file: File | undefined) => {
@@ -56,20 +54,12 @@ export function LegacyImport() {
   };
 
   const idle = state.at === 'idle' || state.at === 'failed';
-  // Not after a failed run: its error stays in view, whatever the organisation holds now.
-  if (empty === false && state.at === 'idle') {
-    return (
-      <Group title={t('legacy.title')} footer={t('legacy.notEmpty')}>
-        <div className={`${GROUP_ROW} text-stone-500 dark:text-stone-400`}>{t('legacy.text')}</div>
-      </Group>
-    );
-  }
   return (
     <Group title={t('legacy.title')} footer={t('legacy.text')}>
       {idle && (
         <div className={`${GROUP_ROW} flex-wrap`}>
-          <span className={state.at === 'failed' ? 'text-red-600 dark:text-red-400' : ''}>{state.at === 'failed' ? t('legacy.failed', { error: state.error }) : t('legacy.pick')}</span>
-          <ImportFilesButton secondary accept=".zip" busy={empty === undefined} testId="legacy-zip" onFiles={(files) => void pick(files[0])} />
+          <span className={state.at === 'failed' ? 'min-w-0 break-words text-red-600 dark:text-red-400' : ''}>{state.at === 'failed' ? t('legacy.failed', { error: state.error }) : t('legacy.pick')}</span>
+          <ImportFilesButton secondary accept=".zip" busy={false} testId="legacy-zip" onFiles={(files) => void pick(files[0])} />
         </div>
       )}
       {state.at === 'picked' && (

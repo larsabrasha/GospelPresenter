@@ -1,5 +1,5 @@
-// The import from 1.x (docs/import-from-1x.md): the rows of an export zip written into an empty organisation, and its
-// users brought along, on each server adapter.
+// The import from 1.x (docs/import-from-1x.md): the rows of an export zip written into an organisation beside what it
+// has, and its users brought along, on each server adapter.
 import { describe, expect, it } from 'vitest';
 import { LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
 import { api, setRole } from './harness.ts';
@@ -32,7 +32,7 @@ const version = { id: 'v-1', song_id: 'song-1', user_id: '', created_at: 5, name
 
 describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
   const fx = syncFixture(adapterName);
-  const send = (body: unknown, user = 'alice') => api<{ error?: string }>(fx.h, 'POST', '/api/import/legacy', { user, org: fx.org, body });
+  const send = (body: unknown, user = 'alice') => api<{ error?: string; detail?: string }>(fx.h, 'POST', '/api/import/legacy', { user, org: fx.org, body });
 
   it('writes the rows into an empty organisation, and a device pulls them', async () => {
     const r = await send(rows({ labels: [label], songs: [song], song_parts: [part], presentations: [presentation], presentation_items: [songItem] }));
@@ -45,11 +45,12 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     expect(dump.presentation_items).toEqual([songItem]);
   });
 
-  it('gives an imported label the old colour when the organisation was made with that label', async () => {
+  it('keeps the colour of a label the organisation has already', async () => {
     await send(rows({ labels: [{ ...label, color: '#123456' }] }));
-    await fx.alice.client.pull();
 
-    expect((await fx.alice.client.dump()).labels.find((l) => l.id === label.id)?.color).toBe('#123456');
+    await send(rows({ labels: [{ ...label, color: '#abcdef' }] }));
+
+    expect((await fx.server()).tables.labels.find((l) => l.id === label.id)?.color).toBe('#123456');
   });
 
   it('makes the importing admin the author of the old song versions', async () => {
@@ -58,19 +59,29 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     expect((await fx.server()).tables.song_versions.map((v) => v.user_id)).toEqual(['alice']);
   });
 
-  it('refuses an organisation that has songs already, and writes nothing', async () => {
+  it('adds to an organisation that has songs, keeping them', async () => {
     await fx.seed();
+    const before = (await fx.server()).tables.songs.map((s) => s.id);
 
-    const r = await send(rows({ songs: [{ ...song, id: 'song-new' }] }));
+    const r = await send(rows({ songs: [song] }));
 
-    expect(r).toEqual({ status: 409, body: { error: 'not-empty' } });
-    expect((await fx.server()).tables.songs.map((s) => s.id)).not.toContain('song-new');
+    expect(r.status).toBe(200);
+    expect((await fx.server()).tables.songs.map((s) => s.id).toSorted()).toEqual([...before, song.id].toSorted());
+  });
+
+  it('keeps a row changed since an earlier import when the zip is imported again', async () => {
+    await send(rows({ songs: [song] }));
+
+    const r = await send(rows({ songs: [{ ...song, name: 'Ett annat namn' }] }));
+
+    expect(r.status).toBe(200);
+    expect((await fx.server()).tables.songs.map((s) => s.name)).toEqual([song.name]);
   });
 
   it('refuses a picture whose blobs were not uploaded', async () => {
     const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: 'a'.repeat(64), thumb_hash: 'b'.repeat(64), width: 10, height: 10, created_at: 1, deleted_at: null };
 
-    expect(await send(rows({ images: [image] }))).toEqual({ status: 400, body: { error: 'missing-media' } });
+    expect(await send(rows({ images: [image] }))).toEqual({ status: 400, body: { error: 'missing-media', detail: `images img: no file ${'a'.repeat(64)}` } });
   });
 
   it('takes a picture whose blobs were uploaded first', async () => {
@@ -84,10 +95,17 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     expect((await send(rows({ images: [image] }))).status).toBe(200);
   });
 
-  it('refuses a row that does not name its table’s columns', async () => {
+  it('refuses a row that does not name its table’s columns, and names it', async () => {
     const { year: _, ...withoutYear } = song;
 
-    expect(await send(rows({ songs: [withoutYear] }))).toEqual({ status: 400, body: { error: 'invalid-rows' } });
+    expect(await send(rows({ songs: [withoutYear] }))).toEqual({ status: 400, body: { error: 'invalid-rows', detail: 'songs song-1: no year' } });
+  });
+
+  it('refuses a row the database refuses, writing none of the others', async () => {
+    const r = await send(rows({ songs: [song], song_parts: [{ ...part, content: null }] }));
+
+    expect([r.status, r.body.error]).toEqual([400, 'write-failed']);
+    expect((await fx.server()).tables.songs).toEqual([]);
   });
 
   it('refuses a user', async () => {
@@ -100,12 +118,13 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     expect((await api(fx.h, 'GET', '/api/watch/hjkmnpq/exists')).status).toBe(200);
   });
 
-  it('says an organisation is empty until it has songs', async () => {
-    const ask = () => api<{ empty: boolean }>(fx.h, 'GET', '/api/import/legacy', { user: 'alice', org: fx.org });
-    const before = await ask();
-    await fx.seed();
+  it('gives an output a new code when another output here has its code', async () => {
+    await send(rows({ displays: [{ id: 'd-1', name: 'Gamla', code: 'hjkmnpq', kind: 'screen', created_at: 1 }] }));
 
-    expect([before.body, (await ask()).body]).toEqual([{ empty: true }, { empty: false }]);
+    await send(rows({ displays: [{ id: 'd-2', name: 'Nya', code: 'hjkmnpq', kind: 'screen', created_at: 1 }] }));
+    const codes = (await fx.server()).tables.displays.map((d) => d.code);
+
+    expect(new Set(codes).size).toBe(2);
   });
 
   it('gives an output a new code when another organisation holds its code', async () => {

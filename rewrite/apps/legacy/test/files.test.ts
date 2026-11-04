@@ -63,6 +63,14 @@ describe('the export’s files', () => {
     expect([existsSync(out), existsSync(`${out}.partial`)]).toEqual([false, false]);
   });
 
+  it('writes no zip the import would refuse, and names the row', async () => {
+    const out = join(tempDir(), 'kyrkan.zip');
+    const data: OldData = { ...withImage(), images: [], displays: [{ Id: 'd-1', DisplayIdentifier: 'ABC', Name: 'TV', Kind: 0, CreatedAt: new Date(0) }] };
+
+    await expect(exportOrg(data, { get: async () => null }, out)).rejects.toThrow('the import would refuse displays d-1: the code "ABC" is not one 2.0 uses');
+    expect(existsSync(out)).toBe(false);
+  });
+
   it('writes a zip core reads back, each entry once', async () => {
     const out = join(tempDir(), 'test.zip');
     const zip = new ZipWriter(out);

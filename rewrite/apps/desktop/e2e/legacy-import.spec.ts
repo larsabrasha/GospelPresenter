@@ -1,5 +1,5 @@
-// Importera från version 1 (docs/import-from-1x.md): an admin of an empty organisation picks an export zip under
-// Organisationen, sees what it holds and imports it; its songs, presentations, Bibles and users are there after.
+// Importera från version 1 (docs/import-from-1x.md): an admin picks an export zip under Organisationen, sees what
+// it holds and imports it; its songs, presentations, Bibles and users are there after, beside what was there.
 import { expect, test } from '@playwright/test';
 import { bibleTextHash, LEGACY_ENTRIES, LEGACY_TABLES, makeZip, serializeBibleText, utf8Encode } from '@gp/core';
 import { launch, type Desktop } from './apps.ts';
@@ -61,14 +61,18 @@ test('an export from version 1 is imported into an empty organisation', async ()
   await expect(page.getByText('Gudstjänst i oktober')).toBeVisible();
 });
 
-test('an organisation that has songs does not offer the import', async () => {
+test('an export is imported into an organisation that has songs, keeping them', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
   await createSong(page, 'En sång', []);
-
   await openAdmin(page, 'Organisationen');
 
-  await expect(page.getByText('Organisationen har redan innehåll. Importen går bara till en tom organisation.')).toBeVisible();
-  await expect(page.getByTestId('legacy-zip')).toHaveCount(0);
+  await page.getByTestId('legacy-zip').setInputFiles({ name: 'gamla-kyrkan.zip', mimeType: 'application/zip', buffer: await exportZip() });
+  await page.getByRole('button', { name: 'Importera', exact: true }).click();
+  await expect(page.getByText('Klart. Gamla kyrkan är importerad.')).toBeVisible();
+  await openAdmin(page, 'Sånger');
+
+  await expect(page.getByText('Bred dina vida vingar')).toBeVisible();
+  await expect(page.getByText('En sång')).toBeVisible();
 });

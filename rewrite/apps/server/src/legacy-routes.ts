@@ -1,74 +1,79 @@
 import { Hono, type Context } from 'hono';
 import {
   can,
-  DISPLAY_CODE,
   displayCode,
   LEGACY_TABLES,
-  legacyRowProblem,
+  legacyRowsProblem,
   legacyRowsSchema,
-  parseBibleContent,
   parseSlidesContent,
   tableByName,
-  upsertSql,
   type LegacyImportRefusal,
   type LegacyRow,
   type LegacyRows,
+  type TableInfo,
 } from '@gp/core';
 import { currentSeq, type OrgStore } from '@gp/sync/server';
 import type { Caller } from './auth/index.ts';
 import type { Org } from './app.ts';
 import type { WatchRegistry } from './watch.ts';
 
-// The import from 1.x (docs/import-from-1x.md): an admin sends an empty organisation the rows of an export
-// zip, after its blobs and Bible texts went up through `PUT /api/media/:hash` and `PUT /api/bibles/:hash`.
-// The rows are written in one transaction, so the change log has them and every device pulls them as usual.
-
-/** Tables that say an organisation is in use: an import never mixes with what is there. */
-const IN_USE = ['songs', 'presentations', 'bibles', 'images', 'audios', 'videos', 'overlays', 'displays', 'ccli_entries'];
+// The import from 1.x (docs/import-from-1x.md): an admin sends an organisation the rows of an export zip, after
+// its blobs and Bible texts went up through `PUT /api/media/:hash` and `PUT /api/bibles/:hash`. The rows are
+// written in one transaction, so the change log has them and every device pulls them as usual. What the
+// organisation has already is kept: a row whose id is there is left out, so a second run adds only what is new.
 
 /** A Durable Object binds at most 100 values a statement. */
 const MAX_PARAMS = 100;
 
-const inUse = (store: OrgStore) => IN_USE.some((t) => store.query(`SELECT 1 FROM ${t} LIMIT 1`).length);
+interface Refused {
+  error: LegacyImportRefusal;
+  /** The row and why, for the admin who sees the import fail. */
+  detail: string;
+}
 
-function refusal(store: OrgStore, rows: LegacyRows): LegacyImportRefusal | null {
-  if (inUse(store)) return 'not-empty';
-  for (const t of LEGACY_TABLES) if (rows[t].some((r) => legacyRowProblem(t, r))) return 'invalid-rows';
-  if (rows.displays.some((d) => !DISPLAY_CODE.test(String(d.code)) || (d.kind !== 'public' && d.kind !== 'screen'))) return 'invalid-rows';
+const newRowsSql = (t: TableInfo, rows: number) =>
+  `INSERT INTO ${t.name} (${t.columns.join(', ')}) VALUES ${Array.from({ length: rows }, () => `(${t.columns.map(() => '?').join(', ')})`).join(', ')}
+    ON CONFLICT (id) DO NOTHING`;
 
-  const hashes = new Set<string>();
-  for (const i of rows.images) hashes.add(String(i.full_hash)).add(String(i.thumb_hash));
-  for (const a of rows.audios) hashes.add(String(a.hash));
+function refusal(store: OrgStore, rows: LegacyRows): Refused | null {
+  const problem = legacyRowsProblem(rows);
+  if (problem) return { error: 'invalid-rows', detail: problem };
+
+  const hashes: [string, string][] = [];
+  for (const i of rows.images) hashes.push([String(i.full_hash), `images ${String(i.id)}`], [String(i.thumb_hash), `images ${String(i.id)}`]);
+  for (const a of rows.audios) hashes.push([String(a.hash), `audios ${String(a.id)}`]);
   for (const item of rows.presentation_items) {
-    const content = typeof item.content === 'string' ? item.content : null;
-    if (item.type === 'slides') {
-      const deck = parseSlidesContent(content);
-      if (!deck) return 'invalid-rows';
-      for (const p of deck.pages) hashes.add(p.full).add(p.thumb);
-    } else if (item.type === 'bible' && !parseBibleContent(content)) return 'invalid-rows';
+    if (item.type !== 'slides') continue;
+    for (const p of parseSlidesContent(item.content as string)!.pages) hashes.push([p.full, `presentation_items ${String(item.id)}`], [p.thumb, `presentation_items ${String(item.id)}`]);
   }
   const known = new Set(store.query('SELECT hash FROM media_blobs').map((r) => String(r.hash)));
-  if ([...hashes].some((h) => !known.has(h))) return 'missing-media';
+  const missing = hashes.find(([h]) => !known.has(h));
+  if (missing) return { error: 'missing-media', detail: `${missing[1]}: no file ${missing[0]}` };
   const texts = new Set(store.query('SELECT hash FROM bible_blobs').map((r) => String(r.hash)));
-  if (rows.bibles.some((b) => !texts.has(String(b.content_hash)))) return 'missing-bible';
+  const bible = rows.bibles.find((b) => !texts.has(String(b.content_hash)));
+  if (bible) return { error: 'missing-bible', detail: `bibles ${String(bible.id)}: no text ${String(bible.content_hash)}` };
   return null;
 }
 
 /**
- * Writes the rows, parents first: an upsert, so the labels and settings the organisation was given when it
- * was made take the old ones' colours and values. A song version's `user_id` is the importing admin's.
+ * Writes the rows whose ids are new, parents first. A song version's `user_id` is the importing admin's; an
+ * output whose code another output here has gets a new one.
  */
-function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): LegacyImportRefusal | null {
+function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): Refused | null {
   const refused = refusal(store, rows);
   if (refused) return refused;
+  const codes = new Map(store.query('SELECT id, code FROM displays').map((r) => [String(r.code), String(r.id)]));
+  const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
   for (const t of LEGACY_TABLES) {
     const info = tableByName.get(t)!;
-    const all: LegacyRow[] = t === 'song_versions' ? rows[t].map((r) => ({ ...r, user_id: userId })) : rows[t];
+    let all: LegacyRow[] = rows[t];
+    if (t === 'song_versions') all = all.map((r) => ({ ...r, user_id: userId }));
+    if (t === 'displays') all = all.map((d) => (codes.has(String(d.code)) && codes.get(String(d.code)) !== d.id ? { ...d, code: displayCode(random) } : d));
     const per = Math.max(1, Math.floor(MAX_PARAMS / info.columns.length));
     for (let at = 0; at < all.length; at += per) {
       const chunk = all.slice(at, at + per);
       store.query(
-        upsertSql(info, chunk.length),
+        newRowsSql(info, chunk.length),
         chunk.flatMap((r) => info.columns.map((c) => r[c])),
       );
     }
@@ -93,30 +98,25 @@ async function freeCodes(rows: LegacyRows, orgId: string, watch: WatchRegistry):
 export function legacyRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, watch: WatchRegistry | null) {
   const app = new Hono();
 
-  // Whether an import would be taken, asked before the files go up: a device may not have pulled everything yet.
-  app.get('/api/import/legacy', async (c) => {
-    const r = await resolve(c);
-    if (r instanceof Response) return r;
-    if (!can(r.caller.ctx.role, 'ManageOrganizationSettings')) return c.json({ error: 'forbidden' }, 403);
-    return c.json({ empty: !(await r.org.queue.run(async () => inUse(r.org.store))) });
-  });
-
   app.post('/api/import/legacy', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     const { org, caller } = r;
     if (!can(caller.ctx.role, 'ManageOrganizationSettings')) return c.json({ error: 'forbidden' }, 403);
     const parsed = legacyRowsSchema.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid-rows' }, 400);
+    if (!parsed.success) return c.json({ error: 'invalid-rows', detail: parsed.error.issues[0]?.path.join(' ') ?? '' }, 400);
     const rows = watch ? await freeCodes(parsed.data, caller.orgId, watch) : parsed.data;
     const refused = await org.queue.run(async () => {
       const before = currentSeq(org.store);
-      const result = await org.store.transaction(async () => importLegacyRows(org.store, rows, caller.ctx.userId));
+      // A row the database refuses (a constraint, a limit) undoes the whole import and is named, not a 500.
+      const result = await org.store
+        .transaction(async () => importLegacyRows(org.store, rows, caller.ctx.userId))
+        .catch((e: unknown): Refused => ({ error: 'write-failed', detail: e instanceof Error ? e.message : String(e) }));
       const after = currentSeq(org.store);
       if (after > before) org.poke.changed('', after);
       return result;
     });
-    if (refused) return c.json({ error: refused }, refused === 'not-empty' ? 409 : 400);
+    if (refused) return c.json(refused, 400);
     // After the rows are in, not as part of them: a failure here leaves the import done, and the codes are
     // registered again by the next change to an output.
     if (watch) {
