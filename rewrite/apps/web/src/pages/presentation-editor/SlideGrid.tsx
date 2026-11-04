@@ -70,7 +70,7 @@ export function SlideGrid({
     return (
       <ol className="@container flex flex-wrap gap-3" aria-label={label}>
         {slides.map((s, i) => {
-          // After Rensa nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
+          // After Släck nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
           const here = !!shown && shown.pointer.itemId === shown.itemId && shown.pointer.partIndex === i;
           const live = here && !shown.pointer.black;
           const chosen = !shown && picked?.partIndex === i;

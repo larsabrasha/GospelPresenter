@@ -71,7 +71,9 @@ Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2
 
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
 light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's
-large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the dashed sky frame while files hover
+large grey pictures and small icons when a list is empty (`ui/Empty.tsx`; as Apple's empty states since 2026-11-04: what the
+page is for where no intro card says it, and a button for the first step, named for it: Skriv in en sång, Importera
+bilder, Importera en bibel), the dashed sky frame while files hover
 over a page that takes them (`DropZone.razor`, `ui/DropZone.tsx`), the overlay under `DetailHeader` with
 floating fields, the QR dialogs with the grey link field and its copy button (`ui/CopyField.tsx`), and the
 trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is drawn as Min profil. Where the
@@ -103,8 +105,8 @@ Where the look would change what the app does, Lars decided (2026-10-27) to foll
 Ljud trash from a ⋯ menu (since 2026-11-04 the libraries are one page as iOS 27's, `ui/Library.tsx`: an item's menu
 opens on a right click or a held finger, with Byt namn and Radera, and Välj marks several for Radera); the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
 Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
-coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Rensa and B only
-blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
+coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Släck and B only
+blank, and Släck is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
 the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet;
 a build knows it only from `GP_COMMIT`, for a release build to set, so local and e2e builds show none); the canvas
 is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen scrolls

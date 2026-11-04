@@ -1,6 +1,6 @@
 // The presentation on a phone (390×844), one view before and while presenting (docs/layout-2-0.md): the running
 // order with every part's text and Lägg till's song preview over the add dialog; presenting adds the picture and
-// ‹ Rensa ›.
+// ‹ Släck ›.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
@@ -29,7 +29,7 @@ async function onScreen(l: Locator) {
   return box;
 }
 
-test('on a phone the presentation is one column before and while presenting; Lägg till previews a song over the dialog; presenting adds the picture and ‹ Rensa ›', async () => {
+test('on a phone the presentation is one column before and while presenting; Lägg till previews a song over the dialog; presenting adds the picture and ‹ Släck ›', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -60,9 +60,14 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(picture).toHaveCount(0);
   await onScreen(start);
 
-  // Lägg till: the songs' preview is not beside the list; a tapped song opens it over the dialog.
+  // Lägg till asks which kind first, as a menu, Sånger first; that kind's dialog has no tabs (Lars, 2026-11-04).
   await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  const kinds = page.getByRole('dialog', { name: 'Lägg till' });
+  await expect(kinds.getByRole('button').filter({ hasText: /\S/ })).toHaveText(['Sånger', 'Bibeltexter', 'Bilder', 'Ljud', 'Video', 'Bildspel']);
+  await kinds.getByRole('button', { name: 'Sånger', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Sånger' });
+  await expect(picker.getByRole('tablist')).toBeHidden();
+  // The songs' preview is not beside the list; a tapped song opens it over the dialog.
   await picker.getByRole('list', { name: 'Sånger' }).getByRole('button', { name: /Sång B/ }).click();
   const preview = page.getByRole('dialog', { name: 'Sång B' });
   await expect(preview).toBeVisible();
@@ -87,11 +92,11 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(liveOrder.locator('section')).toHaveCount(2);
 
-  // Presenting: one column, the picture with Rensa under it, and every part of every item with its text. The list
+  // Presenting: one column, the picture with Släck under it, and every part of every item with its text. The list
   // slides down to make room as the block with the picture comes (liveMotion.ts): an animation runs on it at once.
   await start.click();
   await expect.poll(() => liveOrder.evaluate((el) => el.getAnimations().length), { intervals: [0, 20, 40] }).toBeGreaterThan(0);
-  // Presenting, the description is behind the button left of Rensa, in a sheet of its own.
+  // Presenting, the description is behind the button left of Släck, in a sheet of its own.
   await expect(liveOrder.getByTestId('description')).toHaveCount(0);
   await live.getByRole('button', { name: 'Beskrivning' }).click();
   await expect(page.getByTestId('description-sheet')).toHaveText('Med nattvard');
@@ -105,7 +110,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(title.x).toBeGreaterThanOrEqual(back.x + back.width);
   expect(title.x + title.width).toBeLessThanOrEqual(right.x);
   await onScreen(picture);
-  await onScreen(page.getByRole('button', { name: 'Rensa' }));
+  await onScreen(page.getByRole('button', { name: 'Släck' }));
   await expect(liveOrder.locator('section')).toHaveCount(2);
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toBeVisible();
 
@@ -119,10 +124,10 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(picture).toContainText('A två');
 
-  // Rensa blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not
+  // Släck blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not
   // VISAS, nor the item's dot; NÄSTA still says what → shows. The bar has ■ to end it, and no LIVE beside the name.
-  await page.getByRole('button', { name: 'Rensa' }).click();
-  await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Släck' }).click();
+  await expect(page.getByRole('button', { name: 'Släck', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
   await expect(live.getByRole('button', { name: 'Alternativ' })).not.toContainText('LIVE');
   await expect(live.getByRole('button', { name: 'Avsluta presentation' })).toBeVisible();
@@ -133,10 +138,11 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toHaveAttribute('data-rested', 'true');
   await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('VISAS');
-  await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Släck', exact: true })).toBeEnabled();
 
   // Lägg till while presenting adds right after the item shown, not at the end; nothing changes on the outputs.
   await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await kinds.getByRole('button', { name: 'Sånger', exact: true }).click();
   await picker.getByRole('list', { name: 'Sånger' }).getByRole('button', { name: /Sång C/ }).click();
   await page.getByRole('dialog', { name: 'Sång C' }).getByRole('button', { name: 'Lägg till Sång C' }).click();
   await expect(page.getByRole('dialog', { name: 'Sång C' })).toBeHidden();
@@ -186,7 +192,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(lying.y).toBeLessThan(order.y + order.height / 2);
   await page.setViewportSize(PHONE);
 
-  // A sheet is pulled down by its bar to close it, as on iOS: Visning's (outputs and overlays), from its button under ‹ Rensa ›.
+  // A sheet is pulled down by its bar to close it, as on iOS: Visning's (outputs and overlays), from its button under ‹ Släck ›.
   await live.getByRole('button', { name: 'Visning' }).click();
   const more = await settled(page.getByRole('dialog', { name: 'Visning' }));
   const bar = (await more.getByRole('heading', { name: 'Visning' }).boundingBox())!;

@@ -9,7 +9,7 @@ import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { NameDialog } from '../ui/NameDialog.tsx';
-import { CARD } from '../ui/List.tsx';
+import { GROUP_ROW, Group } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -28,6 +28,8 @@ async function fetchLogins(): Promise<LoginMethod[] | string> {
 }
 
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale());
+/** A row's action, as text in sky at its end. */
+const ROW_ACTION = 'shrink-0 text-sm text-sky-600 dark:text-sky-400 cursor-pointer disabled:opacity-40 disabled:cursor-default';
 const label = (l: LoginMethod) => l.name ?? (l.provider === 'google' ? t('logins.google') : t('logins.passkey'));
 
 /**
@@ -99,34 +101,38 @@ export function Logins({ error: initialError }: { error: string | null }) {
   return (
     <PageContainer>
       <PageHeader title={t('logins.title')} />
-      <div className={`${CARD} p-5 space-y-4`}>
-        <p className="text-sm text-stone-500 dark:text-stone-400">{t('logins.text')}</p>
-        {failure && (
-          <p className="text-sm text-red-500 dark:text-red-400" role="alert">
-            {failure}
-          </p>
-        )}
-        <ul className="space-y-3 empty:hidden" aria-label={t('logins.title')}>
-          {logins?.map((l) => (
-            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600">
-              <div className="flex-1 min-w-0">
-                <div className="text-sm truncate">
-                  <span className="font-medium">{label(l)}</span> <span className="text-stone-500 dark:text-stone-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
+      <p className="px-5 -mt-2 text-sm text-stone-500 dark:text-stone-400">{t('logins.text')}</p>
+      {failure && (
+        <p className="px-5 text-sm text-red-500 dark:text-red-400" role="alert">
+          {failure}
+        </p>
+      )}
+      {/* The methods as a group of rows, each its actions as text at its end, as iOS's (Lars, 2026-11-04: no pills). */}
+      {!!logins?.length && (
+        <Group footer={only ? t('logins.last') : undefined}>
+          <ul className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator" aria-label={t('logins.title')}>
+            {logins.map((l) => (
+              <li key={`${l.provider}:${l.id}`} className={GROUP_ROW}>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate">
+                    <span className="font-medium">{label(l)}</span> <span className="text-stone-500 dark:text-stone-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
+                  </div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
                 </div>
-                <div className="text-xs text-stone-500 dark:text-stone-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
-              </div>
-              {l.provider === 'passkey' && (
-                <AppButton variant="neutral" className="px-3! py-1.5!" onClick={() => setDialog({ kind: 'rename', login: l })}>
-                  {t('logins.rename')}
+                {l.provider === 'passkey' && (
+                  <AppButton variant="plain" className={ROW_ACTION} onClick={() => setDialog({ kind: 'rename', login: l })}>
+                    {t('logins.rename')}
+                  </AppButton>
+                )}
+                <AppButton variant="plain" className={`${ROW_ACTION} text-red-600! dark:text-red-400!`} disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
+                  {t('logins.remove')}
                 </AppButton>
-              )}
-              <AppButton variant="danger" className="px-3! py-1.5!" disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
-                {t('logins.remove')}
-              </AppButton>
-            </li>
-          ))}
-        </ul>
-        {only && <p className="text-xs text-stone-500 dark:text-stone-400">{t('logins.last')}</p>}
+              </li>
+            ))}
+          </ul>
+        </Group>
+      )}
+      <div>
         {waiting ? (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-sm text-stone-600 dark:text-stone-300" role="status">

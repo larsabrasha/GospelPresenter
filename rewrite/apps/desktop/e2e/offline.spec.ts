@@ -48,7 +48,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   // A presentation with no date, with a video: nothing fetches it unless it is kept offline.
   await createPresentation(host.page, 'Konsert');
   await host.page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await host.page.keyboard.press('Control+6');
+  await host.page.keyboard.press('Control+5');
   const picker = host.page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByTestId('video-tab-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: video() });
   await picker.getByRole('button', { name: 'Dop.mp4', exact: true }).click({ timeout: 15_000 });

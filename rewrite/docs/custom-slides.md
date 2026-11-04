@@ -8,7 +8,7 @@ PDF) is a slideshow too, its pages its pages' pictures: one kind of thing, Bilds
 
 - **A slideshow** (Bildspel; `custom_slides`, a custom slide in the code) is an item of the library with one or more
   pages, made in the editor or imported from a PDF. It is added to a presentation from Lägg till's tab Bildspel
-  (Ctrl/⌘+5), or made or imported there, and it is a reference, as a song is: a change in the library shows in every
+  (Ctrl/⌘+6), or made or imported there, and it is a reference, as a song is: a change in the library shows in every
   presentation that uses it, old ones too.
 - **An overlay** is one page with no background of its own, drawn above an item's slides when the item carries it,
   as today (LIVE-R15, `applyLiveChange`). The overlays of before (a text and a picture) are dropped, not converted;

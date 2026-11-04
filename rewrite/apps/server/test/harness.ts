@@ -40,6 +40,8 @@ export interface AdapterOptions {
   deployBuild?: boolean;
   /** A built web app to serve beside the API (Node's `webRoot`, the Worker's static assets). */
   webRoot?: string;
+  /** Node only: where the server's log events go (none by default). */
+  log?: (event: Record<string, unknown>) => void;
 }
 
 export async function startAdapter(name: AdapterName, opts: AdapterOptions = {}): Promise<Harness> {
@@ -63,7 +65,7 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
       media,
       ...rest,
       google: google && { clientId: google.clientId, clientSecret: google.clientSecret, testIssuer: google.url },
-      log: () => undefined,
+      log: rest.log ?? (() => undefined),
     });
     return {
       name,

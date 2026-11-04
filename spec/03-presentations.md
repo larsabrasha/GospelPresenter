@@ -255,7 +255,7 @@ in its place ("PowerPoint: Arkiv → Spara som → PDF", Keynote's "Arkiv → Ex
 Presentationer's "Arkiv → Ladda ned → PDF"). "Filen sparas bara i den här presentationen" is not shown
 (Lars, 2026-11-04: less text). Import works on
 every device, offline too, so there is no "görs i webbappen" state. The modal stays open after the add
-(D15); the toast is the add dialog's `"{file}" har lagts till`. Ctrl/⌘+5 opens the tab.
+(D15); the toast is the add dialog's `"{file}" har lagts till`. Ctrl/⌘+6 opens the tab, the last (2026-11-04: Bildspel last, as everywhere).
 
 #### 2e. Remove item
 "⋯ → Ta bort" or **Delete** key on the selected item → dialog titled "Radera" / "Vill du ta bort

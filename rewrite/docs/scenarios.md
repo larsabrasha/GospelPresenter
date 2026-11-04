@@ -14,7 +14,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Give the band sheet music, a recording and a Spotify link on a song, gathered under Sunday's presentation | `song-materials.spec.ts`: "a song carries sheet music and links" |
 | Present on the projector (its own switch under Utgångar), and Avsluta closes it | `milestone6.spec.ts`: "the output window is a switch" |
 | Keep presenting through a reload; only Avsluta stops | `editor.spec.ts`: "a reload while presenting" |
-| Present from a phone: the picture, ‹ Rensa ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
+| Present from a phone: the picture, ‹ Släck ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |
 | Change the running order while live on a computer: drag a row, its menu, Lägg till efter, Delete | `live-order.spec.ts`: "presenting on a computer" |
 | Present from an iPad lying down, by touch | `live-order.spec.ts`: "on an iPad lying down" |

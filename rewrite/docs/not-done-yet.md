@@ -93,5 +93,5 @@ From the 2.0 layout (docs/layout-2-0.md), all of it is built but these: undoing 
 the start page's Visas nu says the presentation's time and place, not the part shown; a user's picture (initials
 stand in for it). Delete removes the selected item on a computer, Backspace (a Mac's delete key) does not.
 The touch sizes of an iPad lying down follow `(pointer: coarse)` (the `touch:` variant in `app.css`), tested with
-Chromium's touch emulation in `live-order.spec.ts`, not on an iPad; they cover the live bar, the left column, ‹ Rensa ›
+Chromium's touch emulation in `live-order.spec.ts`, not on an iPad; they cover the live bar, the left column, ‹ Släck ›
 and the switches, not the editor.

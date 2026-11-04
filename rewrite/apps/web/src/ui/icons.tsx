@@ -274,6 +274,18 @@ export function SquaresOverlapIcon({ className }: IconProps) {
   );
 }
 
+/** A screen gone black, for Svart (Lars, 2026-11-04): its frame in the text's colour, its picture black. */
+export function BlackScreenIcon({ className }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className} aria-hidden="true">
+      {/* A thick frame, so the black inside shows against it (Lars, 2026-11-04, B of the six drawn). */}
+      <rect x="2.25" y="3.25" width="19.5" height="13.5" rx="2.75" fill="currentColor" />
+      <rect x="4.25" y="5.25" width="15.5" height="9.5" rx="1" fill="#000" />
+      <path d="M9 20.5h6M12 16.75v3.75" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function DesktopIcon({ className, off }: IconProps & { off?: boolean }) {
   return (
     <Solid className={className} viewBox="0 0 20 20">

@@ -71,8 +71,11 @@ organisation's themes (`live-output-gate.ts`). A public output draws the theme's
 ## Teman and the editor
 
 Teman (`pages/Themes.tsx`) lists the built-in themes, then the organisation's own, as a grid of previews. An admin's
-+ makes a copy of the default, named first, and opens it in the editor; a theme's sheet has Använd som standard,
-Duplicera, and for an own theme Redigera and Ta bort tema (asked first).
++ makes a copy of the default, named first, and opens it in the editor. A tap on a theme opens its sheet, as iOS's
+(Lars, 2026-11-04: a row of buttons did not fit a phone): the preview large, a built-in one's description, then its
+choices as rows of a group (Använd som standard, or a tick where it is the default; Redigera for an own theme;
+Duplicera) and Ta bort tema red in a group of its own, asked first. A right click or a finger held on a tile opens
+the same choices as a menu.
 
 The editor (`pages/theme-editor/`) is the slideshows' (Lars, 2026-11-04): Ångra and Gör om above the slide (⌘Z,
 ⇧⌘Z), the three kinds of slide (Sång, Bibeltext, Bild och video) where the slideshows' editor has its pages, and

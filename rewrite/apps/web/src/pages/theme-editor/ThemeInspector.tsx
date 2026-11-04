@@ -102,6 +102,7 @@ function BackgroundPanel({ kind, background, onBackground, onChoosePicture }: { 
 
 export function ThemeInspector({
   name,
+  nameNew,
   definition,
   kind,
   picked,
@@ -112,6 +113,8 @@ export function ThemeInspector({
   onChoosePicture,
 }: {
   name: string;
+  /** Just made: the name is focused and picked, to type over. */
+  nameNew?: boolean;
   definition: ThemeDefinition;
   kind: EditedKind;
   picked: TextRole | null;
@@ -125,7 +128,7 @@ export function ThemeInspector({
   return (
     <div className="space-y-5" data-testid="theme-inspector">
       <Group>
-        <AutoSaveField label={t('song.name')} maxLength={100} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxLength={100} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
       <BackgroundPanel kind={kind} background={backgroundIn(definition, kind)} onBackground={onBackground} onChoosePicture={onChoosePicture} />
       {kind !== 'media' && <p className="px-4 text-[13px] text-stone-500 dark:text-stone-400">{t('themeEditor.pickHint')}</p>}

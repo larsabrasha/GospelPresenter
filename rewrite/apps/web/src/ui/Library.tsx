@@ -6,7 +6,7 @@ import { useTrySave } from './AutoSave.tsx';
 import { CONTEXT_ROW } from './ContextMenu.tsx';
 import { Dropdown, MENU_ITEM } from './Dropdown.tsx';
 import { deleteAsk, useConfirm } from './Dialog.tsx';
-import { DropMore, DropZone } from './DropZone.tsx';
+import { DropZone } from './DropZone.tsx';
 import { EmptySmall } from './Empty.tsx';
 import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
@@ -78,7 +78,8 @@ export interface LibraryProps<T extends LibraryEntry> {
   /** Progress and failures of an import, under the title. */
   notices?: ReactNode;
   loading: string;
-  empty: { icon: ReactNode; title: string };
+  /** The empty list: its icon and heading, what the page is for, and the first step's buttons, for one who manages. */
+  empty: { icon: ReactNode; title: string; text?: string; action?: ReactNode };
   /** "Inga bilder matchar din sökning" (spec 05); else "Inga träffar för …". */
   noMatch?: string;
   count: (n: number) => string;
@@ -377,7 +378,11 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         </div>
       )}
       {!p.items && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{p.loading}</div>}
-      {p.items && !p.items.length && <EmptySmall icon={p.empty.icon} title={p.empty.title} dropHint={p.drop && p.manage ? p.drop.label : undefined} />}
+      {p.items && !p.items.length && (
+        <EmptySmall icon={p.empty.icon} title={p.empty.title} text={p.empty.text} dropHint={p.drop && p.manage ? p.drop.label : undefined}>
+          {p.manage && p.empty.action}
+        </EmptySmall>
+      )}
       {!!p.items?.length && shown && !shown.length && (p.noMatch ? <p className="px-5 text-sm text-stone-400">{p.noMatch}</p> : <NoMatch query={query} />)}
       {sections && !!sections.length ? (
         <div className="flex gap-1">
@@ -411,7 +416,6 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       )}
       {!!shown?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{p.count(shown.length)}</p>}
       {p.footer}
-      {p.drop && p.manage && !!p.items?.length && <DropMore text={p.drop.label} />}
     </>
   );
 

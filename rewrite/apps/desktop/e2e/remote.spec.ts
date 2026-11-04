@@ -74,7 +74,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
   await expect(secondApp.page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
   // And the black screen.
-  await secondApp.page.getByRole('button', { name: 'Rensa' }).click();
+  await secondApp.page.getByRole('button', { name: 'Släck' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0, { timeout: 5_000 });
   await secondApp.page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A två', { timeout: 5_000 });

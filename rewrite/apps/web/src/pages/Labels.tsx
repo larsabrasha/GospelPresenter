@@ -167,7 +167,9 @@ export function Labels() {
       {!labels && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
       {labels && !labels.length && (
         <div className={CARD}>
-          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} />
+          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')}>
+            <AppButton onClick={() => setEditing('new')}>{t('labels.addTitle')}</AppButton>
+          </EmptyPicture>
         </div>
       )}
       {!!labels?.length && (

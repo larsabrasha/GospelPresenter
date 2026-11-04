@@ -14,7 +14,7 @@ import { RemoteStatus } from './RemotePanel.tsx';
 
 /**
  * The live column on a computer or an iPad lying down (docs/layout-2-0.md): what is used during a service and no
- * more. The picture shown with ‹ Rensa ›, as on a phone (LivePicture), the overlays and the outputs folded to their
+ * more. The picture shown with ‹ Släck ›, as on a phone (LivePicture), the overlays and the outputs folded to their
  * state, and at the foot a quiet line for Fjärrstyrning, as the offline line in the left column (Lars, 2026-11-02).
  * Avsluta is in the bar.
  */

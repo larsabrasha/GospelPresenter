@@ -39,11 +39,11 @@ whole row.
 ## Live, one column (phone, iPad upright)
 
 A presentation has one view, the same before and while it is presented (Lars, 2026-11-01); there is no editor
-apart from it. Before it is presented the picture, Rensa and the live column are not there, a part
+apart from it. Before it is presented the picture, Släck and the live column are not there, a part
 tapped shows nothing, and ▶ starts it.
 
 - **The bar:** back (to the start page; the presentation keeps running), the title with a line under it
-  (`● LIVE · 10:00 · Kyrksalen`; LIVE until Avsluta, also while Rensa has blacked the outputs), and at the right
+  (`● LIVE · 10:00 · Kyrksalen`; LIVE until Avsluta, also while Släck has blacked the outputs), and at the right
   one glass button in two parts: … and ■, which ends the presentation (asking first). Start and stop are always an
   icon at the far right of the bar, on a phone and a computer (Lars, 2026-11-01).
   The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens the
@@ -57,27 +57,30 @@ tapped shows nothing, and ▶ starts it.
   a group in iOS's Settings (Lars, 2026-11-02), three lines with mer at the end of the last to unfold the rest.
   A phone, with no side column, has it too (Lars, 2026-11-03, after leaving it out on 2026-11-02): before presenting
   the same card at the top of the running order, scrolling away with it; while presenting a round button at the left
-  end of Rensa's row, in the room that keeps Rensa in the middle, which opens a sheet with the text and Redigera
+  end of Släck's row, in the room that keeps Släck in the middle, which opens a sheet with the text and Redigera
   detaljer…; with no description that room stays empty. The picture while presenting is at most a fifth of the screen
   high, to keep the room for the parts.
-  A phone lying down has two columns: the running order at the left, the picture and Rensa at the right, the +
+  A phone lying down has two columns: the running order at the left, the picture and Släck at the right, the +
   at the foot of the order (Lars, 2026-11-02).
 - **Before presenting**, a slide clicked (a computer's tile, a phone's part row) is outlined in blue and nothing else,
   to click around and point one out to someone (Lars, 2026-11-03, as the current app), and moved by the keys that
   step while presenting (→ ← PageDown PageUp, and ↓ ↑ to an item's first slide); Starta presentation still starts
   black and lets go of it.
-- **The picture** that is shown, with **‹ Rensa ›** right under it (on a phone Rensa alone: a part is shown by a tap
+- **The picture** that is shown, with **‹ Släck ›** right under it (on a phone Släck alone: a part is shown by a tap
   on it, and the arrows drew the eye there; Lars, 2026-11-03) (Starta presentation brings it in softly: on a phone its block takes its room first, on a computer the live column
   slides in from the right as a macOS sidebar, then the picture fades in out of a slight blur; Avsluta presentation plays it backwards before the presentation ends, all of it by transform and opacity, which
   the graphics card draws (the computer's slides narrow at once as the column starts in, and widen once it is out), "Mjuk" of the variants
-  tried, Lars, 2026-11-03; none of it with less motion asked for) (Rensa only blacks the outputs, and
+  tried, Lars, 2026-11-03; none of it with less motion asked for) (Släck only blacks the outputs, and
   rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
   shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
   (Lars, 2026-11-01). An audio or video item adds a player line between them:
   pause, the time and how far it is.
 - **The running order** fills the rest, with no heading row; Lägg till is a round glass + floating at the bottom right, as iOS 27's Notes and Reminders put
-  "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). Every part of
+  "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). On a phone + first asks which
+  kind, a menu with Sånger first, then opens that kind's dialog without its row of tabs (Lars, 2026-11-04: six tabs do
+  not fit). An item's parts are one group of rows with hairlines, as iOS's inset grouped lists, and the foot of the list
+  has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). Every part of
   every item is shown with its whole text (pictures as thumbnails); a tap on a part shows it. Each item is a
   section whose heading (name, LIVE dot, kind, …) sticks at the top until the next pushes it away. The shown part
   has a red ring and VISAS, the next NÄSTA; the ones before look as the rest (not dimmed), as one goes back to them.
@@ -138,7 +141,7 @@ overlay.
   out is kept on the device, and a start always brings the live column out. Tested in `e2e/panels.spec.ts`.
 - **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a
   clicker's keys (→ ← Space PageDown PageUp, B and .) work on the live page.
-- **Right:** the picture, ‹ Rensa ›, the next slide, the overlays as switches (one shown at a time, drawn on the
+- **Right:** the picture, ‹ Släck ›, the next slide, the overlays as switches (one shown at a time, drawn on the
   picture too), and the outputs folded to one line that says how they are ("3 på · 12 tittare", a green dot) and
   turns orange with what is wrong ("Kyrksal är offline"); a click unfolds the switches and Anslut tillfällig utgång.
 
@@ -183,10 +186,13 @@ länkar with how many, and Historik; then Ta bort sång as a red row. An arrange
 its parts with a red ⊖ and ≡, every part of the song under them with a green ⊕, Ta bort arrangemang in red.
 The library pages alike (Lars, 2026-11-03): Sånger, Biblar, Bilder, Ljud and Videor have one title, the page's; their +
 (and Sånger's Importera) floating at the bottom right; the search under the title, never in a card; the list alone in
-its card, Bilder's pictures on the page itself as Photos'; "{n} bilder" under it; and where there is a mouse, a dashed
-place to drop (the empty list itself, or "Släpp fler filer här" under the list), though the whole page takes files.
+its card, Bilder's pictures on the page itself as Photos'; "{n} bilder" under it; and the whole page takes files, shown
+only while they are dragged over it (Lars, 2026-11-04: no dashed place drawn all the time).
+New songs, slideshows, overlays and themes are made at once and named in their editor (Lars, 2026-11-04,
+`ui/justCreated.ts`): + makes "Ny sång" and opens it, the name focused and picked; an editor with Format opens it, the
+name in it. Organisationer is "Alla organisationer", so it is not taken for Organisationen above it.
 Papperskorg the same, its Töm papperskorgen a red row last. Every list page in Inställningar (the library's, Användare,
-Organisationer, Papperskorg) has the same search under its title, iOS's filled grey field as "Sök i inställningar"
+Alla organisationer, Papperskorg) has the same search under its title, iOS's filled grey field as "Sök i inställningar"
 (ui/ListSearch.tsx). A picture has no … on it: a right click or a finger held on it opens Radera at that point, in
 the menu an item has (PictureMenu); a context menu opens over dialogs. A page opened alone from outside Inställningar (a song
 from a presentation) is as narrow as iPadOS's form sheet, 672 px; Inställningar's pages have 20 px at the sides and

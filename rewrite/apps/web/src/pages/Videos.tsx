@@ -83,7 +83,10 @@ export function Videos({ role }: { role: Role }) {
       add={manage && <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress} failures={imports.failures} failed={t('videos.failed', { n: imports.failures.length })} testId="video" />}
       loading={t('videos.loading')}
-      empty={{ icon: <VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('presentation.noVideos') }}
+      empty={{ icon: <VideoIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('presentation.noVideos'),
+        text: t('videos.emptyText'),
+        action: <ImportFilesButton accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file-empty" label={t('videos.emptyImport')} onFiles={(files) => void importFiles(files)} />,
+      }}
       noMatch={t('videos.noMatch')}
       count={(n) => t(n === 1 ? 'videos.count.one' : 'videos.count.many', { n })}
       drop={{ label: t('videos.drop'), accept: VIDEO_ACCEPT, onFiles: (files) => void importFiles(files) }}

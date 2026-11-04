@@ -140,7 +140,9 @@ export function Devices({ me }: { me: Me }) {
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
       <div className={CARD}>
         {Array.isArray(devices) && !devices.length && (
-          <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')} />
+          <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')}>
+            <AppButton onClick={() => setChoosing(true)}>{t('devices.emptyPair')}</AppButton>
+          </EmptyPicture>
         )}
         <ul aria-label={t('devices.title')}>
           {Array.isArray(devices) &&

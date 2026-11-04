@@ -15,7 +15,7 @@ const BASE = 'block relative aspect-video rounded-2xl overflow-hidden border-t-[
  */
 export function tileClass({ selected, live, rested, interactive = true }: { selected?: boolean; live?: boolean; rested?: boolean; interactive?: boolean }): string {
   if (!interactive) return `${BASE} outline-transparent`;
-  // `rested`: the slide last shown before Rensa, where → goes on from: a quiet grey, as nothing shows now.
+  // `rested`: the slide last shown before Släck, where → goes on from: a quiet grey, as nothing shows now.
   const mark = selected
     ? live
       ? 'outline-red-500 hover:outline-red-500'

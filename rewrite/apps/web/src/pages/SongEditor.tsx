@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
+import { useJustCreated } from '../ui/justCreated.ts';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
@@ -46,6 +47,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const { dialog, ask } = useConfirm();
   const saved = useSavedIndicator();
   const saveFailed = useSaveFailed();
+  const isNew = useJustCreated(id);
   const data = useData(
     async (d) => ({
       song: await getSong(d, id),
@@ -236,7 +238,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <Group>
           {/* A blank name is not saved (spec 02). */}
           <div data-song-name>
-            <AutoSaveField bare label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+            <AutoSaveField bare autoSelect={isNew} label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
           </div>
           <AutoSaveField bare label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} />
           <AutoSaveField bare label={t('song.publisher')} maxLength={200} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} />

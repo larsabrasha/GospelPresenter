@@ -14,7 +14,8 @@ import { ICON_GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
 import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
-import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
+import { AddItemDialog, addKinds, type AddKind } from '../../presentation-editor/AddItemDialog.tsx';
+import { usePhone } from '../../../ui/usePhone.ts';
 import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
 import { PresentationBar } from '../PresentationBar.tsx';
@@ -41,7 +42,7 @@ const ROW = 'w-full min-h-12 px-4 flex items-center gap-3.5 text-[17px] text-lef
 /**
  * A presentation on a phone or an iPad held upright, the same before and while it is presented (docs/layout-2-0.md):
  * the bar (back, the title that opens the presentation's menu, … with Utgångar first, and ■ to end, or ▶ to start),
- * while presenting the picture with ‹ Rensa › under it, and the running order filling the rest. An item's … picks its
+ * while presenting the picture with ‹ Släck › under it, and the running order filling the rest. An item's … picks its
  * arrangement and overlay and edits its song or pictures; it has no Byt namn, which confused (Lars, 2026-11-02).
  */
 export function PhoneLive({
@@ -92,8 +93,11 @@ export function PhoneLive({
   const { dialog, ask } = useConfirm();
   const remotePolicy = useData(orgRemoteControl, []);
   const [open, setOpen] = useState<Open>(null);
-  // The add dialog: after the item named, or with `images` adding pictures to that image item.
-  const [adding, setAdding] = useState<{ chosenId: string | null; images?: string } | null>(null);
+  // The add dialog: after the item named, or with `images` adding pictures to that image item. On a phone + first asks
+  // which kind (`kind`), and the dialog shows that one only.
+  const [adding, setAdding] = useState<{ chosenId: string | null; images?: string; kind?: AddKind } | null>(null);
+  const phone = usePhone();
+  const choosingKind = !!adding && phone && !adding.images && !adding.kind;
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   // What was added before presenting does not decide where an addition goes while presenting (liveList.ts).
   const [wasPresenting, setWasPresenting] = useState(!!presenting);
@@ -155,7 +159,7 @@ export function PhoneLive({
           black={pointer.black}
           onClear={() => live.set({ black: true })}
           testId="phone-live-picture"
-          // At the right end of ‹ Rensa ›'s row (LivePicture).
+          // At the right end of ‹ Släck ›'s row (LivePicture).
           leading={presentation.description ? <DescriptionGlyph onClick={() => setOpen('description')} /> : undefined}
           trailing={
             (owner || !!overlays.length) && <DisplayGlyph link={owner ? presenting.link : null} sessionId={owner?.sessionId ?? ''} pointer={pointer} onClick={() => setOpen('display')} />
@@ -219,7 +223,7 @@ export function PhoneLive({
           onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
           onItemMenu={(item) => setOpen({ item })}
           // Before presenting, the description at the top of the list, as a computer has it atop its left column; while
-          // presenting, behind the button left of Rensa (Lars, 2026-11-03).
+          // presenting, behind the button left of Släck (Lars, 2026-11-03).
           header={!presenting && !!presentation.description && <Description key={presentation.description} text={presentation.description} className="mt-4" />}
           // Whether it is kept offline and Fjärrstyrning at the foot of the list (Lars, 2026-11-02), as a computer has
           // them at the foot of its columns.
@@ -302,8 +306,10 @@ export function PhoneLive({
           </div>
         </Sheet>
       )}
-      {adding && (
+      {choosingKind && <AddKindSheet onChoose={(kind) => setAdding({ ...adding, kind })} onClose={() => setAdding(null)} />}
+      {adding && !choosingKind && (
         <AddItemDialog
+          only={phone ? adding.kind : undefined}
           presentationId={id}
           afterItemId={addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId, chosenId: adding.chosenId })}
           theme={theme}
@@ -318,6 +324,21 @@ export function PhoneLive({
         />
       )}
     </div>
+  );
+}
+
+/** What + adds, asked first on a phone (Lars, 2026-11-04): the kinds as a menu, Sånger first, the most used. */
+function AddKindSheet({ onChoose, onClose }: { onChoose: (kind: AddKind) => void; onClose: () => void }) {
+  return (
+    <Sheet title={t('presentation.addTitle')} onClose={onClose}>
+      <MenuGroup>
+        {addKinds().map(([kind, label, Icon]) => (
+          <MenuRow key={kind} icon={<Icon className="size-5" />} onClick={() => onChoose(kind)}>
+            {label}
+          </MenuRow>
+        ))}
+      </MenuGroup>
+    </Sheet>
   );
 }
 

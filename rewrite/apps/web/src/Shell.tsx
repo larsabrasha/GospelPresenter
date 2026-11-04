@@ -8,6 +8,7 @@ import { AppButton } from './ui/AppButton.tsx';
 import { WarningIcon } from './ui/icons.tsx';
 import { isHostWindow } from './hostWindow.ts';
 import { useToast } from './ui/Toast.tsx';
+import { reportClientError } from './clientErrors.ts';
 
 // What the signed-in app's frame shares (Layout/MainLayout.razor): signing out, the warnings under the bar, and the
 // bar for an error nothing caught. The bar is TopBar.tsx; Inställningar's frame pages/settings/SettingsLayout.tsx.
@@ -97,14 +98,16 @@ export function RejectedChanges() {
 
 /**
  * An error nothing caught: the current app's yellow bar at the bottom with Ladda
- * om (MainLayout.razor's blazor-error-ui). What went wrong is in the console.
+ * om (MainLayout.razor's blazor-error-ui). What went wrong is in the console and the server's log (clientErrors.ts).
  */
 export function UnexpectedError() {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     // An ErrorEvent without an error is the browser's own notice, such as ResizeObserver's loop limit.
     const on = (e: Event) => {
-      if (!(e instanceof ErrorEvent) || e.error) setFailed(true);
+      if (e instanceof ErrorEvent && !e.error) return;
+      setFailed(true);
+      reportClientError(e instanceof ErrorEvent ? e.error : e instanceof PromiseRejectionEvent ? e.reason : e);
     };
     addEventListener('unhandledrejection', on);
     addEventListener('error', on);
@@ -117,9 +120,10 @@ export function UnexpectedError() {
   return (
     <div role="alert" className="fixed left-0 bottom-0 w-full z-[1000] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-yellow-50 dark:bg-yellow-950 text-stone-900 dark:text-stone-100">
       {t('layout.unexpectedError')}
-      <a href="." className="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl no-underline">
+      {/* A real reload: a link to "." was the page's own address, which the router took as a move to where it was. */}
+      <AppButton variant="plain" className="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl cursor-pointer" onClick={() => location.reload()}>
         {t('layout.reload')}
-      </a>
+      </AppButton>
     </div>
   );
 }

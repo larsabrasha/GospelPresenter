@@ -120,7 +120,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   await expect.poll(async () => (await player.getByTestId('audio-time').textContent()) === '0:00', { timeout: 5_000 }).toBe(false);
   // What is shown changes; the sound plays on (LIVE-A31).
-  await page.getByRole('button', { name: 'Rensa' }).click();
+  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();

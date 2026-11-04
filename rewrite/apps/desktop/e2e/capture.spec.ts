@@ -159,7 +159,7 @@ test('capture every page', async () => {
       await pickItem(p);
       await start.click();
     }
-    if (p.viewportSize()!.width < 1024) return p.getByRole('button', { name: 'Rensa' }).waitFor();
+    if (p.viewportSize()!.width < 1024) return p.getByRole('button', { name: 'Släck' }).waitFor();
     await p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   };
   // On a phone ■ ends it too, at the far right of its bar.
@@ -240,7 +240,7 @@ test('capture every page', async () => {
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        await p.getByRole('button', { name: 'Rensa' }).click();
+        await p.getByRole('button', { name: 'Släck' }).click();
         await p.getByRole('heading', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
       },
       stopLive,

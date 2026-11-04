@@ -97,7 +97,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await chooseTheme(page, 'Följer organisationens standard');
   await expect(stage).toHaveAttribute('data-theme', 'light');
   await expect(stage).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await page.getByRole('button', { name: 'Rensa' }).click();
+  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 
@@ -153,17 +153,21 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   const page = second.page;
   await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
-  // The host keeps every Bible and offers no choice.
+  // The host keeps every Bible and offers no choice: its row says so, and its page has no switch.
   await openAdmin(host.page, 'Biblar');
   await expect(host.page.getByText('Tillgänglig offline')).toBeVisible();
-  await expect(host.page.getByRole('button', { name: /tillgänglig offline/i })).toHaveCount(0);
+  await host.page.getByRole('link', { name: /World English Bible/ }).click();
+  await expect(host.page.getByRole('heading', { name: 'World English Bible (exempel)' })).toBeVisible();
+  await expect(host.page.getByRole('switch')).toHaveCount(0);
 
-  // The second computer keeps none until asked.
-  await openAdmin(page, 'Biblar');
-  const makeOffline = page.getByRole('button', { name: 'Gör tillgänglig offline' });
-  const kept = page.getByRole('button', { name: 'Tillgänglig offline', exact: true });
-  await expect(makeOffline).toBeVisible();
-  await expect(kept).toHaveCount(0);
+  // The second computer keeps none until asked: the switch on the translation's page (Lars, 2026-11-04) is off.
+  const offline = page.getByRole('switch', { name: /^Tillgänglig offline/ });
+  const openBible = async () => {
+    await openAdmin(page, 'Biblar');
+    await page.getByRole('link', { name: /World English Bible/ }).click();
+  };
+  await openBible();
+  await expect(offline).not.toBeChecked();
 
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)');
@@ -188,25 +192,25 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   await page.keyboard.press('Control+2');
   await expect(picker.getByText('Bibeltexten finns inte på den här enheten och kan inte hämtas utan anslutning.', { exact: false })).toBeVisible();
   await picker.getByRole('button', { name: 'Stäng' }).click();
-  await openAdmin(page, 'Biblar');
-  await makeOffline.click();
+  await openBible();
+  await offline.click();
   await expect(page.getByRole('status').getByText('Nedladdningen misslyckades. Kontrollera uppkopplingen och försök igen.')).toBeVisible();
-  await expect(makeOffline).toBeVisible();
+  await expect(offline).not.toBeChecked();
 
   // The host is back: the text is fetched when a page needs it, without keeping it.
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
   await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await searchJohn();
-  await openAdmin(page, 'Biblar');
-  await expect(makeOffline).toBeVisible();
+  await openBible();
+  await expect(offline).not.toBeChecked();
 
-  // Gör tillgänglig offline: downloaded at once, and the button turns grey with a check.
-  await makeOffline.click();
+  // Switched on: downloaded at once, and the row says it is offline.
+  await offline.click();
   await expect(page.getByRole('status').getByText('Översättningen är tillgänglig offline')).toBeVisible();
-  await expect(kept).toBeVisible();
-  await expect(kept).toHaveAttribute('title', 'Ta bort den nedladdade kopian');
-  await expect(makeOffline).toHaveCount(0);
+  await expect(offline).toBeChecked();
+  await openAdmin(page, 'Biblar');
+  await expect(page.getByText('Tillgänglig offline', { exact: true })).toBeVisible();
 
   // A fresh window, then the host goes away again: the kept Bible is searched from this computer.
   await page.reload();
@@ -216,10 +220,9 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
   await searchJohn();
 
-  // Removing the copy: the button is back.
-  await openAdmin(page, 'Biblar');
-  await kept.click();
+  // Switched off: the copy is removed.
+  await openBible();
+  await offline.click();
   await expect(page.getByRole('status').getByText('Den nedladdade kopian togs bort')).toBeVisible();
-  await expect(makeOffline).toBeVisible();
-  await expect(kept).toHaveCount(0);
+  await expect(offline).not.toBeChecked();
 });

@@ -44,7 +44,7 @@ finns på den här enheten" counts them.
 A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the presenting window plays
 it from its start (`VideoEngine`, `apps/web/src/live/video.ts`): one `<video>` element of its own, not on the page,
 unmuted, so its sound plays on the presenting computer as an audio item's does (LIVE-R6) and never on an output.
-Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Rensa) pauses it, picture and
+Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Släck) pauses it, picture and
 sound, and showing the picture again resumes it where it was; a video paused by hand stays paused (Lars,
 2026-10-31). A reloaded presenting window resumes it where it was, from the state it kept beside the pointer in the
 tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting window (`video` messages,

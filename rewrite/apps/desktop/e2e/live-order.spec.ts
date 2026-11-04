@@ -98,7 +98,7 @@ test('on an iPad lying down, the live layout has touch sizes and a finger drags 
     list.getByTestId('drag-handle').first(),
     page.getByTestId('presentation-bar').getByRole('button', { name: 'Avsluta presentation' }),
     page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ', exact: true }),
-    page.getByRole('button', { name: 'Rensa' }),
+    page.getByRole('button', { name: 'Släck' }),
   ]) {
     const box = (await target.boundingBox())!;
     expect(Math.min(box.width, box.height), String(target)).toBeGreaterThanOrEqual(44);

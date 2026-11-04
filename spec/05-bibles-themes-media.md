@@ -141,7 +141,9 @@ the Shared assembly as `Themes/aurora/background.webp`.
   zip-fil här"). 2.0 (Lars, 2026-11-03: the library pages alike): no card; + floats at the bottom right as on Bilder
   and takes the zip file; no "Installerade biblar ({n})" heading but "{n} biblar" under the list; what a bible file is
   ("En översättning importeras som en zip-fil i USX- eller USFM-format.") in grey under the list; the empty list drawn
-  as the dashed place to drop, and "Släpp bibelns zip-fil här" dashed under a list, where there is a mouse.
+  with "Släpp bibelns zip-fil här" in grey where there is a mouse, no dashed frame (2026-11-04). Empty
+  (Lars, 2026-11-04), it says where a translation comes from (USX from the Digital Bible Library or bible.com, USFM
+  from eBible.org, only one the church may use) with Importera en bibel, and the grey line under the list is not shown.
 - While importing: button text "Importerar...", file input disabled, "Bearbetar bibelfil..." and an
   indeterminate progress bar. Afterwards an inline message (not a toast):
   - success new: "Importerade {namn} med {n} verser." (green)
@@ -160,6 +162,9 @@ the Shared assembly as `Themes/aurora/background.webp`.
     kopian") → removes local verses; toast "Den nedladdade kopian togs bort".
   - `ImportedLocally`: static text "Tillgänglig offline".
   - Only one download/remove at a time (all buttons disabled while one runs).
+  - 2.0 (Lars, 2026-11-04, as iOS's Settings): the row says "Tillgänglig offline" in grey when kept and opens the
+    translation's page, where the choice is a switch "Tillgänglig offline", the name a field, and Radera bibel a red
+    row asked first.
   - *In the rewrite* the "device apps" are every device except a desktop host: the host serves the LAN, as
     the current web server, so it keeps every text and shows no button (only the state text). A device
     that keeps nothing between reloads shows no button and says why. A translation imported on a device
@@ -225,8 +230,8 @@ the Shared assembly as `Themes/aurora/background.webp`.
 - During upload: "Importerar {i} av {n}..."; failures accumulate as "{n} bild(er) kunde inte
   importeras" (red, stays until next upload). Each success is inserted at the top immediately.
 - Card "Alla bilder ({count})" (2.0, Lars, 2026-11-03: no heading, the page's title is "Bilder" already; "{n} bilder"
-  under the list as on Sånger; no drop hint by the header, but the empty list drawn as a dashed place to drop,
-  "Släpp filer här", and a dashed "Släpp fler filer här" under a list, both only where there is a mouse), search field (only when ≥1 image; max 100 chars; substring match on
+  under the list as on Sånger; no drop hint by the header; "Släpp filer här" in grey under an empty list where there
+  is a mouse, and no dashed frame: the page shows where to drop while files are dragged over it, Lars 2026-11-04), search field (only when ≥1 image; max 100 chars; substring match on
   file name, case-insensitive, live on every keystroke; × to clear).
 - States: loading "Laddar bilder..."; empty: icon + "Inga bilder än" + "Importera bilder för att visa
   under presentationer, t.ex. logotyper eller bakgrunder."; no search hit: "Inga bilder matchar din

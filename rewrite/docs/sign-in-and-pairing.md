@@ -41,7 +41,7 @@ the tests at a fake). Without all three there is no mail: `/api/auth/state` says
 link are not shown, and the routes answer 503 `mail-disabled`.
 
 **Organisations** (decided on 2026-10-31; D1 as changed then). A SuperAdmin makes, renames and deletes them under
-Organisationer (`/admin/organizations`, `POST`/`PATCH`/`DELETE /api/orgs`), and acts as SuperAdmin in any of them without
+Alla organisationer (`/admin/organizations`, `POST`/`PATCH`/`DELETE /api/orgs`), and acts as SuperAdmin in any of them without
 being a member (`MemberService.roleIn`), so they are in no organisation's user list. A user is in several when an admin
 creates a user with an address another organisation's user has: that user becomes a member here with the role given,
 with an invite only if they cannot sign in yet. The switcher in the top bar (in the account menu on a phone) lists the

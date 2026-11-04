@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { blankPage, type Overlay, type Theme } from '@gp/core';
 import { defaultTheme, listOverlays } from '../db/queries.ts';
 import { useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { SquaresOverlapIcon } from '../ui/icons.tsx';
 import { Library } from '../ui/Library.tsx';
-import { NameDialog } from '../ui/NameDialog.tsx';
+import { freshName, markCreated } from '../ui/justCreated.ts';
 import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { pageSlide } from './custom-slides/PageNavigator.tsx';
@@ -28,7 +29,7 @@ function OverlayTile({ overlay, theme }: { overlay: OverlayEntry; theme: Theme |
 /**
  * Överlägg (docs/custom-slides.md, spec 03 §4 `/admin/overlays`): a page shown above the live slide, e.g. a Swish
  * number at the collection, made in the custom slides' editor. A grid of them; a tap opens one's editor, + makes a
- * new one, named first, and opens it. Deleting is permanent and asks first (PRES-R29). Everyone may make and change
+ * new one at once and opens it, its name picked to type over. Deleting is permanent and asks first (PRES-R29). Everyone may make and change
  * them (ManageOverlays is every role's).
  */
 export function Overlays() {
@@ -37,7 +38,15 @@ export function Overlays() {
   const rows = useData(listOverlays, []);
   const overlays = useMemo(() => rows?.map((o) => ({ ...o, name: o.title })), [rows]);
   const theme = useData(defaultTheme, []);
-  const [creating, setCreating] = useState(false);
+  /** + makes "Nytt överlägg" at once and opens it with its name picked (Lars, 2026-11-04). */
+  const create = async () => {
+    const id = newId();
+    const title = freshName(t('overlays.new'), (overlays ?? []).map((o) => o.name));
+    if (await trySave(db.mutate('createOverlay', { id, title, at: Date.now() }))) {
+      markCreated(id);
+      navigate({ page: 'overlay', id });
+    }
+  };
   const byName = (a: OverlayEntry, b: OverlayEntry) => a.name.localeCompare(b.name, 'sv', { numeric: true });
 
   return (
@@ -59,24 +68,11 @@ export function Overlays() {
         run: (o) => db.mutate('deleteOverlay', { id: o.id }),
         done: (items) => (items.length === 1 ? t('overlays.removed', { name: items[0]!.name }) : t('overlays.removedMany', { n: items.length })),
       }}
-      add={<AddButton label={t('common.create')} onClick={() => setCreating(true)} />}
-      notices={
-        creating && (
-          <NameDialog
-            title={t('overlays.createTitle')}
-            label={t('overlays.createName')}
-            maxLength={200}
-            initial=""
-            onClose={() => setCreating(false)}
-            submit={async (title) => {
-              const id = newId();
-              if (await trySave(db.mutate('createOverlay', { id, title, at: Date.now() }))) navigate({ page: 'overlay', id });
-            }}
-          />
-        )
-      }
+      add={<AddButton label={t('common.create')} onClick={() => void create()} />}
       loading={t('common.loading')}
-      empty={{ icon: <SquaresOverlapIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('overlays.empty') }}
+      empty={{ icon: <SquaresOverlapIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('overlays.empty'),
+        action: <AppButton onClick={() => void create()}>{t('overlays.new')}</AppButton>,
+      }}
       noMatch={t('overlays.noMatch')}
       count={(n) => t(n === 1 ? 'overlays.count.one' : 'overlays.count.many', { n })}
       testId="overlay"

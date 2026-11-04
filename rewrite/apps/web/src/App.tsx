@@ -14,6 +14,7 @@ import { useCcliCounter } from './live/ccli.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { About } from './pages/About.tsx';
+import { BibleDetail } from './pages/BibleDetail.tsx';
 import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
 import { CustomSlides } from './pages/custom-slides/CustomSlides.tsx';
@@ -127,6 +128,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
+      {route.page === 'bible' && (can(me.role, 'ManageBibles') ? <BibleDetail key={route.id} id={route.id} /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
       {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
@@ -238,6 +240,8 @@ function settingsTitle(route: Route, detail = false): string {
       return t('nav.customSlides');
     case 'theme':
       return t('nav.themes');
+    case 'bible':
+      return t('nav.bibles');
     case 'org':
       return t('orgs.one');
     default:
@@ -260,7 +264,7 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   return link ? t(link.label) : t('nav.admin');
 }
 
-const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme']);
+const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme', 'bible']);
 
 /**
  * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
@@ -276,6 +280,7 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'overlay' ? { page: 'overlays' }
     : route.page === 'customSlide' ? { page: 'customSlides' }
     : route.page === 'theme' ? { page: 'themes' }
+    : route.page === 'bible' ? { page: 'bibles' }
     : route.page === 'org' ? { page: 'orgs' }
     : route.page === 'logins' || route.page === 'storage' ? { page: 'settings' }
     : { page: 'admin' };

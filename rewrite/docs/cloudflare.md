@@ -75,3 +75,13 @@ reported a startup time of 20–43 ms for the bundle.
 unused blobs on R2 (`media.test.ts` ran with none). Behaviour under load, and where the objects were placed.
 The web app in a browser on Cloudflare was tried by hand only: Lars opened the trial, set it up with a passkey
 and the setup token, signed in and found it working; no browser test runs against it.
+
+**Logs (2026-11-04).** The Worker writes its events as JSON lines (`console.warn`; on Node, stderr): a refused
+sign-in (`passkey-refused`) and an error a client caught nothing for (`client-error`). `[observability] enabled`
+in both wrangler configs keeps them in Workers Logs, searchable in the dashboard under the Worker's Observability,
+or followed live with `wrangler tail --config wrangler.test.toml`. A client error is sent by the app itself
+(`apps/web/src/clientErrors.ts`) when the yellow "Ett oväntat fel har inträffat." bar shows or a page crashes:
+`POST /api/client-errors` with the message, the stack, the page's path (never its query or fragment) and the build's
+commit, cut to `CLIENT_ERROR_LIMITS`; the server adds the organisation, the user, whether the device is paired and the
+browser, and stores nothing. Only a signed-in device sends (the route asks for a session), each message once and at
+most five in a page's life. Tested in `apps/server/test/client-errors.test.ts` and `apps/web/test/clientErrors.test.ts`.

@@ -12,6 +12,7 @@ import { ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './E
 
 export function Inspector({
   name,
+  nameNew,
   page,
   pageAt,
   element,
@@ -27,6 +28,8 @@ export function Inspector({
   onChoose,
 }: {
   name: string;
+  /** Just made: the name is focused and picked, to type over. */
+  nameNew?: boolean;
   page: CustomPage;
   pageAt: number;
   element: CustomElement | undefined;
@@ -65,7 +68,7 @@ export function Inspector({
   return (
     <div className="space-y-5" data-testid="inspector">
       <Group>
-        <AutoSaveField label={t('song.name')} maxLength={200} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxLength={200} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
       {hasBackground && (
         <Group title={t('slideEditor.page', { n: pageAt + 1 })}>

@@ -29,7 +29,7 @@ test('a three-page PDF becomes a slideshow item whose pages show on the output; 
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+5');
+  await page.keyboard.press('Control+6');
   await expect(dialog.getByRole('tab', { name: 'Bildspel' })).toHaveAttribute('aria-selected', 'true');
   const file = dialog.getByTestId('slides-file');
 
@@ -79,7 +79,7 @@ test('a PDF imported into the library goes into a presentation as a reference, a
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+5');
+  await page.keyboard.press('Control+6');
   await dialog.getByRole('checkbox', { name: 'Predikan.pdf' }).click();
   await dialog.getByRole('button', { name: 'Lägg till Predikan.pdf' }).click();
   await dialog.getByRole('button', { name: 'Stäng' }).click();

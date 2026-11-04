@@ -1,5 +1,5 @@
 // Overlays (spec 03 §4, spec 04 LIVE-R15, R16 as changed in TODO.md, docs/custom-slides.md): made under Överlägg
-// in the custom slides' editor, carried by an item, toggled during live, switched off by Rensa.
+// in the custom slides' editor, carried by an item, toggled during live, switched off by Släck.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createOverlay, createPresentation, createSong, openAdmin, pickItem, setUpHost } from './flows.ts';
@@ -10,7 +10,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('an item carries its overlay while live; a manual toggle lasts until the item changes; Rensa switches it off', async () => {
+test('an item carries its overlay while live; a manual toggle lasts until the item changes; Släck switches it off', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -79,13 +79,13 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await expect(overlay).toHaveText('Välkommen hit');
 
-  // Rensa switches it off; the next slide comes back without it. The black screen fades in and out over 500 ms,
+  // Släck switches it off; the next slide comes back without it. The black screen fades in and out over 500 ms,
   // a cover above the slide and the overlay, as LiveDisplay.razor's.
   const cover = output.getByTestId('black-cover');
   await expect(cover).toHaveCSS('opacity', '0');
   await expect(cover).toHaveCSS('transition-duration', '0.5s');
   await expect(cover).toHaveCSS('z-index', '60');
-  await page.getByRole('button', { name: 'Rensa' }).click();
+  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(cover).toHaveCSS('opacity', '1');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(overlay).toHaveCount(0);

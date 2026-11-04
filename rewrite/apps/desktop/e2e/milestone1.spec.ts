@@ -66,17 +66,17 @@ test('a song made on one client is presented on the other client\'s second scree
   await other.page.getByLabel('Delar 1', { exact: true }).blur();
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden, härlig är Guds himmel', { timeout: 5_000 });
 
-  // Rensa blacks the screen and rests while it is black, with no slide marked as shown. B only blanks too;
+  // Släck blacks the screen and rests while it is black, with no slide marked as shown. B only blanks too;
   // the slide shows again when it is picked.
-  await one.page.getByRole('button', { name: 'Rensa' }).click();
+  await one.page.getByRole('button', { name: 'Släck' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await expect(one.page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
+  await expect(one.page.getByRole('button', { name: 'Släck', exact: true })).toBeDisabled();
   await expect(one.page.getByRole('button', { name: 'Härlig är jorden 1' })).toHaveAttribute('aria-pressed', 'false');
   await one.page.keyboard.press('b');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await one.page.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden, härlig är Guds himmel');
-  await expect(one.page.getByRole('button', { name: 'Rensa', exact: true })).toBeEnabled();
+  await expect(one.page.getByRole('button', { name: 'Släck', exact: true })).toBeEnabled();
   await one.page.keyboard.press('b');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await one.page.keyboard.press('b');

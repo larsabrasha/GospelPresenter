@@ -105,22 +105,6 @@ export function DropZone({
   );
 }
 
-/**
- * A place to drop files, drawn as one (Lars, 2026-11-03: one wants to see where to drop, though the whole page takes
- * them): dashed and rounded where there is a mouse to drag with; nothing on a touch screen, where nothing is dragged.
- */
-export const DROP_AREA = 'rounded-xl pointer-fine:border-2 pointer-fine:border-dashed pointer-fine:border-stone-300 dark:pointer-fine:border-stone-600';
-
-/** Under a library's list: a drawn place to drop more files (or what `text` names), where there is a mouse. */
-export function DropMore({ text }: { text?: string }) {
-  return (
-    <p className={`${DROP_AREA} hidden pointer-fine:flex items-center justify-center gap-2 py-5 text-sm text-stone-400 dark:text-stone-500`}>
-      <ArrowDownTrayIcon className="size-4" />
-      {text ?? t('drop.more')}
-    </p>
-  );
-}
-
 /** Says, next to an upload button, that dropping works too (Components/DropHint.razor); hidden on a phone by default. */
 export function DropHint({ text, className }: { text: string; className?: string }) {
   return <span className={`text-xs text-stone-400 dark:text-stone-500 ${className ?? 'hidden sm:inline'}`}>{text}</span>;

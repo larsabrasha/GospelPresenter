@@ -77,7 +77,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(phone.getByTestId('watch-slide')).toHaveAttribute('data-theme', 'classic');
   await expect(phone.getByTestId('watch-text')).toHaveCSS('white-space', 'pre-wrap'); // a song keeps its lines; Bible text does not
   await expect(phone.getByText('Chorus')).toHaveCount(0); // the part label is the operator's
-  await page.getByRole('button', { name: 'Rensa' }).click();
+  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });

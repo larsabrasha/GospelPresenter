@@ -120,8 +120,9 @@ export function SlideList({
     <div
       ref={box}
       // A column, so the footer (a phone's offline and Fjärrstyrning lines) stands at the foot of the page when the
-      // items are few, and after them when they are many; never floating over them (Lars, 2026-11-02).
-      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-safe-24 lg:pb-safe-12 max-lg:landscape:pt-3 bg-ground`}
+      // items are few, and after them when they are many; never floating over them (Lars, 2026-11-02). On a phone the
+      // room at the foot is more than the floating + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04).
+      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-safe-28 lg:pb-safe-12 max-lg:landscape:pt-3 bg-ground`}
       data-testid={wide ? 'live-slides' : 'live-order'}
     >
       {header}
@@ -199,12 +200,15 @@ export function SlideList({
                 picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
               />
             ) : (
-              set.slides.map((slide, partIndex) => (
+              // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are
+              // lines of their own from where the text starts, as the sheets' groups draw them (INSET_HAIRLINES), not
+              // borders, which would follow a row's rounding, kept for the shown part's ring.
+              <div className={`rounded-2xl overflow-hidden bg-surface ${PART_HAIRLINES}`}>
+              {set.slides.map((slide, partIndex) => (
                 <PartRow
                   key={slide.key}
                   slide={slide}
                   partIndex={partIndex}
-                  alone={set.slides.length === 1}
                   theme={theme}
                   current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
                   rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
@@ -212,7 +216,8 @@ export function SlideList({
                   picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
                   onShow={show ? () => show(item.id, partIndex) : () => pick({ itemId: item.id, partIndex })}
                 />
-              ))
+              ))}
+              </div>
             )}
           </section>
         );
@@ -227,7 +232,6 @@ export function SlideList({
 function PartRow({
   slide,
   partIndex,
-  alone,
   theme,
   current,
   rested,
@@ -237,11 +241,9 @@ function PartRow({
 }: {
   slide: Slide;
   partIndex: number;
-  /** The item's only slide: a picture or a video says no number then (Lars, 2026-11-04). */
-  alone: boolean;
   theme: Theme;
   current: boolean;
-  /** After Rensa, the part last shown keeps a quiet grey border: where → goes on from. */
+  /** After Släck, the part last shown keeps a quiet grey border: where → goes on from. */
   rested: boolean;
   mark: SlideMarkKind | null;
   /** Before presenting, the part tapped: outlined in blue, as a computer's tile. */
@@ -259,8 +261,10 @@ function PartRow({
       aria-pressed={picked || undefined}
       data-picked={picked || undefined}
       onClick={onShow}
-      // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
-      className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-stone-300 dark:border-stone-600' : picked ? 'bg-surface border-sky-500' : 'bg-surface border-transparent'}`}
+      // A row of its item's group, shaped as its place in it: the first rounded at the top, the last at the foot, one
+      // alone all round, so the shown part's ring, inside the row, follows the group's edge and no row changes size.
+      data-ringed={current || rested || picked || undefined}
+      className={`w-full flex gap-3 px-3.5 py-2.5 first:rounded-t-2xl last:rounded-b-2xl text-left cursor-pointer ring-2 ring-inset ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised ring-red-500' : rested ? 'ring-stone-300 dark:ring-stone-600' : picked ? 'ring-sky-500' : 'ring-transparent'}`}
     >
       {pictured && (
         <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
@@ -276,7 +280,7 @@ function PartRow({
               {slide.label.text}
             </span>
           ) : (
-            !(alone && pictured) && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
+            !pictured && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
           )}
           {mark && <SlideMark kind={mark} />}
         </span>
@@ -285,6 +289,13 @@ function PartRow({
     </AppButton>
   );
 }
+
+/**
+ * The hairlines between a group's parts: from the text's start (the rows' 14 px) to the right edge; none at a ringed
+ * part's edges, where the ring is the line.
+ */
+const PART_HAIRLINES =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:top-0 [&>*+*]:before:left-3.5 [&>*+*]:before:right-0 [&>*+*]:before:h-[0.5px] [&>*+*]:before:bg-separator [&>[data-ringed]]:before:hidden [&>[data-ringed]+*]:before:hidden';
 
 /** `text` with `marker` replaced by `bold` in bold. */
 function withBold(text: string, marker: string, bold: string): ReactNode {

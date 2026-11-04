@@ -17,7 +17,7 @@ import { DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
 import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { ROLE_BADGE } from './Users.tsx';
+import { ROLE_VALUE } from './Users.tsx';
 import { ROW_HOVER, RowChevron } from '../ui/List.tsx';
 
 // The SuperAdmin's organisations (spec 01 `/admin/organizations`, Organizations.razor and OrganizationDetail.razor;
@@ -231,7 +231,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
                 <div className="truncate">{u.name}</div>
                 {u.email && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{u.email}</div>}
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
+              <span className={ROLE_VALUE}>{t(`role.${u.role}`)}</span>
             </li>
           ))}
         </ul>

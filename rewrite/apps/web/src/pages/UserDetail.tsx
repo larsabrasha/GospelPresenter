@@ -291,9 +291,9 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     <LinkIcon className="size-4 text-stone-400" />
                     <span className="text-sm font-medium">{t('userDetail.inviteLink')}</span>
                     {invite.expired ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">{t('userDetail.expired')}</span>
+                      <span className="text-sm text-red-600 dark:text-red-400">{t('userDetail.expired')}</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                      <span className="text-sm text-stone-500 dark:text-stone-400">
                         {t('userDetail.active')}
                       </span>
                     )}

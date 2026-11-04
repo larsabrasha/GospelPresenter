@@ -281,7 +281,11 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
           <div className="loading-line px-4 py-3 text-stone-400">{t('common.loading')}</div>
         </div>
       )}
-      {presentations && !presentations.length && <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} />}
+      {presentations && !presentations.length && (
+        <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} text={t('presentations.emptyText')}>
+          <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
+        </EmptyPicture>
+      )}
       {groups && (
         <div className="space-y-5" onKeyDown={list.onKeyDown}>
           {groups.today.length > 0 && <ListSection title={t('presentations.today')}>{groups.today.map((p, i) => row(p, i, false, false))}</ListSection>}

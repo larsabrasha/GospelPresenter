@@ -141,6 +141,7 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   (`GospelPresenter/GospelPresenter.Shared/Components/Presentations/LivePanel.razor`):
   1. **Nu visas** — live preview (exactly what outputs show incl. overlay and black fade).
   2. **Rensa** — blacks the screen; it does not toggle back. The button is invisible while black (LIVE-R13).
+     2.0 (Lars, 2026-11-04): **Släck**, with a symbol of a black screen before the word; it works as Rensa did.
   3. **Utgångar** (hidden in remote mode) with hint text. Rows:
      - **Extern skärm** toggle — shown when the host has a second display (desktop), the browser has
        the Presentation API, or the projector is currently on. 2.0 (Lars, 2026-11-02): one switch for each display

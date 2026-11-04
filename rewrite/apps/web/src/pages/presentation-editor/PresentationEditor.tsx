@@ -245,7 +245,7 @@ export function PresentationEditor({
   usePageKeys((e) => {
     if (ticking) return;
     // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b` and `.` (a
-    // clicker's blank key) black, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide. Before
+    // clicker's blank key) black, as Släck (a slide shows again). ↑ ↓ below also show the item's first slide. Before
     // presenting the arrows and Page keys move the slide picked instead; Space stays a focused button's, and nothing
     // blacks.
     const forward = () => (presenting ? step(1) : pickStep(1));

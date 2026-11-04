@@ -124,7 +124,9 @@ Policy `ManageSongs` (`GospelPresenter.Shared/Pages/Admin/Songs.razor:1-2`).
   hittades".
 - **Skapa** → name dialog "Skapa sång" (field "Namn", max 200, autofocus; Enter saves, Escape
   closes; button "Skapa"/"Skapar…" disabled while blank). On save: song created with that (trimmed)
-  name and no parts, then navigate to `/admin/songs/{newId}`.
+  name and no parts, then navigate to `/admin/songs/{newId}`. 2.0 (Lars, 2026-11-04, as Notes makes a note): no
+  dialog; + makes "Ny sång" ("Ny sång 2" … when the name is taken) with its first part, Verse 1, and opens it with
+  the name focused and picked, to type over.
 - Live refresh: when another user/device changes data in the organisation the list re-runs the
   current search (keeping the query) (`GospelPresenter.Shared/Pages/Admin/Songs.razor:18-20`).
 
@@ -475,8 +477,10 @@ Propagation
 - **SONG-A1** Given an organisation member with role User on `/admin/songs` with an existing song
   list, when they click Skapa, type "Härlig är jorden" and press Enter, then they land on
   `/admin/songs/{id}` with the name filled in, no parts, and the song appears in the library list.
+  2.0: + lands on the new song's page at once, its name "Ny sång" picked; typing "Härlig är jorden" names it.
 - **SONG-A2** Given the name dialog is open, when the name field is blank or whitespace, then the
-  Skapa button is disabled and Enter does nothing.
+  Skapa button is disabled and Enter does nothing. 2.0: no dialog; a blank name is not saved (the field keeps the
+  name before).
 - **SONG-A3** Given a song in the editor, when the user types in Upphovspersoner, Förlag, År and
   CCLI and waits 1 s, then reloading the page shows the trimmed values; clearing a field stores it as
   empty.

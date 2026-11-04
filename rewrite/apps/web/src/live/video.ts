@@ -171,7 +171,7 @@ export class VideoEngine implements VideoControl {
   private pausedByBlack = false;
 
   /**
-   * The black screen (B, Rensa) pauses a playing video, picture and sound; the picture shown again resumes
+   * The black screen (B, Släck) pauses a playing video, picture and sound; the picture shown again resumes
    * it where it was (Lars, 2026-10-31). A video paused by hand stays paused.
    */
   setBlack(black: boolean) {

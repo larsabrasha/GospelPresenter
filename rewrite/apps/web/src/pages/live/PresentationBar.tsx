@@ -109,7 +109,7 @@ export function PresentationBar({
             <span className="max-w-full flex items-center gap-1 lg:gap-2 whitespace-nowrap">
               <span className="text-[17px]/[22px] lg:text-[15px] font-semibold truncate">{presentation.name}</span>
               {/* LIVE only where this window has no ■ (following another's session): there the red ■ and the picture's
-                  red frame say it (Lars, 2026-11-02). Until the session ends, also while Rensa has blacked the outputs. */}
+                  red frame say it (Lars, 2026-11-02). Until the session ends, also while Släck has blacked the outputs. */}
               {presenting && !owner && (
                 <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-red-500/15 text-red-500">
                   <span className="size-1.5 rounded-full bg-red-500" />

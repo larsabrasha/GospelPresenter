@@ -9,6 +9,16 @@ the app's four, colours, a picture behind, the texts' boxes and placement, capit
 smaller to fit (docs/themes.md). Not yet: a video behind, fonts of the church's own, one change for song and Bible
 text at once.
 
+## Export and import of an organisation (from Lars 2026-11-04; not started)
+
+Organisationen has "Importera från version 1" alone today. As Apple keeps moving data in one place, a group Data
+with two rows: Exportera organisationen… and Importera…, the import telling a 1.x export from a 2.0 one by itself so
+no one chooses, and Fjärrstyrning left where it is (a setting, not data). There is no 2.0 export yet: it needs a
+format of its own holding everything (songs, presentations, templates, Bibles, media, themes, overlays, outputs,
+labels, users), an import that reads it beside the 1.x one (docs/import-from-1x.md), and, with the media, a zip
+large enough that it is likely made and fetched in parts, as a video's upload is. Not decided: whether users and
+their logins go with it, and whether an import into an organisation with data merges as the 1.x import does.
+
 ## Shortcuts in the admin dialog (from Lars 2026-10-31; not started)
 
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare

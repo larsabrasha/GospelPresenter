@@ -5,6 +5,7 @@ import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
 import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
 import { PagePhoneBarSlots } from './barSlots.ts';
+import { useReturnFocus } from './returnFocus.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 
 /** The round close button in a dialog's corner (Components/Dialog.razor). */
@@ -67,6 +68,7 @@ function DialogFrame({
     },
     () => !!page && matchMedia('(width < 40rem)').matches,
   );
+  useReturnFocus(); // before the focus moves in
   useEffect(() => {
     const el = box.current!;
     if (el.contains(document.activeElement)) return;

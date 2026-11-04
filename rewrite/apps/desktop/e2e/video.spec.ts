@@ -25,7 +25,7 @@ const fixture = (name: string) => readFileSync(new URL(`../../../packages/core/t
 async function videoTab(page: Page): Promise<Locator> {
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+6');
+  await page.keyboard.press('Control+5');
   await expect(picker.getByRole('tab', { name: 'Video' })).toHaveAttribute('aria-selected', 'true');
   return picker;
 }
@@ -141,7 +141,7 @@ test('live: the output window plays the video in step with the operator window, 
   // Black pauses it, picture and sound; the picture shown again resumes it where it was (Lars, 2026-10-31).
   await player.getByRole('button', { name: 'Spela video' }).click();
   await expect(player).toHaveAttribute('data-playing', 'true');
-  await page.getByRole('button', { name: 'Rensa' }).click();
+  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(player).toHaveAttribute('data-playing', 'false');
   const paused = Number(await player.getByRole('slider').getAttribute('aria-valuenow'));
   await page.getByRole('button', { name: 'Dop.mp4 1' }).click();

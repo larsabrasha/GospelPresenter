@@ -81,9 +81,25 @@ export async function signOut(page: Page) {
   await page.getByRole('menuitem', { name: 'Logga ut' }).click();
 }
 
-/** Sånger's + (Ny sång). */
+/** Sånger's + (Ny sång): the song is made at once and opens with its name picked. */
 export async function newSong(page: Page) {
   await page.getByRole('button', { name: 'Ny sång', exact: true }).click();
+}
+
+/**
+ * Names what + just made: its editor opens with the name focused and picked, to type over (ui/justCreated.ts). An
+ * editor with Format opens it for the name; where it is a popover or a sheet, Escape then closes it, as one would.
+ */
+export async function nameNew(page: Page, name: string) {
+  const field = page.getByRole('textbox', { name: 'Namn', exact: true }).filter({ visible: true }).first();
+  await expect(field).toBeFocused();
+  await field.fill(name);
+  await field.press('Tab');
+  const format = page.getByTestId('format-sheet');
+  if (await format.isVisible()) {
+    await page.keyboard.press('Escape');
+    await expect(format).toHaveCount(0);
+  }
 }
 
 /**
@@ -117,15 +133,13 @@ export async function backToSong(page: Page) {
 
 /** Creates a song with labelled parts and stays in its editor. */
 /**
- * An overlay made under Överlägg (docs/custom-slides.md): named, then a text put on its page in the editor, and
+ * An overlay made under Överlägg (docs/custom-slides.md): made, named in its editor, then a text put on its page in the editor, and
  * saved. The editor is left open. Its Format panel is a sheet where the editor is narrow.
  */
 export async function createOverlay(page: Page, title: string, text: string) {
   await openAdmin(page, 'Överlägg');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Skapa överlägg' });
-  await dialog.getByLabel('Namn').fill(title);
-  await dialog.getByLabel('Namn').press('Enter');
+  await nameNew(page, title);
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
   const field = page.getByRole('textbox', { name: 'Text', exact: true });
@@ -138,9 +152,7 @@ export async function createOverlay(page: Page, title: string, text: string) {
 export async function createSong(page: Page, name: string, parts: [string, string][]) {
   await openAdmin(page, 'Sånger');
   await newSong(page);
-  const dialog = page.getByRole('dialog', { name: 'Skapa sång' });
-  await dialog.getByLabel('Namn').fill(name);
-  await dialog.getByLabel('Namn').press('Enter');
+  await nameNew(page, name);
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   // A new song starts with its first part (Verse 1): the first is filled in, the rest added.
   await expect(page.getByLabel('Delar 1', { exact: true })).toBeVisible();

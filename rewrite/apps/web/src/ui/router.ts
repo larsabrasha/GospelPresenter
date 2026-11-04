@@ -44,6 +44,7 @@ export type Route =
   | { page: 'user'; id: string }
   | { page: 'devices' }
   | { page: 'bibles' }
+  | { page: 'bible'; id: string }
   | { page: 'images' }
   | { page: 'audios' }
   | { page: 'videos' }
@@ -124,7 +125,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'songs') return third ? songRoute(third, fourth, fifth) : { page: 'songs' };
     if (second === 'users') return third ? { page: 'user', id: third } : { page: 'users' };
     if (second === 'devices') return { page: 'devices' };
-    if (second === 'bibles') return { page: 'bibles' };
+    if (second === 'bibles') return third ? { page: 'bible', id: third } : { page: 'bibles' };
     if (second === 'images') return { page: 'images' };
     if (second === 'audios') return { page: 'audios' };
     if (second === 'videos') return { page: 'videos' };
@@ -175,14 +176,14 @@ const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'theme', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'theme', 'bible', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
-const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme']);
+const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme', 'bible']);
 
 /**
  * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
@@ -227,6 +228,8 @@ export function href(r: Route): string {
       return `/admin/custom-slides/${encodeURIComponent(r.id)}`;
     case 'theme':
       return `/admin/themes/${encodeURIComponent(r.id)}`;
+    case 'bible':
+      return `/admin/bibles/${encodeURIComponent(r.id)}`;
     case 'user':
       return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':

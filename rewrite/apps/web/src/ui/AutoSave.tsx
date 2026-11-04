@@ -87,6 +87,7 @@ export function AutoSaveField({
   min,
   max,
   hasError,
+  autoSelect,
 }: {
   label: string;
   value: string;
@@ -109,6 +110,8 @@ export function AutoSaveField({
   max?: number;
   /** A red border, for an error shown under the field (an e-mail that is taken). */
   hasError?: boolean;
+  /** Focused with its text picked as it first shows, to type over: the name of what was just made. */
+  autoSelect?: boolean;
 }) {
   // What the user has typed, shown in place of `value`; null shows `value`.
   const [draft, setDraft] = useState<string | null>(null);
@@ -119,6 +122,13 @@ export function AutoSaveField({
   // Whether `onSave` turned down the last value; read after a flush, so refs rather than state.
   const refused = useRef(false);
   const hasFocus = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
+  // Picked once, after it shows: a focus event of React's own autoFocus comes too early to pick the text.
+  useEffect(() => {
+    if (!autoSelect) return;
+    input.current?.focus();
+    input.current?.select();
+  }, [autoSelect]);
   // The values this field wrote since it got focus, which come back as the stored value and are no clash;
   // whether the user typed since; and the other text while a clash waits for the user's choice.
   const [own] = useState(() => new Set<string>());
@@ -210,7 +220,21 @@ export function AutoSaveField({
   const field = multiline ? (
     <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} bare={bare} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
-    <FloatingInput label={label} bare={bare} type={type} min={min} max={max} maxLength={maxLength} hasError={hasError} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingInput
+      label={label}
+      bare={bare}
+      type={type}
+      min={min}
+      max={max}
+      maxLength={maxLength}
+      hasError={hasError}
+      value={shown}
+      ref={input}
+      onFocus={onFocus}
+      onChange={onChange}
+      onBlur={onBlur}
+      className={className}
+    />
   );
   if (clash === null) return field;
   return (

@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { t } from './i18n.ts';
 import { AUTH_TEXT, AuthCard } from './pages/AuthCard.tsx';
+import { reportClientError } from './clientErrors.ts';
 import { signOut } from './Shell.tsx';
 import { AppButton } from './ui/AppButton.tsx';
 
@@ -32,6 +33,10 @@ export class CrashGuard extends Component<{ children: ReactNode }, { error: stri
 
   static getDerivedStateFromError(e: unknown) {
     return { error: errorMessage(e) };
+  }
+
+  componentDidCatch(e: unknown) {
+    reportClientError(e);
   }
 
   render() {

@@ -1,47 +1,32 @@
 import { useState } from 'react';
 import { BIBLE_ZIP_MAX_BYTES } from '@gp/core';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
-import { listBibles, type InstalledBible } from '../db/queries.ts';
+import { listBibles } from '../db/queries.ts';
 import { isTextKey, t } from '../i18n.ts';
-import { AppButton } from '../ui/AppButton.tsx';
-import { BookOpenOutlineIcon, CheckIcon } from '../ui/icons.tsx';
+import { BookOpenOutlineIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { Library } from '../ui/Library.tsx';
-import { useToast } from '../ui/Toast.tsx';
 import { isHostWindow } from '../hostWindow.ts';
+import { href } from '../ui/router.ts';
+import { offlineLine } from './BibleDetail.tsx';
 
 type Message = { ok: boolean; text: string } | null;
 
 /**
- * Biblar (spec 05 `/admin/bibles`): import a translation from a zip, list
- * them, delete one. Admins only (D24). The zip is read on this device and its
- * text uploaded once. Each device keeps the texts it chose ("Gör tillgänglig
- * offline", BIBLE-R15); a desktop host keeps them all and shows no choice
- * (docs/bibles-and-themes.md, "Bibles").
+ * Biblar (spec 05 `/admin/bibles`): import a translation from a zip, list them; a row opens its page
+ * (BibleDetail.tsx), which renames it, keeps it offline and deletes it. Admins only (D24). The zip is read on this
+ * device and its text uploaded once. Each device keeps the texts it chose ("Tillgänglig offline", BIBLE-R15); a
+ * desktop host keeps them all and shows no choice (docs/bibles-and-themes.md, "Bibles").
  */
 export function Bibles() {
   const db = useDb();
-  const toast = useToast();
   const bibles = useData(listBibles, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
-  /** The translation being downloaded or removed: one at a time, as the current app. */
-  const [keeping, setKeeping] = useState<string | null>(null);
   const status = useDbStatus();
   const host = isHostWindow();
   /** A device that keeps nothing between reloads cannot keep a text offline. */
   const persistent = status?.storage === 'opfs';
-
-  const keep = async (b: InstalledBible, on: boolean) => {
-    if (keeping) return;
-    setKeeping(b.id);
-    try {
-      const ok = await db.keepBible(b.id, on);
-      toast(t(!on ? 'bibles.offlineRemoved' : ok ? 'bibles.offlineDownloaded' : 'bibles.offlineFailed'));
-    } finally {
-      setKeeping(null);
-    }
-  };
 
   const importFile = async (file: File | undefined) => {
     if (!file || busy) return;
@@ -60,25 +45,16 @@ export function Bibles() {
     }
   };
 
-  const offline = (b: InstalledBible) =>
-    host ? (
-      <span className="inline-flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
-        <CheckIcon className="size-4 text-green-500" />
-        {t('bibles.offline')}
-      </span>
-    ) : (
-      persistent && <OfflineState bible={b} busy={keeping} onKeep={(on) => void keep(b, on)} />
-    );
-
   return (
     <Library
       title={t('bibles.title')}
       items={bibles}
       words={(b) => [b.abbreviation]}
       layout="list"
-      renderRow={(b) => ({ subtitle: t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount }), end: offline(b) })}
+      // Whether it is offline in grey, as iOS's rows say a value; its page has the switch, the name and Radera.
+      renderRow={(b) => ({ subtitle: t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount }), end: <span className="text-sm text-stone-500 dark:text-stone-400">{offlineLine(b, host)}</span> })}
+      open={(b) => href({ page: 'bible', id: b.id })}
       manage
-      rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (b, name) => db.mutate('renameBible', { id: b.id, name }) }}
       remove={{
         ask: (items) => (items.length === 1 ? { text: t('bibles.deleteConfirm', { name: items[0]!.name }), bold: items[0]!.name } : { text: t('bibles.deleteMany', { n: items.length }) }),
         done: (items) => (items.length === 1 ? t('bibles.deleted') : t('bibles.deletedMany', { n: items.length })),
@@ -103,14 +79,20 @@ export function Bibles() {
         </>
       }
       loading={t('common.loading')}
-      empty={{ icon: <BookOpenOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('bibles.empty') }}
+      empty={{ icon: <BookOpenOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('bibles.empty'),
+        // Where a translation comes from, here rather than in the footer, which an empty list does not show.
+        text: t('bibles.emptyText'),
+        action: <ImportFilesButton accept=".zip" busy={busy} testId="bible-file-empty" label={t('bibles.emptyImport')} onFiles={(files) => void importFile(files[0])} />,
+      }}
       count={(n) => t(n === 1 ? 'bibles.count.one' : 'bibles.count.many', { n })}
       // What a bible file is, and why this device keeps none offline, in grey under the list as iOS's footers.
       footer={
-        <p className="px-4 text-xs text-stone-500 dark:text-stone-400">
-          {t('bibles.importText')}
-          {!host && status && !persistent && !!bibles?.length && ` ${t('bibles.offlineUnavailable')}`}
-        </p>
+        !!bibles?.length && (
+          <p className="px-4 text-xs text-stone-500 dark:text-stone-400">
+            {t('bibles.importText')}
+            {!host && status && !persistent && ` ${t('bibles.offlineUnavailable')}`}
+          </p>
+        )
       }
       drop={{ label: t('bibles.dropHere'), accept: '.zip', multiple: false, onFiles: (files) => void importFile(files[0]) }}
       testId="bible"
@@ -130,27 +112,3 @@ function importErrorText(e: unknown): string {
   return isTextKey(key) ? t(key) : message;
 }
 
-function OfflineState({ bible: b, busy, onKeep }: { bible: InstalledBible; busy: string | null; onKeep: (on: boolean) => void }) {
-  if (b.kept && b.stored) {
-    return (
-      <AppButton
-        variant="neutral"
-        title={t('bibles.removeOffline')}
-        loading={busy === b.id}
-        disabled={busy !== null}
-        className="inline-flex items-center gap-1.5"
-        onClick={() => onKeep(false)}
-      >
-        {busy !== b.id && <CheckIcon className="size-4 text-green-500" />}
-        {t('bibles.offline')}
-      </AppButton>
-    );
-  }
-  if (b.kept) return <span className="text-xs text-stone-400">{t('bibles.fetching')}</span>;
-  if (b.stored) return <span className="text-xs text-stone-400">{t('bibles.offline')}</span>;
-  return (
-    <AppButton variant="secondary" loading={busy === b.id} disabled={busy !== null} onClick={() => onKeep(true)}>
-      {t('bibles.makeOffline')}
-    </AppButton>
-  );
-}

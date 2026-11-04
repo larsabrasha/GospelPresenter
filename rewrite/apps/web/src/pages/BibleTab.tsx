@@ -260,6 +260,7 @@ export function BibleTab({
       <div data-testid="no-bibles">
         <EmptyTab icon={<BookOpenIcon className="size-12 text-stone-300 dark:text-stone-600" />}>
           <p>{t('bible.none')}</p>
+          <p className="max-w-xs leading-relaxed">{t('bible.noneText')}</p>
         </EmptyTab>
       </div>
     );

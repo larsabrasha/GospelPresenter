@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { blankPage, type Theme } from '@gp/core';
 import { listCustomSlides, type LibraryCustomSlide } from '../../db/customSlides.ts';
 import { defaultTheme } from '../../db/queries.ts';
@@ -12,7 +12,7 @@ import { useConfirm } from '../../ui/Dialog.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { ArrowDownTrayIcon, ArrowsRightLeftIcon, SlideshowIcon } from '../../ui/icons.tsx';
 import { Library } from '../../ui/Library.tsx';
-import { NameDialog } from '../../ui/NameDialog.tsx';
+import { freshName, markCreated } from '../../ui/justCreated.ts';
 import { href, navigate } from '../../ui/router.ts';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useToast } from '../../ui/Toast.tsx';
@@ -43,7 +43,15 @@ export function CustomSlides() {
   const { dialog, ask } = useConfirm();
   const slides = useData(listCustomSlides, []);
   const theme = useData(defaultTheme, []);
-  const [creating, setCreating] = useState(false);
+  /** + makes "Nytt bildspel" at once with one blank page, and opens it with its name picked (Lars, 2026-11-04). */
+  const create = async () => {
+    const id = newId();
+    const name = freshName(t('customSlides.new'), (slides ?? []).map((s) => s.name));
+    if (await trySave(db.mutate('createCustomSlide', { id, name, pages: [blankPage()], at: Date.now() }))) {
+      markCreated(id);
+      navigate({ page: 'customSlide', id });
+    }
+  };
   const { importing, error, run } = useDeckImport();
   const picker = useRef<HTMLInputElement>(null);
   /** What the next picked PDF is for: a new slideshow, or the pages of this one. */
@@ -91,7 +99,7 @@ export function CustomSlides() {
         add={
           <>
             <RoundButton text={t('slides.importShort')} title={t('slides.import')} icon={<ArrowDownTrayIcon className="size-5" />} disabled={importing} onClick={() => pick(null)} />
-            <AddButton label={t('customSlides.new')} onClick={() => setCreating(true)} />
+            <AddButton label={t('customSlides.new')} onClick={() => void create()} />
           </>
         }
         drop={{ label: t('slides.dropHere'), accept: PDF, multiple: false, onFiles: (files) => void run(files[0], { deckId: newId(), into: 'library' }) }}
@@ -102,23 +110,20 @@ export function CustomSlides() {
                 {error ?? t('slides.importing')}
               </p>
             )}
-            {creating && (
-              <NameDialog
-                title={t('customSlides.createTitle')}
-                label={t('song.name')}
-                maxLength={200}
-                initial=""
-                onClose={() => setCreating(false)}
-                submit={async (name) => {
-                  const id = newId();
-                  if (await trySave(db.mutate('createCustomSlide', { id, name, pages: [blankPage()], at: Date.now() }))) navigate({ page: 'customSlide', id });
-                }}
-              />
-            )}
           </>
         }
         loading={t('common.loading')}
-        empty={{ icon: <SlideshowIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty') }}
+        empty={{ icon: <SlideshowIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty'),
+          text: t('customSlides.emptyText'),
+          action: (
+            <>
+              <AppButton onClick={() => void create()}>{t('customSlides.emptyNew')}</AppButton>
+              <AppButton variant="secondary" disabled={importing} onClick={() => pick(null)}>
+                {t('slides.import')}
+              </AppButton>
+            </>
+          ),
+        }}
         noMatch={t('customSlides.noMatch')}
         count={(n) => t(n === 1 ? 'customSlides.count.one' : 'customSlides.count.many', { n })}
         testId="custom-slide"

@@ -50,7 +50,7 @@ export type SlideMarkKind = 'shown' | 'next';
 
 /**
  * The marks of the running order's slides, the same on a computer and a phone (Lars, 2026-11-02): VISAS on the slide
- * shown, NÄSTA on the one → shows next, after Rensa too, from the slide last shown (Lars, 2026-11-01).
+ * shown, NÄSTA on the one → shows next, after Släck too, from the slide last shown (Lars, 2026-11-01).
  */
 export function slideMarks(
   order: readonly { itemId: string; parts: number }[],

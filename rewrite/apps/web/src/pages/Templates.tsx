@@ -150,7 +150,11 @@ export function Templates() {
           <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
         </div>
       )}
-      {templates && !templates.length && <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} />}
+      {templates && !templates.length && (
+        <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')}>
+          <AppButton onClick={() => setCreating(true)}>{t('templates.createTitle')}</AppButton>
+        </EmptyPicture>
+      )}
       {!!templates?.length && (
         <ListCard label={t('nav.templates')}>
           {templates.map((tp) => (

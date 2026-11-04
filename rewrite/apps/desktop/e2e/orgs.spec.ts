@@ -17,7 +17,7 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await setUpHost(host);
   await createSong(page, 'Bara hemma', [['Verse', 'Ett']]);
 
-  await openAdmin(page, 'Organisationer');
+  await openAdmin(page, 'Alla organisationer');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa organisation' });
   await dialog.getByLabel('Namn').fill('Annexet');
@@ -39,7 +39,7 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await openAdmin(page, 'Sånger');
   await expect(page.getByRole('link', { name: 'Bara hemma' })).toBeVisible();
 
-  await openAdmin(page, 'Organisationer');
+  await openAdmin(page, 'Alla organisationer');
   await page.getByRole('link', { name: /Annexet/ }).click();
   await page.getByRole('button', { name: 'Radera organisation' }).click();
   const confirm = page.getByRole('dialog', { name: 'Radera organisation' });
@@ -48,7 +48,7 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await confirm.getByLabel('Skriv Annexet för att bekräfta:').fill('Annexet');
   await confirm.getByRole('button', { name: 'Radera' }).click();
 
-  const list = page.getByRole('list', { name: 'Organisationer' });
+  const list = page.getByRole('list', { name: 'Alla organisationer' });
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list).toContainText('Lilla Kyrkan');
   await openPresentations(page);
@@ -59,7 +59,7 @@ test('the organisation the SuperAdmin is in is refused deletion while it is thei
   const page = host.page;
   await setUpHost(host);
 
-  await openAdmin(page, 'Organisationer');
+  await openAdmin(page, 'Alla organisationer');
   await page.getByRole('link', { name: /Lilla Kyrkan/ }).click();
   await page.getByRole('button', { name: 'Radera organisation' }).click();
   const confirm = page.getByRole('dialog', { name: 'Radera organisation' });

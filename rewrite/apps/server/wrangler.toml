@@ -15,6 +15,11 @@ GP_TEST_ISSUER = "false"
 
 # The built web app: `pnpm build` before a deploy. Only /api/* reaches the Worker; Cloudflare serves the
 # files with web/public/_headers (the same headers as src/static.ts).
+# Workers Logs: what the Worker writes (its JSON events, client errors among them) is kept and searchable in the
+# dashboard, under the Worker's Observability (docs/cloudflare.md, "Logs").
+[observability]
+enabled = true
+
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"

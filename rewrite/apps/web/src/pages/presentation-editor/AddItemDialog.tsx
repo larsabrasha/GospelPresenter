@@ -32,12 +32,13 @@ export interface TabProps {
   active: boolean;
 }
 
-type Tab = 'songs' | 'bible' | 'images' | 'audio' | 'slides' | 'video';
-/** Video last, so the tabs before it keep their keys. */
-const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides', 'video'];
+export type AddKind = 'songs' | 'bible' | 'images' | 'audio' | 'slides' | 'video';
+type Tab = AddKind;
+/** The kinds in the order every list of them has, Bildspel last (Lars, 2026-11-04): Ctrl/⌘+1 to +6 follow it. */
+const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'video', 'slides'];
 
 /**
- * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud, Bildspel and Video; Ctrl/⌘+1 to
+ * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud, Video and Bildspel; Ctrl/⌘+1 to
  * +6 switch, wherever focus is. Every tab stays as it was while another is shown (AddItemModal.razor
  * hides them). It never closes after an add (D15). The new item goes after the selected one and
  * becomes selected. A song's pencil opens its editor here, with a way back to the list.
@@ -51,8 +52,8 @@ const KEYS: ShortcutGroup = {
     { keys: ['Ctrl+2'], text: t('shortcuts.tab.bible') },
     { keys: ['Ctrl+3'], text: t('shortcuts.tab.images') },
     { keys: ['Ctrl+4'], text: t('shortcuts.tab.audio') },
-    { keys: ['Ctrl+5'], text: t('shortcuts.tab.slides') },
-    { keys: ['Ctrl+6'], text: t('shortcuts.tab.video') },
+    { keys: ['Ctrl+5'], text: t('shortcuts.tab.video') },
+    { keys: ['Ctrl+6'], text: t('shortcuts.tab.slides') },
     { keys: ['Ctrl+Enter'], text: t('shortcuts.add') },
     { keys: ['ArrowDown'], text: t('shortcuts.moveThroughResults') },
   ],
@@ -66,10 +67,26 @@ function discardSong(db: Db, id: string) {
   );
 }
 
-export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> & { toItemId?: string }) {
+/** The kinds an item is, each its tab's name and icon, in the tabs' order. */
+export function addKinds(): [AddKind, string, (p: { className?: string }) => ReactNode][] {
+  return [
+    ['songs', t('nav.songs'), MusicalNoteIcon],
+    ['bible', t('bible.tab'), BookOpenIcon],
+    ['images', t('presentation.imagesTab'), PhotoIcon],
+    ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
+    ['video', t('presentation.videoTab'), VideoIcon],
+    ['slides', t('nav.customSlides'), SlideshowIcon],
+  ];
+}
+
+/**
+ * `only` one kind, without the row of tabs, titled by it: on a phone, where + first asks which kind (PhoneLive's
+ * AddKindSheet, Lars 2026-11-04: six tabs do not fit its width).
+ */
+export function AddItemDialog({ toItemId, only, ...props }: Omit<TabProps, 'active'> & { toItemId?: string; only?: AddKind }) {
   // Adding pictures to an image item opens on Bilder.
   useShortcutGroup(KEYS);
-  const [tab, setTab] = useState<Tab>(toItemId ? 'images' : 'songs');
+  const [tab, setTab] = useState<Tab>(only ?? (toItemId ? 'images' : 'songs'));
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -104,7 +121,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
   };
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     const at = Number(e.key) - 1;
-    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !(at >= 0 && at < ORDER.length) || editingSongId) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !(at >= 0 && at < ORDER.length) || editingSongId || only) return;
     e.preventDefault();
     setTab(ORDER[at]!);
   });
@@ -113,18 +130,11 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     addEventListener('keydown', onKey, true);
     return () => removeEventListener('keydown', onKey, true);
   }, []);
-  const tabs: [Tab, string, (p: { className?: string }) => ReactNode][] = [
-    ['songs', t('nav.songs'), MusicalNoteIcon],
-    ['bible', t('bible.tab'), BookOpenIcon],
-    ['images', t('presentation.imagesTab'), PhotoIcon],
-    ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
-    ['slides', t('nav.customSlides'), SlideshowIcon],
-    ['video', t('presentation.videoTab'), VideoIcon],
-  ];
+  const tabs = addKinds();
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');
   const tabProps = (key: Tab): TabProps => ({ ...props, onClose: close, active: !editingSongId && tab === key });
   return (
-    <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl" bare={!!editingSongId}>
+    <Modal title={only ? tabs.find(([key]) => key === only)![1] : t('presentation.addTitle')} onClose={close} className="max-w-4xl" bare={!!editingSongId}>
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
           // The same page as in Inställningar, filling the dialog.
@@ -149,7 +159,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
           </div>
           </PageFill>
         )}
-        <div className={editingSongId ? 'hidden' : 'mb-4 md:flex md:justify-center'}>
+        <div className={editingSongId || only ? 'hidden' : 'mb-4 md:flex md:justify-center'}>
           <PillTabs role="tablist">
             {tabs.map(([key, label, Icon], i) => (
               <AppButton

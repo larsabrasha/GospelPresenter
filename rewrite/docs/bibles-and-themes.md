@@ -19,9 +19,10 @@ lets the import through to be refused with a reason. A queued import's text is n
 server still lacks the text when the import arrives (`bible-text-missing`), the device queues the
 import once more while it still has the text, which uploads it again; refused a second time, it
 stays refused. Every other device sees the row arrive in a pull. Which texts a device keeps is its
-own choice, as in the current app (BIBLE-R15): Biblar has "Gör tillgänglig offline" per translation,
-and a kept one shows a grey "✓ Tillgänglig offline" that removes the copy ("Ta bort den nedladdade
-kopian"). The choice is a local, unsynced table, `kept_bibles` (by translation id, so a re-import stays
+own choice, as in the current app (BIBLE-R15). Since 2026-11-04 (Lars, as iOS's Settings) a translation's row in
+Biblar says "Tillgänglig offline" in grey when kept, and opens its page (`pages/BibleDetail.tsx`): its name, saved as it
+is typed; its abbreviation and verses; "Tillgänglig offline" as a switch (none on a desktop host, which keeps them
+all); and Radera bibel in red, asked first. The choice is a local, unsynced table, `kept_bibles` (by translation id, so a re-import stays
 kept). A kept text is downloaded once (`GET /api/bibles/{hash}`, any member, only from
 its own organisation), its hash checked, and kept; searching and adding verses then needs no network.
 "Gör tillgänglig offline" downloads at once, and without a connection says so and keeps nothing. A

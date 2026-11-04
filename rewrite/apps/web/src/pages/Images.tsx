@@ -112,7 +112,10 @@ export function Images({ role }: { role: Role }) {
       add={manage && <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('images.failed', { n: failures.length })} testId="image" />}
       loading={t('presentation.loadingImages')}
-      empty={{ icon: <PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('images.empty') }}
+      empty={{ icon: <PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('images.empty'),
+        text: t('images.emptyText'),
+        action: <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file-empty" label={t('images.emptyImport')} onFiles={(files) => void importFiles(files)} />,
+      }}
       noMatch={t('images.noMatch')}
       count={(n) => t(n === 1 ? 'images.count.one' : 'images.count.many', { n })}
       drop={{ label: t('images.drop'), accept: IMAGE_ACCEPT, onFiles: (files) => void importFiles(files) }}

@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useId, useLayoutEffect, useRef, type InputHTMLAttributes, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronDownIcon } from './icons.tsx';
 
 // Fields with the label inside the box, which moves up when the field has a
@@ -18,6 +18,7 @@ export function FloatingInput({
   id,
   ...rest
 }: InputHTMLAttributes<HTMLInputElement> & {
+  ref?: Ref<HTMLInputElement>;
   label: string;
   hideLabel?: boolean;
   hasError?: boolean;
@@ -64,19 +65,38 @@ export function FloatingSelect({ label, className, id, children, ...rest }: Sele
 }
 
 /** A text area with its label in the box; `bare` has no box of its own, for text written straight into a card. */
+/** Whether the browser sizes a field to its text itself (`field-sizing: content`); else `useGrow` does. */
+const SIZES_ITSELF = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
+
+/** As tall as its text, as iOS's text views grow (Lars, 2026-11-04), where the browser does not do it itself. */
+function useGrow(on: boolean) {
+  const area = useRef<HTMLTextAreaElement>(null);
+  // After every render, as the text may have changed with it.
+  useLayoutEffect(() => {
+    const el = area.current;
+    if (!on || SIZES_ITSELF || !el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  });
+  return area;
+}
+
+/** A `bare` field (a song part's text) grows with its text, from three lines, and has no handle to size it. */
 export function FloatingTextarea({ label, className, id, rows = 4, bare, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean }) {
   const own = useId();
   const areaId = id ?? own;
+  const area = useGrow(!!bare);
   return (
     <div className={`relative ${className ?? ''}`}>
       <textarea
         {...rest}
+        ref={area}
         id={areaId}
-        rows={rows}
+        rows={bare ? 3 : rows}
         placeholder=" "
         className={
           bare
-            ? 'block w-full px-4 py-3 bg-transparent border-0 outline-none resize-y text-[15px]/6 text-stone-900 dark:text-stone-100'
+            ? 'block w-full px-4 py-3 bg-transparent border-0 outline-none resize-none [field-sizing:content] min-h-[calc(3lh+1.5rem)] overflow-hidden text-[15px]/6 text-stone-900 dark:text-stone-100'
             : `peer w-full pt-5 px-4 pb-2 ${BOX} border-stone-200 dark:border-stone-600 placeholder-transparent resize-y`
         }
       />

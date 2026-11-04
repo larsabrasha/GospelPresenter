@@ -1,29 +1,17 @@
-import { useEffect, useEffectEvent, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { FLOATING_EDGE, ROUND_CLOSE } from '../../ui/glass.ts';
 import { CloseIcon } from '../../ui/icons.tsx';
 import { useSheetDrag } from '../../ui/sheetDrag.ts';
+import { usePhone } from '../../ui/usePhone.ts';
 
 // Keynote's Format where the editor is too narrow to have it beside the page (docs/custom-slides.md, Lars
 // 2026-11-04): on a phone a sheet over the lower part of the screen, the page in view above it, pulled down to close;
 // wider, as on an iPad, a popover under the brush, the page beside and under it still to tap and drag, the panel
 // open while the picked element changes. ✕, Escape or the brush again closes either. Where the editor is wide enough
 // (`@4xl`) the same panel stands beside the page and this is not shown.
-
-const PHONE = '(width < 40rem)';
-
-function usePhone(): boolean {
-  return useSyncExternalStore(
-    (changed) => {
-      const media = matchMedia(PHONE);
-      media.addEventListener('change', changed);
-      return () => media.removeEventListener('change', changed);
-    },
-    () => matchMedia(PHONE).matches,
-  );
-}
 
 /** Escape closes the panel, unless a menu in it has the key. */
 function useEscape(onClose: () => void) {

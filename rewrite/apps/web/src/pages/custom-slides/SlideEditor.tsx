@@ -13,6 +13,7 @@ import { href } from '../../ui/router.ts';
 import { readEdited, renameEdited, savePages, type EditedKind } from './edited.ts';
 import { EditorCanvas } from './EditorCanvas.tsx';
 import { FormatSheet } from './FormatSheet.tsx';
+import { useJustCreated } from '../../ui/justCreated.ts';
 import * as history from './history.ts';
 import { ImagePicker } from './ImagePicker.tsx';
 import { Inspector } from './Inspector.tsx';
@@ -45,7 +46,9 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const [at, setAt] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
-  const [formatOpen, setFormatOpen] = useState(false);
+  // Just made: Format open with the name picked, where it is a popover or a sheet (ui/justCreated.ts).
+  const isNew = useJustCreated(id);
+  const [formatOpen, setFormatOpen] = useState(isNew);
   const [choosing, setChoosing] = useState<Choosing>(null);
   const [clip, setClip] = useState<CustomElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -168,6 +171,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const inspector = (
     <Inspector
       name={slide.name}
+      nameNew={isNew}
       page={page}
       pageAt={pageAt}
       element={element}
@@ -215,7 +219,10 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
               <ArrowUturnRightIcon className="size-5" />
             </AppButton>
             <span className="flex-1" />
-            <InsertMenu className={TOOL} onInsert={add} />
+            {/* One popover at a time, as on an iPad: + closes Format where Format is one, so it never covers +'s menu. */}
+            <span className="contents" onClickCapture={() => setFormatOpen(false)}>
+              <InsertMenu className={TOOL} onInsert={add} />
+            </span>
             <AppButton variant="plain" className={`${TOOL} @4xl:hidden ${formatOpen ? 'bg-sky-500/15' : ''}`} aria-label={t('slideEditor.format')} title={t('slideEditor.format')} aria-pressed={formatOpen} onClick={() => setFormatOpen((o) => !o)}>
               <PaintBrushIcon className="size-5" />
             </AppButton>

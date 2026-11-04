@@ -14,6 +14,7 @@ import * as history from '../custom-slides/history.ts';
 import { ImagePicker } from '../custom-slides/ImagePicker.tsx';
 import { ThemeCanvas } from './ThemeCanvas.tsx';
 import { ThemeInspector } from './ThemeInspector.tsx';
+import { useJustCreated } from '../../ui/justCreated.ts';
 import { SAMPLES, withBackground, withText, type EditedKind, type TextRole } from './themeModel.ts';
 
 // An own theme's editor (docs/themes.md), as the slideshows' (Lars, 2026-11-04): Ångra and Gör om above the slide; the
@@ -61,7 +62,9 @@ export function ThemeEditor({ id }: { id: string }) {
   const [h, setH] = useState<history.History<ThemeDefinition> | null>(null);
   const [kind, setKind] = useState<EditedKind>('song');
   const [picked, setPicked] = useState<TextRole | null>(null);
-  const [formatOpen, setFormatOpen] = useState(false);
+  // Just made: Format open with the name picked, where it is a popover or a sheet (ui/justCreated.ts).
+  const isNew = useJustCreated(id);
+  const [formatOpen, setFormatOpen] = useState(isNew);
   const [choosing, setChoosing] = useState(false);
   /** Changes not saved yet: while there are some, the theme as stored is not taken over. */
   const dirty = useRef(false);
@@ -130,6 +133,7 @@ export function ThemeEditor({ id }: { id: string }) {
   const inspector = (
     <ThemeInspector
       name={row.theme.name}
+      nameNew={isNew}
       definition={definition}
       kind={kind}
       picked={picked}

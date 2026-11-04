@@ -59,7 +59,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
       title: 'settings.group.library',
       links: [
         { route: { page: 'songs' }, label: 'nav.songs', keywords: 'search.songs', icon: MusicalNoteIcon, colour: 'bg-blue-500', pages: ['songs', 'song', ...SONG_PAGES] },
-        can(me.role, 'ManageBibles') && { route: { page: 'bibles' }, label: 'nav.bibles', keywords: 'search.bibles', icon: BookOpenIcon, colour: 'bg-amber-700', pages: ['bibles'] },
+        can(me.role, 'ManageBibles') && { route: { page: 'bibles' }, label: 'nav.bibles', keywords: 'search.bibles', icon: BookOpenIcon, colour: 'bg-amber-700', pages: ['bibles', 'bible'] },
         can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', keywords: 'search.images', icon: PhotoIcon, colour: 'bg-rose-500', pages: ['images'] },
         can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', keywords: 'search.audios', icon: SpeakerWaveIcon, colour: 'bg-orange-500', pages: ['audios'] },
         can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', keywords: 'search.videos', icon: VideoIcon, colour: 'bg-purple-500', pages: ['videos'] },

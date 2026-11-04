@@ -126,12 +126,8 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: 
   );
 }
 
-/** A role's badge colours (Users.razor). */
-export const ROLE_BADGE: Record<Role, string> = {
-  superAdmin: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
-  admin: 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300',
-  user: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
-};
+/** A row's role, in grey at its end, as iOS's rows say a value (Lars, 2026-11-04: no coloured badge). */
+export const ROLE_VALUE = 'shrink-0 text-sm text-stone-500 dark:text-stone-400';
 
 /** How long an invite has left: "3 dagar", "1 dag", "mindre än en dag" (UserDetail.razor, days rounded up). */
 export function timeLeft(expiresAt: number): string {
@@ -199,7 +195,7 @@ export function Users({ me }: { me: Me }) {
                     </div>
                     <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{inviteStatus(u)}</div>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
+                  <span className={ROLE_VALUE}>{t(`role.${u.role}`)}</span>
                   <RowChevron />
                 </a>
               </li>

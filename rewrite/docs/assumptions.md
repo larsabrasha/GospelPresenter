@@ -289,7 +289,7 @@ the streaming and who plays what; these are the choices the implementer made whe
   How far the projector's picture and the sound drift apart on real hardware is not measured.
 - **A video item that goes live starts from its beginning; leaving it stops it**, also when going back to it (it
   starts over). An audio item plays on after it is left (LIVE-R6); a video's sound belongs with its picture.
-- **"Svart skärm" (B, Rensa) pauses a playing video, picture and sound; showing the picture again resumes it where
+- **"Svart skärm" (B, Släck) pauses a playing video, picture and sound; showing the picture again resumes it where
   it was** (Lars, 2026-10-31). A video paused by hand stays paused when the picture comes back. A window reloaded
   while black, with its video paused by black, does not know that black paused it: the video stays paused (mine).
 - **A reloaded presenting window resumes a live video where it was** (Lars, 2026-10-31), from the state it kept with

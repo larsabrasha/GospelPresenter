@@ -6,12 +6,12 @@ import { DesktopIcon, DocumentTextIcon } from '../../../ui/icons.tsx';
 import { LIFTED } from '../../../ui/glass.ts';
 import { useOutputs } from '../useOutputs.ts';
 
-// Round and lifted as ‹ Rensa ›'s arrows, at the row's right end, so it reads as one of the row's buttons (Lars,
+// Round and lifted as ‹ Släck ›'s arrows, at the row's right end, so it reads as one of the row's buttons (Lars,
 // 2026-11-02: a flat glyph there looked off).
 const GLYPH = `size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer ${LIFTED}`;
 
 /**
- * Visning at the right end of ‹ Rensa ›'s row on a phone: Utgångar and Overlays behind one button, as Control Center
+ * Visning at the right end of ‹ Släck ›'s row on a phone: Utgångar and Overlays behind one button, as Control Center
  * gathers what shows (Lars, 2026-11-02). Its screen green while an output is on, a sky dot while an overlay is; a
  * tap opens its sheet. A phone controlling another's session has no outputs of its own: `link` is then null.
  */
@@ -27,7 +27,7 @@ export function DisplayGlyph({ link, sessionId, pointer, onClick }: { link: Live
 const OFF = 'text-stone-500 dark:text-stone-400';
 
 /**
- * Beskrivning at the left end of Rensa's row on a phone, in the room that keeps Rensa in the middle, when the
+ * Beskrivning at the left end of Släck's row on a phone, in the room that keeps Släck in the middle, when the
  * presentation has a description (Lars, 2026-11-03): a tap opens its sheet, the text to read there.
  */
 export function DescriptionGlyph({ onClick }: { onClick: () => void }) {
