@@ -65,9 +65,17 @@ describe('the export’s files', () => {
 
   it('writes no zip the import would refuse, and names the row', async () => {
     const out = join(tempDir(), 'kyrkan.zip');
-    const data: OldData = { ...withImage(), images: [], displays: [{ Id: 'd-1', DisplayIdentifier: 'ABC', Name: 'TV', Kind: 0, CreatedAt: new Date(0) }] };
+    const data: OldData = {
+      ...withImage(),
+      images: [],
+      presentations: [
+        { Id: 'p-1', Name: 'Gudstjänst', UpdatedAt: new Date(0), IsTemplate: false, Description: null, DeletedAt: null, LastUsedAt: null, ScheduledDayOfWeek: null, ScheduledTime: null, EventDate: null, EventTime: null, EventLocation: null, ThemeId: null },
+      ],
+      items: [{ Id: 'it-1', PresentationId: 'p-1', SourceId: null, Type: 1, Title: 'Joh 3', ArrangementId: null, SortOrder: 0 }],
+      itemParts: [{ PresentationItemId: 'it-1', Content: `<sup>16</sup>${'a'.repeat(10_001)}`, SortOrder: 0 }],
+    };
 
-    await expect(exportOrg(data, { get: async () => null }, out)).rejects.toThrow('the import would refuse displays d-1: the code "ABC" is not one 2.0 uses');
+    await expect(exportOrg(data, { get: async () => null }, out)).rejects.toThrow('the import would refuse presentation_items it-1: a Bible passage that does not read');
     expect(existsSync(out)).toBe(false);
   });
 

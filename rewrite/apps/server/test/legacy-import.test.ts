@@ -1,7 +1,7 @@
 // The import from 1.x (docs/import-from-1x.md): the rows of an export zip written into an organisation beside what it
 // has, and its users brought along, on each server adapter.
 import { describe, expect, it } from 'vitest';
-import { LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
+import { DISPLAY_CODE, LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
 import { api, setRole } from './harness.ts';
 import { put, webp } from './media-fixtures.ts';
 import { adapters, syncFixture } from './sync-fixture.ts';
@@ -116,6 +116,14 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     await send(rows({ displays: [{ id: 'd-1', name: 'Mobilerna', code: 'hjkmnpq', kind: 'public', created_at: 1 }] }));
 
     expect((await api(fx.h, 'GET', '/api/watch/hjkmnpq/exists')).status).toBe(200);
+  });
+
+  it('gives an output a new code when its code is not one 2.0 uses', async () => {
+    const r = await send(rows({ displays: [{ id: 'd-1', name: 'Scenen', code: 'scene', kind: 'screen', created_at: 1 }] }));
+    const [display] = (await fx.server()).tables.displays;
+
+    expect(r.status).toBe(200);
+    expect(String(display!.code)).toMatch(DISPLAY_CODE);
   });
 
   it('gives an output a new code when another output here has its code', async () => {

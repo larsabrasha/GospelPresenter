@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import {
   can,
+  DISPLAY_CODE,
   displayCode,
   LEGACY_TABLES,
   legacyRowsProblem,
@@ -57,7 +58,8 @@ function refusal(store: OrgStore, rows: LegacyRows): Refused | null {
 
 /**
  * Writes the rows whose ids are new, parents first. A song version's `user_id` is the importing admin's; an
- * output whose code another output here has gets a new one.
+ * output gets a new code when another output here has its code, or when it is not a code 2.0 uses (1.x let one be
+ * typed, "scene"): 2.0's addresses take only its own.
  */
 function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): Refused | null {
   const refused = refusal(store, rows);
@@ -68,7 +70,12 @@ function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): Re
     const info = tableByName.get(t)!;
     let all: LegacyRow[] = rows[t];
     if (t === 'song_versions') all = all.map((r) => ({ ...r, user_id: userId }));
-    if (t === 'displays') all = all.map((d) => (codes.has(String(d.code)) && codes.get(String(d.code)) !== d.id ? { ...d, code: displayCode(random) } : d));
+    if (t === 'displays') {
+      all = all.map((d) => {
+        const code = String(d.code);
+        return !DISPLAY_CODE.test(code) || (codes.has(code) && codes.get(code) !== d.id) ? { ...d, code: displayCode(random) } : d;
+      });
+    }
     const per = Math.max(1, Math.floor(MAX_PARAMS / info.columns.length));
     for (let at = 0; at < all.length; at += per) {
       const chunk = all.slice(at, at + per);

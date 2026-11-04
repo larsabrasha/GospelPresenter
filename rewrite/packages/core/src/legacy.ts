@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
 import { parseBibleContent } from './bible.ts';
-import { DISPLAY_CODE } from './displays.ts';
 import { parseSlidesContent } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
 
@@ -100,10 +99,8 @@ export function legacyRowsProblem(rows: LegacyRows): string | null {
       if (problem) return `${t} ${String(r.id)}: ${problem}`;
     }
   }
-  for (const d of rows.displays) {
-    if (!DISPLAY_CODE.test(String(d.code))) return `displays ${String(d.id)}: the code "${String(d.code)}" is not one 2.0 uses`;
-    if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${String(d.id)}: no kind "${String(d.kind)}"`;
-  }
+  // An output's code is not checked: one 2.0 does not use (1.x let a code be typed, "scene") gets a new one.
+  for (const d of rows.displays) if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${String(d.id)}: no kind "${String(d.kind)}"`;
   for (const item of rows.presentation_items) {
     const content = typeof item.content === 'string' ? item.content : null;
     if (item.type === 'slides' && !parseSlidesContent(content)) return `presentation_items ${String(item.id)}: a slide deck that does not read`;

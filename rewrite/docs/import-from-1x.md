@@ -59,8 +59,8 @@ by e-mail, and all history.
    parents first (`ON CONFLICT (id) DO NOTHING`), so the change log has them and every device pulls them as usual.
    A row the database refuses undoes the whole import and is named (`write-failed`). Run again, the import adds
    nothing and changes nothing that was edited since. It registers the outputs' codes, so a saved TV or a public
-   output keeps its address; an output whose code another output here or another organisation on the server holds
-   gets a new one. Registering is done after the rows are in: if it fails, the
+   output keeps its address; an output whose code another output here or another organisation on the server holds,
+   or whose code is not one 2.0 uses, gets a new one. Registering is done after the rows are in: if it fails, the
    import still is, and the next change to an output registers the codes. The users
    (`apps/server/src/global/legacy-users.ts`) are taken one by one: a new e-mail gets an account and a membership,
    an e-mail with an account elsewhere gets a membership, and a member already is left as they are.
@@ -85,7 +85,7 @@ shapes it already knows.
 | `OrganizationImage` | `images` | `full` and `thumb` kept as they are when they are JPEG or WebP and fit 1920×1080 and 400×225; anything else (PNG, too large) is made again with sharp, JPEG staying JPEG and the rest WebP (MEDIA-R4). Width and height read from the stored `full`. |
 | `OrganizationAudio` | `audios` | Kept as it is; the type is read from the bytes (`sniffAudio`). One that is not a sound 2.0 plays, or is over 20 MB, is reported and left out. |
 | `OverlaySlide` | `overlays` | `sort` numbered from 0. An overlay's own picture becomes a library picture named after the overlay (`{id}-image`, listed under Bilder), as 2.0's overlay names a picture of the library. |
-| `RemoteDisplay` | `displays` | The code is kept (same alphabet and length), so a saved TV keeps working once it points at the new server. |
+| `RemoteDisplay` | `displays` | The code is kept (same alphabet and length), so a saved TV keeps working once it points at the new server. 1.x also let a code be typed (`scene`, found in Lundhagskyrkan's data on 2026-11-04); 2.0's addresses take only its own, so such an output gets a new code, as one whose code is taken does. |
 | `OrganizationSetting` | `org_settings` | `DefaultThemeId` → `defaultThemeId` when it is a theme 2.0 has; `CcliCollectionEnabled` → `ccliCollection`. A setting the organisation has already keeps its value. |
 | `Theme` | (none) | 1.x has only the four built-in themes, with the same ids. |
 | Trashed rows | trashed rows | `DeletedAt` → `deleted_at`, so the trash keeps its 30 days from when they were trashed. |
@@ -109,12 +109,12 @@ the media cache.
   GitHub URL (the branch was not pushed), nor on the real server.
 - On 2026-11-04, on Lars's server: the image built from the GitHub URL, the listing, and Lundhagskyrkan's export
   (908 songs, 3,681 parts, 16 files, nothing left out). Imported on gp-test, the server refused the rows without
-  saying why; the reason was not found, as the zip could not be read here. The refusal names the row since then.
+  saying why. With the row named, it was an output whose code was typed in 1.x (`scene`); such an output now gets
+  a new code.
 
 ## Not known yet
 
-- Why gp-test refused Lundhagskyrkan's rows on 2026-11-04 (above), and whether a real organisation's data holds
-  something else the seed does not.
+- Whether a real organisation's data holds something else the seed does not.
 - How the import behaves with a large zip: the rows go in one request and one transaction, which a Durable Object
   has to finish within its CPU limit. Not measured.
 - Calendar subscriptions: 2.0 has none yet, so a church using them loses the feed.
