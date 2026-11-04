@@ -10,6 +10,7 @@ import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { ImageItemEditor, ItemMedia, ItemWarnings, type Players } from '../presentation-editor/ItemParts.tsx';
 import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
+import { PILL } from '../songEditorLook.ts';
 import { OverlayChip } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 import { useFollowShown } from './followShown.ts';
@@ -263,7 +264,14 @@ function PartRow({
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         {/* One height with or without VISAS and NÄSTA, so a row keeps its size as they move (Lars, 2026-11-02). */}
         <span className="h-5 flex items-center justify-between gap-2">
-          <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{slide.label?.text ?? String(partIndex + 1)}</span>
+          {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one by its number. */}
+          {slide.label ? (
+            <span className={`${PILL} truncate`} style={{ background: slide.label.color }}>
+              {slide.label.text}
+            </span>
+          ) : (
+            <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
+          )}
           {mark && <SlideMark kind={mark} />}
         </span>
         {slide.kind !== 'media' && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}

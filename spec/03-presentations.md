@@ -249,9 +249,11 @@ med. Filen sparas bara i den här presentationen." While uploading: "Importerar.
 upload endpoints (device apps): "PowerPoint- och PDF-import görs i webbappen…" and no picker. Errors:
 "Filen har för många sidor. Maximum är 100 sidor." or "Kunde inte importera filen. Försök igen.".
 Success always closes the modal (no "add more"), inserts after selection, toast "Lade till {file}".
-**New app (D29, D15):** accept `.pdf` only, drop hint "Släpp en PDF här", and the first help paragraph
-says to save the deck as PDF first ("…i PowerPoint med Arkiv → Spara som → PDF, i Keynote med Arkiv →
-Exportera till → PDF, i Google Presentationer med Arkiv → Ladda ned → PDF-dokument."). Import works on
+**New app (D29, D15):** accept `.pdf` only, drop hint "Släpp en PDF här", and one line of help, "Välj
+bildspelet som PDF. Animeringar och videor följer inte med."; a link "Så sparar du som PDF ›" shows the menus
+in its place ("PowerPoint: Arkiv → Spara som → PDF", Keynote's "Arkiv → Exportera till → PDF", Google
+Presentationer's "Arkiv → Ladda ned → PDF"). "Filen sparas bara i den här presentationen" is not shown
+(Lars, 2026-11-04: less text). Import works on
 every device, offline too, so there is no "görs i webbappen" state. The modal stays open after the add
 (D15); the toast is the add dialog's `"{file}" har lagts till`. Ctrl/⌘+5 opens the tab.
 

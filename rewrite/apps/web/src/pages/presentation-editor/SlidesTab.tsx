@@ -29,6 +29,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded }: TabProps) {
   const toast = useToast();
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [howPdf, setHowPdf] = useState(false);
 
   const importFile = async (file: File | undefined) => {
     if (!file || importing) return;
@@ -76,10 +77,16 @@ export function SlidesTab({ presentationId, afterItemId, onAdded }: TabProps) {
               {error}
             </p>
           )}
-          <div className="text-xs text-stone-400 dark:text-stone-500 text-center max-w-xs leading-relaxed space-y-3">
-            <p>{t('slides.help1')}</p>
-            <p>{t('slides.help2')}</p>
-            <p>{t('slides.help3')}</p>
+          {/* One line, and the menus to save as PDF behind a link, for whoever does not know them (Lars, 2026-11-04). */}
+          <div className="text-xs text-stone-400 dark:text-stone-500 text-center max-w-xs leading-relaxed space-y-2">
+            <p>{t('slides.help')}</p>
+            {howPdf ? (
+              <p className="whitespace-pre-line">{t('slides.howPdfSteps')}</p>
+            ) : (
+              <AppButton variant="plain" className="text-sky-600 dark:text-sky-400 hover:underline cursor-pointer" onClick={() => setHowPdf(true)}>
+                {t('slides.howPdf')} ›
+              </AppButton>
+            )}
           </div>
         </>
       )}
