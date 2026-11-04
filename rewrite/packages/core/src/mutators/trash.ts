@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import { can } from '../permissions.ts';
-import { audios, customSlides, images, presentationItems, presentations, songs, videos } from '../schema.ts';
+import { audios, customSlides, images, presentationItems, presentations, slideDecks, songs, videos } from '../schema.ts';
 import { TRASH_RETENTION_MS } from '../trash.ts';
 import type { MutatorCtx, Tx } from './base.ts';
 import { deleteSongRows } from './songs.ts';
@@ -58,5 +58,6 @@ async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
   }
   if (can(ctx.role, 'ManagePresentations')) {
     await tx.delete(customSlides).where(and(isNotNull(customSlides.deletedAt), lte(customSlides.deletedAt, cutoff)));
+    await tx.delete(slideDecks).where(and(isNotNull(slideDecks.deletedAt), lte(slideDecks.deletedAt, cutoff)));
   }
 }

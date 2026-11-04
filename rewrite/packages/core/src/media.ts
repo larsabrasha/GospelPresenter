@@ -142,11 +142,14 @@ export function recordMediaBlobSql(hash: string, contentType: string, size: numb
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
 /**
- * Every page of every slide deck item (`SlidesItemContent`), with the
- * presentation it is in: the pictures a deck names. A row per page.
+ * Every page of every slide deck item, with the presentation it is in: the pictures the deck it names has. A row
+ * per page.
  */
 export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash
-  FROM presentation_items p, json_each(p.content, '$.pages') j WHERE p.type = 'slides'`;
+  FROM presentation_items p JOIN slide_decks d ON d.id = p.source_id, json_each(d.pages) j WHERE p.type = 'slides'`;
+
+/** Every page of every slide deck of the library, the trash too: blobs a deck still names. */
+const DECK_PAGES_SQL = `SELECT json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash FROM slide_decks d, json_each(d.pages) j`;
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single
@@ -177,5 +180,5 @@ export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
     AND hash NOT IN (SELECT hash FROM videos)
     AND hash NOT IN (SELECT still_hash FROM videos)
     AND hash NOT IN (SELECT thumb_hash FROM videos)
-    AND hash NOT IN (SELECT full_hash FROM (${SLIDE_PAGES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${SLIDE_PAGES_SQL}))`;
+    AND hash NOT IN (SELECT full_hash FROM (${DECK_PAGES_SQL}))
+    AND hash NOT IN (SELECT thumb_hash FROM (${DECK_PAGES_SQL}))`;

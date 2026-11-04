@@ -40,6 +40,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | A presentation from a template | `templates.spec.ts`: "PRES-A30, A3, A31" |
 | Bible readings | `milestone4.spec.ts`: "a Bible reading, imported from a zip" |
 | Pictures, PDF slides, audio and video in a presentation | `milestone5.spec.ts`: "a picture is imported", `slides.spec.ts`: "a three-page PDF", `audio.spec.ts`: "an audio file is imported", `video.spec.ts`: "a video is imported" |
+| Keep a PDF of slides in the library, put it in a presentation, and replace it with a new PDF that the presentation then shows | `slides.spec.ts`: "a deck imported into the library" |
 | Make a slide of its own (a welcome, the collection) with texts, pictures and shapes, and show it in a presentation | `custom-slides.spec.ts`: "a custom slide is made" |
 | Labels | `labels.spec.ts`: "the default labels are listed" |
 | The trash | `milestone2.spec.ts`: "trash" |

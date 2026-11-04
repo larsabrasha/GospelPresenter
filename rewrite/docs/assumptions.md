@@ -245,8 +245,8 @@ Templates (spec 03 "Template", screen 3):
   presentation is a template, and `/templates/{id}` tells a user it is for admins. Everyone has
   `ViewTemplates` and may make a presentation from a template (PRES-R5).
 - **A copy keeps the arrangement and the slide decks** (D10, PRES-R31 as changed on 2026-10-28): a song item
-  keeps its `arrangementId`, a deck item its pages, which are content-addressed, so the copy names the same
-  blobs and the clean-up keeps them while any item names them. A copied item's overlay goes along too.
+  keeps its `arrangementId`, a deck item names the same deck of the library. A copied item's overlay goes along
+  too.
 - **A copy holds what the user saw**: the client lists the items to copy, each with a new id it makes, so the
   client and the server make the same rows. An item added to the source by someone else before the copy
   reaches the server is left out; one removed meanwhile is skipped.

@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video', 'Slide'] as const;
+export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video', 'Slide', 'Deck'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -57,6 +57,7 @@ export type Route =
   | { page: 'overlay'; id: string }
   /** Egna slides (docs/custom-slides.md), and one of them in its editor. */
   | { page: 'customSlides' }
+  | { page: 'slideDecks' }
   | { page: 'customSlide'; id: string }
   | { page: 'displays' }
   /** Publika utgångar, apart from Skärmar (Lars, 2026-11-02). */
@@ -128,6 +129,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'videos') return { page: 'videos' };
     if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
     if (second === 'custom-slides') return third ? { page: 'customSlide', id: third } : { page: 'customSlides' };
+    if (second === 'slide-decks') return { page: 'slideDecks' };
     // Mallar was a page of Inställningar until 2026-11-02; its old address still opens it.
     if (second === 'templates') return { page: 'templates' };
     if (second === 'labels') return { page: 'labels' };
@@ -167,7 +169,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'customSlides', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'customSlides', 'slideDecks', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
 /** The pages pushed in from a song's page. */
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
@@ -221,6 +223,8 @@ export function href(r: Route): string {
       return `/admin/overlays/${encodeURIComponent(r.id)}`;
     case 'customSlides':
       return '/admin/custom-slides';
+    case 'slideDecks':
+      return '/admin/slide-decks';
     case 'customSlide':
       return `/admin/custom-slides/${encodeURIComponent(r.id)}`;
     case 'user':

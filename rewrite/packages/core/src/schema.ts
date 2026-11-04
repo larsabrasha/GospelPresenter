@@ -144,10 +144,10 @@ export const presentations = sqliteTable('presentations', {
  * current song when shown, in the item's arrangement. A Bible item is a
  * snapshot: `sourceId` names the translation it came from, and `content`
  * holds its slides, split once when it was added (BIBLE-R12, D25). An image
- * item is a reference too: `sourceId` names the library image. A slide deck
- * is a snapshot: `content` holds its pages' picture hashes, and `sourceId`
- * is the item's own id, as there is no deck table (`SlidesItemContent`). A
- * custom slide is a reference: `sourceId` names the `custom_slides` row.
+ * item is a reference too: `sourceId` names the library image. So is a slide
+ * deck (docs/media-and-files.md "Slide decks"): `sourceId` names the
+ * `slide_decks` row. A custom slide is a reference: `sourceId` names the
+ * `custom_slides` row.
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
@@ -160,7 +160,7 @@ export const presentationItems = sqliteTable('presentation_items', {
   sort: integer('sort').notNull(),
   /** The song arrangement to show; null means the song's first one (SONG-R19). */
   arrangementId: text('arrangement_id'),
-  /** A Bible item's translation and slides (`BibleItemContent`), or a slide deck's pages (`SlidesItemContent`), as JSON; null for a song. */
+  /** A Bible item's translation and slides (`BibleItemContent`), or an image item's pictures, as JSON; null for a song. */
   content: text('content'),
   /** The overlay that switches on when the item goes live and off when it leaves (TODO.md "Overlays"); null for none. */
   overlayId: text('overlay_id'),
@@ -256,6 +256,21 @@ export const customSlides = sqliteTable('custom_slides', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   /** Set while the slide is in the trash. */
+  deletedAt: integer('deleted_at'),
+});
+
+/**
+ * A slide deck of the library (docs/media-and-files.md "Slide decks"): a PDF's pages, each rendered once at import
+ * as a picture (D29), `pages` their hashes as JSON (`SlidePage[]`). A new PDF replaces them all. In the trash as a
+ * picture is.
+ */
+export const slideDecks = sqliteTable('slide_decks', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  pages: text('pages').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  /** Set while the deck is in the trash. */
   deletedAt: integer('deleted_at'),
 });
 
@@ -387,6 +402,7 @@ export const schema = {
   overlays,
   videos,
   customSlides,
+  slideDecks,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
@@ -396,7 +412,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides, slideDecks];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -413,4 +429,5 @@ export type Display = typeof displays.$inferSelect;
 export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 export type CustomSlide = typeof customSlides.$inferSelect;
+export type SlideDeck = typeof slideDecks.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;

@@ -105,7 +105,7 @@ export function mapUsers(data: OldData): LegacyUser[] {
 export async function mapOrg(data: OldData, media: Media, now = Date.now()): Promise<Mapped> {
   const bibles = await mapBibles(data);
   const { overlays, images: overlayImages } = mapOverlays(data, media, now);
-  const items = mapItems(data, media);
+  const items = mapItems(data, media, now);
   const rows: LegacyRows = {
     labels: mapLabels(data),
     org_settings: mapSettings(data),
@@ -122,6 +122,7 @@ export async function mapOrg(data: OldData, media: Media, now = Date.now()): Pro
     song_arrangements: mapArrangements(data),
     song_versions: mapVersions(data),
     presentations: mapPresentations(data),
+    slide_decks: items.decks,
     presentation_items: items.rows,
     ccli_entries: mapCcli(data),
   };

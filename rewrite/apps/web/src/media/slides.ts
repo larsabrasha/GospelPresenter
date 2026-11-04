@@ -1,5 +1,5 @@
 import { fitWithin, IMAGE_VARIANTS, MAX_SLIDE_PAGES, MAX_SLIDES_SOURCE_BYTES, MEDIA_LIMITS } from '@gp/core';
-import type { SlidesImport } from '../db/protocol.ts';
+import type { SlidesImport, SlidesTarget } from '../db/protocol.ts';
 
 // The slide deck import (D29, PRES-R11): only PDF. A PowerPoint, Keynote or
 // Google Slides deck is saved as PDF first, in the program that made it. Each
@@ -40,7 +40,7 @@ function canvasOf(width: number, height: number): HTMLCanvasElement {
  * Reads the PDF and renders every page, `onPage(done, total)` after each. pdf.js
  * is loaded here, on first use, so the app does not carry it until a deck is imported.
  */
-export async function renderPdf(file: File, ids: { itemId: string; presentationId: string; afterItemId: string | null }, onPage?: (done: number, total: number) => void): Promise<SlidesImport> {
+export async function renderPdf(file: File, target: SlidesTarget, onPage?: (done: number, total: number) => void): Promise<SlidesImport> {
   checkPickedDeck(file);
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
@@ -81,7 +81,7 @@ export async function renderPdf(file: File, ids: { itemId: string; presentationI
       onPage?.(n, doc.numPages);
     }
     if (!pages.length) throw new SlidesRefused('invalid');
-    return { ...ids, fileName: file.name, contentType: type, pages };
+    return { ...target, fileName: file.name, contentType: type, pages };
   } catch (e) {
     throw e instanceof SlidesRefused ? e : new SlidesRefused('invalid');
   } finally {

@@ -15,6 +15,22 @@ import {
   addCustomSlideToPresentation,
 } from './custom-slides.ts';
 import {
+  addSlideDeckArgs,
+  addSlideDeck,
+  addSlidesArgs,
+  addSlides,
+  updateSlideDeckArgs,
+  updateSlideDeck,
+  trashSlideDeckArgs,
+  trashSlideDeck,
+  restoreSlideDeckArgs,
+  restoreSlideDeck,
+  purgeSlideDeckArgs,
+  purgeSlideDeck,
+  addSlideDeckToPresentationArgs,
+  addSlideDeckToPresentation,
+} from './slide-decks.ts';
+import {
   createSongArgs,
   createSong,
   updateSongArgs,
@@ -152,8 +168,6 @@ import {
   purgeVideo,
   addVideoToPresentationArgs,
   addVideoToPresentation,
-  addSlidesArgs,
-  addSlides,
 } from './media.ts';
 import {
   createOverlayArgs,
@@ -295,6 +309,12 @@ export const mutators = {
   restoreCustomSlide: m(restoreCustomSlideArgs, restoreCustomSlide),
   purgeCustomSlide: m(purgeCustomSlideArgs, purgeCustomSlide),
   addCustomSlideToPresentation: m(addCustomSlideToPresentationArgs, addCustomSlideToPresentation),
+  addSlideDeck: m(addSlideDeckArgs, addSlideDeck),
+  updateSlideDeck: m(updateSlideDeckArgs, updateSlideDeck),
+  trashSlideDeck: m(trashSlideDeckArgs, trashSlideDeck),
+  restoreSlideDeck: m(restoreSlideDeckArgs, restoreSlideDeck),
+  purgeSlideDeck: m(purgeSlideDeckArgs, purgeSlideDeck),
+  addSlideDeckToPresentation: m(addSlideDeckToPresentationArgs, addSlideDeckToPresentation),
   createOverlay: m(createOverlayArgs, createOverlay),
   updateOverlay: m(updateOverlayArgs, updateOverlay),
   deleteOverlay: m(deleteOverlayArgs, deleteOverlay),

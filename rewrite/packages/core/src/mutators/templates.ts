@@ -41,8 +41,6 @@ async function copyItems(tx: Tx, fromId: string, toId: string, copies: z.output<
       id: itemId,
       presentationId: toId,
       sort: sort++,
-      // A deck has no table of its own: its source is the item itself (`addSlides`).
-      sourceId: item.type === 'slides' ? itemId : item.sourceId,
     });
   }
 }

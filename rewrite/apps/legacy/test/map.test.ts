@@ -161,7 +161,7 @@ describe('presentations', () => {
       items: [item({ Id: 'gone', SourceId: 'purged', SortOrder: 3 }), item({ Id: 'kept', SourceId: 's1', SortOrder: 5 })],
     });
 
-    const { rows, skipped } = mapItems(data, noMedia());
+    const { rows, skipped } = mapItems(data, noMedia(), 1000);
 
     expect(rows.map((r) => [r.id, r.sort])).toEqual([['kept', 0]]);
     expect(skipped).toEqual([{ presentationId: 'pr1', title: 'T', reason: 'no-song' }]);
@@ -175,7 +175,7 @@ describe('presentations', () => {
       items: [item({ SourceId: 's1', ArrangementId: 'other' })],
     });
 
-    expect(mapItems(data, noMedia()).rows[0]!.arrangement_id).toBeNull();
+    expect(mapItems(data, noMedia(), 1000).rows[0]!.arrangement_id).toBeNull();
   });
 
   it('copies a Bible item’s slides onto it as data', () => {
@@ -185,12 +185,12 @@ describe('presentations', () => {
       itemParts: [{ PresentationItemId: 'i1', Content: '<div class="text-left"><sup class="opacity-40">16</sup> Ty så</div>', SortOrder: 0 }],
     });
 
-    const [row] = mapItems(data, noMedia()).rows;
+    const [row] = mapItems(data, noMedia(), 1000).rows;
 
     expect(JSON.parse(String(row!.content))).toEqual({ translation: '', slides: [[{ n: 16, t: 'Ty så' }]] });
   });
 
-  it('gives a slide deck the pages its item shows, in the item’s order', () => {
+  it('makes a deck of the library of the pages a slide deck item shows, in the item’s order, which the item names', () => {
     const media = noMedia();
     media.decks.set(
       'd1',
@@ -209,15 +209,13 @@ describe('presentations', () => {
       ],
     });
 
-    const [row] = mapItems(data, media).rows;
+    const { rows, decks } = mapItems(data, media, 1000);
 
-    expect(JSON.parse(String(row!.content))).toEqual({
-      fileName: 'Predikan.pdf',
-      pages: [
-        { full: 'f1', thumb: 't1' },
-        { full: 'f0', thumb: 't0' },
-      ],
-    });
+    expect([rows[0]?.source_id, rows[0]?.content, decks]).toEqual([
+      'i1',
+      null,
+      [{ id: 'i1', name: 'Predikan.pdf', pages: JSON.stringify([{ full: 'f1', thumb: 't1' }, { full: 'f0', thumb: 't0' }]), created_at: 1000, updated_at: 1000, deleted_at: null }],
+    ]);
   });
 });
 

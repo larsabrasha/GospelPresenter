@@ -511,17 +511,32 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     return out;
   }
 
-  it('syncs a deck as one item holding its pages, with the file name as title', async () => {
+  it('imports a deck into the library and a presentation in one step: the item names the deck, titled by the file name', async () => {
     const deck = await pages(alice, 'syncs', 2);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
 
-    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', deckId: 'D1', fileName: 'Predikan.pdf', pages: deck, at: 5 });
     await alice.client.sync();
 
     expect(alice.client.rejected).toEqual([]);
-    const [item] = (await serverDump(h, org, 'alice')).tables.presentation_items as { content: string }[];
-    expect(item).toMatchObject({ id: 'I1', type: 'slides', title: 'Predikan.pdf', source_id: 'I1' });
-    expect(JSON.parse(item!.content)).toEqual({ fileName: 'Predikan.pdf', pages: deck });
+    const s = await serverDump(h, org, 'alice');
+    expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', type: 'slides', title: 'Predikan.pdf', source_id: 'D1', content: null }]);
+    expect(s.tables.slide_decks).toEqual([{ id: 'D1', name: 'Predikan.pdf', pages: JSON.stringify(deck), created_at: 5, updated_at: 5, deleted_at: null }]);
+  });
+
+  it('shows a new PDF of a deck in every presentation that names it', async () => {
+    const [first, second] = [await pages(alice, 'first', 1), await pages(alice, 'second', 2)];
+    await alice.client.mutate('addSlideDeck', { id: 'D1', name: 'Predikan.pdf', pages: first, at: 1 });
+    for (const p of ['P', 'Q']) {
+      await alice.client.mutate('createPresentation', { id: p, name: p });
+      await alice.client.mutate('addSlideDeckToPresentation', { itemId: `${p}1`, presentationId: p, deckId: 'D1' });
+    }
+
+    await alice.client.mutate('updateSlideDeck', { id: 'D1', pages: second, at: 2 });
+    await alice.client.sync();
+
+    expect(alice.client.rejected).toEqual([]);
+    expect(await presentationMediaState(alice.client, 'Q')).toEqual({ needed: 2, present: 2 });
   });
 
   it('refuses a deck whose pages were not uploaded (media-missing)', async () => {
@@ -548,34 +563,53 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
   });
 
-  it('keeps the pages while the item names them, and removes them with the item', async () => {
+  it('keeps the pages while the deck is in the library, named by no item or in the trash, and removes them when it is purged', async () => {
     const deck = await pages(alice, 'kept', 1);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
     await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
-    await alice.client.sync(); // an add: the server cleans up after it
-    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
-
     await alice.client.mutate('removeItem', { itemId: 'I1' });
+    await alice.client.mutate('trashSlideDeck', { id: 'I1', at: 1 });
+    await alice.client.sync(); // a change: the server cleans up after it
+    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
+    await expect(alice.client.mutate('purgeSlideDeck', { id: 'NOPE' })).resolves.toBeUndefined();
+
+    await alice.client.mutate('purgeSlideDeck', { id: 'I1' });
     await alice.client.sync();
 
     expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(404);
     expect(await h.mediaKeys()).not.toContain(mediaKey(org, deck[0]!.thumb));
   });
 
-  it('keeps the pages of a deck saved as a template when the presentation drops it, until the template does too (D10)', async () => {
+  it('refuses to purge a deck that is not in the trash, and a template names the same deck as its presentation', async () => {
     const deck = await pages(alice, 'template', 1);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
-    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', deckId: 'D1', fileName: 'Predikan.pdf', pages: deck });
+
     await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: [{ from: 'I1', id: 'T1' }] });
-    await alice.client.mutate('removeItem', { itemId: 'I1' });
-    await alice.client.sync();
-    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
 
-    await alice.client.mutate('trashTemplate', { id: 'T', at: 1 });
-    await alice.client.mutate('purgeTemplate', { id: 'T' });
-    await alice.client.sync();
+    await expect(alice.client.mutate('purgeSlideDeck', { id: 'D1' })).rejects.toThrow('not in the trash');
+    expect((await alice.client.dump()).presentation_items.map((i) => [i.id, i.source_id, i.content])).toEqual([
+      ['I1', 'D1', null],
+      ['T1', 'D1', null],
+    ]);
+  });
 
-    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(404);
+  it('uploads the pages of a deck put in the library offline, and of its new PDF, before they are pushed', async () => {
+    const uploads = new MediaUploads(async (hash, b) => (await put(h, org, 'alice', hash, b)).status);
+    const d = await device(h, org, 'alice', 'admin', { beforePush: uploads.beforePush });
+    try {
+      const [first, second] = [await pages(d, 'library', 1, false), await pages(d, 'replaced', 1, false)];
+      await d.client.mutate('addSlideDeck', { id: 'D1', name: 'Predikan.pdf', pages: first, at: 1 });
+      await d.client.mutate('updateSlideDeck', { id: 'D1', pages: second, at: 2 });
+
+      await d.client.sync();
+
+      // Both were uploaded, so neither push was refused; the first PDF's pages, named by nothing now, are gone.
+      expect(d.client.rejected).toEqual([]);
+      expect([(await get(h, org, 'alice', second[0]!.full)).status, (await get(h, org, 'alice', first[0]!.full)).status]).toEqual([200, 404]);
+    } finally {
+      await d.client.close();
+    }
   });
 
   it('uploads the pages of a deck added offline before the add is pushed', async () => {

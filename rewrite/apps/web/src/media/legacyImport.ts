@@ -1,6 +1,7 @@
 import {
   inflateRaw,
   LEGACY_ENTRIES,
+  LEGACY_FORMAT,
   LEGACY_FORMATS_READ,
   LEGACY_TABLES,
   legacyManifestSchema,
@@ -125,7 +126,9 @@ export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
 export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => void): Promise<LegacyImportResult> {
   const entries = await readZipFile(file);
   const manifest = await readLegacyManifest(file);
-  const read = Object.fromEntries(await Promise.all(LEGACY_TABLES.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as LegacyRows;
+  // A zip of an older format lacks the tables added since (`slide_decks` before 3); the upgrade makes them.
+  const tables = LEGACY_TABLES.filter((t) => manifest.format >= LEGACY_FORMAT || t !== 'slide_decks');
+  const read = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as Omit<LegacyRows, 'slide_decks'>;
   const rows = upgradeLegacyRows(manifest.format, read);
   const users = legacyUsersSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.users)));
   if (!users.success) throw new LegacyImportError('not-export');

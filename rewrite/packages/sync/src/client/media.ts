@@ -262,7 +262,9 @@ export async function presentationOfflineState(client: Query, presentationId: st
 }
 
 /** The mutations that name blobs the device must upload first. */
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSlides', 'addSongFile']);
+/** The mutators that name blobs a device kept first; a deck's new PDF (`updateSlideDeck` with pages) is one too. */
+const DECK_PAGES = new Set(['addSlides', 'addSlideDeck', 'updateSlideDeck']);
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES]);
 
 /**
  * The blobs a queued add names: a picture's two, an audio file's or a song's PDF's one, a video's three, or two per
@@ -272,7 +274,7 @@ function blobsOf(m: PendingMutation): Set<string> {
   const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown };
   if (m.name === 'addAudio' || m.name === 'addSongFile') return new Set([String(a.hash)]);
   if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
-  if (m.name === 'addSlides') {
+  if (DECK_PAGES.has(m.name)) {
     const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];
     return new Set(pages.flatMap((p) => [String(p?.full), String(p?.thumb)]));
   }

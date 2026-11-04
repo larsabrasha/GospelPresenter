@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -41,6 +41,9 @@ const ccliEntriesDdl = `CREATE TABLE IF NOT EXISTS ccli_entries (id TEXT PRIMARY
      ccli TEXT NOT NULL, presentation_id TEXT NOT NULL, presentation_name TEXT NOT NULL, date TEXT NOT NULL, reported_at INTEGER)`;
 
 const customSlidesDdl = `CREATE TABLE IF NOT EXISTS custom_slides (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, pages TEXT NOT NULL,
+     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)`;
+
+const slideDecksDdl = `CREATE TABLE IF NOT EXISTS slide_decks (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, pages TEXT NOT NULL,
      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)`;
 
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
@@ -94,6 +97,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
   videoFilesDdl,
   customSlidesDdl,
+  slideDecksDdl,
   ...orgIndexes,
 ];
 
@@ -116,6 +120,16 @@ export const orgMigrations: Record<number, string[]> = {
   // Overlays as a custom slide's page (docs/custom-slides.md): the overlays of before are dropped, and the items
   // that carried one carry none (Lars, 2026-11-04).
   19: ['DELETE FROM overlays', 'UPDATE presentation_items SET overlay_id = NULL WHERE overlay_id IS NOT NULL', 'ALTER TABLE overlays ADD COLUMN updated_at INTEGER'],
+  // Slide decks in a library (docs/media-and-files.md "Slide decks"): each deck item's pages become a deck of the
+  // item's id, named as the item, which the item then names. The same on every device and the server, so the
+  // rows agree before they sync.
+  20: [
+    slideDecksDdl,
+    `INSERT OR IGNORE INTO slide_decks (id, name, pages, created_at, updated_at, deleted_at)
+       SELECT id, title, json_extract(content, '$.pages'), 0, 0, NULL FROM presentation_items
+       WHERE type = 'slides' AND (CASE WHEN json_valid(content) THEN json_array_length(content, '$.pages') ELSE 0 END) > 0`,
+    `UPDATE presentation_items SET source_id = id, content = NULL WHERE type = 'slides'`,
+  ],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

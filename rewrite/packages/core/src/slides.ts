@@ -152,34 +152,24 @@ export interface SlidePage {
   thumb: string;
 }
 
-/**
- * What a slide deck item keeps: the file it came from and its pages, rendered
- * once at import. A snapshot like a Bible item: no deck table, and the
- * pictures are media blobs named by their hashes.
- */
-export interface SlidesItemContent {
-  fileName: string;
-  pages: SlidePage[];
-}
+/** At most this many slide decks in the library, the trash not counted. */
+export const MAX_SLIDE_DECKS = 1000;
 
 const slidePageSchema = z.object({ full: z.string().regex(MEDIA_HASH), thumb: z.string().regex(MEDIA_HASH) });
-export const slidesItemContentSchema = z.object({
-  fileName: z.string().max(200),
-  pages: z.array(slidePageSchema).max(MAX_SLIDE_PAGES),
-});
+/** A deck's pages as stored (`slide_decks.pages`), rendered once at import. */
+export const slideDeckPagesSchema = z.array(slidePageSchema).min(1).max(MAX_SLIDE_PAGES);
 
-/** The content of a slide deck item, or null if it is not one we can read. */
-export function parseSlidesContent(json: string | null): SlidesItemContent | null {
-  if (!json) return null;
+/** A deck's pages, or none where they do not read. */
+export function parseSlideDeckPages(json: string | null): SlidePage[] {
   try {
-    const parsed = slidesItemContentSchema.safeParse(JSON.parse(json));
-    return parsed.success ? parsed.data : null;
+    const parsed = slideDeckPagesSchema.safeParse(JSON.parse(json ?? ''));
+    return parsed.success ? parsed.data : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
 /** A slide deck's slides: each page a picture filling the stage, like an image item. */
-export function slideDeckSlides(content: SlidesItemContent): Slide[] {
-  return content.pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, thumb: page.thumb, label: null, credits: null }));
+export function slideDeckSlides(pages: SlidePage[]): Slide[] {
+  return pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, thumb: page.thumb, label: null, credits: null }));
 }

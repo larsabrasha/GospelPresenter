@@ -52,7 +52,7 @@ export type DbCall =
   | { op: 'openMedia'; hash: string }
   /** Records a video already uploaded (TODO.md "Video"): its still is kept here, the video only named; then `addVideo`. */
   | { op: 'addVideo'; video: VideoImport }
-  /** Adds a rendered slide deck as an item (D29): keep its pages' blobs here, then `addSlides`, uploaded before it is pushed. */
+  /** Adds a rendered slide deck (D29): keep its pages' blobs here, then the deck's mutator, uploaded before it is pushed. */
   | { op: 'addSlides'; slides: SlidesImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
@@ -107,11 +107,11 @@ export interface ImageImport {
   thumb: Uint8Array;
 }
 
-/** A PDF the page has rendered (`media/slides.ts`), ready to be kept and added after `afterItemId`. */
-export interface SlidesImport {
-  itemId: string;
-  presentationId: string;
-  afterItemId: string | null;
+/** Where a rendered PDF goes: a new deck of the library, one put in a presentation too, or a deck's new pages. */
+export type SlidesTarget = { deckId: string; into: 'library' | 'replace' | { presentationId: string; itemId: string; afterItemId: string | null } };
+
+/** A PDF the page has rendered (`media/slides.ts`), ready to be kept and added. */
+export interface SlidesImport extends SlidesTarget {
   fileName: string;
   contentType: 'image/jpeg' | 'image/webp';
   pages: { full: Uint8Array; thumb: Uint8Array }[];

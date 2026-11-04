@@ -25,7 +25,7 @@ import {
   orgMigrations,
   orgSchemaPlan,
   parsePartIds,
-  parseSlidesContent,
+  parseSlideDeckPages,
   SCHEMA_BASELINE,
   SCHEMA_VERSION,
   slideDeckSlides,
@@ -392,7 +392,7 @@ describe('slide decks', () => {
   const page = (n: number) => ({ full: String(n).repeat(64).slice(0, 64), thumb: String(n + 1).repeat(64).slice(0, 64) });
 
   it('shows each page as a picture filling the stage, in order', () => {
-    const slides = slideDeckSlides({ fileName: 'Predikan.pdf', pages: [page(1), page(3)] });
+    const slides = slideDeckSlides([page(1), page(3)]);
 
     expect(slides.map((s) => [s.key, s.kind, s.image, s.text])).toEqual([
       ['s0', 'media', page(1).full, ''],
@@ -400,13 +400,10 @@ describe('slide decks', () => {
     ]);
   });
 
-  it('reads stored content back, and nothing from content that is not a deck', () => {
-    const content = { fileName: 'Predikan.pdf', pages: [page(1)] };
+  it("reads stored pages back, and none from what is not a deck's pages", () => {
+    const pages = [page(1)];
 
-    expect(parseSlidesContent(JSON.stringify(content))).toEqual(content);
-    expect(parseSlidesContent('{"translation":"SFB","slides":[]}')).toBeNull();
-    expect(parseSlidesContent('not json')).toBeNull();
-    expect(parseSlidesContent(null)).toBeNull();
+    expect([parseSlideDeckPages(JSON.stringify(pages)), parseSlideDeckPages('{"translation":"SFB","slides":[]}'), parseSlideDeckPages('not json'), parseSlideDeckPages(null)]).toEqual([pages, [], [], []]);
   });
 
   it('refuses an add of more than 100 pages or of none (PRES-R11)', () => {

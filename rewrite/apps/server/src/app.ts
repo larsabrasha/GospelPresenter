@@ -56,8 +56,7 @@ export interface Org {
 /**
  * The pushes after which blobs may be unused: a purge, the expired trash, and
  * an add (whose upload may have left a refused add's blobs behind), of pictures,
- * audio and slide decks. A slide deck's pages are named only by its item, so
- * removing the item, or purging its presentation or template, may free them too.
+ * audio, videos and slide decks, and a deck's new PDF, which leaves the old pages.
  */
 const MEDIA_GC_MUTATORS: readonly string[] = [
   'purgeImage',
@@ -68,14 +67,14 @@ const MEDIA_GC_MUTATORS: readonly string[] = [
   'purgeVideo',
   'addVideo',
   'addSlides',
-  'removeItem',
-  'purgePresentation',
-  'purgeTemplate',
+  'addSlideDeck',
+  'updateSlideDeck',
+  'purgeSlideDeck',
 ];
 
 /**
  * Removes the stored blobs nothing names, once they are older than the grace
- * period: what a purged image or a removed slide deck leaves behind, and what
+ * period: what a purged image or slide deck leaves behind, and what
  * an upload whose add never came leaves. Run inside the organisation's queue.
  */
 async function collectMedia(org: Org, orgId: string, media: MediaStorage, graceMs: number) {

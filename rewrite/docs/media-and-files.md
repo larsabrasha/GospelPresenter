@@ -38,7 +38,7 @@ files a device keeps](#which-files-a-device-keeps)).
 
 **Clean-up.** Mutators never touch the blobs. After a push that can leave blobs unused (`addImage`,
 `purgeImage`, `purgeExpiredTrash`, and for audio, video and slide decks their adds, `purgeAudio`, `purgeVideo`,
-`removeItem` and `purgePresentation`), not after every edit, the server removes the blobs nothing names (`ORPHAN_BLOBS_SQL`),
+`purgeSlideDeck` and a deck's new PDF, `updateSlideDeck`), not after every edit, the server removes the blobs nothing names (`ORPHAN_BLOBS_SQL`),
 and a device does the same in `syncMedia`, but only for blobs older than an hour (`ORPHAN_GRACE_MS`), so a
 blob uploaded just before its `addImage` arrives is never taken away. Uploading a blob the server has already
 starts its hour over, and a device uploads a waiting add's blobs again once half an hour has passed, so an add
@@ -151,25 +151,36 @@ a PDF first).
 
 ## Slide decks
 
-A slide deck (D29) is a presentation item of type
-`slides` whose `content` is `{ fileName, pages: [{ full, thumb }] }`: each page a WebP picture fitting 1920×1080
-and its thumbnail fitting 400×225, rendered once at import and stored as media blobs like a library picture. It
-is a snapshot like a Bible item: there is no deck table, `sourceId` is the item's own id, and the title is the
-file name. `addSlides` takes 1 to 100 pages and is refused with `media-missing` if a page's blob is unknown
-where it runs; `MediaUploads` uploads a queued deck's blobs before the push, as for `addImage`. A page is
-named only by its items, so removing the item, or purging its presentation, lets the clean-up take its blobs
-unless another item names them too: a template saved from the presentation, or a presentation made from a
-template, copies the item with the same pages (D10);
-`SLIDE_PAGES_SQL` lists every page, for the clean-up, the files a device keeps, and which pictures a public
-output may serve. Live, each page is one slide showing its picture, like an image item.
+A slide deck (D29) is a row of the library, `slide_decks` (synced): `id`, `name` (the file's name at first),
+`pages` (JSON, `[{ full, thumb }]`: each page a WebP picture fitting 1920×1080 and its thumbnail fitting
+400×225, rendered once at import and stored as media blobs like a library picture), `created_at`, `updated_at`,
+`deleted_at`. An item of type `slides` is a reference, as a picture's is (Lars, 2026-11-04): its `sourceId` names
+the deck, and it shows the deck's pages as they are now, so a new PDF reaches every presentation that shows it,
+old ones too, and a template and a presentation made from it name the same deck (D10). Until schema 20 a deck
+was a snapshot on its item; the migration made each such item's pages a deck of the item's id (`created_at` 0).
 
-The add dialog's PowerPoint tab (Ctrl/⌘+5, `SlidesTab.tsx`) takes only a PDF, picked or dropped, up to 50 MB
-and 100 pages; a `.pptx` or `.ppt` is refused with how to save it as PDF. `media/slides.ts` renders each page
+`addSlideDeck` puts a deck in the library, `addSlides` puts a new one in the library and a presentation at once
+(Lägg till's import), `addSlideDeckToPresentation` puts one of the library in, and `updateSlideDeck` renames it
+or replaces its pages; each takes 1 to 100 pages and is refused with `media-missing` if a page's blob is unknown
+where it runs, and `MediaUploads` uploads a queued deck's blobs before the push, as for `addImage`. A deck goes
+to the trash and back as a picture does (`trashSlideDeck`, `restoreSlideDeck`, `purgeSlideDeck`, the trash's
+kind PowerPoint); at most 1 000 outside the trash. Its pages are kept while the deck is in the library, the trash
+too, whether an item names it or not. `SLIDE_PAGES_SQL` lists the pages of the decks a presentation's items name,
+for the files a device keeps and which pictures an output may serve. Live, each page is one slide showing its
+picture, like an image item; an item whose deck was purged says "Bildspelet finns inte längre".
+
+Inställningar → PowerPoint (`pages/SlideDecks.tsx`) is a library (`ui/Library.tsx`): the decks by their first
+pages with how many pages they have, a tap looking at the first page, + or a drop importing a PDF, and a deck's
+menu (held or right-clicked) with Ersätt med ny PDF, Byt namn and Radera (to the trash).
+
+The add dialog's PowerPoint tab (Ctrl/⌘+5, `SlidesTab.tsx`) shows the library's decks to pick, as Egna slides
+does, and imports a PDF, picked or dropped, into the library and the presentation at once. It takes only a PDF,
+up to 50 MB and 100 pages; a `.pptx` or `.ppt` is refused with how to save it as PDF. `media/slides.ts` renders each page
 with pdf.js, loaded only when an import starts and cached by the service worker like the rest of the build,
 so import works offline: drawn at the scale that fits 1920×1080 (a 960×540-point slide at twice its size),
 then shrunk to the thumbnail. Pages are WebP, or JPEG on a browser whose canvas cannot encode WebP
-(Safari), as a picture is. The database worker keeps the blobs and runs `addSlides` (`addSlides` in
-`db/worker.ts`). pdf.js is given no font or wasm files: a PDF that leaves out its fonts is drawn with the
+(Safari), as a picture is. The database worker keeps the blobs and runs the deck's mutator (`addSlides` in
+`db/mediaAdds.ts`). pdf.js is given no font or wasm files: a PDF that leaves out its fonts is drawn with the
 system's, and a page with a JPEG 2000 picture may lose it; PowerPoint, Keynote and Google Slides embed their
 fonts and do not use JPEG 2000.
 
@@ -185,7 +196,7 @@ picture's thumbnail where its full picture is not on the device (`SlideView`), a
 streams it when played and keeps nothing.
 
 **Presenting:** Starta presentation fetches that presentation's files at once, quietly: its full pictures, its
-audio, its videos' stills, its slide decks' pages (both sizes) its custom slides' pictures, and every overlay's pictures (any can be switched on).
+audio, its videos' stills, its slide decks' pages (both sizes), its custom slides' pictures, and every overlay's pictures (any can be switched on).
 Never a video: it streams, and its start buffers when the item before it goes live. What presenting fetched stays
 afterwards as cache.
 

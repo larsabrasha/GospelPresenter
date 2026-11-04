@@ -73,14 +73,17 @@ export function mediaAdds({ client, serialStore, added }: { client: () => SyncCl
     });
   }
 
-  /** Keeps every page's blobs here and adds the deck as an item, online or not. */
+  /** Keeps every page's blobs here and adds the deck, or its new pages, online or not. */
   function addSlides(s: SlidesImport): Promise<void> {
     return serialStore(async () => {
       const pages: { full: string; thumb: string }[] = [];
       for (const page of s.pages) {
         pages.push({ full: await storeMediaBlob(client(), page.full, s.contentType), thumb: await storeMediaBlob(client(), page.thumb, s.contentType) });
       }
-      await client().mutate('addSlides', { itemId: s.itemId, presentationId: s.presentationId, fileName: s.fileName, pages, afterItemId: s.afterItemId });
+      const at = Date.now();
+      if (s.into === 'library') await client().mutate('addSlideDeck', { id: s.deckId, name: s.fileName, pages, at });
+      else if (s.into === 'replace') await client().mutate('updateSlideDeck', { id: s.deckId, pages, at });
+      else await client().mutate('addSlides', { ...s.into, deckId: s.deckId, fileName: s.fileName, pages, at });
       added();
     });
   }

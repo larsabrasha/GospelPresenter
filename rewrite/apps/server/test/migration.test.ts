@@ -132,6 +132,26 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     f.close();
   });
 
+  it("a version 19 file makes each deck item's pages a deck of the library, which the item names", () => {
+    const pages = [{ full: 'a'.repeat(64), thumb: 'b'.repeat(64) }];
+    const file = fileWith(driver, [
+      ...orgDdl.filter((s) => !s.includes('slide_decks')),
+      schemaMetaDdl,
+      'INSERT INTO _schema (one, version) VALUES (1, 19)',
+      `INSERT INTO presentations (id, name) VALUES ('P', 'Söndag')`,
+      `INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort, content) VALUES ('I1', 'P', 'slides', 'Predikan.pdf', 'I1', 0, '${JSON.stringify({ fileName: 'Predikan.pdf', pages })}')`,
+    ]);
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    expect([f.query('SELECT id, name, pages, deleted_at FROM slide_decks'), f.query('SELECT source_id, content FROM presentation_items')]).toEqual([
+      [{ id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify(pages), deleted_at: null }],
+      [{ source_id: 'I1', content: null }],
+    ]);
+    f.close();
+  });
+
   it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {
     const f = openSqlite(fileWith(driver, []), driver);
     nodeOrgStore(f);

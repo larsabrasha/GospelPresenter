@@ -62,6 +62,8 @@ export interface LibraryProps<T extends LibraryEntry> {
   /** What a tap on an item looks at (a picture, a video, a sound). */
   preview?: (item: T) => QuickLookContent;
   manage: boolean;
+  /** An item's own choices, first in its menu, each a `role="menuitem"` of class `row` (a deck's Ersätt med ny PDF). */
+  renderActions?: (item: T, row: string) => ReactNode;
   rename?: { title: string; label: string; maxLength: number; run: (item: T, name: string) => Promise<unknown> };
   /** Ladda ner: an item's file, fetched if this device does not have it; several are saved as `zipName`.zip. */
   download?: { file: (item: T) => Promise<DownloadFile | null>; zipName: string };
@@ -162,6 +164,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   /** An item's choices: in its ⋯ menu (`row` MENU_ITEM) or in the menu a held finger opens (CONTEXT_ROW). */
   const menu = (item: T, row: string, danger: string) => (
     <>
+      {p.renderActions?.(item, row)}
       {p.rename && (
         <AppButton variant="plain" role="menuitem" className={row} onClick={() => setRenaming(item)}>
           <PencilIcon className="size-4" />
@@ -175,7 +178,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         </AppButton>
       )}
       {/* Radera in a group of its own, under a line, as every menu has it (ItemContextMenu's DIVIDER). */}
-      {(p.rename || p.download) && <div role="separator" className="h-px my-1 bg-separator" />}
+      {(p.renderActions || p.rename || p.download) && <div role="separator" className="h-px my-1 bg-separator" />}
       <AppButton variant="plain" role="menuitem" className={danger} onClick={() => void remove([item])}>
         <TrashIcon className="size-4" strokeWidth={1.5} />
         {t('images.remove')}

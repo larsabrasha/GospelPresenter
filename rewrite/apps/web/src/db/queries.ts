@@ -207,7 +207,7 @@ export async function getPresentation(db: ReadDb, id: string): Promise<Presentat
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide' | 'Deck';
   id: string;
   name: string;
   /** The event date of a presentation, the author of a song. */
@@ -225,7 +225,9 @@ export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
   const trashedAudios = (await db.query('SELECT * FROM audios WHERE deleted_at IS NOT NULL')).map(libraryAudio);
   const trashedVideos = (await db.query('SELECT * FROM videos WHERE deleted_at IS NOT NULL')).map(libraryVideo);
   const trashedSlides = await db.query<{ id: string; name: string; deleted_at: number }>('SELECT id, name, deleted_at FROM custom_slides WHERE deleted_at IS NOT NULL');
+  const trashedDecks = await db.query<{ id: string; name: string; deleted_at: number }>('SELECT id, name, deleted_at FROM slide_decks WHERE deleted_at IS NOT NULL');
   const entries: TrashEntry[] = [
+    ...trashedDecks.map((d) => ({ kind: 'Deck' as const, id: d.id, name: d.name, detail: null, deletedAt: Number(d.deleted_at) })),
     ...trashedSlides.map((s) => ({ kind: 'Slide' as const, id: s.id, name: s.name, detail: null, deletedAt: Number(s.deleted_at) })),
     ...trashedVideos.map((v) => ({ kind: 'Video' as const, id: v.id, name: v.fileName, detail: null, deletedAt: v.deletedAt! })),
     ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
