@@ -1,4 +1,4 @@
-import { pdfPages, recordMediaBlobSql } from '@gp/core';
+import { pdfPages, recordMediaBlobSql, type Picture } from '@gp/core';
 import { storeMediaBlob, type SyncClient } from '@gp/sync/client';
 import type { AudioImport, ImageImport, SlidesImport, SongFileImport, VideoImport } from './protocol.ts';
 
@@ -9,6 +9,11 @@ import type { AudioImport, ImageImport, SlidesImport, SongFileImport, VideoImpor
  */
 export function mediaAdds({ client, serialStore, added }: { client: () => SyncClient; serialStore: <T>(fn: () => Promise<T>) => Promise<T>; added: () => void }) {
   /** Keeps the picture's blobs here and records it in the library, online or not. */
+  /** A picture of a page, its own: its blobs kept here, named by the page's save (docs/custom-slides.md). */
+  function keepPicture(img: ImageImport): Promise<Picture> {
+    return serialStore(async () => ({ full: await storeMediaBlob(client(), img.full, img.contentType), thumb: await storeMediaBlob(client(), img.thumb, img.contentType) }));
+  }
+
   function addImage(img: ImageImport): Promise<void> {
     return serialStore(async () => {
       const fullHash = await storeMediaBlob(client(), img.full, img.contentType);
@@ -88,5 +93,5 @@ export function mediaAdds({ client, serialStore, added }: { client: () => SyncCl
     });
   }
 
-  return { addImage, addAudio, addSongFile, addVideo, addSlides };
+  return { addImage, keepPicture, addAudio, addSongFile, addVideo, addSlides };
 }

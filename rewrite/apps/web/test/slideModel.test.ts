@@ -12,7 +12,7 @@ describe('a custom slide in the editor', () => {
   });
 
   it('fits a new picture inside 800×450, keeping its shape', () => {
-    const e = newElement('image', 'i', { imageId: 'img', width: 1920, height: 1080 });
+    const e = newElement('image', 'i', { picture: { full: 'f', thumb: 't' }, width: 1920, height: 1080 });
 
     expect([e.w, e.h]).toEqual([800, 450]);
   });

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { resolveTheme, type CustomElement, type CustomPage } from '@gp/core';
-import { shownPages } from '../../db/customSlides.ts';
 import { orgDefaultThemeId } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -55,7 +54,6 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   /** The newest version taken over or saved here: a read of it, or of an older one, changes nothing. */
   const known = useRef(0);
   const pages = h?.present ?? null;
-  const shown = useData((d) => shownPages(d, pages ?? []), [pages]);
 
   // The stored slide, at first and whenever another device saved a newer one and nothing here waits to be saved.
   if (slide && !dirty.current && slide.updatedAt > known.current) {
@@ -197,7 +195,6 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
           <div className="order-3 @4xl:order-1 @4xl:w-44 shrink-0 @4xl:max-h-[75svh] @4xl:overflow-y-auto">
             <PageNavigator
               pages={pages}
-              shown={shown}
               theme={theme}
               at={pageAt}
               onOpen={openPage}
@@ -224,7 +221,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
             </AppButton>
           </div>
           <EditorCanvas
-            shown={shown?.[pageAt] ?? { page, images: {} }}
+            page={page}
             theme={theme}
             picked={element ? picked : null}
             editingText={writing}
@@ -245,10 +242,10 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
       {choosing && (
         <ImagePicker
           onClose={() => setChoosing(null)}
-          onPick={(image) => {
-            if (choosing === 'background') onPage('background', (p) => ({ ...p, backgroundImageId: image.id }));
-            else if (choosing === 'replace' && element) onPage('image', (p) => model.changeElement(p, element.id, { imageId: image.id }));
-            else insert(model.newElement('image', newId(), { imageId: image.id, width: image.width, height: image.height }));
+          onPick={(chosen) => {
+            if (choosing === 'background') onPage('background', (p) => ({ ...p, backgroundPicture: chosen.picture }));
+            else if (choosing === 'replace' && element) onPage('image', (p) => model.changeElement(p, element.id, { picture: chosen.picture }));
+            else insert(model.newElement('image', newId(), chosen));
             setChoosing(null);
           }}
         />

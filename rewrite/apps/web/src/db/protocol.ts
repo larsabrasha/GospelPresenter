@@ -44,6 +44,8 @@ export type DbCall =
   | { op: 'status' }
   /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
   | { op: 'addImage'; image: ImageImport }
+  /** Keeps a picture here for a page of a slideshow or an overlay, not in Bilder: its blobs, uploaded before the page's save is pushed. */
+  | { op: 'keepPicture'; image: ImageImport }
   /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
   | { op: 'addAudio'; audio: AudioImport }
   /** Adds a file to a song's material (spec 02 "Song material"): kept here, uploaded before `addSongFile` is pushed. */

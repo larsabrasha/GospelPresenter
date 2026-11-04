@@ -1,15 +1,22 @@
-import { blankPage, CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage } from '@gp/core';
+import { blankPage, CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Picture } from '@gp/core';
 
 // What the editor does to a custom slide's pages (docs/custom-slides.md), as plain functions: each returns new pages,
 // so the editor keeps them in its state and saves them whole.
 
 export type NewKind = 'text' | 'rect' | 'roundedRect' | 'ellipse' | 'line' | 'image';
 
+/** A picture chosen for a page: its blobs, the page's own (from Bilder or from the device), and its size. */
+export interface PickedPicture {
+  picture: Picture;
+  width: number;
+  height: number;
+}
+
 const W = CANVAS.width;
 const H = CANVAS.height;
 
 /** A new element of `kind` in the middle of the stage, at a size that suits it; a picture fitted inside 800×450. */
-export function newElement(kind: NewKind, id: string, image?: { imageId: string; width: number; height: number }): CustomElement {
+export function newElement(kind: NewKind, id: string, image?: PickedPicture): CustomElement {
   const centred = (w: number, h: number) => ({ id, x: Math.round((W - w) / 2), y: Math.round((H - h) / 2), w, h });
   switch (kind) {
     case 'text':
@@ -25,7 +32,7 @@ export function newElement(kind: NewKind, id: string, image?: { imageId: string;
       const scale = Math.min(800 / (image?.width ?? 800), 450 / (image?.height ?? 450), 1);
       const w = Math.round((image?.width ?? 800) * scale);
       const h = Math.round((image?.height ?? 450) * scale);
-      return { ...centred(w, h), kind, imageId: image?.imageId ?? '', fit: 'contain' };
+      return { ...centred(w, h), kind, picture: image?.picture ?? { full: '', thumb: '' }, fit: 'contain' };
     }
   }
 }

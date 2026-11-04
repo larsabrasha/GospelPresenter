@@ -1,4 +1,4 @@
-import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
+import type { BibleBookText, MutatorArgs, MutatorName, Picture } from '@gp/core';
 import type { StorageReport } from '@gp/sync/client';
 import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
@@ -69,6 +69,11 @@ export class Db implements ReadDb {
   }
 
   /** Keeps a processed picture here and adds it to the library, online or not; it is uploaded when the server can be reached. */
+  /** Keeps a picture here for a page, its own (docs/custom-slides.md); the hashes of its blobs. */
+  keepPicture(image: ImageImport): Promise<Picture> {
+    return this.call({ op: 'keepPicture', image });
+  }
+
   addImage(image: ImageImport): Promise<void> {
     this.lastWriteAt = Date.now();
     return this.call({ op: 'addImage', image });

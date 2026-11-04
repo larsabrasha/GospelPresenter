@@ -5,7 +5,10 @@ import { CANVAS } from './themes.ts';
 // A slideshow's page (Bildspel, docs/custom-slides.md): texts, pictures and shapes placed freely on the 1920×1080
 // stage, over a background. A colour that is null follows the presentation's theme (a text's, a line's) or is none
 // (a shape's fill or outline, a page's background, which then is the theme's). A PDF's page, rendered at import, is
-// a page's background picture (`backgroundPage`), so an imported PDF is a slideshow like any other.
+// a page's background picture (`backgroundPage`), so an imported PDF is a slideshow like any other. Every picture
+// on a page is the slideshow's own, its blobs named on the page, as Keynote keeps its pictures: one taken from
+// Bilder is a copy (the same blobs, as blobs are named by their content), so Bilder and slideshows are apart
+// (Lars, 2026-11-04).
 
 export const CUSTOM_LIMITS = { elements: 100, pages: 100, text: 2000, slides: 1000 } as const;
 
@@ -36,7 +39,12 @@ const textElement = z.object({
   align: z.enum(['left', 'center', 'right']),
   color,
 });
-const imageElement = z.object({ ...box, kind: z.literal('image'), imageId: z.string().min(1).max(100), fit: z.enum(['contain', 'cover']) });
+const blobHash = z.string().regex(MEDIA_HASH);
+/** A picture as a page keeps it: its `full` blob, fitting 1920×1080, and its `thumb`, as a library picture has them. */
+const pictureSchema = z.object({ full: blobHash, thumb: blobHash });
+export type Picture = z.infer<typeof pictureSchema>;
+
+const imageElement = z.object({ ...box, kind: z.literal('image'), picture: pictureSchema, fit: z.enum(['contain', 'cover']) });
 const shapeElement = z.object({
   ...box,
   kind: z.enum(['rect', 'ellipse']),
@@ -51,16 +59,12 @@ const lineElement = z.object({ ...box, kind: z.literal('line'), stroke: color, s
 const elementSchema = z.discriminatedUnion('kind', [textElement, imageElement, shapeElement, lineElement]);
 export type CustomElement = z.infer<typeof elementSchema>;
 
-const blobHash = z.string().regex(MEDIA_HASH);
-/** A PDF's page as a picture: its `full` blob fitting 1920×1080 and its `thumb`, as a library picture has them. */
-const pdfPageSchema = z.object({ full: blobHash, thumb: blobHash });
-export type PdfPage = z.infer<typeof pdfPageSchema>;
-
 export const customPageSchema = z.object({
   background: color,
-  backgroundImageId: z.string().min(1).max(100).nullable(),
-  /** A PDF's page under the elements, fitted to the stage; missing on a page saved before PDFs were slideshows. */
-  backgroundPage: pdfPageSchema.nullable().default(null),
+  /** A picture filling the stage under the elements. */
+  backgroundPicture: pictureSchema.nullable(),
+  /** A PDF's page under the elements, fitted to the stage. */
+  backgroundPage: pictureSchema.nullable(),
   elements: z.array(elementSchema).max(CUSTOM_LIMITS.elements),
 });
 export type CustomPage = z.infer<typeof customPageSchema>;
@@ -68,10 +72,10 @@ export type CustomPage = z.infer<typeof customPageSchema>;
 export const customPagesSchema = z.array(customPageSchema).min(1).max(CUSTOM_LIMITS.pages);
 
 /** A page with nothing on it, its background the theme's. */
-export const blankPage = (): CustomPage => ({ background: null, backgroundImageId: null, backgroundPage: null, elements: [] });
+export const blankPage = (): CustomPage => ({ background: null, backgroundPicture: null, backgroundPage: null, elements: [] });
 
 /** A PDF's pages as a slideshow's: each the picture of its page on black, with nothing on it yet. */
-export const pdfPages = (pages: PdfPage[]): CustomPage[] => pages.map((p) => ({ ...blankPage(), background: '#000000', backgroundPage: { full: p.full, thumb: p.thumb } }));
+export const pdfPages = (pages: Picture[]): CustomPage[] => pages.map((p) => ({ ...blankPage(), background: '#000000', backgroundPage: { full: p.full, thumb: p.thumb } }));
 
 /** A slide's pages as stored, or one blank page where they do not read. */
 export function parseCustomPages(json: string | null): CustomPage[] {
@@ -102,28 +106,13 @@ export function customPageText(page: CustomPage): string {
     .join('\n');
 }
 
-/** The blobs of the PDF pages `pages` draw, both sizes. */
-export const customPageBlobs = (pages: CustomPage[]): string[] => pages.flatMap((p) => (p.backgroundPage ? [p.backgroundPage.full, p.backgroundPage.thumb] : []));
+/** Every picture `pages` draw: their backgrounds' and their elements'. */
+export const customPagePictures = (pages: CustomPage[]): Picture[] =>
+  pages.flatMap((p) => [
+    ...(p.backgroundPicture ? [p.backgroundPicture] : []),
+    ...(p.backgroundPage ? [p.backgroundPage] : []),
+    ...p.elements.flatMap((e) => (e.kind === 'image' ? [e.picture] : [])),
+  ]);
 
-/** The pictures of Bilder a page draws, its background's first. */
-export function customPageImageIds(page: CustomPage): string[] {
-  const ids = page.elements.flatMap((e) => (e.kind === 'image' ? [e.imageId] : []));
-  return [...new Set(page.backgroundImageId ? [page.backgroundImageId, ...ids] : ids)];
-}
-
-/**
- * A page as an output draws it: each picture with the hashes of its `full` and `thumb` blobs, found by id where it
- * is drawn. A picture that is gone is left out.
- */
-export interface ShownPage {
-  page: CustomPage;
-  images: Record<string, { full: string; thumb: string }>;
-}
-
-/** A shown page as a paired screen gets it (live-protocol's canvas): the page, and the blobs of its pictures. */
-export const shownPageSchema = z.object({
-  page: customPageSchema,
-  images: z
-    .record(z.string().max(100), z.object({ full: blobHash, thumb: blobHash }))
-    .refine((images) => Object.keys(images).length <= CUSTOM_LIMITS.elements + 1, 'too many pictures'),
-});
+/** The blobs of every picture `pages` draw, both sizes: what a slideshow or an overlay keeps. */
+export const customPageBlobs = (pages: CustomPage[]): string[] => [...new Set(customPagePictures(pages).flatMap((p) => [p.full, p.thumb]))];

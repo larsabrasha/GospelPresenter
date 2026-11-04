@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
 import { parseBibleContent } from './bible.ts';
-import { blankPage, CUSTOM_LIMITS, customPagesSchema, pdfPages, type CustomElement, type CustomPage } from './custom-slides.ts';
+import { blankPage, CUSTOM_LIMITS, customPagesSchema, pdfPages, type CustomElement, type CustomPage, type Picture } from './custom-slides.ts';
 import { slideDeckPagesSchema } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
 import { CANVAS } from './themes.ts';
@@ -13,10 +13,10 @@ import { CANVAS } from './themes.ts';
 /**
  * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay
  * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. 4: a slide
- * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. An import reads the older ones
- * too (`upgradeLegacyRows`).
+ * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. 5: a page's pictures are its own
+ * blobs, not pictures of Bilder by id. An import reads the older ones too (`upgradeLegacyRows`).
  */
-export const LEGACY_FORMAT = 4;
+export const LEGACY_FORMAT = 5;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -81,12 +81,12 @@ export const legacyUsersSchema = z.array(legacyUserSchema).max(1000);
 
 /**
  * A 1.x overlay as a page (docs/custom-slides.md), drawn as 1.x drew it: its picture over the whole stage, fitted,
- * and its text above it at the top left, white.
+ * and its text above it at the top left, white. The picture is the overlay's own.
  */
-export function legacyOverlayPage(content: string | null, imageId: string | null): CustomPage {
+export function legacyOverlayPage(content: string | null, picture: Picture | null): CustomPage {
   const text = content?.trim().slice(0, CUSTOM_LIMITS.text) ?? '';
   const elements: CustomElement[] = [];
-  if (imageId) elements.push({ id: 'image', kind: 'image', x: 0, y: 0, w: CANVAS.width, h: CANVAS.height, imageId, fit: 'contain' });
+  if (picture) elements.push({ id: 'image', kind: 'image', x: 0, y: 0, w: CANVAS.width, h: CANVAS.height, picture, fit: 'contain' });
   if (text) {
     const h = Math.min(CANVAS.height - 64, text.split('\n').length * 60);
     elements.push({ id: 'text', kind: 'text', x: 80, y: 32, w: CANVAS.width - 160, h, text, size: 40, bold: false, italic: false, align: 'left', color: '#ffffff' });
@@ -94,8 +94,11 @@ export function legacyOverlayPage(content: string | null, imageId: string | null
   return { ...blankPage(), elements };
 }
 
-/** The formats an import reads: this one, 3 (decks of their own), 2 (decks on their items), 1 (overlays of a text and a picture too). */
-export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, LEGACY_FORMAT];
+/**
+ * The formats an import reads: this one, 4 (pictures of Bilder by id on a page), 3 (decks of their own), 2 (decks on
+ * their items), 1 (overlays of a text and a picture too).
+ */
+export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, LEGACY_FORMAT];
 
 const text = (v: LegacyRow[string] | undefined) => (typeof v === 'string' ? v : null);
 /** A deck item's content before format 3: the file's name and its pages. */
@@ -111,16 +114,54 @@ const slideshowRow = (id: LegacyRow[string] | undefined, name: LegacyRow[string]
   deleted_at: null,
 });
 
+type Json = Record<string, unknown>;
+
+/**
+ * A page of a zip before format 5 as this format has it: a picture of Bilder named by id (`imageId`,
+ * `backgroundImageId`) becomes the page's own blobs, those of the zip's picture; one the zip lacks is left out.
+ */
+function ownPictures(page: unknown, images: Map<string, Picture>): unknown {
+  if (!page || typeof page !== 'object') return page;
+  const { backgroundImageId, elements, ...rest } = page as Json;
+  const own = (e: unknown) => {
+    const el = e as Json;
+    if (el?.kind !== 'image' || !('imageId' in el)) return [e];
+    const picture = images.get(String(el.imageId));
+    return picture ? [{ ...Object.fromEntries(Object.entries(el).filter(([k]) => k !== 'imageId')), picture }] : [];
+  };
+  return {
+    ...rest,
+    ...(backgroundImageId !== undefined ? { backgroundPicture: images.get(String(backgroundImageId)) ?? null } : {}),
+    backgroundPage: rest.backgroundPage ?? null,
+    elements: Array.isArray(elements) ? elements.flatMap(own) : elements,
+  };
+}
+
+/** A row's page JSON, or pages JSON, through `fn`; one that does not read is left for legacyRowsProblem to name. */
+function rewrite(json: LegacyRow[string] | undefined, fn: (v: unknown) => unknown): LegacyRow[string] {
+  try {
+    return JSON.stringify(fn(JSON.parse(text(json) ?? '')));
+  } catch {
+    return json ?? null;
+  }
+}
+
 /** The rows of a zip before format 4: `custom_slides` missing, `slide_decks` there in 3. */
 type OlderRows = Omit<LegacyRows, 'custom_slides'> & { custom_slides?: LegacyRow[]; slide_decks?: LegacyRow[] };
 
 /**
  * A zip's rows as this format has them. Before 4 a deck's pages become a slideshow of PDF pages that its item
- * names: in 3 each `slide_decks` row, before 3 each deck item's own pages, as the item's id.
+ * names: in 3 each `slide_decks` row, before 3 each deck item's own pages, as the item's id. Before 5 a page's
+ * pictures of Bilder become its own (`ownPictures`).
  */
 export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
   const { slide_decks: decks = [], custom_slides: slideshows = [], ...rest } = rows;
   if (format >= LEGACY_FORMAT) return { ...rest, custom_slides: slideshows };
+  const images = new Map(rest.images.map((i) => [String(i.id), { full: String(i.full_hash), thumb: String(i.thumb_hash) }]));
+  const pages = (r: LegacyRow): LegacyRow => ({ ...r, pages: rewrite(r.pages, (v) => (Array.isArray(v) ? v.map((p) => ownPictures(p, images)) : v)) });
+  if (format === 4) {
+    return { ...rest, overlays: rest.overlays.map((o) => ({ ...o, content: rewrite(o.content, (v) => ownPictures(v, images)) })), custom_slides: slideshows.map(pages) };
+  }
   const made: LegacyRow[] = [];
   for (const d of decks) {
     try {
@@ -144,12 +185,12 @@ export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
       ? rest.overlays.map((o) => ({
           id: o.id ?? null,
           title: o.title ?? null,
-          content: JSON.stringify(legacyOverlayPage(text(o.content), text(o.image_id))),
+          content: JSON.stringify(legacyOverlayPage(text(o.content), images.get(String(o.image_id)) ?? null)),
           image_id: null,
           sort: o.sort ?? null,
           updated_at: null,
         }))
-      : rest.overlays;
+      : rest.overlays.map((o) => ({ ...o, content: rewrite(o.content, (v) => ownPictures(v, images)) }));
   return { ...rest, overlays, presentation_items: items, custom_slides: made };
 }
 

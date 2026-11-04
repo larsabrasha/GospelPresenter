@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { CANVAS, CLASSIC, type ShownPage, type Slide, type Theme } from '@gp/core';
+import { CANVAS, CLASSIC, type CustomPage, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { CustomPageView } from './CustomPageView.tsx';
@@ -48,10 +48,10 @@ function Picture({ hash, thumb = null, media, className, testId }: { hash: strin
 }
 
 /** An overlay above the slide (LIVE-R15, docs/custom-slides.md): its page, with no background, in the slide's theme. */
-function OverlayLayer({ overlay, theme, media }: { overlay: ShownPage; theme: Theme; media: Media }) {
+function OverlayLayer({ overlay, theme, media }: { overlay: CustomPage; theme: Theme; media: Media }) {
   return (
     <div className="slide-overlay" data-testid="slide-overlay">
-      <CustomPageView shown={overlay} theme={theme} media={media} />
+      <CustomPageView page={overlay} theme={theme} media={media} />
     </div>
   );
 }
@@ -64,7 +64,7 @@ const BLACK_FADE_MS = 500;
  * render that was not black, for BLACK_FADE_MS, then nothing, so a blacked-out
  * output holds no slide. Not black, what it is given.
  */
-function useBlackFade(black: boolean, slide: Slide | null, overlay: ShownPage | null): { slide: Slide | null; overlay: ShownPage | null } {
+function useBlackFade(black: boolean, slide: Slide | null, overlay: CustomPage | null): { slide: Slide | null; overlay: CustomPage | null } {
   const [last, setLast] = useState({ slide, overlay });
   const [fading, setFading] = useState(false);
   const [wasBlack, setWasBlack] = useState(black);
@@ -111,7 +111,7 @@ export function SlideView({
   theme?: Theme;
   label?: boolean;
   credits?: boolean;
-  overlay?: ShownPage | null;
+  overlay?: CustomPage | null;
   media?: (hash: string) => string;
   highlight?: string;
   black?: boolean;
@@ -145,7 +145,7 @@ export function SlideView({
               </span>
             )}
             {slide.custom ? (
-              <CustomPageView shown={slide.custom} theme={theme} media={media} />
+              <CustomPageView page={slide.custom} theme={theme} media={media} />
             ) : slide.kind === 'media' ? (
               <>
                 {slide.image && <Picture hash={slide.image} thumb={slide.thumb} media={media} className="slide-image" testId="slide-image" />}

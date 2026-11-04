@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -100,6 +100,24 @@ export const orgDdl: string[] = [
   ...orgIndexes,
 ];
 
+/** A picture of Bilder named by `id` (an SQL expression) as a page's own: its blobs as JSON, null where it is gone. */
+const pictureOf = (id: string) => `json((SELECT json_object('full', i.full_hash, 'thumb', i.thumb_hash) FROM images i WHERE i.id = ${id}))`;
+
+/**
+ * `page`, an SQL expression of one page's JSON, with its pictures of Bilder its own blobs (schema 22): its
+ * background's (`backgroundImageId` to `backgroundPicture`) and its pictures' (`imageId` to `picture`); a picture
+ * whose image is gone is left out, and a page saved before PDFs were slideshows gets no PDF page.
+ */
+const ownPicturesSql = (page: string) => `json_set(json_remove(${page}, '$.backgroundImageId'),
+      '$.backgroundPicture', ${pictureOf(`json_extract(${page}, '$.backgroundImageId')`)},
+      '$.backgroundPage', json(json_extract(${page}, '$.backgroundPage')),
+      '$.elements', json((SELECT json_group_array(json(CASE WHEN json_extract(e.value, '$.kind') = 'image' AND json_extract(e.value, '$.imageId') IS NOT NULL
+          THEN json_set(json_remove(e.value, '$.imageId'), '$.picture', ${pictureOf(`json_extract(e.value, '$.imageId')`)})
+          ELSE e.value END))
+        FROM json_each(${page}, '$.elements') e
+        WHERE json_extract(e.value, '$.kind') <> 'image' OR json_extract(e.value, '$.imageId') IS NULL
+          OR EXISTS (SELECT 1 FROM images i WHERE i.id = json_extract(e.value, '$.imageId')))))`;
+
 /** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
 export const orgMigrations: Record<number, string[]> = {
   // A presentation's description (spec 03) and when it was last changed; when an output was made; the indexes (`orgIndexes`).
@@ -141,6 +159,12 @@ export const orgMigrations: Record<number, string[]> = {
        FROM slide_decks d`,
     `UPDATE presentation_items SET type = 'custom' WHERE type = 'slides'`,
     'DROP TABLE slide_decks',
+  ],
+  // A page's pictures are its own blobs, not pictures of Bilder by id (docs/custom-slides.md, Lars 2026-11-04): the
+  // same on every device and the server, so the rows agree before they sync.
+  22: [
+    `UPDATE custom_slides SET pages = (SELECT json_group_array(json(${ownPicturesSql('pg.value')})) FROM json_each(custom_slides.pages) pg) WHERE json_valid(pages)`,
+    `UPDATE overlays SET content = ${ownPicturesSql('content')} WHERE json_valid(content)`,
   ],
 };
 

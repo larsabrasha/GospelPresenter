@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { blankPage, resolveTheme } from '@gp/core';
-import { listCustomSlides, shownPages, type LibraryCustomSlide } from '../../db/customSlides.ts';
+import { listCustomSlides, type LibraryCustomSlide } from '../../db/customSlides.ts';
 import { orgDefaultThemeId } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -21,11 +21,9 @@ import { pageSlide } from './PageNavigator.tsx';
 
 /** A slide's first page, small, in the organisation's theme. */
 export function FirstPage({ slide, themeId }: { slide: LibraryCustomSlide; themeId: string | null | undefined }) {
-  const shown = useData((db) => shownPages(db, slide.pages.slice(0, 1)), [slide.pages]);
-  const custom = shown?.[0] ?? { page: slide.pages[0] ?? blankPage(), images: {} };
   return (
     <span className="block w-full aspect-video rounded-lg overflow-hidden">
-      <SlideView slide={pageSlide(custom)} theme={resolveTheme(null, themeId)} label={false} credits={false} />
+      <SlideView slide={pageSlide(slide.pages[0] ?? blankPage())} theme={resolveTheme(null, themeId)} label={false} credits={false} />
     </span>
   );
 }

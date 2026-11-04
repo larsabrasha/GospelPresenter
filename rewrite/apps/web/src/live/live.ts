@@ -22,7 +22,7 @@ import {
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import type { OutputVideo } from './video.ts';
-import { getCustomSlide, shownPages } from '../db/customSlides.ts';
+import { getCustomSlide } from '../db/customSlides.ts';
 import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
@@ -213,11 +213,10 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
     // A reference as a song is: the slide as it is in the library now, a page a slide; trashed, it still shows.
     const custom = await getCustomSlide(db, item.sourceId);
     if (!custom) return { slides: [], problem: 'custom-missing' };
-    const pages = await shownPages(db, custom.pages);
     // A PDF's page is a picture slide too: a public output and a screen show its picture (the gate's SLIDE_PAGES_SQL).
-    const slides = pages.map((shown, i): Slide => {
-      const pdf = shown.page.backgroundPage;
-      return { key: `page${i}`, kind: pdf ? 'media' : 'song', image: pdf?.full ?? null, thumb: pdf?.thumb ?? null, text: customPageText(shown.page), verses: null, label: null, credits: null, custom: shown };
+    const slides = custom.pages.map((page, i): Slide => {
+      const pdf = page.backgroundPage;
+      return { key: `page${i}`, kind: pdf ? 'media' : 'song', image: pdf?.full ?? null, thumb: pdf?.thumb ?? null, text: customPageText(page), verses: null, label: null, credits: null, custom: page };
     });
     return { slides, problem: null };
   }

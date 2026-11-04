@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { CustomElement, ShownPage, Theme } from '@gp/core';
+import type { CustomElement, CustomPage, Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
 
@@ -20,7 +20,7 @@ function elementBox(e: CustomElement): CSSProperties {
   return { position: 'absolute', left: Math.min(e.x, e.x + e.w), top: Math.min(e.y, e.y + e.h), width: Math.abs(e.w), height: Math.abs(e.h) };
 }
 
-function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPage; theme: Theme; media?: (hash: string) => string }): ReactNode {
+function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: (hash: string) => string }): ReactNode {
   const box = elementBox(e);
   if (e.kind === 'text') {
     const main = mainCss(theme, 'song');
@@ -44,8 +44,7 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
     );
   }
   if (e.kind === 'image') {
-    const picture = shown.images[e.imageId];
-    return picture ? <PagePicture id={e.id} hash={picture.full} thumb={picture.thumb} media={media} style={{ ...box, objectFit: e.fit }} /> : <div data-element={e.id} style={box} />;
+    return <PagePicture id={e.id} hash={e.picture.full} thumb={e.picture.thumb} media={media} style={{ ...box, objectFit: e.fit }} />;
   }
   if (e.kind === 'line') {
     const { left, top, width, height } = box as { left: number; top: number; width: number; height: number };
@@ -80,9 +79,8 @@ function Element({ e, shown, theme, media }: { e: CustomElement; shown: ShownPag
 }
 
 /** The page's own background, its elements in drawing order, and `children` above them (the editor's handles). */
-export function CustomPageView({ shown, theme, media, hide, children }: { shown: ShownPage; theme: Theme; media?: (hash: string) => string; hide?: string; children?: ReactNode }) {
-  const { page } = shown;
-  const background = page.backgroundImageId ? shown.images[page.backgroundImageId] : undefined;
+export function CustomPageView({ page, theme, media, hide, children }: { page: CustomPage; theme: Theme; media?: (hash: string) => string; hide?: string; children?: ReactNode }) {
+  const background = page.backgroundPicture;
   return (
     <div className="absolute inset-0 overflow-hidden" style={page.background ? { background: page.background } : undefined} data-testid="custom-page">
       {background && <PagePicture hash={background.full} thumb={background.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -91,7 +89,7 @@ export function CustomPageView({ shown, theme, media, hide, children }: { shown:
         <PagePicture hash={page.backgroundPage.full} thumb={page.backgroundPage.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
       )}
       {/* `hide`: the text the editor writes over (pages/custom-slides/EditorCanvas.tsx). */}
-      {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} shown={shown} theme={theme} media={media} />))}
+      {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} theme={theme} media={media} />))}
       {children}
     </div>
   );

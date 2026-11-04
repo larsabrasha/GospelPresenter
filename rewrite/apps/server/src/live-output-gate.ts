@@ -1,4 +1,4 @@
-import { ITEM_IMAGES_SQL, OVERLAY_IMAGES_SQL, SLIDE_PAGES_SQL, type LiveOwnState, type ShownPage } from '@gp/core';
+import { customPageBlobs, ITEM_IMAGES_SQL, OVERLAY_PICTURES_SQL, SLIDE_PAGES_SQL, type CustomPage, type LiveOwnState } from '@gp/core';
 import { canvasOf, slideOf, type LiveStore, type SessionRow } from './live-tables.ts';
 
 // What an output's viewers may fetch (LIVE-R32, MEDIA-R10): only what its session shows, and only if it belongs to the
@@ -7,8 +7,9 @@ import { canvasOf, slideOf, type LiveStore, type SessionRow } from './live-table
 
 /**
  * A picture: the one on screen, of an item in the presentation, or a page of a slide deck in it. A paired screen may
- * also show a picture its canvas draws on a page (docs/custom-slides.md): a custom slide's, of the presentation, or
- * the overlay's, of the overlay the session's pointer has switched on (LIVE-R34). A public output never gets those.
+ * also show a picture its canvas draws on a page (docs/custom-slides.md): a slideshow's, of one the presentation
+ * shows, or the overlay's, of the overlay the session's pointer has switched on (LIVE-R34). A public output never
+ * gets those but a PDF's page, which is the slide's picture.
  */
 export function mayShowImage(store: LiveStore, row: SessionRow, hash: string, screen: boolean): boolean {
   const shown = screen ? canvasOf(row) : null;
@@ -29,11 +30,11 @@ export function mayShowImage(store: LiveStore, row: SessionRow, hash: string, sc
   }
   if (!draws(shown?.overlay, hash)) return false;
   const overlayId = (JSON.parse(row.pointer) as LiveOwnState['pointer']).overlayId;
-  return !!overlayId && store.query(`SELECT 1 FROM (${OVERLAY_IMAGES_SQL}) o JOIN images i ON i.id = o.image_id WHERE o.overlay_id = ? AND i.full_hash = ?`, [overlayId, hash]).length > 0;
+  return !!overlayId && store.query(`SELECT 1 FROM (${OVERLAY_PICTURES_SQL}) o WHERE o.overlay_id = ? AND o.full_hash = ?`, [overlayId, hash]).length > 0;
 }
 
 /** Whether a page on the canvas draws `hash`, by the canvas's own word. */
-const draws = (page: ShownPage | null | undefined, hash: string) => Object.values(page?.images ?? {}).some((blobs) => blobs.full === hash);
+const draws = (page: CustomPage | null | undefined, hash: string) => !!page && customPageBlobs([page]).includes(hash);
 
 /**
  * A video a paired screen streams (TODO.md "Video on the outputs"): the one on its canvas, of an item in the

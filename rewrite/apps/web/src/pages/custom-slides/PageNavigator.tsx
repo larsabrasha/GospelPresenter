@@ -1,4 +1,4 @@
-import type { CustomPage, ShownPage, Slide, Theme } from '@gp/core';
+import type { CustomPage, Slide, Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CONTEXT_ROW } from '../../ui/ContextMenu.tsx';
@@ -10,11 +10,10 @@ import { SlideView } from '../../ui/SlideView.tsx';
 // iPad, in a row under the page on a phone; a tap opens one, a held finger or a right click its menu, + adds a page.
 
 /** What a page's thumbnail draws: the page, as a slide. */
-export const pageSlide = (custom: ShownPage): Slide => ({ key: 'page', kind: 'song', image: null, text: '', verses: null, label: null, credits: null, custom });
+export const pageSlide = (custom: CustomPage): Slide => ({ key: 'page', kind: 'song', image: null, text: '', verses: null, label: null, credits: null, custom });
 
 export function PageNavigator({
   pages,
-  shown,
   theme,
   at,
   onOpen,
@@ -24,7 +23,6 @@ export function PageNavigator({
   onRemove,
 }: {
   pages: CustomPage[];
-  shown: ShownPage[] | undefined;
   theme: Theme;
   at: number;
   onOpen: (i: number) => void;
@@ -67,7 +65,7 @@ export function PageNavigator({
               className={`block w-28 @4xl:w-36 aspect-video rounded-lg overflow-hidden cursor-pointer ring-[3px] ${i === at ? 'ring-sky-500' : 'ring-transparent'}`}
               onClick={() => onOpen(i)}
             >
-              <SlideView slide={pageSlide(shown?.[i] ?? { page: p, images: {} })} theme={theme} label={false} credits={false} />
+              <SlideView slide={pageSlide(p)} theme={theme} label={false} credits={false} />
             </AppButton>
           </HoldMenu>
         </div>

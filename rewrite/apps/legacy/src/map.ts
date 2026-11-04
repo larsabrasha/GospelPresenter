@@ -65,19 +65,13 @@ const imageRow = (id: string, fileName: string, s: StoredImage, createdAt: numbe
   deleted_at: deletedAt,
 });
 
-/**
- * Overlays, and their own pictures as library pictures: 2.0's overlay names a picture of the library
- * (`overlays.image_id`), so the picture is listed under Bilder, named after the overlay.
- */
-function mapOverlays(data: OldData, media: Media, now: number): { overlays: LegacyRow[]; images: LegacyRow[] } {
-  const images: LegacyRow[] = [];
-  const overlays = data.overlays.map((o, sort) => {
+/** Overlays, each a page with its own picture (docs/custom-slides.md): not listed under Bilder. */
+function mapOverlays(data: OldData, media: Media, now: number): LegacyRow[] {
+  return data.overlays.map((o, sort) => {
     const picture = media.overlayImages.get(o.Id);
-    const imageId = picture ? `${o.Id}-image` : null;
-    if (picture) images.push(imageRow(imageId!, `${o.Title || 'Overlay'}.${picture.contentType === 'image/jpeg' ? 'jpg' : 'webp'}`, picture, now, null));
-    return { id: o.Id, title: o.Title, content: JSON.stringify(legacyOverlayPage(o.Content, imageId)), image_id: null, sort, updated_at: now };
+    const page = legacyOverlayPage(o.Content, picture ? { full: picture.fullHash, thumb: picture.thumbHash } : null);
+    return { id: o.Id, title: o.Title, content: JSON.stringify(page), image_id: null, sort, updated_at: now };
   });
-  return { overlays, images };
 }
 
 /** The settings 2.0 has: the default theme and CCLI collection. */
@@ -104,13 +98,13 @@ export function mapUsers(data: OldData): LegacyUser[] {
 
 export async function mapOrg(data: OldData, media: Media, now = Date.now()): Promise<Mapped> {
   const bibles = await mapBibles(data);
-  const { overlays, images: overlayImages } = mapOverlays(data, media, now);
+  const overlays = mapOverlays(data, media, now);
   const items = mapItems(data, media, now);
   const rows: LegacyRows = {
     labels: mapLabels(data),
     org_settings: mapSettings(data),
     bibles: bibles.rows,
-    images: [...data.images.flatMap((i) => (media.images.has(i.Id) ? [imageRow(i.Id, i.FileName, media.images.get(i.Id)!, i.CreatedAt.getTime(), ms(i.DeletedAt))] : [])), ...overlayImages],
+    images: data.images.flatMap((i) => (media.images.has(i.Id) ? [imageRow(i.Id, i.FileName, media.images.get(i.Id)!, i.CreatedAt.getTime(), ms(i.DeletedAt))] : [])),
     audios: data.audios.flatMap((a) => {
       const m = media.audios.get(a.Id);
       return m ? [{ id: a.Id, file_name: a.FileName.slice(0, 200), content_type: m.contentType, hash: m.hash, size: m.size, created_at: a.CreatedAt.getTime(), deleted_at: ms(a.DeletedAt) }] : [];

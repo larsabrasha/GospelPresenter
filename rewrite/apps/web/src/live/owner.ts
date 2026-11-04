@@ -101,8 +101,8 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): P
   const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
   const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
   const overlay = await shownOverlay(db, p.overlayId);
-  const overlayText = (overlay && customPageText(overlay.page)) || null;
-  if (!slide && !overlay?.page.elements.length) return { slide: null, canvas: null };
+  const overlayText = (overlay && customPageText(overlay)) || null;
+  if (!slide && !overlay?.elements.length) return { slide: null, canvas: null };
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
   return {
     // An overlay with nothing selected is shown on its own, as the projector shows it.

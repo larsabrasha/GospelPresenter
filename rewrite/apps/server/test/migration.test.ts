@@ -154,6 +154,32 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     f.close();
   });
 
+  it("a version 21 file makes the pictures of Bilder on slideshows' pages and overlays the pages' own, leaving out one that is gone", () => {
+    const element = (id: string, imageId: string) => ({ id, kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId, fit: 'contain' });
+    const old = { background: null, backgroundImageId: 'IMG', elements: [element('e1', 'IMG'), element('e2', 'GONE')] };
+    const file = fileWith(driver, [
+      ...orgDdl,
+      schemaMetaDdl,
+      'INSERT INTO _schema (one, version) VALUES (1, 21)',
+      `INSERT INTO images (id, file_name, content_type, full_hash, thumb_hash, width, height, created_at) VALUES ('IMG', 'a.webp', 'image/webp', 'f', 't', 10, 10, 1)`,
+      `INSERT INTO custom_slides (id, name, pages, created_at, updated_at) VALUES ('S', 'Välkommen', '${JSON.stringify([old])}', 1, 1)`,
+      `INSERT INTO overlays (id, title, content, sort) VALUES ('O', 'Kollekt', '${JSON.stringify({ ...old, backgroundImageId: null })}', 0)`,
+    ]);
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    const picture = { full: 'f', thumb: 't' };
+    const own = { id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, fit: 'contain', picture };
+    const [slideshow] = f.query('SELECT pages FROM custom_slides');
+    const [overlay] = f.query('SELECT content FROM overlays');
+    expect([JSON.parse(String(slideshow?.pages)), JSON.parse(String(overlay?.content))]).toEqual([
+      [{ background: null, backgroundPicture: picture, backgroundPage: null, elements: [own] }],
+      { background: null, backgroundPicture: null, backgroundPage: null, elements: [own] },
+    ]);
+    f.close();
+  });
+
   it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {
     const f = openSqlite(fileWith(driver, []), driver);
     nodeOrgStore(f);

@@ -11,13 +11,13 @@ import {
   toCanvas,
   toPublicSlide,
   type LiveOwnState,
-  type ShownPage,
+  type CustomPage,
 } from '@gp/core';
 
-/** A page of `n` texts, each `text`, and one picture. */
-function pageOf(n: number, text: string): ShownPage {
+/** A page of `n` texts, each `text`, over a picture. */
+function pageOf(n: number, text: string): CustomPage {
   const element = (i: number) => ({ id: `t${i}`, kind: 'text' as const, x: 0, y: i, w: 100, h: 100, text, size: 96, bold: false, italic: false, align: 'center' as const, color: null });
-  return { page: { ...blankPage(), elements: Array.from({ length: n }, (_, i) => element(i)) }, images: { p: { full: 'a'.repeat(64), thumb: 'b'.repeat(64) } } };
+  return { ...blankPage(), backgroundPicture: { full: 'a'.repeat(64), thumb: 'b'.repeat(64) }, elements: Array.from({ length: n }, (_, i) => element(i)) };
 }
 
 describe('live reports', () => {
@@ -87,7 +87,7 @@ describe('live reports', () => {
     expect(canvas.slide!.text).toHaveLength(PUBLIC_SLIDE_LIMITS.text);
   });
 
-  it('keeps the overlay of a canvas with nothing selected, its page and pictures', () => {
+  it('keeps the overlay of a canvas with nothing selected, its page with its pictures', () => {
     const overlay = pageOf(1, 'Välkommen');
 
     const canvas = toCanvas(null, 'classic', overlay);
@@ -105,7 +105,7 @@ describe('live reports', () => {
     const canvas = toCanvas({ kind: 'song', text: '', verses: null, image: null, credits: null, custom: pageOf(100, 'a'.repeat(2000)) }, 'classic', null);
 
     const custom = canvas.slide!.custom!;
-    expect([JSON.stringify(custom).length <= CANVAS_PAGE_MAX, custom.page.elements.length < 100, custom.page.elements[0]?.id]).toEqual([true, true, 't0']);
+    expect([JSON.stringify(custom).length <= CANVAS_PAGE_MAX, custom.elements.length < 100, custom.elements[0]?.id]).toEqual([true, true, 't0']);
   });
 
   it('draws an older owner\'s public slide on a screen, without the overlay', () => {

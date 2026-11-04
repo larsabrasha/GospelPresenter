@@ -21,13 +21,15 @@ A page is a 1920×1080 stage (`CANVAS`), so it is drawn the same on every output
 each with a box in stage pixels (`x`, `y`, `w`, `h`):
 
 - **text**: the text, its size, bold, italic, its alignment, and a colour;
-- **image**: a picture of Bilder by id (a reference: a trashed picture still shows, a purged one is left out), fitted
-  inside its box or filling it;
+- **image**: a picture, fitted inside its box or filling it. It is the slideshow's own (`picture`: the hashes of its
+  `full` and `thumb` blobs), as Keynote keeps its pictures (Lars, 2026-11-04): one taken from Bilder is a copy, the
+  same blobs, as blobs are named by their content, so it takes no more room; one taken from the device goes into the
+  slideshow only. Bilder and slideshows are apart: a picture removed from Bilder leaves every slideshow as it was;
 - **rect** (with a corner radius), **ellipse**: a fill and an outline, each a colour or none;
 - **line**: from the box's one corner to the other, a colour and a width.
 
-A page's background is a colour, a picture of Bilder, or nothing, and over it a PDF's page (`backgroundPage`, the
-hashes of its `full` and `thumb` blobs), fitted to the stage, where the slideshow was imported. Nothing, and a colour or a font that is not set,
+A page's background is a colour, a picture of its own filling the stage (`backgroundPicture`), or nothing, and over
+it a PDF's page (`backgroundPage`), fitted to the stage, where the slideshow was imported. Nothing, and a colour or a font that is not set,
 follow the presentation's theme: the background, the font and the text colour of its song slides. So the same slide
 fits a dark and a light theme, and what is set stays as set. An overlay's page has no background.
 
@@ -44,6 +46,8 @@ Limits, so a page stays small enough to sync and draw: 100 elements a page, 100 
   now, one per page (`apps/web/src/live/live.ts`).
 - `overlays` keeps its table and ids, so items, the live pointer and the outputs keep naming overlays as now; its
   `content` holds the page (JSON), and `image_id` is no longer used.
+- Until schema 22 a page's pictures were pictures of Bilder by id (`imageId`, `backgroundImageId`); the migration
+  made each the page's own blobs, those of the picture then, and left out one whose picture was gone.
 
 ## PDFs
 
@@ -68,16 +72,21 @@ and dropped the table. An import from 1.x writes slideshows; a zip of an older f
 ## The outputs
 
 - This machine's output window draws a page as every preview does (`SlideView`).
-- A public output gets text only, as now: a page's texts.
-- A paired screen gets the canvas: the page with its pictures' hashes, and the server lets it fetch a picture only
-  if the page of an item in the shown presentation, or the overlay switched on, has it (`live-output-gate.ts`).
+- A public output gets a page's texts, and a PDF page's picture.
+- A paired screen gets the canvas: the page, its pictures' hashes in it, and the server lets it fetch a picture only
+  if the canvas draws it and a slideshow of the shown presentation, or the overlay switched on, has it
+  (`live-output-gate.ts`, `SLIDE_PAGES_SQL`, `OVERLAY_PICTURES_SQL`).
+- A presentation's files, which a device fetches to present, include its slideshows' pictures and every overlay's;
+  the clean-up keeps the blobs any slideshow of the library (the trash too) or overlay draws (`ORPHAN_BLOBS_SQL`), and
+  a slideshow's or an overlay's save is refused with `media-missing` until its pictures' blobs are uploaded, which
+  `MediaUploads` does before the push.
 
 ## The editor
 
 As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
 
 - **Above the page**, Ångra and Gör om at the left, + and Format (the brush) at the right. + adds a text, a picture
-  of Bilder, or a shape (rektangel, rundad rektangel, ellips, linje) in the middle of the page.
+  (of Bilder or from the device, `ImagePicker.tsx`), or a shape (rektangel, rundad rektangel, ellips, linje) in the middle of the page.
 - **The page** is drawn as the outputs draw it (`CustomPageView`), scaled to the column. A tap picks an element,
   a tap beside them all picks none; the picked one is dragged and sized by its handles (react-moveable, larger
   on a touch screen), and lines up with the page's edges and middle and with the other elements by yellow guides.
@@ -106,3 +115,4 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
    overlay mode (one page, no background, `pages/custom-slides/edited.ts`); paired screens' canvas and the server's
    picture gate for both; the pictures fetched with a presentation's files. Done 2026-11-04.
 3. A PDF is a slideshow (schema 21): one library and one tab, Bildspel, for both (Lars, 2026-11-04). Done 2026-11-04.
+4. A page's pictures are its own, not pictures of Bilder (schema 22, LEGACY_FORMAT 5), from Bilder or the device. Done 2026-11-04.

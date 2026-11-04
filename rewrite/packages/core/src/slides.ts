@@ -1,4 +1,4 @@
-import type { ShownPage } from './custom-slides.ts';
+import type { CustomPage } from './custom-slides.ts';
 import { z } from 'zod';
 import { bibleCredits, bibleSlideText, type BibleItemContent, type BibleSlide } from './bible.ts';
 import { MEDIA_HASH } from './media.ts';
@@ -34,7 +34,7 @@ export interface Slide {
    * A custom slide's page (docs/custom-slides.md), drawn instead of the text; `kind` is `song`, whose theme style it
    * follows, and `text` its texts, for a public output.
    */
-  custom?: ShownPage;
+  custom?: CustomPage;
 }
 
 /** "Author · © Publisher · Year", dropping missing pieces; null if there are none (spec 04). */

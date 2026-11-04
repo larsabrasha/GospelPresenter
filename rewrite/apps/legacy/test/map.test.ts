@@ -276,7 +276,7 @@ describe('the rest', () => {
     ]);
   });
 
-  it('makes an overlay’s own picture a library picture the overlay names', async () => {
+  it('makes an overlay’s own picture the page’s own, not a picture of Bilder', async () => {
     const media = noMedia();
     media.overlayImages.set('ov', { fullHash: 'f', thumbHash: 't', width: 800, height: 600, contentType: 'image/webp' });
     const data = oldData({ overlays: [{ Id: 'ov', Title: 'Kollekt', Content: null, HasImage: true, SortOrder: 7 }] });
@@ -284,8 +284,8 @@ describe('the rest', () => {
     const { rows } = await mapOrg(data, media, 1000);
 
     expect(rows.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as unknown }))).toEqual([
-      { id: 'ov', title: 'Kollekt', content: legacyOverlayPage(null, 'ov-image'), image_id: null, sort: 0, updated_at: 1000 },
+      { id: 'ov', title: 'Kollekt', content: legacyOverlayPage(null, { full: 'f', thumb: 't' }), image_id: null, sort: 0, updated_at: 1000 },
     ]);
-    expect(rows.images).toEqual([{ id: 'ov-image', file_name: 'Kollekt.webp', content_type: 'image/webp', full_hash: 'f', thumb_hash: 't', width: 800, height: 600, created_at: 1000, deleted_at: null }]);
+    expect(rows.images).toEqual([]);
   });
 });

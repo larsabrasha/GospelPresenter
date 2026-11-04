@@ -142,37 +142,36 @@ export function recordMediaBlobSql(hash: string, contentType: string, size: numb
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
 /**
- * Every PDF page of every slideshow a presentation's items name, with the presentation: a row per page
- * (docs/custom-slides.md).
+ * Every picture a page of `pages` draws (docs/custom-slides.md): its PDF page, its background picture and its
+ * pictures, each a row of `full_hash` and `thumb_hash` and the columns `cols` of `from`, which names its pages `pg`
+ * (a `json_each` over them).
  */
-export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.backgroundPage.full') AS full_hash, json_extract(j.value, '$.backgroundPage.thumb') AS thumb_hash
-  FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) j
-  WHERE p.type = 'custom' AND json_extract(j.value, '$.backgroundPage') IS NOT NULL`;
+const pagePictures = (cols: string, from: string, where = '1') =>
+  ['$.backgroundPage', '$.backgroundPicture']
+    .map((at) => `SELECT ${cols}json_extract(pg.value, '${at}.full') AS full_hash, json_extract(pg.value, '${at}.thumb') AS thumb_hash
+  FROM ${from} WHERE ${where} AND json_extract(pg.value, '${at}') IS NOT NULL`)
+    .concat(`SELECT ${cols}json_extract(e.value, '$.picture.full') AS full_hash, json_extract(e.value, '$.picture.thumb') AS thumb_hash
+  FROM ${from}, json_each(pg.value, '$.elements') e WHERE ${where} AND json_extract(e.value, '$.kind') = 'image'`)
+    .join('\n  UNION ALL\n  ');
 
-/** Every PDF page of every slideshow of the library, the trash too: blobs a slideshow still names. */
-const DECK_PAGES_SQL = `SELECT json_extract(j.value, '$.backgroundPage.full') AS full_hash, json_extract(j.value, '$.backgroundPage.thumb') AS thumb_hash
-  FROM custom_slides c, json_each(c.pages) j WHERE json_extract(j.value, '$.backgroundPage') IS NOT NULL`;
+/** Every picture of every slideshow a presentation's items name, with the presentation: a row per picture. */
+export const SLIDE_PAGES_SQL = pagePictures('p.presentation_id, ', `presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg`, `p.type = 'custom'`);
+
+/** Every picture of every slideshow of the library, the trash too: blobs a slideshow still names. */
+const SLIDESHOW_PICTURES_SQL = pagePictures('', 'custom_slides c, json_each(c.pages) pg');
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single
- * picture, the content's list of one with several (slides.ts `imageItemIds`); and every picture of Bilder a custom
- * slide's pages draw, their backgrounds and their elements (docs/custom-slides.md).
+ * picture, the content's list of one with several (slides.ts `imageItemIds`).
  */
 export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_id FROM presentation_items p WHERE p.type = 'image' AND p.content IS NULL
   UNION ALL
-  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL
-  UNION ALL
-  SELECT p.presentation_id, json_extract(pg.value, '$.backgroundImageId') AS image_id FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg
-    WHERE p.type = 'custom' AND json_extract(pg.value, '$.backgroundImageId') IS NOT NULL
-  UNION ALL
-  SELECT p.presentation_id, json_extract(e.value, '$.imageId') AS image_id FROM presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg, json_each(pg.value, '$.elements') e
-    WHERE p.type = 'custom' AND json_extract(e.value, '$.kind') = 'image'`;
+  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
 
-/** Every picture of Bilder an overlay's page draws, with the overlay and its place in the list (docs/custom-slides.md). */
-export const OVERLAY_IMAGES_SQL = `SELECT o.id AS overlay_id, o.sort, json_extract(e.value, '$.imageId') AS image_id FROM overlays o, json_each(o.content, '$.elements') e
-  WHERE json_extract(e.value, '$.kind') = 'image'`;
+/** Every picture an overlay's page draws, with the overlay and its place in the list (docs/custom-slides.md). */
+export const OVERLAY_PICTURES_SQL = pagePictures('o.id AS overlay_id, o.sort, ', `overlays o, json_each(json_array(json(o.content))) pg`);
 
-/** The blobs no image, audio file, video, slide deck or song's sheet music names, older than the grace period: what a clean-up may remove. */
+/** The blobs no image, audio file, video, slideshow, overlay or song's sheet music names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
     AND hash NOT IN (SELECT hash FROM song_materials WHERE hash IS NOT NULL)
@@ -182,5 +181,7 @@ export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
     AND hash NOT IN (SELECT hash FROM videos)
     AND hash NOT IN (SELECT still_hash FROM videos)
     AND hash NOT IN (SELECT thumb_hash FROM videos)
-    AND hash NOT IN (SELECT full_hash FROM (${DECK_PAGES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${DECK_PAGES_SQL}))`;
+    AND hash NOT IN (SELECT full_hash FROM (${SLIDESHOW_PICTURES_SQL}))
+    AND hash NOT IN (SELECT thumb_hash FROM (${SLIDESHOW_PICTURES_SQL}))
+    AND hash NOT IN (SELECT full_hash FROM (${OVERLAY_PICTURES_SQL}))
+    AND hash NOT IN (SELECT thumb_hash FROM (${OVERLAY_PICTURES_SQL}))`;

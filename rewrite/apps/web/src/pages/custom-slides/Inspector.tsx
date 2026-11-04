@@ -70,10 +70,10 @@ export function Inspector({
         <Group title={t('slideEditor.page', { n: pageAt + 1 })}>
           <ColorChoice label={t('slideEditor.background')} value={page.background} empty="theme" onChange={(background) => onPage('background', (p) => ({ ...p, background }))} />
           <AppButton variant="plain" className={ACTION_ROW} onClick={() => onChoose('background')}>
-            {t(page.backgroundImageId ? 'slideEditor.replaceBackground' : 'slideEditor.backgroundImage')}
+            {t(page.backgroundPicture ? 'slideEditor.replaceBackground' : 'slideEditor.backgroundImage')}
           </AppButton>
-          {page.backgroundImageId && (
-            <AppButton variant="plain" className={ACTION_ROW} onClick={() => onPage('background', (p) => ({ ...p, backgroundImageId: null }))}>
+          {page.backgroundPicture && (
+            <AppButton variant="plain" className={ACTION_ROW} onClick={() => onPage('background', (p) => ({ ...p, backgroundPicture: null }))}>
               {t('slideEditor.removeBackground')}
             </AppButton>
           )}

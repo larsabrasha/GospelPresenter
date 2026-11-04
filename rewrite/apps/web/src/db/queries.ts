@@ -3,6 +3,7 @@ import {
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
   parseCustomPage,
+  type CustomPage,
   REMOTE_CONTROL_SETTING,
   remoteControlPolicy,
   resolveTheme,
@@ -22,12 +23,10 @@ import {
   type SongArrangement,
   type SongMaterial,
   type SongPart,
-  type ShownPage,
   type SongVersion,
   type Theme,
 } from '@gp/core';
 import { locale } from '../i18n.ts';
-import { shownPages } from './customSlides.ts';
 import type { ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
@@ -472,9 +471,9 @@ export async function getOverlay(db: ReadDb, id: string): Promise<Overlay | null
   return r ? overlay(r) : null;
 }
 
-/** What an overlay shows: its page, with the pictures it draws (docs/custom-slides.md). */
-export async function shownOverlay(db: ReadDb, id: string | null): Promise<ShownPage | null> {
+/** What an overlay shows: its page, its pictures its own (docs/custom-slides.md). */
+export async function shownOverlay(db: ReadDb, id: string | null): Promise<CustomPage | null> {
   if (!id) return null;
   const [r] = await db.query<{ content: string | null }>('SELECT content FROM overlays WHERE id = ?', [id]);
-  return r ? ((await shownPages(db, [parseCustomPage(r.content)]))[0] ?? null) : null;
+  return r ? parseCustomPage(r.content) : null;
 }

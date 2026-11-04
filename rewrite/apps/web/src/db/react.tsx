@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { ShownPage, Song } from '@gp/core';
+import type { CustomPage, Song } from '@gp/core';
 import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
@@ -93,7 +93,7 @@ export function useBlobUrl(hash: string | null): string | null {
 }
 
 /** What the overlay `id` shows, or null for none (or one deleted meanwhile). */
-export function useShownOverlay(id: string | null): ShownPage | null {
+export function useShownOverlay(id: string | null): CustomPage | null {
   return useData((db) => shownOverlay(db, id), [id]) ?? null;
 }
 

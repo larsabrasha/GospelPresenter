@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { shownPageSchema, type ShownPage } from './custom-slides.ts';
+import { customPageSchema, type CustomPage } from './custom-slides.ts';
 import { OVERLAY_LIMITS } from './live.ts';
 import { VIDEO_CODECS, VIDEO_TYPES } from './video.ts';
 
@@ -110,15 +110,15 @@ export type LiveVideo = z.infer<typeof liveVideoSchema>;
 export const canvasSchema = z.object({
   /**
    * A video slide carries its video and where it is; its `image` is the still, for a screen that cannot play it. A
-   * custom slide carries its page, its pictures' blobs served at the screen's `/image/{hash}` while it is shown.
+   * slideshow's slide carries its page, its pictures' blobs served at the screen's `/image/{hash}` while it is shown.
    */
   slide: publicSlideSchema
     .pick({ kind: true, text: true, verses: true, image: true, credits: true })
-    .extend({ video: liveVideoSchema.nullable().optional(), custom: shownPageSchema.optional() })
+    .extend({ video: liveVideoSchema.nullable().optional(), custom: customPageSchema.optional() })
     .nullable(),
   themeId: z.string().max(100),
-  /** The overlay switched on (docs/custom-slides.md): its page, drawn above the slide, its pictures served as a custom slide's. */
-  overlay: shownPageSchema.nullable(),
+  /** The overlay switched on (docs/custom-slides.md): its page, drawn above the slide, its pictures served as a slideshow's. */
+  overlay: customPageSchema.nullable(),
 });
 export type Canvas = z.infer<typeof canvasSchema>;
 
@@ -129,24 +129,24 @@ export type Canvas = z.infer<typeof canvasSchema>;
 export const CANVAS_PAGE_MAX = 20 * 1024;
 
 /** A page cut to CANVAS_PAGE_MAX: the elements drawn last (on top) go first. */
-function cutPage(shown: ShownPage): ShownPage {
-  let elements = shown.page.elements;
-  while (elements.length && JSON.stringify({ ...shown, page: { ...shown.page, elements } }).length > CANVAS_PAGE_MAX) elements = elements.slice(0, -1);
-  return elements === shown.page.elements ? shown : { ...shown, page: { ...shown.page, elements } };
+function cutPage(page: CustomPage): CustomPage {
+  let elements = page.elements;
+  while (elements.length && JSON.stringify({ ...page, elements }).length > CANVAS_PAGE_MAX) elements = elements.slice(0, -1);
+  return elements === page.elements ? page : { ...page, elements };
 }
 
 /** The canvas of `slide` (null: nothing selected) and the overlay's page, cut to what a report may carry; `video` where the slide is a video's. */
 export function toCanvas(
-  slide: (Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> & { custom?: ShownPage }) | null,
+  slide: (Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> & { custom?: CustomPage }) | null,
   themeId: string,
-  overlay: ShownPage | null,
+  overlay: CustomPage | null,
   video: LiveVideo | null = null,
 ): Canvas {
   const cut = slide && toPublicSlide(slide, themeId);
   return {
     slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits, ...(video ? { video } : {}), ...(slide.custom ? { custom: cutPage(slide.custom) } : {}) },
     themeId,
-    overlay: overlay?.page.elements.length ? cutPage(overlay) : null,
+    overlay: overlay?.elements.length ? cutPage(overlay) : null,
   };
 }
 

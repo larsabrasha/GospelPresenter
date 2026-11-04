@@ -5,12 +5,13 @@ const rowsWith = (overlays: LegacyRows['overlays']) => ({ ...(Object.fromEntries
 
 describe('a 1.x export of format 1', () => {
   it("makes an overlay's text and picture a page the server takes, the picture under the text", () => {
-    const rows = rowsWith([{ id: 'ov', title: 'Kollekt', content: 'Swish\n123', image_id: 'ov-image', sort: 0 }]);
+    const image = { id: 'ov-image', file_name: 'Kollekt.webp', content_type: 'image/webp', full_hash: 'f'.repeat(64), thumb_hash: 't'.repeat(64), width: 800, height: 600, created_at: 1, deleted_at: null };
+    const rows = { ...rowsWith([{ id: 'ov', title: 'Kollekt', content: 'Swish\n123', image_id: 'ov-image', sort: 0 }]), images: [image] };
 
     const upgraded = upgradeLegacyRows(1, rows);
 
     const page = JSON.parse(String(upgraded.overlays[0]!.content)) as CustomPage;
-    expect([legacyRowsProblem(upgraded), page.elements.map((e) => (e.kind === 'text' ? e.text : e.kind === 'image' ? e.imageId : e.kind))]).toEqual([null, ['ov-image', 'Swish\n123']]);
+    expect([legacyRowsProblem(upgraded), page.elements.map((e) => (e.kind === 'text' ? e.text : e.kind === 'image' ? e.picture.full : e.kind))]).toEqual([null, ['f'.repeat(64), 'Swish\n123']]);
   });
 
   it('leaves the rows of the current format as they are', () => {
@@ -42,5 +43,20 @@ describe('a 1.x export of format 3', () => {
     const upgraded = upgradeLegacyRows(3, older([deckItem(null)], [{ id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify([page]), created_at: 0, updated_at: 0, deleted_at: null }]));
 
     expect([legacyRowsProblem(upgraded), upgraded.custom_slides, upgraded.presentation_items.map((i) => i.type)]).toEqual([null, [slideshow], ['custom']]);
+  });
+});
+
+describe('a 1.x export of format 4', () => {
+  it("makes an overlay's picture of Bilder the page's own, and a slideshow's page the current shape", () => {
+    const image = { id: 'IMG', file_name: 'Kollekt.webp', content_type: 'image/webp', full_hash: 'f'.repeat(64), thumb_hash: 't'.repeat(64), width: 800, height: 600, created_at: 1, deleted_at: null };
+    const element = { id: 'image', kind: 'image', x: 0, y: 0, w: 1920, h: 1080, imageId: 'IMG', fit: 'contain' };
+    const content = JSON.stringify({ background: null, backgroundImageId: null, elements: [element] });
+    const deck = { id: 'D', name: 'Predikan.pdf', pages: JSON.stringify([{ background: '#000000', backgroundImageId: null, backgroundPage: page, elements: [] }]), created_at: 0, updated_at: 0, deleted_at: null };
+    const rows = { ...rowsWith([{ id: 'ov', title: 'Kollekt', content, image_id: null, sort: 0, updated_at: 1 }]), images: [image], custom_slides: [deck] };
+
+    const upgraded = upgradeLegacyRows(4, rows);
+
+    const overlay = JSON.parse(String(upgraded.overlays[0]!.content)) as CustomPage;
+    expect([legacyRowsProblem(upgraded), overlay.elements[0]?.kind === 'image' && overlay.elements[0].picture]).toEqual([null, { full: 'f'.repeat(64), thumb: 't'.repeat(64) }]);
   });
 });

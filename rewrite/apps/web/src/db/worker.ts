@@ -397,6 +397,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return importBible(call.data);
     case 'addImage':
       return adds.addImage(call.image);
+    case 'keepPicture':
+      return adds.keepPicture(call.image);
     case 'addAudio':
       return adds.addAudio(call.audio);
     case 'addSongFile':

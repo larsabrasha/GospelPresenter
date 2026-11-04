@@ -438,8 +438,9 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
   });
 
   it('a user makes one and puts a page on it, without a background; an item carries it until it is deleted', async () => {
-    const page: CustomPage = { background: '#000000', backgroundImageId: 'IMG', backgroundPage: null, elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId: 'IMG', fit: 'contain' }] };
     const p = await uploaded(h, org, bob, 'swish');
+    const picture = { full: p.fullHash, thumb: p.thumbHash };
+    const page: CustomPage = { background: '#000000', backgroundPicture: picture, backgroundPage: null, elements: [{ id: 'e1', kind: 'image', x: 0, y: 0, w: 960, h: 540, picture, fit: 'contain' }] };
     await bob.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash));
     await bob.client.mutate('createOverlay', { id: 'O1', title: ' Kollekt ', at: 1 });
     await bob.client.mutate('createOverlay', { id: 'O2', title: 'Välkommen', at: 1 });
@@ -451,7 +452,7 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
     expect(bob.client.rejected).toEqual([]);
     let s = await serverDump(h, org, 'bob');
     expect(s.tables.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as CustomPage }))).toEqual([
-      { id: 'O1', title: 'Kollekt', content: { ...page, background: null, backgroundImageId: null }, image_id: null, sort: 0, updated_at: 2 },
+      { id: 'O1', title: 'Kollekt', content: { ...page, background: null, backgroundPicture: null }, image_id: null, sort: 0, updated_at: 2 },
       { id: 'O2', title: 'Välkommen', content: blankPage(), image_id: null, sort: 1, updated_at: 1 },
     ]);
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: 'O1' }]);

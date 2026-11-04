@@ -1,4 +1,4 @@
-import type { ShownPage, Slide, Theme } from '@gp/core';
+import type { CustomPage, Slide, Theme } from '@gp/core';
 import type { ReactNode } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -32,7 +32,7 @@ export function LivePicture({
 }: {
   slide: Slide | null;
   theme: Theme;
-  overlay: ShownPage | null;
+  overlay: CustomPage | null;
   black: boolean;
   canStep?: { back: boolean; forward: boolean };
   onStep?: (delta: number) => void;

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
-import { CANVAS, type CustomElement, type ShownPage, type Theme } from '@gp/core';
+import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { mainCss, stageCss } from '../../themes.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
@@ -26,7 +26,7 @@ function drawnLeftTop(e: CustomElement): [number, number] {
 }
 
 export function EditorCanvas({
-  shown,
+  page,
   theme,
   picked,
   editingText,
@@ -35,7 +35,7 @@ export function EditorCanvas({
   onChange,
   onEditText,
 }: {
-  shown: ShownPage;
+  page: CustomPage;
   theme: Theme;
   picked: string | null;
   /** The picked text is being written on the slide itself (a double tap), as Keynote's. */
@@ -50,7 +50,7 @@ export function EditorCanvas({
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
   const moveable = useRef<Moveable>(null);
   const [scale, setScale] = useState(0);
-  const element = picked ? shown.page.elements.find((e) => e.id === picked) : undefined;
+  const element = picked ? page.elements.find((e) => e.id === picked) : undefined;
   const writing = editingText && element?.kind === 'text' ? element : null;
 
   useLayoutEffect(() => {
@@ -66,7 +66,7 @@ export function EditorCanvas({
   const nodeOf = (id: string) => stage?.querySelector<HTMLElement | SVGElement>(`[data-element="${CSS.escape(id)}"]`) ?? null;
   const target = picked && stage ? () => nodeOf(picked)! : null;
   // The other elements and the stage's edges and middle to line up with, as Keynote's yellow guides.
-  const guides = () => [stage!, ...shown.page.elements.filter((e) => e.id !== picked).flatMap((e) => nodeOf(e.id) ?? [])];
+  const guides = () => [stage!, ...page.elements.filter((e) => e.id !== picked).flatMap((e) => nodeOf(e.id) ?? [])];
   useLayoutEffect(() => moveable.current?.updateRect());
 
   const press = (e: PointerEvent) => {
@@ -102,7 +102,7 @@ export function EditorCanvas({
       >
         <div className="absolute inset-0 overflow-hidden rounded-xl ring-1 ring-separator shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
           <div ref={setStage} className="absolute left-0 top-0 origin-top-left" style={{ width: CANVAS.width, height: CANVAS.height, transform: `scale(${scale})`, ...stageCss(theme, 'song') }}>
-            <CustomPageView shown={shown} theme={theme} hide={writing?.id} />
+            <CustomPageView page={page} theme={theme} hide={writing?.id} />
             {writing && <InlineText element={writing} theme={theme} onChange={(text) => onChange(writing.id, { text })} onDone={() => onEditText(false)} />}
           </div>
         </div>

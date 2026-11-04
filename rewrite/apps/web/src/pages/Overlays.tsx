@@ -20,7 +20,7 @@ function OverlayTile({ overlay, themeId }: { overlay: OverlayEntry; themeId: str
   const shown = useShownOverlay(overlay.id);
   return (
     <span className="block w-full aspect-video rounded-lg overflow-hidden">
-      <SlideView slide={pageSlide({ page: blankPage(), images: {} })} overlay={shown} theme={resolveTheme(null, themeId)} label={false} credits={false} />
+      <SlideView slide={pageSlide(blankPage())} overlay={shown} theme={resolveTheme(null, themeId)} label={false} credits={false} />
     </span>
   );
 }

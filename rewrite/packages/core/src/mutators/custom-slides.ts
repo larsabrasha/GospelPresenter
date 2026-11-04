@@ -10,10 +10,10 @@ import { changePresentation, insertItem } from './presentations.ts';
 // ------------------------------------------------------------------ slideshows (Bildspel, docs/custom-slides.md)
 
 /**
- * Every PDF page `pages` draw must be known where this runs, as a picture's blobs for `addImage`: on the server the
- * uploads recorded them, on the importing device the import did.
+ * Every picture `pages` draw, a PDF's page too, must be known where this runs, as a picture's blobs for `addImage`:
+ * on the server the uploads recorded them, on the device that added it the import did.
  */
-async function requirePdfPages(tx: Tx, pages: CustomPage[]) {
+export async function requirePictures(tx: Tx, pages: CustomPage[]) {
   for (const hash of new Set(customPageBlobs(pages))) {
     const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
     if (!blob) throw new MutationError('media-missing', 'a page has not been uploaded');
@@ -25,7 +25,7 @@ async function insertSlide(tx: Tx, a: { id: string; name: string; pages: CustomP
   if (existing) return; // a replay of a create that already landed
   const [n] = await tx.select({ n: count() }).from(customSlides).where(isNull(customSlides.deletedAt));
   limit((n?.n ?? 0) >= CUSTOM_LIMITS.slides, 'custom-slides');
-  await requirePdfPages(tx, a.pages);
+  await requirePictures(tx, a.pages);
   await tx.insert(customSlides).values({ id: a.id, name: a.name, pages: JSON.stringify(a.pages), createdAt: a.at, updatedAt: a.at, deletedAt: null });
 }
 
@@ -40,7 +40,7 @@ export const updateCustomSlideArgs = z.object({ id, name: name.optional(), pages
 /** Its name, its pages (a new PDF's too), or both; the pages are written whole, so the last of two devices' saves wins them. */
 export async function updateCustomSlide(tx: Tx, a: z.output<typeof updateCustomSlideArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  if (a.pages) await requirePdfPages(tx, a.pages);
+  if (a.pages) await requirePictures(tx, a.pages);
   const set = { updatedAt: a.at, ...(a.name !== undefined ? { name: a.name } : {}), ...(a.pages !== undefined ? { pages: JSON.stringify(a.pages) } : {}) };
   await tx.update(customSlides).set(set).where(eq(customSlides.id, a.id));
 }

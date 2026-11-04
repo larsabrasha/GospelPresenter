@@ -3,6 +3,7 @@
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { closeAdmin, createPresentation, openAdmin, setUpHost } from './flows.ts';
+import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -36,11 +37,20 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await expect(canvas.locator('[data-element]')).toHaveCount(2);
   await expect(page.getByTestId('saved')).toBeVisible();
 
+  // A picture from this device is the slideshow's own: drawn on the page, and not put in Bilder.
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Välj bild' }).getByTestId('picture-file').setInputFiles({ name: 'Swish.png', mimeType: 'image/png', buffer: solidPng(640, 360, [14, 165, 233]) });
+  await expect(canvas.locator('img[data-element]')).toHaveCount(1);
+  await expect(page.getByTestId('saved')).toBeVisible();
+
   // In the library under Välj, the slide is drawn as wide as outside it (it was 0 wide once).
   await page.getByRole('link', { name: 'Tillbaka' }).click();
   await page.getByRole('button', { name: 'Välj', exact: true }).click();
   await expect.poll(async () => (await page.getByRole('checkbox', { name: 'Kollekt' }).getByTestId('custom-page').boundingBox())?.width ?? 0).toBeGreaterThan(50);
   await page.getByRole('button', { name: 'Klar', exact: true }).click();
+  await openAdmin(page, 'Bilder');
+  await expect(page.getByText('Inga bilder')).toBeVisible();
   await closeAdmin(page);
 
   await createPresentation(page, 'Söndag');
