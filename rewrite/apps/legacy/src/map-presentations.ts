@@ -1,4 +1,4 @@
-import { isKnownTheme, MAX_SLIDE_PAGES, pdfPages, type BibleItemContent, type LegacyRow, type SlidePage } from '@gp/core';
+import { isBuiltInTheme, MAX_SLIDE_PAGES, pdfPages, type BibleItemContent, type LegacyRow, type SlidePage } from '@gp/core';
 import { bibleSlideFromHtml } from './bible-html.ts';
 import { ms } from './map-songs.ts';
 import type { Media } from './media.ts';
@@ -16,7 +16,7 @@ export function mapPresentations(data: OldData): LegacyRow[] {
     name: p.Name,
     event_date: p.IsTemplate ? null : p.EventDate,
     deleted_at: ms(p.DeletedAt),
-    theme_id: p.ThemeId && isKnownTheme(p.ThemeId) ? p.ThemeId : null,
+    theme_id: p.ThemeId && isBuiltInTheme(p.ThemeId) ? p.ThemeId : null,
     is_template: p.IsTemplate ? 1 : 0,
     weekday: p.IsTemplate ? p.ScheduledDayOfWeek : null,
     time: hhmm(p.IsTemplate ? p.ScheduledTime : p.EventTime),

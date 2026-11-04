@@ -393,8 +393,9 @@ Milestone 4 (Bibles and themes):
   out, and a word followed by punctuation keeps no space before it (the current app writes
   "word ."). The `.usx` files of a zip are used when there is no `USX_1`/`USX_2` folder.
 - **A search that finds more than 500 verses asks before adding the first 500** (D13).
-- **Themes are not editable** (spec 05, ADR 0001). Lars confirmed on 2026-10-26 that the built-ins
-  are enough for now.
+- **Two built-in themes and the organisation's own** (Lars, 2026-11-04; docs/themes.md): Mörkt (spec 05's
+  Klassisk, id `classic`) and Ljust replace the four of spec 05; an admin makes, edits and deletes the
+  organisation's own. Until then, themes were not editable (Lars, 2026-10-26).
 - **A new default theme reaches a running output at once**, like a presentation's own theme
   (THEME-R6); spec 05's THEME-R11 keeps a running presentation on its theme until restarted. The black
   screen stays black whatever the theme.

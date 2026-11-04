@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { CANVAS, CLASSIC, type CustomPage, type Slide, type Theme } from '@gp/core';
+import { backgroundOf, CANVAS, CLASSIC, slideStyle, textAreaCss, type CustomPage, type Slide, type SlideKind, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { CustomPageView } from './CustomPageView.tsx';
+import { FittedText } from './FittedText.tsx';
 import { Highlight } from './Highlight.tsx';
 
 const STAGE_WIDTH = CANVAS.width;
@@ -45,6 +46,18 @@ function BlobPicture({ hash, thumb, className, testId }: { hash: string | null; 
 function Picture({ hash, thumb = null, media, className, testId }: { hash: string | null; thumb?: string | null; media: Media; className: string; testId?: string }) {
   if (!media) return <BlobPicture hash={hash} thumb={thumb} className={className} testId={testId} />;
   return hash ? <img className={className} src={media(hash)} alt="" data-testid={testId} draggable={false} /> : null;
+}
+
+/** A theme's own background picture, under the slide, with its scrim (THEME-R9); a built-in image is the stage's CSS. */
+function ThemePicture({ theme, kind, media }: { theme: Theme; kind: SlideKind; media: Media }) {
+  const bg = backgroundOf(theme, kind);
+  if (bg.image?.kind !== 'picture') return null;
+  return (
+    <>
+      <Picture hash={bg.image.full} thumb={bg.image.thumb} media={media} className={bg.fit === 'cover' ? 'slide-picture object-cover' : 'slide-picture object-contain'} testId="theme-picture" />
+      {bg.scrim > 0 && <div className="slide-picture" style={{ background: `rgba(0, 0, 0, ${bg.scrim / 100})` }} />}
+    </>
+  );
 }
 
 /** An overlay above the slide (LIVE-R15, docs/custom-slides.md): its page, with no background, in the slide's theme. */
@@ -148,20 +161,24 @@ export function SlideView({
               <CustomPageView page={slide.custom} theme={theme} media={media} />
             ) : slide.kind === 'media' ? (
               <>
+                <ThemePicture theme={theme} kind="media" media={media} />
                 {slide.image && <Picture hash={slide.image} thumb={slide.thumb} media={media} className="slide-image" testId="slide-image" />}
                 {slide.video && video}
               </>
             ) : (
               <>
-                <div className="slide-content">
+                <ThemePicture theme={theme} kind={slide.kind} media={media} />
+                <div className="slide-content" style={textAreaCss(slideStyle(theme, slide.kind).main)}>
                   {/* Bible text flows as HTML does, with no kept line breaks (BibleTextSlide.razor); a song keeps its lines. */}
-                  <div className="slide-text" data-testid="slide-text" style={slide.verses ? { ...mainCss(theme, slide.kind), whiteSpace: 'normal' } : mainCss(theme, slide.kind)}>
+                  <FittedText css={slide.verses ? { ...mainCss(theme, slide.kind), whiteSpace: 'normal' } : mainCss(theme, slide.kind)}>
                     {slide.verses ? <BibleText slide={slide} /> : highlight ? <Highlight text={slide.text} query={highlight} /> : slide.text}
-                  </div>
+                  </FittedText>
                 </div>
                 {credits && slide.credits && (
-                  <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
-                    {slide.credits}
+                  <div className="slide-credits-box" style={textAreaCss(slideStyle(theme, slide.kind).credits)}>
+                    <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
+                      {slide.credits}
+                    </div>
                   </div>
                 )}
               </>

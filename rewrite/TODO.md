@@ -2,11 +2,12 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
-## Themes of our own (from Lars 2026-11-04; not started)
+## Themes of our own (from Lars 2026-11-04; started 2026-11-04)
 
-More advanced themes, and themes a church makes itself: its own fonts, colours, backgrounds (a picture or a video),
-text placement and sizes for songs and Bible text, credits, and the like. Teman today lists the built-in ones only
-and picks the organisation's default (ADR 0001: the editor comes later).
+Two built-in themes, Mörkt and Ljust, and the organisation's own, made in an editor like the slideshows': fonts of
+the app's four, colours, a picture behind, the texts' boxes and placement, capitals, an outline, and text made
+smaller to fit (docs/themes.md). Not yet: a video behind, fonts of the church's own, one change for song and Bible
+text at once.
 
 ## Shortcuts in the admin dialog (from Lars 2026-10-31; not started)
 

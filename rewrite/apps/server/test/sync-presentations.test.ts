@@ -57,12 +57,12 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
     await fx.seed();
     await fx.alice.client.mutate('createArrangement', { id: 'A1', songId: 'S2', partIds: [] });
     await fx.alice.client.mutate('setItemArrangement', { itemId: 'I2', arrangementId: 'A1' });
-    await fx.alice.client.mutate('updatePresentation', { id: 'P', themeId: 'midnight', eventDate: '2026-11-01' });
+    await fx.alice.client.mutate('updatePresentation', { id: 'P', themeId: 'light', eventDate: '2026-11-01' });
 
     await fx.alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
     await fx.syncAll(fx.alice, fx.bob);
 
-    expect(await fx.presentation(fx.bob, 'T')).toMatchObject({ name: 'Söndag', is_template: 1, theme_id: 'midnight', event_date: null, weekday: null, time: null, location: null });
+    expect(await fx.presentation(fx.bob, 'T')).toMatchObject({ name: 'Söndag', is_template: 1, theme_id: 'light', event_date: null, weekday: null, time: null, location: null });
     expect((await fx.items(fx.bob, 'T')).map((r) => [r.type, r.title, r.source_id, r.sort, r.arrangement_id])).toEqual([
       ['song', 'Song 1', 'S1', 0, null],
       ['song', 'Song 2', 'S2', 1, 'A1'],
@@ -75,7 +75,7 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
   it('PRES-R30: a fx.presentation made from a template gets its fx.items and theme, and the template its last use', async () => {
     await fx.seed();
     await fx.alice.client.mutate('createTemplate', { id: 'T', name: 'Söndag', weekday: 0, time: '11:00', location: 'Kyrkan' });
-    await fx.alice.client.mutate('updatePresentation', { id: 'P', themeId: 'midnight' }); // a presentation's theme: not the template's
+    await fx.alice.client.mutate('updatePresentation', { id: 'P', themeId: 'light' }); // a presentation's theme: not the template's
     await fx.alice.client.mutate('addSongToPresentation', { itemId: 'TI1', presentationId: 'T', songId: 'S3' });
     await fx.alice.client.mutate('addSongToPresentation', { itemId: 'TI2', presentationId: 'T', songId: 'S4' });
     await fx.syncAll(fx.alice, fx.bob);

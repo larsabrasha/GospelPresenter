@@ -37,6 +37,7 @@ import { SongArrangement } from './pages/SongArrangement.tsx';
 import { SongArrangements } from './pages/SongArrangements.tsx';
 import { SongHistory } from './pages/SongHistory.tsx';
 import { SongMaterials } from './pages/song-materials/SongMaterials.tsx';
+import { ThemeEditor } from './pages/theme-editor/ThemeEditor.tsx';
 import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Templates } from './pages/Templates.tsx';
@@ -142,6 +143,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'songArrangement' && <SongArrangement key={route.arrangementId} id={route.id} arrangementId={route.arrangementId} />}
       {route.page === 'songMaterials' && <SongMaterials key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
+      {route.page === 'theme' && (can(me.role, 'ManageThemes') ? <ThemeEditor key={route.id} id={route.id} /> : <Refused text={t('themes.forbidden')} />)}
       {/* One page for both (Lars, 2026-11-04); /admin/public-outputs, the page of before, opens it too. */}
       {(route.page === 'displays' || route.page === 'publicOutputs') && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
@@ -234,6 +236,8 @@ function settingsTitle(route: Route, detail = false): string {
       return t('overlays.itemOverlay');
     case 'customSlide':
       return t('nav.customSlides');
+    case 'theme':
+      return t('nav.themes');
     case 'org':
       return t('orgs.one');
     default:
@@ -256,7 +260,7 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   return link ? t(link.label) : t('nav.admin');
 }
 
-const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide']);
+const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme']);
 
 /**
  * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
@@ -271,6 +275,7 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'user' ? { page: 'users' }
     : route.page === 'overlay' ? { page: 'overlays' }
     : route.page === 'customSlide' ? { page: 'customSlides' }
+    : route.page === 'theme' ? { page: 'themes' }
     : route.page === 'org' ? { page: 'orgs' }
     : route.page === 'logins' || route.page === 'storage' ? { page: 'settings' }
     : { page: 'admin' };

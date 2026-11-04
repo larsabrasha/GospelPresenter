@@ -170,9 +170,17 @@ import {
   renameBibleArgs,
   renameBible,
   deleteBible,
+} from './bibles-and-themes.ts';
+import {
   setDefaultThemeArgs,
   setDefaultTheme,
-} from './bibles-and-themes.ts';
+  createThemeArgs,
+  createTheme,
+  updateThemeArgs,
+  updateTheme,
+  deleteThemeArgs,
+  deleteTheme,
+} from './themes.ts';
 import {
   setRemoteControlArgs,
   setRemoteControl,
@@ -273,6 +281,9 @@ export const mutators = {
   deleteBible: m(deleteBibleArgs, deleteBible),
   renameBible: m(renameBibleArgs, renameBible),
   setDefaultTheme: m(setDefaultThemeArgs, setDefaultTheme),
+  createTheme: m(createThemeArgs, createTheme),
+  updateTheme: m(updateThemeArgs, updateTheme),
+  deleteTheme: m(deleteThemeArgs, deleteTheme),
   setRemoteControl: m(setRemoteControlArgs, setRemoteControl),
   addImage: m(addImageArgs, addImage),
   trashImage: m(trashImageArgs, trashImage),

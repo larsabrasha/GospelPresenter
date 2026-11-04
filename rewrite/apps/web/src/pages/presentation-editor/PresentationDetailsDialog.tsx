@@ -1,5 +1,7 @@
 import { listThemes } from '@gp/core';
 import { useState } from 'react';
+import { ownThemes } from '../../db/queries.ts';
+import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { themeName } from '../../themes.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -56,6 +58,7 @@ export function PresentationDetailsDialog({
 }) {
   const [d, setD] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const own = useData(ownThemes, []);
   const set = (field: keyof PresentationDetails) => (e: { target: { value: string } }) => setD((was) => ({ ...was, [field]: e.target.value }));
   const save = async () => {
     if (saving || !d.name.trim()) return;
@@ -84,7 +87,7 @@ export function PresentationDetailsDialog({
             {/* w-fit so the chevron stays on the control rather than at the far edge of the dialog. */}
             <SimpleSelect id="presentation-theme" className="w-fit" value={d.themeId} onChange={set('themeId')}>
               <option value="">{t('presentation.themeDefault')}</option>
-              {listThemes().map((th) => (
+              {listThemes(own ?? []).map((th) => (
                 <option key={th.id} value={th.id}>
                   {themeName(th)}
                 </option>

@@ -35,3 +35,15 @@ export const RED_TINT = 'text-red-600 dark:text-red-300 bg-red-500/10 dark:bg-re
  */
 export const RED_SHADOW = 'shadow-[0_6px_18px_-6px_rgba(239,68,68,0.5)]';
 export const GREEN_SHADOW = 'shadow-[0_6px_18px_-6px_rgba(16,185,129,0.55)]';
+
+/**
+ * What floats over the page (a dialog, a sheet, Format's panel) stands off it as macOS's windows do (Lars, 2026-11-04):
+ * a hairline round it, faint dark in light, light in dark, and in dark a highlight along its top edge.
+ */
+export const FLOATING_EDGE = 'ring-1 ring-black/5 dark:ring-white/12 dark:inset-shadow-[0_1px_0_rgb(255_255_255/0.08)]';
+
+/** The page under a dialog or a sheet, dimmed; more in dark, where a lighter box on a dark page stands out less. */
+export const DIMMED = 'bg-black/30 dark:bg-black/55';
+
+/** How dim DIMMED is, for a sheet pulled away to lighten it as it goes. */
+export const dimmedAlpha = (): number => (document.documentElement.classList.contains('dark') ? 0.55 : 0.3);

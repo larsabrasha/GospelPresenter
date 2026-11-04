@@ -3,7 +3,7 @@ import {
   bibleTextHash,
   CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
-  isKnownTheme,
+  isBuiltInTheme,
   legacyOverlayPage,
   serializeBibleText,
   sortBibleBooks,
@@ -78,7 +78,7 @@ function mapOverlays(data: OldData, media: Media, now: number): LegacyRow[] {
 function mapSettings(data: OldData): LegacyRow[] {
   const rows: LegacyRow[] = [];
   for (const s of data.settings) {
-    if (s.Key === 'DefaultThemeId' && isKnownTheme(s.Value)) rows.push({ id: DEFAULT_THEME_SETTING, value: s.Value });
+    if (s.Key === 'DefaultThemeId' && isBuiltInTheme(s.Value)) rows.push({ id: DEFAULT_THEME_SETTING, value: s.Value });
     if (s.Key === 'CcliCollectionEnabled') rows.push({ id: CCLI_COLLECTION_SETTING, value: s.Value.trim().toLowerCase() === 'true' ? 'true' : 'false' });
   }
   return rows;

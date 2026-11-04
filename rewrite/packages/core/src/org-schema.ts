@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 22;
+export const SCHEMA_VERSION = 23;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -49,6 +49,9 @@ const slideDecksDdl = `CREATE TABLE IF NOT EXISTS slide_decks (id TEXT PRIMARY K
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      codec TEXT NOT NULL, hash TEXT NOT NULL, size INTEGER NOT NULL, duration INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
      still_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`;
+
+const themesDdl = `CREATE TABLE IF NOT EXISTS themes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, definition TEXT NOT NULL,
+     sort INTEGER NOT NULL, updated_at INTEGER NOT NULL)`;
 
 const videoFilesDdl = `CREATE TABLE IF NOT EXISTS video_files (hash TEXT PRIMARY KEY NOT NULL, size INTEGER NOT NULL, received INTEGER NOT NULL,
      used_at INTEGER NOT NULL)`;
@@ -97,6 +100,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
   videoFilesDdl,
   customSlidesDdl,
+  themesDdl,
   ...orgIndexes,
 ];
 
@@ -166,6 +170,8 @@ export const orgMigrations: Record<number, string[]> = {
     `UPDATE custom_slides SET pages = (SELECT json_group_array(json(${ownPicturesSql('pg.value')})) FROM json_each(custom_slides.pages) pg) WHERE json_valid(pages)`,
     `UPDATE overlays SET content = ${ownPicturesSql('content')} WHERE json_valid(content)`,
   ],
+  // Themes of the organisation's own (docs/themes.md).
+  23: [themesDdl],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

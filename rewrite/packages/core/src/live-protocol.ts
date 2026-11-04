@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { customPageSchema, type CustomPage } from './custom-slides.ts';
 import { OVERLAY_LIMITS } from './live.ts';
+import { isBuiltInTheme, resolveTheme, themeDefinitionSchema, type Theme, type ThemeDefinition } from './themes.ts';
 import { VIDEO_CODECS, VIDEO_TYPES } from './video.ts';
 
 // Remote control (spec 04 §2, ADR 0004 as carried over by ADR 0007 decision 4).
@@ -25,6 +26,18 @@ export const liveChangeSchema = z.object({
 });
 export type LiveChange = z.infer<typeof liveChangeSchema>;
 
+/** The theme a report carries: its id, and its definition where it is the organisation's own. */
+type WireTheme = Pick<Theme, 'id' | 'definition'>;
+
+function themeOnWire(theme: WireTheme): { themeId: string; theme?: ThemeDefinition } {
+  return isBuiltInTheme(theme.id) ? { themeId: theme.id } : { themeId: theme.id, theme: theme.definition };
+}
+
+/** The theme a report draws in: the definition it carries, else the built-in theme of its id (Classic if unknown). */
+export function themeOfReport(r: { themeId: string; theme?: ThemeDefinition }): Theme {
+  return r.theme ? { id: r.themeId, sort: 0, name: '', description: '', definition: r.theme } : resolveTheme(r.themeId, null);
+}
+
 /**
  * What a public output shows (spec 04 §6): the slide as data, never HTML
  * (D25), with the theme by id. The owner builds it from its own copy, so
@@ -46,6 +59,8 @@ export const publicSlideSchema = z.object({
   image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
   credits: z.string().max(PUBLIC_SLIDE_LIMITS.credits).nullable(),
   themeId: z.string().max(100),
+  /** An own theme's definition (docs/themes.md): a viewer has no database to find it in. A built-in theme's is not sent. */
+  theme: themeDefinitionSchema.optional(),
   /** The overlay's texts, if one is shown (spec 04 §6). Its pictures and shapes are not sent: a public output shows text only. */
   overlay: z.string().max(OVERLAY_LIMITS.content).nullable().default(null),
 });
@@ -56,7 +71,7 @@ export type PublicSlide = z.infer<typeof publicSlideSchema>;
  * is at most 5 000 characters already; a Bible slide of unusually long verses
  * is the case this guards against.
  */
-export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'>, themeId: string, overlay: string | null = null): PublicSlide {
+export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'>, theme: WireTheme, overlay: string | null = null): PublicSlide {
   let budget: number = PUBLIC_SLIDE_LIMITS.text;
   const verses = slide.verses
     ? slide.verses.slice(0, PUBLIC_SLIDE_LIMITS.segments).flatMap((seg) => {
@@ -72,7 +87,7 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
     verses,
     image: slide.image,
     credits: slide.credits?.slice(0, PUBLIC_SLIDE_LIMITS.credits) ?? null,
-    themeId,
+    ...themeOnWire(theme),
     overlay: overlay?.slice(0, OVERLAY_LIMITS.content) ?? null,
   };
 }
@@ -117,6 +132,8 @@ export const canvasSchema = z.object({
     .extend({ video: liveVideoSchema.nullable().optional(), custom: customPageSchema.optional() })
     .nullable(),
   themeId: z.string().max(100),
+  /** An own theme's definition, as a public slide carries it. */
+  theme: themeDefinitionSchema.optional(),
   /** The overlay switched on (docs/custom-slides.md): its page, drawn above the slide, its pictures served as a slideshow's. */
   overlay: customPageSchema.nullable(),
 });
@@ -138,14 +155,14 @@ function cutPage(page: CustomPage): CustomPage {
 /** The canvas of `slide` (null: nothing selected) and the overlay's page, cut to what a report may carry; `video` where the slide is a video's. */
 export function toCanvas(
   slide: (Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> & { custom?: CustomPage }) | null,
-  themeId: string,
+  theme: WireTheme,
   overlay: CustomPage | null,
   video: LiveVideo | null = null,
 ): Canvas {
-  const cut = slide && toPublicSlide(slide, themeId);
+  const cut = slide && toPublicSlide(slide, theme);
   return {
     slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits, ...(video ? { video } : {}), ...(slide.custom ? { custom: cutPage(slide.custom) } : {}) },
-    themeId,
+    ...themeOnWire(theme),
     overlay: overlay?.elements.length ? cutPage(overlay) : null,
   };
 }
@@ -155,8 +172,8 @@ export function toCanvas(
  * draw that, without the overlay (its text alone is no page).
  */
 export function canvasOfPublicSlide(slide: PublicSlide): Canvas {
-  const { kind, text, verses, image, credits, themeId } = slide;
-  return { slide: { kind, text, verses, image, credits }, themeId, overlay: null };
+  const { kind, text, verses, image, credits, themeId, theme } = slide;
+  return { slide: { kind, text, verses, image, credits }, themeId, ...(theme ? { theme } : {}), overlay: null };
 }
 
 /**

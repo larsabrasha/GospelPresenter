@@ -290,6 +290,19 @@ export const displays = sqliteTable('displays', {
   createdAt: integer('created_at'),
 });
 
+/**
+ * A theme of the organisation's own (docs/themes.md): `definition` holds it as JSON (`ThemeDefinition`), all of it
+ * written at each save. `sort` is the order of creation. Deleted for good: presentations that showed it follow the
+ * default again.
+ */
+export const themes = sqliteTable('themes', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  definition: text('definition').notNull(),
+  sort: integer('sort').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
 export const orgSettings = sqliteTable('org_settings', {
   id: text('id').primaryKey(),
@@ -396,7 +409,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides, themes];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -414,3 +427,4 @@ export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 export type CustomSlide = typeof customSlides.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;
+export type ThemeRow = typeof themes.$inferSelect;

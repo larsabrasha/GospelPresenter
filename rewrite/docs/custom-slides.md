@@ -96,8 +96,9 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
   outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
   (to front, forward, backward, to back, Duplicera, Ta bort). With nothing picked it has the slide's name and the
   page's background (a colour, the theme's, or a picture). It stands at the right where the editor is wide enough
-  (its own width, `@4xl`: Inställningar's column is narrower than the window), else it is a sheet over the lower
-  part of the screen, pulled down to close.
+  (its own width, `@4xl`: Inställningar's column is narrower than the window); narrower, a popover under the brush,
+  as an iPad's, with the page beside it still to tap and drag; on a phone a sheet over the lower part of the screen,
+  the page above it, pulled down to close (Lars, 2026-11-04).
 - **The pages** are a column of numbered thumbnails at the left where the editor is wide, a row under the page
   otherwise; + adds a page after the open one, and a page's menu (held, or a right click) duplicates, moves or
   removes it.

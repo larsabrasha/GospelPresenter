@@ -2,7 +2,7 @@ import { createContext, useContext, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
-import { ROUND_CLOSE } from './glass.ts';
+import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
 import { CloseIcon } from './icons.tsx';
 import { useSheetDrag } from './sheetDrag.ts';
 
@@ -51,13 +51,13 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
     const el = backdrop.current;
     if (!el) return;
     el.style.transition = ms ? `background-color ${ms}ms` : 'none';
-    el.style.backgroundColor = `rgb(0 0 0 / ${0.4 * (1 - progress)})`;
+    el.style.backgroundColor = `rgb(0 0 0 / ${dimmedAlpha() * (1 - progress)})`;
   });
   return createPortal(
     <div
       ref={backdrop}
       data-overlay
-      className="dialog-in fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/40"
+      className={`dialog-in fixed inset-0 z-[140] flex items-end sm:items-center justify-center ${DIMMED}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
@@ -69,7 +69,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
         aria-labelledby={titleId}
         // No room kept for a scrollbar (app.css keeps it in every box that scrolls): a sheet is short, and its rows
         // stand as far from the right edge as from the left (Lars, 2026-11-02).
-        className="sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto [scrollbar-gutter:auto] rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl pb-4"
+        className={`sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto [scrollbar-gutter:auto] rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl ${FLOATING_EDGE} pb-4`}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') dismiss();

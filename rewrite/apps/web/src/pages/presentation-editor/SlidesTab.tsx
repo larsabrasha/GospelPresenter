@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { blankPage } from '@gp/core';
 import { listCustomSlides } from '../../db/customSlides.ts';
-import { orgDefaultThemeId } from '../../db/queries.ts';
+import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -49,7 +49,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   const trySave = useTrySave();
   const toast = useToast();
   const slides = useData(listCustomSlides, []);
-  const themeId = useData(orgDefaultThemeId, []);
+  const theme = useData(defaultTheme, []);
   const { importing, error, run } = useDeckImport();
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
@@ -160,7 +160,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
                   className={`w-full rounded-lg cursor-pointer ring-2 ${picked.includes(s.id) ? 'ring-sky-500' : 'ring-transparent'}`}
                   onClick={() => setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))}
                 >
-                  <FirstPage slide={s} themeId={themeId} />
+                  <FirstPage slide={s} theme={theme} />
                 </AppButton>
                 <p className="mt-1 text-xs text-center truncate text-stone-500 dark:text-stone-400">{s.name}</p>
               </li>

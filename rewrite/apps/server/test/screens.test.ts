@@ -14,7 +14,7 @@ const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split
 
 const slide = (text: string): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: null, themeId: 'classic', overlay: null });
 /** What a screen draws for `text` (spec 04 §5): the projector's canvas. */
-const canvas = (text: string, over: Partial<Canvas> = {}): Canvas => ({ slide: { kind: 'song', text, verses: null, image: null, credits: 'Anna' }, themeId: 'midnight', overlay: null, ...over });
+const canvas = (text: string, over: Partial<Canvas> = {}): Canvas => ({ slide: { kind: 'song', text, verses: null, image: null, credits: 'Anna' }, themeId: 'light', overlay: null, ...over });
 /** A page with one picture of its own, both its blobs `hash`. */
 const pageWith = (hash: string, id = 'e1'): CustomPage => ({ ...blankPage(), elements: [{ id, kind: 'image', x: 0, y: 0, w: 960, h: 540, picture: { full: hash, thumb: hash }, fit: 'contain' }] });
 type Sessions = Extract<LiveServerMessage, { type: 'sessions' }>;

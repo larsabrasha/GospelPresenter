@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FONT_STACKS, resolveTheme, type Css, type PublicSlide } from '@gp/core';
+import { FONT_STACKS, themeOfReport, type Css, type PublicSlide } from '@gp/core';
 import { followStream } from '../live/watchStream.ts';
 import { t } from '../i18n.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
@@ -46,7 +46,7 @@ function PublicOverlay({ text }: { text: string | null }) {
  * `imageBase`, the output's own API path.
  */
 function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: PublicSlide }) {
-  const theme = resolveTheme(slide.themeId, null);
+  const theme = themeOfReport(slide);
   if (slide.kind === 'media') {
     return (
       <div className="fixed inset-0 flex flex-col overflow-hidden p-safe" style={stageCss(theme, 'media')}>

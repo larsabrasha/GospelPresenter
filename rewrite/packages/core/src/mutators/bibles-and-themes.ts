@@ -1,9 +1,8 @@
 import { count, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { BIBLE_LIMITS, bibleId } from '../bible.ts';
-import { bibleBlobs, bibles, bibleTexts, orgSettings } from '../schema.ts';
+import { bibleBlobs, bibles, bibleTexts } from '../schema.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
-import { requireTheme } from './presentations.ts';
 
 // ------------------------------------------------------------------ bibles
 
@@ -60,19 +59,4 @@ export async function deleteBible(tx: Tx, a: z.output<typeof deleteBibleArgs>, c
   if (!b) return;
   await tx.delete(bibles).where(eq(bibles.id, a.id));
   await dropUnusedText(tx, b.contentHash);
-}
-
-// ------------------------------------------------------------------ themes
-
-export const DEFAULT_THEME_SETTING = 'defaultThemeId';
-
-export const setDefaultThemeArgs = z.object({ themeId: id });
-/** The organisation's default theme (THEME-R4): presentations without their own follow it at once (THEME-R6). */
-export async function setDefaultTheme(tx: Tx, a: z.output<typeof setDefaultThemeArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageThemes');
-  requireTheme(a.themeId);
-  await tx
-    .insert(orgSettings)
-    .values({ id: DEFAULT_THEME_SETTING, value: a.themeId })
-    .onConflictDoUpdate({ target: orgSettings.id, set: { value: a.themeId } });
 }

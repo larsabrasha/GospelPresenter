@@ -4,7 +4,8 @@ import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
 import { ACTION_ROW, Group } from '../../ui/Group.tsx';
-import { ColorChoice, ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './ElementPanel.tsx';
+import { ColorChoice } from '../../ui/FormatControls.tsx';
+import { ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './ElementPanel.tsx';
 
 // Keynote's Format (docs/custom-slides.md): with an element picked, its tabs (Text or Stil or Bild, and Ordna); with
 // none, the slide's name and the page's background (an overlay's page has none).

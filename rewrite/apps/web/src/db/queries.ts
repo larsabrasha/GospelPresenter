@@ -7,6 +7,7 @@ import {
   REMOTE_CONTROL_SETTING,
   remoteControlPolicy,
   resolveTheme,
+  themeOfRow,
   type Bible,
   type CcliEntry,
   type BibleBookText,
@@ -347,10 +348,27 @@ export async function listCcliEntries(db: ReadDb): Promise<CcliEntry[]> {
   );
 }
 
-/** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). */
-export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
-  return resolveTheme(p?.themeId, await orgDefaultThemeId(db));
+/** The organisation's own themes (docs/themes.md), in the order they were made. */
+export async function ownThemes(db: ReadDb): Promise<Theme[]> {
+  return (await db.query('SELECT id, name, definition, sort FROM themes ORDER BY sort, id')).map((r) =>
+    themeOfRow({ id: String(r.id), name: String(r.name), definition: String(r.definition), sort: Number(r.sort) }),
+  );
 }
+
+/** An own theme to edit, with when it was last saved; null where there is none. */
+export async function getOwnTheme(db: ReadDb, id: string): Promise<{ theme: Theme; updatedAt: number } | null> {
+  const [r] = await db.query('SELECT id, name, definition, sort, updated_at FROM themes WHERE id = ?', [id]);
+  if (!r) return null;
+  return { theme: themeOfRow({ id: String(r.id), name: String(r.name), definition: String(r.definition), sort: Number(r.sort) }), updatedAt: Number(r.updated_at) };
+}
+
+/** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). Null: the default. */
+export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
+  return resolveTheme(p?.themeId, await orgDefaultThemeId(db), await ownThemes(db));
+}
+
+/** The organisation's default theme, as a page outside a presentation draws in (THEME-R2). */
+export const defaultTheme = (db: ReadDb): Promise<Theme> => themeOf(db, null);
 
 // ------------------------------------------------------------------ images
 

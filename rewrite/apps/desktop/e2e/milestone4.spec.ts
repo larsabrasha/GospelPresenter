@@ -40,17 +40,17 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(page.getByText('WEB · 15 verser')).toBeVisible();
   await expect(page.getByText('Tillgänglig offline')).toBeVisible();
 
-  // The organisation's default theme: Midnatt.
+  // The organisation's default theme: Ljust.
   await openAdmin(page, 'Teman');
   await expect(page.getByTestId('theme-classic').getByText('Standard', { exact: true })).toBeVisible();
-  await page.getByTestId('theme-midnight').getByRole('button', { name: 'Midnatt' }).click();
-  await page.getByRole('dialog', { name: 'Midnatt' }).getByRole('button', { name: 'Använd som standard' }).click();
+  await page.getByTestId('theme-light').getByRole('button', { name: 'Ljust' }).click();
+  await page.getByRole('dialog', { name: 'Ljust' }).getByRole('button', { name: 'Använd som standard' }).click();
   await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
-  await expect(page.getByTestId('theme-midnight').getByText('Standard', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('theme-light').getByText('Standard', { exact: true })).toBeVisible();
 
-  // A presentation with its own theme, Norrsken.
+  // A presentation with its own theme, Mörkt.
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
-  await chooseTheme(page, 'Norrsken');
+  await chooseTheme(page, 'Mörkt');
 
   // Bibeltexter: a reference search, added with Ctrl+Enter (D15: stays open, starts over) ...
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
@@ -85,19 +85,9 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(output.getByTestId('slide-credits')).toHaveText('Johannes 3:16-17 · WEB');
   // Bible text flows, with no kept line breaks (BibleTextSlide.razor).
   await expect(output.getByTestId('slide-text')).toHaveCSS('white-space', 'normal');
-  await expect(stage).toHaveAttribute('data-theme', 'aurora');
+  await expect(stage).toHaveAttribute('data-theme', 'classic');
   await expect(stage).toHaveAttribute('data-kind', 'bible');
-
-  // Norrsken's typeface and picture came from the app, not the internet.
-  await expect(output.getByTestId('slide-text')).toHaveCSS('font-family', "Montserrat, sans-serif");
-  const look = await output.evaluate(async () => {
-    await document.fonts.ready;
-    const stageEl = document.querySelector<HTMLElement>('[data-testid="slide-stage"]')!;
-    const url = /url\("?([^")]+)"?\)/.exec(getComputedStyle(stageEl).backgroundImage)?.[1] ?? '';
-    const image = await fetch(url);
-    return { font: document.fonts.check('400 75px Montserrat'), url, image: image.status, type: image.headers.get('content-type') };
-  });
-  expect(look).toMatchObject({ font: true, url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/assets\/background-[\w-]+\.webp$/), image: 200, type: 'image/webp' });
+  await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 
   // Next goes on through the reading into the psalm.
   await page.keyboard.press('ArrowRight');
@@ -105,8 +95,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
 
   // Back to the default theme: the output follows at once (THEME-R6), and black stays black.
   await chooseTheme(page, 'Följer organisationens standard');
-  await expect(stage).toHaveAttribute('data-theme', 'midnight');
-  await expect(stage).toHaveCSS('background-color', 'rgb(11, 27, 58)');
+  await expect(stage).toHaveAttribute('data-theme', 'light');
+  await expect(stage).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');

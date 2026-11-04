@@ -10,7 +10,7 @@ import { ownState, Window } from './live-window.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
 
-const slide = (text: string, over: Partial<PublicSlide> = {}): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: 'Anna', themeId: 'midnight', overlay: null, ...over });
+const slide = (text: string, over: Partial<PublicSlide> = {}): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: 'Anna', themeId: 'light', overlay: null, ...over });
 
 describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
   let h: Harness;

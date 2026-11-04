@@ -106,9 +106,9 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): P
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
   return {
     // An overlay with nothing selected is shown on its own, as the projector shows it.
-    slide: slide || overlayText ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlayText) : null,
+    slide: slide || overlayText ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme, overlayText) : null,
     // A video slide carries where the video is, for the paired screens to follow; the public outputs get its still.
-    canvas: toCanvas(slide, theme.id, overlay, slide?.video ? (video.live() ?? { ...slide.video, playing: false, position: 0, at: Date.now() }) : null),
+    canvas: toCanvas(slide, theme, overlay, slide?.video ? (video.live() ?? { ...slide.video, playing: false, position: 0, at: Date.now() }) : null),
   };
 }
 

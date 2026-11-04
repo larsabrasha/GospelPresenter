@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { resolveTheme, type CustomElement, type CustomPage } from '@gp/core';
-import { orgDefaultThemeId } from '../../db/queries.ts';
+import { CLASSIC, type CustomElement, type CustomPage } from '@gp/core';
+import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -40,7 +40,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const trySave = useTrySave();
   const saved = useSavedIndicator();
   const slide = useData((d) => readEdited(d, edits, id), [edits, id]);
-  const theme = resolveTheme(null, useData(orgDefaultThemeId, []));
+  const theme = useData(defaultTheme, []) ?? CLASSIC;
   const [h, setH] = useState<history.History<CustomPage[]> | null>(null);
   const [at, setAt] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
@@ -205,7 +205,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
             />
           </div>
         )}
-        <div className="order-1 @4xl:order-2 flex-1 min-w-0 space-y-3">
+        <div className="relative order-1 @4xl:order-2 flex-1 min-w-0 space-y-3">
           {/* Keynote's toolbar: Ångra and Gör om at the left, + and Format at the right. */}
           <div className="flex items-center gap-1" role="toolbar" aria-label={t('slideEditor.add')}>
             <AppButton variant="plain" className={TOOL} disabled={!h.past.length} aria-label={t('slideEditor.undo')} title={t('slideEditor.undo')} onClick={() => step(history.undo)}>
@@ -220,6 +220,12 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
               <PaintBrushIcon className="size-5" />
             </AppButton>
           </div>
+          {/* Format under the brush where the editor is narrow; beside the page where it is wide. */}
+          {formatOpen && (
+            <FormatSheet title={t('slideEditor.format')} onClose={() => setFormatOpen(false)}>
+              {inspector}
+            </FormatSheet>
+          )}
           <EditorCanvas
             page={page}
             theme={theme}
@@ -234,11 +240,6 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
         <aside className="hidden @4xl:block order-2 @4xl:order-3 @4xl:w-80 shrink-0">{inspector}</aside>
       </div>
       </div>
-      {formatOpen && (
-        <FormatSheet title={t('slideEditor.format')} onClose={() => setFormatOpen(false)}>
-          {inspector}
-        </FormatSheet>
-      )}
       {choosing && (
         <ImagePicker
           onClose={() => setChoosing(null)}

@@ -1,6 +1,8 @@
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { can, type Permission, type Role } from '../permissions.ts';
+import { mediaBlobs } from '../schema.ts';
 
 /**
  * The transaction a mutator runs in. It is a plain Drizzle SQLite database:
@@ -47,6 +49,14 @@ export const LIMITS = { songs: 5000, partsPerSong: 50, arrangementsPerSong: 10, 
 
 export function limit(reached: boolean, what: string) {
   if (reached) throw new MutationError('limit', `the maximum number of ${what} has been reached`);
+}
+
+/** Every blob of `hashes` known where this runs (a page's pictures, a theme's), else `media-missing`. */
+export async function requireBlobs(tx: Tx, hashes: string[]) {
+  for (const hash of new Set(hashes)) {
+    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
+    if (!blob) throw new MutationError('media-missing', 'a picture has not been uploaded');
+  }
 }
 
 export const id = z.string().min(1).max(100);

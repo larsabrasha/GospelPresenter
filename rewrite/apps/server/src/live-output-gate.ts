@@ -1,4 +1,4 @@
-import { customPageBlobs, ITEM_IMAGES_SQL, OVERLAY_PICTURES_SQL, SLIDE_PAGES_SQL, type CustomPage, type LiveOwnState } from '@gp/core';
+import { customPageBlobs, ITEM_IMAGES_SQL, OVERLAY_PICTURES_SQL, SLIDE_PAGES_SQL, THEME_PICTURES_SQL, themeBlobs, type CustomPage, type LiveOwnState } from '@gp/core';
 import { canvasOf, slideOf, type LiveStore, type SessionRow } from './live-tables.ts';
 
 // What an output's viewers may fetch (LIVE-R32, MEDIA-R10): only what its session shows, and only if it belongs to the
@@ -8,7 +8,8 @@ import { canvasOf, slideOf, type LiveStore, type SessionRow } from './live-table
 /**
  * A picture: the one on screen, of an item in the presentation, or a page of a slide deck in it. A paired screen may
  * also show a picture its canvas draws on a page (docs/custom-slides.md): a slideshow's, of one the presentation
- * shows, or the overlay's, of the overlay the session's pointer has switched on (LIVE-R34). A public output never
+ * shows, or the overlay's, of the overlay the session's pointer has switched on (LIVE-R34), or the background picture
+ * of the theme the canvas is drawn in, of one of the organisation's own themes (docs/themes.md). A public output never
  * gets those but a PDF's page, which is the slide's picture.
  */
 export function mayShowImage(store: LiveStore, row: SessionRow, hash: string, screen: boolean): boolean {
@@ -27,6 +28,9 @@ export function mayShowImage(store: LiveStore, row: SessionRow, hash: string, sc
     ).length > 0
   ) {
     return true;
+  }
+  if (shown?.theme && themeBlobs(shown.theme).includes(hash)) {
+    if (store.query(`SELECT 1 FROM (${THEME_PICTURES_SQL}) t WHERE t.full_hash = ? OR t.thumb_hash = ?`, [hash, hash]).length > 0) return true;
   }
   if (!draws(shown?.overlay, hash)) return false;
   const overlayId = (JSON.parse(row.pointer) as LiveOwnState['pointer']).overlayId;

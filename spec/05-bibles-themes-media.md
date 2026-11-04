@@ -81,7 +81,9 @@ All paths cited below are relative to the repository root.
   (`adr/0001-slide-themes.md` decisions 5–6).
 
 ### Built-in themes
-(`GospelPresenter/GospelPresenter.Shared/Services/BuiltInThemes.cs:20-178`, names from resx)
+(`GospelPresenter/GospelPresenter.Shared/Services/BuiltInThemes.cs:20-178`, names from resx). The rewrite has two,
+Mörkt (`classic`, as below) and Ljust (`light`, the same black on white), and organisations' own themes with an
+editor (Lars, 2026-11-04; `rewrite/docs/themes.md`); the table is the old app's.
 
 | Slug (sort) | EN / SV name | Song main text | Bible main text | Credits | Backgrounds |
 |---|---|---|---|---|---|
@@ -609,25 +611,25 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
   new verses are downloaded once and not again on the next sync.
 
 ### Themes
-- **THEME-A1** Given an Admin on `/admin/themes` in Swedish, Then four cards appear in order Klassisk,
-  Midnatt, Dagsljus, Norrsken, and Klassisk carries the "Standard" badge when nothing was chosen.
-- **THEME-A2** When the admin clicks "Använd som standard" on Midnatt, Then the badge moves immediately,
-  toast "Standardtemat sparat", and after reload Midnatt is still default.
-- **THEME-A3** Given a presentation without its own theme, When the org default is Midnatt, Then its
-  slides render on `#0b1b3a` with Inter; switching default to Dagsljus changes the same presentation to
-  `#faf7f2` background with `#141210` text after reopening.
-- **THEME-A4** Given a presentation live on a display, When the operator sets "Tema" = Norrsken in the
-  details dialog and saves, Then the display, stage view and public output show the Aurora background
-  image with 45% scrim and shadowed Montserrat text without changing slide.
+- **THEME-A1** Given an Admin on `/admin/themes` in Swedish, Then the two built-in themes appear first, Mörkt
+  (`classic`) and Ljust (`light`), then the organisation's own, and Mörkt is the default when nothing was chosen
+  (the rewrite, Lars 2026-11-04: Midnatt, Dagsljus and Norrsken are gone; `rewrite/docs/themes.md`).
+- **THEME-A2** When the admin clicks "Använd som standard" on Ljust, Then it is the default at once, toast
+  "Standardtemat sparat", and after reload Ljust is still default.
+- **THEME-A3** Given a presentation without its own theme, When the org default is Ljust, Then its slides render
+  black on `#ffffff`; switching the default back to Mörkt changes the same presentation to white on black.
+- **THEME-A4** Given a presentation live on a display, When the operator sets "Tema" to an own theme in the
+  details dialog and saves, Then the display and the public output show it without changing slide: a paired
+  screen with its picture, a public output with its colours and type.
 - **THEME-A5** When "Följer församlingens standard" is chosen, Then the presentation's `ThemeId` is
   null and it follows later default changes.
 - **THEME-A6** A User-role account opening `/admin/themes` is denied; the same user can still pick a
   theme in the details dialog of their presentation.
 - **THEME-A7** Setting a presentation's or org's theme to another org's theme id via the API fails with
   "Theme not found."; a presentation whose theme was deleted renders as Classic.
-- **THEME-A8** Anonymous `GET /api/theme-images/aurora/background-full-7bcf41fdc25328d2.webp` → 200
-  `image/webp`, `Cache-Control` immutable, max-age 365 days; same with hash `0000000000000000` → 200;
-  `/api/theme-images/nosuchtheme/background-full-abc.webp` → 404; `..%2f` traversal → 404/400.
+- **THEME-A8** (the old app only: the rewrite's built-in themes have no picture, and an own theme's picture is a
+  media blob, gated as a slideshow's) Anonymous `GET /api/theme-images/aurora/background-full-7bcf41fdc25328d2.webp`
+  → 200 `image/webp`, immutable; an unknown theme → 404; `..%2f` traversal → 404/400.
 - **THEME-A9** Classic: song text bold 75px Tahoma centered white on black; Bible text 75px regular
   left-aligned; credits 40px `rgba(255,255,255,0.4)` left.
 - **THEME-A10** On a 390px-wide phone, the public output's main text is at least 18px and never larger

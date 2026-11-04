@@ -2,7 +2,7 @@ import { and, asc, count, eq, gt, max, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { BIBLE_LIMITS, bibleTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
-import { isKnownTheme } from '../themes.ts';
+import { requireTheme } from './themes.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // ------------------------------------------------------------------ presentations
@@ -51,11 +51,6 @@ export async function renamePresentation(tx: Tx, a: z.output<typeof renamePresen
     .where(and(eq(presentations.id, a.id), eq(presentations.isTemplate, false)));
 }
 
-/** A theme the organisation can use; anything else is "Theme not found." (PRES-R6, THEME-R4). */
-export function requireTheme(themeId: string) {
-  if (!isKnownTheme(themeId)) throw new MutationError('theme-not-found', 'Theme not found.');
-}
-
 export const updatePresentationArgs = z.object({
   id,
   name: name.optional(),
@@ -68,7 +63,7 @@ export async function updatePresentation(tx: Tx, a: z.output<typeof updatePresen
   requirePermission(ctx, 'ManagePresentations');
   if (a.themeId !== undefined) {
     requirePermission(ctx, 'ViewThemes'); // PRES-R6
-    if (a.themeId !== null) requireTheme(a.themeId);
+    if (a.themeId !== null) await requireTheme(tx, a.themeId);
   }
   const { id: presentationId, ...fields } = a;
   const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));

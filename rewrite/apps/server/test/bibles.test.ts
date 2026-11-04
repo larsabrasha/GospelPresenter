@@ -462,16 +462,16 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Sunday' });
     await alice.client.sync();
     await bob.client.sync();
-    await bob.client.mutate('updatePresentation', { id: 'P', themeId: 'aurora' });
+    await bob.client.mutate('updatePresentation', { id: 'P', themeId: 'light' });
     await expect(bob.client.mutate('updatePresentation', { id: 'P', themeId: 'nope' })).rejects.toThrow('Theme not found.');
-    await expect(bob.client.mutate('setDefaultTheme', { themeId: 'midnight' })).rejects.toThrow(/may not/);
-    await alice.client.mutate('setDefaultTheme', { themeId: 'midnight' });
+    await expect(bob.client.mutate('setDefaultTheme', { themeId: 'light' })).rejects.toThrow(/may not/);
+    await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
     await bob.client.sync();
     await alice.client.sync();
     await bob.client.pull();
     const s = await serverDump(h, org, 'alice');
-    expect(s.tables.presentations[0]).toMatchObject({ id: 'P', theme_id: 'aurora' });
-    expect(s.tables.org_settings).toEqual([{ id: 'defaultThemeId', value: 'midnight' }]);
+    expect(s.tables.presentations[0]).toMatchObject({ id: 'P', theme_id: 'light' });
+    expect(s.tables.org_settings).toEqual([{ id: 'defaultThemeId', value: 'light' }]);
     expect(JSON.stringify(await bob.client.dump())).toBe(JSON.stringify(s.tables));
 
     // Back to following the default (THEME-A5).
@@ -488,8 +488,8 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
 
     // Inserting, refused: alice is no longer an admin on the server, so her row goes.
     alice.net.online = false;
-    await alice.client.mutate('setDefaultTheme', { themeId: 'midnight' });
-    expect(await setting(alice)).toEqual(['midnight']);
+    await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
+    expect(await setting(alice)).toEqual(['light']);
     await setRole(h, 'alice', org, 'user');
     alice.net.online = true;
     await alice.client.sync();
@@ -498,31 +498,31 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     await setRole(h, 'alice', org, 'admin');
 
     // Updating, concurrently: the server's value comes in under alice's pending one, which then wins.
-    await alice.client.mutate('setDefaultTheme', { themeId: 'midnight' });
+    await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
     await alice.client.sync();
     alice.net.online = false;
-    await alice.client.mutate('setDefaultTheme', { themeId: 'aurora' });
-    await alice.client.mutate('setDefaultTheme', { themeId: 'aurora' });
+    await alice.client.mutate('setDefaultTheme', { themeId: 'classic' });
+    await alice.client.mutate('setDefaultTheme', { themeId: 'classic' });
     await dave.client.pull();
-    await dave.client.mutate('setDefaultTheme', { themeId: 'daylight' });
+    await dave.client.mutate('setDefaultTheme', { themeId: 'light' });
     await dave.client.sync();
     alice.net.online = true;
     await alice.client.pull();
-    expect(await setting(alice)).toEqual(['aurora']);
+    expect(await setting(alice)).toEqual(['classic']);
     expect(await alice.client.pending()).toHaveLength(2);
     await alice.client.sync();
     await dave.client.pull();
-    expect((await serverDump(h, org, 'alice')).tables.org_settings).toEqual([{ id: 'defaultThemeId', value: 'aurora' }]);
-    expect(await setting(dave)).toEqual(['aurora']);
+    expect((await serverDump(h, org, 'alice')).tables.org_settings).toEqual([{ id: 'defaultThemeId', value: 'classic' }]);
+    expect(await setting(dave)).toEqual(['classic']);
 
     // Updating, refused: alice's row goes back to the server's.
     alice.net.online = false;
-    await alice.client.mutate('setDefaultTheme', { themeId: 'classic' });
+    await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
     await setRole(h, 'alice', org, 'user');
     alice.net.online = true;
     await alice.client.sync();
     expect(alice.client.rejected.map((r) => r.error)).toEqual(['forbidden', 'forbidden']);
-    expect(await setting(alice)).toEqual(['aurora']);
+    expect(await setting(alice)).toEqual(['classic']);
     expect(JSON.stringify(await alice.client.dump())).toBe(JSON.stringify((await serverDump(h, org, 'dave')).tables));
   });
 

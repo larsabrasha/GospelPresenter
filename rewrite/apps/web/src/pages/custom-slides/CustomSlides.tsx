@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { blankPage, resolveTheme } from '@gp/core';
+import { blankPage, type Theme } from '@gp/core';
 import { listCustomSlides, type LibraryCustomSlide } from '../../db/customSlides.ts';
-import { orgDefaultThemeId } from '../../db/queries.ts';
+import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -20,10 +20,10 @@ import { trashTexts } from '../Images.tsx';
 import { pageSlide } from './PageNavigator.tsx';
 
 /** A slide's first page, small, in the organisation's theme. */
-export function FirstPage({ slide, themeId }: { slide: LibraryCustomSlide; themeId: string | null | undefined }) {
+export function FirstPage({ slide, theme }: { slide: LibraryCustomSlide; theme: Theme | undefined }) {
   return (
     <span className="block w-full aspect-video rounded-lg overflow-hidden">
-      <SlideView slide={pageSlide(slide.pages[0] ?? blankPage())} theme={resolveTheme(null, themeId)} label={false} credits={false} />
+      <SlideView slide={pageSlide(slide.pages[0] ?? blankPage())} theme={theme} label={false} credits={false} />
     </span>
   );
 }
@@ -42,7 +42,7 @@ export function CustomSlides() {
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const slides = useData(listCustomSlides, []);
-  const themeId = useData(orgDefaultThemeId, []);
+  const theme = useData(defaultTheme, []);
   const [creating, setCreating] = useState(false);
   const { importing, error, run } = useDeckImport();
   const picker = useRef<HTMLInputElement>(null);
@@ -70,7 +70,7 @@ export function CustomSlides() {
         title={t('nav.customSlides')}
         items={slides}
         layout="grid"
-        renderTile={(s) => <FirstPage slide={s} themeId={themeId} />}
+        renderTile={(s) => <FirstPage slide={s} theme={theme} />}
         open={(s) => href({ page: 'customSlide', id: s.id })}
         sorts={[
           { key: 'changed', label: t('library.sort.changed'), compare: (a, b) => b.updatedAt - a.updatedAt || byName(a, b) },

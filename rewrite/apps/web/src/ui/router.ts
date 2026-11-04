@@ -70,6 +70,8 @@ export type Route =
    */
   | { page: 'display'; id: string | null; name: string | null; token: string | null }
   | { page: 'themes' }
+  /** An own theme in its editor (docs/themes.md). */
+  | { page: 'theme'; id: string }
   /** Om Gospel Presenter (`/admin/about`): the version, and links out. */
   | { page: 'about' }
   /** The organisation's settings (`/admin/settings`): remote control so far. */
@@ -133,7 +135,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'labels') return { page: 'labels' };
     if (second === 'ccli-report') return { page: 'ccliReport' };
     if (second === 'organizations') return third ? { page: 'org', id: third } : { page: 'orgs' };
-    if (second === 'themes') return { page: 'themes' };
+    if (second === 'themes') return third ? { page: 'theme', id: third } : { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     if (second === 'public-outputs') return { page: 'publicOutputs' };
     if (second === 'settings') return { page: 'orgSettings' };
@@ -173,14 +175,14 @@ const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'theme', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
-const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide']);
+const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme']);
 
 /**
  * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
@@ -223,6 +225,8 @@ export function href(r: Route): string {
       return '/admin/custom-slides';
     case 'customSlide':
       return `/admin/custom-slides/${encodeURIComponent(r.id)}`;
+    case 'theme':
+      return `/admin/themes/${encodeURIComponent(r.id)}`;
     case 'user':
       return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':

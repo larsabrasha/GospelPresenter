@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { can, listThemes, type Role, type Slide, type Theme } from '@gp/core';
+import { can, isBuiltInTheme, listThemes, resolveTheme, type Role, type Slide, type Theme } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
-import { orgDefaultThemeId } from '../db/queries.ts';
+import { orgDefaultThemeId, ownThemes } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { newId } from '../ids.ts';
 import { themeDescription, themeName } from '../themes.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
-import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
+import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { CheckIcon } from '../ui/icons.tsx';
+import { NameDialog } from '../ui/NameDialog.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -22,16 +27,42 @@ const SAMPLE: Slide = {
   credits: 'John Newton · 1779',
 };
 
-/** A theme looked at: its preview large, what it is for, and Använd som standard for an admin. */
-function ThemeSheet({ theme, current, manage, busy, onChoose, onClose }: { theme: Theme; current: boolean; manage: boolean; busy: boolean; onChoose: () => void; onClose: () => void }) {
+/** What can be done with a theme looked at: an admin makes it the default, copies it, and edits or deletes an own one. */
+interface SheetActions {
+  manage: boolean;
+  busy: boolean;
+  onChoose: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}
+
+/** A theme looked at: its preview large, what it is for, and an admin's choices. */
+function ThemeSheet({ theme, current, actions, onClose }: { theme: Theme; current: boolean; actions: SheetActions; onClose: () => void }) {
+  const own = !isBuiltInTheme(theme.id);
+  const { manage, busy } = actions;
   return (
     <Dialog title={themeName(theme)} onClose={onClose} maxWidthClass="max-w-2xl">
       <div className="space-y-4">
         <div className="aspect-video rounded-xl overflow-hidden">
           <SlideView slide={SAMPLE} theme={theme} label={false} />
         </div>
-        <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{themeDescription(theme)}</p>
+        {!own && <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{themeDescription(theme)}</p>}
         <DialogButtons>
+          {manage && own && (
+            <AppButton variant="danger" disabled={busy} onClick={actions.onDelete}>
+              {t('themes.delete')}
+            </AppButton>
+          )}
+          {manage && (
+            <AppButton variant="cancel" disabled={busy} onClick={actions.onDuplicate}>
+              {t('themes.duplicate')}
+            </AppButton>
+          )}
+          {manage && own && (
+            <AppButton variant="cancel" disabled={busy} onClick={() => navigate({ page: 'theme', id: theme.id })}>
+              {t('themes.edit')}
+            </AppButton>
+          )}
           {current ? (
             <span className="inline-flex items-center gap-1.5 text-sm text-stone-500 dark:text-stone-400">
               <CheckIcon className="size-4 text-sky-500" />
@@ -39,7 +70,7 @@ function ThemeSheet({ theme, current, manage, busy, onChoose, onClose }: { theme
             </span>
           ) : (
             manage && (
-              <AppButton disabled={busy} onClick={onChoose}>
+              <AppButton disabled={busy} onClick={actions.onChoose}>
                 {t('themes.useAsDefault')}
               </AppButton>
             )
@@ -53,15 +84,21 @@ function ThemeSheet({ theme, current, manage, busy, onChoose, onClose }: { theme
 /**
  * Teman (spec 05 `/admin/themes`) as iOS's wallpapers and the Watch's faces (Lars, 2026-11-04): a grid of previews,
  * the organisation's default ticked, the name under each; a tap opens the theme large, with Använd som standard for
- * an admin. Everyone sees it. Themes are not created or edited yet (ADR 0001: the editor comes later).
+ * an admin. Everyone sees it. The two built-in ones come first, then the organisation's own (docs/themes.md): an admin
+ * makes one with + (a copy of the default, named first) or Duplicera, and edits or deletes an own one from its sheet.
  */
 export function Themes({ role }: { role: Role }) {
   const db = useDb();
   const toast = useToast();
+  const trySave = useTrySave();
+  const { dialog, ask } = useConfirm();
   const saved = useData(orgDefaultThemeId, []);
+  const own = useData(ownThemes, []);
   const [saving, setSaving] = useState<string | null>(null);
   const [looking, setLooking] = useState<Theme | null>(null);
-  if (saved === undefined)
+  /** The theme a new one copies, and the name it starts with, while it is named. */
+  const [copying, setCopying] = useState<{ from: Theme; name: string } | null>(null);
+  if (saved === undefined || own === undefined)
     return (
       <PageContainer>
         {/* The intro card while loading too, so the bar's name does not show and go (ui/PageContainer.tsx). */}
@@ -71,6 +108,12 @@ export function Themes({ role }: { role: Role }) {
     );
   const current = saving ?? saved ?? 'classic'; // optimistic while saving; no default saved shows Classic
   const manage = can(role, 'ManageThemes');
+  const themes = listThemes(own);
+
+  const remove = async (theme: Theme) => {
+    const name = themeName(theme);
+    if (await ask({ title: t('themes.delete'), text: t('themes.deleteAsk', { name }), bold: name, confirm: t('themes.delete'), run: () => db.mutate('deleteTheme', { id: theme.id }) })) setLooking(null);
+  };
 
   const choose = async (id: string) => {
     setSaving(id);
@@ -88,11 +131,12 @@ export function Themes({ role }: { role: Role }) {
   return (
     <PageContainer>
       {/* What a theme is: the card at the top (settingsLinks.ts `intro`). */}
-      <PageHeader title={t('themes.title')} />
+      <PageHeader title={t('themes.title')}>{manage && <AddButton label={t('themes.new')} onClick={() => setCopying({ from: resolveTheme(null, saved, own), name: '' })} />}</PageHeader>
+      {dialog}
       {/* Columns by its own width (Inställningar's is narrow on an iPad held upright). */}
       <div className="@container">
         <ul className="grid grid-cols-2 @2xl:grid-cols-3 gap-x-4 gap-y-5" aria-label={t('themes.title')}>
-          {listThemes().map((theme) => (
+          {themes.map((theme) => (
             <li key={theme.id} data-testid={`theme-${theme.id}`} className="min-w-0">
               <AppButton
                 variant="plain"
@@ -114,7 +158,25 @@ export function Themes({ role }: { role: Role }) {
         </ul>
       </div>
       {looking && (
-        <ThemeSheet theme={looking} current={looking.id === current} manage={manage} busy={saving !== null} onChoose={() => void choose(looking.id)} onClose={() => setLooking(null)} />
+        <ThemeSheet
+          theme={looking}
+          current={looking.id === current}
+          actions={{ manage, busy: saving !== null, onChoose: () => void choose(looking.id), onDuplicate: () => (setCopying({ from: looking, name: t('themes.copyName', { name: themeName(looking) }) }), setLooking(null)), onDelete: () => void remove(looking) }}
+          onClose={() => setLooking(null)}
+        />
+      )}
+      {copying && (
+        <NameDialog
+          title={t('themes.createTitle')}
+          label={t('song.name')}
+          maxLength={100}
+          initial={copying.name}
+          onClose={() => setCopying(null)}
+          submit={async (name) => {
+            const id = newId();
+            if (await trySave(db.mutate('createTheme', { id, name, definition: copying.from.definition, at: Date.now() }))) navigate({ page: 'theme', id });
+          }}
+        />
       )}
     </PageContainer>
   );

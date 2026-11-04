@@ -73,7 +73,7 @@ describe('searchSettings', () => {
   });
 
   it('needs every word of the query', () => {
-    expect(found('qr länk')).toEqual(['displays.public']);
+    expect(found('qr länk')).toEqual(['nav.displays']);
   });
 
   it('finds no row the user may not open', () => {

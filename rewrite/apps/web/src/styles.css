@@ -10,10 +10,16 @@
 /* The slide stage: 1920x1080, scaled to its box; the theme sets colours and type (themes.ts, spec 05). */
 .slide-box { width: 100%; height: 100%; position: relative; overflow: hidden; background: black; }
 .slide-stage { position: absolute; top: 0; left: 0; transform-origin: top left; background: black; color: white; overflow: hidden; }
-.slide-content { position: absolute; top: 80px; left: 80px; right: 80px; bottom: 144px; display: flex; align-items: center; overflow: hidden; }
+/* The main text's and the credits' boxes: where the theme puts them (textAreaCss), the text at their top, middle or foot. */
+.slide-content { position: absolute; display: flex; overflow: hidden; }
+.slide-credits-box { position: absolute; display: flex; overflow: hidden; }
+/* A theme's own background picture and its scrim, under the text. */
+.slide-picture { position: absolute; inset: 0; width: 100%; height: 100%; }
 .slide-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .slide-text { width: 100%; white-space: pre-wrap; overflow-wrap: break-word; }
 .verse-number { font-size: 0.5em; opacity: 0.4; vertical-align: super; line-height: 0; }
-.slide-credits { position: absolute; left: 80px; right: 80px; bottom: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slide-credits { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* An overlay (LIVE-R15): above the slide and outside the theme; its text at the top left, 40 px, 60 % white, in the app's sans (OverlayView.razor). */
 .slide-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* The theme editor (pages/theme-editor/ThemeCanvas.tsx): where the texts' boxes are, dashed, in the stage's pixels. */
+.theme-canvas .slide-content, .theme-canvas .slide-credits-box { outline: 4px dashed rgb(14 165 233 / 0.55); outline-offset: -4px; cursor: pointer; }

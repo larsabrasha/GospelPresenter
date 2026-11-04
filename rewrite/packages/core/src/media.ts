@@ -171,7 +171,16 @@ export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_i
 /** Every picture an overlay's page draws, with the overlay and its place in the list (docs/custom-slides.md). */
 export const OVERLAY_PICTURES_SQL = pagePictures('o.id AS overlay_id, o.sort, ', `overlays o, json_each(json_array(json(o.content))) pg`);
 
-/** The blobs no image, audio file, video, slideshow, overlay or song's sheet music names, older than the grace period: what a clean-up may remove. */
+/**
+ * Every background picture of the organisation's own themes (docs/themes.md), a row per picture. Like the overlays',
+ * any of them can be shown, so a device that presents fetches them all.
+ */
+export const THEME_PICTURES_SQL = ['$.song.background.image', '$.bible.background.image', '$.media.image']
+  .map((at) => `SELECT t.id AS theme_id, json_extract(t.definition, '${at}.full') AS full_hash, json_extract(t.definition, '${at}.thumb') AS thumb_hash
+  FROM themes t WHERE json_valid(t.definition) AND json_extract(t.definition, '${at}.kind') = 'picture'`)
+  .join('\n  UNION ALL\n  ');
+
+/** The blobs no image, audio file, video, slideshow, overlay, theme or song's sheet music names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
     AND hash NOT IN (SELECT hash FROM song_materials WHERE hash IS NOT NULL)
@@ -184,4 +193,6 @@ export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
     AND hash NOT IN (SELECT full_hash FROM (${SLIDESHOW_PICTURES_SQL}))
     AND hash NOT IN (SELECT thumb_hash FROM (${SLIDESHOW_PICTURES_SQL}))
     AND hash NOT IN (SELECT full_hash FROM (${OVERLAY_PICTURES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${OVERLAY_PICTURES_SQL}))`;
+    AND hash NOT IN (SELECT thumb_hash FROM (${OVERLAY_PICTURES_SQL}))
+    AND hash NOT IN (SELECT full_hash FROM (${THEME_PICTURES_SQL}))
+    AND hash NOT IN (SELECT thumb_hash FROM (${THEME_PICTURES_SQL}))`;

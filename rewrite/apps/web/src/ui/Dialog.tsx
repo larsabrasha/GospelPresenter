@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
-import { ROUND_CLOSE } from './glass.ts';
+import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
 import { PagePhoneBarSlots } from './barSlots.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 
@@ -63,7 +63,7 @@ function DialogFrame({
       const el = backdrop.current;
       if (!el) return;
       el.style.transition = ms ? `background-color ${ms}ms` : 'none';
-      el.style.backgroundColor = `rgb(0 0 0 / ${0.3 * (1 - progress)})`;
+      el.style.backgroundColor = `rgb(0 0 0 / ${dimmedAlpha() * (1 - progress)})`;
     },
     () => !!page && matchMedia('(width < 40rem)').matches,
   );
@@ -91,14 +91,14 @@ function DialogFrame({
     <div
       ref={backdrop}
       data-overlay="dialog"
-      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-safe-4 max-sm:items-end max-sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]' : 'p-safe-4'}`}
+      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center ${DIMMED} ${page ? 'sm:p-safe-4 max-sm:items-end max-sm:pt-[calc(env(safe-area-inset-top)+0.75rem)]' : 'p-safe-4'}`}
       onMouseDown={(e) => {
         if (!page && e.target === e.currentTarget) close();
       }}
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto'} ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl ${FLOATING_EDGE} bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"

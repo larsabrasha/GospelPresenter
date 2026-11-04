@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { blankPage, resolveTheme, type Overlay } from '@gp/core';
-import { listOverlays, orgDefaultThemeId } from '../db/queries.ts';
+import { blankPage, type Overlay, type Theme } from '@gp/core';
+import { defaultTheme, listOverlays } from '../db/queries.ts';
 import { useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
@@ -16,11 +16,11 @@ import { pageSlide } from './custom-slides/PageNavigator.tsx';
 type OverlayEntry = Overlay & { name: string };
 
 /** An overlay's page above an empty slide of the organisation's theme, as it shows above one. */
-function OverlayTile({ overlay, themeId }: { overlay: OverlayEntry; themeId: string | null | undefined }) {
+function OverlayTile({ overlay, theme }: { overlay: OverlayEntry; theme: Theme | undefined }) {
   const shown = useShownOverlay(overlay.id);
   return (
     <span className="block w-full aspect-video rounded-lg overflow-hidden">
-      <SlideView slide={pageSlide(blankPage())} overlay={shown} theme={resolveTheme(null, themeId)} label={false} credits={false} />
+      <SlideView slide={pageSlide(blankPage())} overlay={shown} theme={theme} label={false} credits={false} />
     </span>
   );
 }
@@ -36,7 +36,7 @@ export function Overlays() {
   const trySave = useTrySave();
   const rows = useData(listOverlays, []);
   const overlays = useMemo(() => rows?.map((o) => ({ ...o, name: o.title })), [rows]);
-  const themeId = useData(orgDefaultThemeId, []);
+  const theme = useData(defaultTheme, []);
   const [creating, setCreating] = useState(false);
   const byName = (a: OverlayEntry, b: OverlayEntry) => a.name.localeCompare(b.name, 'sv', { numeric: true });
 
@@ -45,7 +45,7 @@ export function Overlays() {
       title={t('overlays.title')}
       items={overlays}
       layout="grid"
-      renderTile={(o) => <OverlayTile overlay={o} themeId={themeId} />}
+      renderTile={(o) => <OverlayTile overlay={o} theme={theme} />}
       open={(o) => href({ page: 'overlay', id: o.id })}
       sorts={[
         { key: 'changed', label: t('library.sort.changed'), compare: (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || byName(a, b) },

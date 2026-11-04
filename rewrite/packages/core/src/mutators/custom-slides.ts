@@ -2,9 +2,9 @@ import { count, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { CUSTOM_LIMITS, customPageBlobs, customPagesSchema, pdfPages, type CustomPage } from '../custom-slides.ts';
 import { MEDIA_LIMITS } from '../media.ts';
-import { customSlides, mediaBlobs } from '../schema.ts';
+import { customSlides } from '../schema.ts';
 import { slideDeckPagesSchema } from '../slides.ts';
-import { id, limit, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { id, limit, MutationError, name, requireBlobs, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { changePresentation, insertItem } from './presentations.ts';
 
 // ------------------------------------------------------------------ slideshows (Bildspel, docs/custom-slides.md)
@@ -14,11 +14,9 @@ import { changePresentation, insertItem } from './presentations.ts';
  * on the server the uploads recorded them, on the device that added it the import did.
  */
 export async function requirePictures(tx: Tx, pages: CustomPage[]) {
-  for (const hash of new Set(customPageBlobs(pages))) {
-    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
-    if (!blob) throw new MutationError('media-missing', 'a page has not been uploaded');
-  }
+  await requireBlobs(tx, customPageBlobs(pages));
 }
+
 
 async function insertSlide(tx: Tx, a: { id: string; name: string; pages: CustomPage[]; at: number }) {
   const [existing] = await tx.select({ id: customSlides.id }).from(customSlides).where(eq(customSlides.id, a.id));

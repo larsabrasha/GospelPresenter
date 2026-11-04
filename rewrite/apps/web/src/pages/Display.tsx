@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { resolveTheme, type Canvas } from '@gp/core';
+import { themeOfReport, type Canvas } from '@gp/core';
 import { canPlayVideo } from '../media/video.ts';
 import { FollowingVideo } from '../ui/FollowingVideo.tsx';
 import { followStream } from '../live/watchStream.ts';
@@ -113,7 +113,7 @@ function Slide({ base, shown }: { base: string; shown: Shown }) {
     <div className="fixed inset-0 bg-black cursor-none" data-testid={canvas ? 'output' : 'display-black'}>
       <SlideView
         slide={slide}
-        theme={resolveTheme(drawn?.themeId ?? null, null)}
+        theme={drawn ? themeOfReport(drawn) : undefined}
         label={false}
         overlay={drawn?.overlay ?? null}
         black={!canvas}

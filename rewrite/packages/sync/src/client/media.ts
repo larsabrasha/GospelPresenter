@@ -4,7 +4,7 @@
 // `addAudio`, `addVideo`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names. A video itself is never kept on a device: it was uploaded before its
 // `addVideo` was queued, is recorded here without its bytes, and streams from the server.
-import { customPageBlobs, ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia, type CustomPage } from '@gp/core';
+import { customPageBlobs, ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, parseThemeDefinition, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia, THEME_PICTURES_SQL, themeBlobs, type CustomPage } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -140,11 +140,13 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
     'SELECT hash FROM (SELECT thumb_hash AS hash, created_at FROM images UNION ALL SELECT thumb_hash AS hash, created_at FROM videos) ORDER BY created_at DESC',
   )) as { hash: string }[];
   const hashes: string[] = thumbs.map((t) => t.hash);
+  // A theme's pictures as Teman shows them, on every device (docs/themes.md).
+  hashes.push(...((await client.query(`SELECT thumb_hash AS hash FROM (${THEME_PICTURES_SQL})`)) as { hash: string }[]).map((t) => t.hash));
   const order = [...new Set([...(policy.presenting ? [policy.presenting] : []), ...(await keptPresentations(client, policy))])];
-  // Every overlay's picture: any of them can be switched on during live.
+  // Every overlay's picture, and every theme's: any of them can be switched on or chosen during live.
   if (order.length) {
     const overlayImages = (await client.query(`SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o ORDER BY o.sort`)) as { hash: string }[];
-    hashes.push(...overlayImages.map((o) => o.hash));
+    hashes.push(...overlayImages.map((o) => o.hash), ...(await themePictures(client)));
   }
   for (const presentationId of order) hashes.push(...(await presentationFiles(client, presentationId)));
   return [...new Set(hashes)];
@@ -227,7 +229,8 @@ export async function presentationMediaState(
        UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
        UNION SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
-       UNION SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o) h`,
+       UNION SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o
+       UNION SELECT t.full_hash AS hash FROM (${THEME_PICTURES_SQL}) t) h`,
     [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId],
   )) as { hash: string; present: number }[];
   return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };
@@ -246,7 +249,8 @@ export async function presentationOfflineState(client: Query, presentationId: st
        UNION SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION SELECT s.thumb_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
-       UNION SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o) h`,
+       UNION SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o
+       UNION SELECT t.full_hash AS hash FROM (${THEME_PICTURES_SQL}) t) h`,
     [presentationId, presentationId, presentationId, presentationId, presentationId],
   )) as { hash: string; present: number }[];
   const videos = (await client.query(
@@ -261,17 +265,27 @@ export async function presentationOfflineState(client: Query, presentationId: st
   return { share: complete ? 1 : Math.min(0.99, done / files), complete, files };
 }
 
-/** The mutations that name blobs the device must upload first. */
+/** The full pictures of the organisation's own themes. */
+async function themePictures(client: Query): Promise<string[]> {
+  return ((await client.query(`SELECT full_hash AS hash FROM (${THEME_PICTURES_SQL})`)) as { hash: string }[]).map((t) => t.hash);
+}
+
 /** The mutators that may name pictures of a page a device kept first: a PDF's import, a slideshow or an overlay made or changed. */
 const DECK_PAGES = new Set(['addSlides', 'createCustomSlide', 'updateCustomSlide', 'createOverlay', 'updateOverlay']);
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES]);
+/** The mutators that may name a theme's pictures (docs/themes.md). */
+const THEME_PICTURES = new Set(['createTheme', 'updateTheme']);
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES, ...THEME_PICTURES]);
 
 /**
  * The blobs a queued add names: a picture's two, an audio file's or a song's PDF's one, a video's three, or two per
  * page of a slide deck. A video's own blob has no bytes here: it was uploaded before the add, so it is only kept named.
  */
 function blobsOf(m: PendingMutation): Set<string> {
-  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown; page?: unknown };
+  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown; page?: unknown; definition?: unknown };
+  if (THEME_PICTURES.has(m.name)) {
+    const definition = a.definition === undefined ? null : parseThemeDefinition(JSON.stringify(a.definition));
+    return new Set(definition ? themeBlobs(definition) : []);
+  }
   if (m.name === 'addAudio' || m.name === 'addSongFile') return new Set([String(a.hash)]);
   if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
   if (m.name === 'addSlides') {
@@ -414,7 +428,7 @@ export async function storageReport(client: SyncClient, policy: MediaPolicy): Pr
   const wanted = new Set([...(await wantedBlobs(client, policy)), ...queued, ...(await wantedVideos(client, policy)).map((v) => v.hash)]);
   const sum = (hashes: Iterable<string>) => [...new Set(hashes)].reduce((n, h) => n + (sizes.get(h) ?? 0), 0);
   const kept = await keptPresentations(client, policy);
-  const overlays = ((await client.query(`SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o`)) as { hash: string }[]).map((o) => o.hash);
+  const overlays = [...((await client.query(`SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o`)) as { hash: string }[]).map((o) => o.hash), ...(await themePictures(client))];
   const offline: StorageReport['offline'] = [];
   const keptFiles: string[] = [];
   for (const presentationId of kept) {

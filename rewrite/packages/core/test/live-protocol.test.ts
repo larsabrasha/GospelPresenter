@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   blankPage,
+  CLASSIC,
+  themeOfReport,
   CANVAS_PAGE_MAX,
   canvasOfPublicSlide,
   CUSTOM_LIMITS,
@@ -25,7 +27,7 @@ describe('live reports', () => {
     const worst = '\u0001'; // JSON writes it as \u0001: six characters for one
     const id = 'x'.repeat(100);
     // The largest pages a canvas carries: as many of the longest texts as the cut leaves.
-    const page = toCanvas(null, 'classic', pageOf(CUSTOM_LIMITS.elements, worst.repeat(CUSTOM_LIMITS.text))).overlay!;
+    const page = toCanvas(null, CLASSIC, pageOf(CUSTOM_LIMITS.elements, worst.repeat(CUSTOM_LIMITS.text))).overlay!;
     const state: LiveOwnState = {
       sessionId: id,
       presentationId: id,
@@ -66,12 +68,12 @@ describe('live reports', () => {
   });
 
   it('cuts a slide to what a report may carry, so a long song part or long verses never block a report', () => {
-    const long = toPublicSlide({ kind: 'song', text: 'a'.repeat(9000), verses: null, image: null, credits: 'c'.repeat(900) }, 'classic');
+    const long = toPublicSlide({ kind: 'song', text: 'a'.repeat(9000), verses: null, image: null, credits: 'c'.repeat(900) }, CLASSIC);
     expect(long.text).toHaveLength(PUBLIC_SLIDE_LIMITS.text);
     expect(long.credits).toHaveLength(PUBLIC_SLIDE_LIMITS.credits);
     const verses = toPublicSlide(
       { kind: 'bible', text: '', verses: [{ n: 1, t: 'v'.repeat(4000) }, { n: 2, t: 'w'.repeat(4000) }, { n: 3, t: 'x' }], image: null, credits: null },
-      'classic',
+      CLASSIC,
     );
     expect(verses.verses!.map((v) => [v.n, v.t.length])).toEqual([
       [1, 4000],
@@ -82,7 +84,7 @@ describe('live reports', () => {
   });
 
   it('cuts a canvas slide to what a report may carry, as the public slide', () => {
-    const canvas = toCanvas({ kind: 'song', text: 'a'.repeat(9000), verses: null, image: null, credits: null }, 'classic', null);
+    const canvas = toCanvas({ kind: 'song', text: 'a'.repeat(9000), verses: null, image: null, credits: null }, CLASSIC, null);
 
     expect(canvas.slide!.text).toHaveLength(PUBLIC_SLIDE_LIMITS.text);
   });
@@ -90,19 +92,19 @@ describe('live reports', () => {
   it('keeps the overlay of a canvas with nothing selected, its page with its pictures', () => {
     const overlay = pageOf(1, 'Välkommen');
 
-    const canvas = toCanvas(null, 'classic', overlay);
+    const canvas = toCanvas(null, CLASSIC, overlay);
 
     expect(canvas).toEqual({ slide: null, themeId: 'classic', overlay });
   });
 
   it('drops an overlay with nothing on its page from the canvas', () => {
-    const canvas = toCanvas({ kind: 'song', text: 'A', verses: null, image: null, credits: null }, 'classic', pageOf(0, ''));
+    const canvas = toCanvas({ kind: 'song', text: 'A', verses: null, image: null, credits: null }, CLASSIC, pageOf(0, ''));
 
     expect(canvas.overlay).toBeNull();
   });
 
   it('cuts a page too long for a report, dropping the elements drawn last', () => {
-    const canvas = toCanvas({ kind: 'song', text: '', verses: null, image: null, credits: null, custom: pageOf(100, 'a'.repeat(2000)) }, 'classic', null);
+    const canvas = toCanvas({ kind: 'song', text: '', verses: null, image: null, credits: null, custom: pageOf(100, 'a'.repeat(2000)) }, CLASSIC, null);
 
     const custom = canvas.slide!.custom!;
     expect([JSON.stringify(custom).length <= CANVAS_PAGE_MAX, custom.elements.length < 100, custom.elements[0]?.id]).toEqual([true, true, 't0']);
@@ -112,5 +114,23 @@ describe('live reports', () => {
     const canvas = canvasOfPublicSlide({ kind: 'song', text: 'A', verses: null, image: null, credits: 'C', themeId: 'dark', overlay: 'Ö' });
 
     expect(canvas).toEqual({ slide: { kind: 'song', text: 'A', verses: null, image: null, credits: 'C' }, themeId: 'dark', overlay: null });
+  });
+
+  it('sends a built-in theme by its id only', () => {
+    const slide = toPublicSlide({ kind: 'song', text: 'A', verses: null, image: null, credits: null }, CLASSIC);
+
+    expect([slide.themeId, 'theme' in slide]).toEqual(['classic', false]);
+  });
+
+  it('sends an own theme with its definition, which a screen draws in', () => {
+    const own = { id: 'own-1', definition: { ...CLASSIC.definition, media: { ...CLASSIC.definition.media, color: '#123456' } } };
+
+    const canvas = toCanvas({ kind: 'song', text: 'A', verses: null, image: null, credits: null }, own, null);
+
+    expect(themeOfReport(canvas)).toMatchObject({ id: 'own-1', definition: own.definition });
+  });
+
+  it('draws a report of an unknown theme with no definition in the dark theme', () => {
+    expect(themeOfReport({ themeId: 'gone' }).id).toBe('classic');
   });
 });

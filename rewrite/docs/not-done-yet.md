@@ -4,8 +4,7 @@ Profile pictures and logos, the mobile app beyond its iOS shell and sign-in ([ph
 deploy to Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
-so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
-still only a built-in asset, `backgroundImageSchema`, and there is no theme editor to choose one);
+so an install that wants S3 cannot yet); a video as a theme's background, and fonts of the organisation's own (docs/themes.md, "Not yet");
 a limit on the total size of an organisation's media (only the number and size of files per kind are limited);
 MEDIA-R14's eviction by when a file was last used (it is by when it arrived); HTTP Range for audio (video has it).
 Dropping files onto the add
@@ -59,8 +58,7 @@ material"); a music stand for the band (the whole song as it is shown, chords la
 the musicians need: what they use on Sundays now, whether they want
 chords or notes, and whether notes are shared or their own.
 
-From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
-the Teman page lists the built-ins and sets the default). BIBLE-R16's device-local Bibles (a translation
+From spec 05 and milestone 4: BIBLE-R16's device-local Bibles (a translation
 that never leaves the device) are not built, by decision D30: an import made offline is queued and goes
 to the server (see [Bibles](bibles-and-themes.md#bibles)). Two translations with exactly the same text share it on a device, so
 keeping one shows the other as "Tillgänglig offline" too (the current app's "imported here" text).
