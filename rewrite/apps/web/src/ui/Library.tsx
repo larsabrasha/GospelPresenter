@@ -272,7 +272,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         )
       )}
       {/* The name, and the ⋯ that says there is a menu (Lars, 2026-11-04: seen, not only held for). */}
-      <div className="mt-1 w-full min-w-0 flex items-center justify-center gap-0.5">
+      <div className="mt-1 h-8 w-full min-w-0 flex items-center justify-center gap-0.5">
         <p className="text-xs text-stone-500 dark:text-stone-400 truncate" title={item.name}>
           {item.name}
         </p>
