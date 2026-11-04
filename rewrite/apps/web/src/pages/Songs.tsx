@@ -77,6 +77,11 @@ export function Songs() {
       layout="list"
       renderRow={(s) => ({ title: <Highlight text={s.name} query={shownQuery} />, subtitle: s.author ? <Highlight text={s.author} query={shownQuery} /> : undefined })}
       sections={(list) => byLetter(list).map((section) => ({ key: section.letter, title: section.letter, items: section.songs }))}
+      sorts={[
+        { key: 'name', label: t('library.sort.name'), compare: (a, b) => a.name.localeCompare(b.name, 'sv'), sections: true },
+        // Songs with no author last.
+        { key: 'author', label: t('library.sort.author'), compare: (a, b) => (a.author ?? '\uffff').localeCompare(b.author ?? '\uffff', 'sv') || a.name.localeCompare(b.name, 'sv') },
+      ]}
       open={(s) => href({ page: 'song', id: s.id })}
       manage
       rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateSong', { id: s.id, name }) }}

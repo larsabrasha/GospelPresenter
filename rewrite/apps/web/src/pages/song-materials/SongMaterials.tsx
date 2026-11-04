@@ -121,7 +121,7 @@ export function SongMaterials({ id }: { id: string }) {
   const missing = useGoneSong(song !== undefined, song);
   return (
     <PageContainer className="pb-8">
-      <DetailHeader named backHref={href({ page: 'song', id })} title={t('material.title')} className="px-5" />
+      <DetailHeader backHref={href({ page: 'song', id })} title={t('material.title')} className="px-5" />
       {song && !missing ? <MaterialsEditor songId={id} /> : <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>}
     </PageContainer>
   );

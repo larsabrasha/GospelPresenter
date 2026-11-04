@@ -1,6 +1,6 @@
 import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { usePhoneBarSlot } from './barSlots.ts';
+import { usePhoneBarSlots } from './barSlots.ts';
 import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
 import { useSplit } from './useWide.ts';
 import { t } from '../i18n.ts';
@@ -115,8 +115,8 @@ function IntroCard({ title, intro }: { title: string; intro: PageIntro }) {
  * A detail page's heading row (Components/DetailHeader.razor): the round back
  * button at the left, the title in the middle, and `saved` ("✓ Sparad", see
  * ui/AutoSave.tsx) at the right. The back button is a link with `backHref`, a
- * button with `onBack`; with neither, the title alone (Profile.razor). `named` says the dialog's bar names the page
- * already (Arrangemang, Historik): there the page shows no heading of its own, as two said the same (Lars, 2026-11-04).
+ * button with `onBack`; with neither, the title alone (Profile.razor). In Inställningar the title and Sparad go to
+ * its bar at every width, and the page shows no heading of its own: never the name twice (Lars, 2026-11-04).
  */
 export function DetailHeader({
   backHref,
@@ -124,14 +124,12 @@ export function DetailHeader({
   title,
   saved,
   className,
-  named,
 }: {
   backHref?: string;
   onBack?: () => void;
   title: string;
   saved?: ReactNode;
   className?: string;
-  named?: boolean;
 }) {
   const alone = useContext(Alone);
   const inBar = useContext(BackInBar);
@@ -139,9 +137,9 @@ export function DetailHeader({
   // From `lg` the bar is shown, below it the page's own header: one or the other, never both.
   const wide = useSplit();
   const toBar = inBar && !!slot && wide;
-  // Below `lg`, in Inställningar, Sparad goes to the dialog's bar beside Stäng; the name stays on the page.
-  const phoneSlot = usePhoneBarSlot();
-  const savedHere = !(inBar && phoneSlot);
+  // Below `lg`, in Inställningar, the name and Sparad go to the dialog's bar.
+  const phone = usePhoneBarSlots();
+  const toPhoneBar = inBar && !toBar && !!phone;
   return (
     <>
       {/* In Inställningar from `lg`, the name and Sparad are in the content column's bar, as a macOS window's title. */}
@@ -154,14 +152,13 @@ export function DetailHeader({
           </>,
           slot,
         )}
-      {/* The bar names it: no row of its own, the name for screen readers only, Sparad in the bar. */}
-      {!toBar && named && inBar && (
+      {toPhoneBar && (
         <>
-          <h1 className="sr-only">{title}</h1>
-          {phoneSlot ? createPortal(saved, phoneSlot) : saved}
+          {phone.title && title && createPortal(<h1 className="min-w-0 font-semibold text-[17px] truncate">{title}</h1>, phone.title)}
+          {phone.saved && createPortal(saved, phone.saved)}
         </>
       )}
-      {!toBar && !(named && inBar) && (
+      {!toBar && !toPhoneBar && (
     <div className={`relative flex items-center justify-center min-h-10 ${className ?? ''}`}>
       {!alone && (backHref || onBack) && (
         <AppButton
@@ -175,7 +172,7 @@ export function DetailHeader({
         </AppButton>
       )}
       <h1 className="text-xl/7 font-bold dark:text-stone-100 truncate max-w-[60%]">{title}</h1>
-      {savedHere ? saved : phoneSlot && createPortal(saved, phoneSlot)}
+      {saved}
     </div>
       )}
     </>

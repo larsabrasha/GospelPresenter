@@ -4,7 +4,7 @@ import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
 import { ROUND_CLOSE } from './glass.ts';
-import { PagePhoneBarSlot } from './barSlots.ts';
+import { PagePhoneBarSlots } from './barSlots.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 
 /** The round close button in a dialog's corner (Components/Dialog.razor). */
@@ -217,6 +217,7 @@ export function PageDialog({
 }) {
   const titleId = useId();
   const [savedSlot, setSavedSlot] = useState<HTMLDivElement | null>(null);
+  const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className={`${narrow ? 'max-w-2xl' : 'max-w-5xl'} sm:h-[min(52rem,100%)]`} page>
       {(close) => (
@@ -237,13 +238,15 @@ export function PageDialog({
                 {compactTitle}
               </span>
             )}
-            {/* A detail page's "✓ Sparad", beside Stäng (DetailHeader). */}
+            {/* A detail page's own name in the page's name's place, and its "✓ Sparad" beside Stäng (DetailHeader). */}
+            {/* Over the page's kind ("Sång"), in the bar's own colour, so only the name shows. */}
+            <div ref={setTitleSlot} data-page-title className="split:hidden absolute inset-x-24 inset-y-0 flex items-center justify-center bg-inherit empty:hidden" />
             <div ref={setSavedSlot} className="split:hidden absolute right-14 touch:right-16 inset-y-0 w-20 flex items-center empty:hidden" />
             <CloseButton onClick={close} />
           </div>
           {/* A step lighter in dark mode than the page under it (app.css `.elevated`), as iOS draws what floats. */}
           <div className="elevated flex-1 min-h-0 flex flex-col">
-            <PagePhoneBarSlot value={savedSlot}>{children}</PagePhoneBarSlot>
+            <PagePhoneBarSlots value={{ title: titleSlot, saved: savedSlot }}>{children}</PagePhoneBarSlots>
           </div>
         </>
       )}

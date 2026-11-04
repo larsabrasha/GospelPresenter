@@ -12,13 +12,14 @@ import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
 import { useHeaderFloat } from './headerFloat.ts';
 import { saveFiles, type DownloadFile } from '../media/download.ts';
-import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
+import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, ListBulletIcon, PencilIcon, Squares2x2Icon, TrashIcon } from './icons.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { NameDialog } from './NameDialog.tsx';
 import { PageContainer, PageHeader } from './PageContainer.tsx';
 import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
 import { HoldMenu } from './RemoveMenu.tsx';
+import { SortMenu, useStoredChoice } from './SortMenu.tsx';
 import { useToast } from './Toast.tsx';
 
 // Sånger, Biblar, Bilder, Ljud and Videor alike (Lars, 2026-11-04: "härma iOS 27"): the title, the search under it,
@@ -46,12 +47,16 @@ export interface LibraryProps<T extends LibraryEntry> {
   /** The search, when the page searches itself (Sånger searches the lyrics too); else by name and `words`. */
   search?: { query: string; onQuery: (query: string) => void; shown: T[] | undefined };
   words?: (item: T) => (string | null | undefined)[];
+  /** How it shows at first; with `switchable`, a button beside the order turns it into the other (Bilder, Videor). */
   layout: 'list' | 'grid';
+  switchable?: boolean;
   renderRow?: (item: T, query: string) => LibraryRow;
   /** A grid item's picture. */
   renderTile?: (item: T) => ReactNode;
-  /** Sections with a caption, while nothing is searched (Sånger's letters); an index along the edge when long. */
+  /** Sections with a caption, while nothing is searched and the order is one that has them (Sånger's letters). */
   sections?: (shown: T[]) => { key: string; title: string; items: T[] }[];
+  /** The orders to choose from, the first the default; `sections` says the list is in sections in that order. */
+  sorts?: { key: string; label: string; compare: (a: T, b: T) => number; sections?: boolean }[];
   /** Where an item opens (a song's page). */
   open?: (item: T) => string;
   /** What a tap on an item looks at (a picture, a video, a sound). */
@@ -87,6 +92,8 @@ const TILE = 'relative w-full flex justify-center rounded-lg';
 /** Radera in an item's ⋯ menu: as its other choices, in red. */
 const MENU_DANGER = MENU_ITEM.replace('text-stone-700 dark:text-stone-200', 'text-red-600 dark:text-red-400');
 
+const searching = (query: string) => !!query.trim();
+
 /** From how many items a sectioned list has an index along its edge to jump by its captions. */
 const INDEX_FROM = 20;
 
@@ -101,9 +108,15 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const [looking, setLooking] = useState<string | null>(null);
 
   const query = p.search?.query ?? ownQuery;
-  const shown = p.search ? p.search.shown : p.items?.filter((i) => matches(query, i.name, ...(p.words?.(i) ?? [])));
-  const searching = !!query.trim();
-  const sections = p.sections && shown && !searching ? p.sections(shown) : null;
+  const [sortKey, setSortKey] = useStoredChoice(`${p.testId}:sort`, p.sorts?.map((s) => s.key) ?? []);
+  const [layout, setLayout] = useStoredChoice(`${p.testId}:layout`, p.layout === 'grid' ? ['grid', 'list'] : ['list', 'grid']);
+  const asGrid = (p.switchable ? layout : p.layout) === 'grid';
+  const sort = p.sorts?.find((s) => s.key === sortKey);
+  const found = p.search ? p.search.shown : p.items?.filter((i) => matches(query, i.name, ...(p.words?.(i) ?? [])));
+  // A search keeps its own order, best hit first, as Sånger's does.
+  const shown = sort && !(p.search && searching(query)) ? found?.toSorted(sort.compare) : found;
+  const searchingNow = searching(query);
+  const sections = p.sections && shown && !searchingNow && (!p.sorts || sort?.sections) ? p.sections(shown) : null;
   const pickedItems = (p.items ?? []).filter((i) => picked.has(i.id));
   const allPicked = !!shown?.length && shown.every((i) => picked.has(i.id));
   const lookedIndex = looking ? (shown ?? []).findIndex((i) => i.id === looking) : -1;
@@ -269,7 +282,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   );
 
   const list = (items: T[], label?: string) =>
-    p.layout === 'grid' ? (
+    asGrid ? (
       // Columns by its own width, not the window's: Inställningar's page column is narrow on an iPad held upright.
       <div className="@container">
         <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 -mx-2" aria-label={label} data-testid={`${p.testId}-grid`}>
@@ -286,18 +299,6 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     <>
       {dialog}
       <PageHeader title={p.title}>
-        {!!p.items?.length && p.manage && (
-          <span className="flex items-center gap-1">
-            {selecting && (
-              <AppButton variant="plain" className={HEADER_TEXT} onClick={() => setPicked(allPicked ? new Set() : new Set(shown?.map((i) => i.id)))}>
-                {t(allPicked ? 'library.deselectAll' : 'library.selectAll')}
-              </AppButton>
-            )}
-            <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-              {t(selecting ? 'library.done' : 'library.select')}
-            </AppButton>
-          </span>
-        )}
         {selecting ? (
           <Toolbar count={pickedItems.length} onRemove={() => void remove(pickedItems)} onDownload={p.download ? () => void download(pickedItems) : undefined} />
         ) : (
@@ -327,7 +328,38 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         />
       )}
       {p.notices}
+      {/* The search first, then a row with the order at the left and Välj at the right (Lars, 2026-11-04). */}
       {!!p.items?.length && (p.search ? <ListSearch query={query} onChange={p.search.onQuery} /> : <ListSearch query={query} onChange={setOwnQuery} />)}
+      {!!p.items?.length && (p.sorts || p.manage || p.switchable) && (
+        <div className="flex items-center justify-between gap-2 px-4 -mt-3 -mb-1">
+          <span className="flex items-center gap-1">
+            {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
+            {p.switchable && (
+              <AppButton
+                variant="plain"
+                className="size-11 flex items-center justify-center rounded-full text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2"
+                aria-label={t(asGrid ? 'library.asList' : 'library.asGrid')}
+                title={t(asGrid ? 'library.asList' : 'library.asGrid')}
+                onClick={() => setLayout(asGrid ? 'list' : 'grid')}
+              >
+                {asGrid ? <ListBulletIcon className="size-5" /> : <Squares2x2Icon className="size-5" />}
+              </AppButton>
+            )}
+          </span>
+          {p.manage && (
+            <span className="flex items-center gap-1 -mr-3">
+              {selecting && (
+                <AppButton variant="plain" className={HEADER_TEXT} onClick={() => setPicked(allPicked ? new Set() : new Set(shown?.map((i) => i.id)))}>
+                  {t(allPicked ? 'library.deselectAll' : 'library.selectAll')}
+                </AppButton>
+              )}
+              <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+                {t(selecting ? 'library.done' : 'library.select')}
+              </AppButton>
+            </span>
+          )}
+        </div>
+      )}
       {!p.items && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{p.loading}</div>}
       {p.items && !p.items.length && <EmptySmall icon={p.empty.icon} title={p.empty.title} dropHint={p.drop && p.manage ? p.drop.label : undefined} />}
       {!!p.items?.length && shown && !shown.length && (p.noMatch ? <p className="px-5 text-sm text-stone-400">{p.noMatch}</p> : <NoMatch query={query} />)}

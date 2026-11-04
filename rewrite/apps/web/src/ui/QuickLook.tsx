@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
 import { Dropdown } from './Dropdown.tsx';
+import { useSheetDrag } from './sheetDrag.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWaveIcon } from './icons.tsx';
 
 // A library item looked at, as Quick Look on a Mac (Lars, 2026-11-04): the picture as large as the window lets it,
@@ -110,13 +111,29 @@ export function QuickLook({
   onClose: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
-  /** Closed once it has faded out (`.look-out`, 180 ms). */
+  /** Closed once it has gone (`.look-out`: faded on a computer, down on a phone, within 260 ms). */
   const close = () => {
     if (closing) return;
     setClosing(true);
-    setTimeout(onClose, 180);
+    setTimeout(onClose, 260);
   };
+  // On a phone a sheet, as Inställningar: pulled down, it goes, and the page under it shows as it does.
+  useSheetDrag(
+    sheet,
+    bar,
+    onClose,
+    (progress, ms) => {
+      const el = backdrop.current;
+      if (!el) return;
+      el.style.transition = ms ? `opacity ${ms}ms` : 'none';
+      el.style.opacity = String(1 - progress);
+    },
+    () => matchMedia('(width < 40rem)').matches,
+  );
   const key = useEffectEvent((e: KeyboardEvent) => {
     // Its ⋯ menu, open, takes its own keys; else these are the look's, before the page under it hears them.
     if (box.current?.querySelector('[role="menu"]')) return;
@@ -141,10 +158,12 @@ export function QuickLook({
       role="dialog"
       aria-modal="true"
       aria-label={name}
-      className={`outline-none fixed inset-0 z-[140] flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom ${closing ? 'look-out' : 'look-in'}`}
+      className={`outline-none fixed inset-0 z-[140] ${closing ? 'look-out' : 'look-in'}`}
       data-testid="quick-look"
     >
-      <div className="flex items-center gap-3 px-3 py-3">
+      <div ref={backdrop} className="absolute inset-0 bg-black/40" />
+      <div ref={sheet} className="look-sheet absolute inset-0 flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom">
+      <div ref={bar} className="flex items-center gap-3 px-3 py-3">
         <AppButton variant="plain" className={ROUND} aria-label={t('common.close')} title={t('common.close')} onClick={close}>
           <CloseIcon className="size-5" />
         </AppButton>
@@ -174,6 +193,7 @@ export function QuickLook({
             </AppButton>
           </>
         )}
+      </div>
       </div>
     </div>,
     document.body,

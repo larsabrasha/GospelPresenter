@@ -8,7 +8,7 @@ import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { Library } from '../ui/Library.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { ImportNotices, named, trashTexts } from './Images.tsx';
+import { fileSorts, ImportNotices, named, trashTexts } from './Images.tsx';
 
 /**
  * Ljud (spec 05 `/admin/audios`): the organisation's audio files, as a list (ui/Library.tsx).
@@ -33,6 +33,7 @@ export function Audios({ role }: { role: Role }) {
       title={t('audios.title')}
       items={items}
       layout="list"
+      sorts={fileSorts()}
       renderRow={() => ({ leading: <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" /> })}
       preview={(a) => ({ kind: 'audio', hash: a.hash })}
       manage={manage}

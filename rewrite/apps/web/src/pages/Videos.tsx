@@ -9,11 +9,11 @@ import { VideoIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { Library } from '../ui/Library.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { ImportNotices, named, trashTexts } from './Images.tsx';
+import { fileSorts, ImportNotices, named, trashTexts } from './Images.tsx';
 import { formatDuration } from './VideoTab.tsx';
 
 /** A video's still in the grid, as Photos shows one: its length at the bottom right, its size and codec as a tooltip. */
-function Still({ video }: { video: LibraryVideo }) {
+function Still({ video, small }: { video: LibraryVideo; small?: boolean }) {
   const url = useBlobUrl(video.thumbHash);
   return (
     <span
@@ -21,7 +21,7 @@ function Still({ video }: { video: LibraryVideo }) {
       title={[formatDuration(video.duration), formatBytes(video.size), video.codec === 'hevc' ? 'HEVC' : 'H.264'].join(' · ')}
     >
       {url ? <img src={url} alt={video.fileName} className="absolute inset-0 size-full object-cover" draggable={false} /> : <VideoIcon className="absolute inset-0 m-auto size-6 text-stone-400" />}
-      <span className="absolute bottom-1 right-1.5 text-xs font-semibold text-white tabular-nums [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{formatDuration(video.duration)}</span>
+      {!small && <span className="absolute bottom-1 right-1.5 text-xs font-semibold text-white tabular-nums [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{formatDuration(video.duration)}</span>}
     </span>
   );
 }
@@ -56,6 +56,16 @@ export function Videos({ role }: { role: Role }) {
       title={t('videos.page')}
       items={items}
       layout="grid"
+      switchable
+      renderRow={(v) => ({
+        leading: (
+          <span className="w-16 shrink-0">
+            <Still video={v} small />
+          </span>
+        ),
+        subtitle: [formatDuration(v.duration), formatBytes(v.size), v.codec === 'hevc' ? 'HEVC' : 'H.264'].join(' · '),
+      })}
+      sorts={fileSorts<LibraryVideo & { name: string }>([{ key: 'length', label: t('library.sort.length'), compare: (a, b) => b.duration - a.duration }])}
       renderTile={(v) => <Still video={v} />}
       preview={(v) => ({ kind: 'video', hash: v.hash, still: v.stillHash, type: v.contentType, codec: v.codec })}
       manage={manage}

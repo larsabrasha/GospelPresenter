@@ -43,7 +43,7 @@ export function SongArrangements({ id }: { id: string }) {
   const saveFailed = useSaveFailed();
   const data = useArrangementData(id);
   const missing = useGoneSong(!!data, data?.song);
-  const header = <DetailHeader named backHref={href({ page: 'song', id })} title={t('song.arrangements')} className="px-5" />;
+  const header = <DetailHeader backHref={href({ page: 'song', id })} title={t('song.arrangements')} className="px-5" />;
   if (!data || missing)
     return (
       <PageContainer>

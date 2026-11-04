@@ -46,6 +46,17 @@ export function ImportNotices({ progress, failures, failed, testId }: { progress
   );
 }
 
+/** The orders of a library of files: newest first (as it was), oldest first, by name; `more` after them. */
+export function fileSorts<T extends { name: string; createdAt: number }>(more: { key: string; label: string; compare: (a: T, b: T) => number }[] = []) {
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'sv', { numeric: true });
+  return [
+    { key: 'newest', label: t('library.sort.newest'), compare: (a: T, b: T) => b.createdAt - a.createdAt || byName(a, b) },
+    { key: 'oldest', label: t('library.sort.oldest'), compare: (a: T, b: T) => a.createdAt - b.createdAt || byName(a, b) },
+    { key: 'name', label: t('library.sort.name'), compare: byName },
+    ...more,
+  ];
+}
+
 /** A file's name as a library item's. */
 export const named = <T extends { fileName: string }>(items: T[] | undefined) => items?.map((i) => ({ ...i, name: i.fileName }));
 
@@ -80,6 +91,12 @@ export function Images({ role }: { role: Role }) {
       title={t('images.title')}
       items={items}
       layout="grid"
+      switchable
+      sorts={fileSorts()}
+      renderRow={(image) => ({
+        leading: <ImageThumb image={image} className="block w-16 aspect-video object-cover rounded shrink-0" />,
+        subtitle: `${image.width} × ${image.height}`,
+      })}
       renderTile={(image) => <ImageThumb image={image} />}
       preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
