@@ -44,8 +44,7 @@ export async function adminMenu(page: Page) {
     await closeRemoteSheet(page);
     await bar.getByRole('link', { name: 'Inställningar', exact: true }).click();
   } else {
-    await page.getByTestId('me').click();
-    await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
+    await page.getByRole('navigation').getByRole('link', { name: 'Inställningar', exact: true }).first().click();
   }
   return menu;
 }

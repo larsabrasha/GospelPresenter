@@ -1,5 +1,5 @@
 // The libraries' common page (apps/web/src/ui/Library.tsx), on Sånger: Välj marks items and Radera trashes them all;
-// an item's menu, opened by a right click, renames it.
+// a song's menu, opened by a right click, renames it.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { createSong, openAdmin, setUpHost } from './flows.ts';
@@ -39,6 +39,8 @@ test('a song’s menu renames it, and Escape ends Välj without closing the page
   await createSong(page, 'Gammalt namn', []);
   await openAdmin(page, 'Sånger');
 
+  // A song has no ⋯ (its page renames and deletes it); held or right-clicked, it has the menu.
+  await expect(page.getByRole('button', { name: 'Fler val för Gammalt namn' })).toHaveCount(0);
   await page.getByRole('list', { name: 'Sånger' }).getByText('Gammalt namn').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Byt namn' }).click();
   const dialog = page.getByRole('dialog', { name: 'Byt namn' });

@@ -3,6 +3,7 @@ import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/queries.ts';
 import { t, type TextKey } from '../i18n.ts';
+import { nameFor } from '../media/download.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { PhotoOutlineIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
@@ -82,6 +83,13 @@ export function Images({ role }: { role: Role }) {
       renderTile={(image) => <ImageThumb image={image} />}
       preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
+      download={{
+        zipName: t('images.title'),
+        file: async (image) => {
+          const m = await db.openMedia(image.fullHash);
+          return m && { name: nameFor(image.fileName, m.contentType), data: m.bytes, type: m.contentType };
+        },
+      }}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
       remove={{ ...trashTexts('images.trashed'), run: (image) => db.mutate('trashImage', { id: image.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />}

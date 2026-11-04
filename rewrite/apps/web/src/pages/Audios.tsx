@@ -36,6 +36,13 @@ export function Audios({ role }: { role: Role }) {
       renderRow={() => ({ leading: <SpeakerWaveIcon className="size-5 text-stone-400 shrink-0" /> })}
       preview={(a) => ({ kind: 'audio', hash: a.hash })}
       manage={manage}
+      download={{
+        zipName: t('audios.title'),
+        file: async (a) => {
+          const m = await db.openMedia(a.hash);
+          return m && { name: a.fileName, data: m.bytes, type: m.contentType };
+        },
+      }}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
       remove={{ ...trashTexts('audios.trashed'), run: (a) => db.mutate('trashAudio', { id: a.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />}

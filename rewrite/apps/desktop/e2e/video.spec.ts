@@ -192,6 +192,7 @@ test('Videor shows the videos as a grid with their lengths, imports from the pag
   await page.getByRole('button', { name: 'Dop.mp4', exact: true }).click();
   await expect(page.getByTestId('quick-look-video')).toBeVisible();
   await page.getByRole('dialog', { name: 'Dop.mp4' }).getByRole('button', { name: 'Stäng' }).click();
+  await expect(page.getByTestId('quick-look')).toHaveCount(0); // gone once it has faded out
 
   // Radera in its ⋯ menu, seen beside its name.
   await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();

@@ -420,7 +420,7 @@ function header(fields: [number, 2 | 4][]): Uint8Array {
   return out;
 }
 
-/** A zip of the given files, stored uncompressed: for tests and fixtures. */
+/** A zip of the given files, stored uncompressed: for tests and fixtures, and the libraries' downloads of several files. */
 export function makeZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
   const chunks: Uint8Array[] = [];
   const central: Uint8Array[] = [];

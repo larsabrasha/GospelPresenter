@@ -42,7 +42,7 @@ export function SongHistory({ id }: { id: string }) {
 
   const missing = useGoneSong(!!data, data?.song);
 
-  const header = <DetailHeader backHref={href({ page: 'song', id })} title={t('history.title')} className="px-5" />;
+  const header = <DetailHeader named backHref={href({ page: 'song', id })} title={t('history.title')} className="px-5" />;
   if (!data || missing)
     return (
       <PageContainer maxWidthClass="max-w-[1200px]">

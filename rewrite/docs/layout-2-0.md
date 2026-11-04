@@ -145,7 +145,7 @@ overlay.
 ## The start page and the bar
 
 The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
-name (no role or organisation), Inställningar (Mina inställningar is a row in it), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
+name (no role or organisation), Inställningar (Mina inställningar is a row in it; since 2026-11-04 not in the menu, as the bar's cog is the one way there), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
 what and offers Synka nu. The page keeps Visas nu at the top (a card as the list's, red only in its pulsing dot and the line "Visas just nu", the whole card opening it with a ›, as Music's Now Playing; the row below has only a small red dot: Lars, 2026-11-03), then Idag, Kommande and Senast ändrade, each row with
 its time and place under its name and its number of items at the right, two lines at every width with no

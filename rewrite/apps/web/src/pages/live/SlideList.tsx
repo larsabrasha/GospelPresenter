@@ -204,6 +204,7 @@ export function SlideList({
                   key={slide.key}
                   slide={slide}
                   partIndex={partIndex}
+                  alone={set.slides.length === 1}
                   theme={theme}
                   current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
                   rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
@@ -226,6 +227,7 @@ export function SlideList({
 function PartRow({
   slide,
   partIndex,
+  alone,
   theme,
   current,
   rested,
@@ -235,6 +237,8 @@ function PartRow({
 }: {
   slide: Slide;
   partIndex: number;
+  /** The item's only slide: a picture or a video says no number then (Lars, 2026-11-04). */
+  alone: boolean;
   theme: Theme;
   current: boolean;
   /** After Rensa, the part last shown keeps a quiet grey border: where → goes on from. */
@@ -261,7 +265,7 @@ function PartRow({
           <SlideView slide={slide} theme={theme} label={false} credits={false} />
         </span>
       )}
-      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+      <span className="flex-1 min-w-0 flex flex-col gap-1.5">
         {/* One height with or without VISAS and NÄSTA, so a row keeps its size as they move (Lars, 2026-11-02). */}
         <span className="h-5 flex items-center justify-between gap-2">
           {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one by its number. */}
@@ -270,7 +274,7 @@ function PartRow({
               {slide.label.text}
             </span>
           ) : (
-            <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
+            !(alone && slide.kind === 'media') && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
           )}
           {mark && <SlideMark kind={mark} />}
         </span>

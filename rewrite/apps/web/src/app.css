@@ -147,6 +147,21 @@
   .sheet-in { animation: dialog-in 200ms ease-out; }
 }
 
+/* Quick Look (ui/QuickLook.tsx): the dark fades in and the item grows into place, and both go the same way out. */
+@keyframes look-in {
+  from { opacity: 0; }
+}
+@keyframes look-item-in {
+  from { opacity: 0; transform: scale(0.92); }
+}
+.look-in { animation: look-in 220ms ease-out; }
+.look-in .look-item { animation: look-item-in 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+.look-out { animation: look-in 180ms ease-in reverse forwards; }
+.look-out .look-item { animation: look-item-in 180ms ease-in reverse forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .look-in .look-item, .look-out .look-item { animation: none; }
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(0.75rem); }
   to { opacity: 1; transform: translateY(0); }

@@ -35,6 +35,18 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('quick-look')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Ljud' })).toBeVisible();
+  // Ladda ner, in its ⋯ menu: the file as it is, under its name. Electron's own saving is not Playwright's
+  // download event, so the link the page clicks is caught instead.
+  await page.evaluate(() => {
+    const w = window as unknown as { saved: string[] };
+    w.saved = [];
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+      if (this.href.startsWith('blob:')) w.saved.push(this.download);
+    };
+  });
+  await page.getByRole('button', { name: 'Fler val för Preludium.wav' }).click();
+  await page.getByRole('menuitem', { name: 'Ladda ner' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { saved: string[] }).saved)).toEqual(['Preludium.wav']);
 
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();

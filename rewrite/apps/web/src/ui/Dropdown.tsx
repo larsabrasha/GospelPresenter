@@ -40,6 +40,9 @@ export function Dropdown({
     const margin = 8;
     const room = visibleRoom(menu);
     const rect = menu.getBoundingClientRect();
+    // Kept inside the window sideways too: a menu under a ⋯ at a grid's left edge ran off the screen (Lars, 2026-11-04).
+    const shift = rect.left < margin ? margin - rect.left : rect.right > innerWidth - margin ? innerWidth - margin - rect.right : 0;
+    if (shift) menu.style.transform = `translateX(${shift}px)`;
     if (rect.bottom <= room.bottom - margin) return;
     const parent = menu.parentElement!.getBoundingClientRect();
     const above = parent.top - room.top;

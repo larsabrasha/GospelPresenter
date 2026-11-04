@@ -9,8 +9,8 @@ import { Dropdown } from './Dropdown.tsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWaveIcon } from './icons.tsx';
 
 // A library item looked at, as Quick Look on a Mac (Lars, 2026-11-04): the picture as large as the window lets it,
-// a video or a sound that plays, the item's name and its ⋯ menu at the top, ← and → (and the arrows at the sides) to
-// the one before and after, and Escape or ✕ to close it, nothing else.
+// a video or a sound that plays, the item's name and its ⋯ menu at the top, ← and → (and the arrows under it) to the
+// one before and after, and Escape or ✕ to close it, nothing else. It fades in and grows into place, and out again.
 
 export type QuickLookContent =
   | { kind: 'image'; full: string; thumb: string }
@@ -110,10 +110,17 @@ export function QuickLook({
   onClose: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
+  /** Closed once it has faded out (`.look-out`, 180 ms). */
+  const close = () => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(onClose, 180);
+  };
   const key = useEffectEvent((e: KeyboardEvent) => {
     // Its ⋯ menu, open, takes its own keys; else these are the look's, before the page under it hears them.
     if (box.current?.querySelector('[role="menu"]')) return;
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft' && onPrevious) onPrevious();
     else if (e.key === 'ArrowRight' && onNext) onNext();
     else return;
@@ -128,9 +135,17 @@ export function QuickLook({
   }, []);
 
   return createPortal(
-    <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={name} className="outline-none fixed inset-0 z-[140] flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom" data-testid="quick-look">
+    <div
+      ref={box}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={name}
+      className={`outline-none fixed inset-0 z-[140] flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom ${closing ? 'look-out' : 'look-in'}`}
+      data-testid="quick-look"
+    >
       <div className="flex items-center gap-3 px-3 py-3">
-        <AppButton variant="plain" className={ROUND} aria-label={t('common.close')} title={t('common.close')} onClick={onClose}>
+        <AppButton variant="plain" className={ROUND} aria-label={t('common.close')} title={t('common.close')} onClick={close}>
           <CloseIcon className="size-5" />
         </AppButton>
         <h2 className="flex-1 min-w-0 truncate text-center font-semibold">{name}</h2>
@@ -142,19 +157,22 @@ export function QuickLook({
           <span className="size-11" />
         )}
       </div>
-      <div className="relative flex-1 min-h-0 flex items-center justify-center px-4 pb-4">
+      <div className="look-item flex-1 min-h-0 flex items-center justify-center px-4">
         {content.kind === 'image' && <Picture key={content.full} full={content.full} thumb={content.thumb} name={name} />}
         {content.kind === 'audio' && <Sound key={content.hash} hash={content.hash} name={name} />}
         {content.kind === 'video' && <Video key={content.hash} hash={content.hash} still={content.still} type={content.type} codec={content.codec} name={name} />}
-        {onPrevious && (
-          <AppButton variant="plain" className={`${ROUND} absolute left-3 top-1/2 -translate-y-1/2`} aria-label={t('quickLook.previous')} onClick={onPrevious}>
-            <ChevronLeftIcon className="size-5" />
-          </AppButton>
-        )}
-        {onNext && (
-          <AppButton variant="plain" className={`${ROUND} absolute right-3 top-1/2 -translate-y-1/2`} aria-label={t('quickLook.next')} onClick={onNext}>
-            <ChevronRightIcon className="size-5" />
-          </AppButton>
+      </div>
+      {/* Under the item, never on it (Lars, 2026-11-04); greyed at either end, so they keep their places. */}
+      <div className="flex items-center justify-center gap-6 py-4">
+        {(onPrevious || onNext) && (
+          <>
+            <AppButton variant="plain" className={`${ROUND} disabled:opacity-30 disabled:cursor-default`} disabled={!onPrevious} aria-label={t('quickLook.previous')} onClick={onPrevious}>
+              <ChevronLeftIcon className="size-5" />
+            </AppButton>
+            <AppButton variant="plain" className={`${ROUND} disabled:opacity-30 disabled:cursor-default`} disabled={!onNext} aria-label={t('quickLook.next')} onClick={onNext}>
+              <ChevronRightIcon className="size-5" />
+            </AppButton>
+          </>
         )}
       </div>
     </div>,

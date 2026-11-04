@@ -3,7 +3,7 @@ import { can, MEDIA_LIMITS, type LibraryVideo, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
+import { playUrl, useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
 import { formatBytes } from '../ui/formatBytes.ts';
 import { VideoIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
@@ -17,7 +17,7 @@ function Still({ video }: { video: LibraryVideo }) {
   const url = useBlobUrl(video.thumbHash);
   return (
     <span
-      className="relative block w-40 max-w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised overflow-hidden"
+      className="relative block w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised overflow-hidden"
       title={[formatDuration(video.duration), formatBytes(video.size), video.codec === 'hevc' ? 'HEVC' : 'H.264'].join(' · ')}
     >
       {url ? <img src={url} alt={video.fileName} className="absolute inset-0 size-full object-cover" draggable={false} /> : <VideoIcon className="absolute inset-0 m-auto size-6 text-stone-400" />}
@@ -59,6 +59,15 @@ export function Videos({ role }: { role: Role }) {
       renderTile={(v) => <Still video={v} />}
       preview={(v) => ({ kind: 'video', hash: v.hash, still: v.stillHash, type: v.contentType, codec: v.codec })}
       manage={manage}
+      download={{
+        zipName: t('videos.page'),
+        // Streamed from the server, as a video is not kept here (TODO.md "Video").
+        file: async (v) => {
+          const url = await playUrl(v.hash);
+          const res = url ? await fetch(url) : null;
+          return res?.ok ? { name: v.fileName, data: new Uint8Array(await res.arrayBuffer()), type: v.contentType } : null;
+        },
+      }}
       rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (v, fileName) => db.mutate('renameVideo', { id: v.id, fileName }) }}
       remove={{ ...trashTexts('videos.trashed'), run: (v) => db.mutate('trashVideo', { id: v.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />}

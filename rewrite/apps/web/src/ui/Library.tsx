@@ -11,7 +11,8 @@ import { EmptySmall } from './Empty.tsx';
 import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
 import { useHeaderFloat } from './headerFloat.ts';
-import { CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
+import { saveFiles, type DownloadFile } from '../media/download.ts';
+import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { NameDialog } from './NameDialog.tsx';
@@ -57,6 +58,8 @@ export interface LibraryProps<T extends LibraryEntry> {
   preview?: (item: T) => QuickLookContent;
   manage: boolean;
   rename?: { title: string; label: string; maxLength: number; run: (item: T, name: string) => Promise<unknown> };
+  /** Ladda ner: an item's file, fetched if this device does not have it; several are saved as `zipName`.zip. */
+  download?: { file: (item: T) => Promise<DownloadFile | null>; zipName: string };
   remove: {
     /** The question: one item named, or how many. */
     ask: (items: T[]) => { text: string; bold?: string };
@@ -77,6 +80,9 @@ export interface LibraryProps<T extends LibraryEntry> {
   drop?: { label: string; accept: string; multiple?: boolean; onFiles: (files: File[]) => void };
   testId: string;
 }
+
+/** A grid item's picture: the cell's width, the picture in its middle (a video's still fills it). */
+const TILE = 'relative w-full flex justify-center rounded-lg';
 
 /** Radera in an item's ⋯ menu: as its other choices, in red. */
 const MENU_DANGER = MENU_ITEM.replace('text-stone-700 dark:text-stone-200', 'text-red-600 dark:text-red-400');
@@ -128,6 +134,18 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     if (removed.some((i) => i.id === looking)) setLooking(null);
   };
 
+  const download = async (items: T[]) => {
+    if (!p.download || !items.length) return;
+    if (items.length > 1) toast(t('library.downloading', { n: items.length }));
+    const files: DownloadFile[] = [];
+    for (const item of items) {
+      const file = await p.download.file(item).catch(() => null);
+      if (file) files.push(file);
+      else toast(t('library.downloadFailed', { name: item.name }));
+    }
+    saveFiles(files, p.download.zipName);
+  };
+
   /** An item's choices: in its ⋯ menu (`row` MENU_ITEM) or in the menu a held finger opens (CONTEXT_ROW). */
   const menu = (item: T, row: string, danger: string) => (
     <>
@@ -137,14 +155,23 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           {t('library.rename')}
         </AppButton>
       )}
+      {p.download && (
+        <AppButton variant="plain" role="menuitem" className={row} onClick={() => void download([item])}>
+          <ArrowDownTrayIcon className="size-4" />
+          {t('library.download')}
+        </AppButton>
+      )}
+      {/* Radera in a group of its own, under a line, as every menu has it (ItemContextMenu's DIVIDER). */}
+      {(p.rename || p.download) && <div role="separator" className="h-px my-1 bg-separator" />}
       <AppButton variant="plain" role="menuitem" className={danger} onClick={() => void remove([item])}>
         <TrashIcon className="size-4" strokeWidth={1.5} />
         {t('images.remove')}
       </AppButton>
     </>
   );
+  // Not on what opens a page (a song): its page renames and deletes it (Lars, 2026-11-04); held, it has the menu still.
   const more = (item: T) =>
-    p.manage && (
+    p.manage && !p.open && (
       <Dropdown
         menuClassName="min-w-40 right-0"
         className="relative shrink-0"
@@ -174,9 +201,10 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         </span>
       </>
     );
-    const rowClass = `flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-left no-underline text-inherit ${ROW_HOVER}`;
+    // The card does not clip, so a ⋯ menu reaches past its edge: the first and last rows round their own corners.
+    const rowClass = `flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-left no-underline text-inherit group-first:rounded-t-xl group-last:rounded-b-xl ${ROW_HOVER}`;
     return (
-      <li key={item.id} className="flex items-center border-b border-separator last:border-b-0" aria-label={item.name} data-testid={`${p.testId}-row`}>
+      <li key={item.id} className="group flex items-center border-b border-separator last:border-b-0" aria-label={item.name} data-testid={`${p.testId}-row`}>
         {selecting ? (
           <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} className={`${rowClass} cursor-pointer`} onClick={() => toggle(item)}>
             <Tick on={picked.has(item.id)} />
@@ -211,7 +239,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const gridTile = (item: T) => (
     <li key={item.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid={`${p.testId}-card`}>
       {selecting ? (
-        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} className="relative rounded-lg cursor-pointer" onClick={() => toggle(item)}>
+        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
           <span className={picked.has(item.id) ? 'block opacity-80' : 'block'}>{p.renderTile?.(item)}</span>
           <Tick on={picked.has(item.id)} className="absolute bottom-1.5 right-1.5" />
         </AppButton>
@@ -219,14 +247,15 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         held(
           item,
           p.preview ? (
-            <AppButton variant="plain" className="relative rounded-lg cursor-pointer" aria-label={item.name} onClick={() => setLooking(item.id)}>
+            <AppButton variant="plain" className={`${TILE} cursor-pointer`} aria-label={item.name} onClick={() => setLooking(item.id)}>
               {p.renderTile?.(item)}
             </AppButton>
           ) : (
-            <div className="relative rounded-lg" tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
+            <div className={TILE} tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
               {p.renderTile?.(item)}
             </div>
           ),
+          'w-full',
         )
       )}
       {/* The name, and the ⋯ that says there is a menu (Lars, 2026-11-04: seen, not only held for). */}
@@ -248,7 +277,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         </ul>
       </div>
     ) : (
-      <ul className={CARD} aria-label={label}>
+      <ul className={CARD.replace(' overflow-hidden', '')} aria-label={label}>
         {items.map(listRow)}
       </ul>
     );
@@ -269,7 +298,11 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
             </AppButton>
           </span>
         )}
-        {selecting ? <Toolbar count={pickedItems.length} onRemove={() => void remove(pickedItems)} /> : p.add}
+        {selecting ? (
+          <Toolbar count={pickedItems.length} onRemove={() => void remove(pickedItems)} onDownload={p.download ? () => void download(pickedItems) : undefined} />
+        ) : (
+          p.add
+        )}
       </PageHeader>
       {renaming && p.rename && (
         <NameDialog
@@ -370,12 +403,17 @@ function Tick({ on, className }: { on: boolean; className?: string }) {
   );
 }
 
-/** What Välj floats where + floats: how many are marked, and Radera. */
-function Toolbar({ count, onRemove }: { count: number; onRemove: () => void }) {
+/** What Välj floats where + floats: how many are marked, Ladda ner where the items are files, and Radera. */
+function Toolbar({ count, onRemove, onDownload }: { count: number; onRemove: () => void; onDownload?: () => void }) {
   const float = useHeaderFloat();
   const bar = (
     <div role="toolbar" aria-label={t('library.toolbar')} className={`h-14 pl-5 pr-2 rounded-full flex items-center gap-3 ${LIFTED}`}>
       <span className="text-[15px] text-stone-600 dark:text-stone-300 tabular-nums">{count ? t(count === 1 ? 'library.picked.one' : 'library.picked.many', { n: count }) : t('library.pickNone')}</span>
+      {onDownload && (
+        <AppButton variant="secondary" disabled={!count} onClick={onDownload}>
+          {t('library.download')}
+        </AppButton>
+      )}
       <AppButton variant="danger" filled disabled={!count} onClick={onRemove}>
         {t('common.delete')}
       </AppButton>

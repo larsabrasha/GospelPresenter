@@ -117,16 +117,6 @@ function useSwitchOrgs(): SwitchOrg[] {
 const ROW = 'flex items-center gap-3 w-full sm:w-[calc(100%-0.75rem)] sm:mx-1.5 sm:rounded-md min-h-11 sm:min-h-8 px-4 sm:px-2.5 py-2 sm:py-1.5 text-left text-[15px] text-stone-800 dark:text-stone-100 hover:bg-raised-2 focus:bg-raised-2 focus:outline-none cursor-pointer no-underline';
 const DIVIDER = 'h-2 sm:h-px sm:mx-3 sm:my-1 bg-black/5 dark:bg-black/25 sm:bg-separator sm:dark:bg-separator';
 
-/** A link in the menu, with its icon. */
-function Choice({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
-  return (
-    <a href={to} role="menuitem" className={ROW}>
-      {icon}
-      {label}
-    </a>
-  );
-}
-
 const ICON = 'size-[18px] sm:size-4 shrink-0 text-stone-500 dark:text-stone-400';
 
 /** Byt organisation, which unfolds the organisations in the menu, the active one checked. Choosing one loads the start page there (ORG-R7). */
@@ -194,9 +184,13 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
         {/* The name alone: no role, no organisation (Lars, 2026-11-02). */}
         <div className="min-w-0 text-[17px] sm:text-sm font-semibold truncate">{me.name}</div>
       </div>
-      <div className={DIVIDER} />
-      <Choice to={href({ page: 'admin' })} label={t('nav.admin')} icon={<CogIcon className={ICON} />} />
-      {orgs.length > 0 && <OrgChoices me={me} orgs={orgs} />}
+      {/* Inställningar is the bar's cog, so not here too (Lars, 2026-11-04: one way there). */}
+      {orgs.length > 0 && (
+        <>
+          <div className={DIVIDER} />
+          <OrgChoices me={me} orgs={orgs} />
+        </>
+      )}
       {sync?.problem && (
         <>
           <div className={DIVIDER} />
