@@ -236,145 +236,147 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
       </div>
 
       {/* Inloggning as a group of rows, as Mina inställningar (ui/Group.tsx): each login a row, Radera in red text. */}
-      <Group title={t('userDetail.login')}>
-        {logins === null && <div className={`loading-line ${GROUP_ROW} text-stone-400`}>{t('common.loading')}</div>}
-        {typeof logins === 'string' && <div className={`${GROUP_ROW} ${ERROR}`}>{logins}</div>}
-        {Array.isArray(logins) && logins.length > 0 && (
-          <ul aria-label={t('userDetail.login')} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
-            {logins.map((l) => (
-              <li key={`${l.provider}:${l.id}`} className={GROUP_ROW}>
-                <div className="min-w-0">
-                  <div>{providerName(l)}</div>
-                  <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
-                </div>
-                {canEdit && (
-                  <AppButton
-                    variant="plain"
-                    className={RED_TEXT}
-                    aria-label={`${t('common.delete')} ${providerName(l)}`}
-                    onClick={() =>
-                      void ask({
-                        title: t('userDetail.deleteLogin'),
-                        text: t('userDetail.confirmDeleteLogin', { provider: providerName(l) }),
-                        confirm: t('common.delete'),
-                        busy: t('common.deleting'),
-                        run: () => act('DELETE', `${path}/logins/${encodeURIComponent(l.provider)}/${encodeURIComponent(l.id)}`),
-                      })
-                    }
-                  >
-                    {t('common.delete')}
-                  </AppButton>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {Array.isArray(logins) && logins.length === 0 && (
-          <>
-            {!invite && (
-              <div className="flex flex-col items-center text-center p-4 select-none">
-                <KeyPicture className="w-32 h-auto mb-3 text-stone-300 dark:text-stone-600" />
-                <p className="text-sm text-stone-400 dark:text-stone-500 leading-relaxed">
-                  {t('userDetail.noLogins')}
-                  <br />
-                  {t('userDetail.noLoginsText')}
-                </p>
-              </div>
-            )}
-            {invite && (
-              <div
-                data-testid="invite"
-                className={`p-4 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <LinkIcon className="size-4 text-stone-400" />
-                    <span className="text-sm font-medium">{t('userDetail.inviteLink')}</span>
-                    {invite.expired ? (
-                      <span className="text-sm text-red-600 dark:text-red-400">{t('userDetail.expired')}</span>
-                    ) : (
-                      <span className="text-sm text-stone-500 dark:text-stone-400">
-                        {t('userDetail.active')}
-                      </span>
-                    )}
+      {/* The group once its logins are here: an empty group while they come flashes by (Lars, 2026-11-05). */}
+      {logins !== null && (
+        <Group title={t('userDetail.login')}>
+          {typeof logins === 'string' && <div className={`${GROUP_ROW} ${ERROR}`}>{logins}</div>}
+          {Array.isArray(logins) && logins.length > 0 && (
+            <ul aria-label={t('userDetail.login')} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
+              {logins.map((l) => (
+                <li key={`${l.provider}:${l.id}`} className={GROUP_ROW}>
+                  <div className="min-w-0">
+                    <div>{providerName(l)}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
                   </div>
-                  {!inviteRefusal(actor, user) && (
+                  {canEdit && (
                     <AppButton
                       variant="plain"
                       className={RED_TEXT}
+                      aria-label={`${t('common.delete')} ${providerName(l)}`}
                       onClick={() =>
                         void ask({
-                          title: t('userDetail.deleteInvite'),
-                          text: t('userDetail.confirmDeleteInvite'),
+                          title: t('userDetail.deleteLogin'),
+                          text: t('userDetail.confirmDeleteLogin', { provider: providerName(l) }),
                           confirm: t('common.delete'),
                           busy: t('common.deleting'),
-                          run: async () => {
-                            if (await act('DELETE', `${path}/invites`)) setLink(null);
-                          },
+                          run: () => act('DELETE', `${path}/logins/${encodeURIComponent(l.provider)}/${encodeURIComponent(l.id)}`),
                         })
                       }
                     >
                       {t('common.delete')}
                     </AppButton>
                   )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {Array.isArray(logins) && logins.length === 0 && (
+            <>
+              {!invite && (
+                <div className="flex flex-col items-center text-center p-4 select-none">
+                  <KeyPicture className="w-32 h-auto mb-3 text-stone-300 dark:text-stone-600" />
+                  <p className="text-sm text-stone-400 dark:text-stone-500 leading-relaxed">
+                    {t('userDetail.noLogins')}
+                    <br />
+                    {t('userDetail.noLoginsText')}
+                  </p>
                 </div>
-                {!invite.expired && (
-                  <>
-                    <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
-                    {/* The link exists only in this page, from when it was made (AUTH-R13); on a host it is accepted here (Users.tsx). */}
-                    {link && !host && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteText', { name: user.name })}</p>
-                        <CopyField
-                          value={link}
-                          label={t('userDetail.inviteLink')}
-                          copyLabel={t('userDetail.copy')}
-                          onCopy={() => void copyText(link).then((copied) => copied && toast(t('users.copied')))}
-                        />
-                        {/* Where the system's share sheet exists (phones, Safari): to send it in a message. */}
-                        {'share' in navigator && (
-                          <AppButton variant="secondary" onClick={() => void navigator.share({ title: t('userDetail.inviteLink'), url: link }).catch(() => undefined)}>
-                            {t('userDetail.share')}
+              )}
+              {invite && (
+                <div
+                  data-testid="invite"
+                  className={`p-4 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="size-4 text-stone-400" />
+                      <span className="text-sm font-medium">{t('userDetail.inviteLink')}</span>
+                      {invite.expired ? (
+                        <span className="text-sm text-red-600 dark:text-red-400">{t('userDetail.expired')}</span>
+                      ) : (
+                        <span className="text-sm text-stone-500 dark:text-stone-400">
+                          {t('userDetail.active')}
+                        </span>
+                      )}
+                    </div>
+                    {!inviteRefusal(actor, user) && (
+                      <AppButton
+                        variant="plain"
+                        className={RED_TEXT}
+                        onClick={() =>
+                          void ask({
+                            title: t('userDetail.deleteInvite'),
+                            text: t('userDetail.confirmDeleteInvite'),
+                            confirm: t('common.delete'),
+                            busy: t('common.deleting'),
+                            run: async () => {
+                              if (await act('DELETE', `${path}/invites`)) setLink(null);
+                            },
+                          })
+                        }
+                      >
+                        {t('common.delete')}
+                      </AppButton>
+                    )}
+                  </div>
+                  {!invite.expired && (
+                    <>
+                      <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
+                      {/* The link exists only in this page, from when it was made (AUTH-R13); on a host it is accepted here (Users.tsx). */}
+                      {link && !host && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteText', { name: user.name })}</p>
+                          <CopyField
+                            value={link}
+                            label={t('userDetail.inviteLink')}
+                            copyLabel={t('userDetail.copy')}
+                            onCopy={() => void copyText(link).then((copied) => copied && toast(t('users.copied')))}
+                          />
+                          {/* Where the system's share sheet exists (phones, Safari): to send it in a message. */}
+                          {'share' in navigator && (
+                            <AppButton variant="secondary" onClick={() => void navigator.share({ title: t('userDetail.inviteLink'), url: link }).catch(() => undefined)}>
+                              {t('userDetail.share')}
+                            </AppButton>
+                          )}
+                        </div>
+                      )}
+                      {link && host && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteHost', { name: user.name })}</p>
+                          <AppButton variant="secondary" onClick={() => acceptHere(link.slice(link.indexOf('#') + 1))}>
+                            {t('users.acceptHere', { name: user.name })}
                           </AppButton>
-                        )}
-                      </div>
-                    )}
-                    {link && host && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteHost', { name: user.name })}</p>
-                        <AppButton variant="secondary" onClick={() => acceptHere(link.slice(link.indexOf('#') + 1))}>
-                          {t('users.acceptHere', { name: user.name })}
-                        </AppButton>
-                      </div>
-                    )}
-                    {!link && (
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.linkShownOnce')}</div>
-                        {!inviteRefusal(actor, user) && (
-                          <AppButton variant="secondary" onClick={() => void createInvite(true)}>
-                            {t('userDetail.newLink')}
-                          </AppButton>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            {/* The invite's actions as rows in sky, as iOS's actions in a group. */}
-            {(!invite || invite.expired) && !inviteRefusal(actor, user) && (
-              <AppButton variant="plain" className={ACTION_ROW} onClick={() => void createInvite()}>
-                {t('userDetail.createInvite')}
-              </AppButton>
-            )}
-            {mail && user.email && !inviteRefusal(actor, user) && (
-              <AppButton variant="plain" className={ACTION_ROW} loading={mailing} onClick={() => void mailInvite(user.email!)}>
-                {t('userDetail.mailInvite', { email: user.email })}
-              </AppButton>
-            )}
-          </>
-        )}
-      </Group>
+                        </div>
+                      )}
+                      {!link && (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.linkShownOnce')}</div>
+                          {!inviteRefusal(actor, user) && (
+                            <AppButton variant="secondary" onClick={() => void createInvite(true)}>
+                              {t('userDetail.newLink')}
+                            </AppButton>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {/* The invite's actions as rows in sky, as iOS's actions in a group. */}
+              {(!invite || invite.expired) && !inviteRefusal(actor, user) && (
+                <AppButton variant="plain" className={ACTION_ROW} onClick={() => void createInvite()}>
+                  {t('userDetail.createInvite')}
+                </AppButton>
+              )}
+              {mail && user.email && !inviteRefusal(actor, user) && (
+                <AppButton variant="plain" className={ACTION_ROW} loading={mailing} onClick={() => void mailInvite(user.email!)}>
+                  {t('userDetail.mailInvite', { email: user.email })}
+                </AppButton>
+              )}
+            </>
+          )}
+        </Group>
+      )}
 
       {!self && !removeUserRefusal(actor, user) && (
         <Group footer={deleteError && <span className={ERROR}>{deleteError}</span>}>

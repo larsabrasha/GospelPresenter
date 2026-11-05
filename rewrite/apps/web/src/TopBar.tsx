@@ -9,27 +9,18 @@ import { AppButton } from './ui/AppButton.tsx';
 import { Dropdown } from './ui/Dropdown.tsx';
 import { ArrowsRightLeftIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon, LogoIcon, SignOutIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
-import { initials, PENDING_GRACE_MS, syncState } from './ui/syncState.ts';
+import { initials, syncState, useWaitedLong } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
 import { LIFTED, ROUND_BACK } from './ui/glass.ts';
 
 // The bar at the top of the start page and the pages outside a presentation (docs/layout-2-0.md, "The start page and
 // the bar"): + and the user's picture, whose menu holds the rest. The cloud shows only when the sync has a problem.
 
-/** How the sync stands (ui/syncState.ts), with changes that have waited past the grace counted as a problem. */
+/** How the sync stands (ui/syncState.ts), with changes waiting or no connection past the grace counted as a problem. */
 function useSync() {
   const s = useDbStatus();
-  const pending = (s?.pending ?? 0) > 0;
-  const [pendingLong, setPendingLong] = useState(false);
-  useEffect(() => {
-    if (!pending) return;
-    const timer = setTimeout(() => setPendingLong(true), PENDING_GRACE_MS);
-    return () => {
-      clearTimeout(timer);
-      setPendingLong(false);
-    };
-  }, [pending]);
-  return s ? syncState(s, pendingLong) : null;
+  const waitedLong = useWaitedLong(!!s && (s.pending > 0 || !s.connected));
+  return s ? syncState(s, waitedLong) : null;
 }
 
 /**

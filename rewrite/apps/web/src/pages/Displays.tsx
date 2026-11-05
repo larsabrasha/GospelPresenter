@@ -5,6 +5,7 @@ import { listDisplays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
+import { useWaitedLong } from '../ui/syncState.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
@@ -189,7 +190,9 @@ export function Displays({ link }: { link: LiveLink }) {
   const all = useData(listDisplays, []);
   const displays = all?.filter((d) => d.kind === 'public');
   const screens = all?.filter((d) => d.kind === 'screen');
-  const { sessions, online } = useLiveSessions(link);
+  const { sessions, online, connected } = useLiveSessions(link);
+  // Until the socket is up who is online is unknown, not offline: no word, rather than Offline flashing by.
+  const known = useWaitedLong(!connected) || connected;
   const base = useServerBase();
   const [creating, setCreating] = useState<Display['kind'] | null>(null);
   const [showing, setShowing] = useState<Display | null>(null);
@@ -225,9 +228,9 @@ export function Displays({ link }: { link: LiveLink }) {
               return (
                 <OutputRow
                   key={d.id}
-                  icon={<ScreenIcon className="size-5" offline={!on} />}
+                  icon={<ScreenIcon className="size-5" offline={known && !on} />}
                   name={d.name}
-                  status={on ? t('screens.online') : t('screens.offline')}
+                  status={!known ? '' : on ? t('screens.online') : t('screens.offline')}
                   live={on}
                   label={t('screens.showLinkFor', { name: d.name })}
                   onOpen={() => setShowing(d)}

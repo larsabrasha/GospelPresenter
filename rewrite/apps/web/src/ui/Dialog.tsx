@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
-import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
+import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_BACK, ROUND_CLOSE } from './glass.ts';
 import { PagePhoneBarSlots } from './barSlots.ts';
 import { useReturnFocus } from './returnFocus.ts';
 import { useSheetDrag } from './sheetDrag.ts';
@@ -228,7 +228,7 @@ export function PageDialog({
             {/* Below `lg` as iOS 26's bar: a round ‹ alone at the left, and the page's own name in the middle
                 (`compactTitle`); the dialog keeps `title` as its name for screen readers. */}
             {back && (
-              <a href={back.href} aria-label={back.label} title={back.label} className="split:hidden -ml-2 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 text-stone-600 dark:text-stone-300">
+              <a href={back.href} aria-label={back.label} title={back.label} className={`split:hidden -ml-2 ${ROUND_BACK}`}>
                 <ChevronLeftIcon className="size-5" />
               </a>
             )}

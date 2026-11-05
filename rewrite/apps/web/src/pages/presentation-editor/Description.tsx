@@ -23,7 +23,7 @@ export function Description({ text, className }: { text: string; className?: str
     return () => observer.disconnect();
   }, [open]);
   return (
-    <div className={`relative px-3 py-2.5 rounded-xl bg-surface ${className ?? ''}`} data-testid="description">
+    <div className={`relative px-4 py-3 rounded-2xl bg-surface ${className ?? ''}`} data-testid="description">
       <p ref={box} className={`text-[13px]/[18px] whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
         {text}
       </p>

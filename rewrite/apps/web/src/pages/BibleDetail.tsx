@@ -84,7 +84,7 @@ export function BibleDetail({ id }: { id: string }) {
           </p>
         </Group>
       ) : (
-        <Group footer={persistent ? undefined : t('bibles.offlineUnavailable')}>
+        <Group footer={!status || persistent ? undefined : t('bibles.offlineUnavailable')}>
           <SwitchRow
             title={t('bibles.offline')}
             description={bible.kept && !bible.stored ? t('bibles.fetching') : undefined}

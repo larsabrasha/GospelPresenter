@@ -100,8 +100,9 @@ export function Orgs() {
       {typeof orgs === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{orgs}</p>}
       {Array.isArray(orgs) && !!orgs.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(orgs) && !!orgs.length && !shown.length && <NoMatch query={query} />}
-      <div className={`${CARD} ${Array.isArray(orgs) && !!orgs.length && !shown.length ? 'hidden' : ''}`}>
-        {orgs === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {/* No card until the list is here: an empty card while it comes from the server flashes by (Lars, 2026-11-05). */}
+      {orgs === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      <div className={`${CARD} ${!Array.isArray(orgs) || (!!orgs.length && !shown.length) ? 'hidden' : ''}`}>
         {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('orgs.empty')} />}
         <ul aria-label={t('orgs.title')}>
           {shown.map((o) => (

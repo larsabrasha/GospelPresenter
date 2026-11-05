@@ -19,6 +19,12 @@ labels, users), an import that reads it beside the 1.x one (docs/import-from-1x.
 large enough that it is likely made and fetched in parts, as a video's upload is. Not decided: whether users and
 their logins go with it, and whether an import into an organisation with data merges as the 1.x import does.
 
+## Printing (from Lars 2026-11-05; not started)
+
+Things should be printable. Not decided which: likely a presentation's running order (with times and who does
+what), a song's text (for the band or the choir), and the CCLI report. A print stylesheet (`@media print`) per page
+may be enough, with Skriv ut in the page's … menu; on a phone the share sheet prints. Ask Lars which pages first.
+
 ## Shortcuts in the admin dialog (from Lars 2026-10-31; not started)
 
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare

@@ -177,8 +177,9 @@ export function Users({ me }: { me: Me }) {
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
       {Array.isArray(users) && !!users.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(users) && !!users.length && !shown.length && <NoMatch query={query} />}
-      <div className={`${CARD} ${Array.isArray(users) && !!users.length && !shown.length ? 'hidden' : ''}`}>
-        {users === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {/* No card until the list is here: an empty card while it comes from the server flashes by (Lars, 2026-11-05). */}
+      {users === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      <div className={`${CARD} ${!Array.isArray(users) || (!!users.length && !shown.length) ? 'hidden' : ''}`}>
         {empty && (
           <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} />
         )}

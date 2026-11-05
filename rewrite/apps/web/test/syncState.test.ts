@@ -5,6 +5,10 @@ import { initials, syncState } from '../src/ui/syncState.ts';
 const synced: DbStatus = { storage: 'opfs', connected: true, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
 
 describe('syncState', () => {
+  it('a page not yet connected is no problem yet', () => {
+    expect(syncState({ ...synced, connected: false }, false)).toEqual({ problem: false, text: 'Synkar…' });
+  });
+
   it('a synced device has no problem and says so', () => {
     expect(syncState(synced, false)).toEqual({ problem: false, text: 'Synkad' });
   });
@@ -18,7 +22,7 @@ describe('syncState', () => {
   });
 
   it('offline is a problem at once, with the changes that wait', () => {
-    expect(syncState({ ...synced, connected: false, pending: 3 }, false)).toEqual({ problem: true, text: 'Offline · 3 ändringar väntar' });
+    expect(syncState({ ...synced, connected: false, pending: 3 }, true)).toEqual({ problem: true, text: 'Offline · 3 ändringar väntar' });
   });
 
   it('one change waiting is said in the singular', () => {
@@ -26,7 +30,7 @@ describe('syncState', () => {
   });
 
   it('offline with nothing waiting says only offline', () => {
-    expect(syncState({ ...synced, connected: false }, false).text).toBe('Offline');
+    expect(syncState({ ...synced, connected: false }, true).text).toBe('Offline');
   });
 
   it('refused credentials come before being offline, with the changes that wait', () => {

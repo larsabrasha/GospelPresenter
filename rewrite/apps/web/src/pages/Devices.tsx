@@ -138,7 +138,9 @@ export function Devices({ me }: { me: Me }) {
         <AddButton label={t('devices.pair')} onClick={() => setChoosing(true)} />
       </PageHeader>
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
-      <div className={CARD}>
+      {/* No card until the list is here (Users.tsx). */}
+      {devices === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      <div className={`${CARD} ${Array.isArray(devices) ? '' : 'hidden'}`}>
         {Array.isArray(devices) && !devices.length && (
           <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')}>
             <AppButton onClick={() => setChoosing(true)}>{t('devices.emptyPair')}</AppButton>

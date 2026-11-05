@@ -264,7 +264,7 @@ function PartRow({
       // A row of its item's group, shaped as its place in it: the first rounded at the top, the last at the foot, one
       // alone all round, so the shown part's ring, inside the row, follows the group's edge and no row changes size.
       data-ringed={current || rested || picked || undefined}
-      className={`w-full flex gap-3 px-3.5 py-2.5 first:rounded-t-2xl last:rounded-b-2xl text-left cursor-pointer ring-2 ring-inset ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised ring-red-500' : rested ? 'ring-stone-300 dark:ring-stone-600' : picked ? 'ring-sky-500' : 'ring-transparent'}`}
+      className={`w-full flex gap-3 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl text-left cursor-pointer ring-2 ring-inset ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised ring-red-500' : rested ? 'ring-stone-300 dark:ring-stone-600' : picked ? 'ring-sky-500' : 'ring-transparent'}`}
     >
       {pictured && (
         <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
@@ -291,11 +291,11 @@ function PartRow({
 }
 
 /**
- * The hairlines between a group's parts: from the text's start (the rows' 14 px) to the right edge; none at a ringed
+ * The hairlines between a group's parts: from the text's start (the rows' 16 px, as the heading's) to the right edge; none at a ringed
  * part's edges, where the ring is the line.
  */
 const PART_HAIRLINES =
-  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:top-0 [&>*+*]:before:left-3.5 [&>*+*]:before:right-0 [&>*+*]:before:h-[0.5px] [&>*+*]:before:bg-separator [&>[data-ringed]]:before:hidden [&>[data-ringed]+*]:before:hidden';
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:top-0 [&>*+*]:before:left-4 [&>*+*]:before:right-0 [&>*+*]:before:h-[0.5px] [&>*+*]:before:bg-separator [&>[data-ringed]]:before:hidden [&>[data-ringed]+*]:before:hidden';
 
 /** `text` with `marker` replaced by `bold` in bold. */
 function withBold(text: string, marker: string, bold: string): ReactNode {

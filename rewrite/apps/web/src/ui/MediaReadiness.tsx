@@ -1,4 +1,5 @@
 import { useDbStatus, usePresentationMedia } from '../db/react.tsx';
+import { useWaitedLong } from './syncState.ts';
 import { t } from '../i18n.ts';
 
 /**
@@ -9,6 +10,8 @@ import { t } from '../i18n.ts';
 export function MediaReadiness({ presentationId, audio }: { presentationId: string; audio: boolean }) {
   const state = usePresentationMedia(presentationId, audio);
   const status = useDbStatus();
+  // Not connected yet just after loading is not offline (ui/syncState.ts).
+  const offline = useWaitedLong(status?.connected === false);
   if (!state || state.needed === 0) return null;
   const missing = state.needed - state.present;
   // All there is the usual case: said to screen readers only, so the eye meets a line only when something is missing.
@@ -20,7 +23,7 @@ export function MediaReadiness({ presentationId, audio }: { presentationId: stri
     );
   }
   // Fetched quietly (TODO.md: presenting fetches its files at once, quietly): only what cannot be fetched is said aloud.
-  if (status?.connected !== false) {
+  if (!offline) {
     return (
       <p className="sr-only" data-testid="media-ready">
         {t('media.fetching', { present: state.present, needed: state.needed })}
