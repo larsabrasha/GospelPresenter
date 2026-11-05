@@ -83,7 +83,9 @@ Format at the right where the editor is wide (`@4xl`), else a popover under the 
 the slideshows' editor has it. The slide is a sample of the kind, drawn as
 every output draws it; the boxes of its texts are dashed. A tap on the main text or the credits picks it: its handles
 drag and size its box, lined up with the stage's edges and middle, and Format has its look; a tap beside them, the
-theme's name and the kind's background. It saves as it goes, the whole definition, half a second after the last
+theme's name and the kind's background. By the keyboard as the slideshows' editor: with focus on the slide, Tab
+picks the main text, then the credits, an arrow moves the picked box a point (⇧ ten), and Escape picks none
+(`e2e/keyboard.spec.ts`). It saves as it goes, the whole definition, half a second after the last
 change, and at once on leaving.
 
 ## Not yet

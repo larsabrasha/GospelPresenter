@@ -62,12 +62,50 @@ warned; one who already left the part is not, and the later write wins silently.
 `e2e/song-clash.spec.ts` (two computers of one user, both choices).
 
 The keyboard help (`ui/ShortcutHelp.tsx`, `KeyboardShortcuts.razor` and `ShortcutHelpDialog.razor`): `?` outside
-a text field opens "Kortkommandon", with the old dialog's look and texts: the group of what is on screen, then
-"Överallt" with `?`; `?`, Esc or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, Del, ↑ ↓, and the
+a text field opens "Kortkommandon", the old dialog's texts drawn as iPadOS's list of a held ⌘ (Lars, 2026-11-05):
+each group's name over its card in line with its rows' words, the keys in grey at the right as macOS's menus write
+them (letters in capitals, ⌥ before ⇧ before ⌘, no keycaps), the groups two abreast where there is room, and the
+hint under them. The group of what is on screen comes first, then "Överallt" with the app's keys and `?`; `?`, Esc
+or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, Del, ↑ ↓, and the
 new Alt+↑ ↓), Lägg till (⌘/Ctrl+↵, ↓; one kind, from +'s menu, so no ⌘/Ctrl+1–6; it hides the editor's group, whose keys are off behind it), and
 the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B and a clicker's `.`). The old
 editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
 Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
+
+The whole app by the keyboard (Lars, 2026-11-05): each page's controls are reached by Tab (gone through page by page
+that day; none answered only a pointer). A menu at a
+point (`ui/ContextMenu.tsx`: an item's …, a right click, the menu key or ⇧F10 on a row) is used as macOS's: opened
+by a key, the focus is on its first choice; ↑ ↓ Home End move between the choices, → opens a row's submenu and ← or
+Escape goes back to the row, Escape closes the menu and gives the focus back to what opened it, and Tab closes it.
+A list dragged into order is put in order by Alt+↑ ↓ on its focused row (the running order, a song's parts,
+Etiketter, Lager, and a picture item's pictures). An editor's slide has its keys in `docs/custom-slides.md` and
+`docs/themes.md`. Tested in `e2e/keyboard.spec.ts`.
+
+The app's keys (`ui/appKeys.ts`), on every page and in Inställningar, outside a text field and not under another
+dialog or an open menu: `g` and a letter goes to a section ("go to", as Gmail's and GitHub's: `a`, `b` and `n` were
+taken), `g p` Presentationer, `g s` Sånger, `g b` Biblar, `g i` Bilder, `g l` Ljud, `g v` Videor, `g e` Bildspel, and
+not while presenting, where a slip of `g` must not turn B (black) into Biblar; `,` opens Inställningar; `/` puts the
+focus in the page's search; `n` in Inställningar presses the list's +. A library (`ui/libraryKeys.ts`) is walked by
+↑ ↓ (← → too in a grid; ↓ in its search goes to the first), ↵ opens the focused item and Delete removes it, asked
+first. In a presentation F5, as PowerPoint's, or ⌥⌘P, as Keynote's Spela upp, starts presenting, and F5 never reloads
+the page there. A browser keeps ⌘1–⌘9, ⌘F, ⌘N and ⌘, for itself, so the desktop app's menu bar (`apps/desktop/src/menu.ts`)
+has them: Arkiv → Ny (⌘N), Presentation → Starta presentation (⌥⌘P), and Gå → the sections (⌘1–⌘7), Tillbaka (⌘[,
+Alt+← elsewhere) and Sök (⌘F); a choice sends the page its command, so it never types into a field. Back in a
+browser is its own (⌘[ or Alt+←).
+
+⌘K (Ctrl+K elsewhere; `ui/CommandPalette.tsx`), the search of everything as today's apps have it, also from a
+field: one search, and under it, grouped as Spotlight's, the songs by title, a line or the author (the library's
+own search), the presentations by name, place or date as the start page writes it (the coming ones first), the
+commands (the keys' list: Starta presentation in a presentation, Gå till …, Ny sång, Öppna Inställningar), and the
+pages of Inställningar by their names and words (its own search). Blank, it shows the coming presentations and the
+commands. ↑ ↓ mark, ↵ does the marked one, its verb in grey at the right: a song is added to the presentation open,
+where Lägg till adds it (after the item picked; while presenting after the one shown), and opened anywhere else,
+over Inställningar too. Bible passages and media are not found yet. Gå → Sök i allt in the desktop app's menu bar,
+and a magnifier for a touch screen, which has no ⌘K (Lars, 2026-11-05): beside Inställningar's cog in the start
+page's and the presentation's bars where the window is wide (`lg`), and below that floating at the bottom left,
+white and lifted, the blue + at the right, as iOS 26 puts search where the thumb is (the presentation's bar had no
+room). Opened on a phone the search stands at the top, above the keyboard, as iPhone's Spotlight. A command shows
+its keys in grey at the right (`g s`, F5, `,`; the menu bar's ⌘ ones in the desktop app), not on a touch screen.
 
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
 light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's

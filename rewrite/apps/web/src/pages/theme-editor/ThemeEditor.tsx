@@ -172,7 +172,7 @@ export function ThemeEditor({ id }: { id: string }) {
                 {inspector}
               </FormatSheet>
             )}
-            <ThemeCanvas theme={theme} kind={kind} picked={picked} onPick={setPicked} onArea={(role, area) => kind !== 'media' && change('', (d) => withText(d, kind, role, { area }))} />
+            <ThemeCanvas theme={theme} kind={kind} picked={picked} onPick={setPicked} onArea={(role, area, run) => kind !== 'media' && change(run ? `${kind}:${role}:area` : '', (d) => withText(d, kind, role, { area }))} />
           </div>
           <aside className="hidden @4xl:block order-2 @4xl:order-3 @4xl:w-80 shrink-0">{inspector}</aside>
         </div>

@@ -77,6 +77,7 @@ function DialogFrame({
   }, [page]);
   const close = onClose;
   const trapTab = (e: React.KeyboardEvent) => {
+    if (e.defaultPrevented) return; // Tab had a use inside (the slide editor's: the next element)
     const all = [...box.current!.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === document.activeElement);
     if (all.length === 0) return e.preventDefault();
     const first = all[0]!;
@@ -104,6 +105,8 @@ function DialogFrame({
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"
+        // A page in a dialog (Inställningar) still has the app's keys (ui/appKeys.ts).
+        data-page-dialog={page ? '' : undefined}
         aria-labelledby={titleId}
         onKeyDown={(e) => {
           e.stopPropagation(); // keys in a dialog are the dialog's
@@ -130,6 +133,7 @@ export function Dialog({
   wide,
   maxWidthClass,
   showClose,
+  hideTitle,
 }: {
   title: string;
   onClose: () => void;
@@ -137,6 +141,8 @@ export function Dialog({
   wide?: boolean;
   maxWidthClass?: string;
   showClose?: boolean;
+  /** The title for screen readers only, as Spotlight's field has none over it. */
+  hideTitle?: boolean;
 }) {
   const titleId = useId();
   return (
@@ -144,8 +150,8 @@ export function Dialog({
       {(close) => (
         <>
           {showClose && <CloseButton onClick={close} />}
-          <div className="p-6 space-y-4">
-            <h2 id={titleId} className={`font-semibold text-lg/7 ${showClose ? 'pr-8' : ''}`}>
+          <div className={hideTitle ? 'p-3 space-y-2' : 'p-6 space-y-4'}>
+            <h2 id={titleId} className={hideTitle ? 'sr-only' : `font-semibold text-lg/7 ${showClose ? 'pr-8' : ''}`}>
               {title}
             </h2>
             {children}

@@ -53,7 +53,9 @@ import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { settingsGroups } from './pages/settings/settingsLinks.ts';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
-import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, navigate, SONG_PAGES, useRoute, type Route } from './ui/router.ts';
+import { useAppKeys } from './ui/appKeys.ts';
+import { CommandPalette } from './ui/CommandPalette.tsx';
+import { adminBack, aloneInSettings, closeAdmin, href, isAdminPage, SONG_PAGES, useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -73,8 +75,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   // And counts the songs it shows for the CCLI report (SONG-R48).
   useCcliCounter(live, db);
   // Starta presentation fetches the presentation's files here, at once and quietly; looking around fetches none.
-  // Inställningar… in the desktop app's menu bar.
-  useEffect(() => window.gpDesktop?.onMenu?.((command) => command === 'settings' && navigate({ page: 'admin' })), []);
+  // The app's keys, and the desktop app's menu bar (Inställningar…, Gå).
+  useAppKeys();
   useEffect(() => {
     let last: string | null | undefined;
     return live.subscribe((p) => {
@@ -163,6 +165,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   return (
     <ToastProvider>
       <ShortcutHelp />
+      <CommandPalette me={me} host={host} />
       <UnexpectedError />
       <RejectedChanges />
       {/* Out of reach under the dialog, for the keyboard and screen readers too. */}

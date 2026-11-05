@@ -30,7 +30,7 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   let help = await openHelp(page);
   await expect(help.getByText('Kortkommandon fungerar när du inte skriver i ett textfält.')).toBeVisible();
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Startsidan', 'Överallt']);
-  await expect(help.getByRole('listitem').filter({ hasText: 'Ny presentation' }).locator('kbd')).toHaveText('n');
+  await expect(help.getByRole('listitem').filter({ hasText: 'Ny presentation' }).locator('kbd')).toHaveText('N');
   await expect(help.getByRole('listitem').filter({ hasText: 'Visa kortkommandon' }).locator('kbd')).toHaveText('?');
   await page.keyboard.press('?');
   await expect(help).toHaveCount(0);
@@ -39,7 +39,7 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await page.getByRole('link', { name: 'Söndag' }).click();
   help = await openHelp(page);
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Presentation', 'Överallt']);
-  await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till i presentationen' }).locator('kbd')).toHaveText('a');
+  await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till i presentationen' }).locator('kbd')).toHaveText('A');
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
   await page.keyboard.press('a');

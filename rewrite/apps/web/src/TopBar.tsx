@@ -6,6 +6,8 @@ import { useDb, useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
 import { signOut, SyncWarnings } from './Shell.tsx';
 import { AppButton } from './ui/AppButton.tsx';
+import { FloatingSearchButton, SearchButton } from './ui/CommandPalette.tsx';
+import { useWide } from './ui/useWide.ts';
 import { Dropdown } from './ui/Dropdown.tsx';
 import { ArrowsRightLeftIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon, LogoIcon, SignOutIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
@@ -208,9 +210,12 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
 /** The bar's right end: the cloud while the sync has a problem, and the picture's menu. */
 function BarEnd({ me }: { me: Me }) {
   const sync = useSync();
+  const wide = useWide();
   return (
     <div className="flex items-center gap-3">
       <SyncStatus sync={sync} />
+      {/* Beside the cog where there is room; on a phone it floats at the bottom left. */}
+      {wide ? <SearchButton className={`size-9 touch:size-11 rounded-full flex items-center justify-center text-stone-700 dark:text-stone-200 cursor-pointer ${LIFTED}`} iconClassName="size-4" /> : <FloatingSearchButton />}
       {/* Inställningar a click away on every page, as the presentation's bar has it (Lars, 2026-11-02). */}
       <a href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`size-9 touch:size-11 rounded-full flex items-center justify-center text-stone-700 dark:text-stone-200 no-underline ${LIFTED}`}>
         <CogIcon className="size-4" />

@@ -93,7 +93,11 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
   dragged, also from under another, and sized by its handles (react-moveable, larger
   on a touch screen), and lines up with the page's edges and middle and with the other elements by yellow guides.
   A text tapped twice is written on the slide itself. A held finger or a right click opens Klipp ut, Kopiera,
-  Klistra in, Duplicera and Ta bort; on a computer ⌘Z, ⇧⌘Z, ⌘C, ⌘X, ⌘V, ⌘D and Delete do the same.
+  Klistra in, Duplicera and Ta bort; on a computer ⌘Z, ⇧⌘Z, ⌘C, ⌘X, ⌘V, ⌘D and Delete do the same. By the
+  keyboard, as Keynote's (`ui/canvasKeys.ts`, Lars 2026-11-05: the whole app by the keyboard): the page takes focus
+  by Tab or a tap; there Tab picks the next element, the front one first (⇧Tab the one before), and past the last
+  leaves the page with none picked; an arrow moves the picked one a point, ⇧ ten, a run of them one step for Ångra;
+  Enter writes in a picked text, and Escape lets go of the picked one. Tested in `e2e/keyboard.spec.ts`.
 - **Format** has the picked element's tabs: Text (words, size, bold, italic, alignment, colour) or Stil (fill,
   outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
   (Lager, the page's elements front first as Keynote's object list, `LayerList.tsx`: a tap picks one, also a

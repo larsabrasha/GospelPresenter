@@ -150,7 +150,9 @@ export function RunningOrder({
               {...(ticking ? {} : wholeRow(i))}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setMenu({ item, at: { x: e.clientX, y: e.clientY } });
+                // From the keyboard (the menu key, Shift+F10) there is no point: under the row's start.
+                const r = e.currentTarget.getBoundingClientRect();
+                setMenu({ item, at: e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: r.left + 8, y: r.bottom } });
               }}
               // The row is the hover's room, edge to edge with the next; its pill is drawn 2 px in from top and bottom, so
               // the rows stand apart and the pointer still never falls between them (Lars, 2026-11-02): the row's button

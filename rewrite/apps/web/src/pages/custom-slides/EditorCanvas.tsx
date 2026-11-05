@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type TouchEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type TouchEvent } from 'react';
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
 import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { mainCss, stageCss } from '../../themes.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
+import { arrowNudge, CANVAS_FOCUS, nextInTurn } from '../../ui/canvasKeys.ts';
 import { HoldMenu } from '../../ui/RemoveMenu.tsx';
 import { nextBeneath } from './slideModel.ts';
 
@@ -88,6 +89,16 @@ export function EditorCanvas({
   const guides = () => [stage!, ...page.elements.filter((e) => e.id !== picked).flatMap((e) => nodeOf(e.id) ?? [])];
   useLayoutEffect(() => moveable.current?.updateRect());
 
+  // Writing ended (Escape, or Klar): the keys go on on the slide, where they were before Enter.
+  const wrote = useRef(false);
+  useEffect(() => {
+    if (writing) wrote.current = true;
+    else if (wrote.current) {
+      wrote.current = false;
+      if (document.activeElement === document.body) box.current?.focus({ preventScroll: true });
+    }
+  }, [writing]);
+
   const pressed = useRef<Press | null>(null);
   const beneath = useRef(0);
   useEffect(() => () => clearTimeout(beneath.current), []);
@@ -97,10 +108,42 @@ export function EditorCanvas({
     return [...new Set(ids)];
   };
 
+  /**
+   * The keyboard on the focused slide, as Keynote's: the arrows move the picked element a point (Shift: ten), a run of
+   * them one step for Ångra; Enter writes in a picked text; Escape lets go of the picked one, and only that. Tab picks
+   * the next element, the front one first (Shift: the one before), and past the last leaves the slide as Tab does.
+   */
+  const onKey = (e: KeyboardEvent) => {
+    if (e.target !== e.currentTarget || writing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Tab') {
+      const next = nextInTurn(page.elements.map((el) => el.id).toReversed(), picked, e.shiftKey);
+      if (!next) return onPick(null); // out of the slide, nothing picked behind it
+      e.preventDefault();
+      onEditText(false);
+      onPick(next);
+      return;
+    }
+    if (!element) return;
+    const by = arrowNudge(e);
+    if (by) {
+      e.preventDefault();
+      onChange(element.id, { x: element.x + by[0], y: element.y + by[1] });
+    } else if (e.key === 'Enter' && element.kind === 'text') {
+      e.preventDefault();
+      onEditText(true);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      onPick(null);
+    }
+  };
+
   const press = (e: PointerEvent) => {
     const at = e.target as Element;
     pressed.current = null;
-    if (at.closest('.moveable-control-box') || at.closest('[data-writing]')) return;
+    if (at.closest('[data-writing]')) return;
+    // The slide has the keys after a press on it (Moveable's drag keeps a press from focusing it).
+    box.current?.focus({ preventScroll: true });
+    if (at.closest('.moveable-control-box')) return;
     const stack = stackAt(e.clientX, e.clientY);
     const onPicked = picked !== null && stack.includes(picked);
     pressed.current = { x: e.clientX, y: e.clientY, at: e.timeStamp, stack, onPicked };
@@ -143,7 +186,10 @@ export function EditorCanvas({
     <HoldMenu label={t('slideEditor.elementMenu')} menu={menu} className="w-full">
       <div
         ref={box}
-        className="relative w-full aspect-video select-none touch-none"
+        tabIndex={0}
+        aria-label={t('slideEditor.canvas')}
+        className={`relative w-full aspect-video select-none touch-none ${CANVAS_FOCUS}`}
+        onKeyDown={onKey}
         onPointerDown={press}
         onPointerUp={release}
         onMouseDown={dragCovered}

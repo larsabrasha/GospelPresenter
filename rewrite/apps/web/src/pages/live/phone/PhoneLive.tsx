@@ -7,6 +7,7 @@ import { addAfter } from '../../../live/liveList.ts';
 import type { ItemSlides } from '../../../live/live.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
+import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
 import { CheckSquareIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
@@ -187,6 +188,7 @@ export function PhoneLive({
           item's … (Ändra ordning); Klar takes the +'s place. */}
       <div className="h-3 shrink-0 landscape:hidden" />
       {/* In select mode its own Klar and removal take the foot (RunningOrder). */}
+      {!editing && <FloatingSearchButton />}
       {!editing && (
         <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className={`absolute z-10 right-7 landscape:right-[calc(45%+0.75rem)] bottom-[max(1.75rem,env(safe-area-inset-bottom))] size-14 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}`}>
           <PlusIcon className="size-6" strokeWidth={2.25} />

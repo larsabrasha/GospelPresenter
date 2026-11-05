@@ -10,8 +10,11 @@ import { afterWrite } from '../../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../../ui/Dialog.tsx';
 import { backToTemplates, href, navigate } from '../../ui/router.ts';
 import { songPage } from '../live/songPage.ts';
+import { newId } from '../../ids.ts';
+import { useAppCommand } from '../../ui/appKeys.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
-import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
+import { useShortcutGroup } from '../../ui/ShortcutHelp.tsx';
+import { KEYS, LiveKeys, PaletteTarget } from './editorKeys.ts';
 import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
@@ -65,35 +68,6 @@ const OWN_WRITE_MS = 10_000;
  * (`/templates/{id}`): a banner says so, and there is no Starta presentation
  * and no Spara som mall.
  */
-/** The editor's keys in the help dialog (Presentation.razor's scope); ↑ ↓ wherever focus is, as ProPresenter's. */
-const KEYS: ShortcutGroup = {
-  title: t('shortcuts.group.presentation'),
-  lines: [
-    { keys: ['a'], text: t('shortcuts.addItem') },
-    { keys: ['Delete'], text: t('shortcuts.removeItem') },
-    { keys: ['ArrowUp', 'ArrowDown'], text: t('shortcuts.moveThroughItems') },
-    { keys: ['ArrowRight', 'ArrowLeft'], text: t('shortcuts.pickSlide') },
-    { keys: ['Alt+ArrowUp', 'Alt+ArrowDown'], text: t('shortcuts.moveItem') },
-  ],
-};
-
-/** The keys while presenting: ProPresenter's (Lars, 2026-10-29). */
-const LIVE_KEYS: ShortcutGroup = {
-  title: t('shortcuts.group.live'),
-  lines: [
-    { keys: ['ArrowRight', ' ', 'PageDown'], text: t('shortcuts.nextSlide') },
-    { keys: ['ArrowLeft', 'PageUp'], text: t('shortcuts.previousSlide') },
-    { keys: ['ArrowDown'], text: t('shortcuts.nextItem') },
-    { keys: ['ArrowUp'], text: t('shortcuts.previousItem') },
-    { keys: ['B', '.'], text: t('shortcuts.black') },
-  ],
-};
-
-function LiveKeys() {
-  useShortcutGroup(LIVE_KEYS);
-  return null;
-}
-
 export function PresentationEditor({
   id,
   role,
@@ -248,7 +222,16 @@ export function PresentationEditor({
 
   // Page shortcuts (spec 03 section 6), as ProPresenter's: ↑ ↓ change item wherever focus is, outside text
   // fields; never behind a dialog (PRES-R37), never a held key repeating (ui/shortcuts.ts).
+  // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+  const startable = !template && pointer.presentationId === null;
+  // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
+  const start = () => {
+    panels.show('right');
+    live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
+  };
   useShortcutGroup(KEYS);
+  // Starta presentation by the desktop app's menu bar, as by F5 and ⌥⌘P below.
+  useAppCommand('start', () => startable && start());
   usePageKeys((e) => {
     if (ticking) return;
     // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b` and `.` (a
@@ -270,6 +253,13 @@ export function PresentationEditor({
       if (!selected) return;
       e.preventDefault();
       failing(db.mutate('moveItem', { itemId: selected.id, by: e.key === 'ArrowUp' ? -1 : 1 }));
+      return;
+    }
+    // F5, as PowerPoint's, and ⌥⌘P, as Keynote's Spela upp: Starta presentation. F5 never reloads this page, so a slip
+    // of it while presenting does not start the page over.
+    if (e.key === 'F5' || ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyP')) {
+      e.preventDefault();
+      if (startable) start();
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -323,13 +313,6 @@ export function PresentationEditor({
   const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
   // A phone or an iPad held upright: one column with sheets, before and while presenting (docs/layout-2-0.md).
   const phone = !wide;
-  // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
-  const startable = !template && pointer.presentationId === null;
-  // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
-  const start = () => {
-    panels.show('right');
-    live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
-  };
   const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
@@ -383,6 +366,17 @@ export function PresentationEditor({
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
+      {/* ⌘K adds a song here, where Lägg till would (ui/CommandPalette.tsx). */}
+      {!template && (
+        <PaletteTarget
+          addSong={async (song) => {
+            const itemId = newId();
+            const ok = await trySave(db.mutate('addSongToPresentation', { itemId, presentationId: id, songId: song.id, arrangementId: null, afterItemId: afterFor(null) }));
+            if (ok) added(itemId);
+            return ok;
+          }}
+        />
+      )}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
         {phone && (

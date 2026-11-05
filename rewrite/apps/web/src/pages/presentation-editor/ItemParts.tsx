@@ -1,5 +1,5 @@
 import type { LibraryVideo, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import { VideoPlayer } from '../live/VideoPlayer.tsx';
@@ -103,13 +103,43 @@ export function ImageItemEditor({ item, slides, theme, onAddImages }: { item: Pr
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const { dialog, ask } = useConfirm();
-  const { listRef, rowStyle, handle } = useSortable<HTMLOListElement>((from, to) => failing(db.mutate('moveItemImage', { itemId: item.id, from, to })));
+  // The picture a key moved, to have focus at its new place once the list is drawn again.
+  const refocus = useRef<number | null>(null);
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= slides.length) return;
+    refocus.current = to;
+    failing(db.mutate('moveItemImage', { itemId: item.id, from, to }));
+  };
+  const { listRef, rowStyle, handle } = useSortable<HTMLOListElement>(move);
   return (
     <>
       {dialog}
       <ol ref={listRef} className="flex flex-col gap-3" aria-label={item.title} data-testid="image-order">
         {slides.map((s, i) => (
-          <li key={s.key} data-sort-row style={rowStyle(i)} {...handle(i)} className={`${tileClass({ interactive: false })} w-full sm:w-96 m-1 cursor-grab active:cursor-grabbing touch-none select-none`} aria-label={`${item.title} ${i + 1}`}>
+          // Dragged; with focus on it, Alt+↑/↓ moves it, as an arrangement's parts.
+          <li
+            key={s.key}
+            data-sort-row
+            style={rowStyle(i)}
+            {...handle(i)}
+            tabIndex={0}
+            aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+            ref={(el) => {
+              if (el && refocus.current === i) {
+                refocus.current = null;
+                el.focus();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.target !== e.currentTarget || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+              // The picture's, not the running order's Alt+↑/↓ (the page's keys).
+              e.preventDefault();
+              e.stopPropagation();
+              move(i, e.key === 'ArrowUp' ? i - 1 : i + 1);
+            }}
+            className={`${tileClass({ interactive: false })} w-full sm:w-96 m-1 cursor-grab active:cursor-grabbing touch-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
+            aria-label={`${item.title} ${i + 1}`}
+          >
             <SlideView slide={s} theme={theme} credits={false} />
             <AppButton
               variant="plain"

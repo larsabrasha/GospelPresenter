@@ -3,6 +3,8 @@ import { t } from '../../i18n.ts';
 import { outputWindow } from '../../live/outputWindow.ts';
 import type { LiveControl } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { SearchButton } from '../../ui/CommandPalette.tsx';
+import { useWide } from '../../ui/useWide.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
 import { backToTemplates, href } from '../../ui/router.ts';
@@ -51,6 +53,7 @@ export function PresentationBar({
   onTrash: () => void;
 }) {
   const { dialog, ask } = useConfirm();
+  const wide = useWide();
   // "2026-11-01 10:00 · Stora salen"; a phone has no room for the date, so it is a part of its own that hides there.
   const date = presentation.isTemplate ? null : presentation.eventDate;
   const rest = presentation.isTemplate ? templateDetails(presentation) : [presentation.time, presentation.location].filter(Boolean).join(' · ');
@@ -129,6 +132,8 @@ export function PresentationBar({
       />
       <div className="justify-self-end flex items-center gap-3">
         <SyncCloud />
+        {/* On a phone the search floats at the bottom left instead (PhoneLive), the bar has no room. */}
+        {wide && <SearchButton className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`} iconClassName="size-5" />}
         {/* Inställningar next to start and stop, on a phone too. */}
         <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
           <CogIcon className="size-5" />

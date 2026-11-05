@@ -70,7 +70,7 @@ export function ColorChoice({
         ))}
         {/* Another colour, by the system's own picker. */}
         <label
-          className={`${dot} relative overflow-hidden border border-separator bg-[conic-gradient(#ef4444,#eab308,#22c55e,#3b82f6,#8b5cf6,#ef4444)] ${value && !SWATCHES.includes(value) ? "ring-2 ring-sky-500" : ""}`}
+          className={`${dot} relative overflow-hidden border border-separator bg-[conic-gradient(#ef4444,#eab308,#22c55e,#3b82f6,#8b5cf6,#ef4444)] has-focus-visible:outline-2 has-focus-visible:outline-solid has-focus-visible:outline-sky-500 has-focus-visible:outline-offset-2 ${value && !SWATCHES.includes(value) ? "ring-2 ring-sky-500" : ""}`}
           title={t("slideEditor.otherColor")}
         >
           <input

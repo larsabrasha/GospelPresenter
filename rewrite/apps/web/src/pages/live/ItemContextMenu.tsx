@@ -204,7 +204,14 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   return (
     <ContextMenu at={at} label={t('presentation.itemOptions', { title: item.title })} onClose={onClose}>
       {/* A pointer on any other row closes an open submenu, as on macOS. */}
-      <div onPointerOver={(e) => !(e.target as Element).closest('[data-submenu]') && setSub(null)}>
+      {/* And by the keyboard: focus on another row, or back on its own row from the submenu (← or Escape). */}
+      <div
+        onPointerOver={(e) => !(e.target as Element).closest('[data-submenu]') && setSub(null)}
+        onFocus={(e) => {
+          const from = e.relatedTarget instanceof Element ? e.relatedTarget : null;
+          if (!(e.target as Element).closest('[data-submenu]') || from?.closest('[role="menu"][data-submenu]')) setSub(null);
+        }}
+      >
         {opening}
         <div className={DIVIDER} />
         {showing}

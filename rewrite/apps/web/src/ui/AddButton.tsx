@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AppButton } from './AppButton.tsx';
 import { PlusIcon } from './icons.tsx';
@@ -24,8 +24,10 @@ const FLOATING_SECONDARY = `h-14 px-5 gap-2 shrink-0 rounded-full flex items-cen
 /** The + of a heading row, in it or floating: `render` draws it with the classes for where it is. */
 export function useRoundAdd(render: (className: string) => ReactElement, secondary = false) {
   const float = useHeaderFloat();
-  if (float) return createPortal(render(secondary ? FLOATING_SECONDARY : FLOATING_ADD), float);
-  return render(secondary ? ROUND_SECONDARY : ROUND_ADD);
+  // The + is what `n` and ⌘N press in Inställningar (ui/appKeys.ts).
+  const drawn = (className: string) => (secondary ? render(className) : cloneElement(render(className) as ReactElement<{ 'data-new'?: string }>, { 'data-new': '' }));
+  if (float) return createPortal(drawn(secondary ? FLOATING_SECONDARY : FLOATING_ADD), float);
+  return drawn(secondary ? ROUND_SECONDARY : ROUND_ADD);
 }
 
 /** A round + named `label` for screen readers and as its tooltip. */

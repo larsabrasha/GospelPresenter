@@ -19,6 +19,7 @@ import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { NameDialog } from './NameDialog.tsx';
 import { PageContainer, PageHeader } from './PageContainer.tsx';
 import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
+import { libraryKeyDown, useLibraryShortcuts } from './libraryKeys.ts';
 import { HoldMenu } from './RemoveMenu.tsx';
 import { SortMenu, useStoredChoice } from './SortMenu.tsx';
 import { useToast } from './Toast.tsx';
@@ -224,7 +225,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     return (
       <li key={item.id} className="group flex items-center border-b border-separator last:border-b-0" aria-label={item.name} data-testid={`${p.testId}-row`}>
         {selecting ? (
-          <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} className={`${rowClass} cursor-pointer`} onClick={() => toggle(item)}>
+          <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} data-library-item={item.id} className={`${rowClass} cursor-pointer`} onClick={() => toggle(item)}>
             <Tick on={picked.has(item.id)} />
             {body}
           </AppButton>
@@ -232,16 +233,16 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           held(
             item,
             p.open ? (
-              <a href={p.open(item)} className={rowClass}>
+              <a href={p.open(item)} data-library-item={item.id} className={rowClass}>
                 {body}
                 {!r.end && <RowChevron />}
               </a>
             ) : p.preview ? (
-              <AppButton variant="plain" className={`${rowClass} cursor-pointer`} onClick={() => setLooking(item.id)}>
+              <AppButton variant="plain" data-library-item={item.id} className={`${rowClass} cursor-pointer`} onClick={() => setLooking(item.id)}>
                 {body}
               </AppButton>
             ) : (
-              <div className={rowClass} tabIndex={p.manage ? 0 : undefined}>
+              <div className={rowClass} tabIndex={p.manage ? 0 : undefined} data-library-item={item.id}>
                 {body}
               </div>
             ),
@@ -257,7 +258,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const gridTile = (item: T) => (
     <li key={item.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid={`${p.testId}-card`}>
       {selecting ? (
-        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
+        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} data-library-item={item.id} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
           {/* The cell's width, as the tile has it outside Välj: a tile drawn at its width (a slide's page) is not 0 wide. */}
           <span className={`flex w-full justify-center ${picked.has(item.id) ? 'opacity-80' : ''}`}>{p.renderTile?.(item, view === 'large')}</span>
           <Tick on={picked.has(item.id)} className="absolute bottom-1.5 right-1.5" />
@@ -266,15 +267,15 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         held(
           item,
           p.open ? (
-            <a href={p.open(item)} className={`${TILE} no-underline`} aria-label={item.name}>
+            <a href={p.open(item)} className={`${TILE} no-underline`} aria-label={item.name} data-library-item={item.id}>
               {p.renderTile?.(item, view === 'large')}
             </a>
           ) : p.preview ? (
-            <AppButton variant="plain" className={`${TILE} cursor-pointer`} aria-label={item.name} onClick={() => setLooking(item.id)}>
+            <AppButton variant="plain" className={`${TILE} cursor-pointer`} aria-label={item.name} data-library-item={item.id} onClick={() => setLooking(item.id)}>
               {p.renderTile?.(item, view === 'large')}
             </AppButton>
           ) : (
-            <div className={TILE} tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
+            <div className={TILE} tabIndex={p.manage ? 0 : undefined} aria-label={item.name} data-library-item={item.id}>
               {p.renderTile?.(item, view === 'large')}
             </div>
           ),
@@ -408,12 +409,15 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     </>
   );
 
+  useLibraryShortcuts(p.title, p.manage);
+  // Delete on a focused item: as its menu's Radera, asked first.
+  const removable = p.manage && !selecting ? (id: string) => void remove((shown ?? []).filter((i) => i.id === id)) : null;
   const page = (
     <PageContainer>
       {/* Escape ends Välj, and only that (one step at a time, as everywhere). */}
       <div
         onKeyDown={(e) => {
-          if (e.key !== 'Escape' || !selecting) return;
+          if (e.key !== 'Escape' || !selecting) return libraryKeyDown(e, view !== 'list', removable);
           e.stopPropagation();
           stopSelecting();
         }}
