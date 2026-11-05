@@ -47,6 +47,10 @@ import { Trash } from './pages/Trash.tsx';
 import { UserDetail } from './pages/UserDetail.tsx';
 import { Users } from './pages/Users.tsx';
 import { RejectedChanges, SyncWarnings, UnexpectedError } from './Shell.tsx';
+import { BugReportHost } from './report/BugReportDialog.tsx';
+import { BugReports } from './pages/BugReports.tsx';
+import { BugReportDetail } from './pages/BugReportDetail.tsx';
+import { MyBugReportPage, MyBugReports } from './pages/MyBugReports.tsx';
 import { PageDialog } from './ui/Dialog.tsx';
 import { TopBar } from './TopBar.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
@@ -124,6 +128,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'settings' && <Settings />}
       {route.page === 'logins' && <Logins error={route.error} />}
       {route.page === 'storage' && <Storage />}
+      {route.page === 'myReports' && <MyBugReports />}
+      {route.page === 'myReport' && <MyBugReportPage key={route.id} id={route.id} />}
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} /> : <Refused text={t('users.forbidden')} />)}
@@ -140,6 +146,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <SlideEditor key={route.id} id={route.id} edits="overlay" /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'org' && (can(me.role, 'ManageOrganizations') ? <OrgDetail key={route.id} id={route.id} me={me} /> : <Refused text={t('orgs.forbidden')} />)}
+      {route.page === 'reports' && (can(me.role, 'ManageOrganizations') ? <BugReports /> : <Refused text={t('reports.forbidden')} />)}
+      {route.page === 'report' && (can(me.role, 'ManageOrganizations') ? <BugReportDetail key={route.id} id={route.id} /> : <Refused text={t('reports.forbidden')} />)}
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
       {route.page === 'labels' && <Labels />}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
@@ -168,6 +176,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       <CommandPalette me={me} host={host} />
       <UnexpectedError />
       <RejectedChanges />
+      <BugReportHost me={me} live={live} />
       {/* Out of reach under the dialog, for the keyboard and screen readers too. */}
       <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
         {/* A presentation has its own bar (PresentationBar, PhoneLive); the warnings stay under it. */}
@@ -247,6 +256,9 @@ function settingsTitle(route: Route, detail = false): string {
       return t('nav.bibles');
     case 'org':
       return t('orgs.one');
+    case 'report':
+    case 'myReport':
+      return t('reports.one');
     default:
       return t('nav.admin');
   }
@@ -262,12 +274,13 @@ function settingsPageTitle(route: Route, me: Me, host: boolean): string {
   if (route.page === 'trash') return t('trash.title');
   if (route.page === 'logins') return t('logins.title');
   if (route.page === 'storage') return t('storage.title');
+  if (route.page === 'myReports') return t('myReports.title');
   if (DETAIL_TITLES.has(route.page)) return settingsTitle(route, true);
   const link = settingsGroups(me, host).flatMap((g) => g.links).find((l) => l.route.page === route.page);
   return link ? t(link.label) : t('nav.admin');
 }
 
-const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme', 'bible']);
+const DETAIL_TITLES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'report', 'myReport', 'customSlide', 'theme', 'bible']);
 
 /**
  * The dialog bar's round ‹ on a phone: one step up, a detail page to its list and a row's page to Inställningar's
@@ -285,7 +298,9 @@ function settingsBack(route: Route): { href: string; label: string } | undefined
     : route.page === 'theme' ? { page: 'themes' }
     : route.page === 'bible' ? { page: 'bibles' }
     : route.page === 'org' ? { page: 'orgs' }
-    : route.page === 'logins' || route.page === 'storage' ? { page: 'settings' }
+    : route.page === 'report' ? { page: 'reports' }
+    : route.page === 'myReport' ? { page: 'myReports' }
+    : route.page === 'logins' || route.page === 'storage' || route.page === 'myReports' ? { page: 'settings' }
     : { page: 'admin' };
   return { href: href(up), label: t('common.back') };
 }

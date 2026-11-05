@@ -25,3 +25,4 @@ export * from './propresenter.ts';
 export * from './legacy.ts';
 export * from './custom-slides.ts';
 export * from './client-errors.ts';
+export * from './bug-reports.ts';

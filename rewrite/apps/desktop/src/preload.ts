@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('gpDesktop', {
     return () => void ipcRenderer.off('menu', on);
   },
   deviceName: String(ipcRenderer.sendSync('device-name')),
+  capturePage: () => ipcRenderer.invoke('capture-page') as Promise<string | null>,
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,
   diskSpace: () => ipcRenderer.invoke('disk-space') as Promise<{ total: number; free: number }>,

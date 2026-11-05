@@ -32,7 +32,8 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-async function load<T>(path: string): Promise<T | string> {
+/** A server read for an online-only page: the answer, or what went wrong as text. */
+export async function load<T>(path: string): Promise<T | string> {
   try {
     const r = await api<T>('GET', path);
     return r.error ? errorText(r) : r.body;

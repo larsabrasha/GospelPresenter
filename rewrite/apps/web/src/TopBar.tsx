@@ -9,8 +9,10 @@ import { AppButton } from './ui/AppButton.tsx';
 import { FloatingSearchButton, SearchButton } from './ui/CommandPalette.tsx';
 import { useWide } from './ui/useWide.ts';
 import { Dropdown } from './ui/Dropdown.tsx';
-import { ArrowsRightLeftIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon, LogoIcon, SignOutIcon } from './ui/icons.tsx';
+import { ArrowsRightLeftIcon, BugIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon, CogIcon, LogoIcon, SignOutIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
+import { runCommand } from './ui/appKeys.ts';
+import { useUnreadReplies } from './report/unread.ts';
 import { initials, syncState, useWaitedLong } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
 import { LIFTED, ROUND_BACK } from './ui/glass.ts';
@@ -161,6 +163,7 @@ function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
 function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: string } | null }) {
   const db = useDb();
   const orgs = useSwitchOrgs();
+  const unread = useUnreadReplies();
   const who = `${me.name} · ${me.orgName}`;
   return (
     <Dropdown
@@ -169,7 +172,8 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
       trigger={
         <>
           <Avatar name={me.name} className="size-11 sm:size-8 text-base sm:text-xs" />
-          {sync?.problem && <span className="absolute top-0 right-0 size-3 sm:size-2.5 rounded-full bg-amber-500 ring-2 ring-surface" />}
+          {/* Amber while the sync has a problem; else blue while an answer to a bug report waits unread. */}
+          {(sync?.problem || unread > 0) && <span className={`absolute top-0 right-0 size-3 sm:size-2.5 rounded-full ring-2 ring-surface ${sync?.problem ? 'bg-amber-500' : 'bg-sky-500'}`} />}
         </>
       }
     >
@@ -200,6 +204,17 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
         </>
       )}
       <div className={DIVIDER} />
+      {/* For everyone, on every page with this bar (docs/bug-reports.md); the desktop app also has it under Hjälp. */}
+      {unread > 0 && (
+        <AppButton variant="plain" role="menuitem" className={`${ROW} text-sky-600! dark:text-sky-400!`} href={href({ page: 'myReports' })}>
+          <span className="size-2 mx-[5px] sm:mx-1 shrink-0 rounded-full bg-sky-500" />
+          {t('myReports.answers', { n: unread })}
+        </AppButton>
+      )}
+      <AppButton variant="plain" role="menuitem" className={ROW} onClick={() => runCommand('report')}>
+        <BugIcon className="size-[18px] sm:size-4 shrink-0" />
+        {t('report.title')}
+      </AppButton>
       <AppButton variant="plain" role="menuitem" className={`${ROW} text-red-600! dark:text-red-400!`} onClick={() => void signOut()}>
         <SignOutIcon className="size-[18px] sm:size-4 shrink-0" />
         {t('auth.signOut')}

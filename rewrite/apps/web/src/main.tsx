@@ -15,7 +15,8 @@ import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
 import { browserLanguage, installLanguage } from './i18n.ts';
-import { currentRoute, installLinkHandler } from './ui/router.ts';
+import { currentRoute, installLinkHandler, NAVIGATED } from './ui/router.ts';
+import { installTrail } from './report/trail.ts';
 import { installTheme } from './ui/theme.ts';
 import './fonts.css';
 import './app.css';
@@ -87,6 +88,8 @@ if (route.page === 'watch') {
   // database for long, says so with a way out rather than staying blank: a reload can wait some seconds for the
   // page before to let go of the database file.
   const session = workerSession(stored);
+  // The steps a bug report carries (docs/bug-reports.md), from the start.
+  installTrail(NAVIGATED);
   const db = new Db();
   const waiting = setTimeout(() => root.render(<Starting />), 1000);
   const slow = setTimeout(() => root.render(<Stopped why={{ kind: 'slow' }} />), 10_000);

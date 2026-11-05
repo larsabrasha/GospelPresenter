@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { language, setLanguage, t, type Language, type TextKey } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { GROUP_ROW, Group, OpeningRow, PopUp, SwitchRow } from '../ui/Group.tsx';
+import { useUnreadReplies } from '../report/unread.ts';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
@@ -109,11 +110,13 @@ function LanguageRow() {
   );
 }
 
-/** Konto: the ways to sign in, which the picture's menu held before 2.0. */
+/** Konto: the ways to sign in, which the picture's menu held before 2.0, and the bug reports the user sent. */
 function Account() {
+  const unread = useUnreadReplies();
   return (
     <Group title={t('settings.account')}>
       <OpeningRow label={t('logins.title')} href={href({ page: 'logins', error: null })} />
+      <OpeningRow label={t('myReports.title')} value={unread ? t('reports.unread', { n: unread }) : undefined} href={href({ page: 'myReports' })} />
     </Group>
   );
 }

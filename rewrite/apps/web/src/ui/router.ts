@@ -55,6 +55,9 @@ export type Route =
   /** The SuperAdmin's organisations (`/admin/organizations`, Organizations.razor), and one of them. */
   | { page: 'orgs' }
   | { page: 'org'; id: string }
+  /** The SuperAdmin's bug reports (`/admin/reports`, docs/bug-reports.md), and one of them. */
+  | { page: 'reports' }
+  | { page: 'report'; id: string }
   | { page: 'overlay'; id: string }
   /** Egna slides (docs/custom-slides.md), and one of them in its editor. */
   | { page: 'customSlides' }
@@ -83,6 +86,9 @@ export type Route =
   | { page: 'logins'; error: string | null }
   /** Lagring under Mina inställningar: what this device keeps, offline and in its cache. */
   | { page: 'storage' }
+  /** Mina felrapporter under Mina inställningar (docs/bug-reports.md), and one with its thread. */
+  | { page: 'myReports' }
+  | { page: 'myReport'; id: string }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
   | { page: 'invite'; token: string }
   /** Back from Google on the web: the page collects its session (`POST /auth/google/finish`). */
@@ -136,6 +142,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'labels') return { page: 'labels' };
     if (second === 'ccli-report') return { page: 'ccliReport' };
     if (second === 'organizations') return third ? { page: 'org', id: third } : { page: 'orgs' };
+    if (second === 'reports') return third ? { page: 'report', id: third } : { page: 'reports' };
     if (second === 'themes') return third ? { page: 'theme', id: third } : { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     if (second === 'public-outputs') return { page: 'publicOutputs' };
@@ -166,6 +173,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'logins') return { page: 'logins', error: query.get('error') };
   if (first === 'settings') return { page: 'settings' };
   if (first === 'storage') return { page: 'storage' };
+  if (first === 'my-reports') return id ? { page: 'myReport', id } : { page: 'myReports' };
   if (first === 'songs') return { page: 'songs' };
   return { page: 'presentations' };
 }
@@ -176,14 +184,14 @@ const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'theme', 'bible', 'orgSettings', 'settings', 'logins', 'storage', 'trash']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'reports', 'report', 'song', ...SONG_PAGES, 'user', 'overlay', 'customSlide', 'theme', 'bible', 'orgSettings', 'settings', 'logins', 'storage', 'myReports', 'myReport', 'trash']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
 }
 
 /** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
-const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'customSlide', 'theme', 'bible']);
+const DETAIL_PAGES = new Set<Route['page']>(['song', ...SONG_PAGES, 'user', 'overlay', 'org', 'report', 'myReport', 'customSlide', 'theme', 'bible']);
 
 /**
  * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
@@ -261,6 +269,14 @@ export function href(r: Route): string {
       return '/admin/organizations';
     case 'org':
       return `/admin/organizations/${encodeURIComponent(r.id)}`;
+    case 'reports':
+      return '/admin/reports';
+    case 'report':
+      return `/admin/reports/${encodeURIComponent(r.id)}`;
+    case 'myReports':
+      return '/my-reports';
+    case 'myReport':
+      return `/my-reports/${encodeURIComponent(r.id)}`;
     case 'logins':
       return r.error ? `/logins?error=${encodeURIComponent(r.error)}` : '/logins';
     default:
@@ -268,7 +284,8 @@ export function href(r: Route): string {
   }
 }
 
-const NAVIGATED = 'gp:navigate';
+/** The event a move within the app sends (the History API sends none for its own pushes). */
+export const NAVIGATED = 'gp:navigate';
 
 /**
  * What an entry of the history knows: `adminBack`, on an admin page, is how many

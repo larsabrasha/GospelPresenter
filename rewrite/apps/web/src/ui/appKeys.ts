@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { navigate, type Route } from './router.ts';
 import { isTextEntry } from './shortcuts.ts';
+import { note } from '../report/trail.ts';
 
 // The app's own keys, on every page and in Inställningar (Lars, 2026-11-05: the whole app by the keyboard): `g` and a
 // letter goes to a section ("go to", as Gmail and GitHub have it: `a`, `b` and `n` are a page's own), `,` opens
@@ -19,7 +20,7 @@ const SECTIONS: Record<string, Route> = {
 };
 
 /** What a key or a choice in the menu bar does. */
-export type AppCommand = `go:${string}` | 'settings' | 'search' | 'new' | 'newSong' | 'back' | 'start';
+export type AppCommand = `go:${string}` | 'settings' | 'search' | 'new' | 'newSong' | 'back' | 'start' | 'report';
 
 /** How long `g` waits for its letter. */
 const SEQUENCE_MS = 1500;
@@ -38,6 +39,7 @@ function visibleIn(selector: string): HTMLElement[] {
 
 /** Runs a command. `start` is the presentation page's own (`useAppCommand`). */
 export function runCommand(command: AppCommand): void {
+  note('command', command);
   if (command.startsWith('go:')) {
     const route = SECTIONS[command.slice(3)];
     if (route) navigate(route);

@@ -23,6 +23,8 @@ interface Window {
     isHost: boolean;
     /** This machine's name, for the server's device lists. */
     deviceName: string;
+    /** The window as it shows now, as a JPEG data URL ("Rapportera fel", docs/bug-reports.md). Absent before this version. */
+    capturePage?(): Promise<string | null>;
     /** The host's first-run setup token, while setup is pending on this machine's own server. */
     setupToken(): Promise<string | null>;
     /** Addresses other devices on the LAN can open, when the host listens there. */

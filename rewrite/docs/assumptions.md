@@ -475,3 +475,8 @@ Milestone 3 (sign-in, membership, pairing):
   (their page comes from their own server) nor for a public output's viewer.
 - **LIVE-R20: the "Visas nu" preview hides the part label too**, as the output does: it shows what
   the screen shows. Thumbnails keep it.
+- **Rapportera fel (Lars, 2026-11-05)** is not in the spec; docs/bug-reports.md has it whole. The choices made there:
+  everyone signed in may report, only a SuperAdmin reads; the reports are the server's, across organisations, not
+  synced; a desktop host keeps its own and sends nothing on (Lars: only those signed in may send); no video yet (Lars's
+  choice); a screenshot is taken only in the desktop app, elsewhere attached; and the steps are names and paths,
+  never what is typed.

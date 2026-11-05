@@ -4,6 +4,7 @@ import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, Db
 import type { MediaBytes, ReadDb } from './share.ts';
 import { locale } from '../i18n.ts';
 import { serverOrigin } from '../server.ts';
+import { note } from '../report/trail.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
 export class Db implements ReadDb {
@@ -58,6 +59,7 @@ export class Db implements ReadDb {
 
   mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {
     this.lastWriteAt = Date.now();
+    note('change', name); // the change's name only, never its arguments (docs/bug-reports.md)
     return this.call({ op: 'mutate', name, args });
   }
 

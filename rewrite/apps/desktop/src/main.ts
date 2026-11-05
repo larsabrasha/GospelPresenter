@@ -215,6 +215,14 @@ app.whenReady().then(async () => {
     const s = await statfs(app.getPath('userData'));
     return { total: s.blocks * s.bsize, free: s.bavail * s.bsize };
   });
+  // "Rapportera fel" (docs/bug-reports.md): the window that asks, as it shows now, as a JPEG at most 1600 points wide; null if it has not drawn.
+  ipcMain.handle('capture-page', async (e) => {
+    const shot = await e.sender.capturePage();
+    if (shot.isEmpty()) return null; // a window never drawn
+    const size = shot.getSize();
+    const fitted = size.width > 1600 ? shot.resize({ width: 1600 }) : shot;
+    return `data:image/jpeg;base64,${fitted.toJPEG(70).toString('base64')}`;
+  });
   ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
   // Opens a sign-in of this app's own server in the system browser: only its entry paths, never another URL.
   ipcMain.handle('open-sign-in', async (_e, path: unknown) => {

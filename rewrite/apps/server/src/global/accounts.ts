@@ -1,5 +1,6 @@
 // `Accounts`: the global tables' services, built in dependency order.
 import { ACCOUNT_LIMITS } from '@gp/core';
+import { BugReportService } from './bug-reports.ts';
 import { DebugService } from './debug.ts';
 import { LegacyUserService } from './legacy-users.ts';
 import { LoginService } from './logins.ts';
@@ -31,6 +32,8 @@ export class Accounts {
   readonly pairing: PairingService;
   /** The users an import from 1.x brings along. */
   readonly legacy: LegacyUserService;
+  /** "Rapportera fel" (docs/bug-reports.md). */
+  readonly bugReports: BugReportService;
   /** Debug servers and tests only. */
   readonly debug: DebugService;
 
@@ -46,6 +49,7 @@ export class Accounts {
     this.throttle = new ThrottleService(sql, now);
     this.pairing = new PairingService(sql, now);
     this.legacy = new LegacyUserService(sql, now, this.members);
+    this.bugReports = new BugReportService(sql, now);
     this.debug = new DebugService(sql, now, this.members);
   }
 }

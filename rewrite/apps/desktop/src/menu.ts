@@ -22,7 +22,7 @@ function pressing(id: string, label: string, key: string, accelerator: string, w
  * The page's commands (apps/web ui/appKeys.ts), each with its ⌘ key, which a browser keeps for itself: the page
  * has letter keys for them (`g p`, `,`, `/`, `n`).
  */
-type Command = 'settings' | 'search' | 'searchAll' | 'new' | 'back' | 'start' | `go:${'p' | 's' | 'b' | 'i' | 'l' | 'v' | 'e'}`;
+type Command = 'settings' | 'search' | 'searchAll' | 'new' | 'back' | 'start' | 'report' | `go:${'p' | 's' | 'b' | 'i' | 'l' | 'v' | 'e'}`;
 
 /** Builds the menu bar for the main window. `send` tells the page of a choice it has no key for. */
 export function setAppMenu(win: () => BrowserWindow | null, send: (command: Command) => void) {
@@ -107,7 +107,7 @@ export function setAppMenu(win: () => BrowserWindow | null, send: (command: Comm
     {
       role: 'help',
       label: 'Hjälp',
-      submenu: [pressing('shortcuts', 'Kortkommandon', '?', '?', win)],
+      submenu: [pressing('shortcuts', 'Kortkommandon', '?', '?', win), { type: 'separator' }, { label: 'Rapportera fel…', click: () => send('report') }],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

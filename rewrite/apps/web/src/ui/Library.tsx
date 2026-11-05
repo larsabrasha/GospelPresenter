@@ -16,6 +16,7 @@ import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } fro
 import { useView, ViewPicker, type View } from './ViewPicker.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
+import { LetterIndex } from './LetterIndex.tsx';
 import { NameDialog } from './NameDialog.tsx';
 import { PageContainer, PageHeader } from './PageContainer.tsx';
 import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
@@ -384,21 +385,10 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
               </li>
             ))}
           </ul>
-          {/* The index along the edge, as Contacts' on an iPhone: a tap jumps to the caption. Only on a touch screen,
-              where a long list is slow to scroll; with a mouse or a trackpad, as Contacts on a Mac, there is none. */}
+          {/* The index along the edge, as Contacts' on an iPhone: a tap or a drag jumps to the caption. Only on a touch
+              screen, where a long list is slow to scroll; with a mouse or a trackpad, as Contacts on a Mac, there is none. */}
           {shown!.length >= INDEX_FROM && (
-            <nav aria-label={t('songs.index')} className="sticky top-2 self-start hidden pointer-coarse:flex flex-col items-center py-1">
-              {sections.map((s) => (
-                <AppButton
-                  key={s.key}
-                  variant="plain"
-                  onClick={() => document.getElementById(`${p.testId}-${s.key}`)?.scrollIntoView({ block: 'start' })}
-                  className="w-5 text-[11px]/4 font-semibold text-sky-600 dark:text-sky-400 cursor-pointer hover:underline"
-                >
-                  {s.title}
-                </AppButton>
-              ))}
-            </nav>
+            <LetterIndex sections={sections} label={t('songs.index')} jump={(key) => document.getElementById(`${p.testId}-${key}`)?.scrollIntoView({ block: 'start' })} />
           )}
         </div>
       ) : (

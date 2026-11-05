@@ -2,6 +2,7 @@ import { CLIENT_ERROR_LIMITS, type ClientErrorReport } from '@gp/core';
 import { api } from './auth/api.ts';
 import { storedSession } from './auth/session.ts';
 import { appCommit } from './version.ts';
+import { note } from './report/trail.ts';
 
 // An error nothing caught, sent to the server's log so it can be seen later (docs/cloudflare.md, "Logs"), and not
 // only in the device's console. Only while signed in (the server asks for a session); each message once, and at
@@ -23,8 +24,9 @@ export function reportOf(error: unknown, where: string, version: string | null):
 
 /** Sends `error` to the server's log, once per message and at most `perLoad` in this page's life. */
 export function reportClientError(error: unknown) {
-  if (!storedSession()) return;
   const report = reportOf(error, location.pathname, appCommit());
+  note('error', report.message); // for a bug report's steps (docs/bug-reports.md), signed in or not
+  if (!storedSession()) return;
   if (sent.has(report.message) || sent.size >= CLIENT_ERROR_LIMITS.perLoad) return;
   sent.add(report.message);
   void api('POST', '/api/client-errors', report).catch(() => undefined);

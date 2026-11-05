@@ -39,8 +39,8 @@ function useCreateSong(songs: { name: string }[] | undefined) {
 /**
  * The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor), as Music's Låtar and Contacts (Lars,
  * 2026-11-02) on the libraries' common page (ui/Library.tsx): the songs in sections by letter with an index along the
- * edge when the list is long, + for Ny sång (made at once) and beside it a round button for the ProPresenter import. Dropped .pro
- * files import anywhere on the page.
+ * edge when the list is long, tapped or dragged with a finger (ui/LetterIndex.tsx), + for Ny sång (made at once) and
+ * beside it a round button for the ProPresenter import. Dropped .pro files import anywhere on the page.
  */
 export function Songs() {
   const db = useDb();

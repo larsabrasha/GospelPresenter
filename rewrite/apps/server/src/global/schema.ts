@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 8;
+export const GLOBAL_SCHEMA_VERSION = 9;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -135,7 +135,23 @@ const playTokensDdl = [
   `CREATE INDEX IF NOT EXISTS play_tokens_expiry ON play_tokens (expires_at)`,
 ];
 
-export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl];
+/**
+ * Version 9: "Rapportera fel" (docs/bug-reports.md), across organisations, for the SuperAdmin. Who and where are
+ * copied in, so a report outlives a deleted user or organisation. Each report has a thread between the SuperAdmin and
+ * the one who reported (`from_admin`), and when each side last read it.
+ */
+const bugReportsDdl = [
+  `CREATE TABLE IF NOT EXISTS bug_reports (id TEXT PRIMARY KEY NOT NULL, created_at INTEGER NOT NULL, text TEXT NOT NULL,
+     shot TEXT, state TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT NOT NULL, user_email TEXT, role TEXT NOT NULL,
+     org_id TEXT NOT NULL, org_name TEXT NOT NULL, done_at INTEGER, admin_read_at INTEGER, reporter_read_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS bug_reports_created ON bug_reports (created_at)`,
+  `CREATE INDEX IF NOT EXISTS bug_reports_user ON bug_reports (user_id)`,
+  `CREATE TABLE IF NOT EXISTS bug_report_messages (id TEXT PRIMARY KEY NOT NULL, report_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL, from_admin INTEGER NOT NULL, user_name TEXT NOT NULL, text TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS bug_report_messages_report ON bug_report_messages (report_id, created_at)`,
+];
+
+export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl];
 
 const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -169,6 +185,7 @@ const globalMigrations: Record<number, string[]> = {
   7: playTokensDdl,
   // The organisation a user last switched to, which their next sign-in opens (spec 01 `LastSelectedOrganizationId`).
   8: [`ALTER TABLE users ADD COLUMN last_org_id TEXT`],
+  9: bugReportsDdl,
 };
 
 /** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */

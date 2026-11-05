@@ -7,6 +7,7 @@ import {
   ArrowDownTrayIcon,
   BarsIcon,
   BookOpenIcon,
+  BugIcon,
   CcliReportIcon,
   CogIcon,
   DesktopIcon,
@@ -50,7 +51,7 @@ export interface SettingsGroup {
 }
 
 /** The profile cell at the top: Mina inställningar, and its sign-in methods under it. */
-export const MINE: Pick<SettingsLink, 'route' | 'pages'> = { route: { page: 'settings' }, pages: ['settings', 'logins', 'storage'] };
+export const MINE: Pick<SettingsLink, 'route' | 'pages'> = { route: { page: 'settings' }, pages: ['settings', 'logins', 'storage', 'myReports', 'myReport'] };
 
 /** The groups of the list; a row the user may not open is left out (as the pages refuse them), and so is an empty group. */
 export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGroup[] {
@@ -89,6 +90,8 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
         can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', keywords: 'search.orgSettings', icon: CogIcon, colour: 'bg-stone-500', pages: ['orgSettings'], intro: 'intro.orgSettings' },
         // The SuperAdmin's pages, across organisations (spec 01 sidebar).
         can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', keywords: 'search.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
+        // What anyone reported with Rapportera fel, from every organisation on this server (docs/bug-reports.md).
+        can(me.role, 'ManageOrganizations') && { route: { page: 'reports' }, label: 'nav.reports', keywords: 'search.reports', icon: BugIcon, colour: 'bg-red-500', pages: ['reports', 'report'] },
       ],
     },
     // The one trash for everything deleted (Lars, 2026-11-02), rather than one beside every list.
@@ -107,6 +110,7 @@ const MINE_LINKS: SettingsLink[] = [
   { route: { page: 'settings' }, label: 'settings.language', icon: GlobeIcon, colour: 'bg-sky-600', pages: [], keywords: 'search.language', where: 'nav.settings' },
   { route: { page: 'storage' }, label: 'storage.title', icon: ArrowDownTrayIcon, colour: 'bg-stone-500', pages: ['storage'], keywords: 'search.storage', where: 'nav.settings' },
   { route: { page: 'logins', error: null }, label: 'logins.title', icon: UserIcon, colour: 'bg-stone-500', pages: ['logins'], keywords: 'search.logins', where: 'nav.settings' },
+  { route: { page: 'myReports' }, label: 'myReports.title', icon: BugIcon, colour: 'bg-red-500', pages: ['myReports', 'myReport'], keywords: 'search.myReports', where: 'nav.settings' },
 ];
 
 /** Lower case, accents kept (å, ä and ö are letters of their own in Swedish). */

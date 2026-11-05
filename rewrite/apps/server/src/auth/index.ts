@@ -13,6 +13,7 @@ import { loginRoutes } from './login-routes.ts';
 import { orgRoutes } from './org-routes.ts';
 import { pairingRoutes } from './pairing-routes.ts';
 import { passkeyRoutes } from './passkey-routes.ts';
+import { reportRoutes } from './report-routes.ts';
 import { signInRoutes } from './sign-in-routes.ts';
 import { userRoutes } from './user-routes.ts';
 
@@ -30,6 +31,7 @@ export function authRoutes(deps: AuthDeps) {
   orgRoutes(app, kit);
   pairingRoutes(app, kit);
   clientErrorRoutes(app, kit);
+  reportRoutes(app, kit);
   debugRoutes(app, kit);
   return app;
 }
