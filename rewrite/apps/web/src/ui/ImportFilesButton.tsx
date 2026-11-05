@@ -7,12 +7,12 @@ import { ArrowDownTrayIcon, PlusIcon } from './icons.tsx';
  * Importera: the system's file picker for any number of files of `accept`; the same files can be picked again. `round`
  * draws it as a heading row's + (ui/AddButton.tsx), named Importera for screen readers and as its tooltip.
  */
-export function ImportFilesButton(props: { accept: string; busy: boolean; testId: string; secondary?: boolean; round?: boolean; /** Instead of Importera. */ label?: string; onFiles: (files: File[]) => void }) {
+export function ImportFilesButton(props: { accept: string; busy: boolean; testId: string; secondary?: boolean; round?: boolean; /** Its word for screen readers only on a phone, where the row is narrow. */ short?: boolean; /** Instead of Importera. */ label?: string; onFiles: (files: File[]) => void }) {
   const roundAdd = useRoundAdd((className) => <Picker {...props} className={className} />);
   return props.round ? roundAdd : <Picker {...props} />;
 }
 
-function Picker({ accept, busy, testId, secondary, round, label, className, onFiles }: { accept: string; busy: boolean; testId: string; secondary?: boolean; round?: boolean; label?: string; className?: string; onFiles: (files: File[]) => void }) {
+function Picker({ accept, busy, testId, secondary, round, short, label, className, onFiles }: { accept: string; busy: boolean; testId: string; secondary?: boolean; round?: boolean; short?: boolean; label?: string; className?: string; onFiles: (files: File[]) => void }) {
   return (
     <AppButton
       variant={round ? 'plain' : secondary ? 'secondary' : undefined}
@@ -23,7 +23,7 @@ function Picker({ accept, busy, testId, secondary, round, label, className, onFi
       className={className ?? 'inline-flex items-center gap-1.5'}
     >
       {round ? <PlusIcon className="size-5" strokeWidth={2.25} /> : <ArrowDownTrayIcon className="size-4 shrink-0" />}
-      {!round && (label ?? t('images.import'))}
+      {!round && <span className={short ? 'max-sm:sr-only' : undefined}>{label ?? t('images.import')}</span>}
       <input
         type="file"
         accept={accept}

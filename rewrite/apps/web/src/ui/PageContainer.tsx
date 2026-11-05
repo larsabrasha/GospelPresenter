@@ -6,6 +6,7 @@ import { useSplit } from './useWide.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon } from './icons.tsx';
+import { ROUND_BACK } from './glass.ts';
 
 const Filled = createContext(false);
 
@@ -175,7 +176,8 @@ export function DetailHeader({
           {...(backHref ? { href: backHref } : { onClick: onBack })}
           aria-label={t('common.back')}
           title={t('common.back')}
-          className={`absolute left-0 cursor-pointer ${inBar ? 'hidden' : ''} p-2.5 bg-surface text-stone-700 dark:text-stone-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]`}
+          // Round and lifted, as every bar's button (ui/glass.ts ROUND_BACK, Lars 2026-11-05).
+          className={`absolute left-0 cursor-pointer ${inBar ? 'hidden' : ''} ${ROUND_BACK}`}
         >
           <ChevronLeftIcon className="size-5" />
         </AppButton>

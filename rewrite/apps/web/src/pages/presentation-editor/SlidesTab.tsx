@@ -16,9 +16,15 @@ import { navigate } from '../../ui/router.ts';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { FirstPage } from '../custom-slides/CustomSlides.tsx';
+import { useView, ViewPicker, type View } from '../../ui/ViewPicker.tsx';
 import type { TabProps } from './AddItemDialog.tsx';
 
 const PDF = 'application/pdf,.pdf';
+const SLIDES_LIST: Record<View, string> = {
+  list: 'flex flex-col gap-1 p-1',
+  grid: 'grid grid-cols-2 sm:grid-cols-3 gap-3 p-1',
+  large: 'flex flex-col gap-4 max-w-xl mx-auto w-full p-1',
+};
 
 /** Saving as PDF, in one line and the menus behind a link, for whoever does not know them (Lars, 2026-11-04). */
 function PdfHelp() {
@@ -55,6 +61,8 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   const search = useRef<HTMLInputElement>(null);
   useFocusWhenShown(search, active);
   const [picked, setPicked] = useState<string[]>([]);
+  // A list, a grid or large, as in Bildspel (ui/ViewPicker.tsx), this device's choice.
+  const [view, setView] = useView('slidesPicker:view', 'grid');
   const busy = useRef(false);
   const shown = slides?.filter((s) => matches(query, s.name)) ?? [];
   const chosen = (slides ?? []).filter((s) => picked.includes(s.id)).toSorted((a, b) => picked.indexOf(a.id) - picked.indexOf(b.id));
@@ -109,16 +117,17 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   return (
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('slides.dropHere')} accept={PDF} multiple={false} enabled={!importing} onFiles={(files) => void importFile(files[0])}>
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
-        <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <SearchField inputRef={search} label={t('images.search')} value={query} onChange={setQuery} />
+        <div className="shrink-0 flex flex-wrap items-center gap-3 max-sm:gap-2 pb-4">
+          <SearchField className="max-sm:basis-full" inputRef={search} label={t('images.search')} value={query} onChange={setQuery} />
+          <ViewPicker value={view} onChange={setView} />
           {/* Skapa and Importera PDF at the search's right, as the pictures' Importera (Lars, 2026-11-05). */}
           <AppButton variant="secondary" className="inline-flex items-center gap-1.5" onClick={() => void create()}>
             <PlusIcon className="size-4" />
-            {t('common.create')}
+            <span className="max-sm:sr-only">{t('common.create')}</span>
           </AppButton>
           <AppButton asLabel variant="secondary" disabled={importing} className="inline-flex items-center gap-1.5">
             <ArrowDownTrayIcon className="size-4 shrink-0" />
-            {t('slides.import')}
+            <span className="max-sm:sr-only">{t('slides.import')}</span>
             <input
               type="file"
               accept={PDF}
@@ -149,7 +158,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
               <p>{t('customSlides.empty')}</p>
             </div>
           )}
-          <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-1" aria-label={t('nav.customSlides')}>
+          <ul className={SLIDES_LIST[view]} aria-label={t('nav.customSlides')}>
             {shown.map((s) => (
               <li key={s.id} className="min-w-0">
                 <AppButton
@@ -157,12 +166,21 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
                   role="checkbox"
                   aria-checked={picked.includes(s.id)}
                   aria-label={s.name}
-                  className={`w-full rounded-lg cursor-pointer ring-2 ${picked.includes(s.id) ? 'ring-sky-500' : 'ring-transparent'}`}
+                  className={`w-full rounded-lg cursor-pointer ring-2 ${picked.includes(s.id) ? 'ring-sky-500' : 'ring-transparent'} ${view === 'list' ? 'flex items-center gap-3 p-1 text-left' : ''}`}
                   onClick={() => setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))}
                 >
-                  <FirstPage slide={s} theme={theme} />
+                  {view === 'list' ? (
+                    <>
+                      <span className="w-20 shrink-0">
+                        <FirstPage slide={s} theme={theme} />
+                      </span>
+                      <span className="text-sm truncate">{s.name}</span>
+                    </>
+                  ) : (
+                    <FirstPage slide={s} theme={theme} />
+                  )}
                 </AppButton>
-                <p className="mt-1 text-xs text-center truncate text-stone-500 dark:text-stone-400">{s.name}</p>
+                {view !== 'list' && <p className="mt-1 text-xs text-center truncate text-stone-500 dark:text-stone-400">{s.name}</p>}
               </li>
             ))}
           </ul>

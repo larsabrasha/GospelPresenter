@@ -22,6 +22,7 @@ export function SearchField({
   compact,
   filled,
   onClear,
+  className = '',
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -34,9 +35,11 @@ export function SearchField({
   autoFocus?: boolean;
   compact?: boolean;
   filled?: boolean;
+  /** Added to the field's box, as `max-sm:basis-full` for a row of its own on a phone. */
+  className?: string;
 }) {
   return (
-    <div className="relative flex-1 min-w-0">
+    <div className={`relative flex-1 min-w-0 ${className}`}>
       <SearchIcon className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
       <input
         ref={inputRef}

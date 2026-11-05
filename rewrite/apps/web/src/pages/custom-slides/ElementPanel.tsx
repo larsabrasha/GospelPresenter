@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { CustomElement } from '@gp/core';
 import { t, type TextKey } from '../../i18n.ts';
 import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
@@ -23,6 +23,7 @@ export function ElementPanel({
   textRef,
   onChange,
   onReorder,
+  layers,
   onDuplicate,
   onRemove,
   onReplaceImage,
@@ -31,7 +32,9 @@ export function ElementPanel({
   tab: InspectorTab;
   textRef: RefObject<HTMLTextAreaElement | null>;
   onChange: (patch: Partial<CustomElement>) => void;
-  onReorder: (to: 'up' | 'down' | 'top' | 'bottom') => void;
+  onReorder: (to: 'top' | 'bottom') => void;
+  /** The page's elements in their drawing order, in Ordna. */
+  layers: ReactNode;
   onDuplicate: () => void;
   onRemove: () => void;
   onReplaceImage: () => void;
@@ -87,12 +90,12 @@ export function ElementPanel({
       )}
       {tab === 'arrange' && (
         <>
-          <Group title={t('slideEditor.order')}>
+          {layers}
+          {/* One step forward or back is a drag in the list, or Alt+↑/↓ (Lars, 2026-11-05). */}
+          <Group>
             {(
               [
                 ['top', 'slideEditor.toFront'],
-                ['up', 'slideEditor.forward'],
-                ['down', 'slideEditor.backward'],
                 ['bottom', 'slideEditor.toBack'],
               ] as const
             ).map(([to, key]) => (

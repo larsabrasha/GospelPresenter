@@ -78,6 +78,15 @@ export function CustomSlides() {
         title={t('nav.customSlides')}
         items={slides}
         layout="grid"
+        switchable
+        renderRow={(s) => ({
+          leading: (
+            <span className="w-16 shrink-0">
+              <FirstPage slide={s} theme={theme} />
+            </span>
+          ),
+          subtitle: t(s.pages.length === 1 ? 'customSlides.pagesOne' : 'customSlides.pages', { n: s.pages.length }),
+        })}
         renderTile={(s) => <FirstPage slide={s} theme={theme} />}
         open={(s) => href({ page: 'customSlide', id: s.id })}
         sorts={[

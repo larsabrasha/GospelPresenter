@@ -182,6 +182,8 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
       onPage={onPage}
       onElement={(key, patch) => element && onPage(`${element.id}:${key}`, (p) => model.changeElement(p, element.id, patch))}
       onReorder={(to) => element && onPage('', (p) => model.reorderElement(p, element.id, to))}
+      onMoveLayer={(from, to) => onPage('', (p) => model.moveElement(p, from, to))}
+      onPick={pick}
       onDuplicate={duplicate}
       onRemove={remove}
       onChoose={setChoosing}

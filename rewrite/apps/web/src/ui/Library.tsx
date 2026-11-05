@@ -12,7 +12,8 @@ import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
 import { useHeaderFloat } from './headerFloat.ts';
 import { saveFiles, type DownloadFile } from '../media/download.ts';
-import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, ListBulletIcon, PencilIcon, Squares2x2Icon, TrashIcon } from './icons.tsx';
+import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
+import { useView, ViewPicker, type View } from './ViewPicker.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { NameDialog } from './NameDialog.tsx';
@@ -47,12 +48,12 @@ export interface LibraryProps<T extends LibraryEntry> {
   /** The search, when the page searches itself (Sånger searches the lyrics too); else by name and `words`. */
   search?: { query: string; onQuery: (query: string) => void; shown: T[] | undefined };
   words?: (item: T) => (string | null | undefined)[];
-  /** How it shows at first; with `switchable`, a button beside the order turns it into the other (Bilder, Videor). */
+  /** How it shows at first; with `switchable`, the three views beside the order (ui/ViewPicker.tsx: Bilder, Videor, Bildspel). */
   layout: 'list' | 'grid';
   switchable?: boolean;
   renderRow?: (item: T, query: string) => LibraryRow;
-  /** A grid item's picture. */
-  renderTile?: (item: T) => ReactNode;
+  /** A grid item's picture; `large` in the large view, a picture a row, where a sharper one may be wanted. */
+  renderTile?: (item: T, large: boolean) => ReactNode;
   /** Sections with a caption, while nothing is searched and the order is one that has them (Sånger's letters). */
   sections?: (shown: T[]) => { key: string; title: string; items: T[] }[];
   /** The orders to choose from, the first the default; `sections` says the list is in sections in that order. */
@@ -112,8 +113,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
 
   const query = p.search?.query ?? ownQuery;
   const [sortKey, setSortKey] = useStoredChoice(`${p.testId}:sort`, p.sorts?.map((s) => s.key) ?? []);
-  const [layout, setLayout] = useStoredChoice(`${p.testId}:layout`, p.layout === 'grid' ? ['grid', 'list'] : ['list', 'grid']);
-  const asGrid = (p.switchable ? layout : p.layout) === 'grid';
+  const [chosenView, setView] = useView(`${p.testId}:layout`, p.layout);
+  const view: View = p.switchable ? chosenView : p.layout;
   const sort = p.sorts?.find((s) => s.key === sortKey);
   const found = p.search ? p.search.shown : p.items?.filter((i) => matches(query, i.name, ...(p.words?.(i) ?? [])));
   // A search keeps its own order, best hit first, as Sånger's does.
@@ -258,7 +259,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       {selecting ? (
         <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
           {/* The cell's width, as the tile has it outside Välj: a tile drawn at its width (a slide's page) is not 0 wide. */}
-          <span className={`flex w-full justify-center ${picked.has(item.id) ? 'opacity-80' : ''}`}>{p.renderTile?.(item)}</span>
+          <span className={`flex w-full justify-center ${picked.has(item.id) ? 'opacity-80' : ''}`}>{p.renderTile?.(item, view === 'large')}</span>
           <Tick on={picked.has(item.id)} className="absolute bottom-1.5 right-1.5" />
         </AppButton>
       ) : (
@@ -266,15 +267,15 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           item,
           p.open ? (
             <a href={p.open(item)} className={`${TILE} no-underline`} aria-label={item.name}>
-              {p.renderTile?.(item)}
+              {p.renderTile?.(item, view === 'large')}
             </a>
           ) : p.preview ? (
             <AppButton variant="plain" className={`${TILE} cursor-pointer`} aria-label={item.name} onClick={() => setLooking(item.id)}>
-              {p.renderTile?.(item)}
+              {p.renderTile?.(item, view === 'large')}
             </AppButton>
           ) : (
             <div className={TILE} tabIndex={p.manage ? 0 : undefined} aria-label={item.name}>
-              {p.renderTile?.(item)}
+              {p.renderTile?.(item, view === 'large')}
             </div>
           ),
           'w-full',
@@ -291,7 +292,12 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   );
 
   const list = (items: T[], label?: string) =>
-    asGrid ? (
+    view === 'large' ? (
+      // A picture a row, at a size to see it by, as Photos' largest zoom (Lars, 2026-11-05).
+      <ul className="flex flex-col gap-4 max-w-2xl mx-auto w-full" aria-label={label} data-testid={`${p.testId}-large`}>
+        {items.map(gridTile)}
+      </ul>
+    ) : view === 'grid' ? (
       // Columns by its own width, not the window's: Inställningar's page column is narrow on an iPad held upright.
       <div className="@container">
         <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 -mx-2" aria-label={label} data-testid={`${p.testId}-grid`}>
@@ -343,25 +349,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         <div className="flex items-center justify-between gap-2 px-4 -mt-3 mb-3">
           <span className="flex items-center gap-1">
             {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
-            {/* The two looks as a segmented control, as Photos' and Finder's, the one shown picked (Lars, 2026-11-04). */}
-            {p.switchable && (
-              <span className="ml-2 flex rounded-full bg-stone-200/80 dark:bg-raised p-0.5" role="radiogroup" aria-label={t('library.layout')}>
-                {(['list', 'grid'] as const).map((l) => (
-                  <AppButton
-                    key={l}
-                    variant="plain"
-                    role="radio"
-                    aria-checked={layout === l}
-                    aria-label={t(l === 'list' ? 'library.asList' : 'library.asGrid')}
-                    title={t(l === 'list' ? 'library.asList' : 'library.asGrid')}
-                    className={`h-7 w-9 flex items-center justify-center rounded-full cursor-pointer ${layout === l ? 'bg-white dark:bg-raised-2 shadow-sm text-stone-800 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400'}`}
-                    onClick={() => setLayout(l)}
-                  >
-                    {l === 'list' ? <ListBulletIcon className="size-4" /> : <Squares2x2Icon className="size-4" />}
-                  </AppButton>
-                ))}
-              </span>
-            )}
+            {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
+            {p.switchable && <ViewPicker className="ml-2" value={view} onChange={setView} />}
           </span>
           {p.manage && (
             <span className="flex items-center gap-1 -mr-3">
@@ -436,7 +425,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   // Files dropped anywhere on the page import, as Photos and Music take them anywhere in their window (Lars, 2026-11-05):
   // its heading and the room under a short list too, not only the list.
   return p.drop ? (
-    <DropZone className="flex-1 min-h-0 flex flex-col" label={p.drop.label} accept={p.drop.accept} multiple={p.drop.multiple} enabled={p.manage && !selecting} onFiles={p.drop.onFiles}>
+    <DropZone inset className="flex-1 min-h-0 flex flex-col" label={p.drop.label} accept={p.drop.accept} multiple={p.drop.multiple} enabled={p.manage && !selecting} onFiles={p.drop.onFiles}>
       {page}
     </DropZone>
   ) : (

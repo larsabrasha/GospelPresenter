@@ -43,6 +43,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Pictures, PDF slides, audio and video in a presentation | `milestone5.spec.ts`: "a picture is imported", `slides.spec.ts`: "a three-page PDF", `audio.spec.ts`: "an audio file is imported", `video.spec.ts`: "a video is imported" |
 | Keep a PDF as a slideshow in the library, put it in a presentation, and replace it with a new PDF that the presentation then shows | `slides.spec.ts`: "a PDF imported into the library" |
 | Make a slideshow of its own (a welcome, the collection) with texts, pictures and shapes, and show it in a presentation | `custom-slides.spec.ts`: "a custom slide is made" |
+| Reach a shape or text covered by another on a slide, and change which lies in front | `custom-slides.spec.ts`: "an element covered by another" |
 | Make a theme of its own (its type, capitals, a picture behind), make it the default, see the output show it, and delete it | `themes.spec.ts`: "an own theme, made and changed" |
 | Labels | `labels.spec.ts`: "the default labels are listed" |
 | The trash | `milestone2.spec.ts`: "trash" |

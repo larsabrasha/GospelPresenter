@@ -90,3 +90,23 @@ export function movePage(pages: CustomPage[], from: number, to: number): CustomP
   next.splice(to, 0, page!);
   return next;
 }
+
+/** Element `from` of the drawing order put at `to`, as a drag in the layer list leaves it. */
+export function moveElement(page: CustomPage, from: number, to: number): CustomPage {
+  const last = page.elements.length - 1;
+  if (from === to || from < 0 || to < 0 || from > last || to > last) return page;
+  const elements = [...page.elements];
+  const [e] = elements.splice(from, 1);
+  elements.splice(to, 0, e!);
+  return { ...page, elements };
+}
+
+/**
+ * What a click picks among the elements under it (`stack`, the top one first): the top one, or, when the picked one is
+ * under the click, the one beneath it, and the top one again after the bottom one.
+ */
+export function nextBeneath(stack: readonly string[], picked: string | null): string | null {
+  if (!stack.length) return null;
+  const at = picked ? stack.indexOf(picked) : -1;
+  return at < 0 ? stack[0]! : stack[(at + 1) % stack.length]!;
+}

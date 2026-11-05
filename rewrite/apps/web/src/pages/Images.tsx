@@ -97,7 +97,8 @@ export function Images({ role }: { role: Role }) {
         leading: <ImageThumb image={image} className="block w-16 aspect-video object-cover rounded shrink-0" />,
         subtitle: `${image.width} × ${image.height}`,
       })}
-      renderTile={(image) => <ImageThumb image={image} />}
+      // Large, the picture itself rather than its thumbnail (400 × 225), which would be soft at that size.
+      renderTile={(image, large) => (large ? <ImageThumb image={{ thumbHash: image.fullHash, fileName: image.fileName }} className="block w-full rounded-lg" /> : <ImageThumb image={image} />)}
       preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
       download={{

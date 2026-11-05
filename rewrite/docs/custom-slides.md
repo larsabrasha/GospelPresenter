@@ -88,13 +88,16 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
 - **Above the page**, Ångra and Gör om at the left, + and Format (the brush) at the right. + adds a text, a picture
   (of Bilder or from the device, `ImagePicker.tsx`), or a shape (rektangel, rundad rektangel, ellips, linje) in the middle of the page.
 - **The page** is drawn as the outputs draw it (`CustomPageView`), scaled to the column. A tap picks an element,
-  a tap beside them all picks none; the picked one is dragged and sized by its handles (react-moveable, larger
+  a tap beside them all picks none, a tap on the picked one picks the one beneath it (after 250 ms, so a double tap
+  still writes; the top one again after the bottom one), for an element covered by another; the picked one is
+  dragged, also from under another, and sized by its handles (react-moveable, larger
   on a touch screen), and lines up with the page's edges and middle and with the other elements by yellow guides.
   A text tapped twice is written on the slide itself. A held finger or a right click opens Klipp ut, Kopiera,
   Klistra in, Duplicera and Ta bort; on a computer ⌘Z, ⇧⌘Z, ⌘C, ⌘X, ⌘V, ⌘D and Delete do the same.
 - **Format** has the picked element's tabs: Text (words, size, bold, italic, alignment, colour) or Stil (fill,
   outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
-  (to front, forward, backward, to back, Duplicera, Ta bort). With nothing picked it has the slide's name and the
+  (Lager, the page's elements front first as Keynote's object list, `LayerList.tsx`: a tap picks one, also a
+  covered one, a drag or Alt+↑/↓ moves it in the drawing order; Längst fram, Längst bak, Duplicera, Ta bort). With nothing picked it has the slide's name and the
   page's background (a colour, the theme's, or a picture). It stands at the right where the editor is wide enough
   (its own width, `@4xl`: Inställningar's column is narrower than the window); narrower, a popover under the brush,
   as an iPad's, with the page beside it still to tap and drag; on a phone a sheet over the lower part of the screen,

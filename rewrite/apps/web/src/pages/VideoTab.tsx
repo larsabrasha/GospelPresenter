@@ -15,6 +15,7 @@ import { ctrlLabel } from '../ui/shortcuts.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { PickableFileRow } from './PickableFileRow.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
+import { useView, VIEW_LIST, ViewPicker } from '../ui/ViewPicker.tsx';
 
 /** When a video goes to the trash: this device's clock. */
 const trashedAt = () => Date.now();
@@ -26,12 +27,13 @@ export function formatDuration(ms: number): string {
   return s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${Math.floor(s / 60)}:${pad(s % 60)}`;
 }
 
-/** A video's still, small: its thumbnail, kept on every device as a picture's is. */
-function VideoThumb({ video }: { video: LibraryVideo }) {
+/** A video's still: its thumbnail, kept on every device as a picture's is; small in a row, or a tile's (`tile`) with its length. */
+function VideoThumb({ video, tile }: { video: LibraryVideo; tile?: boolean }) {
   const url = useBlobUrl(video.thumbHash);
   return (
-    <span className="relative w-20 aspect-video shrink-0 rounded bg-stone-200 dark:bg-raised overflow-hidden flex items-center justify-center">
-      {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-5 text-stone-400" />}
+    <span className={`relative ${tile ? 'w-full rounded-lg' : 'w-20 rounded'} aspect-video shrink-0 bg-stone-200 dark:bg-raised overflow-hidden flex items-center justify-center`}>
+      {url ? <img src={url} alt="" className={`absolute inset-0 size-full ${tile ? 'object-cover' : 'object-contain'}`} draggable={false} /> : <VideoIcon className="size-5 text-stone-400" />}
+      {tile && <span className="absolute bottom-1 right-1.5 text-xs font-semibold text-white tabular-nums [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{formatDuration(video.duration)}</span>}
     </span>
   );
 }
@@ -44,6 +46,8 @@ function VideoThumb({ video }: { video: LibraryVideo }) {
 export function VideoTab({ presentationId, afterItemId, onAdded, active }: { presentationId: string; afterItemId: string | null; onAdded: (itemId: string) => void; active: boolean }) {
   const db = useDb();
   const trySave = useTrySave();
+  // A list, a grid or large, as in Videor (ui/ViewPicker.tsx), this device's choice.
+  const [view, setView] = useView('videoPicker:view', 'list');
   const { dialog, ask } = useConfirm();
   const toast = useToast();
   const videos = useData(listVideos, []);
@@ -114,8 +118,9 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
                 : t(status.phase === 'reading' ? 'videos.reading' : 'videos.uploading', { name: status.name, percent: status.percent })}
             </span>
           )}
-          <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
-          <ImportFilesButton secondary accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-tab-file" onFiles={(files) => void imports.run(files)} />
+          <SearchField className="max-sm:basis-full" inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
+          <ViewPicker value={view} onChange={setView} />
+          <ImportFilesButton secondary short accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-tab-file" onFiles={(files) => void imports.run(files)} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!videos && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('videos.loading')}</p>}
@@ -125,12 +130,12 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
               <p className="text-xs mt-1">{t('videos.resumeHint')}</p>
             </EmptyTab>
           )}
-          <ul className="flex flex-col gap-1 p-3" aria-label={t('videos.title')} onKeyDown={list.onKeyDown}>
+          <ul className={view === 'list' ? 'flex flex-col gap-1 p-3' : VIEW_LIST[view]} aria-label={t('videos.title')} onKeyDown={list.onKeyDown}>
             {shown.map((v, i) => (
-              <PickableFileRow key={v.id} nav={list.item(i)} picked={picked.includes(v.id)} name={v.fileName} icon={<VideoIcon className="size-5 text-stone-400 shrink-0" />} onToggle={() => toggle(v.id)} onRemove={() => void remove(v)}>
-                <VideoThumb video={v} />
-                <span className="text-sm truncate flex-1">{v.fileName}</span>
-                <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums shrink-0">{formatDuration(v.duration)}</span>
+              <PickableFileRow key={v.id} nav={list.item(i)} picked={picked.includes(v.id)} name={v.fileName} icon={<VideoIcon className="size-5 text-stone-400 shrink-0" />} onToggle={() => toggle(v.id)} onRemove={() => void remove(v)} tile={view !== 'list'}>
+                <VideoThumb video={v} tile={view !== 'list'} />
+                <span className={view === 'list' ? 'text-sm truncate flex-1' : 'text-xs text-center text-stone-500 dark:text-stone-400 truncate'}>{v.fileName}</span>
+                {view === 'list' && <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums shrink-0">{formatDuration(v.duration)}</span>}
               </PickableFileRow>
             ))}
           </ul>

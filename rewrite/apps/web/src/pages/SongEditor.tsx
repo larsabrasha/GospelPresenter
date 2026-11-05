@@ -226,7 +226,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             </div>
           </div>
         ) : (
-          onBack && <DetailHeader onBack={onBack} title={song.name} saved={saved.node} className="h-14 shrink-0 px-4" />
+          onBack && <DetailHeader onBack={onBack} title={song.name} saved={saved.node} className="h-14 shrink-0 mx-3" />
         )
       }
     >

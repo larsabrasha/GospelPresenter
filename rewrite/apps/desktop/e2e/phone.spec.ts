@@ -81,6 +81,10 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(preview).toBeHidden();
   await expect(picker).toBeVisible();
   await picker.getByRole('list', { name: 'Sånger' }).getByRole('button', { name: /Sång B/ }).click();
+  // Its pencil opens the song's editor, and back returns to the preview, one step, not to the list.
+  await preview.getByRole('button', { name: 'Redigera', exact: true }).click();
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await expect(preview).toBeVisible();
   await preview.getByRole('button', { name: 'Stäng' }).click();
   await expect(preview).toBeHidden();
   // Added from the preview: it closes, and the dialog stays for the next song.

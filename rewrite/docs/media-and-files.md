@@ -49,7 +49,9 @@ outside.
 
 **In the app.** Bilder (everyone may see and import: User, Admin and SuperAdmin, as spec 05): a grid of
 thumbnails, newest first, import by button or by dropping files on the page, "Importerar i av n...", failures
-listed with their reason, search by file name, "⋯" moves to the trash without confirmation. The trash holds
+listed with their reason, search by file name, "⋯" moves to the trash without confirmation. Bilder, Videor and Bildspel, and the add dialog's
+Bild, Video and Bildspel, show as a list, a grid or one large picture per row (`ui/ViewPicker.tsx`), each view's
+choice kept per device. The trash holds
 images with songs and presentations (30 days; "Töm" and the lazy purge include them). A picture goes into a
 presentation from the add dialog's third tab (Ctrl/⌘+3) and is one slide, the picture contained within the
 stage over the theme's media background. Like a song it is a reference by id: a trashed picture still shows

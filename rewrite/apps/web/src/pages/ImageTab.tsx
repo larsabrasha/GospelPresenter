@@ -10,6 +10,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
+import { useView, VIEW_ITEM, VIEW_LIST, ViewPicker } from '../ui/ViewPicker.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { ctrlLabel } from '../ui/shortcuts.ts';
@@ -43,6 +44,8 @@ export function ImageTab({
   const db = useDb();
   const trySave = useTrySave();
   const { dialog, ask } = useConfirm();
+  // A list, a grid or large, as in Bilder (ui/ViewPicker.tsx), this device's choice: small ones are hard to tell apart.
+  const [view, setView] = useView('imagePicker:view', 'grid');
   const toast = useToast();
   const images = useData(listImages, []);
   const imports = useMediaImport('image');
@@ -107,8 +110,9 @@ export function ImageTab({
             </span>
           )}
           {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
-          <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
-          <ImportFilesButton secondary accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" onFiles={(files) => void imports.run(files)} />
+          <SearchField className="max-sm:basis-full" inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
+          <ViewPicker value={view} onChange={setView} />
+          <ImportFilesButton secondary short accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" onFiles={(files) => void imports.run(files)} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!images && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}
@@ -117,22 +121,26 @@ export function ImageTab({
               <p>{t('presentation.noImages')}</p>
             </EmptyTab>
           )}
-          <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center" aria-label={t('images.title')} data-testid="image-picker" onKeyDown={grid.onKeyDown}>
+          <ul className={VIEW_LIST[view]} aria-label={t('images.title')} data-testid="image-picker" onKeyDown={grid.onKeyDown}>
             {shown.map((image, i) => {
               const isPicked = picked.includes(image.id);
               return (
-                <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
+                <li key={image.id} className={VIEW_ITEM[view]}>
                   <PictureMenu name={image.fileName} onRemove={() => void remove(image)}>
-                  <span className="relative block">
+                  <span className={`relative block ${view === 'large' ? 'w-full' : ''}`}>
                     <AppButton
                       variant="plain"
                       {...grid.item(i)}
                       aria-pressed={isPicked}
                       aria-label={image.fileName}
                       onClick={() => toggle(image.id)}
-                      className={`relative block rounded-lg cursor-pointer transition-shadow ring-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${isPicked ? 'ring-sky-500' : 'ring-transparent'}`}
+                      className={`relative block ${view === 'large' ? 'w-full' : ''} rounded-lg cursor-pointer transition-shadow ring-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${isPicked ? 'ring-sky-500' : 'ring-transparent'}`}
                     >
-                      <ImageThumb image={image} />
+                      {/* Large, the picture itself: its thumbnail (400 × 225) would be soft at that size. */}
+                      <ImageThumb
+                        image={view === 'large' ? { thumbHash: image.fullHash, fileName: image.fileName } : image}
+                        className={view === 'list' ? 'block w-16 aspect-video object-cover rounded' : view === 'large' ? 'block w-full rounded-lg' : undefined}
+                      />
                       {isPicked && (
                         <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <span className="size-8 flex items-center justify-center rounded-full bg-sky-500 text-white">
@@ -143,7 +151,7 @@ export function ImageTab({
                     </AppButton>
                   </span>
                   </PictureMenu>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full" title={image.fileName}>
+                  <p className={view === 'list' ? 'flex-1 min-w-0 text-sm truncate' : 'text-xs text-stone-500 dark:text-stone-400 truncate mt-1 text-center w-full'} title={image.fileName}>
                     {image.fileName}
                   </p>
                 </li>

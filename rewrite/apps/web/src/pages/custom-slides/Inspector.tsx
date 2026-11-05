@@ -5,6 +5,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
 import { ACTION_ROW, Group } from '../../ui/Group.tsx';
 import { ColorChoice } from '../../ui/FormatControls.tsx';
+import { LayerList } from './LayerList.tsx';
 import { ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './ElementPanel.tsx';
 
 // Keynote's Format (docs/custom-slides.md): with an element picked, its tabs (Text or Stil or Bild, and Ordna); with
@@ -23,6 +24,8 @@ export function Inspector({
   onPage,
   onElement,
   onReorder,
+  onMoveLayer,
+  onPick,
   onDuplicate,
   onRemove,
   onChoose,
@@ -40,6 +43,8 @@ export function Inspector({
   onPage: (key: string, fn: (page: CustomPage) => CustomPage) => void;
   onElement: (key: string, patch: Partial<CustomElement>) => void;
   onReorder: (to: 'up' | 'down' | 'top' | 'bottom') => void;
+  onMoveLayer: (from: number, to: number) => void;
+  onPick: (id: string) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onChoose: (what: 'replace' | 'background') => void;
@@ -58,6 +63,7 @@ export function Inspector({
           // What changed is the step's kind: a slider pulled is one step, a colour then another.
           onChange={(patch) => onElement(Object.keys(patch).join(','), patch)}
           onReorder={onReorder}
+          layers={<LayerList page={page} picked={element.id} onPick={onPick} onMove={onMoveLayer} />}
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           onReplaceImage={() => onChoose('replace')}

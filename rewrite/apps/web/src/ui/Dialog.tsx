@@ -166,28 +166,27 @@ export function Modal({ title, onClose, children, footer, className, bare }: { t
   const titleId = useId();
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className={`rounded-3xl! shadow-lg! ${className ?? 'max-w-2xl'}`}>
-      {(close) =>
-        bare ? (
-          <>
+      {(close) => (
+        // One tree with and without `bare`, the body at the same place in both: a switch (the add dialog's song editor
+        // and back) keeps what is in it, as the song tab's preview, rather than remounting it (Lars, 2026-11-05).
+        <>
+          {!bare && <CloseButton onClick={close} />}
+          {bare ? (
             <h2 id={titleId} className="sr-only">
               {title}
             </h2>
-            {/* The title row (56 px) and the foot (24 px) are the body's here, so the dialog keeps its height. */}
-            <div className="h-[calc(70svh+5rem)] flex flex-col">{children}</div>
-          </>
-        ) : (
-          <>
-            <CloseButton onClick={close} />
+          ) : (
             <div className="p-4 text-center">
               <h2 id={titleId} className="text-base/6 font-normal">
                 {title}
               </h2>
             </div>
-            <div className="px-4 h-[70svh] flex flex-col">{children}</div>
-            <div className="px-4 py-3">{footer}</div>
-          </>
-        )
-      }
+          )}
+          {/* Bare, the title row (56 px) and the foot (24 px) are the body's, so the dialog keeps its height. */}
+          <div className={bare ? 'h-[calc(70svh+5rem)] flex flex-col' : 'px-4 h-[70svh] flex flex-col'}>{children}</div>
+          {!bare && <div className="px-4 py-3">{footer}</div>}
+        </>
+      )}
     </DialogFrame>
   );
 }

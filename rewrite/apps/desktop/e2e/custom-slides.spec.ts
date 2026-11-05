@@ -63,3 +63,41 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await expect(order.getByRole('button', { name: 'Kollekt', exact: true })).toBeVisible();
   await expect(page.getByTestId('custom-page').first()).toContainText('Text');
 });
+
+test('an element covered by another is picked by a tap again or from Lager, and moved in the drawing order', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Bildspel');
+  await page.getByRole('button', { name: 'Nytt bildspel' }).click();
+  await nameNew(page, 'Lager');
+  const canvas = page.getByTestId('slide-canvas');
+  for (const kind of ['Text', 'Rektangel']) {
+    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+    await page.getByRole('menuitem', { name: kind, exact: true }).click();
+  }
+  const ids = () => canvas.locator('[data-element]').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-element')));
+  const [textId, rectId] = await ids();
+  // Format is a column or a popover by the editor's width; the inspector is drawn in one of them.
+  const shown = (name: string) => page.getByRole('tab', { name, exact: true }).filter({ visible: true });
+  const openFormat = async () => {
+    const brush = page.getByRole('button', { name: 'Format', exact: true });
+    if (await brush.isVisible()) await brush.click();
+  };
+
+  // The middle of the page has the rectangle over the text: a tap picks the rectangle, a tap again the text.
+  await canvas.click();
+  await canvas.click();
+  await openFormat();
+  await expect(shown('Text')).toBeVisible();
+
+  await shown('Ordna').click();
+  const layers = page.getByTestId('layer-list').filter({ visible: true });
+  await expect(layers.getByTestId('layer-name')).toHaveText(['Rektangel', 'Text']);
+  await layers.getByRole('button', { name: 'Rektangel' }).press('Alt+ArrowDown');
+  await expect(layers.getByTestId('layer-name')).toHaveText(['Text', 'Rektangel']);
+  await expect.poll(ids).toEqual([rectId, textId]);
+
+  await layers.getByRole('button', { name: 'Rektangel' }).click();
+  await expect(shown('Stil')).toBeVisible();
+});

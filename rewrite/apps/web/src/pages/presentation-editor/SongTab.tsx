@@ -10,6 +10,7 @@ import { Highlight } from '../../ui/Highlight.tsx';
 import { AdjustmentsIcon, ArrowDownTrayIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
 import { DropZone } from '../../ui/DropZone.tsx';
+import { ROUND_CLOSE } from '../../ui/glass.ts';
 import { useSongImport } from '../SongImport.tsx';
 import { href } from '../../ui/router.ts';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
@@ -282,21 +283,16 @@ export function SongTab({
           setFullScreen(false);
         }}
       >
-        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-separator">
-          <AppButton variant="icon" autoFocus aria-label={t('common.close')} title={t('common.close')} onClick={() => setFullScreen(false)}>
-            <CloseIcon className="size-5" />
+        {/* The bar's buttons round and lifted, as every bar's (Lars, 2026-11-05: ROUND_CLOSE, not bare icons). */}
+        <div className="shrink-0 flex items-center gap-3 px-3 py-2 border-b border-separator">
+          <AppButton variant="plain" autoFocus aria-label={t('common.close')} title={t('common.close')} className={ROUND_CLOSE} onClick={() => setFullScreen(false)}>
+            <CloseIcon className="size-4" />
           </AppButton>
           <div className="flex-1 min-w-0 text-left">
             <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
             {shownPreview.song.author && <p className="text-xs text-stone-400 truncate">{shownPreview.song.author}</p>}
           </div>
-          <AppButton
-            variant="icon"
-            className="shrink-0"
-            title={t('presentation.editSong')}
-            aria-label={t('presentation.editSong')}
-            onClick={() => onEditSong(shownPreview.song.id)}
-          >
+          <AppButton variant="plain" title={t('presentation.editSong')} aria-label={t('presentation.editSong')} className={ROUND_CLOSE} onClick={() => onEditSong(shownPreview.song.id)}>
             <PencilIcon className="size-4" />
           </AppButton>
         </div>

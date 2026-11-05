@@ -550,6 +550,15 @@ export function PaintBrushIcon({ className }: IconProps) {
 }
 
 /** Four squares (Heroicons' squares-2x2): a library shown as a grid. */
+/** One large tile over a thin one: the large view, a picture a row (ui/ViewPicker.tsx). */
+export function LargeTileIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 3.75h13.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-9a1.5 1.5 0 0 1 1.5-1.5ZM3.75 19.5h16.5" />
+    </Outline>
+  );
+}
+
 export function Squares2x2Icon({ className }: IconProps) {
   return (
     <Outline className={className}>

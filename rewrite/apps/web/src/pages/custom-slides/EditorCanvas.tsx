@@ -1,15 +1,34 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type TouchEvent } from 'react';
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
 import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { mainCss, stageCss } from '../../themes.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
 import { HoldMenu } from '../../ui/RemoveMenu.tsx';
+import { nextBeneath } from './slideModel.ts';
 
 // The page being edited (docs/custom-slides.md), as Keynote's: drawn as every output draws it, scaled to the column,
 // with Moveable's handles on the picked element, outside the scaled stage so they keep their size on a phone. A tap
-// picks an element, a tap beside them all picks none; the picked one is dragged, sized by its handles, lined up by
-// yellow guides; a text tapped twice is written on the slide; a held finger or a right click opens the menu.
+// picks an element, a tap beside them all picks none, a tap on the picked one picks the one beneath it (as Figma's
+// and Freeform's, for an element covered by another); the picked one is dragged, even from under another, sized by
+// its handles, lined up by yellow guides; a text tapped twice is written on the slide; a held finger or a right click
+// opens the menu.
+
+/** How long a tap on the picked element waits before picking the one beneath, so that a double tap still writes. */
+const BENEATH_AFTER = 250;
+/** A press that moves further or lasts longer is a drag or a held finger, not a tap. */
+const TAP_SLOP = 4;
+const TAP_LONGEST = 500;
+
+interface Press {
+  x: number;
+  y: number;
+  at: number;
+  /** The elements under it, the top one first. */
+  stack: string[];
+  /** Whether the picked element was among them. */
+  onPicked: boolean;
+}
 
 /** Where its box sits after a move or a size, in stage pixels: a line keeps the way it runs. */
 function boxAfter(e: CustomElement, left: number, top: number, width: number, height: number): Pick<CustomElement, 'x' | 'y' | 'w' | 'h'> {
@@ -69,12 +88,41 @@ export function EditorCanvas({
   const guides = () => [stage!, ...page.elements.filter((e) => e.id !== picked).flatMap((e) => nodeOf(e.id) ?? [])];
   useLayoutEffect(() => moveable.current?.updateRect());
 
+  const pressed = useRef<Press | null>(null);
+  const beneath = useRef(0);
+  useEffect(() => () => clearTimeout(beneath.current), []);
+  /** The elements under a point on the stage, the top one first. */
+  const stackAt = (x: number, y: number) => {
+    const ids = document.elementsFromPoint(x, y).flatMap((n) => (stage?.contains(n) ? (n.closest('[data-element]')?.getAttribute('data-element') ?? []) : []));
+    return [...new Set(ids)];
+  };
+
   const press = (e: PointerEvent) => {
     const at = e.target as Element;
+    pressed.current = null;
     if (at.closest('.moveable-control-box') || at.closest('[data-writing]')) return;
-    const hit = at.closest('[data-element]')?.getAttribute('data-element') ?? null;
+    const stack = stackAt(e.clientX, e.clientY);
+    const onPicked = picked !== null && stack.includes(picked);
+    pressed.current = { x: e.clientX, y: e.clientY, at: e.timeStamp, stack, onPicked };
+    if (onPicked) return; // it stays picked, and is dragged (`dragCovered`)
+    const hit = stack[0] ?? null;
     if (hit !== picked) onEditText(false);
     onPick(hit);
+  };
+  /** The picked one dragged from under another; Moveable (Gesto) reads mouse and touch events, not pointer events. */
+  const dragCovered = (e: MouseEvent | TouchEvent) => {
+    const p = pressed.current;
+    if (p?.onPicked && picked && p.stack[0] !== picked) moveable.current?.dragStart(e.nativeEvent, nodeOf(picked) ?? undefined);
+  };
+  const release = (e: PointerEvent) => {
+    const p = pressed.current;
+    pressed.current = null;
+    if (!p?.onPicked || p.stack.length < 2 || Math.hypot(e.clientX - p.x, e.clientY - p.y) > TAP_SLOP || e.timeStamp - p.at > TAP_LONGEST) return;
+    clearTimeout(beneath.current);
+    beneath.current = window.setTimeout(() => {
+      onEditText(false);
+      onPick(nextBeneath(p.stack, picked));
+    }, BENEATH_AFTER);
   };
 
   const dragEnd = ({ lastEvent, target: el }: OnDragEnd) => {
@@ -97,7 +145,13 @@ export function EditorCanvas({
         ref={box}
         className="relative w-full aspect-video select-none touch-none"
         onPointerDown={press}
-        onDoubleClick={(e) => element?.kind === 'text' && (e.target as Element).closest('[data-element]') && onEditText(true)}
+        onPointerUp={release}
+        onMouseDown={dragCovered}
+        onTouchStart={dragCovered}
+        onDoubleClick={(e) => {
+          clearTimeout(beneath.current);
+          if (element?.kind === 'text' && (e.target as Element).closest('[data-element]')) onEditText(true);
+        }}
         data-testid="slide-canvas"
       >
         <div className="absolute inset-0 overflow-hidden rounded-xl ring-1 ring-separator shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
