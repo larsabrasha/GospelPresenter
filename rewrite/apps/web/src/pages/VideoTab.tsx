@@ -7,7 +7,7 @@ import { newId } from '../ids.ts';
 import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
 import { VideoIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
@@ -102,8 +102,6 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
       {dialog}
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <ImportFilesButton accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-tab-file" secondary onFiles={(files) => void imports.run(files)} />
-          <DropHint text={t('images.dropAffordance')} />
           {!!imports.failures.length && (
             <span className="text-red-500 dark:text-red-400 text-sm" role="alert" title={imports.failures.join('\n')} data-testid="video-import-failures">
               {imports.failures.length === 1 ? imports.failures[0] : t('videos.failed', { n: imports.failures.length })}
@@ -117,6 +115,7 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
             </span>
           )}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
+          <ImportFilesButton secondary accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-tab-file" onFiles={(files) => void imports.run(files)} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!videos && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('videos.loading')}</p>}

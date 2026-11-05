@@ -6,7 +6,7 @@ import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
-import { FloatingInput, FloatingTextarea } from '../../ui/Floating.tsx';
+import { FloatingInput } from '../../ui/Floating.tsx';
 
 /** Where a new heading goes: after an item (or last), or right before one ("Ny rubrik ovanför"). */
 export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: string };
@@ -17,7 +17,7 @@ export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: strin
  * placeholder (Lars, 2026-11-05: a label over one field adds nothing). Saved by `save`, which says whether it went through; blank is allowed
  * only where it removes the text (`optional`).
  */
-function TextDialog({ title, label, initial, multiline, optional, submit, save, onClose }: { title: string; label: string; initial: string; multiline?: boolean; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
+function TextDialog({ title, label, initial, optional, submit, save, onClose }: { title: string; label: string; initial: string; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
   const [text, setText] = useState(initial);
   const [saving, setSaving] = useState(false);
   const blocked = (!optional && !text.trim()) || saving;
@@ -34,11 +34,7 @@ function TextDialog({ title, label, initial, multiline, optional, submit, save, 
           if (saved) onClose();
         }}
       >
-        {multiline ? (
-          <FloatingTextarea label={label} hideLabel autoFocus maxLength={500} rows={3} value={text} onChange={(e) => setText(e.target.value)} />
-        ) : (
-          <FloatingInput label={label} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
-        )}
+        <FloatingInput label={label} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}
@@ -74,7 +70,10 @@ function HeaderDialog({ presentationId, place, item, onAdded, onClose }: { prese
   );
 }
 
-/** An item's comment (spec 03 2f), for those who run it: "Solosång, men texten ska visas ändå". Blank removes it. */
+/**
+ * An item's comment (spec 03 2f), for those who run it: "Solosång, men texten ska visas ändå". One line, short, so
+ * Enter saves it (Lars, 2026-11-05). Blank removes it.
+ */
 function NoteDialog({ item, onClose }: { item: PresentationItem; onClose: () => void }) {
   const db = useDb();
   const trySave = useTrySave();
@@ -83,7 +82,6 @@ function NoteDialog({ item, onClose }: { item: PresentationItem; onClose: () => 
       title={t('note.title')}
       label={t('note.label')}
       initial={item.note ?? ''}
-      multiline
       optional
       submit={t('common.save')}
       save={(note) => trySave(db.mutate('setItemNote', { itemId: item.id, note }))}

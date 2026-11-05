@@ -7,7 +7,7 @@ import { newId } from '../ids.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
@@ -84,8 +84,6 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
       {dialog}
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!imports.progress} testId="audio-tab-file" secondary onFiles={(files) => void imports.run(files)} />
-          <DropHint text={t('images.dropAffordance')} />
           {!!imports.failures.length && (
             <span className="text-red-500 dark:text-red-400 text-sm" role="alert">
               {t('audios.failed', { n: imports.failures.length })}
@@ -93,6 +91,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
           )}
           {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
+          <ImportFilesButton secondary accept={AUDIO_ACCEPT} busy={!!imports.progress} testId="audio-tab-file" onFiles={(files) => void imports.run(files)} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!audios && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('audios.loading')}</p>}

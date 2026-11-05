@@ -8,7 +8,7 @@ import { newId } from '../../ids.ts';
 import { useDeckImport } from '../../media/deckImport.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
-import { DropHint, DropZone } from '../../ui/DropZone.tsx';
+import { DropZone } from '../../ui/DropZone.tsx';
 import { ArrowDownTrayIcon, PlusIcon, PresentationChartOutlineIcon } from '../../ui/icons.tsx';
 import { matches } from '../../ui/ListSearch.tsx';
 import { AddFooter, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
@@ -110,6 +110,8 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('slides.dropHere')} accept={PDF} multiple={false} enabled={!importing} onFiles={(files) => void importFile(files[0])}>
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
+          <SearchField inputRef={search} label={t('images.search')} value={query} onChange={setQuery} />
+          {/* Skapa and Importera PDF at the search's right, as the pictures' Importera (Lars, 2026-11-05). */}
           <AppButton variant="secondary" className="inline-flex items-center gap-1.5" onClick={() => void create()}>
             <PlusIcon className="size-4" />
             {t('common.create')}
@@ -128,7 +130,6 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
               }}
             />
           </AppButton>
-          <SearchField inputRef={search} label={t('images.search')} value={query} onChange={setQuery} />
         </div>
         {importing && (
           <p className="flex items-center gap-2 pb-3 text-sm text-stone-500 dark:text-stone-400" role="status">
@@ -146,7 +147,6 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
           {slides && !slides.length && (
             <div className="flex flex-col items-center gap-4 py-10 text-sm text-stone-500 dark:text-stone-400">
               <p>{t('customSlides.empty')}</p>
-              <DropHint text={t('slides.dropAffordance')} className="hidden sm:block" />
             </div>
           )}
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-1" aria-label={t('nav.customSlides')}>

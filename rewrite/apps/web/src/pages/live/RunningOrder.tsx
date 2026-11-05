@@ -176,7 +176,7 @@ export function RunningOrder({
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <ItemIcon type={item.type} className={`size-4 shrink-0 text-stone-400 ${item.note ? 'self-start mt-0.5' : ''}`} />
                     <RowTitle item={item} />
                   </AppButton>
                 ) : (
@@ -188,7 +188,7 @@ export function RunningOrder({
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <ItemIcon type={item.type} className={`size-4 shrink-0 text-stone-400 ${item.note ? 'self-start mt-0.5' : ''}`} />
                     <RowTitle item={item} />
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">
@@ -271,7 +271,8 @@ export function RunningOrder({
 
 /**
  * A row's name, and under it its comment in grey on one line (spec 03 2f): what those who run the service need as the
- * item comes, seen without a hover, as Reminders shows a note (Lars, 2026-11-05).
+ * item comes, seen without a hover, as Reminders shows a note (Lars, 2026-11-05). The kind's icon then stays on the
+ * name's line (`self-start`), not centred on the two.
  */
 function RowTitle({ item }: { item: PresentationItem }) {
   return (

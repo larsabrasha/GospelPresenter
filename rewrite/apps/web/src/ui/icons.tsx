@@ -657,12 +657,11 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
   );
 }
 
-/** A point with its line, as a list's point: a point of the programme that shows nothing (spec 03 2f). */
-export function PointIcon({ className, strokeWidth = 1.75 }: StrokeIconProps) {
+/** Lines of text, left aligned (Heroicons' bars-3-bottom-left): a point of the programme that shows nothing (spec 03 2f). */
+export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <circle cx="5" cy="9.5" r="1.25" fill="currentColor" stroke="none" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9.5h10.5M9.5 14.5h7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
     </Outline>
   );
 }

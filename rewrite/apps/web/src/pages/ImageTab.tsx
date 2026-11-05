@@ -8,7 +8,7 @@ import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
@@ -101,8 +101,6 @@ export function ImageTab({
       {dialog}
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" secondary onFiles={(files) => void imports.run(files)} />
-          <DropHint text={t('images.dropAffordance')} />
           {!!imports.failures.length && (
             <span className="text-red-500 dark:text-red-400 text-sm" role="alert">
               {t('images.failed', { n: imports.failures.length })}
@@ -110,6 +108,7 @@ export function ImageTab({
           )}
           {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
+          <ImportFilesButton secondary accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" onFiles={(files) => void imports.run(files)} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!images && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}

@@ -267,7 +267,7 @@ export async function renameItem(tx: Tx, a: z.output<typeof renameItemArgs>, ctx
   await tx.update(presentationItems).set({ title: a.title }).where(eq(presentationItems.id, a.itemId));
 }
 
-export const setItemNoteArgs = z.object({ itemId: id, note: optionalText(500) });
+export const setItemNoteArgs = z.object({ itemId: id, note: optionalText(200) });
 /** An item's comment, for those who run it (spec 03 2f); blank removes it. Never shown on a screen. */
 export async function setItemNote(tx: Tx, a: z.output<typeof setItemNoteArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');

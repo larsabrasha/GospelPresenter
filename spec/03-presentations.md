@@ -266,13 +266,16 @@ second kind for sections, no syntax for them). It has no slides: presenting step
 from +, which is a menu on every device: the kinds in their order, singular (**Sång**, **Bibeltext**, **Bild**,
 **Ljud**, **Video**, **Bildspel**), then under a line **Programpunkt**. A kind opens the add dialog of that kind
 alone, titled "Lägg till sång" and so on, without the row of tabs, on a computer too, so Ctrl/⌘+1…6 are gone (Lars,
-2026-11-05); **a** still opens it on songs; from an item's ⋯ under **Lägg till efter…** (the same choices) and
+2026-11-05); **a** still opens it on songs; in Bild, Ljud, Video and Bildspel **Importera** (its symbol and its word) is at the search's
+right, Bildspel's **Skapa** beside it, and in Sång **Importera** for ProPresenter files beside its search too;
+files dragged in frame the dialog, with no "eller släpp filerna här", and a library page takes them anywhere on it,
+its heading and the room under a short list too (Lars, 2026-11-05); from an item's ⋯ under **Lägg till efter…** (the same choices) and
 **Ny programpunkt ovanför**, which puts it right before that item. A small dialog asks for its name, its field showing
 "Till exempel Kollekt eller Bön"; **Byt namn** in its ⋯ renames it (an item's name is still not edited in the list).
 It has no arrangement and no overlay.
 
 Every item, a programme point too, can carry a **Kommentar** for those who run it ("Solosång, men texten ska visas ändå"):
-**Kommentar** in its ⋯ opens a dialog with a text of up to 500 characters; blank removes it. It shows under the
+**Kommentar** in its ⋯ opens a dialog with one line of up to 200 characters, which Enter saves; blank removes it. It shows under the
 item's name in the slide list, in grey with a speech bubble, and as a grey second line under its name in the running
 order, never on a screen (PRES-R43).
 
@@ -479,7 +482,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   last; Home/End jump; any modifier disables movement (`S/Utils/ListNavigation.cs:28-94`).
 - PRES-R42 A programme point (`header`, section 2f) has no slides: stepping while presenting passes it, and the screen
   does not change for it. It is inserted after an item, last, or right before an item (`beforeItemId`).
-- PRES-R43 An item's comment (`note`, ≤ 500 characters, blank stored as null) is shown in the running order only,
+- PRES-R43 An item's comment (`note`, one line of ≤ 200 characters, blank stored as null) is shown in the running order only,
   never on an output; it is copied with the item into a template and out of one.
 
 ## Edge cases

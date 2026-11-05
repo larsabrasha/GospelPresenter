@@ -81,11 +81,8 @@ function useGrow(on: boolean) {
   return area;
 }
 
-/**
- * A `bare` field (a song part's text) grows with its text, from three lines, and has no handle to size it. `hideLabel`
- * puts the label in the field as its placeholder, as FloatingInput's.
- */
-export function FloatingTextarea({ label, className, id, rows = 4, bare, hideLabel, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean; hideLabel?: boolean }) {
+/** A `bare` field (a song part's text) grows with its text, from three lines, and has no handle to size it. */
+export function FloatingTextarea({ label, className, id, rows = 4, bare, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean }) {
   const own = useId();
   const areaId = id ?? own;
   const area = useGrow(!!bare);
@@ -96,19 +93,16 @@ export function FloatingTextarea({ label, className, id, rows = 4, bare, hideLab
         ref={area}
         id={areaId}
         rows={bare ? 3 : rows}
-        placeholder={hideLabel ? label : ' '}
-        aria-label={hideLabel ? label : rest['aria-label']}
+        placeholder=" "
         className={
           bare
             ? 'block w-full px-4 py-3 bg-transparent border-0 outline-none resize-none [field-sizing:content] min-h-[calc(3lh+1.5rem)] overflow-hidden text-[15px]/6 text-stone-900 dark:text-stone-100'
-            : `peer w-full ${hideLabel ? 'py-3' : 'pt-5 pb-2 placeholder-transparent'} px-4 ${BOX} border-stone-200 dark:border-stone-600 resize-y`
+            : `peer w-full pt-5 px-4 pb-2 ${BOX} border-stone-200 dark:border-stone-600 placeholder-transparent resize-y`
         }
       />
-      {!hideLabel && (
-        <label htmlFor={areaId} className={LABEL}>
-          {label}
-        </label>
-      )}
+      <label htmlFor={areaId} className={LABEL}>
+        {label}
+      </label>
     </div>
   );
 }

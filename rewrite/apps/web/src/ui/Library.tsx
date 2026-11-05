@@ -419,7 +419,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     </>
   );
 
-  return (
+  const page = (
     <PageContainer>
       {/* Escape ends Välj, and only that (one step at a time, as everywhere). */}
       <div
@@ -429,15 +429,18 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           stopSelecting();
         }}
       >
-        {p.drop ? (
-          <DropZone className="flex flex-col space-y-5" label={p.drop.label} accept={p.drop.accept} multiple={p.drop.multiple} enabled={p.manage && !selecting} onFiles={p.drop.onFiles}>
-            {content}
-          </DropZone>
-        ) : (
-          <div className="flex flex-col space-y-5">{content}</div>
-        )}
+        <div className="flex flex-col space-y-5">{content}</div>
       </div>
     </PageContainer>
+  );
+  // Files dropped anywhere on the page import, as Photos and Music take them anywhere in their window (Lars, 2026-11-05):
+  // its heading and the room under a short list too, not only the list.
+  return p.drop ? (
+    <DropZone className="flex-1 min-h-0 flex flex-col" label={p.drop.label} accept={p.drop.accept} multiple={p.drop.multiple} enabled={p.manage && !selecting} onFiles={p.drop.onFiles}>
+      {page}
+    </DropZone>
+  ) : (
+    page
   );
 }
 

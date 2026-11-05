@@ -7,8 +7,10 @@ import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Highlight } from '../../ui/Highlight.tsx';
-import { AdjustmentsIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
+import { AdjustmentsIcon, ArrowDownTrayIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
+import { DropZone } from '../../ui/DropZone.tsx';
+import { useSongImport } from '../SongImport.tsx';
 import { href } from '../../ui/router.ts';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
@@ -61,6 +63,8 @@ export function SongTab({
   const [query, setQuery] = useState('');
   // Searched in the database's worker: `shown` answers `shownQuery`, which trails `query` until it has answered.
   const { songs, shown: found, shownQuery } = useSongSearch(query);
+  // ProPresenter files imported here, in the moment, as in Sånger (Lars, 2026-11-05): beside the search, or dropped.
+  const songImport = useSongImport(songs);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [arrangementId, setArrangementId] = useState<string | null>(null);
   // On a phone a tapped song opens its preview over the add dialog, with the add button there (SongTab.razor).
@@ -153,11 +157,25 @@ export function SongTab({
       {t('common.create')}
     </AppButton>
   );
+  const importing = (
+    <AppButton variant="secondary" disabled={songImport.busy} onClick={songImport.pick} className="shrink-0 flex items-center gap-1.5">
+      <ArrowDownTrayIcon className="size-4 shrink-0" />
+      {songImport.busy ? t('songs.import.busy') : t('songs.import.short')}
+    </AppButton>
+  );
+  const notices = (
+    <>
+      {songImport.input}
+      {songImport.dialog}
+    </>
+  );
+  const drop = { label: t('songs.import.drop'), accept: '.pro', onFiles: (files: File[]) => void (songImport.busy || songImport.files(files)) };
 
   // An empty library: the line, Hantera sånger (every role manages songs) and Skapa, in the middle of the whole tab.
   if (songs && !songs.length)
     return (
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-sm gap-3 select-none">
+      <DropZone className="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-sm gap-3 select-none" {...drop}>
+        {notices}
         <MusicalNoteOutlineIcon className="size-12 mb-1 text-stone-300 dark:text-stone-600" />
         <p className="text-stone-400 dark:text-stone-500">{t('songs.emptyTitle')}</p>
         <AppButton variant="secondary" href={href({ page: 'songs' })} className="flex items-center gap-1.5">
@@ -165,14 +183,22 @@ export function SongTab({
           {t('presentation.manageSongs')}
         </AppButton>
         {create}
-      </div>
+        {importing}
+        {songImport.status}
+      </DropZone>
     );
 
+  // The phone's preview is outside the drop area: it covers the whole add dialog, not the area the drop frames.
   return (
+    <>
+    <DropZone className="flex-1 min-h-0 flex flex-col" {...drop}>
+    {notices}
     <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
-      <div className="shrink-0 flex">
+      <div className="shrink-0 flex items-center gap-3">
         <SearchField inputRef={search} label={t('presentation.searchSongs')} value={query} onChange={searchFor} />
+        {importing}
       </div>
+      {songImport.status && <div className="shrink-0 mt-3">{songImport.status}</div>}
       <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         <div className="w-full md:w-1/2 min-w-0 flex flex-col md:pr-3 md:min-h-0">
           {songs && !shown.length && (
@@ -240,54 +266,56 @@ export function SongTab({
           onAdd={selected ? () => void add() : undefined}
         />
       </div>
-      {/* On a phone the preview covers the add dialog, a sheet over the dimmed page: the old dialog's transform made its `fixed inset-0` the dialog's box (SongTab.razor). */}
-      {fullScreen && shownPreview && selected && (
-        <div
-          className="md:hidden absolute inset-0 z-50 flex flex-col bg-surface"
-          role="dialog"
-          aria-modal="true"
-          aria-label={shownPreview.song.name}
-          data-testid="song-preview-full"
-          onKeyDown={(e) => {
-            if (e.key !== 'Escape') return;
-            e.stopPropagation(); // Escape closes the preview, not the whole add dialog
-            setFullScreen(false);
-          }}
-        >
-          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-separator">
-            <AppButton variant="icon" autoFocus aria-label={t('common.close')} title={t('common.close')} onClick={() => setFullScreen(false)}>
-              <CloseIcon className="size-5" />
-            </AppButton>
-            <div className="flex-1 min-w-0 text-left">
-              <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
-              {shownPreview.song.author && <p className="text-xs text-stone-400 truncate">{shownPreview.song.author}</p>}
-            </div>
-            <AppButton
-              variant="icon"
-              className="shrink-0"
-              title={t('presentation.editSong')}
-              aria-label={t('presentation.editSong')}
-              onClick={() => onEditSong(shownPreview.song.id)}
-            >
-              <PencilIcon className="size-4" />
-            </AppButton>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} className="mb-3" />
-            <SlideGrid
-              column
-              theme={theme}
-              label={shownPreview.song.name}
-              slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
-            />
-          </div>
-          <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-separator">
-            <AppButton aria-label={t('presentation.addSong', { name: selected.name })} onClick={() => void add()} className="min-w-0 inline-flex items-center gap-1">
-              <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{selected.name}</span>
-            </AppButton>
-          </div>
-        </div>
-      )}
     </div>
+    </DropZone>
+    {/* On a phone the preview covers the add dialog, a sheet over the dimmed page: the old dialog's transform made its `fixed inset-0` the dialog's box (SongTab.razor). */}
+    {fullScreen && shownPreview && selected && (
+      <div
+        className="md:hidden absolute inset-0 z-50 flex flex-col bg-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-label={shownPreview.song.name}
+        data-testid="song-preview-full"
+        onKeyDown={(e) => {
+          if (e.key !== 'Escape') return;
+          e.stopPropagation(); // Escape closes the preview, not the whole add dialog
+          setFullScreen(false);
+        }}
+      >
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-separator">
+          <AppButton variant="icon" autoFocus aria-label={t('common.close')} title={t('common.close')} onClick={() => setFullScreen(false)}>
+            <CloseIcon className="size-5" />
+          </AppButton>
+          <div className="flex-1 min-w-0 text-left">
+            <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
+            {shownPreview.song.author && <p className="text-xs text-stone-400 truncate">{shownPreview.song.author}</p>}
+          </div>
+          <AppButton
+            variant="icon"
+            className="shrink-0"
+            title={t('presentation.editSong')}
+            aria-label={t('presentation.editSong')}
+            onClick={() => onEditSong(shownPreview.song.id)}
+          >
+            <PencilIcon className="size-4" />
+          </AppButton>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} className="mb-3" />
+          <SlideGrid
+            column
+            theme={theme}
+            label={shownPreview.song.name}
+            slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
+          />
+        </div>
+        <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-separator">
+          <AppButton aria-label={t('presentation.addSong', { name: selected.name })} onClick={() => void add()} className="min-w-0 inline-flex items-center gap-1">
+            <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{selected.name}</span>
+          </AppButton>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
