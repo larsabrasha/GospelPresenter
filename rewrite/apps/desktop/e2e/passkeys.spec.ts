@@ -4,13 +4,11 @@
 // authenticator (CDP WebAuthn) in place of Touch ID. In a plain browser it
 // runs in the page, against the Node server started as `serve` does.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { TestBrowser } from '../../server/test/fake-google.ts';
 import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, testPort, type Desktop, type PasskeyBrowser } from './apps.ts';
 import { ANNA, openAdmin, setUpHost, signInWithGoogle, signOut } from './flows.ts';
+import { testDir } from './temp.ts';
 
 let host: Desktop | undefined;
 let server: ChildProcess | undefined;
@@ -128,7 +126,7 @@ async function serve(): Promise<{ url: string; setupToken: string }> {
     env: {
       ...process.env,
       PORT: String(port),
-      GP_DATA_DIR: mkdtempSync(join(tmpdir(), 'gp-serve-')),
+      GP_DATA_DIR: testDir('gp-serve-'),
       GP_SETUP_TOKEN: setupToken,
       GP_PASSKEY_RP_ID: 'localhost',
       GP_PASSKEY_ORIGINS: `http://localhost:${port}`,

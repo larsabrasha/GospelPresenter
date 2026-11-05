@@ -29,6 +29,13 @@ export class Db implements ReadDb {
         else w?.reject(new Error(m.error));
       }
     });
+    // A worker that fails to load or throws outside a call answers nothing: every call waiting on it fails with
+    // the reason, so the start says what went wrong rather than waiting for ever.
+    this.worker.addEventListener('error', (e: ErrorEvent) => {
+      const error = new Error(`database worker: ${e.message || 'failed to load'}`);
+      for (const w of this.waiting.values()) w.reject(error);
+      this.waiting.clear();
+    });
   }
 
   private call<T>(c: DbCall): Promise<T> {

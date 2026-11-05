@@ -16,6 +16,7 @@ export function FloatingInput({
   className,
   inputClassName,
   id,
+  placeholder,
   ...rest
 }: InputHTMLAttributes<HTMLInputElement> & {
   ref?: Ref<HTMLInputElement>;
@@ -35,7 +36,7 @@ export function FloatingInput({
       <input
         {...rest}
         id={inputId}
-        placeholder={hideLabel ? label : ' '}
+        placeholder={hideLabel ? (placeholder ?? label) : ' '}
         aria-label={hideLabel ? label : undefined}
         className={`peer w-full h-12 px-4 ${hideLabel ? 'py-0' : 'pt-4 pb-0 placeholder-transparent'} ${box} disabled:opacity-50 disabled:cursor-default ${inputClassName ?? ''}`}
       />

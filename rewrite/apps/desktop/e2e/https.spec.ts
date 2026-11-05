@@ -4,13 +4,14 @@
 // Safari should with the certificate installed, and a service worker keeps
 // the page itself, so it starts again with the host gone.
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { networkInterfaces, tmpdir } from 'node:os';
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { type Desktop, launch, MUTED, testPort } from './apps.ts';
 import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
+import { testDir } from './temp.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -27,7 +28,7 @@ const lan = Object.values(networkInterfaces())
 
 /** A self-signed certificate for this machine's LAN address, and its key's SHA-256 (base64), which Chromium can be told to trust. */
 function certificate(ip: string) {
-  const dir = mkdtempSync(join(tmpdir(), 'gp-cert-'));
+  const dir = testDir('gp-cert-');
   const key = join(dir, 'key.pem');
   const cert = join(dir, 'cert.pem');
   execFileSync('openssl', [
@@ -96,7 +97,7 @@ async function keptByWorker(page: Page) {
 /** A copy of the built web app that looks like the next build: another index.html and another version in sw.js. */
 function nextBuild() {
   const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web', 'dist');
-  const dir = mkdtempSync(join(tmpdir(), 'gp-web-'));
+  const dir = testDir('gp-web-');
   cpSync(web, dir, { recursive: true });
   const index = join(dir, 'index.html');
   writeFileSync(index, readFileSync(index, 'utf8').replace('<head>', '<head><meta name="gp-build" content="next" />'));

@@ -4,8 +4,10 @@
 // rebuilds only what changed, so with nothing changed this takes a second or two.
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { makeRunDir } from './temp.ts';
 
 export default function globalSetup(): void {
+  makeRunDir();
   if (process.env.TURBO_HASH) return;
   const root = fileURLToPath(new URL('../../..', import.meta.url));
   const started = Date.now();

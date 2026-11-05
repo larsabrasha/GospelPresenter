@@ -1,8 +1,6 @@
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { _electron as electron, chromium, type ElectronApplication, type Page } from '@playwright/test';
 import { workerPort } from './ports.ts';
+import { testDir } from './temp.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from '../../server/test/fake-google.ts';
 
 /** Chromium's switch that keeps the tests' audio and video out of the speakers (Lars, 2026-11-02). */
@@ -44,7 +42,7 @@ export interface Desktop {
 export async function launch(
   opts: { server?: string; dataDir?: string; port?: number; memory?: boolean; lan?: boolean; env?: Record<string, string> } = {},
 ): Promise<Desktop> {
-  const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), 'gp-desktop-'));
+  const dataDir = opts.dataDir ?? testDir('gp-desktop-');
   const env: Record<string, string> = { ...(process.env as Record<string, string>), GP_DATA_DIR: dataDir };
   if (opts.server) env.GP_SERVER = opts.server;
   // A host gets a port of its own, so a host left running elsewhere does not collide; pass it again to restart on it.

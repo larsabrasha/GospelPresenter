@@ -55,7 +55,7 @@ test("an item's comment shows under its name and not on the output (PRES-A39)", 
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem').first().click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Kommentar' }).click();
   const noting = page.getByRole('dialog', { name: 'Kommentar' });
-  await noting.getByLabel('Kommentar till de som kör').fill('Solosång, men texten ska visas ändå');
+  await noting.getByLabel('Kommentar').fill('Solosång, men texten ska visas ändå');
   await noting.getByRole('button', { name: 'Spara' }).click();
   await expect(page.getByRole('region', { name: 'Sång A' }).getByTestId('item-note')).toHaveText('Solosång, men texten ska visas ändå');
 

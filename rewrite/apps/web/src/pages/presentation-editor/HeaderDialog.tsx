@@ -14,10 +14,10 @@ export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: strin
 /**
  * One text of an item asked for in a small dialog, as iOS asks for a new list's name: an item's texts are not edited
  * in the list (that confused, Lars 2026-11-02). The title says what it is, so the field has its name only as its
- * placeholder (Lars, 2026-11-05: a label over one field adds nothing). Saved by `save`, which says whether it went through; blank is allowed
+ * placeholder (Lars, 2026-11-05: a label over one field adds nothing), or none at all, the title naming it (`label` left out). Saved by `save`, which says whether it went through; blank is allowed
  * only where it removes the text (`optional`).
  */
-function TextDialog({ title, label, initial, optional, submit, save, onClose }: { title: string; label: string; initial: string; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
+function TextDialog({ title, label, initial, optional, submit, save, onClose }: { title: string; label?: string; initial: string; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
   const [text, setText] = useState(initial);
   const [saving, setSaving] = useState(false);
   const blocked = (!optional && !text.trim()) || saving;
@@ -34,7 +34,7 @@ function TextDialog({ title, label, initial, optional, submit, save, onClose }: 
           if (saved) onClose();
         }}
       >
-        <FloatingInput label={label} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
+        <FloatingInput label={label ?? title} placeholder={label ? undefined : ''} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}
@@ -80,7 +80,6 @@ function NoteDialog({ item, onClose }: { item: PresentationItem; onClose: () => 
   return (
     <TextDialog
       title={t('note.title')}
-      label={t('note.label')}
       initial={item.note ?? ''}
       optional
       submit={t('common.save')}
