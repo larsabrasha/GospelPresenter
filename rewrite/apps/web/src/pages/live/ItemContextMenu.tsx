@@ -8,7 +8,7 @@ import { CONTEXT_ROW, ContextMenu } from '../../ui/ContextMenu.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
-import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, HeadingIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
+import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
 
 /** What an item's menu needs from the page it is on, the same wherever it opens. */
 export interface ItemMenuSource {
@@ -185,7 +185,7 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
         <AddChoices onChoose={(choice) => source.onAddAfter(item, choice)} />
       </SubmenuRow>
       <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onHeaderAbove(item)}>
-        <HeadingIcon className="size-4" />
+        <PointIcon className="size-4" />
         {t('header.above')}
       </AppButton>
       <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onTick(item)}>

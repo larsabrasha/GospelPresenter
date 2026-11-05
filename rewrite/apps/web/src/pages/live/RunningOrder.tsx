@@ -155,13 +155,12 @@ export function RunningOrder({
               // The row is the hover's room, edge to edge with the next; its pill is drawn 2 px in from top and bottom, so
               // the rows stand apart and the pointer still never falls between them (Lars, 2026-11-02): the row's button
               // reaches over those 2 px (its `before`), and the pointer is a hand all the way.
-              // A heading (spec 03 2f) in bold, with room above it, as a sidebar's section; no kind's icon.
-              className={`group relative py-0.5 text-sm scroll-mb-16 cursor-pointer ${item.type === 'header' && i > 0 ? 'pt-3' : ''}`}
+              className="group relative py-0.5 text-sm scroll-mb-16 cursor-pointer"
             >
               {/* Centred in the 20px room left of the row. */}
               {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
               <div
-                className={`flex items-center pl-1 pr-1.5 touch:pr-0 rounded-full ${
+                className={`flex items-center pl-1 pr-1.5 touch:pr-0 ${item.note ? 'rounded-2xl' : 'rounded-full'} ${
                   // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white. While ticking, as
                   // iOS's lists in edit mode, only the ticks and a light tint mark rows (Lars, 2026-11-03: the blue hid the tick).
                   ticking ? (ticked.has(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
@@ -177,20 +176,20 @@ export function RunningOrder({
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    {item.type !== 'header' && <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />}
-                    <span className={`truncate ${item.type === 'header' ? 'font-semibold' : ''}`}>{item.title}</span>
+                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <RowTitle item={item} />
                   </AppButton>
                 ) : (
                   <>
                   <AppButton
                     variant="plain"
-                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none"
+                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-[inherit] focus:outline-none"
                     aria-pressed={selected}
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    {item.type !== 'header' && <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />}
-                    <span className={`truncate ${item.type === 'header' ? 'font-semibold' : ''}`}>{item.title}</span>
+                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <RowTitle item={item} />
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">
                         <WarningIcon className="size-4" />
@@ -267,5 +266,18 @@ export function RunningOrder({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * A row's name, and under it its comment in grey on one line (spec 03 2f): what those who run the service need as the
+ * item comes, seen without a hover, as Reminders shows a note (Lars, 2026-11-05).
+ */
+function RowTitle({ item }: { item: PresentationItem }) {
+  return (
+    <span className="min-w-0 flex flex-col">
+      <span className="truncate">{item.title}</span>
+      {item.note && <span className="truncate text-xs text-stone-500 dark:text-stone-400" data-testid="row-note">{item.note}</span>}
+    </span>
   );
 }

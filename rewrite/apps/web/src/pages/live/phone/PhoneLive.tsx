@@ -8,7 +8,7 @@ import type { ItemSlides } from '../../../live/live.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { CheckSquareIcon, CommentIcon, HeadingIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { CheckSquareIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { ICON_GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
@@ -287,7 +287,7 @@ export function PhoneLive({
               <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
                 {t('live.addAfter')}
               </MenuRow>
-              <MenuRow icon={<HeadingIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
+              <MenuRow icon={<PointIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
                 {t('header.above')}
               </MenuRow>
               <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
@@ -369,7 +369,7 @@ function AddKindSheet({ onChoose, onClose }: { onChoose: (choice: AddChoice) => 
         </MenuGroup>
         {/* Made, not chosen from a library: a group of its own, under the kinds (Lars, 2026-11-05). */}
         <MenuGroup>
-          <MenuRow icon={<HeadingIcon className="size-5" />} onClick={() => onChoose('header')}>
+          <MenuRow icon={<PointIcon className="size-5" />} onClick={() => onChoose('header')}>
             {t('header.kind')}
           </MenuRow>
         </MenuGroup>

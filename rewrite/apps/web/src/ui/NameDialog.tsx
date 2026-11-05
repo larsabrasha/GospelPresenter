@@ -37,7 +37,7 @@ export function NameDialog({
           setBusy(false);
         }}
       >
-        <FloatingInput label={label} autoFocus maxLength={maxLength} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={label} hideLabel autoFocus maxLength={maxLength} value={name} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

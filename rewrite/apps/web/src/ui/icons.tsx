@@ -657,18 +657,19 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
   );
 }
 
-/** An H, as a heading of a text: Rubrik, a heading of the running order (spec 03 2f). */
-export function HeadingIcon({ className, strokeWidth = 1.75 }: StrokeIconProps) {
+/** A point with its line, as a list's point: a point of the programme that shows nothing (spec 03 2f). */
+export function PointIcon({ className, strokeWidth = 1.75 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 4.5v15M18 4.5v15M6 12h12" />
+      <circle cx="5" cy="9.5" r="1.25" fill="currentColor" stroke="none" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9.5h10.5M9.5 14.5h7" />
     </Outline>
   );
 }
 
 /** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: HeadingIcon }[type];
+  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: PointIcon }[type];
   return <Icon className={className} />;
 }
 

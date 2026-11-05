@@ -1,7 +1,7 @@
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CONTEXT_ROW } from '../../ui/ContextMenu.tsx';
-import { HeadingIcon } from '../../ui/icons.tsx';
+import { PointIcon } from '../../ui/icons.tsx';
 import { addKinds, type AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 
 /**
@@ -19,7 +19,7 @@ export function AddChoices({ onChoose }: { onChoose: (choice: AddChoice) => void
       ))}
       <div className="h-px my-1 mx-1 bg-separator" />
       <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => onChoose('header')}>
-        <HeadingIcon className="size-4 shrink-0 text-stone-500 dark:text-stone-400" />
+        <PointIcon className="size-4 shrink-0 text-stone-500 dark:text-stone-400" />
         {t('header.kind')}
       </AppButton>
     </>

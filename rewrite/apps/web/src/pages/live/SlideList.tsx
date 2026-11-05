@@ -167,18 +167,6 @@ export function SlideList({
         const set = slides.get(item.id);
         const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
-        // A heading of the running order (spec 03 2f): larger than an item's name, with room above it, nothing under it.
-        if (item.type === 'header')
-          return (
-            <section key={item.id} data-item={item.id} aria-label={item.title} className="max-lg:mb-2 lg:pb-3">
-              <h2 className={`-mx-4 lg:-mx-6 pl-8 pr-5 lg:pl-10 lg:pr-6 pt-7 lg:pt-5 flex items-center gap-2 text-xl/7 font-bold transition-colors ${item.id === markedId ? 'text-sky-500' : ''}`}>
-                <span className="min-w-0 truncate">{item.title}</span>
-                {/* The …, centred on the larger name: the item heading's pull up into the space above is not wanted here. */}
-                <span className="ml-auto flex [&>*]:my-0!">{itemMenuButton(item)}</span>
-              </h2>
-              <ItemNote item={item} />
-            </section>
-          );
         return (
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
             {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It

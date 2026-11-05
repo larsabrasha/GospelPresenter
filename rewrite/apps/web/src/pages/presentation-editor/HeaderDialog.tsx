@@ -13,7 +13,8 @@ export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: strin
 
 /**
  * One text of an item asked for in a small dialog, as iOS asks for a new list's name: an item's texts are not edited
- * in the list (that confused, Lars 2026-11-02). Saved by `save`, which says whether it went through; blank is allowed
+ * in the list (that confused, Lars 2026-11-02). The title says what it is, so the field has its name only as its
+ * placeholder (Lars, 2026-11-05: a label over one field adds nothing). Saved by `save`, which says whether it went through; blank is allowed
  * only where it removes the text (`optional`).
  */
 function TextDialog({ title, label, initial, multiline, optional, submit, save, onClose }: { title: string; label: string; initial: string; multiline?: boolean; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
@@ -34,9 +35,9 @@ function TextDialog({ title, label, initial, multiline, optional, submit, save, 
         }}
       >
         {multiline ? (
-          <FloatingTextarea label={label} autoFocus maxLength={500} rows={3} value={text} onChange={(e) => setText(e.target.value)} />
+          <FloatingTextarea label={label} hideLabel autoFocus maxLength={500} rows={3} value={text} onChange={(e) => setText(e.target.value)} />
         ) : (
-          <FloatingInput label={label} autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
+          <FloatingInput label={label} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
         )}
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>

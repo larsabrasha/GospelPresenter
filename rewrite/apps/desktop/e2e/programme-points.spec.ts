@@ -1,5 +1,6 @@
-// Headings and comments in the running order (spec 03 2f, PRES-A38, A39): + is a menu with Rubrik under the kinds, an
-// item's menu puts a heading right before it, presenting steps over a heading, and a comment never reaches a screen.
+// Programme points and comments in the running order (spec 03 2f, PRES-A38, A39): + is a menu with Programpunkt under
+// the kinds, an item's menu puts a point right before it, presenting steps over a point, and a comment never reaches a
+// screen.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, pickItem, setUpHost } from './flows.ts';
@@ -10,7 +11,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('a heading from + and one above an item stand in the running order, and presenting steps over them (PRES-A38)', async () => {
+test('a programme point from + and one above an item stand in the running order, and presenting steps over them (PRES-A38)', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -21,17 +22,17 @@ test('a heading from + and one above an item stand in the running order, and pre
   const rows = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
 
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Rubrik' }).click();
-  const named = page.getByRole('dialog', { name: 'Ny rubrik' });
-  await named.getByLabel('Rubrik').fill('Kollekt');
+  await page.getByRole('menuitem', { name: 'Programpunkt' }).click();
+  const named = page.getByRole('dialog', { name: 'Ny programpunkt' });
+  await named.getByLabel('Till exempel Kollekt eller Bön').fill('Kollekt');
   await named.getByRole('button', { name: 'Lägg till' }).click();
   await rows.nth(1).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Ny rubrik ovanför' }).click();
-  await named.getByLabel('Rubrik').fill('Predikan');
+  await page.getByRole('menuitem', { name: 'Ny programpunkt ovanför' }).click();
+  await named.getByLabel('Till exempel Kollekt eller Bön').fill('Predikan');
   await named.getByRole('button', { name: 'Lägg till' }).click();
 
   await expect(rows).toHaveText([/Sång A/, /Predikan/, /Sång B/, /Kollekt/]);
-  await expect(page.getByTestId('live-slides').getByRole('heading', { name: 'Predikan', level: 2 })).toBeVisible();
+  await expect(page.getByTestId('live-slides').getByRole('region', { name: 'Predikan' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);

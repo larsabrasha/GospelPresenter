@@ -37,7 +37,7 @@ export function SaveAsTemplateDialog({ presentation, items, onClose }: { present
           onClose();
         }}
       >
-        <FloatingInput label={t('presentation.name')} autoFocus maxLength={200} value={name} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('presentation.name')} hideLabel autoFocus maxLength={200} value={name} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

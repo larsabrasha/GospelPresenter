@@ -63,7 +63,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   // Lägg till asks which kind first, as a menu, Sånger first; that kind's dialog has no tabs (Lars, 2026-11-04).
   await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const kinds = page.getByRole('dialog', { name: 'Lägg till' });
-  await expect(kinds.getByRole('button').filter({ hasText: /\S/ })).toHaveText(['Sång', 'Bibeltext', 'Bild', 'Ljud', 'Video', 'Bildspel', 'Rubrik']);
+  await expect(kinds.getByRole('button').filter({ hasText: /\S/ })).toHaveText(['Sång', 'Bibeltext', 'Bild', 'Ljud', 'Video', 'Bildspel', 'Programpunkt']);
   await kinds.getByRole('button', { name: 'Sång', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till sång' });
   await expect(picker.getByRole('tablist')).toBeHidden();
