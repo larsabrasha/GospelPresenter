@@ -1,4 +1,4 @@
-import type { Role, VideoCodec, VideoType } from '@gp/core';
+import type { ImageEdit, Role, VideoCodec, VideoType } from '@gp/core';
 
 /** Who is signed in, as the database worker needs it (see auth/session.ts). */
 export interface Session {
@@ -44,6 +44,8 @@ export type DbCall =
   | { op: 'status' }
   /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
   | { op: 'addImage'; image: ImageImport }
+  /** A library picture edited (MEDIA-R19): the edited blobs kept here, then `editImage`, uploaded before it is pushed. */
+  | { op: 'editImage'; image: ImageEditImport }
   /** Keeps a picture here for a page of a slideshow or an overlay, not in Bilder: its blobs, uploaded before the page's save is pushed. */
   | { op: 'keepPicture'; image: ImageImport }
   /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
@@ -107,6 +109,17 @@ export interface ImageImport {
   height: number;
   full: Uint8Array;
   thumb: Uint8Array;
+}
+
+/** A picture edited from its original (MEDIA-R19): the edited picture's two sizes, and the edit that made them. */
+export interface ImageEditImport {
+  id: string;
+  contentType: 'image/jpeg' | 'image/webp';
+  width: number;
+  height: number;
+  full: Uint8Array;
+  thumb: Uint8Array;
+  edit: ImageEdit;
 }
 
 /** Where a rendered PDF goes: a new slideshow of the library, one put in a presentation too, or a slideshow's new pages. */

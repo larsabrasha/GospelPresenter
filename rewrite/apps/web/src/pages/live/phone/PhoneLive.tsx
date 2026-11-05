@@ -283,28 +283,15 @@ export function PhoneLive({
       )}
       {open && typeof open === 'object' && 'item' in open && (
         <Sheet title={open.item.title} onClose={() => setOpen(null)}>
-          {/* Grouped as the presentation's …: where it stands, the item itself, its settings, and to the trash last. */}
+          {/* Grouped and ordered as the computer's … (ItemContextMenu, Lars 2026-11-05): the item itself, its settings, the
+              list around it, and to the trash last. */}
           <div className="flex flex-col gap-5">
-            <MenuGroup>
-              <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
-                {t('live.addAfter')}
-              </MenuRow>
-              <MenuRow icon={<PointIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
-                {t('header.above')}
-              </MenuRow>
-              <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
-                {t('presentation.tick')}
-              </MenuRow>
-            </MenuGroup>
             <MenuGroup>
               {open.item.type === 'header' && (
                 <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onRename(open.item))}>
                   {t('header.rename')}
                 </MenuRow>
               )}
-              <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onNote(open.item))}>
-                {t('note.title')}
-              </MenuRow>
               {songPage(open.item, songs) && (
                 <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate(songPage(open.item, songs)!))}>
                   {t('presentation.editSong')}
@@ -315,6 +302,9 @@ export function PhoneLive({
                   {t('presentation.editImages')}
                 </MenuRow>
               )}
+              <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onNote(open.item))}>
+                {t('note.title')}
+              </MenuRow>
             </MenuGroup>
             {/* The arrangement and the overlay as rows of a card, as the rows above (ItemSettings); the item as it is
                 now, not as it was when the sheet opened, so a choice shows at once. */}
@@ -327,6 +317,17 @@ export function PhoneLive({
                 overlays={overlays}
               />
             )}
+            <MenuGroup>
+              <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
+                {t('live.addAfter')}
+              </MenuRow>
+              <MenuRow icon={<PointIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
+                {t('header.above')}
+              </MenuRow>
+              <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
+                {t('presentation.tick')}
+              </MenuRow>
+            </MenuGroup>
             <MenuGroup>
               <MenuRow icon={<TrashIcon className="size-5" />} onClick={() => void remove(open.item)} danger disabled={!!presenting && open.item.id === pointer.itemId}>
                 {presenting && open.item.id === pointer.itemId ? t('live.shownCannotRemove') : t('common.delete')}

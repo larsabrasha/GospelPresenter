@@ -531,6 +531,14 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
   "Object storage is not configured", surfaced as 503 by upload endpoints
   (`GospelPresenter/GospelPresenter.Shared/SharedServicesSetup.cs:68-77`,
   `GospelPresenter/GospelPresenter.Shared/Services/ObjectStorageService.cs:148-167`).
+- **MEDIA-R19** *(2.0, Lars 2026-11-05)* A library picture is edited as in Photos on an iPhone: straightened (±45°,
+  zoomed so no corner is empty), turned a quarter at a time, mirrored, and cropped (free, 16:9, the original's
+  format, 4:3, square). The original is kept at its first edit (its blobs and size); every edit is made from it
+  again and replaces the one before; "Återgå till original" restores it at any time, on every device. The edited
+  picture is a pair of blobs of its own, which every presentation and output showing the picture shows, as they name
+  the picture, not its blobs; a blob no picture names any more is cleaned up (MEDIA-R8's clean-up). In the editor
+  a held Jämför, a finger held still on the picture, or a held M shows the original, labelled ORIGINAL. An imported
+  photo is turned upright by its EXIF orientation before it is stored (MEDIA-R4 drops the metadata).
 
 ## Edge cases
 
@@ -666,6 +674,10 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
 - **MEDIA-A14** (Device) Importing an image offline shows it immediately; after reconnecting the blob is
   `PUT` to `/api/sync/media/org/{org}/images/{id}/full` and `/thumb` and other devices display it.
 - **MEDIA-A15** `PUT /api/sync/media/org/{other org}/images/{id}/full` → 403; empty body → 400.
+- **MEDIA-A17** *(2.0)* A 400 × 400 picture cropped to 16:9 shows as 16:9 in the library and in the presentations
+  that use it; Återgå till original shows it square again and takes the choice away; a JPEG stored sideways with
+  EXIF Orientation 6 imports standing (`rewrite/apps/desktop/e2e/image-edit.spec.ts`,
+  `rewrite/apps/server/test/image-edit.test.ts`).
 - **MEDIA-A16** Profile picture: choosing a 12 MB JPEG shows "Bilden är för stor (max 10 MB)"; a
   `.bmp` shows "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF."; a valid image opens the
   cropper and saves a 256×256 avatar.

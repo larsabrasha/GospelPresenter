@@ -186,6 +186,8 @@ export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
     AND hash NOT IN (SELECT hash FROM song_materials WHERE hash IS NOT NULL)
     AND hash NOT IN (SELECT full_hash FROM images)
     AND hash NOT IN (SELECT thumb_hash FROM images)
+    AND hash NOT IN (SELECT original_full_hash FROM images WHERE original_full_hash IS NOT NULL)
+    AND hash NOT IN (SELECT original_thumb_hash FROM images WHERE original_thumb_hash IS NOT NULL)
     AND hash NOT IN (SELECT hash FROM audios)
     AND hash NOT IN (SELECT hash FROM videos)
     AND hash NOT IN (SELECT still_hash FROM videos)

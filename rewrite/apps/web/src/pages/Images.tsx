@@ -1,11 +1,14 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
-import { listImages } from '../db/queries.ts';
+import { listImages } from '../db/images.ts';
 import { t, type TextKey } from '../i18n.ts';
 import { nameFor } from '../media/download.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
-import { PhotoOutlineIcon } from '../ui/icons.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { useConfirm } from '../ui/Dialog.tsx';
+import { ArrowUturnLeftIcon, PencilIcon, PhotoOutlineIcon } from '../ui/icons.tsx';
+import { ImageEditor } from './image-editor/ImageEditor.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { Library } from '../ui/Library.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -79,6 +82,14 @@ export function Images({ role }: { role: Role }) {
   const items = useMemo(() => named(images), [images]);
   const { run, progress, failures } = useMediaImport('image');
   const manage = can(role, 'ManageImages');
+  // A picture edited (MEDIA-R19): Redigera in its menu, here and in Quick Look; the row as it is now, after a sync.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId ? images?.find((i) => i.id === editingId) : undefined;
+  const { dialog, ask } = useConfirm();
+  const revert = async (image: LibraryImage) => {
+    const ok = await ask({ title: t('images.revert'), text: t('images.revertConfirm'), confirm: t('images.revert'), compact: true, run: () => db.mutate('revertImage', { id: image.id }) });
+    if (ok) toast(t('images.reverted'));
+  };
 
   const importFiles = async (files: File[]) => {
     if (!manage) return;
@@ -87,6 +98,9 @@ export function Images({ role }: { role: Role }) {
   };
 
   return (
+    <>
+    {dialog}
+    {editing && <ImageEditor key={editing.id} image={editing} onClose={() => setEditingId(null)} />}
     <Library
       title={t('images.title')}
       items={items}
@@ -101,6 +115,20 @@ export function Images({ role }: { role: Role }) {
       renderTile={(image, large) => (large ? <ImageThumb image={{ thumbHash: image.fullHash, fileName: image.fileName }} className="block w-full rounded-lg" /> : <ImageThumb image={image} />)}
       preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
+      renderActions={(image, row) => (
+        <>
+          <AppButton variant="plain" role="menuitem" className={row} onClick={() => setEditingId(image.id)}>
+            <PencilIcon className="size-4" />
+            {t('images.edit')}
+          </AppButton>
+          {image.originalFullHash && (
+            <AppButton variant="plain" role="menuitem" className={row} onClick={() => void revert(image)}>
+              <ArrowUturnLeftIcon className="size-4" />
+              {t('images.revert')}
+            </AppButton>
+          )}
+        </>
+      )}
       download={{
         zipName: t('images.title'),
         file: async (image) => {
@@ -122,5 +150,6 @@ export function Images({ role }: { role: Role }) {
       drop={{ label: t('images.drop'), accept: IMAGE_ACCEPT, onFiles: (files) => void importFiles(files) }}
       testId="image"
     />
+    </>
   );
 }

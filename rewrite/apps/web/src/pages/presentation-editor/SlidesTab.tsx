@@ -11,9 +11,8 @@ import { useTrySave } from '../../ui/AutoSave.tsx';
 import { DropZone } from '../../ui/DropZone.tsx';
 import { ArrowDownTrayIcon, PlusIcon, PresentationChartOutlineIcon } from '../../ui/icons.tsx';
 import { matches } from '../../ui/ListSearch.tsx';
-import { AddFooter, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
+import { AddFooter, DeselectAll, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
 import { navigate } from '../../ui/router.ts';
-import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { FirstPage } from '../custom-slides/CustomSlides.tsx';
 import { useView, ViewPicker, type View } from '../../ui/ViewPicker.tsx';
@@ -139,6 +138,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
               }}
             />
           </AppButton>
+          <DeselectAll count={picked.length} onClear={() => setPicked([])} />
         </div>
         {importing && (
           <p className="flex items-center gap-2 pb-3 text-sm text-stone-500 dark:text-stone-400" role="status">
@@ -189,7 +189,6 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
           </div>
         </div>
         <AddFooter
-          hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
           name={chosen.length ? names : undefined}
           label={chosen.length ? t('presentation.addImage', { name: names }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

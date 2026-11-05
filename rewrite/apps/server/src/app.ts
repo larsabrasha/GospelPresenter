@@ -63,6 +63,9 @@ const MEDIA_GC_MUTATORS: readonly string[] = [
   'purgeImage',
   'purgeExpiredTrash',
   'addImage',
+  // An edit, and going back to the original, leave the edit before behind.
+  'editImage',
+  'revertImage',
   'purgeAudio',
   'addAudio',
   'purgeVideo',

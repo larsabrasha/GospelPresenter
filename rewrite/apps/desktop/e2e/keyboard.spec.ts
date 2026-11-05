@@ -56,7 +56,7 @@ test("a picture item's pictures are put in order by Alt+↑ and Alt+↓, the mov
     { name: 'Röd.png', mimeType: 'image/png', buffer: solidPng(320, 180, [200, 30, 30]) },
     { name: 'Blå.png', mimeType: 'image/png', buffer: solidPng(320, 180, [30, 30, 200]) },
   ]);
-  await expect(page.getByText('2 bilder', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(2);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
@@ -204,13 +204,24 @@ test('⌘K searches everything: a song is added to the presentation open, opened
   const search = page.getByRole('dialog', { name: 'Sök i allt' });
   const field = search.getByRole('searchbox', { name: 'Sök i allt' });
 
-  // In the presentation ↵ adds the marked song, as Lägg till does.
+  // In the presentation ⌘↵ adds the marked song, as Lägg till does, and picks it; its words show beside the list.
   await page.keyboard.press('ControlOrMeta+k');
   await field.fill('härlig');
   await expect(search.getByRole('option', { selected: true })).toContainText('Härlig är jorden');
-  await page.keyboard.press('Enter');
+  await expect(search.getByTestId('palette-preview')).toContainText('Härlig är jorden');
+  await page.keyboard.press('ControlOrMeta+Enter');
   await expect(search).toHaveCount(0);
-  await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Härlig är jorden/]);
+  const order = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
+  await expect(order).toHaveText([/Härlig är jorden/]);
+
+  // While presenting, it is shown at once: the quickest way to a song asked for.
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await page.keyboard.press('ControlOrMeta+k');
+  await field.fill('härlig');
+  await expect(search.getByRole('option', { selected: true })).toContainText('Lägg till och visa');
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(order).toHaveCount(2);
+  await expect(order.nth(1).getByTestId('live-dot')).toBeVisible();
 
   // The bar's magnifier opens it too, as a phone, which has no ⌘K, needs; a command is found by its words.
   await page.getByRole('button', { name: 'Sök i allt' }).click();

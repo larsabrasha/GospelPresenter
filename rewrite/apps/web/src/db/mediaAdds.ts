@@ -1,6 +1,6 @@
 import { pdfPages, recordMediaBlobSql, type Picture } from '@gp/core';
 import { storeMediaBlob, type SyncClient } from '@gp/sync/client';
-import type { AudioImport, ImageImport, SlidesImport, SongFileImport, VideoImport } from './protocol.ts';
+import type { AudioImport, ImageEditImport, ImageImport, SlidesImport, SongFileImport, VideoImport } from './protocol.ts';
 
 /**
  * Adding files, in the database's worker: each keeps its blobs here, then queues the add that names them, online or
@@ -28,6 +28,16 @@ export function mediaAdds({ client, serialStore, added }: { client: () => SyncCl
         height: img.height,
         createdAt: Date.now(),
       });
+      added();
+    });
+  }
+
+  /** Keeps the edited picture's blobs here and shows the library picture edited, online or not (MEDIA-R19). */
+  function editImage(img: ImageEditImport): Promise<void> {
+    return serialStore(async () => {
+      const fullHash = await storeMediaBlob(client(), img.full, img.contentType);
+      const thumbHash = await storeMediaBlob(client(), img.thumb, img.contentType);
+      await client().mutate('editImage', { id: img.id, fullHash, thumbHash, width: img.width, height: img.height, edit: img.edit });
       added();
     });
   }
@@ -93,5 +103,5 @@ export function mediaAdds({ client, serialStore, added }: { client: () => SyncCl
     });
   }
 
-  return { addImage, keepPicture, addAudio, addSongFile, addVideo, addSlides };
+  return { addImage, editImage, keepPicture, addAudio, addSongFile, addVideo, addSlides };
 }

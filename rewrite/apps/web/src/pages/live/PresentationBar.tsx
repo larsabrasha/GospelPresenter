@@ -80,7 +80,9 @@ export function PresentationBar({
     >
       {dialog}
       {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
-      {/* A template's goes back to Mallar, where templates are kept. */}
+      {/* A template's goes back to Mallar, where templates are kept. The sync's cloud beside it, when there is one:
+          the left was empty and the right full (Lars, 2026-11-05). */}
+      <div className="justify-self-start flex items-center gap-3">
       <a
         href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
         onClick={(e) => {
@@ -90,10 +92,12 @@ export function PresentationBar({
         }}
         aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
         title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
-        className={`justify-self-start ${ROUND_BACK}`}
+        className={ROUND_BACK}
       >
         <ChevronLeftIcon className="size-5" />
       </a>
+      <SyncCloud />
+      </div>
       {/* The page's heading, for screen readers; the button shows the name. */}
       <h1 className="sr-only">{presentation.name}</h1>
       {/* The name opens the presentation's menu, as a title menu on iPadOS and macOS. */}
@@ -131,7 +135,6 @@ export function PresentationBar({
         }
       />
       <div className="justify-self-end flex items-center gap-3">
-        <SyncCloud />
         {/* On a phone the search floats at the bottom left instead (PhoneLive), the bar has no room. */}
         {wide && <SearchButton className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`} iconClassName="size-5" />}
         {/* Inställningar next to start and stop, on a phone too. */}

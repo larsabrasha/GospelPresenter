@@ -14,7 +14,7 @@ import { newId } from '../../ids.ts';
 import { useAppCommand } from '../../ui/appKeys.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup } from '../../ui/ShortcutHelp.tsx';
-import { KEYS, LiveKeys, PaletteTarget } from './editorKeys.ts';
+import { KEYS, LiveKeys, PaletteTarget } from './EditorKeys.tsx';
 import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
@@ -372,9 +372,15 @@ export function PresentationEditor({
           addSong={async (song) => {
             const itemId = newId();
             const ok = await trySave(db.mutate('addSongToPresentation', { itemId, presentationId: id, songId: song.id, arrangementId: null, afterItemId: afterFor(null) }));
-            if (ok) added(itemId);
-            return ok;
+            if (!ok) return false;
+            // Picked and scrolled to, and while presenting shown at once (ui/CommandPalette.tsx).
+            added(itemId);
+            select(itemId);
+            if (presenting) live.set({ itemId, partIndex: 0, black: false });
+            return true;
           }}
+          live={!!presenting}
+          onChoose={(choice) => choose(null, choice)}
         />
       )}
       <section className="flex-1 min-h-0 flex relative">

@@ -44,7 +44,8 @@ function SyncStatus({ sync }: { sync: { problem: boolean; text: string } | null 
       data-testid="status"
       aria-label={`${sync.text} · ${t('status.syncNow')}`}
       title={`${sync.text} · ${t('status.syncNow')}`}
-      className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer"
+      // As tall as the round buttons beside it; on a phone, where its words are hidden, as round as they are.
+      className="flex items-center justify-center gap-1.5 h-9 touch:h-11 px-3 max-sm:px-0 max-sm:w-9 max-sm:touch:w-11 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer"
       onClick={() => void db.syncNow()}
     >
       <CloudOffIcon className="size-4 shrink-0" />

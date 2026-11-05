@@ -1,7 +1,9 @@
 import { t } from '../../i18n.ts';
 import type { Song } from '@gp/core';
 import { usePaletteTarget } from '../../ui/CommandPalette.tsx';
+import { PointIcon } from '../../ui/icons.tsx';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
+import { addKinds, type AddChoice } from './AddItemDialog.tsx';
 
 // The presentation editor's keys in the help dialog (spec 03 section 6); PresentationEditor.tsx handles them.
 
@@ -35,8 +37,13 @@ export function LiveKeys() {
   return null;
 }
 
-/** ⌘K's song added to this presentation, while it is drawn. */
-export function PaletteTarget({ addSong }: { addSong: (song: Song) => Promise<boolean> }) {
-  usePaletteTarget({ addSong });
+/** ⌘K's song added to this presentation, and + 's kinds offered as "Lägg till …", while it is drawn. */
+export function PaletteTarget({ addSong, live, onChoose }: { addSong: (song: Song) => Promise<boolean>; live: boolean; onChoose: (choice: AddChoice) => void }) {
+  const kinds = [...addKinds(), ['header', t('header.kind'), PointIcon] as const];
+  usePaletteTarget({
+    addSong,
+    live,
+    adds: kinds.map(([kind, label, Icon]) => ({ key: kind, label, icon: <Icon className="size-4" />, run: () => onChoose(kind) })),
+  });
   return null;
 }

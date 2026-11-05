@@ -23,7 +23,8 @@ import {
 import type { ReadDb } from '../db/share.ts';
 import type { OutputVideo } from './video.ts';
 import { getCustomSlide } from '../db/customSlides.ts';
-import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
+import { getImage } from '../db/images.ts';
+import { arrangementsOf, getAudio, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
 

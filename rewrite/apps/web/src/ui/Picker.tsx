@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode, type RefObject, type Ref } from 'react';
 import { t } from '../i18n.ts';
+import { ctrlLabel } from './shortcuts.ts';
 import { AppButton } from './AppButton.tsx';
 import { CloseIcon, SearchIcon } from './icons.tsx';
 
@@ -80,19 +81,32 @@ export function isAddKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; a
 }
 
 /**
- * The foot of a tab: the keyboard hint at the left, and "Lägg till <name>",
- * the name in bold. `label` is the button's full name, for screen readers and tests.
+ * The foot of a tab: "Lägg till <name>", the name in bold. `label` is the button's full name, for screen readers and
+ * tests. Its key (⌘↵) is in its tooltip and the keyboard help, not written under the list (Lars, 2026-11-05: a line
+ * of help in every tab, and on a phone a key it has not).
  */
-export function AddFooter({ hint, name, label, onAdd }: { hint?: string; name?: string; label?: string; onAdd?: () => void }) {
+export function AddFooter({ name, label, onAdd }: { name?: string; label?: string; onAdd?: () => void }) {
   return (
     <div className="shrink-0 flex flex-wrap items-center justify-end gap-x-10 gap-y-2 pt-4">
-      {hint && <p className="mr-auto text-xs text-stone-400 dark:text-stone-500">{hint}</p>}
       {name !== undefined && onAdd && (
-        <AppButton aria-label={label} onClick={onAdd} className="max-w-full min-w-0 inline-flex items-center gap-1">
+        <AppButton aria-label={label} title={`${label ?? t('presentation.add')} (${ctrlLabel('↵')})`} onClick={onAdd} className="max-w-full min-w-0 inline-flex items-center gap-1">
           <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{name}</span>
         </AppButton>
       )}
     </div>
+  );
+}
+
+/**
+ * "Avmarkera alla" at the end of a tab's top row while something is picked, as Photos' picker lets go of a choice at
+ * once (Lars, 2026-11-05: three pictures picked took three taps to let go of).
+ */
+export function DeselectAll({ count, onClear }: { count: number; onClear: () => void }) {
+  if (!count) return null;
+  return (
+    <AppButton variant="plain" className="ml-auto h-11 px-3 rounded-full text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2" onClick={onClear}>
+      {t('library.deselectAll')}
+    </AppButton>
   );
 }
 

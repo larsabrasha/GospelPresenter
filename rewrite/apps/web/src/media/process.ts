@@ -1,5 +1,7 @@
 import { fitWithin, IMAGE_VARIANTS, imageTypeFromName, MEDIA_LIMITS, PICKABLE_IMAGE_TYPES, storedTypeFor, type PickableImageType, type StoredImageType } from '@gp/core';
-import type { ImageImport } from '../db/protocol.ts';
+import type { ImageEdit } from '@gp/core';
+import type { ImageEditImport, ImageImport } from '../db/protocol.ts';
+import { drawEdited, editedSize } from './imageEdit.ts';
 
 // The client's half of the image pipeline (spec 05 MEDIA-R4, ADR 0007
 // decision 9: clients compress before upload). The browser decodes, fits the
@@ -61,6 +63,21 @@ export async function render(bitmap: CanvasImageSource, size: { width: number; h
 }
 
 /**
+ * The picture as it is meant to stand: a phone's photo taken upright is stored on its side with a note (EXIF's
+ * Orientation) to turn it, and the stored picture loses the note, so it is turned here. Today's browsers do so
+ * unasked; asked, so it does not hang on that (Lars, 2026-11-05). A browser that does not know the option is asked
+ * without it.
+ */
+async function decodeUpright(file: Blob): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (e) {
+    if (e instanceof TypeError) return createImageBitmap(file);
+    throw e;
+  }
+}
+
+/**
  * Validates, decodes and re-encodes a picked file as the two stored sizes. A
  * browser that cannot encode WebP (Safari's canvas answers PNG) gets JPEG on
  * white instead, for the whole picture, so its two blobs have one type.
@@ -69,7 +86,7 @@ export async function processImage(file: File, id: string): Promise<ImageImport>
   const picked = checkPicked(file);
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    bitmap = await decodeUpright(file);
   } catch {
     throw new ImageRefused('invalid'); // not a picture, whatever its name says (MEDIA-A6)
   }
@@ -95,4 +112,41 @@ export async function processImage(file: File, id: string): Promise<ImageImport>
   } finally {
     bitmap.close();
   }
+}
+
+/**
+ * A library picture edited (MEDIA-R19): `original` (its imported picture, `width` × `height`) drawn with `edit`, at
+ * the two stored sizes, in the picture's own type. A crop never makes it larger than its original was.
+ */
+export async function renderEditedImage(
+  original: CanvasImageSource,
+  size: { width: number; height: number },
+  edit: ImageEdit,
+  id: string,
+  type: StoredImageType,
+): Promise<ImageEditImport> {
+  const edited = editedSize(size.width, size.height, edit);
+  const draw = async (variant: { width: number; height: number; quality: number }) => {
+    const out = fitWithin(edited.width, edited.height, variant.width, variant.height);
+    const canvas = surface(out.width, out.height);
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
+    if (!ctx) throw new Error('no canvas');
+    if (type === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff'; // JPEG has no transparency
+      ctx.fillRect(0, 0, out.width, out.height);
+    }
+    drawEdited(ctx, original, size.width, size.height, edit, out.width, out.height);
+    return { out, blob: await encode(canvas, type, variant.quality) };
+  };
+  const full = await draw(IMAGE_VARIANTS.full);
+  const thumb = await draw(IMAGE_VARIANTS.thumb);
+  return {
+    id,
+    contentType: type,
+    width: full.out.width,
+    height: full.out.height,
+    full: new Uint8Array(await full.blob.arrayBuffer()),
+    thumb: new Uint8Array(await thumb.blob.arrayBuffer()),
+    edit,
+  };
 }

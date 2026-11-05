@@ -27,7 +27,7 @@ test('an audio file is imported, added to a presentation and plays in the editor
     { name: 'fake.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('this is text, not a sound') },
   ]);
   await expect(page.getByTestId('audio-failures')).toContainText('2 fil(er) kunde inte importeras');
-  await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(1);
   await expect(page.getByRole('list', { name: 'Ljud' }).getByRole('listitem')).toHaveText([/Preludium\.wav/]);
   // A tap looks at it, as Quick Look: it plays there, and Escape closes the look and nothing else.
   await page.getByRole('list', { name: 'Ljud' }).getByRole('button', { name: 'Preludium.wav', exact: true }).click();
@@ -84,7 +84,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
 
   await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(20) });
-  await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(1);
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();

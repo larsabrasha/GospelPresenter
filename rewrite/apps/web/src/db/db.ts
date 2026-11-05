@@ -1,6 +1,6 @@
 import type { BibleBookText, MutatorArgs, MutatorName, Picture } from '@gp/core';
 import type { StorageReport } from '@gp/sync/client';
-import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
+import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageEditImport, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 import { locale } from '../i18n.ts';
 import { serverOrigin } from '../server.ts';
@@ -84,6 +84,12 @@ export class Db implements ReadDb {
   addImage(image: ImageImport): Promise<void> {
     this.lastWriteAt = Date.now();
     return this.call({ op: 'addImage', image });
+  }
+
+  /** Shows a library picture edited (MEDIA-R19): its blobs kept here, uploaded before the edit is pushed. */
+  editImage(image: ImageEditImport): Promise<void> {
+    this.lastWriteAt = Date.now();
+    return this.call({ op: 'editImage', image });
   }
 
   /** Keeps an audio file here and adds it to the library, online or not. */

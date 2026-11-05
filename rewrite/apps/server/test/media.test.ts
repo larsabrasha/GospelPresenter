@@ -101,6 +101,11 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
         height: 1080,
         created_at: 1_700_000_000_000,
         deleted_at: null,
+        original_full_hash: null,
+        original_thumb_hash: null,
+        original_width: null,
+        original_height: null,
+        edit: null,
       },
     ]);
     // The bytes never enter the change log.

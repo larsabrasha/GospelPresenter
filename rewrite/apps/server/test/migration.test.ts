@@ -7,8 +7,12 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, orgDdl, orgIndexes, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
 
-/** Today's tables as a file before version 24 had them: no comment on an item. */
-const before24 = orgDdl.map((s) => s.replace(', overlay_id TEXT, note TEXT)', ', overlay_id TEXT)'));
+/** Today's tables as a file before version 24 had them: no comment on an item, and no picture edited (25). */
+const before24 = orgDdl.map((s) =>
+  s
+    .replace(', overlay_id TEXT, note TEXT)', ', overlay_id TEXT)')
+    .replace(/, original_full_hash TEXT, original_thumb_hash TEXT,\s+original_width INTEGER, original_height INTEGER, edit TEXT\)/, ')'),
+);
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';

@@ -6,12 +6,15 @@ import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
 import { Dropdown } from './Dropdown.tsx';
+import { useLookGestures } from './lookGestures.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWaveIcon } from './icons.tsx';
 
 // A library item looked at, as Quick Look on a Mac (Lars, 2026-11-04): the picture as large as the window lets it,
 // a video or a sound that plays, the item's name and its ⋯ menu at the top, ← and → (and the arrows under it) to the
 // one before and after, and Escape or ✕ to close it, nothing else. It fades in and grows into place, and out again.
+// On a touch screen a swipe goes to the one before or after and a picture pinches and double-taps larger, as Photos
+// (ui/lookGestures.ts).
 
 export type QuickLookContent =
   | { kind: 'image'; full: string; thumb: string }
@@ -115,6 +118,16 @@ export function QuickLook({
   const bar = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
+  const room = useRef<HTMLDivElement>(null);
+  /** A picture zoomed in moves under the finger: the sheet is not pulled down meanwhile. */
+  const zoomed = useRef(false);
+  useLookGestures(
+    room,
+    () => room.current?.querySelector<HTMLElement>('[data-testid="quick-look-image"]') ?? null,
+    content.kind === 'image' ? content.full : content.hash,
+    { previous: onPrevious, next: onNext },
+    (z) => (zoomed.current = z),
+  );
   /** Closed once it has gone (`.look-out`: faded on a computer, down on a phone, within 260 ms). */
   const close = () => {
     if (closing) return;
@@ -132,11 +145,14 @@ export function QuickLook({
       el.style.transition = ms ? `opacity ${ms}ms` : 'none';
       el.style.opacity = String(1 - progress);
     },
-    () => matchMedia('(width < 40rem)').matches,
+    () => matchMedia('(width < 40rem)').matches && !zoomed.current,
   );
   const key = useEffectEvent((e: KeyboardEvent) => {
-    // Its ⋯ menu, open, takes its own keys; else these are the look's, before the page under it hears them.
+    // Its ⋯ menu, open, takes its own keys, and so does what opens over it (the picture's editor); else these are the
+    // look's, before the page under it hears them.
     if (box.current?.querySelector('[role="menu"]')) return;
+    const dialogs = document.querySelectorAll('[aria-modal="true"]');
+    if (dialogs[dialogs.length - 1] !== box.current) return;
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft' && onPrevious) onPrevious();
     else if (e.key === 'ArrowRight' && onNext) onNext();
@@ -163,7 +179,8 @@ export function QuickLook({
     >
       <div ref={backdrop} className="absolute inset-0 bg-black/40" />
       <div ref={sheet} className="look-sheet absolute inset-0 flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom">
-      <div ref={bar} className="flex items-center gap-3 px-3 py-3">
+      {/* Over the picture, which a zoom takes past its room. */}
+      <div ref={bar} className="relative z-10 flex items-center gap-3 px-3 py-3">
         <AppButton variant="plain" className={ROUND} aria-label={t('common.close')} title={t('common.close')} onClick={close}>
           <CloseIcon className="size-5" />
         </AppButton>
@@ -176,13 +193,13 @@ export function QuickLook({
           <span className="size-11" />
         )}
       </div>
-      <div className="look-item flex-1 min-h-0 flex items-center justify-center px-4">
+      <div ref={room} className="look-item flex-1 min-h-0 flex items-center justify-center px-4 touch-none" data-testid="quick-look-room">
         {content.kind === 'image' && <Picture key={content.full} full={content.full} thumb={content.thumb} name={name} />}
         {content.kind === 'audio' && <Sound key={content.hash} hash={content.hash} name={name} />}
         {content.kind === 'video' && <Video key={content.hash} hash={content.hash} still={content.still} type={content.type} codec={content.codec} name={name} />}
       </div>
       {/* Under the item, never on it (Lars, 2026-11-04); greyed at either end, so they keep their places. */}
-      <div className="flex items-center justify-center gap-6 py-4">
+      <div className="relative z-10 flex items-center justify-center gap-6 py-4">
         {(onPrevious || onNext) && (
           <>
             <AppButton variant="plain" className={`${ROUND} disabled:opacity-30 disabled:cursor-default`} disabled={!onPrevious} aria-label={t('quickLook.previous')} onClick={onPrevious}>

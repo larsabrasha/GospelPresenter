@@ -274,7 +274,7 @@ async function themePictures(client: Query): Promise<string[]> {
 const DECK_PAGES = new Set(['addSlides', 'createCustomSlide', 'updateCustomSlide', 'createOverlay', 'updateOverlay']);
 /** The mutators that may name a theme's pictures (docs/themes.md). */
 const THEME_PICTURES = new Set(['createTheme', 'updateTheme']);
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES, ...THEME_PICTURES]);
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'editImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES, ...THEME_PICTURES]);
 
 /**
  * The blobs a queued add names: a picture's two, an audio file's or a song's PDF's one, a video's three, or two per
@@ -309,7 +309,7 @@ function blobsOf(m: PendingMutation): Set<string> {
 export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<number>;
 
 /**
- * Uploads the blobs of every queued `addImage`, `addAudio`, `addVideo` (its still) and `addSlides`
+ * Uploads the blobs of every queued `addImage`, `editImage` (the edited picture's), `addAudio`, `addVideo` (its still) and `addSlides`
  * before the mutation is pushed, so a file imported offline reaches the server with its bytes. Give
  * `beforePush` to the SyncClient, alone or through `chainBeforePush`.
  *

@@ -70,7 +70,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   // The host adds a picture to it while the second computer is elsewhere in the app.
   await openAdmin(host.page, 'Bilder');
   await host.page.getByTestId('image-file').setInputFiles({ name: 'Affisch.png', mimeType: 'image/png', buffer: solidPng(1200, 800, [180, 40, 40]) });
-  await expect(host.page.getByText('1 bild', { exact: true })).toBeVisible();
+  await expect(host.page.locator('[data-library-item]')).toHaveCount(1);
   await openPresentations(host.page);
   await host.page.getByRole('link', { name: 'Konsert' }).click();
   await addFromLibrary(host.page, 'Bild', 'Affisch.png');

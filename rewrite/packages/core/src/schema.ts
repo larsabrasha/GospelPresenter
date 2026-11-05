@@ -203,6 +203,16 @@ export const images = sqliteTable('images', {
   createdAt: integer('created_at').notNull(),
   /** Set while the image is in the trash (MEDIA-R8). */
   deletedAt: integer('deleted_at'),
+  /**
+   * An edited picture's original (MEDIA-R19): its blobs and size as imported, null until it is first edited. The
+   * columns above are then the edited picture, which everything shows; going back to the original copies these back.
+   */
+  originalFullHash: text('original_full_hash'),
+  originalThumbHash: text('original_thumb_hash'),
+  originalWidth: integer('original_width'),
+  originalHeight: integer('original_height'),
+  /** The edit, as JSON (`ImageEdit`), made from the original; null while it is the original. */
+  edit: text('edit'),
 });
 
 /**

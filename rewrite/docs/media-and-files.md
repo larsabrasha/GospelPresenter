@@ -58,6 +58,30 @@ stage over the theme's media background. Like a song it is a reference by id: a 
 (MEDIA-R8), a purged one leaves an item marked "Bilden finns inte längre". The output reads the bytes through
 the operator window's database, like everything else, so it works without OPFS.
 
+An item looked at (`ui/QuickLook.tsx`, as Quick Look on a Mac): the picture, video or sound as large as the window
+lets it, ← → and the arrows under it to the one before and after. On a touch screen, as Photos (`ui/lookGestures.ts`,
+Lars 2026-11-05): a swipe sideways goes to the one before or after, the item following the finger and giving at
+either end; two fingers pinch a picture larger (up to four times) round the point between them, a double tap zooms
+it in there or back out, and one finger moves a zoomed picture, the sheet not pulled down meanwhile. A trackpad's
+pinch zooms too. Tested in `e2e/quick-look.spec.ts`.
+
+## Editing a picture
+
+A library picture is edited from its menu (Redigera, in Bilder and in Quick Look), as Photos' crop view on an
+iPhone (`pages/image-editor/ImageEditor.tsx`, MEDIA-R19): the whole picture with the crop's frame over it (corners
+to drag, the frame to move, the outside dimmed, a grid of thirds), Räta upp (a slider, ±45°, double-clicked back to
+0), turned a quarter to the left, Spegla, and the formats Fritt, 16:9, Original, 4:3 and Kvadrat as a row; Återställ
+starts again from the original, Avbryt or Escape leaves it as it was, Klar saves. A held Jämför, a finger held still
+on the picture or a held M shows the original, ORIGINAL in white in the bar while it does.
+
+The edit is data (`images.edit`, `ImageEdit` in core): the original's blobs and size are kept on the row at the
+first edit (`original_full_hash` …), each edit is drawn from them again (`media/imageEdit.ts`, `renderEditedImage`)
+at the stored sizes, and `editImage` sets the row's own blobs to the edit's, which everything shows. Återgå till
+original (the menu, asked first) is `revertImage`: the row's blobs are the original's again, and the edit's blobs
+go with the clean-up. An edit made offline uploads its blobs before it is pushed, as an import does. The original
+is the imported picture (at most 1920 × 1080), not the camera's file. Tested in `e2e/image-edit.spec.ts`,
+`apps/server/test/image-edit.test.ts` and `apps/web/test/imageEdit.test.ts`.
+
 ## Audio
 
 An audio file is a synced row in `audios` (file name, type, hash, size, `created_at`, `deleted_at`)

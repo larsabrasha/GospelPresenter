@@ -15,7 +15,6 @@ import {
   type LibraryAudio,
   type LibraryVideo,
   type Label,
-  type LibraryImage,
   type Overlay,
   type Presentation,
   type PresentationItem,
@@ -28,6 +27,7 @@ import {
   type Theme,
 } from '@gp/core';
 import { locale } from '../i18n.ts';
+import { libraryImage } from './images.ts';
 import type { ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
@@ -370,31 +370,6 @@ export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | nul
 
 /** The organisation's default theme, as a page outside a presentation draws in (THEME-R2). */
 export const defaultTheme = (db: ReadDb): Promise<Theme> => themeOf(db, null);
-
-// ------------------------------------------------------------------ images
-
-const libraryImage = (r: Row): LibraryImage => ({
-  id: String(r.id),
-  fileName: String(r.file_name),
-  contentType: r.content_type === 'image/jpeg' ? 'image/jpeg' : 'image/webp',
-  fullHash: String(r.full_hash),
-  thumbHash: String(r.thumb_hash),
-  width: Number(r.width),
-  height: Number(r.height),
-  createdAt: Number(r.created_at),
-  deletedAt: (r.deleted_at as number | null) ?? null,
-});
-
-/** The library, newest first, without the trash (MEDIA-R7). */
-export async function listImages(db: ReadDb): Promise<LibraryImage[]> {
-  return (await db.query('SELECT * FROM images WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryImage);
-}
-
-/** An image by id, trashed or not: a trashed picture still shows in the presentations that use it (MEDIA-R8). */
-export async function getImage(db: ReadDb, id: string): Promise<LibraryImage | null> {
-  const [r] = await db.query('SELECT * FROM images WHERE id = ?', [id]);
-  return r ? libraryImage(r) : null;
-}
 
 // ------------------------------------------------------------------ outputs
 

@@ -404,7 +404,9 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       ) : (
         !!shown?.length && list(shown, p.title)
       )}
-      {!!shown?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{p.count(shown.length)}</p>}
+      {/* The count after the last row, as Photos has it, where a long library ends; a short one shows its count itself
+          (Lars, 2026-11-05: "1 bild" alone in the middle of the page). */}
+      {(shown?.length ?? 0) > COUNT_FROM && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{p.count(shown!.length)}</p>}
       {p.footer}
     </>
   );
@@ -436,6 +438,9 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
     page
   );
 }
+
+/** A library this long or shorter shows no count under it. */
+const COUNT_FROM = 12;
 
 /** Välj, Klar and Markera alla: words in the app's colour, as iOS's bar buttons. */
 export const HEADER_TEXT = 'h-11 px-3 rounded-full text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2';

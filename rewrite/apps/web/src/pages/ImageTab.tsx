@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { LibraryImage } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
-import { listImages } from '../db/queries.ts';
+import { listImages } from '../db/images.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
@@ -12,8 +12,7 @@ import { DropZone } from '../ui/DropZone.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { useView, VIEW_ITEM, VIEW_LIST, ViewPicker } from '../ui/ViewPicker.tsx';
 import { useRovingList } from '../ui/listNav.ts';
-import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
-import { ctrlLabel } from '../ui/shortcuts.ts';
+import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ImageThumb } from './Images.tsx';
 import { PictureMenu } from '../ui/RemoveMenu.tsx';
@@ -113,6 +112,7 @@ export function ImageTab({
           <SearchField className="max-sm:basis-full" inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
           <ViewPicker value={view} onChange={setView} />
           <ImportFilesButton secondary short accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" onFiles={(files) => void imports.run(files)} />
+          <DeselectAll count={picked.length} onClear={() => setPicked([])} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!images && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('presentation.loadingImages')}</p>}
@@ -160,7 +160,6 @@ export function ImageTab({
           </ul>
         </div>
         <AddFooter
-          hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
           name={chosen.length === 1 ? chosen[0]!.fileName : chosen.length ? t('presentation.imagesWord', { n: chosen.length }) : undefined}
           label={chosen.length ? t('presentation.addImage', { name: chosen.length === 1 ? chosen[0]!.fileName : t('presentation.imagesWord', { n: chosen.length }) }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 24;
+export const SCHEMA_VERSION = 25;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -83,7 +83,8 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      full_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
-     created_at INTEGER NOT NULL, deleted_at INTEGER)`,
+     created_at INTEGER NOT NULL, deleted_at INTEGER, original_full_hash TEXT, original_thumb_hash TEXT,
+     original_width INTEGER, original_height INTEGER, edit TEXT)`,
   `CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
@@ -174,6 +175,8 @@ export const orgMigrations: Record<number, string[]> = {
   23: [themesDdl],
   // A comment on an item of the running order (spec 03 2f).
   24: ['ALTER TABLE presentation_items ADD COLUMN note TEXT'],
+  // A picture edited, its original kept (MEDIA-R19).
+  25: ['original_full_hash TEXT', 'original_thumb_hash TEXT', 'original_width INTEGER', 'original_height INTEGER', 'edit TEXT'].map((c) => `ALTER TABLE images ADD COLUMN ${c}`),
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

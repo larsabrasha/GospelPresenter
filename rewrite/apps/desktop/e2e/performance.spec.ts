@@ -38,7 +38,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   const page = host.page;
   await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Lång.wav', mimeType: 'audio/wav', buffer: toneWav(1200) });
-  await expect(page.getByText('1 ljudfil', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-library-item]')).toHaveCount(1, { timeout: 20_000 });
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();

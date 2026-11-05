@@ -179,7 +179,7 @@ test("a paired screen draws the projector's canvas, as the output window: the 19
   await setUpHost(host);
   await openAdmin(page, 'Bilder');
   await page.getByTestId('image-file').setInputFiles([{ name: 'Logotyp.png', mimeType: 'image/png', buffer: solidPng(2400, 1350, [200, 30, 30]) }]);
-  await expect(page.getByText('1 bild', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(1);
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);

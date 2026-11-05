@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData, useDb } from '../../db/react.tsx';
-import { listImages } from '../../db/queries.ts';
+import { listImages } from '../../db/images.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { IMAGE_ACCEPT } from '../../media/imports.ts';

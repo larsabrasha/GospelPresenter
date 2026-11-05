@@ -37,10 +37,11 @@ export function Group({ title, footer, children }: { title?: string; footer?: Re
 /** A pop-up menu as macOS's at the end of a row: the chosen value in a pill, ▾ after it. */
 export function PopUp({ children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <span className="relative shrink-0">
+    // As wide as its value, and no wider than the row has room for: a long value is cut, not past the edge.
+    <span className="relative min-w-0 max-w-full">
       <select
         {...rest}
-        className="appearance-none h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
+        className="appearance-none max-w-full truncate h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
       >
         {children}
       </select>

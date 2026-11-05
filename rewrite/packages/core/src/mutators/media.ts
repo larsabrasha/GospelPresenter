@@ -51,6 +51,74 @@ export async function addImage(tx: Tx, a: z.output<typeof addImageArgs>, ctx: Mu
   });
 }
 
+/**
+ * A picture's edit (MEDIA-R19), as Photos on an iPhone keeps one: from the original, straightened by `straighten`
+ * degrees (zoomed in so no corner is empty), turned by `rotate` (a quarter turn each, clockwise), mirrored left to right
+ * by `flip`, and cut to `crop`, fractions of what that made.
+ */
+export const imageEditSchema = z.object({
+  straighten: z.number().min(-45).max(45),
+  rotate: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+  flip: z.boolean(),
+  crop: z
+    .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().gt(0).max(1), h: z.number().gt(0).max(1) })
+    .refine((c) => c.x + c.w <= 1.0001 && c.y + c.h <= 1.0001, 'the crop reaches past the picture'),
+});
+export type ImageEdit = z.infer<typeof imageEditSchema>;
+
+export const editImageArgs = z.object({
+  id,
+  /** The edited picture's blobs, uploaded first, as an add's (MEDIA-R6). */
+  fullHash: mediaHash,
+  thumbHash: mediaHash,
+  width: z.number().int().min(1).max(1920),
+  height: z.number().int().min(1).max(1080),
+  edit: imageEditSchema,
+});
+/**
+ * Shows a library picture edited (MEDIA-R19): its first edit keeps what it was as the original; every edit after is
+ * made from that original again, so edits never pile up. Every presentation and output that shows the picture shows
+ * the edit, as they name the picture, not its blobs.
+ */
+export async function editImage(tx: Tx, a: z.output<typeof editImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  const [row] = await tx.select().from(images).where(eq(images.id, a.id));
+  if (!row) throw new MutationError('not-found', 'the picture is gone');
+  for (const hash of new Set([a.fullHash, a.thumbHash])) {
+    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
+    if (!blob) throw new MutationError('media-missing', 'a picture has not been uploaded');
+  }
+  const original = row.originalFullHash
+    ? {}
+    : { originalFullHash: row.fullHash, originalThumbHash: row.thumbHash, originalWidth: row.width, originalHeight: row.height };
+  await tx
+    .update(images)
+    .set({ ...original, fullHash: a.fullHash, thumbHash: a.thumbHash, width: a.width, height: a.height, edit: JSON.stringify(a.edit) })
+    .where(eq(images.id, a.id));
+}
+
+export const revertImageArgs = z.object({ id });
+/** Shows a library picture as it was imported again (MEDIA-R19), however long ago it was edited; the edit is gone. */
+export async function revertImage(tx: Tx, a: z.output<typeof revertImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  const [row] = await tx.select().from(images).where(eq(images.id, a.id));
+  if (!row?.originalFullHash || !row.originalThumbHash || !row.originalWidth || !row.originalHeight) return; // never edited, or a replay
+  await tx
+    .update(images)
+    .set({
+      fullHash: row.originalFullHash,
+      thumbHash: row.originalThumbHash,
+      width: row.originalWidth,
+      height: row.originalHeight,
+      originalFullHash: null,
+      originalThumbHash: null,
+      originalWidth: null,
+      originalHeight: null,
+      edit: null,
+    })
+    .where(eq(images.id, a.id));
+}
+
 export const trashImageArgs = z.object({ id, at: z.number().int() });
 /** Soft delete (MEDIA-R8): still served, so presentations that use it keep working. */
 export async function trashImage(tx: Tx, a: z.output<typeof trashImageArgs>, ctx: MutatorCtx) {

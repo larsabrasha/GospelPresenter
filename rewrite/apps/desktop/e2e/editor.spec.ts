@@ -128,7 +128,7 @@ test('several pictures make one image item; Redigera removes one and adds more',
     { name: 'Blå.png', mimeType: 'image/png', buffer: solidPng(320, 180, [30, 30, 200]) },
     { name: 'Grön.png', mimeType: 'image/png', buffer: solidPng(320, 180, [30, 200, 30]) },
   ]);
-  await expect(page.getByText('3 bilder', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(3);
   await createPresentation(page, 'Söndag');
 
   // Two picked in the Bilder tab go in as one item, "2 bilder", a slide each.
@@ -228,7 +228,7 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await expect(picker).toHaveCount(0);
 
   await openAdmin(page, 'Sånger');
-  await expect(page.getByText('2 sånger', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-library-item]')).toHaveCount(2);
   // Thrown away, not trashed.
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByText('Papperskorgen är tom.')).toBeVisible();

@@ -13,7 +13,6 @@ import { DropZone } from '../../ui/DropZone.tsx';
 import { ROUND_CLOSE } from '../../ui/glass.ts';
 import { useSongImport } from '../SongImport.tsx';
 import { href } from '../../ui/router.ts';
-import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { useStepped } from '../../ui/useStepped.ts';
 import type { TabProps } from './AddItemDialog.tsx';
@@ -261,7 +260,6 @@ export function SongTab({
       </div>
       <div className="hidden md:block">
         <AddFooter
-          hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
           name={selected?.name}
           label={selected ? t('presentation.addSong', { name: selected.name }) : undefined}
           onAdd={selected ? () => void add() : undefined}

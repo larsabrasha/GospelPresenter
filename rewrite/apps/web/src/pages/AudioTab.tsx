@@ -10,8 +10,7 @@ import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
-import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
-import { ctrlLabel } from '../ui/shortcuts.ts';
+import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { PickableFileRow } from './PickableFileRow.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
@@ -92,6 +91,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
           {imports.progress && <span className="text-stone-400 text-sm">{t('images.importing', imports.progress)}</span>}
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
           <ImportFilesButton secondary accept={AUDIO_ACCEPT} busy={!!imports.progress} testId="audio-tab-file" onFiles={(files) => void imports.run(files)} />
+          <DeselectAll count={picked.length} onClear={() => setPicked([])} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!audios && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('audios.loading')}</p>}
@@ -109,7 +109,6 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
           </ul>
         </div>
         <AddFooter
-          hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
           name={chosen.length ? names : undefined}
           label={chosen.length ? t('presentation.addImage', { name: names }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

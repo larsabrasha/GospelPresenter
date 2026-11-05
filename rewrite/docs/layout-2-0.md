@@ -125,7 +125,8 @@ overlay.
   differed), grouped as Apple groups a menu (Lars, 2026-11-03): Redigera (a song's page, or a picture item's
   pictures; a programme point's Byt namn) and Kommentar; Arrangemang › and Överlägg ›, each with the chosen one in grey and its choices in a submenu beside it,
   opened by a pointer resting on the row or a tap; Lägg till efter… (the kinds and Programpunkt, beside it), Ny
-  programpunkt ovanför and Markera; and Radera last, in red. No Flytta
+  programpunkt ovanför and Markera; and Radera last, in red. A phone's sheet of an item's … has the same groups in the
+  same order (Lars, 2026-11-05: it had the list's first). No Flytta
   upp or ned: a row is dragged, or moved with Alt+↑/↓, as Apple's lists have it. In
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.

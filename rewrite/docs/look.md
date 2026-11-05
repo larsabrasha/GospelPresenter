@@ -72,6 +72,11 @@ the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B and a clicker's `.`). 
 editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
 Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
 
+Redigera detaljer and Ny presentation (`PresentationDetailsDialog.tsx`) are drawn as Calendar's "Redigera händelse"
+on iOS 27 (Lars, 2026-11-05): a round ✕ and a round ✓ (blue while it can save) at the top, no words, the name and
+the place in one card, the date and the time in one with their values in grey pills at the right, the theme a row
+with its value as a pop-up, and the description last. The picture editor has the same ✕ and ✓.
+
 The whole app by the keyboard (Lars, 2026-11-05): each page's controls are reached by Tab (gone through page by page
 that day; none answered only a pointer). A menu at a
 point (`ui/ContextMenu.tsx`: an item's …, a right click, the menu key or ⇧F10 on a row) is used as macOS's: opened
@@ -98,9 +103,15 @@ field: one search, and under it, grouped as Spotlight's, the songs by title, a l
 own search), the presentations by name, place or date as the start page writes it (the coming ones first), the
 commands (the keys' list: Starta presentation in a presentation, Gå till …, Ny sång, Öppna Inställningar), and the
 pages of Inställningar by their names and words (its own search). Blank, it shows the coming presentations and the
-commands. ↑ ↓ mark, ↵ does the marked one, its verb in grey at the right: a song is added to the presentation open,
-where Lägg till adds it (after the item picked; while presenting after the one shown), and opened anywhere else,
-over Inställningar too. Bible passages and media are not found yet. Gå → Sök i allt in the desktop app's menu bar,
+commands. ↑ ↓ mark, ↵ opens the marked one. In a presentation ⌘↵, or the marked row's own button (a finger has no
+⌘), adds a song where Lägg till adds it (after the item picked; while presenting after the one shown), picks it and
+scrolls to it, and while presenting shows it at once ("Lägg till och visa"; Lars, 2026-11-05: the quickest way to a
+song asked for). There + 's kinds are commands too ("Lägg till video…"), and a page of Inställningar a command already
+goes to is not listed again. Where the window is wide the marked song's words or presentation's running order show
+beside the list, fading in as the mark moves (`ui/PalettePreview.tsx`). The songs are found by the worker's search
+(docs/performance.md, 10–45 ms a key for 3 000 songs), the rest in the page; the last songs found stay until the next
+answer, so the list does not jump at each key, and ↵ pressed meanwhile waits for it, so it never takes a song of the
+query before. Bible passages and media are not found yet. Gå → Sök i allt in the desktop app's menu bar,
 and a magnifier for a touch screen, which has no ⌘K (Lars, 2026-11-05): beside Inställningar's cog in the start
 page's and the presentation's bars where the window is wide (`lg`), and below that floating at the bottom left,
 white and lifted, the blue + at the right, as iOS 26 puts search where the thumb is (the presentation's bar had no

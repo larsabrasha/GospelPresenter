@@ -186,7 +186,7 @@ test('Videor shows the videos as a grid with their lengths, imports from the pag
   await openAdmin(page, 'Videor');
   await expect(page.getByText('Inga videor än')).toBeVisible();
   await page.getByTestId('video-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: fixture('h264-long.mp4') });
-  await expect(page.getByText('1 video', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[data-library-item]')).toHaveCount(1, { timeout: 15_000 });
   await expect(page.getByTestId('video-card')).toHaveText([/0:20\s*Dop\.mp4/]);
   await expect(page.getByTitle('0:20 · 66 kB · H.264')).toBeVisible();
   await page.getByRole('button', { name: 'Dop.mp4', exact: true }).click();

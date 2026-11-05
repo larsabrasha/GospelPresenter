@@ -24,7 +24,6 @@ import { useConfirm } from '../ui/Dialog.tsx';
 import { BookOpenIcon, ChevronDownIcon, ChevronLeftIcon } from '../ui/icons.tsx';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useRovingList } from '../ui/listNav.ts';
-import { ctrlLabel } from '../ui/shortcuts.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -408,7 +407,6 @@ export function BibleTab({
         </div>
       </div>
       <AddFooter
-        hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
         name={chosen.length ? bibleLabel(chosen) : undefined}
         label={chosen.length ? t('presentation.addSong', { name: bibleLabel(chosen) }) : undefined}
         onAdd={chosen.length ? () => void add() : undefined}

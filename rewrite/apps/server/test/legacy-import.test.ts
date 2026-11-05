@@ -6,6 +6,9 @@ import { api, setRole } from './harness.ts';
 import { put, webp } from './media-fixtures.ts';
 import { adapters, syncFixture } from './sync-fixture.ts';
 
+/** A picture's columns of an edit, in a zip of today's format: none. */
+const UNEDITED = { original_full_hash: null, original_thumb_hash: null, original_width: null, original_height: null, edit: null };
+
 function rows(over: Partial<LegacyRows> = {}): LegacyRows {
   return { ...(Object.fromEntries(LEGACY_TABLES.map((t) => [t, []])) as unknown as LegacyRows), ...over };
 }
@@ -79,7 +82,7 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
   });
 
   it('refuses a picture whose blobs were not uploaded', async () => {
-    const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: 'a'.repeat(64), thumb_hash: 'b'.repeat(64), width: 10, height: 10, created_at: 1, deleted_at: null };
+    const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: 'a'.repeat(64), thumb_hash: 'b'.repeat(64), width: 10, height: 10, created_at: 1, deleted_at: null, ...UNEDITED };
 
     expect(await send(rows({ images: [image] }))).toEqual({ status: 400, body: { error: 'missing-media', detail: `images img: no file ${'a'.repeat(64)}` } });
   });
@@ -90,7 +93,7 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     const [fullHash, thumbHash] = [await sha256HexBytes(full), await sha256HexBytes(thumb)];
     await put(fx.h, fx.org, 'alice', fullHash, full);
     await put(fx.h, fx.org, 'alice', thumbHash, thumb);
-    const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: fullHash, thumb_hash: thumbHash, width: 10, height: 10, created_at: 1, deleted_at: null };
+    const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: fullHash, thumb_hash: thumbHash, width: 10, height: 10, created_at: 1, deleted_at: null, ...UNEDITED };
 
     expect((await send(rows({ images: [image] }))).status).toBe(200);
   });

@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Me, Presentation, Song } from '@gp/core';
 import { useData, useSongSearch } from '../db/react.tsx';
 import { listPresentations } from '../db/queries.ts';
@@ -16,32 +16,54 @@ import { SearchField } from './Picker.tsx';
 import { keyLabel } from './ShortcutHelp.tsx';
 import { href, navigate } from './router.ts';
 import { ctrlLabel } from './shortcuts.ts';
+import { PalettePreview, type PreviewOf } from './PalettePreview.tsx';
 import { useToast } from './Toast.tsx';
 
 // ⌘K (Ctrl+K elsewhere), the search of everything as today's apps have it (Lars, 2026-11-05): one field, and under it,
 // grouped as Spotlight's, the commands (the keys' list, so no key need be learnt), songs by title or a line, the
-// presentations by name or date (the coming ones first), and the pages of Inställningar. ↑ ↓ move, ↵ does the
-// marked one. A song is added to the presentation open (after the item picked, or while presenting after the one
-// shown, as Lägg till adds), and opened everywhere else; Inställningar over the page opens it too.
+// presentations by name or date (the coming ones first), and the pages of Inställningar. ↑ ↓ move, ↵ opens the marked
+// one. In a presentation ⌘↵ (or the marked row's own button, on a touch screen) adds a song where Lägg till would,
+// picks it and scrolls to it, and while presenting shows it at once: the quickest way to a song asked for (Lars,
+// 2026-11-05). Where the window is wide the marked one is shown beside the list (PalettePreview).
 
-/** What a presentation's page offers the search while it is open: a song added to it. */
+/** What a presentation's page offers the search while it is open: a song added to it, and + 's kinds to add. */
 interface PaletteTarget {
+  /** Adds the song, picks it and scrolls to it; while presenting, shows it. */
   addSong: (song: Song) => Promise<boolean>;
+  /** Presenting: the song added is shown at once. */
+  live: boolean;
+  /** "Lägg till video…" and the rest, each opening what + opens for it. */
+  adds: { key: string; label: string; icon: ReactNode; run: () => void }[];
 }
 
 let target: PaletteTarget | null = null;
 
 /** Offers `t` to the search while the component is mounted. */
 export function usePaletteTarget(own: PaletteTarget): void {
-  const add = useEffectEvent((song: Song) => own.addSong(song));
+  // The page's latest, read when the search is drawn: an effect event may not be called while drawing.
+  const latest = useRef(own);
+  useLayoutEffect(() => {
+    latest.current = own;
+  });
   useEffect(() => {
-    const mine: PaletteTarget = { addSong: (song) => add(song) };
+    const mine: PaletteTarget = {
+      addSong: (song) => latest.current.addSong(song),
+      get live() {
+        return latest.current.live;
+      },
+      get adds() {
+        return latest.current.adds;
+      },
+    };
     target = mine;
     return () => {
       if (target === mine) target = null;
     };
   }, []);
 }
+
+/** The page each `g` letter goes to, to tell a page of Inställningar a command already offers. */
+const GO_PAGES: Record<string, string> = { p: 'presentations', s: 'songs', b: 'bibles', i: 'images', l: 'audios', v: 'videos', e: 'customSlides' };
 
 /** At most this many of a kind, as Spotlight shows a few of each. */
 const PER_GROUP = 5;
@@ -56,6 +78,10 @@ interface Hit {
   /** A command's own keys, in grey at the right (not on a touch screen, which has none). */
   keys?: string[];
   run: () => void | Promise<unknown>;
+  /** What ⌘↵ does instead, also a button on the marked row: a song added to the presentation open. */
+  alt?: { verb: string; run: () => void | Promise<unknown> };
+  /** What the preview beside the list shows of it. */
+  preview?: PreviewOf;
 }
 
 const go = <ChevronRightIcon className="size-4" />;
@@ -102,17 +128,28 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
       keys: [...c.keys, ...(window.gpDesktop && c.desktop ? [c.desktop] : [])],
       run: () => runCommand(c.command),
     }));
-    const songHits: Hit[] = blank || shownQuery !== query ? [] : (songs ?? []).slice(0, PER_GROUP).map((s) => ({
+    // The kinds of +, in a presentation: "Lägg till video…" for "video", as the command they are.
+    const addHits: Hit[] = (adding?.adds ?? [])
+      .filter((a) => !blank && matches(query, a.label, t('palette.addKind', { kind: a.label.toLocaleLowerCase() })))
+      .map((a) => ({ key: `a:${a.key}`, icon: a.icon, title: t('palette.addKind', { kind: a.label.toLocaleLowerCase() }), verb: '', run: a.run }));
+    // The last answer stays until the next arrives, so the list does not jump at every key (Lars, 2026-11-05: "ska
+    // gå instant"); ↵ meanwhile waits for it (`waiting`).
+    const songHits: Hit[] = blank ? [] : (songs ?? []).slice(0, PER_GROUP).map((s) => ({
       key: `s:${s.id}`,
       icon: <MusicalNoteIcon className="size-4" />,
       title: s.name,
       subtitle: s.author ?? undefined,
-      verb: adding ? t('palette.add') : t('palette.open'),
-      run: adding
-        ? async () => {
-            if (await adding.addSong(s)) toast(t('presentation.added', { name: s.name }));
+      verb: t('palette.open'),
+      run: () => navigate({ page: 'song', id: s.id }),
+      alt: adding
+        ? {
+            verb: adding.live ? t('palette.addShow') : t('palette.add'),
+            run: async () => {
+              if (await adding.addSong(s)) toast(t('presentation.added', { name: s.name }));
+            },
           }
-        : () => navigate({ page: 'song', id: s.id }),
+        : undefined,
+      preview: { kind: 'song', id: s.id, title: s.name },
     }));
     const presentationHits: Hit[] = foundPresentations(presentations ?? [], blank ? '' : query, today)
       .slice(0, blank ? 3 : PER_GROUP)
@@ -123,8 +160,14 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
         subtitle: [p.eventDate ? dateLabel(p.eventDate, today, true) : null, p.time].filter(Boolean).join(' · ') || undefined,
         verb: t('palette.open'),
         run: () => navigate({ page: 'presentation', id: p.id }),
+        preview: { kind: 'presentation', id: p.id, title: p.name },
       }));
-    const settingsHits: Hit[] = searchSettings(settingsGroups(me, host), query, t).slice(0, PER_GROUP).map((l) => ({
+    // A page of Inställningar a command already goes to is not listed twice ("Gå till Videor" and Videor).
+    const goneTo = new Set(commands.flatMap((c) => (c.key.startsWith('c:go:') ? [c.key] : [])).map((k) => GO_PAGES[k.slice(5)]));
+    const settingsHits: Hit[] = searchSettings(settingsGroups(me, host), query, t)
+      .filter((l) => !goneTo.has(l.route.page))
+      .slice(0, PER_GROUP)
+      .map((l) => ({
       key: `i:${href(l.route)}`,
       icon: (
         <span className={`size-5 rounded-md flex items-center justify-center text-white ${l.colour}`}>
@@ -145,19 +188,34 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
         : [
             [t('palette.songs'), songHits],
             [t('palette.presentations'), presentationHits],
-            [t('palette.commands'), commands],
+            [t('palette.commands'), [...addHits, ...commands]],
             [t('palette.settings'), settingsHits],
           ];
     return listed.filter(([, hits]) => hits.length);
-  }, [query, blank, songs, shownQuery, presentations, today, me, host, adding, toast]);
+  }, [query, blank, songs, presentations, today, me, host, adding, toast]);
 
   const all = groups.flatMap(([, hits]) => hits);
   const marked = Math.min(at, Math.max(0, all.length - 1));
-  const run = (hit: Hit | undefined) => {
-    if (!hit) return;
+  const run = (hit: Hit | undefined, alt = false) => {
+    if (!hit || (alt && !hit.alt)) return;
     onClose();
-    void hit.run();
+    void (alt ? hit.alt!.run() : hit.run());
   };
+  /** ↵ pressed while the songs still answer an earlier query: done once they answer this one. */
+  const waiting = useRef<{ alt: boolean } | null>(null);
+  const fresh = blank || shownQuery === query;
+  const enter = (alt: boolean) => {
+    if (fresh) run(all[marked], alt);
+    else waiting.current = { alt };
+  };
+  const whenFresh = useEffectEvent(() => {
+    const w = waiting.current;
+    waiting.current = null;
+    if (w) run(all[marked], w.alt);
+  });
+  useEffect(() => {
+    if (fresh) whenFresh();
+  }, [fresh]);
   const list = useRef<HTMLDivElement>(null);
   // In braces: Chromium's scrollIntoView now returns a promise, which an effect must not return.
   useEffect(() => {
@@ -166,7 +224,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
 
   return (
     // At the top on a phone, as iPhone's Spotlight, above the keyboard it brings up.
-    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass="max-w-xl max-sm:self-start" hideTitle>
+    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass={`${all.some((h) => h.preview) ? 'sm:max-w-3xl' : ''} max-w-xl max-sm:self-start`} hideTitle>
       <div
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -174,7 +232,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
             setAt(Math.max(0, Math.min(all.length - 1, marked + (e.key === 'ArrowDown' ? 1 : -1))));
           } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
             e.preventDefault();
-            run(all[marked]);
+            enter(e.metaKey || e.ctrlKey);
           }
         }}
       >
@@ -188,7 +246,8 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
             setAt(0);
           }}
         />
-        <div ref={list} id={listId} role="listbox" aria-label={t('palette.title')} className="mt-2 h-[min(24rem,55vh)] overflow-y-auto space-y-3 py-1">
+        <div className="mt-2 flex gap-3 h-[min(24rem,55vh)]">
+        <div ref={list} id={listId} role="listbox" aria-label={t('palette.title')} className="flex-1 min-w-0 overflow-y-auto space-y-3 py-1">
           {groups.map(([title, hits]) => (
             <div key={title} role="group" aria-label={title} className="space-y-0.5">
               <p className={`${CAPTION} text-xs/5`}>{title}</p>
@@ -216,9 +275,23 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
                       <span className={`shrink-0 touch:hidden text-xs tabular-nums ${on ? 'text-white/80' : 'text-stone-500 dark:text-stone-400'}`}>{hit.keys.map((k) => keyLabel(k)).join('  ')}</span>
                     )}
                     {on && hit.verb && (
-                      <span className="shrink-0 text-xs text-white/80">
-                        {hit.verb}
-                        <span className="touch:hidden"> ↵</span>
+                      <span className="shrink-0 text-xs text-white/80 touch:hidden">
+                        {hit.verb} ↵
+                      </span>
+                    )}
+                    {/* ⌘↵'s choice as a button of its own, for a pointer and a finger too. */}
+                    {on && hit.alt && (
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        className="shrink-0 h-7 px-2.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-semibold flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          run(hit, true);
+                        }}
+                      >
+                        {hit.alt.verb}
+                        <span className="touch:hidden font-normal opacity-80">{keyLabel('Ctrl+Enter')}</span>
                       </span>
                     )}
                   </AppButton>
@@ -227,6 +300,12 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
             </div>
           ))}
           {!all.length && <p className="px-4 py-6 text-center text-sm text-stone-500 dark:text-stone-400">{t('palette.none')}</p>}
+        </div>
+        {all.some((h) => h.preview) && (
+          <div className="max-sm:hidden flex-1 min-w-0">
+            <PalettePreview of={all[marked]?.preview ?? null} />
+          </div>
+        )}
         </div>
       </div>
     </Dialog>

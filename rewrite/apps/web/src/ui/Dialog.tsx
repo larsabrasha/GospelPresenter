@@ -14,7 +14,7 @@ function CloseButton({ onClick }: { onClick: () => void }) {
     <AppButton
       variant="plain"
       data-close
-      className={`absolute top-2.5 touch:top-1.5 right-3 z-10 ${ROUND_CLOSE}`}
+      className={`absolute top-2.5 right-3 touch:right-4 z-10 ${ROUND_CLOSE}`}
       title={t('common.close')}
       aria-label={t('common.close')}
       onClick={onClick}
@@ -229,11 +229,13 @@ export function PageDialog({
     <DialogFrame titleId={titleId} onClose={onClose} className={`${narrow ? 'max-w-2xl' : 'max-w-5xl'} sm:h-[min(52rem,100%)]`} page>
       {(close) => (
         <>
-          <div className={`elevated relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator bg-ground ${split ? 'split:hidden' : ''}`}>
+          <div className={`elevated relative flex items-center h-14 touch:h-16 shrink-0 px-5 touch:px-4 border-b-[0.5px] border-separator bg-ground ${split ? 'split:hidden' : ''}`}>
             {/* Below `lg` as iOS 26's bar: a round ‹ alone at the left, and the page's own name in the middle
-                (`compactTitle`); the dialog keeps `title` as its name for screen readers. */}
+                (`compactTitle`); the dialog keeps `title` as its name for screen readers. On a touch screen the round
+                buttons stand 16 px from the sheet's edges and its top, as iOS 27's do (Lars, 2026-11-05: they sat in
+                its corners). */}
             {back && (
-              <a href={back.href} aria-label={back.label} title={back.label} className={`split:hidden -ml-2 ${ROUND_BACK}`}>
+              <a href={back.href} aria-label={back.label} title={back.label} className={`split:hidden -ml-2 touch:ml-0 ${ROUND_BACK}`}>
                 <ChevronLeftIcon className="size-5" />
               </a>
             )}
