@@ -69,6 +69,7 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   // Lägg till efter puts the addition after the item named rather than after the shown one.
   await rows.nth(0).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Lägg till efter' }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // its choices beside it, as +'s (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByLabel('Sök på titel, författare eller textrad').fill('Sång B');
   await picker.getByRole('button', { name: 'Lägg till Sång B' }).click();

@@ -196,6 +196,8 @@ export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Prom
 }
 
 async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData | null): Promise<ItemSlides> {
+  // A heading shows nothing: presenting steps over it (spec 03 2f).
+  if (item.type === 'header') return { slides: [], problem: null };
   if (item.type === 'bible') {
     const content = parseBibleContent(item.content);
     const slides = content ? bibleItemSlides(item.title, content) : [];

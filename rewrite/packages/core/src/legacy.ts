@@ -14,9 +14,10 @@ import { CANVAS } from './themes.ts';
  * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay
  * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. 4: a slide
  * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. 5: a page's pictures are its own
- * blobs, not pictures of Bilder by id. An import reads the older ones too (`upgradeLegacyRows`).
+ * blobs, not pictures of Bilder by id. 6: an item has a comment (`note`, spec 03 2f). An import reads the older ones
+ * too (`upgradeLegacyRows`).
  */
-export const LEGACY_FORMAT = 5;
+export const LEGACY_FORMAT = 6;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -98,7 +99,7 @@ export function legacyOverlayPage(content: string | null, picture: Picture | nul
  * The formats an import reads: this one, 4 (pictures of Bilder by id on a page), 3 (decks of their own), 2 (decks on
  * their items), 1 (overlays of a text and a picture too).
  */
-export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, LEGACY_FORMAT];
+export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, 5, LEGACY_FORMAT];
 
 const text = (v: LegacyRow[string] | undefined) => (typeof v === 'string' ? v : null);
 /** A deck item's content before format 3: the file's name and its pages. */
@@ -152,11 +153,12 @@ type OlderRows = Omit<LegacyRows, 'custom_slides'> & { custom_slides?: LegacyRow
 /**
  * A zip's rows as this format has them. Before 4 a deck's pages become a slideshow of PDF pages that its item
  * names: in 3 each `slide_decks` row, before 3 each deck item's own pages, as the item's id. Before 5 a page's
- * pictures of Bilder become its own (`ownPictures`).
+ * pictures of Bilder become its own (`ownPictures`). Before 6 an item has no comment.
  */
 export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
-  const { slide_decks: decks = [], custom_slides: slideshows = [], ...rest } = rows;
-  if (format >= LEGACY_FORMAT) return { ...rest, custom_slides: slideshows };
+  const { slide_decks: decks = [], custom_slides: slideshows = [], ...given } = rows;
+  const rest = format >= 6 ? given : { ...given, presentation_items: given.presentation_items.map((item): LegacyRow => ({ ...item, note: null })) };
+  if (format >= 5) return { ...rest, custom_slides: slideshows };
   const images = new Map(rest.images.map((i) => [String(i.id), { full: String(i.full_hash), thumb: String(i.thumb_hash) }]));
   const pages = (r: LegacyRow): LegacyRow => ({ ...r, pages: rewrite(r.pages, (v) => (Array.isArray(v) ? v.map((p) => ownPictures(p, images)) : v)) });
   if (format === 4) {

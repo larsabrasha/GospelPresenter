@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 23;
+export const SCHEMA_VERSION = 24;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -77,7 +77,7 @@ export const orgDdl: string[] = [
      location TEXT, last_used_at INTEGER, description TEXT, updated_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
-     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT, overlay_id TEXT)`,
+     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT, overlay_id TEXT, note TEXT)`,
   `CREATE TABLE IF NOT EXISTS bibles (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, abbreviation TEXT NOT NULL,
      language TEXT, verse_count INTEGER NOT NULL, content_hash TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`,
@@ -172,6 +172,8 @@ export const orgMigrations: Record<number, string[]> = {
   ],
   // Themes of the organisation's own (docs/themes.md).
   23: [themesDdl],
+  // A comment on an item of the running order (spec 03 2f).
+  24: ['ALTER TABLE presentation_items ADD COLUMN note TEXT'],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

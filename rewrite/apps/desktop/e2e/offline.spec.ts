@@ -28,9 +28,9 @@ async function offlineLine(page: Page, name: string) {
 }
 
 /** Adds to the open presentation, through Lägg till, a picture or a video already in the library. */
-async function addFromLibrary(page: Page, key: string, name: string) {
+async function addFromLibrary(page: Page, kind: string, name: string) {
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.keyboard.press(key);
+  await page.getByRole('menuitem', { name: kind, exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByRole('button', { name, exact: true }).click();
   await picker.getByRole('button', { name: `Lägg till ${name}` }).click();
@@ -48,7 +48,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   // A presentation with no date, with a video: nothing fetches it unless it is kept offline.
   await createPresentation(host.page, 'Konsert');
   await host.page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await host.page.keyboard.press('Control+5');
+  await host.page.getByRole('menuitem', { name: 'Video', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = host.page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByTestId('video-tab-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: video() });
   await picker.getByRole('button', { name: 'Dop.mp4', exact: true }).click({ timeout: 15_000 });
@@ -73,7 +73,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   await expect(host.page.getByText('1 bild', { exact: true })).toBeVisible();
   await openPresentations(host.page);
   await host.page.getByRole('link', { name: 'Konsert' }).click();
-  await addFromLibrary(host.page, 'Control+3', 'Affisch.png');
+  await addFromLibrary(host.page, 'Bild', 'Affisch.png');
   // The second computer fetches it without opening the presentation: time to sync and fetch, then all is there.
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/);
   await second.page.waitForTimeout(3000); // nothing on the start page says when the new picture has arrived: time for it to arrive

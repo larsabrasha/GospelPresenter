@@ -307,6 +307,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await expect(page.getByTestId('schedule')).toHaveText('2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök på titel, författare eller textrad');
   await search.fill('pilgrim');

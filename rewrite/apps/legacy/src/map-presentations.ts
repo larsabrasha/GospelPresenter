@@ -63,7 +63,7 @@ export function mapItems(data: OldData, media: Media, now: number): { rows: Lega
     const row = (sourceId: string, content: string | null, arrangementId: string | null = null, as: string = type) => {
       const n = sort.get(item.PresentationId) ?? 0;
       sort.set(item.PresentationId, n + 1);
-      rows.push({ id: item.Id, presentation_id: item.PresentationId, type: as, title: item.Title, source_id: sourceId, sort: n, arrangement_id: arrangementId, content, overlay_id: null });
+      rows.push({ id: item.Id, presentation_id: item.PresentationId, type: as, title: item.Title, source_id: sourceId, sort: n, arrangement_id: arrangementId, content, overlay_id: null, note: null });
     };
     if (type === 'song') {
       if (!item.SourceId || !songs.has(item.SourceId)) skip('no-song');

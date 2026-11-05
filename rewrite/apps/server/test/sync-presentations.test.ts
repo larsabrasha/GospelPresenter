@@ -197,4 +197,29 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
     expect((await fx.bob.client.dump()).presentations).toEqual([]);
     await fx.expectConverged(fx.alice, fx.bob);
   });
+
+  // ------------------------------------------------------------ headings (spec 03 2f)
+
+  it('a heading added before the first item opens the running order, on every device', async () => {
+    await fx.seed();
+
+    await fx.alice.client.mutate('addHeaderToPresentation', { itemId: 'H1', presentationId: 'P', title: 'Inledning', beforeItemId: 'I1' });
+    await fx.syncAll(fx.alice, fx.bob);
+
+    expect((await fx.items(fx.bob, 'P')).map((r) => [r.id, r.type, r.title])).toEqual([
+      ['H1', 'header', 'Inledning'],
+      ['I1', 'song', expect.any(String)],
+      ['I2', 'song', expect.any(String)],
+    ]);
+    await fx.expectConverged(fx.alice, fx.bob);
+  });
+
+  it('a heading added after an item goes right after it', async () => {
+    await fx.seed();
+
+    await fx.alice.client.mutate('addHeaderToPresentation', { itemId: 'H1', presentationId: 'P', title: 'Kollekt', afterItemId: 'I1' });
+    await fx.syncAll(fx.alice, fx.bob);
+
+    expect((await fx.items(fx.bob, 'P')).map((r) => r.id)).toEqual(['I1', 'H1', 'I2']);
+  });
 });

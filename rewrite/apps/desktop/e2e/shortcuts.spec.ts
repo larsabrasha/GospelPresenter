@@ -43,13 +43,12 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
   await page.keyboard.press('a');
-  const add = page.getByRole('dialog', { name: 'Lägg till' });
+  const add = page.getByRole('dialog', { name: 'Lägg till sång' });
   // Out of the search field, where ? is a letter like any other.
-  await add.getByRole('tab', { name: 'Bilder' }).click();
-  await add.getByRole('tab', { name: 'Bilder' }).focus();
+  await add.getByRole('button', { name: 'Stäng' }).focus();
   help = await openHelp(page);
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Lägg till', 'Överallt']);
-  await expect(help.getByRole('listitem').filter({ hasText: 'Fliken Bibeltext' }).locator('kbd')).toHaveText(/^(Ctrl\+2|⌘2)$/);
+  await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till' }).first().locator('kbd')).toHaveText(/(Ctrl|⌘).*(↵|Enter)/);
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
   await expect(add).toBeVisible();

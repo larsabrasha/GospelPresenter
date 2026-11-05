@@ -644,9 +644,31 @@ export function SlideshowIcon({ className }: IconProps) {
   );
 }
 
+/** A speech bubble (Heroicons' chat-bubble-bottom-center-text): an item's comment (spec 03 2f). */
+export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"
+      />
+    </Outline>
+  );
+}
+
+/** An H, as a heading of a text: Rubrik, a heading of the running order (spec 03 2f). */
+export function HeadingIcon({ className, strokeWidth = 1.75 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 4.5v15M18 4.5v15M6 12h12" />
+    </Outline>
+  );
+}
+
 /** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon }[type];
+  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: HeadingIcon }[type];
   return <Icon className={className} />;
 }
 

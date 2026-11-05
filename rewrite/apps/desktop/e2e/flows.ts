@@ -182,6 +182,7 @@ export async function createPresentation(page: Page, name: string, date?: string
 /** Adds songs through the picker, each found by typing its name, and closes it. */
 export async function addSongs(page: Page, names: string[]) {
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   for (const name of names) {
     await picker.getByLabel('Sök på titel, författare eller textrad').fill(name);

@@ -299,7 +299,7 @@ the streaming and who plays what; these are the choices the implementer made whe
   codec it cannot play is left out: it plays nothing.
 - **Whether a device can play a codec is `canPlayType`** with Main profile strings (`avc1.4D4028`,
   `hvc1.1.6.L120.90`), not `MediaCapabilities`, which answers asynchronously.
-- **The Video tab is the sixth in Lägg till (Ctrl/⌘+6)**, after PowerPoint, so the other tabs keep their keys. Videor
+- **Video is the fifth choice of +'s menu**, before Bildspel (2026-11-04: Bildspel last; 2026-11-05: a menu, no tabs, spec 03 2f). Videor
   among the admin pages (`/admin/videos`, after Ljud) lists them with still, length, size and codec, imports and
   trashes, as Ljud does; no playback there (mine).
 - **Every video response is `no-store`**, the session's `GET /api/media/{hash}` too: the desktop host keeps the

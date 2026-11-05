@@ -77,9 +77,10 @@ tapped shows nothing, and ▶ starts it.
   (Lars, 2026-11-01). An audio or video item adds a player line between them:
   pause, the time and how far it is.
 - **The running order** fills the rest, with no heading row; Lägg till is a round glass + floating at the bottom right, as iOS 27's Notes and Reminders put
-  "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). On a phone + first asks which
-  kind, a menu with Sånger first, then opens that kind's dialog without its row of tabs (Lars, 2026-11-04: six tabs do
-  not fit). An item's parts are one group of rows with hairlines, as iOS's inset grouped lists, and the foot of the list
+  "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). + first asks which
+  kind, a menu with Sång first, Bildspel last and under a line Rubrik (spec 03 2f), then opens that kind's dialog alone,
+  without a row of tabs (Lars, 2026-11-04: six tabs do not fit a phone); on a computer the running order's Lägg till is
+  the same menu (Lars, 2026-11-05: as ProPresenter's and Planning Center's +, a computer as a phone). An item's parts are one group of rows with hairlines, as iOS's inset grouped lists, and the foot of the list
   has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). Every part of
   every item is shown with its whole text (pictures as thumbnails); a tap on a part shows it. Each item is a
   section whose heading (name, LIVE dot, kind, …) sticks at the top until the next pushes it away. The shown part
@@ -122,8 +123,9 @@ overlay.
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
   right click or the row's … gives the item's menu, the same as its heading's … in the middle (Lars, 2026-11-03: the two
   differed), grouped as Apple groups a menu (Lars, 2026-11-03): Redigera (a song's page, or a picture item's
-  pictures); Arrangemang › and Överlägg ›, each with the chosen one in grey and its choices in a submenu beside it,
-  opened by a pointer resting on the row or a tap; Lägg till efter… and Markera; and Radera last, in red. No Flytta
+  pictures; a heading's Byt namn) and Kommentar; Arrangemang › and Överlägg ›, each with the chosen one in grey and its choices in a submenu beside it,
+  opened by a pointer resting on the row or a tap; Lägg till efter… (the kinds and Rubrik, beside it), Ny rubrik
+  ovanför and Markera; and Radera last, in red. No Flytta
   upp or ned: a row is dragged, or moved with Alt+↑/↓, as Apple's lists have it. In
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.

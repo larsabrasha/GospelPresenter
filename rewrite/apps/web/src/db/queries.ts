@@ -71,13 +71,14 @@ const presentation = (r: Row): Presentation => ({
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'video' || r.type === 'custom' ? r.type : 'song',
+  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'video' || r.type === 'custom' || r.type === 'header' ? r.type : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
   arrangementId: (r.arrangement_id as string | null) ?? null,
   content: (r.content as string | null) ?? null,
   overlayId: (r.overlay_id as string | null) ?? null,
+  note: (r.note as string | null) ?? null,
 });
 
 const arrangement = (r: Row): SongArrangement => ({

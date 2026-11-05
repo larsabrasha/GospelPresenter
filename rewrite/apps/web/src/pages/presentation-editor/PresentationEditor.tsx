@@ -28,7 +28,8 @@ import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { AddItemDialog } from './AddItemDialog.tsx';
+import { AddItemDialog, type AddChoice, type AddKind } from './AddItemDialog.tsx';
+import { useItemTexts } from './HeaderDialog.tsx';
 import { DetailsDialog } from './DetailsDialog.tsx';
 import { OfflineDialog } from './OfflineStatus.tsx';
 import { PresentationMaterials } from '../song-materials/PresentationMaterials.tsx';
@@ -147,11 +148,17 @@ export function PresentationEditor({
   // The side columns on a computer, each folded away or out (ui/sidePanels.ts).
   const panels = useSidePanels();
   const [editingImages, setEditingImages] = useState<string | null>(null);
-  // The add dialog: open, and whether it adds pictures to the selected image item (Lägg till bilder).
-  const [adding, setAdding] = useState<false | 'item' | 'images'>(false);
-  // While presenting: the item "Lägg till efter" named, and the last item added, which the next addition follows (liveList.ts).
-  const [chosenAfter, setChosenAfter] = useState<string | null>(null);
+  // The add dialog: the item "Lägg till efter" named (`after`), the kind + chose, and whether it adds pictures to the
+  // selected image item (Lägg till bilder). The last item added is the one the next
+  // addition follows while presenting (liveList.ts).
+  const [adding, setAdding] = useState<{ after: string | null; kind: AddKind; images?: boolean } | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const added = (itemId: string) => {
+    setSelectedId(itemId);
+    setLastAddedId(itemId);
+  };
+  // Headings and comments (spec 03 2f): a new heading is selected, as an addition is.
+  const texts = useItemTexts(id, added);
   // Before presenting, the slide picked: outlined in blue and shown nowhere, moved by the keys that step while
   // presenting (Lars, 2026-11-03: to click and step around and point one out).
   const [picked, setPicked] = useState<SlidePick | null>(null);
@@ -266,7 +273,7 @@ export function PresentationEditor({
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === 'a') setAdding('item');
+    if (e.key === 'a') setAdding({ after: null, kind: 'songs' }); // the most used
     // The item shown cannot be removed while presenting (docs/layout-2-0.md).
     else if (e.key === 'Delete' && selected && !(presenting && selected.id === liveItemId)) void removeItem(selected);
     else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length && !e.shiftKey) {
@@ -327,6 +334,14 @@ export function PresentationEditor({
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
   // An item's menu, the same from its row at the left and its heading's … (ItemContextMenu).
+  // While presenting, after what is shown or the last addition still ahead, unless "Lägg till efter" named the place.
+  const afterFor = (chosen: string | null) =>
+    presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosen, selectedId }) : (chosen ?? selectedId);
+  // A choice of +, or of "Lägg till efter": a heading is named at once; a kind opens the dialog of it.
+  const choose = (afterId: string | null, choice: AddChoice) => {
+    if (choice === 'header') return texts.addHeader({ afterItemId: afterFor(afterId) });
+    setAdding({ after: afterId, kind: choice });
+  };
   const menuSource: ItemMenuSource = {
     songs,
     arrangements: data.arrangements,
@@ -337,10 +352,8 @@ export function PresentationEditor({
       return page && href(page);
     },
     onEditImages: (item) => setEditingImages(item.id),
-    onAddAfter: (item) => {
-      setChosenAfter(item.id);
-      setAdding('item');
-    },
+    onAddAfter: (item, choice) => choose(item.id, choice),
+    ...texts.menu,
     onTick: (item) => {
       setTickFirst(item.id);
       setTicking(true);
@@ -404,10 +417,7 @@ export function PresentationEditor({
                 selectedId={selectedId}
                 shownId={pointer.black ? null : liveItemId}
                 onSelect={select}
-                onAddAfter={(itemId) => {
-                  setChosenAfter(itemId);
-                  setAdding('item');
-                }}
+                onAdd={(choice) => choose(null, choice)}
                 menuSource={menuSource}
                 ticking={ticking}
                 tickFirst={tickFirst}
@@ -430,7 +440,7 @@ export function PresentationEditor({
               onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
               onAddImages={(itemId) => {
                 setSelectedId(itemId);
-                setAdding('images');
+                setAdding({ after: null, kind: 'images', images: true });
               }}
               menuSource={menuSource}
               editingImages={editingImages}
@@ -466,20 +476,15 @@ export function PresentationEditor({
         {!phone && adding && (
           <AddItemDialog
             presentationId={id}
-            // While presenting, after what is shown or the last addition still ahead, unless "Lägg till efter" named the place.
-            afterItemId={presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosenAfter, selectedId }) : (chosenAfter ?? selectedId)}
+            afterItemId={afterFor(adding.after)}
+            kind={adding.kind}
             theme={theme}
-            toItemId={adding === 'images' ? (selectedId ?? undefined) : undefined}
-            onAdded={(itemId) => {
-              setSelectedId(itemId);
-              setLastAddedId(itemId);
-            }}
-            onClose={() => {
-              setAdding(false);
-              setChosenAfter(null);
-            }}
+            toItemId={adding.images ? (selectedId ?? undefined) : undefined}
+            onAdded={added}
+            onClose={() => setAdding(null)}
           />
         )}
+        {texts.dialogs}
         {details &&
           (template ? (
             <EditTemplateDialog template={presentation} onClose={() => setDetails(false)} />

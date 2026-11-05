@@ -153,7 +153,8 @@ export const presentationItems = sqliteTable('presentation_items', {
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'video', 'custom'] }).notNull(),
+  /** `header` is a heading of the running order: a name only, nothing shown (spec 03 2f); its `sourceId` is its own id. */
+  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'video', 'custom', 'header'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
@@ -163,6 +164,9 @@ export const presentationItems = sqliteTable('presentation_items', {
   content: text('content'),
   /** The overlay that switches on when the item goes live and off when it leaves (TODO.md "Overlays"); null for none. */
   overlayId: text('overlay_id'),
+  /** A comment on the item for those who run it ("Solosång, men texten ska visas ändå"), shown in the running order
+   * only, never on a screen (spec 03 2f); null for none. */
+  note: text('note'),
 });
 
 /**

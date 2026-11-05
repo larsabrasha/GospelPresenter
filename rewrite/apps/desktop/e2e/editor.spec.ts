@@ -133,8 +133,8 @@ test('several pictures make one image item; Redigera removes one and adds more',
 
   // Two picked in the Bilder tab go in as one item, "2 bilder", a slide each.
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+3');
   await picker.getByRole('button', { name: 'Röd.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Blå.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till 2 bilder' }).click();
@@ -167,6 +167,7 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök på titel, författare eller textrad');
 
@@ -218,6 +219,7 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   // A new song's step has the dialog's one bar (Lars, 2026-11-03): no ✕, but Avbryt, which throws it away; then ✕ is
   // back to close the dialog.
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
   await expect(picker.getByRole('heading', { name: 'Ny sång' })).toBeVisible();
   await expect(picker.getByRole('button', { name: 'Stäng' })).toHaveCount(0);

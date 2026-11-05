@@ -24,9 +24,9 @@ const fixture = (name: string) => readFileSync(new URL(`../../../packages/core/t
 /** Opens Lägg till on its Video tab. */
 async function videoTab(page: Page): Promise<Locator> {
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Video', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+5');
-  await expect(picker.getByRole('tab', { name: 'Video' })).toHaveAttribute('aria-selected', 'true');
+  await expect(picker).toHaveAccessibleName('Lägg till video');
   return picker;
 }
 

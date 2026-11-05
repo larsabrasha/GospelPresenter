@@ -68,8 +68,8 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   // Into a presentation, through the add dialog's third tab.
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+3');
   await picker.getByRole('button', { name: 'Logotyp.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Logotyp.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();

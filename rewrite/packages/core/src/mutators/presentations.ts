@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, max, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte, max, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { BIBLE_LIMITS, bibleTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
@@ -86,13 +86,15 @@ async function ownArrangement(tx: Tx, songId: string, arrangementId: string | nu
 
 /**
  * Inserts an item right after `afterItemId` (spec 03 2d), or last when that
- * is absent or gone, moving the items after it down by one. False if the
+ * is absent or gone, moving the items after it down by one; `beforeItemId`,
+ * when it is still there, puts it right before that one instead. False if the
  * item already exists: a replay of an add that already landed.
  */
 export async function insertItem(
   tx: Tx,
   afterItemId: string | null | undefined,
   item: Omit<typeof presentationItems.$inferInsert, 'sort'>,
+  beforeItemId?: string | null,
 ): Promise<boolean> {
   const [existing] = await tx.select({ id: presentationItems.id }).from(presentationItems).where(eq(presentationItems.id, item.id));
   if (existing) return false;
@@ -102,7 +104,19 @@ export async function insertItem(
     .where(eq(presentationItems.presentationId, item.presentationId));
   limit((n?.n ?? 0) >= LIMITS.itemsPerPresentation, 'items');
   let sort = (n?.last ?? -1) + 1;
-  if (afterItemId) {
+  const [before] = beforeItemId
+    ? await tx
+        .select({ sort: presentationItems.sort })
+        .from(presentationItems)
+        .where(and(eq(presentationItems.id, beforeItemId), eq(presentationItems.presentationId, item.presentationId)))
+    : [];
+  if (before) {
+    sort = before.sort;
+    await tx
+      .update(presentationItems)
+      .set({ sort: sql`${presentationItems.sort} + 1` })
+      .where(and(eq(presentationItems.presentationId, item.presentationId), gte(presentationItems.sort, before.sort)));
+  } else if (afterItemId) {
     const [after] = await tx
       .select({ sort: presentationItems.sort })
       .from(presentationItems)
@@ -222,12 +236,43 @@ export async function addBibleToPresentation(tx: Tx, a: z.output<typeof addBible
   });
 }
 
+export const addHeaderToPresentationArgs = z.object({
+  itemId: id,
+  presentationId: id,
+  title: name,
+  afterItemId: id.nullable().optional(),
+  /** Right before this item instead ("Ny rubrik ovanför"): a section starts at it. */
+  beforeItemId: id.nullable().optional(),
+});
+/**
+ * Adds a heading to the running order (spec 03 2f): a name that groups the items after it until the next one, or a
+ * point of the programme that is only a name ("Kollekt"). It has no slides, so presenting steps over it.
+ */
+export async function addHeaderToPresentation(tx: Tx, a: z.output<typeof addHeaderToPresentationArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  await changePresentation(tx, a.presentationId, ctx);
+  await insertItem(
+    tx,
+    a.afterItemId,
+    { id: a.itemId, presentationId: a.presentationId, type: 'header', title: a.title, sourceId: a.itemId, arrangementId: null, content: null },
+    a.beforeItemId,
+  );
+}
+
 export const renameItemArgs = z.object({ itemId: id, title: name });
 /** Renames an item; the song keeps its name (PRES-R36). */
 export async function renameItem(tx: Tx, a: z.output<typeof renameItemArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   if (!(await requireItem(tx, a.itemId, ctx))) return;
   await tx.update(presentationItems).set({ title: a.title }).where(eq(presentationItems.id, a.itemId));
+}
+
+export const setItemNoteArgs = z.object({ itemId: id, note: optionalText(500) });
+/** An item's comment, for those who run it (spec 03 2f); blank removes it. Never shown on a screen. */
+export async function setItemNote(tx: Tx, a: z.output<typeof setItemNoteArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  if (!(await requireItem(tx, a.itemId, ctx))) return;
+  await tx.update(presentationItems).set({ note: a.note }).where(eq(presentationItems.id, a.itemId));
 }
 
 export const setItemArrangementArgs = z.object({ itemId: id, arrangementId: id.nullable() });

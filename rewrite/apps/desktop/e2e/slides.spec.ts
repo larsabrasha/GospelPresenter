@@ -28,9 +28,9 @@ test('a three-page PDF becomes a slideshow item whose pages show on the output; 
   await setUpHost(host);
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bildspel', exact: true }).click(); // + is a menu (spec 03 2f)
   const dialog = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+6');
-  await expect(dialog.getByRole('tab', { name: 'Bildspel' })).toHaveAttribute('aria-selected', 'true');
+  await expect(dialog).toHaveAccessibleName('Lägg till bildspel');
   const file = dialog.getByTestId('slides-file');
 
   // A PowerPoint is refused with how to save it as PDF.
@@ -78,8 +78,8 @@ test('a PDF imported into the library goes into a presentation as a reference, a
 
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bildspel', exact: true }).click(); // + is a menu (spec 03 2f)
   const dialog = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+6');
   await dialog.getByRole('checkbox', { name: 'Predikan.pdf' }).click();
   await dialog.getByRole('button', { name: 'Lägg till Predikan.pdf' }).click();
   await dialog.getByRole('button', { name: 'Stäng' }).click();

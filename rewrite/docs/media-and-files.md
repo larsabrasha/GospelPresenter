@@ -95,7 +95,7 @@ time: the `ftyp` box at the start (brand `qt  ` is MOV, anything else MP4), then
 time to find `moov`, which may be at either end, and in it the first video track's sample entry (`avc1`/`avc3` is
 H.264, `hvc1`/`hev1` HEVC). Anything else is refused: the page names the codec and says to export as MP4 (H.264).
 
-**The import** (`apps/web/src/media/video.ts`, the Video tab in Lägg till, Ctrl/⌘+6). The page checks the type
+**The import** (`apps/web/src/media/video.ts`, Video in +'s menu, spec 03 2f). The page checks the type
 (the browser's, else the extension), size and name; reads the codec; loads the file once in a `<video>` from an
 object URL for its length, size and the still (a device that cannot decode it, HEVC on Linux, is refused: it could
 not make the still); hashes it with core's SHA-256 in steps, 8 MiB at a time (`Sha256`, no Web Crypto, as

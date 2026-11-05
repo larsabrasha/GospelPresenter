@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, orgDdl, orgIndexes, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
+
+/** Today's tables as a file before version 24 had them: no comment on an item. */
+const before24 = orgDdl.map((s) => s.replace(', overlay_id TEXT, note TEXT)', ', overlay_id TEXT)'));
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
@@ -96,8 +99,8 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
 
   it('a version 11 file gets the columns and the indexes of 12, as a new file has them', () => {
     // Version 11: today's tables without what 12 and later added (song history came in 15, the CCLI report in 16, an
-    // overlay's updated_at in 19), and no indexes.
-    const v11 = orgDdl
+    // overlay's updated_at in 19, an item's note in 24), and no indexes.
+    const v11 = before24
       .filter((s) => !orgIndexes.includes(s) && !s.includes('song_versions') && !s.includes('ccli_entries'))
       .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')').replace('sort INTEGER NOT NULL, updated_at INTEGER)', 'sort INTEGER NOT NULL)'));
     const file = fileWith(driver, [...v11, schemaMetaDdl, 'INSERT INTO _schema (one, version) VALUES (1, 11)']);
@@ -115,7 +118,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   });
 
   it('a version 18 file loses its overlays of before (a text and a picture), and its items carry none', () => {
-    const v18 = orgDdl.map((s) => s.replace('sort INTEGER NOT NULL, updated_at INTEGER)', 'sort INTEGER NOT NULL)'));
+    const v18 = before24.map((s) => s.replace('sort INTEGER NOT NULL, updated_at INTEGER)', 'sort INTEGER NOT NULL)'));
     const file = fileWith(driver, [
       ...v18,
       schemaMetaDdl,
@@ -135,7 +138,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   it("a version 19 file makes each deck item's pages a slideshow of PDF pages, which the item names (schemas 20 and 21)", () => {
     const pages = [{ full: 'a'.repeat(64), thumb: 'b'.repeat(64) }];
     const file = fileWith(driver, [
-      ...orgDdl,
+      ...before24,
       schemaMetaDdl,
       'INSERT INTO _schema (one, version) VALUES (1, 19)',
       `INSERT INTO presentations (id, name) VALUES ('P', 'Söndag')`,
@@ -158,7 +161,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     const element = (id: string, imageId: string) => ({ id, kind: 'image', x: 0, y: 0, w: 960, h: 540, imageId, fit: 'contain' });
     const old = { background: null, backgroundImageId: 'IMG', elements: [element('e1', 'IMG'), element('e2', 'GONE')] };
     const file = fileWith(driver, [
-      ...orgDdl,
+      ...before24,
       schemaMetaDdl,
       'INSERT INTO _schema (one, version) VALUES (1, 21)',
       `INSERT INTO images (id, file_name, content_type, full_hash, thumb_hash, width, height, created_at) VALUES ('IMG', 'a.webp', 'image/webp', 'f', 't', 10, 10, 1)`,

@@ -53,8 +53,8 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
 
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bildspel', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+6');
   await picker.getByRole('checkbox', { name: 'Kollekt' }).click();
   await picker.getByRole('button', { name: 'Lägg till Kollekt' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();

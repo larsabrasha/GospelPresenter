@@ -198,7 +198,7 @@ nothing.
 
 #### 2d. Add modal (`S/Components/Presentations/AddItem/AddItemModal.razor`)
 Title "Lägg till". Pill tabs: **Sånger**, **Bibeltexter**, **Bilder**, **Ljud**, **PowerPoint**
-(Ctrl/⌘+1…5; tooltips show the shortcut). Opens on Sånger; the search box of Sånger/Bibeltexter is
+(Ctrl/⌘+1…5; tooltips show the shortcut; 2.0: no tabs and no such keys, one kind from +'s menu, section 2f). Opens on Sånger; the search box of Sånger/Bibeltexter is
 focused on open and on tab switch (not on screens <768px). Each tab has a bottom-right **Lägg till
 &lt;label&gt;** button (shown only when something is selected) next to a **Lägg till fler** checkbox with an
 "i" info popover ("När ikryssad stannar modalen öppen…"). The checkbox state is shared across tabs
@@ -255,7 +255,24 @@ in its place ("PowerPoint: Arkiv → Spara som → PDF", Keynote's "Arkiv → Ex
 Presentationer's "Arkiv → Ladda ned → PDF"). "Filen sparas bara i den här presentationen" is not shown
 (Lars, 2026-11-04: less text). Import works on
 every device, offline too, so there is no "görs i webbappen" state. The modal stays open after the add
-(D15); the toast is the add dialog's `"{file}" har lagts till`. Ctrl/⌘+6 opens the tab, the last (2026-11-04: Bildspel last, as everywhere).
+(D15); the toast is the add dialog's `"{file}" har lagts till`. Bildspel is the last choice of +'s menu (2026-11-04: Bildspel last, as everywhere; 2026-11-05: no tabs, section 2f).
+
+#### 2f. Headings and comments (2.0, Lars 2026-11-05; not in the old app)
+A **Rubrik** is an item of its own kind (`header`): a name only, which groups the items after it until the next
+one, or stands alone as a point of the programme ("Kollekt", "Bön – Anna"), as ProPresenter's playlist headers and
+Planning Center's do. It has no slides and shows nothing: presenting steps over it (PRES-R42). It is added from +,
+which is a menu on every device: the kinds in their order, singular (**Sång**, **Bibeltext**, **Bild**, **Ljud**,
+**Video**, **Bildspel**), then under a line **Rubrik**. A kind opens the add dialog of that kind alone, titled
+"Lägg till sång" and so on, without the row of tabs, on a computer too, so Ctrl/⌘+1…6 are gone (Lars, 2026-11-05);
+**a** still opens it on songs; from an
+item's ⋯ under **Lägg till efter…** (the same choices) and **Ny rubrik ovanför**, which puts it right before that
+item. A small dialog asks for its name; **Byt namn** in its ⋯ renames it (an item's name is still not edited in the
+list). In the running order it is a bold row without a kind's icon; in the slide list a larger name with room
+above it and nothing under it. It has no arrangement and no overlay.
+
+Every item, a heading too, can carry a **Kommentar** for those who run it ("Solosång, men texten ska visas ändå"):
+**Kommentar** in its ⋯ opens a dialog with a text of up to 500 characters; blank removes it. It shows under the
+item's name in the slide list, in grey with a speech bubble, and never on a screen (PRES-R43).
 
 #### 2e. Remove item
 "⋯ → Ta bort" or **Delete** key on the selected item → dialog titled "Radera" / "Vill du ta bort
@@ -323,7 +340,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 | Presentation | `Delete` | Confirm-remove selected item (ignored in remote and stage mode). |
 | Presentation (rewrite) | Alt+↑ / Alt+↓ | Move the selected item one place up / down. |
 | Presentation (doc) | ↓ / → / Enter | Move through running order / slides / show slide. |
-| Lägg till (blocking) | Ctrl/⌘+1…5 | Switch tab. |
+| Lägg till (blocking) | Ctrl/⌘+1…5 | Switch tab. 2.0: none, the dialog is one kind (section 2f). |
 | Lägg till (doc) | Ctrl/⌘+Enter, Shift+Enter, ↓ | Add and close / add and stay / move in results. |
 
 ## Rules and invariants
@@ -458,6 +475,10 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   Escape "Esc", Delete "Del"; letters verbatim (`Shortcut.cs:37-61`).
 - PRES-R41 List navigation never wraps; first ↓ from nothing lands on the first item, first ↑ on the
   last; Home/End jump; any modifier disables movement (`S/Utils/ListNavigation.cs:28-94`).
+- PRES-R42 A heading (`header`, section 2f) has no slides: stepping while presenting passes it, and the screen
+  does not change for it. It is inserted after an item, last, or right before an item (`beforeItemId`).
+- PRES-R43 An item's comment (`note`, ≤ 500 characters, blank stored as null) is shown in the running order only,
+  never on an output; it is copied with the item into a template and out of one.
 
 ## Edge cases
 
@@ -599,11 +620,16 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   "Sparad" flashes; reloading shows the text; deleting asks for confirmation and removes it permanently.
 - PRES-A34 Given any page, when the user presses `?`, then "Kortkommandon" lists "Överallt" and the
   current page's group(s) (e.g. "Presentation: a, F2, Del, ↓, →, ↵"); pressing `?` again closes it.
-- PRES-A35 Given a Mac, then tooltips read "Skapa (n)", tabs "Sånger (⌘1)"; on Windows "Sånger (Ctrl+1)".
+- PRES-A35 Given a Mac, then tooltips read "Skapa (n)", tabs "Sånger (⌘1)"; on Windows "Sånger (Ctrl+1)". 2.0: no tabs (section 2f), so only Skapa's tooltip.
 - PRES-A36 Given the org has 3000 non-trashed presentations, when the user creates another, then the
   server refuses; after trashing one, creating succeeds.
 - PRES-A37 Given a caller of org A, when they call any presentation/item write with org A's id and an id
   belonging to org B, then nothing in org B changes (API/sync-level test).
+- PRES-A38 Given a running order, when the user chooses + → Rubrik and names it, then the heading is in the list;
+  when they choose Ny rubrik ovanför on the second item, then a heading stands right before it; presenting, the
+  arrows step from the item before a heading to the one after it.
+- PRES-A39 Given an item, when the user writes a comment under Kommentar in its ⋯, then the comment shows under the
+  item's name, and not on the output.
 
 ## Implementation artefacts
 

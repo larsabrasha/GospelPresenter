@@ -54,8 +54,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
 
   // Bibeltexter: a reference search, added with Ctrl+Enter (D15: stays open, starts over) ...
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+2');
   const search = picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)');
   await search.fill('Joh 3:16-17');
   await expect(picker.getByRole('list', { name: 'Verser' }).getByRole('listitem')).toHaveText([/^Johannes 3:16 For God so loved/, /^Johannes 3:17 /]);
@@ -175,7 +175,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
     await openPresentations(page);
     await page.getByRole('link', { name: /Gudstjänst/ }).click();
     await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-    await page.keyboard.press('Control+2');
+    await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
     await search.fill('Joh 3:16');
     await expect(picker.getByRole('list', { name: 'Verser' }).getByRole('listitem')).toHaveText([/^Johannes 3:16 For God so loved/]);
     await picker.getByRole('button', { name: 'Stäng' }).click();
@@ -189,7 +189,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   await openPresentations(page);
   await page.getByRole('link', { name: /Gudstjänst/ }).click();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.keyboard.press('Control+2');
+  await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
   await expect(picker.getByText('Bibeltexten finns inte på den här enheten och kan inte hämtas utan anslutning.', { exact: false })).toBeVisible();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await openBible();

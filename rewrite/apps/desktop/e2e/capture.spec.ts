@@ -147,9 +147,9 @@ test('capture every page', async () => {
 
   // Steps on a page before its picture, and after it; the names match capture-old-app.mjs.
   const pickItem = (p: Page) => p.getByRole('list', { name: 'Programpunkter' }).getByRole('button').first().click();
-  const openAdd = async (p: Page, key?: string) => {
+  const openAdd = async (p: Page, kind = 'Sång') => {
     await p.getByRole('button', { name: 'Lägg till', exact: true }).click();
-    if (key) await p.keyboard.press(key);
+    await p.getByRole('menuitem', { name: kind, exact: true }).click(); // + is a menu (spec 03 2f)
   };
   // A phone presents in one column (docs/layout-2-0.md), with the picture and every part in view: nothing to click.
   const goLive = async (p: Page) => {
@@ -216,9 +216,9 @@ test('capture every page', async () => {
         await p.getByRole('dialog', { name: 'Lägg till' }).getByRole('list', { name: 'Sånger' }).getByRole('button').first().click();
       },
     ],
-    ['add-bible', presentation, (p) => openAdd(p, 'Control+2')],
-    ['add-images', presentation, (p) => openAdd(p, 'Control+3')],
-    ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
+    ['add-bible', presentation, (p) => openAdd(p, 'Bibeltext')],
+    ['add-images', presentation, (p) => openAdd(p, 'Bild')],
+    ['add-audio', presentation, (p) => openAdd(p, 'Ljud')],
     ['presentation-menu', presentation, (p) => p.getByRole('button', { name: 'Alternativ' }).click()],
     ['live', `/presentations/${id}`, goLive, stopLive],
     // Utgångsfönster switched on: the output window is open and the row is ringed.

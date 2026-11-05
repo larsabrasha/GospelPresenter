@@ -42,7 +42,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.keyboard.press('Control+4');
+  await page.getByRole('menuitem', { name: 'Ljud', exact: true }).click(); // + is a menu (spec 03 2f)
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Lång.wav', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Lägg till Lång.wav' }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Stäng' }).click();
@@ -299,6 +299,7 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
   await expect(page.getByText('3000 sånger', { exact: true })).toBeVisible({ timeout: 30_000 });
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await expect(picker.getByRole('list', { name: 'Sånger' }).getByRole('listitem')).toHaveCount(3000, { timeout: 10_000 });
   // The worker prepares the search texts a second after the songs arrive; a person takes longer than this to start typing.
@@ -369,10 +370,8 @@ interface Flows {
   openAdd: number;
   /** A song found in the add dialog and added with Ctrl+Enter, until the running order shows it. */
   addSong: number;
-  /** Ctrl+2 in the add dialog, until the Bible tab's search shows. */
+  /** Bibeltext in +'s menu, until the Bible dialog's search shows. */
   bibleTab: number;
-  /** Ctrl+1 back, until the song tab lists songs. */
-  songTab: number;
   /** "Joh 3:16-17" in the Bible search, until its two verses show. */
   bibleSearch: number;
   /** A book picked (Psaltaren), until its 150 chapters show. */
@@ -443,12 +442,14 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   });
 
   // The add dialog and its tabs.
+  // Timed from Sånger in +'s menu (spec 03 2f), which opens the dialog.
   f.openAdd = await median(runs, async () => {
     await helpers();
+    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
     const t = await timeInPage(page, () => {
       window.gpGo(
         () => !!document.querySelector('[role="dialog"] ul[aria-label="Sånger"] > li'),
-        () => window.gpByName('button', 'Lägg till')!.click(),
+        () => window.gpByName('[role="menuitem"]', 'Sång')!.click(),
       );
     }, null);
     await page.keyboard.press('Escape');
@@ -456,6 +457,7 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     return t;
   });
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByRole('list', { name: 'Sånger' }).getByRole('listitem').first().waitFor();
   // A song found by its name and added with Ctrl+Enter, until the running order has it.
@@ -468,18 +470,29 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     return timeKeyPress(page, 'Control+Enter', (before) => window.gpArm(() => document.querySelectorAll('ol[aria-label="Programpunkter"] > li').length === before + 1), n);
   });
   const bibleSearch = 'input[aria-label="Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)"]';
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+  await expect(picker).toHaveCount(0);
+  // The Bible dialog from +'s menu (spec 03 2f), as the song dialog above.
   f.bibleTab = await median(runs, async () => {
-    const t = await timeKeyPress(page, 'Control+2', (sel) => window.gpArm(() => !!document.querySelector(sel)?.checkVisibility()), bibleSearch);
-    await timeKeyPress(page, 'Control+1', () => window.gpArm(() => !!document.querySelector('[role="dialog"] ul[aria-label="Sånger"] > li')?.checkVisibility()), null);
+    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+    const t = await timeInPage(
+      page,
+      (sel) => {
+        window.gpGo(
+          () => !!document.querySelector(sel)?.checkVisibility(),
+          () => window.gpByName('[role="menuitem"]', 'Bibeltext')!.click(),
+        );
+      },
+      bibleSearch,
+    );
+    await picker.getByRole('button', { name: 'Stäng' }).click();
+    await expect(picker).toHaveCount(0);
     return t;
   });
-  f.songTab = await median(runs, async () => {
-    await timeKeyPress(page, 'Control+2', (sel) => window.gpArm(() => !!document.querySelector(sel)?.checkVisibility()), bibleSearch);
-    return timeKeyPress(page, 'Control+1', () => window.gpArm(() => !!document.querySelector('[role="dialog"] ul[aria-label="Sånger"] > li')?.checkVisibility()), null);
-  });
 
-  // The Bible tab: a reference, then browsing.
-  await page.keyboard.press('Control+2');
+  // The Bible dialog: a reference, then browsing.
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click();
   await picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)').waitFor();
   f.bibleSearch = await median(runs, async () => {
     await picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)').fill('');
@@ -604,8 +617,7 @@ test('the most used flows with 3 000 songs, 50 presentations and a whole Bible, 
     liveStep: [50, 100],
     openAdd: [150, 300],
     addSong: [700, 1200],
-    bibleTab: [100, 200],
-    songTab: [200, 600],
+    bibleTab: [150, 300],
     bibleSearch: [50, 100],
     bibleBook: [100, 250],
     bibleChapter: [50, 150],

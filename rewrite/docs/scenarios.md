@@ -17,6 +17,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Present from a phone: the picture, ‹ Släck ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |
 | Change the running order while live on a computer: drag a row, its menu, Lägg till efter, Delete | `live-order.spec.ts`: "presenting on a computer" |
+| Group the running order under headings and leave a comment for those running it; presenting steps over a heading | `headings.spec.ts`: "a heading from +", "an item's comment" |
 | Present from an iPad lying down, by touch | `live-order.spec.ts`: "on an iPad lying down" |
 | A TV in the hall as a saved screen | `screens.spec.ts`: "a saved screen is online" |
 | A borrowed TV as a temporary screen, by code or QR | `screens.spec.ts`: "a TV shows a code", `screens.spec.ts`: "a TV that opens the QR link" |

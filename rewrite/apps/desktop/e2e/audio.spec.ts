@@ -50,8 +50,8 @@ test('an audio file is imported, added to a presentation and plays in the editor
 
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Ljud', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+4');
   await picker.getByRole('button', { name: 'Preludium.wav', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
@@ -88,8 +88,8 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Ljud', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+4');
   await picker.getByRole('button', { name: 'Preludium.wav', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();

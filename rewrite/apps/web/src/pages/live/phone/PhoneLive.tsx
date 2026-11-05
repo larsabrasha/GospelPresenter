@@ -8,14 +8,14 @@ import type { ItemSlides } from '../../../live/live.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { CheckSquareIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { CheckSquareIcon, CommentIcon, HeadingIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { ICON_GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
 import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
-import { AddItemDialog, addKinds, type AddKind } from '../../presentation-editor/AddItemDialog.tsx';
-import { usePhone } from '../../../ui/usePhone.ts';
+import { AddItemDialog, addKinds, type AddChoice, type AddKind } from '../../presentation-editor/AddItemDialog.tsx';
+import { useItemTexts } from '../../presentation-editor/HeaderDialog.tsx';
 import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
 import { PresentationBar } from '../PresentationBar.tsx';
@@ -93,11 +93,10 @@ export function PhoneLive({
   const { dialog, ask } = useConfirm();
   const remotePolicy = useData(orgRemoteControl, []);
   const [open, setOpen] = useState<Open>(null);
-  // The add dialog: after the item named, or with `images` adding pictures to that image item. On a phone + first asks
-  // which kind (`kind`), and the dialog shows that one only.
+  // The add dialog: after the item named, or with `images` adding pictures to that image item. + first asks which kind
+  // (`kind`), as on a computer (Lars, 2026-11-05), and the dialog shows that one only.
   const [adding, setAdding] = useState<{ chosenId: string | null; images?: string; kind?: AddKind } | null>(null);
-  const phone = usePhone();
-  const choosingKind = !!adding && phone && !adding.images && !adding.kind;
+  const choosingKind = !!adding && !adding.images && !adding.kind;
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   // What was added before presenting does not decide where an addition goes while presenting (liveList.ts).
   const [wasPresenting, setWasPresenting] = useState(!!presenting);
@@ -107,6 +106,11 @@ export function PhoneLive({
   }
   // An item just added: scrolled to (a new object each time) and its heading marked for a moment.
   const [toAdded, setToAdded] = useState<{ id: string } | null>(null);
+  // Headings and comments (spec 03 2f): a new heading is scrolled to, as an addition is.
+  const texts = useItemTexts(id, (itemId) => {
+    setLastAddedId(itemId);
+    setToAdded({ id: itemId });
+  });
   const [addedId, setAddedId] = useState<string | null>(null);
   // Select mode (Markera), from an item's …: the item it was chosen on ticked first.
   const [editing, setEditing] = useState<string | null>(null);
@@ -117,6 +121,14 @@ export function PhoneLive({
 
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const video = pointer.itemId ? slides.get(pointer.itemId)?.video : undefined;
+
+  const afterFor = (chosenId: string | null) => addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId, chosenId });
+  // A choice of + or of "Lägg till efter": a heading is named at once, a kind opens the dialog on it.
+  const choose = (chosenId: string | null, choice: AddChoice) => {
+    if (choice !== 'header') return setAdding({ chosenId, kind: choice });
+    setAdding(null);
+    texts.addHeader({ afterItemId: afterFor(chosenId) });
+  };
 
   const remove = async (item: PresentationItem) => {
     setOpen(null);
@@ -188,7 +200,7 @@ export function PhoneLive({
           selectedId={null}
           shownId={pointer.black ? null : pointer.itemId}
           onSelect={() => {}}
-          onAddAfter={(itemId) => setAdding({ chosenId: itemId })}
+          onAdd={(choice) => choose(null, choice)}
           // A row's menu here is the computer's (ItemContextMenu); its pictures open in their sheet, as the item's own sheet has them.
           menuSource={{
             songs,
@@ -200,7 +212,8 @@ export function PhoneLive({
               return page && href(page);
             },
             onEditImages: (item) => setOpen({ images: item }),
-            onAddAfter: (item) => setAdding({ chosenId: item.id }),
+            onAddAfter: (item, choice) => choose(item.id, choice),
+            ...texts.menu,
             onTick: (item) => setEditing(item.id),
             onRemove: (item) => void remove(item),
           }}
@@ -274,11 +287,22 @@ export function PhoneLive({
               <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
                 {t('live.addAfter')}
               </MenuRow>
+              <MenuRow icon={<HeadingIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
+                {t('header.above')}
+              </MenuRow>
               <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
                 {t('presentation.tick')}
               </MenuRow>
             </MenuGroup>
             <MenuGroup>
+              {open.item.type === 'header' && (
+                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onRename(open.item))}>
+                  {t('header.rename')}
+                </MenuRow>
+              )}
+              <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onNote(open.item))}>
+                {t('note.title')}
+              </MenuRow>
               {songPage(open.item, songs) && (
                 <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate(songPage(open.item, songs)!))}>
                   {t('presentation.editSong')}
@@ -292,12 +316,15 @@ export function PhoneLive({
             </MenuGroup>
             {/* The arrangement and the overlay as rows of a card, as the rows above (ItemSettings); the item as it is
                 now, not as it was when the sheet opened, so a choice shows at once. */}
-            <ItemSettings
-              item={items.find((i) => i.id === open.item.id) ?? open.item}
-              song={songs.get(open.item.sourceId)}
-              arrangements={open.item.type === 'song' ? sortedArrangements(arrangements, open.item.sourceId) : []}
-              overlays={overlays}
-            />
+            {/* A heading shows nothing, so it has no overlay. */}
+            {open.item.type !== 'header' && (
+              <ItemSettings
+                item={items.find((i) => i.id === open.item.id) ?? open.item}
+                song={songs.get(open.item.sourceId)}
+                arrangements={open.item.type === 'song' ? sortedArrangements(arrangements, open.item.sourceId) : []}
+                overlays={overlays}
+              />
+            )}
             <MenuGroup>
               <MenuRow icon={<TrashIcon className="size-5" />} onClick={() => void remove(open.item)} danger disabled={!!presenting && open.item.id === pointer.itemId}>
                 {presenting && open.item.id === pointer.itemId ? t('live.shownCannotRemove') : t('common.delete')}
@@ -306,12 +333,13 @@ export function PhoneLive({
           </div>
         </Sheet>
       )}
-      {choosingKind && <AddKindSheet onChoose={(kind) => setAdding({ ...adding, kind })} onClose={() => setAdding(null)} />}
+      {choosingKind && <AddKindSheet onChoose={(choice) => choose(adding.chosenId, choice)} onClose={() => setAdding(null)} />}
+      {texts.dialogs}
       {adding && !choosingKind && (
         <AddItemDialog
-          only={phone ? adding.kind : undefined}
+          kind={adding.images ? 'images' : adding.kind!}
           presentationId={id}
-          afterItemId={addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId, chosenId: adding.chosenId })}
+          afterItemId={afterFor(adding.chosenId)}
           theme={theme}
           toItemId={adding.images}
           onAdded={(itemId) => {
@@ -327,17 +355,25 @@ export function PhoneLive({
   );
 }
 
-/** What + adds, asked first on a phone (Lars, 2026-11-04): the kinds as a menu, Sånger first, the most used. */
-function AddKindSheet({ onChoose, onClose }: { onChoose: (kind: AddKind) => void; onClose: () => void }) {
+/** What + adds, asked first (Lars, 2026-11-04): the kinds as a menu, Sånger first, the most used; Rubrik under them. */
+function AddKindSheet({ onChoose, onClose }: { onChoose: (choice: AddChoice) => void; onClose: () => void }) {
   return (
     <Sheet title={t('presentation.addTitle')} onClose={onClose}>
-      <MenuGroup>
-        {addKinds().map(([kind, label, Icon]) => (
-          <MenuRow key={kind} icon={<Icon className="size-5" />} onClick={() => onChoose(kind)}>
-            {label}
+      <div className="flex flex-col gap-5">
+        <MenuGroup>
+          {addKinds().map(([kind, label, Icon]) => (
+            <MenuRow key={kind} icon={<Icon className="size-5" />} onClick={() => onChoose(kind)}>
+              {label}
+            </MenuRow>
+          ))}
+        </MenuGroup>
+        {/* Made, not chosen from a library: a group of its own, under the kinds (Lars, 2026-11-05). */}
+        <MenuGroup>
+          <MenuRow icon={<HeadingIcon className="size-5" />} onClick={() => onChoose('header')}>
+            {t('header.kind')}
           </MenuRow>
-        ))}
-      </MenuGroup>
+        </MenuGroup>
+      </div>
     </Sheet>
   );
 }

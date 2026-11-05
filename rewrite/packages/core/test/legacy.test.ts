@@ -21,6 +21,16 @@ describe('a 1.x export of format 1', () => {
   });
 });
 
+describe('a 1.x export of format 5', () => {
+  it('gives its items no comment, so they fit the table', () => {
+    const item = { id: 'I1', presentation_id: 'P', type: 'song', title: 'Sång', source_id: 'S', sort: 0, arrangement_id: null, content: null, overlay_id: null };
+
+    const upgraded = upgradeLegacyRows(5, { ...rowsWith([]), presentation_items: [item] });
+
+    expect([legacyRowsProblem(upgraded), upgraded.presentation_items]).toEqual([null, [{ ...item, note: null }]]);
+  });
+});
+
 const page = { full: 'a'.repeat(64), thumb: 'b'.repeat(64) };
 const slideshow = { id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages([page])), created_at: 0, updated_at: 0, deleted_at: null };
 const deckItem = (content: string | null) => ({ id: 'I1', presentation_id: 'P', type: 'slides', title: 'Predikan.pdf', source_id: 'I1', sort: 0, arrangement_id: null, content, overlay_id: null });

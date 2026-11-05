@@ -184,8 +184,8 @@ test("a paired screen draws the projector's canvas, as the output window: the 19
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+3');
   await picker.getByRole('button', { name: 'Logotyp.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Logotyp.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();

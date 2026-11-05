@@ -27,7 +27,7 @@ const presentation = {
   description: null,
   updated_at: 1,
 };
-const songItem = { id: 'it-1', presentation_id: 'pres-1', type: 'song', title: 'Bred dina vida vingar', source_id: 'song-1', sort: 0, arrangement_id: null, content: null, overlay_id: null };
+const songItem = { id: 'it-1', presentation_id: 'pres-1', type: 'song', title: 'Bred dina vida vingar', source_id: 'song-1', sort: 0, arrangement_id: null, content: null, overlay_id: null, note: null };
 const version = { id: 'v-1', song_id: 'song-1', user_id: '', created_at: 5, name: 'Gammal', data: '{}' };
 
 describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {

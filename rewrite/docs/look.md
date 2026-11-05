@@ -64,7 +64,7 @@ warned; one who already left the part is not, and the later write wins silently.
 The keyboard help (`ui/ShortcutHelp.tsx`, `KeyboardShortcuts.razor` and `ShortcutHelpDialog.razor`): `?` outside
 a text field opens "Kortkommandon", with the old dialog's look and texts: the group of what is on screen, then
 "Överallt" with `?`; `?`, Esc or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, Del, ↑ ↓, and the
-new Alt+↑ ↓), Lägg till (⌘/Ctrl+1–5, ⌘/Ctrl+↵, ↓; it hides the editor's group, whose keys are off behind it), and
+new Alt+↑ ↓), Lägg till (⌘/Ctrl+↵, ↓; one kind, from +'s menu, so no ⌘/Ctrl+1–6; it hides the editor's group, whose keys are off behind it), and
 the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B and a clicker's `.`). The old
 editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
 Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.

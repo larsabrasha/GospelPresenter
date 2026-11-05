@@ -6,7 +6,9 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { CONTEXT_ROW, ContextMenu } from '../../ui/ContextMenu.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { CheckIcon, CheckSquareIcon, ChevronRightIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
+import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
+import { AddChoices } from './AddChoices.tsx';
+import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, HeadingIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
 
 /** What an item's menu needs from the page it is on, the same wherever it opens. */
 export interface ItemMenuSource {
@@ -19,7 +21,14 @@ export interface ItemMenuSource {
   editHref: (item: PresentationItem) => string | undefined;
   /** A picture item's order and removal, in place. */
   onEditImages?: (item: PresentationItem) => void;
-  onAddAfter: (item: PresentationItem) => void;
+  /** Lägg till efter: a kind from the dialog, or a heading, after this item. */
+  onAddAfter: (item: PresentationItem, choice: AddChoice) => void;
+  /** Ny rubrik ovanför: a heading right before this item, which starts its section. */
+  onHeaderAbove: (item: PresentationItem) => void;
+  /** Byt namn, a heading's: an item's name is not edited in the list. */
+  onRename: (item: PresentationItem) => void;
+  /** Kommentar: the item's comment for those who run it. */
+  onNote: (item: PresentationItem) => void;
   /** Markera: select mode, this item ticked first. */
   onTick: (item: PresentationItem) => void;
   onRemove: (item: PresentationItem) => void;
@@ -107,16 +116,16 @@ function Choices({ choices, chosen, onChoose }: { choices: { id: string; title: 
 
 /**
  * An item's menu, one and the same from its row at the left and its heading's … (Lars, 2026-11-03), grouped as Apple
- * groups one: opening the item (Redigera: a song's page, or a picture item's pictures); how it shows, its arrangement
- * and its overlay as rows with the chosen one in grey whose choices open beside them; the list around it, Lägg till
- * efter and Markera; and Radera last, in red, which the shown item cannot. No Flytta upp or ned: a row is dragged, or
+ * groups one: opening the item (Redigera: a song's page, or a picture item's pictures; a heading's Byt namn; and
+ * Kommentar); how it shows, its arrangement and its overlay as rows with the chosen one in grey whose choices open
+ * beside them; the list around it, Lägg till efter (the kinds and Rubrik), Ny rubrik ovanför and Markera; and Radera last, in red, which the shown item cannot. No Flytta upp or ned: a row is dragged, or
  * moved with Alt+↑ and ↓ (Lars, 2026-11-03: as Apple's lists have it). An empty group leaves no line.
  */
 export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu; source: ItemMenuSource; onClose: () => void }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
-  const [sub, setSub] = useState<'arrangement' | 'overlay' | null>(null);
+  const [sub, setSub] = useState<'arrangement' | 'overlay' | 'add' | null>(null);
   const { item, at } = menu;
   const songHref = source.editHref(item);
   const song = item.type === 'song' ? source.songs.get(item.sourceId) : undefined;
@@ -128,8 +137,15 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   const editImages = item.type === 'image' && source.onEditImages;
   const removable = item.id !== source.shownId;
 
-  const opening = (songHref || editImages) && (
+  const header = item.type === 'header';
+  const opening = (
     <>
+      {header && (
+        <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onRename(item)}>
+          <PencilIcon className="size-4" />
+          {t('header.rename')}
+        </AppButton>
+      )}
       {songHref && (
         <AppButton variant="plain" role="menuitem" href={songHref} className={CONTEXT_ROW}>
           <PencilIcon className="size-4" />
@@ -142,9 +158,14 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
           {t('presentation.editImages')}
         </AppButton>
       )}
+      <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onNote(item)}>
+        <CommentIcon className="size-4" />
+        {t('note.title')}
+      </AppButton>
     </>
   );
-  const showing = (arrangements.length > 1 || !!source.overlays.length) && (
+  // A heading shows nothing, so it has no overlay to switch on.
+  const showing = !header && (arrangements.length > 1 || !!source.overlays.length) && (
     <>
       {arrangements.length > 1 && (
         <SubmenuRow icon={<QueueListIcon className="size-4" />} label={t('song.arrangements')} value={arrangementChoices.find((c) => c.id === arrangementId)?.title ?? ''} open={sub === 'arrangement'} onOpen={() => setSub('arrangement')}>
@@ -160,9 +181,12 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   );
   const listing = (
     <>
-      <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onAddAfter(item)}>
-        <PlusIcon className="size-4" />
-        {t('live.addAfter')}
+      <SubmenuRow icon={<PlusIcon className="size-4" />} label={t('live.addAfter')} value="" open={sub === 'add'} onOpen={() => setSub('add')}>
+        <AddChoices onChoose={(choice) => source.onAddAfter(item, choice)} />
+      </SubmenuRow>
+      <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onHeaderAbove(item)}>
+        <HeadingIcon className="size-4" />
+        {t('header.above')}
       </AppButton>
       <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onTick(item)}>
         <CheckSquareIcon className="size-4" />
@@ -182,7 +206,7 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
       {/* A pointer on any other row closes an open submenu, as on macOS. */}
       <div onPointerOver={(e) => !(e.target as Element).closest('[data-submenu]') && setSub(null)}>
         {opening}
-        {opening && <div className={DIVIDER} />}
+        <div className={DIVIDER} />
         {showing}
         {showing && <div className={DIVIDER} />}
         {listing}

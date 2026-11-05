@@ -4,7 +4,7 @@ import { t } from '../../i18n.ts';
 import { slideMarks, type SlideMarkKind } from '../../live/liveList.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
+import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
 import { SlideMark } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
@@ -116,6 +116,36 @@ export function SlideList({
   };
 
   // `elevated` on a computer: a step lighter in dark mode, so black slides stand out from the ground (app.css).
+  /** An item's …: on a phone its sheet (`onItemMenu`), on a computer its menu under the button. */
+  const itemMenuButton = (item: PresentationItem) =>
+    onItemMenu ? (
+      <AppButton
+        variant="plain"
+        aria-label={t('live.itemMore', { title: item.title })}
+        onClick={() => onItemMenu(item)}
+        // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
+        className="ml-auto -mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300"
+      >
+        <EllipsisIcon className="size-5" />
+      </AppButton>
+    ) : (
+      menuSource && (
+        <AppButton
+          variant="plain"
+          aria-label={t('presentation.itemOptions', { title: item.title })}
+          title={t('presentation.itemOptions', { title: item.title })}
+          // The menu opens under the button, as a row's … at the left opens it.
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setMenu({ item, at: { x: rect.left, y: rect.bottom + 4 } });
+          }}
+          className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] normal-case tracking-normal font-normal"
+        >
+          <EllipsisIcon className="size-4" />
+        </AppButton>
+      )
+    );
+
   return (
     <div
       ref={box}
@@ -137,6 +167,18 @@ export function SlideList({
         const set = slides.get(item.id);
         const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
+        // A heading of the running order (spec 03 2f): larger than an item's name, with room above it, nothing under it.
+        if (item.type === 'header')
+          return (
+            <section key={item.id} data-item={item.id} aria-label={item.title} className="max-lg:mb-2 lg:pb-3">
+              <h2 className={`-mx-4 lg:-mx-6 pl-8 pr-5 lg:pl-10 lg:pr-6 pt-7 lg:pt-5 flex items-center gap-2 text-xl/7 font-bold transition-colors ${item.id === markedId ? 'text-sky-500' : ''}`}>
+                <span className="min-w-0 truncate">{item.title}</span>
+                {/* The …, centred on the larger name: the item heading's pull up into the space above is not wanted here. */}
+                <span className="ml-auto flex [&>*]:my-0!">{itemMenuButton(item)}</span>
+              </h2>
+              <ItemNote item={item} />
+            </section>
+          );
         return (
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
             {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It
@@ -153,39 +195,16 @@ export function SlideList({
                 <span className="min-w-0 truncate">{item.title}</span>
               </span>
               <OverlayChip item={item} overlays={overlays} />
-              {onItemMenu ? (
-                <AppButton
-                  variant="plain"
-                  aria-label={t('live.itemMore', { title: item.title })}
-                  onClick={() => onItemMenu(item)}
-                  // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
-                  className="ml-auto -mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300"
-                >
-                  <EllipsisIcon className="size-5" />
-                </AppButton>
-              ) : editing ? (
+              {editing ? (
                 // While its pictures are edited, Klar ends it at once.
                 <AppButton variant="plain" onClick={() => setEditingImages(null)} className={`${HEADING_BUTTON} ml-auto bg-sky-500 text-white hover:bg-sky-600`}>
                   {t('presentation.doneEditingImages')}
                 </AppButton>
               ) : (
-                menuSource && (
-                  <AppButton
-                    variant="plain"
-                    aria-label={t('presentation.itemOptions', { title: item.title })}
-                    title={t('presentation.itemOptions', { title: item.title })}
-                    // The menu opens under the button, as a row's … at the left opens it.
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setMenu({ item, at: { x: rect.left, y: rect.bottom + 4 } });
-                    }}
-                    className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] normal-case tracking-normal font-normal"
-                  >
-                    <EllipsisIcon className="size-4" />
-                  </AppButton>
-                )
+                itemMenuButton(item)
               )}
             </h3>
+            <ItemNote item={item} />
             <ItemWarnings item={item} set={set} songName={song?.name} />
             <ItemMedia item={item} set={set} players={players} shownId={pointer.itemId} />
             {set && editing ? (
@@ -225,6 +244,17 @@ export function SlideList({
       {footer && <div className="mt-auto flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
       {menu && menuSource && <ItemContextMenu menu={menu} source={menuSource} onClose={() => setMenu(null)} />}
     </div>
+  );
+}
+
+/** An item's comment for those who run it (spec 03 2f), under its name where its text starts; never on a screen. */
+function ItemNote({ item }: { item: PresentationItem }) {
+  if (!item.note) return null;
+  return (
+    <p className="flex gap-1.5 px-4 text-[13px]/[18px] text-stone-500 dark:text-stone-400 whitespace-pre-line" data-testid="item-note">
+      <CommentIcon className="size-3.5 shrink-0 mt-0.5" />
+      <span className="min-w-0">{item.note}</span>
+    </p>
   );
 }
 

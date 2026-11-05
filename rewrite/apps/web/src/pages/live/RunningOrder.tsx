@@ -9,7 +9,11 @@ import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { CheckboxIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { Dropdown } from '../../ui/Dropdown.tsx';
+import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
+import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
+import { AddChoices } from './AddChoices.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 
 
@@ -30,7 +34,7 @@ export function RunningOrder({
   selectedId,
   shownId,
   onSelect,
-  onAddAfter,
+  onAdd,
   menuSource,
   ticking,
   tickFirst = null,
@@ -41,8 +45,8 @@ export function RunningOrder({
   selectedId: string | null;
   shownId: string | null;
   onSelect: (itemId: string) => void;
-  /** Lägg till: after the item named, or by the live list's rule (liveList.ts `addAfter`) with none. */
-  onAddAfter: (itemId: string | null) => void;
+  /** Lägg till at the foot, a kind or a heading: by the live list's rule (liveList.ts `addAfter`). */
+  onAdd: (choice: AddChoice) => void;
   /** What a row's menu needs (ItemContextMenu); its Markera ticks the row it was chosen on here. */
   menuSource: ItemMenuSource;
   /** Select mode: Markera in a row's … starts it, Klar ends it. */
@@ -151,7 +155,8 @@ export function RunningOrder({
               // The row is the hover's room, edge to edge with the next; its pill is drawn 2 px in from top and bottom, so
               // the rows stand apart and the pointer still never falls between them (Lars, 2026-11-02): the row's button
               // reaches over those 2 px (its `before`), and the pointer is a hand all the way.
-              className="group relative py-0.5 text-sm scroll-mb-16 cursor-pointer"
+              // A heading (spec 03 2f) in bold, with room above it, as a sidebar's section; no kind's icon.
+              className={`group relative py-0.5 text-sm scroll-mb-16 cursor-pointer ${item.type === 'header' && i > 0 ? 'pt-3' : ''}`}
             >
               {/* Centred in the 20px room left of the row. */}
               {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
@@ -172,8 +177,8 @@ export function RunningOrder({
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-                    <span className="truncate">{item.title}</span>
+                    {item.type !== 'header' && <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />}
+                    <span className={`truncate ${item.type === 'header' ? 'font-semibold' : ''}`}>{item.title}</span>
                   </AppButton>
                 ) : (
                   <>
@@ -184,8 +189,8 @@ export function RunningOrder({
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-                    <span className="truncate">{item.title}</span>
+                    {item.type !== 'header' && <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />}
+                    <span className={`truncate ${item.type === 'header' ? 'font-semibold' : ''}`}>{item.title}</span>
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">
                         <WarningIcon className="size-4" />
@@ -232,10 +237,20 @@ export function RunningOrder({
         ) : ticking ? (
           <div className="text-sm text-center text-stone-400 dark:text-stone-500 py-2.5">{t('presentation.tickHint')}</div>
         ) : (
-          <AppButton variant="secondary" onClick={() => onAddAfter(null)} className="w-full flex items-center justify-center gap-2 touch:min-h-11">
-            <PlusIcon className="size-4" />
-            {t('presentation.add')}
-          </AppButton>
+          // A menu, as a phone's + (Lars, 2026-11-05): the kinds, then Rubrik.
+          <Dropdown
+            className="w-full"
+            menuClassName="w-56 p-1.5 rounded-xl!"
+            button={{ className: `w-full flex items-center justify-center gap-2 h-9 touch:h-11 rounded-full text-sm cursor-pointer ${SKY_TINT}` }}
+            trigger={
+              <>
+                <PlusIcon className="size-4" />
+                {t('presentation.add')}
+              </>
+            }
+          >
+            <AddChoices onChoose={onAdd} />
+          </Dropdown>
         )}
       </div>
       {menu && (

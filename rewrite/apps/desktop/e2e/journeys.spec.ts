@@ -39,13 +39,15 @@ async function newOutput(page: Page, kind: 'screen' | 'public', name: string): P
 /** Adds a reading by reference and a picture from the library to the open presentation. */
 async function addReadingAndPicture(page: Page, reference: string, picture: string) {
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await page.keyboard.press('Control+2');
   const search = picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)');
   await search.fill(reference);
   await search.press('Control+Enter');
   await expect(page.getByRole('status').getByText('har lagts till')).toBeVisible();
-  await page.keyboard.press('Control+3');
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
   await picker.getByRole('button', { name: picture, exact: true }).click();
   await picker.getByRole('button', { name: `Lägg till ${picture}` }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
@@ -165,7 +167,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
   await createPresentation(laptop, 'Söndag');
   await addSongs(laptop, ['Psalm 1']);
   await laptop.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await laptop.keyboard.press('Control+3');
+  await laptop.getByRole('menuitem', { name: 'Bild', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = laptop.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByRole('button', { name: 'Kors.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Kors.png' }).click();
