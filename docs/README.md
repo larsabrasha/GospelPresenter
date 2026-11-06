@@ -26,3 +26,8 @@ The output is written to the `dist/` directory. Preview the production build loc
 ```bash
 npm run preview
 ```
+
+## Screenshots
+
+The carousel's pictures in `src/screenshots/` are taken from the app itself: `pnpm screenshots` in `rewrite/`
+(`rewrite/apps/desktop/e2e/website.spec.ts`; `rewrite/docs/look.md` says more).

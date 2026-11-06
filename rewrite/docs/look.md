@@ -206,6 +206,14 @@ used as it is), runs the current app in mock mode on a free port, takes its pict
 (also on Ctrl-C), takes the new app's into `<dir>/new`, and lists the names found on one side only. Three pages
 took 71 s, 4 s of it starting the current app after an earlier build.
 
+**The website's pictures** (gospelpresenter.com, `../docs/`): `pnpm screenshots` takes the seven views its carousel
+shows (start page, Sånger, a presentation, Lägg till sång, Lägg till bibeltext, live, and a phone following a public
+output), in Swedish and English, light and dark, desktop (1440×900) and phone (390×844), at twice the pixels, as WebP
+over `../docs/src/screenshots` (`apps/desktop/e2e/website.spec.ts`; about a minute, both languages side by side). Each
+language gets a church of its own, with public-domain songs and a Bible of all 66 books, one verse each. Run it when
+the look changes, and commit the pictures with the change; GitHub Pages publishes `docs/` when it changes on `main`.
+The stage view the 1.x pictures had is gone (2026-11-01); the phone following along took its place.
+
 **Captions in sentence case** (Lars, 2026-11-02, as iOS 26): the grey caption over a group or a list ("Idag",
 "Kommande", "Ordning", "Utgångar") is written as a sentence, semibold and grey, never in capitals. Capitals stay
 only in the logo and in status badges (LIVE, STANDARD, and Ta kontroll's VISAS JUST NU); this window's own Visas just nu card on
