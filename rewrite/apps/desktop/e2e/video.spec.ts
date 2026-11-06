@@ -55,6 +55,19 @@ async function pairedScreen(page: Page): Promise<Page> {
 }
 
 /** A video element's playback, as the page sees it. */
+/** The boxes around `el` that clip what overflows them and cut `el` off, as their class names; none when it is whole. */
+const cutBy = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  const cut: string[] = [];
+  for (let box = el.parentElement; box; box = box.parentElement) {
+    const s = getComputedStyle(box);
+    if (!/hidden|auto|scroll|clip/.test(s.overflowX + s.overflowY)) continue;
+    const b = box.getBoundingClientRect();
+    if (r.left < b.left || r.right > b.right || r.top < b.top || r.bottom > b.bottom) cut.push(box.className);
+  }
+  return cut;
+};
+
 const playback = (video: Locator) =>
   video.evaluate((v: HTMLVideoElement) => ({ paused: v.paused, time: v.currentTime, muted: v.muted, src: v.getAttribute('src') ?? '', ready: v.readyState }));
 
@@ -194,8 +207,10 @@ test('Videor shows the videos as a grid with their lengths, imports from the pag
   await page.getByRole('dialog', { name: 'Dop.mp4' }).getByRole('button', { name: 'Stäng' }).click();
   await expect(page.getByTestId('quick-look')).toHaveCount(0); // gone once it has faded out
 
-  // Radera in its ⋯ menu, seen beside its name.
+  // Radera in its ⋯ menu, seen beside its name: the menu whole, not cut by the list's scrolling box at the grid's left
+  // edge (Lars, 2026-11-06).
   await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();
+  expect(await page.getByRole('menu').evaluate(cutBy)).toEqual([]);
   await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByText('Inga videor än')).toBeVisible();

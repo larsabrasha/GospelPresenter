@@ -40,8 +40,9 @@ export function Dropdown({
     const margin = 8;
     const room = visibleRoom(menu);
     const rect = menu.getBoundingClientRect();
-    // Kept inside the window sideways too: a menu under a ⋯ at a grid's left edge ran off the screen (Lars, 2026-11-04).
-    const shift = rect.left < margin ? margin - rect.left : rect.right > innerWidth - margin ? innerWidth - margin - rect.right : 0;
+    // Kept inside sideways too: a menu under a ⋯ at a grid's left edge ran off the screen (Lars, 2026-11-04), and in
+    // Inställningar's Videor it was cut by the list's scrolling box (Lars, 2026-11-06).
+    const shift = rect.left < room.left + margin ? room.left + margin - rect.left : rect.right > room.right - margin ? room.right - margin - rect.right : 0;
     if (shift) menu.style.transform = `translateX(${shift}px)`;
     if (rect.bottom <= room.bottom - margin) return;
     const parent = menu.parentElement!.getBoundingClientRect();
@@ -128,16 +129,22 @@ export function Dropdown({
 }
 
 /** The part of the window `el` can be seen in: the window, cut by every box around it that clips what overflows it. */
-function visibleRoom(el: HTMLElement): { top: number; bottom: number } {
-  let top = 0;
-  let bottom = window.innerHeight;
+function visibleRoom(el: HTMLElement): { top: number; bottom: number; left: number; right: number } {
+  const room = { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+  const clips = (overflow: string) => /hidden|auto|scroll|clip/.test(overflow);
   for (let box = el.parentElement; box; box = box.parentElement) {
-    if (!/hidden|auto|scroll|clip/.test(getComputedStyle(box).overflowY)) continue;
+    const style = getComputedStyle(box);
     const r = box.getBoundingClientRect();
-    top = Math.max(top, r.top);
-    bottom = Math.min(bottom, r.bottom);
+    if (clips(style.overflowY)) {
+      room.top = Math.max(room.top, r.top);
+      room.bottom = Math.min(room.bottom, r.bottom);
+    }
+    if (clips(style.overflowX)) {
+      room.left = Math.max(room.left, r.left);
+      room.right = Math.min(room.right, r.right);
+    }
   }
-  return { top, bottom };
+  return room;
 }
 
 /** The choices the arrows move between, a ticked one included. */
