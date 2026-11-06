@@ -90,13 +90,15 @@ and clean-up as pictures. The server takes a blob it recognises by its first byt
 WebM, up to 20 MiB, and serves it with that type; a picture stays limited to 10 MiB. A device fetches an audio
 file as it does a full picture: for a presentation it presents or keeps offline (see [Which files a device keeps](#which-files-a-device-keeps)). Ljud
 (`/admin/audios`) lists the files, with import, drop, search and the trash; there is no playback there (spec 05).
-An audio item has no slides; in the editor it shows a player for the file. The server's CSP now allows `blob:`
+An audio item has one slide, the theme's background with nothing on it (`audioSlide`); in the editor it shows a
+player for the file. The server's CSP now allows `blob:`
 for media, which the player needs. One file per item: spec 03's item with several audio files is not built.
 
 **Live** (spec 04 §1b, `apps/web/src/live/audio.ts`). The presenting window has one audio engine: the item it
-plays is the session's audio, and it keeps playing while the operator moves on, on any page, until another
-audio item plays or the presentation ends. Playing never changes what is shown (LIVE-R6). Each audio item on the live page
-has play and pause, a seek bar (muted while it moves, until 150 ms after), the time, and Tona ut (5 s, ease-out
+plays is the session's audio. Its slide shown plays it from its start, and any other slide shown stops it; Släck
+pauses it, the slide shown again plays on (Lars, 2026-11-06: audio alone, as a video; `AudioEngine.show`,
+`followAudio` in `live/owner.ts`). It plays on whatever page is open, until another slide is shown or the presentation ends. Its controls lie on the live picture
+(`pages/live/MediaControls.tsx`): play and pause, a seek bar (muted while it moves, until 150 ms after), the time, and Tona ut (5 s, ease-out
 cubic, then pause, rewind and the volume back). Audio plays only on the presenting computer. The owner reports
 its audio with its live state; a controller sees a mirror, its position carried on from when the report arrived,
 and its buttons are commands relayed to the owner like the slide commands. **Starting sound from a controller:**
@@ -154,6 +156,12 @@ finds the organisation from it; the desktop host's pairing guard lets it through
 The editor's player (`VideoPreview`) loads nothing until played (`preload="none"`) and keeps nothing; the operator
 window, the output window and a paired screen stream the same way. `fetchMedia` and `blobUrl` are never used for a
 video.
+
+**A hidden presenting tab.** Safari on an iPad pauses a video in a tab that is not in front, and the output window
+opened from it is a tab in front of it. The engine then reports the video as playing on from where Safari paused it,
+so the output plays it on, muted; once the tab shows again its video goes on from where it should be (Lars,
+2026-11-06; `VideoEngine` in `live/video.ts`, tested in `apps/web/test/video.test.ts`). Its sound is the hidden tab's,
+so none is heard meanwhile.
 
 **Files.** A device fetches a video's thumbnail always (with the pictures'), and its still with a presentation's
 pictures, ahead or on demand as for pictures; never the video. "Alla bilder och ljud finns på den här enheten"

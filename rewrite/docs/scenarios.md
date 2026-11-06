@@ -23,7 +23,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | A borrowed TV as a temporary screen, by code or QR | `screens.spec.ts`: "a TV shows a code", `screens.spec.ts`: "a TV that opens the QR link" |
 | Phones follow on a public output | `watch.spec.ts`: "a public output follows" |
 | Overlays (the collection, a welcome) | `overlays.spec.ts`: "an item carries its overlay" |
-| Audio and video during the service | `audio.spec.ts`: "live: audio plays", `video.spec.ts`: "live: the output window plays the video" |
+| Audio and video during the service | `audio.spec.ts`: "live: an audio slide plays alone", `video.spec.ts`: "live: the output window plays the video" |
 | Someone else drives from a second computer or a phone | `remote.spec.ts`: "a second computer takes control", `remote.spec.ts`: "a phone on the LAN" |
 | A clicker: next, previous and black from its keys | `milestone6.spec.ts`: "a clicker's keys" |
 | The presenting computer drops out mid-service | `remote.spec.ts`: "when the presenting computer drops out" |

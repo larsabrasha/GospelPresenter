@@ -5,12 +5,15 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { LIFTED } from '../../ui/glass.ts';
 import { BlackScreenIcon, ChevronLeftIcon } from '../../ui/icons.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
+import type { Players } from '../presentation-editor/ItemParts.tsx';
+import { MediaControls } from './MediaControls.tsx';
 
 /**
  * The picture shown and ‹ Släck › under it, the same on a phone and a computer (docs/layout-2-0.md): a red ring while
  * the outputs show it, grey while Släck has blacked them; round lifted arrows, and Släck a capsule of plain text between
  * them, as iOS 27's player. Släck only blacks the outputs; a part chosen or an arrow shows one again, as ProPresenter's
- * Clear. `children` (a video's player line) goes between the picture and the buttons. `trailing` (a phone's Visning)
+ * Clear. An audio or video slide shown has its controls over the picture (MediaControls), with `players` and the
+ * shown item's `itemId`. `trailing` (a phone's Visning)
  * stands at the right end of a row as wide as the column, the buttons kept in its middle, Släck as wide as there is
  * room for, up to 144 px. Without `onStep` there are no arrows: a phone shows a part by a tap on it, and the arrows
  * were seldom used there and drew the eye (Lars, 2026-11-03). The picture is `data-live-picture`, which fades in
@@ -28,7 +31,8 @@ export function LivePicture({
   maxWidthClass = 'max-w-[640px]',
   trailing,
   leading,
-  children,
+  players,
+  itemId = null,
 }: {
   slide: Slide | null;
   theme: Theme;
@@ -43,16 +47,18 @@ export function LivePicture({
   trailing?: ReactNode;
   /** With `trailing`: what stands at the row's left end (a phone's Beskrivning); an empty place as wide, without. */
   leading?: ReactNode;
-  children?: ReactNode;
+  /** While presenting: the session's audio and video, which the controls drive. */
+  players?: Players;
+  itemId?: string | null;
 }) {
   // 36 px on a computer, as every button there; 44 by touch and on a phone (Lars, 2026-11-02).
   const arrow = `size-11 lg:size-9 lg:touch:size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${LIFTED}`;
   return (
     <div className="flex flex-col gap-3 items-center">
-      <div data-live-picture className={`w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
+      <div data-live-picture className={`relative w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
         <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} />
+        {players && itemId && slide && <MediaControls slide={slide} itemId={itemId} players={players} />}
       </div>
-      {children}
       {/* ‹ Släck › in the middle (a phone: Släck alone); on a phone Visning at the row's right end, round and lifted as the arrows; the picture
           stays free of buttons (Lars, 2026-11-02). */}
       <div role="toolbar" aria-label={t('live.outputs')} className={`flex items-center h-11 lg:h-9 lg:touch:h-11 ${trailing ? 'w-full max-w-[640px] justify-between gap-2' : 'justify-center'}`}>

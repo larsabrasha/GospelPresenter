@@ -73,7 +73,7 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Preludium\.wav.*Ljudfil/]);
 });
 
-test('live: audio plays on the presenting computer, keeps playing while slides change, fades out, and a controller drives it (LIVE-A29, A31, A32)', async () => {
+test('live: an audio slide plays alone on the presenting computer, its controls on the picture; another slide stops it, a controller drives it (LIVE-A31, A32)', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -101,32 +101,25 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   await expect(page.getByTestId('media-ready')).toHaveText('Alla bilder och ljud finns på den här enheten.');
+  // Audio is a slide (Lars, 2026-11-06): no player among the slides; its controls show on the picture once it is shown.
+  const player = page.getByTestId('live-panel').getByTestId('audio-player');
+  await expect(page.getByTestId('audio-player')).toHaveCount(0);
 
-  // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
+  // A controller shows the audio slide first, before anyone played it on the presenting computer (LIVE-A32).
   await allowRemote(page);
   await openPresentations(second.page);
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');
-  const player = page.getByTestId('audio-player');
   // The controller fetches no audio: it never plays (docs/media-and-files.md, "Which files a device keeps").
   await expect(second.page.getByTestId('media-ready')).toHaveCount(0);
-  // The player is the audio item's, there when it is selected, on either computer.
   await pickItem(second.page, 'Preludium.wav');
-  await mirror.getByRole('button', { name: 'Spela' }).click();
-  await pickItem(page, 'Preludium.wav');
+  await second.page.getByRole('button', { name: 'Preludium.wav 1' }).click();
+  // It plays here, from its start, and the outputs show the theme's background alone: no text, no name.
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
   await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
-  // It plays here, and what is shown stays (LIVE-R6).
-  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await expect.poll(async () => (await player.getByTestId('audio-time').textContent()) === '0:00', { timeout: 5_000 }).toBe(false);
-  // What is shown changes; the sound plays on (LIVE-A31).
-  await page.getByRole('button', { name: 'Släck' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await pickItem(page, 'Sång A');
-  await page.getByRole('button', { name: 'Sång A 1' }).click();
-  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await pickItem(page, 'Preludium.wav');
-  await expect(player).toHaveAttribute('data-playing', 'true');
+  await expect(output.getByTestId('audio-mark')).toHaveCount(0);
+  await expect.poll(async () => (await player.getByTestId('audio-time').textContent()) === '0:00', { timeout: 5_000 }).toBe(false);
 
   // The controller pauses it, and the presenting computer stops; then the operator plays it on here.
   await mirror.getByRole('button', { name: 'Pausa' }).click();
@@ -135,6 +128,22 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await player.getByRole('button', { name: 'Spela' }).click();
   await expect(player).toHaveAttribute('data-playing', 'true');
   await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+
+  // Another slide shown stops it, and its controls go; shown again it plays from its start (LIVE-A31).
+  await pickItem(page, 'Sång A');
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await expect(page.getByTestId('audio-player')).toHaveCount(0);
+  await pickItem(page, 'Preludium.wav');
+  await page.getByRole('button', { name: 'Preludium.wav 1' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+  await expect(player.getByTestId('audio-time')).toHaveText(/^0:0[01]$/);
+
+  // Släck pauses it, as a video; the slide shown again plays on.
+  await page.getByRole('button', { name: 'Släck' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
+  await page.getByRole('button', { name: 'Preludium.wav 1' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
 
   // Tona ut: five seconds, then it stops and rewinds (LIVE-A31).
   await player.getByRole('button', { name: 'Tona ut' }).click();

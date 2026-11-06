@@ -130,8 +130,10 @@ test('live: the output window plays the video in step with the operator window, 
   // The video goes live: it plays on the output, muted; its sound is the operator window's.
   await pickItem(page, 'Dop.mp4');
   await page.getByRole('button', { name: 'Dop.mp4 1' }).click();
-  const player = page.getByTestId('video-player');
+  // Its player under the picture, not among the slides (Lars, 2026-11-06).
+  const player = page.getByTestId('live-panel').getByTestId('video-player');
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 10_000 });
+  await expect(page.getByTestId('live-slides').getByTestId('video-player')).toHaveCount(0);
   const onOutput = output.getByTestId('slide-video');
   await expect.poll(async () => (await playback(onOutput)).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
   expect((await playback(onOutput)).muted).toBe(true);

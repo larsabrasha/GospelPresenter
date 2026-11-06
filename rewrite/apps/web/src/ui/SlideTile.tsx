@@ -1,4 +1,6 @@
+import type { Slide } from '@gp/core';
 import { t } from '../i18n.ts';
+import { SpeakerWaveIcon } from './icons.tsx';
 import type { SlideMarkKind } from '../live/liveList.ts';
 
 // A slide in a grid, as the current app draws one (Components/Slide.razor):
@@ -35,6 +37,20 @@ export function SlideMark({ kind, className }: { kind: SlideMarkKind; className?
       className={`shrink-0 text-[11px]/4 font-bold tracking-wide px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'bg-red-600 text-white' : 'bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
     >
       {kind === 'shown' ? t('live.shownBadge') : t('live.nextBadge')}
+    </span>
+  );
+}
+
+/**
+ * What an audio slide is, drawn over its tile for the operator only (the outputs show the theme's background alone):
+ * a speaker and, unless `small`, the file's name.
+ */
+export function AudioMark({ slide, small = false }: { slide: Slide; small?: boolean }) {
+  if (!slide.audio) return null;
+  return (
+    <span className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-2 px-4 text-white pointer-events-none" data-testid="audio-mark">
+      <SpeakerWaveIcon className={`${small ? 'size-6' : 'size-10'} drop-shadow`} />
+      {!small && <span className="max-w-full truncate text-sm drop-shadow">{slide.audio.name}</span>}
     </span>
   );
 }

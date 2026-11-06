@@ -187,10 +187,20 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       video.setBlack(p.black);
       void video.buffer(nextVideo);
     };
+    // An audio item that goes live plays here, from its start; anything else shown stops it (Lars, 2026-11-06).
+    let audioTurn = 0;
+    const followAudio = async (p: LivePointer) => {
+      const mine = ++audioTurn;
+      const item = p.presentationId && p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
+      if (mine !== audioTurn) return;
+      await audio.show(item?.type === 'audio' ? item.id : null);
+      if (mine === audioTurn) audio.setBlack(p.black);
+    };
     let presenting: string | null = null;
     const off = live.subscribe((p) => {
       if (p.presentationId !== presenting) void loadOverlays((presenting = p.presentationId));
       void followVideo(p);
+      void followAudio(p);
       void report(p);
     });
     const again = () => void report(live.pointer);

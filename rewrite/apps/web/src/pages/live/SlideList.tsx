@@ -5,16 +5,15 @@ import { slideMarks, type SlideMarkKind } from '../../live/liveList.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
-import { SlideMark } from '../../ui/SlideTile.tsx';
+import { AudioMark, SlideMark } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
-import { ImageItemEditor, ItemMedia, ItemWarnings, type Players } from '../presentation-editor/ItemParts.tsx';
+import { ImageItemEditor, ItemMedia, ItemWarnings } from '../presentation-editor/ItemParts.tsx';
 import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
 import { PILL } from '../songEditorLook.ts';
 import { OverlayChip } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 import { useFollowShown } from './followShown.ts';
-
 
 /** A slide picked before presenting: outlined in blue, shown nowhere. */
 export type SlidePick = { itemId: string; partIndex: number };
@@ -37,7 +36,6 @@ export function SlideList({
   songs,
   overlays,
   pointer,
-  players,
   toItem,
   markedId = null,
   onShow,
@@ -58,8 +56,6 @@ export function SlideList({
   songs: Map<string, Song>;
   overlays: Overlay[];
   pointer: LivePointer;
-  /** While presenting: the session's players (on a phone the audio only: the video plays in the picture). */
-  players?: Players;
   /** The item to scroll to: chosen at the left, or just added; a new object each time, the same item again too. */
   toItem: { id: string } | null;
   /** An item just added, its heading marked for a moment. */
@@ -194,7 +190,9 @@ export function SlideList({
             </h3>
             <ItemNote item={item} />
             <ItemWarnings item={item} set={set} songName={song?.name} />
-            <ItemMedia item={item} set={set} players={players} shownId={pointer.itemId} />
+            {/* Before presenting, a preview of an audio or video item; while presenting its controls are on the live
+                picture once it is shown (MediaControls). */}
+            {!onShow && <ItemMedia item={item} set={set} />}
             {set && editing ? (
               <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
             ) : !set?.slides.length ? null : wide ? (
@@ -285,8 +283,9 @@ function PartRow({
       className={`w-full flex gap-3 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl text-left cursor-pointer ring-2 ring-inset ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised ring-red-500' : rested ? 'ring-stone-300 dark:ring-stone-600' : picked ? 'ring-sky-500' : 'ring-transparent'}`}
     >
       {pictured && (
-        <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
+        <span className="relative w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
           <SlideView slide={slide} theme={theme} label={false} credits={false} />
+          <AudioMark slide={slide} small />
         </span>
       )}
       <span className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -303,6 +302,7 @@ function PartRow({
           {mark && <SlideMark kind={mark} />}
         </span>
         {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
+        {slide.audio && <span className="text-[17px]/snug truncate text-stone-900 dark:text-stone-100">{slide.audio.name}</span>}
       </span>
     </AppButton>
   );

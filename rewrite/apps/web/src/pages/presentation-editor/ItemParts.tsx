@@ -2,7 +2,6 @@ import type { LibraryVideo, Overlay, PresentationItem, Song, SongArrangement, Th
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
-import { VideoPlayer } from '../live/VideoPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
 import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
 import { useBlobUrl, useDb } from '../../db/react.tsx';
@@ -202,31 +201,13 @@ export function ItemWarnings({ item, set, songName }: { item: PresentationItem; 
   );
 }
 
-/** While presenting: the session's audio and video, which an item's players drive. */
+/** While presenting: the session's audio and video, which the controls on the live picture drive. */
 export type Players = { audio: AudioControl; video?: VideoControl };
 
-/**
- * An audio or video item's player: while presenting the session's own (what plays on the presenting computer, the
- * outputs following its picture), the video only on the item shown; before, a preview of its own.
- */
-export function ItemMedia({ item, set, players, shownId }: { item: PresentationItem; set: ItemSlides | undefined; players?: Players; shownId: string | null }) {
-  if (set?.audio)
-    return players ? (
-      <div className="w-full sm:max-w-lg">
-        <AudioPlayer control={players.audio} itemId={item.id} name={set.audio.fileName} />
-      </div>
-    ) : (
-      <AudioPreview key={item.id} itemId={item.id} hash={set.audio.hash} name={set.audio.fileName} />
-    );
-  if (set?.video) {
-    if (!players) return <VideoPreview key={item.id} video={set.video} />;
-    if (!players.video || item.id !== shownId) return null;
-    return (
-      <div className="w-full sm:max-w-lg">
-        <VideoPlayer control={players.video} itemId={item.id} name={set.video.fileName} type={set.video.contentType} codec={set.video.codec} />
-      </div>
-    );
-  }
+/** Before presenting, an audio or video item's preview: its own player, which plays nothing on the outputs. */
+export function ItemMedia({ item, set }: { item: PresentationItem; set: ItemSlides | undefined }) {
+  if (set?.audio) return <AudioPreview key={item.id} itemId={item.id} hash={set.audio.hash} name={set.audio.fileName} />;
+  if (set?.video) return <VideoPreview key={item.id} video={set.video} />;
   return null;
 }
 

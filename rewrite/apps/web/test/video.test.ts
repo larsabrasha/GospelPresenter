@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Sha256, VIDEO_LIMITS } from '@gp/core';
-import { expectedPosition, follow, SEEK_DRIFT_S } from '../src/live/video.ts';
+import { Sha256, VIDEO_LIMITS, type LibraryVideo } from '@gp/core';
+import { expectedPosition, follow, SEEK_DRIFT_S, VideoEngine } from '../src/live/video.ts';
 import { checkPickedVideo, hashFile, stillTime, uploadVideo, VideoRefused, type UploadProgress } from '../src/media/video.ts';
 import { formatDuration } from '../src/pages/VideoTab.tsx';
 
@@ -148,5 +148,83 @@ describe('uploading a video in parts', () => {
     );
 
     await expect(uploadVideo(file, 'a'.repeat(64), () => {}, async () => {})).rejects.toMatchObject({ problem: 'codec', codec: 'mp4v' });
+  });
+});
+
+/** A video element as far as the engine uses one, and a page whose tab can be hidden, as Safari's. */
+class FakeVideo extends EventTarget {
+  paused = true;
+  ended = false;
+  muted = false;
+  currentTime = 0;
+  duration = 20;
+  playbackRate = 1;
+  preload = '';
+  playsInline = false;
+  src = '';
+  load() {}
+  play() {
+    this.paused = false;
+    this.dispatchEvent(new Event('play'));
+    return Promise.resolve();
+  }
+  pause() {
+    if (this.paused) return;
+    this.paused = true;
+    this.dispatchEvent(new Event('pause'));
+  }
+}
+
+describe('the presenting window’s video while its tab is hidden', () => {
+  const page = Object.assign(new EventTarget(), { hidden: false, createElement: () => new FakeVideo() });
+  const video = { hash: 'h'.repeat(64), contentType: 'video/mp4', codec: 'h264', duration: 20_000 } as unknown as LibraryVideo;
+  const hide = (hidden: boolean) => {
+    page.hidden = hidden;
+    page.dispatchEvent(new Event('visibilitychange'));
+  };
+  const shown = async () => {
+    vi.stubGlobal('document', page);
+    vi.useFakeTimers({ now: 1_000_000 });
+    const engine = new VideoEngine(async () => 'blob:video');
+    await engine.show({ itemId: 'v', video });
+    return { engine, el: (engine as unknown as { current: { el: FakeVideo } }).current.el };
+  };
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    page.hidden = false;
+  });
+
+  it('reports it playing on from where the browser paused it, so the outputs play on', async () => {
+    const { engine, el } = await shown();
+    el.currentTime = 3;
+    hide(true);
+    el.pause(); // Safari, not anyone's hand
+    vi.advanceTimersByTime(2_000);
+
+    expect(engine.state()).toMatchObject({ playing: true, position: 5 });
+  });
+
+  it('goes on from where it should be once the tab shows again', async () => {
+    const { el } = await shown();
+    el.currentTime = 3;
+    hide(true);
+    el.pause();
+    vi.advanceTimersByTime(4_000);
+
+    hide(false);
+
+    expect({ paused: el.paused, at: el.currentTime }).toEqual({ paused: false, at: 7 });
+  });
+
+  it('stays paused when someone paused it while the tab was hidden', async () => {
+    const { engine, el } = await shown();
+    hide(true);
+    engine.command({ action: 'pause', itemId: 'v' });
+    vi.advanceTimersByTime(2_000);
+
+    hide(false);
+
+    expect({ playing: engine.state()?.playing, paused: el.paused }).toEqual({ playing: false, paused: true });
   });
 });

@@ -45,7 +45,6 @@ import { FloatingPanelToggle } from '../../ui/PanelToggle.tsx';
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
 
-
 /**
  * Presenting from the editor, as Presentation.razor does: this window's own session
  * (`owner`), or a controller driving one elsewhere (`?remote=true`). The running order stays, so items
@@ -435,7 +434,6 @@ export function PresentationEditor({
               songs={songs}
               overlays={overlays}
               pointer={pointer}
-              players={presenting ? { audio: presenting.audio, video: presenting.video } : undefined}
               toItem={reveal}
               onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
               onAddImages={(itemId) => {
@@ -459,8 +457,7 @@ export function PresentationEditor({
         {!phone && presenting && (
           <LivePanel
             presentation={presentation}
-            owner={owner}
-            link={presenting.link}
+            presenting={presenting}
             live={live}
             pointer={pointer}
             current={current}

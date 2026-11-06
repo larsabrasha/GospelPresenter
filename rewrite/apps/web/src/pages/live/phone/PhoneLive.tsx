@@ -29,7 +29,6 @@ import { RemoteBanner } from '../RemoteBanner.tsx';
 import { OverlaysPanel } from '../OverlaysPanel.tsx';
 import { RemoteStatus } from '../RemotePanel.tsx';
 import { OutputsPanel } from '../OutputsPanel.tsx';
-import { VideoPlayer } from '../VideoPlayer.tsx';
 import { DescriptionGlyph, DisplayGlyph } from './LiveGlyphs.tsx';
 import { Description } from '../../presentation-editor/Description.tsx';
 
@@ -121,7 +120,6 @@ export function PhoneLive({
   useLiveMotion(pictureArea, { shown: !!presenting });
 
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
-  const video = pointer.itemId ? slides.get(pointer.itemId)?.video : undefined;
 
   const afterFor = (chosenId: string | null) => addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId, chosenId });
   // A choice of + or of "Lägg till efter": a heading is named at once, a kind opens the dialog on it.
@@ -177,9 +175,9 @@ export function PhoneLive({
           trailing={
             (owner || !!overlays.length) && <DisplayGlyph link={owner ? presenting.link : null} sessionId={owner?.sessionId ?? ''} pointer={pointer} onClick={() => setOpen('display')} />
           }
-        >
-          {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
-        </LivePicture>
+          players={presenting}
+          itemId={pointer.itemId}
+        />
       </div>
       )}
 
@@ -232,7 +230,6 @@ export function PhoneLive({
           songs={songs}
           overlays={overlays}
           pointer={pointer}
-          players={presenting ? { audio: presenting.audio } : undefined}
           toItem={toAdded}
           markedId={addedId}
           onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}

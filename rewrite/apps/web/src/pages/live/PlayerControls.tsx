@@ -15,9 +15,10 @@ const LABELS: Record<PlayerKind, { play: TextKey; pause: TextKey; seek: TextKey 
 
 /**
  * Play and pause, the time played, a thin sky seek bar with a knob on hover that a mouse or a finger drags (or the
- * arrow keys move by 5 s), and the length (AudioPlayer.razor). The player it belongs to sends the commands.
+ * arrow keys move by 5 s), and the length (AudioPlayer.razor). The player it belongs to sends the commands. `onPicture`
+ * in white, over the live picture (MediaControls).
  */
-export function PlayerControls({ kind, playing, position, duration, onToggle, onSeek }: { kind: PlayerKind; playing: boolean; position: number; duration: number; onToggle: () => void; onSeek: (position: number) => void }) {
+export function PlayerControls({ kind, onPicture = false, playing, position, duration, onToggle, onSeek }: { kind: PlayerKind; onPicture?: boolean; playing: boolean; position: number; duration: number; onToggle: () => void; onSeek: (position: number) => void }) {
   const labels = LABELS[kind];
   const bar = useRef<HTMLDivElement>(null);
   const seekTo = (e: { clientX: number }) => {
@@ -32,17 +33,17 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
   };
   const percent = duration ? `${(position / duration) * 100}%` : '0%';
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center ${onPicture ? 'gap-2' : 'gap-3'}`}>
       <AppButton
         variant="plain"
         aria-label={playing ? t(labels.pause) : t(labels.play)}
         onClick={onToggle}
-        className="size-10 flex items-center justify-center rounded-full bg-raised cursor-pointer hover:bg-raised-2 transition shrink-0"
+        className={`${onPicture ? 'size-9 bg-white/20 hover:bg-white/30 backdrop-blur-sm' : 'size-10 bg-raised hover:bg-raised-2'} flex items-center justify-center rounded-full cursor-pointer transition shrink-0`}
       >
         {playing ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
       </AppButton>
       <div className="flex-1 flex items-center gap-2 min-w-0">
-        <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums w-10 text-right shrink-0" data-testid={`${kind}-time`}>
+        <span className={`text-xs tabular-nums w-10 text-right shrink-0 ${onPicture ? 'text-white/85' : 'text-stone-500 dark:text-stone-400'}`} data-testid={`${kind}-time`}>
           {clock(position)}
         </span>
         <div
@@ -64,12 +65,12 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
             onSeek(Math.min(duration, Math.max(0, position + by)));
           }}
         >
-          <div className="w-full h-1.5 rounded-full bg-stone-200 dark:bg-raised-2 overflow-hidden">
+          <div className={`w-full h-1.5 rounded-full overflow-hidden ${onPicture ? 'bg-white/30' : 'bg-stone-200 dark:bg-raised-2'}`}>
             <div className="h-full bg-sky-500 rounded-full transition-none" style={{ width: percent }} />
           </div>
           <div className="absolute size-3.5 -ml-[7px] rounded-full bg-sky-500 shadow opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" style={{ left: percent }} />
         </div>
-        <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums w-10 shrink-0" data-testid={`${kind}-duration`}>
+        <span className={`text-xs tabular-nums w-10 shrink-0 ${onPicture ? 'text-white/85' : 'text-stone-500 dark:text-stone-400'}`} data-testid={`${kind}-duration`}>
           {clock(duration)}
         </span>
       </div>

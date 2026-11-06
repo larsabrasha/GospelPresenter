@@ -31,6 +31,11 @@ export interface Slide {
   /** A video slide's video, which the outputs play; its `image` is the still, drawn where it does not play. */
   video?: SlideVideo;
   /**
+   * An audio item's one slide (Lars, 2026-11-06: audio is shown and played alone, as a video): the outputs show the
+   * theme's background and nothing on it while the presenting computer plays the file; its name is for the operator.
+   */
+  audio?: { name: string };
+  /**
    * A custom slide's page (docs/custom-slides.md), drawn instead of the text; `kind` is `song`, whose theme style it
    * follows, and `text` its texts, for a public output.
    */
@@ -116,6 +121,11 @@ export function videoSlide(video: { hash: string; contentType: VideoType; codec:
     credits: null,
     video: { hash: video.hash, type: video.contentType, codec: video.codec },
   };
+}
+
+/** An audio item's one slide: nothing on the outputs but the theme's background, while the sound plays. */
+export function audioSlide(name: string): Slide {
+  return { key: 'audio', kind: 'media', text: '', verses: null, image: null, label: null, credits: null, audio: { name } };
 }
 
 /** At most this many pictures in one image item. */

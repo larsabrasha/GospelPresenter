@@ -351,7 +351,8 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
   arrangement); if the song is missing from the library, parts are reconstructed from the item's saved
   parts. Image → part ordered by `SortOrder`, live org-image URL `full` variant. BibleText → part
   `PartIndex` (in stored order), credits = item title. Slides → part ordered by `SortOrder` whose content
-  is the page number → live slides-page URL. Audio → no slide (null). `GospelPresenter/GospelPresenter.Shared/Services/LiveSlideBuilder.cs:82-172`
+  is the page number → live slides-page URL. Audio → no slide (null) in 1.x; the rewrite gives an audio item one
+  slide, the theme's background with nothing on it, which plays the file while it is shown (Lars, 2026-11-06). `GospelPresenter/GospelPresenter.Shared/Services/LiveSlideBuilder.cs:82-172`
 - **LIVE-R4** Building a slide always sets `Status = ShowingPresentation` (selecting a slide un-blacks
   the screen), sets the theme, and an out-of-range part still moves the selection but leaves
   text/image/song fields empty (renders as an empty themed canvas). `LiveSlideBuilder.cs:157-171`;
@@ -359,7 +360,9 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
 - **LIVE-R5** Start clears the live slide to black with nothing selected before activating, so the
   previous presentation's slide can never be one press away. `SharedAppState.cs:140-141`; `Presentation.razor:706-707`
 - **LIVE-R6** Selecting an audio item never changes what is projected, except in stage mode where
-  picking an audio item blacks the screen. `Presentation.razor:1437-1438`, `:746-751`
+  picking an audio item blacks the screen. The rewrite instead shows and plays audio alone, as a video (Lars,
+  2026-11-06): its slide shown puts the theme's background on the outputs and plays the file from its start; any
+  other slide shown stops it; Släck pauses it and the slide shown again plays on. `Presentation.razor:1437-1438`, `:746-751`
 - **LIVE-R7** Song credits format: non-empty of [Author, "© "+Publisher, Year] joined by " · ";
   none → no credits line. `LiveSlideBuilder.cs:193-205`
 - **LIVE-R8** Song text is rendered as plain text (HTML-encoded, `white-space: pre-wrap`); Bible text is
@@ -675,7 +678,8 @@ Setup unless stated: org "Församling", admin user, presentation P with items [S
   view's selected item switches to B; the normal (non-stage) page of a third viewer does not change its
   selected item.
 - **LIVE-A31** Given P live and audio item A selected and playing, When I select S and show slides,
-  Then audio keeps playing; When I press "Tona ut", Then volume fades over 5 s and playback rewinds.
+  Then audio keeps playing (1.x; in the rewrite a slide of S shown stops it, LIVE-R6); When I press "Tona ut", Then
+  volume fades over 5 s and playback rewinds.
 - **LIVE-A32** Given a remote controller viewing A, When it presses play, Then audio plays on the
   operator machine, not on the phone.
 - **LIVE-A33** Given a desktop device D presenting P with remote enabled, Then the web dashboard of the

@@ -3,7 +3,8 @@ import { useRef } from 'react';
 import { orgRemoteControl } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
-import type { LiveControl, LiveLink } from '../../live/remote.ts';
+import type { LiveControl } from '../../live/remote.ts';
+import type { Presenting } from '../presentation-editor/PresentationEditor.tsx';
 import { LivePicture } from './LivePicture.tsx';
 import { useLiveMotion } from './liveMotion.ts';
 import { useFold } from '../../ui/sidePanels.ts';
@@ -20,8 +21,7 @@ import { RemoteStatus } from './RemotePanel.tsx';
  */
 export function LivePanel({
   presentation,
-  owner,
-  link,
+  presenting,
   live,
   pointer,
   current,
@@ -34,8 +34,7 @@ export function LivePanel({
   onFold,
 }: {
   presentation: Pick<Presentation, 'id' | 'name'>;
-  owner: { sessionId: string } | null;
-  link: LiveLink;
+  presenting: Presenting;
   live: LiveControl;
   pointer: LivePointer;
   current: Slide | null;
@@ -50,6 +49,7 @@ export function LivePanel({
   onFold?: () => void;
 }) {
   const remotePolicy = useData(orgRemoteControl, []);
+  const { owner, link } = presenting;
   // The column, which slides in from the right before the picture fades in after a start (liveMotion.ts).
   const column = useRef<HTMLElement>(null);
   useLiveMotion(column, { side: true });
@@ -57,7 +57,7 @@ export function LivePanel({
   // As wide at the right as at the left whatever the scrollbar, as the left column (app.css `--beside-scrollbar`).
   return (
     <aside ref={column} className="flex w-[340px] shrink-0 overflow-y-auto flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-safe-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
-      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} canStep={canStep} onStep={onStep} onClear={() => live.set({ black: true })} />
+      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} canStep={canStep} onStep={onStep} onClear={() => live.set({ black: true })} players={presenting} itemId={pointer.itemId} />
       {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
       {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}

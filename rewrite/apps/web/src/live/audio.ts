@@ -134,6 +134,39 @@ export class AudioEngine implements AudioControl {
     this.notify();
   }
 
+  /** The audio item live, if one is. */
+  private shown: string | null = null;
+  /** Paused by the black screen, so showing the picture again resumes it. */
+  private pausedByBlack = false;
+
+  /**
+   * The item now live (Lars, 2026-11-06: audio is shown and played alone, as a video): an audio item plays from its
+   * start; anything else stops the sound. The same item again changes nothing.
+   */
+  async show(itemId: string | null) {
+    if (itemId === this.shown) return;
+    this.shown = itemId;
+    this.pausedByBlack = false;
+    this.stop();
+    if (!itemId) return;
+    if (itemId === this.itemId) this.el.currentTime = 0;
+    await this.run({ action: 'play', itemId });
+  }
+
+  /** The black screen (B, Släck) pauses the sound, as a video's; the slide shown again resumes it. */
+  setBlack(black: boolean) {
+    if (!this.shown || this.shown !== this.itemId) return;
+    if (black && !this.el.paused) {
+      this.pausedByBlack = true;
+      this.stopFade();
+      this.el.pause();
+      this.notify();
+    } else if (!black && this.pausedByBlack) {
+      this.pausedByBlack = false;
+      void this.el.play().catch(() => this.notify());
+    }
+  }
+
   /**
    * The presentation ended: its audio stops with it. Nothing playing, nothing
    * to do and nobody told: the owner calls this on every report while it

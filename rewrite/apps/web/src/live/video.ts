@@ -89,7 +89,7 @@ interface Slot {
   ref: VideoRef | null;
 }
 
-function newSlot(onEvent: () => void): Slot {
+function newSlot(onEvent: (e: Event) => void): Slot {
   const el = document.createElement('video');
   el.preload = 'auto';
   el.playsInline = true;
@@ -111,16 +111,53 @@ export class VideoEngine implements VideoControl {
   private turn = 0;
 
   constructor(private urlOf: (hash: string) => Promise<string | null> = playUrl) {
-    const notify = () => this.notify();
-    this.current = newSlot(notify);
-    this.spare = newSlot(notify);
+    const onEvent = (e: Event) => {
+      if (e.type === 'pause') this.notePause(e.target as HTMLVideoElement);
+      this.notify();
+    };
+    this.current = newSlot(onEvent);
+    this.spare = newSlot(onEvent);
+    // Shown again: the video Safari paused while the page was hidden goes on from where it should be now.
+    document.addEventListener('visibilitychange', () => {
+      const held = this.hidden;
+      if (document.hidden || !held) return;
+      this.hidden = null;
+      const el = this.current.el;
+      el.currentTime = expectedPosition({ playing: true, ...held }, Date.now(), Number.isFinite(el.duration) ? el.duration : null);
+      void this.start(el);
+    });
+  }
+
+  /** Whether the video should play: started, and not paused by a hand, the black screen or another item. */
+  private wanted = false;
+  /**
+   * Where the video was when the browser paused it because the page was hidden (Lars, 2026-11-06: Safari on an iPad
+   * pauses a hidden tab's video, which the output tab in front of it opened, and the outputs stood still with it).
+   * Meanwhile it is reported as playing on from there, so the outputs play on.
+   */
+  private hidden: { position: number; at: number } | null = null;
+
+  private notePause(el: HTMLVideoElement) {
+    if (el === this.current.el && this.wanted && !el.ended && document.hidden) this.hidden = { position: el.currentTime, at: Date.now() };
+  }
+
+  /** Our own pause: nothing to go on with when the page shows again. */
+  private halt(el: HTMLVideoElement) {
+    this.wanted = false;
+    this.hidden = null;
+    el.pause();
   }
 
   state(): VideoState | null {
     const ref = this.current.ref;
     if (!this.itemId || !ref) return null;
     const el = this.current.el;
-    return { ...ref, itemId: this.itemId, playing: advancing(el), position: el.currentTime, duration: Number.isFinite(el.duration) ? el.duration : null };
+    const duration = Number.isFinite(el.duration) ? el.duration : null;
+    if (this.hidden) {
+      const position = expectedPosition({ playing: true, ...this.hidden }, Date.now(), duration);
+      return { ...ref, itemId: this.itemId, playing: duration === null || position < duration, position, duration };
+    }
+    return { ...ref, itemId: this.itemId, playing: advancing(el), position: el.currentTime, duration };
   }
 
   /** The state as the outputs take it: where it is at this moment. */
@@ -147,7 +184,7 @@ export class VideoEngine implements VideoControl {
   async show(item: { itemId: string; video: LibraryVideo } | null, from?: { position: number; playing: boolean }) {
     if ((item?.itemId ?? null) === this.itemId) return;
     const turn = ++this.turn;
-    this.current.el.pause();
+    this.halt(this.current.el);
     if (!item) {
       this.itemId = null;
       return this.notify();
@@ -179,7 +216,7 @@ export class VideoEngine implements VideoControl {
     if (!this.itemId) return;
     if (black && !el.paused && !el.ended) {
       this.pausedByBlack = true;
-      el.pause();
+      this.halt(el);
     } else if (!black && this.pausedByBlack) {
       this.pausedByBlack = false;
       void this.start(el);
@@ -204,8 +241,11 @@ export class VideoEngine implements VideoControl {
     if (c.action === 'play') {
       if (el.ended) el.currentTime = 0;
       void this.start(el);
-    } else if (c.action === 'pause') el.pause();
-    else if (c.action === 'seek') el.currentTime = c.position;
+    } else if (c.action === 'pause') this.halt(el);
+    else if (c.action === 'seek') {
+      el.currentTime = c.position;
+      if (this.hidden) this.hidden = { position: c.position, at: Date.now() };
+    }
     if (c.action !== 'seek') this.pausedByBlack = false; // a choice by hand: black no longer decides
     this.notify();
   }
@@ -215,12 +255,13 @@ export class VideoEngine implements VideoControl {
     if (!this.itemId) return;
     this.turn++;
     this.itemId = null;
-    this.current.el.pause();
+    this.halt(this.current.el);
     this.notify();
   }
 
   /** Plays; a browser that refuses sound without a gesture gets the picture going muted. */
   private async start(el: HTMLVideoElement) {
+    this.wanted = true;
     el.muted = false;
     await el.play().catch(async () => {
       el.muted = true;

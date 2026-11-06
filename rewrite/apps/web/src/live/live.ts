@@ -18,6 +18,7 @@ import {
   type SongPart,
   type LibraryVideo,
   type LiveVideo,
+  audioSlide,
   videoSlide,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
@@ -155,9 +156,9 @@ export class LiveChannel {
 
 export interface ItemSlides {
   slides: Slide[];
-  /** Why the item has no slides, if it has none. An audio item has none by nature. */
+  /** Why the item has no slides, if it has none. */
   problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | 'custom-missing' | null;
-  /** An audio item's file: played on the presenting computer, never shown (LIVE-R6). */
+  /** An audio item's file: its one slide, shown, plays it on the presenting computer (Lars, 2026-11-06). */
   audio?: { hash: string; fileName: string };
   /** A video item's video: its one slide plays it on the outputs, its sound on the presenting computer. */
   video?: LibraryVideo;
@@ -206,7 +207,7 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
   }
   if (item.type === 'audio') {
     const audio = await getAudio(db, item.sourceId);
-    return audio ? { slides: [], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
+    return audio ? { slides: [audioSlide(audio.fileName)], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
   }
   if (item.type === 'video') {
     const video = await getVideo(db, item.sourceId);

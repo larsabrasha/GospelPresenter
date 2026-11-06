@@ -4,7 +4,7 @@ import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import type { SlideMarkKind } from '../../live/liveList.ts';
-import { SlideMark, tileClass } from '../../ui/SlideTile.tsx';
+import { AudioMark, SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
 /** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Arrangemang 2", by their place. */
@@ -87,6 +87,7 @@ export function SlideGrid({
                 onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
+                <AudioMark slide={s} />
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
               </AppButton>
             </li>
@@ -100,6 +101,7 @@ export function SlideGrid({
       {slides.map((s, i) => (
         <li key={s.key} className={`${tileClass({ interactive: false })} ${size}`} aria-label={`${label} ${i + 1}`}>
           <SlideView slide={s} theme={theme} overlay={overlay} credits={false} highlight={highlight} />
+          <AudioMark slide={s} />
         </li>
       ))}
     </ol>

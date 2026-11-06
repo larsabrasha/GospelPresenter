@@ -74,8 +74,8 @@ tapped shows nothing, and ▶ starts it.
   rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
   shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
-  (Lars, 2026-11-01). An audio or video item adds a player line between them:
-  pause, the time and how far it is.
+  (Lars, 2026-11-01). An audio or video slide shown has its controls on the picture (see "Audio and video while
+  presenting" below).
 - **The running order** fills the rest, with no heading row; Lägg till is a round glass + floating at the bottom right, as iOS 27's Notes and Reminders put
   "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). + first asks which
   kind, a menu with Sång first, Bildspel last and under a line Programpunkt (spec 03 2f), then opens that kind's dialog alone,
@@ -133,6 +133,13 @@ overlay.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
   The slides are 384 px, and shrink to no less than 340 px where that fits one more to a row: three on an iPad lying
   down with both columns folded (Lars, 2026-11-03; `apps/web/src/pages/presentation-editor/SlideGrid.tsx`).
+- **Audio and video while presenting** (Lars, 2026-11-06): each is shown and played alone, as a slide. An audio
+  item has one slide, which the outputs show as the theme's background with nothing on it, and its tile a speaker
+  and the file's name; shown, it plays from its start, and any other slide shown stops it (a video does the same).
+  Their controls lie on the live picture, on a computer and a phone alike, not in the slides: the audio's name and
+  Tona ut at the top, play and pause, the time, the seek bar and the length at the foot (`pages/live/MediaControls.tsx`).
+  Before presenting an item keeps its preview player in the slides. Moving to another page does not stop them: the
+  presentation is still live.
 - **Folding the columns away** (Lars, 2026-11-03), as iPadOS's and macOS's sidebars: a quiet button with a sidebar
   icon in each column's foot, at its inner edge beside its last line (the left column's at the right of the sync line;
   the live column's at the left, Fjärrstyrning at the right), folds it away ("Göm sidofält", "Göm livekolumnen"); while
