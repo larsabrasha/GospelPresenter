@@ -58,8 +58,10 @@ once.
 pointer, which video plays, whether it plays, its position and the moment (`Date.now()`, a clock both windows
 share), on every play, pause, seek, stall and end, and the next video to buffer. Four times a second the output
 works out where the video should be and plays up to 5 % faster or slower to get within 0.04 s, or seeks when it is
-more than 0.3 s off (`follow`). The operator window is the clock and the sound, whether an output window is open or
-not.
+more than 0.3 s off (`follow`). After a seek while playing it waits until its clock moves (at most 3 s), and its
+next seek aims ahead by how far behind the last one came out (`keepInStep`): in Safari on an iPad a seek stands still
+for about half a second, so the output seeked anew at every check and its picture stood still (Lars, 2026-11-06). The
+operator window is the clock and the sound, whether an output window is open or not.
 
 **A paired screen** gets the same state in its canvas (`canvas.slide.video`: hash, type, codec, playing, position,
 `at`), streams the video itself, muted, from `/api/screen/{id}/video/{hash}` or `/api/display/{code}/video/{hash}`

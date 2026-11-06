@@ -72,12 +72,61 @@ export function follow(expected: number, actual: number, playing: boolean): { se
 /** Puts an element where `video` says, now; `now` is the clock `video.at` is on. */
 export function keepInStep(el: HTMLVideoElement, video: LiveVideo, now: number) {
   const duration = Number.isFinite(el.duration) ? el.duration : null;
-  const playing = video.playing && (duration === null || expectedPosition(video, now, duration) < duration);
-  const step = follow(expectedPosition(video, now, duration), el.currentTime, playing);
-  if (step.seekTo !== null && !el.seeking) el.currentTime = step.seekTo;
+  const expected = expectedPosition(video, now, duration);
+  const playing = video.playing && (duration === null || expected < duration);
+  const seeks = seeksOf(el);
+  if (!playing) seeks.last = null;
+  else if (seeks.last && settling(el, seeks, expected, now)) {
+    if (el.paused) void el.play().catch(() => undefined);
+    return;
+  }
+  const step = follow(expected, el.currentTime, playing);
+  if (step.seekTo !== null && !el.seeking) {
+    const target = playing ? Math.min(step.seekTo + seeks.lead, duration ?? Infinity) : step.seekTo;
+    el.currentTime = target;
+    if (playing) seeks.last = { target, at: now };
+  }
   if (el.playbackRate !== step.rate) el.playbackRate = step.rate;
   if (playing && el.paused) void el.play().catch(() => undefined);
   if (!playing && !el.paused) el.pause();
+}
+
+// A playing follower's seek takes a moment before its clock moves again: half a second in Safari on an iPad,
+// where every check found it more than SEEK_DRIFT_S behind and seeked anew, and the picture stood still (Lars,
+// 2026-11-06). So after a seek it waits until the video moves, and the next seek aims ahead by what the last ones lost.
+
+/** A follower's last seek while playing, until its clock moves, and how far ahead its seeks aim. */
+interface Seeks {
+  last: { target: number; at: number } | null;
+  lead: number;
+}
+const followerSeeks = new WeakMap<HTMLVideoElement, Seeks>();
+/** Past this a seek that has not moved the clock is given up, and the follower may seek again. */
+const SETTLE_MS = 3000;
+/** The most a seek aims ahead of where the video should be. */
+const MAX_LEAD_S = 2;
+/** How far past its target a seek's clock has to come to have moved: Safari lands a frame or so past it. */
+const MOVED_S = 0.1;
+
+function seeksOf(el: HTMLVideoElement): Seeks {
+  let s = followerSeeks.get(el);
+  if (!s) followerSeeks.set(el, (s = { last: null, lead: 0 }));
+  return s;
+}
+
+/** Whether the last seek is still waiting for the clock to move; once it moves, how far behind it came out sets the lead. */
+function settling(el: HTMLVideoElement, seeks: Seeks, expected: number, now: number): boolean {
+  const last = seeks.last!;
+  if (!el.seeking && el.currentTime > last.target + MOVED_S) {
+    // Further off than any seek loses, the presenting window moved meanwhile (a seek by hand): nothing to learn.
+    const lag = expected - el.currentTime;
+    if (Math.abs(lag) <= MAX_LEAD_S) seeks.lead = Math.max(0, Math.min(MAX_LEAD_S, seeks.lead + lag));
+    seeks.last = null;
+    return false;
+  }
+  if (now - last.at < SETTLE_MS) return true;
+  seeks.last = null;
+  return false;
 }
 
 /** Whether an element is advancing: playing, and not waiting for data. */

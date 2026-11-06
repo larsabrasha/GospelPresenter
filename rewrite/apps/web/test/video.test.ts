@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Sha256, VIDEO_LIMITS, type LibraryVideo } from '@gp/core';
-import { expectedPosition, follow, SEEK_DRIFT_S, VideoEngine } from '../src/live/video.ts';
+import { expectedPosition, follow, keepInStep, SEEK_DRIFT_S, VideoEngine } from '../src/live/video.ts';
 import { checkPickedVideo, hashFile, stillTime, uploadVideo, VideoRefused, type UploadProgress } from '../src/media/video.ts';
 import { formatDuration } from '../src/pages/VideoTab.tsx';
 
@@ -32,6 +32,67 @@ describe('following a video', () => {
 
   it('seeks a paused follower to where the video was paused', () => {
     expect(follow(8, 3, false)).toEqual({ seekTo: 8, rate: 1 });
+  });
+});
+
+/** An output's video whose clock stands still for `startMs` after every seek, as Safari's on an iPad, and then plays on. */
+class SlowStartVideo {
+  paused = true;
+  seeking = false;
+  duration = 60;
+  playbackRate = 1;
+  seeks = 0;
+  private time = 0;
+  private movesAt = 0;
+  constructor(
+    private startMs: number,
+    private now: () => number,
+  ) {}
+  get currentTime() {
+    return this.time;
+  }
+  set currentTime(t: number) {
+    this.time = t;
+    this.seeks++;
+    this.movesAt = this.now() + this.startMs;
+  }
+  play() {
+    this.paused = false;
+    return Promise.resolve();
+  }
+  pause() {
+    this.paused = true;
+  }
+  /** `ms` of play from now. */
+  tick(ms: number) {
+    if (!this.paused && this.now() >= this.movesAt) this.time += (ms / 1000) * this.playbackRate;
+  }
+}
+
+describe('a follower whose seeks take a moment to start', () => {
+  /** Follows a video that has played since 10 s, for `seconds`, checking every 250 ms as FollowingVideo does. */
+  const followFor = (startMs: number, seconds: number) => {
+    let now = 0;
+    const el = new SlowStartVideo(startMs, () => now);
+    const video = { hash: 'h', type: 'video/mp4', codec: 'h264', playing: true, position: 10, at: 0 } as const;
+    for (; now < seconds * 1000; now += 50) {
+      if (now % 250 === 0) keepInStep(el as unknown as HTMLVideoElement, video, now);
+      el.tick(50);
+    }
+    return { off: Math.abs(expectedPosition(video, now) - el.currentTime), seeks: el.seeks };
+  };
+
+  it('gets in step and stops seeking when every seek stands still for half a second', () => {
+    const { off, seeks } = followFor(500, 10);
+
+    expect(off).toBeLessThan(SEEK_DRIFT_S);
+    expect(seeks).toBeLessThanOrEqual(3);
+  });
+
+  it('seeks again when a seek never gets going', () => {
+    const { seeks } = followFor(Number.POSITIVE_INFINITY, 4);
+
+    expect(seeks).toBe(2);
   });
 });
 
