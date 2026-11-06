@@ -8,6 +8,7 @@
 
 @inject IUserService UserService
 @inject SetupStatusService SetupStatus
+@inject SetupTokenService SetupToken
 @inject NavigationManager Navigation
 
 <div class="flex flex-col h-full items-center">
@@ -37,6 +38,13 @@
                        Value="@organizationName" OnInput="(e) => organizationName = e.Value?.ToString() ?? string.Empty"
                        MaxLength="AppConstraints.NameMaxLength"/>
 
+        <div>
+            <FloatingInput Id="setup-token" Label="@L["Setup.Token"]" Type="password"
+                           Value="@setupToken" OnInput="(e) => setupToken = e.Value?.ToString() ?? string.Empty"
+                           MaxLength="AppConstraints.NameMaxLength"/>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">@L["Setup.TokenHint"]</p>
+        </div>
+
         @if (errorMessage is not null)
         {
             <p class="text-sm text-red-500 dark:text-red-400">@errorMessage</p>
@@ -53,6 +61,7 @@
 @code {
     private string adminName = "";
     private string organizationName = "";
+    private string setupToken = "";
     private string? errorMessage;
     private bool submitting;
 
@@ -87,6 +96,20 @@
         if (string.IsNullOrWhiteSpace(organizationName))
         {
             errorMessage = L["Setup.OrganizationRequired"];
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(setupToken))
+        {
+            errorMessage = L["Setup.TokenRequired"];
+            return;
+        }
+
+        // Checked here, on the server side of the circuit, before anything is created: without the
+        // token anyone who reached a fresh public deployment first would own it.
+        if (!SetupToken.Verify(setupToken))
+        {
+            errorMessage = L["Setup.TokenInvalid"];
             return;
         }
 

@@ -87,6 +87,7 @@ services:
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       Gotenberg__Endpoint: http://gotenberg:3000
+      Setup__Token: ${SETUP_TOKEN:-}
     volumes:
       - data-protection-keys:/app/data-protection-keys
       - ./bibles:/app/data/bibles:ro

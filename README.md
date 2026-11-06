@@ -40,6 +40,14 @@ The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub
 
     The app is available at `http://localhost:8082` (or whatever `WEB_PORT` you set).
 
+5. Open `/setup` to create the first administrator. It asks for a setup token, so that nobody who finds a fresh installation before you can claim it. Set `SETUP_TOKEN` in `.env` to choose the token yourself. If you leave it unset, the app generates a one-time token and prints it to the log as a warning while setup is pending:
+
+    ```shell
+    docker compose logs web | grep "setup token"
+    ```
+
+    The token is only used for `/setup`, and `/setup` stops working once the first user exists.
+
 On startup, the migrations container runs automatically — it creates the database schema and provisions the S3 bucket in Garage. The web app starts after migrations have completed.
 
 ### Image channels
@@ -138,7 +146,7 @@ The credentials live in the Google Cloud Console under **APIs & Services → Cre
 
 ### First sign-in
 
-On an empty database, open <https://localhost:7175/setup>, name the first administrator, and the app redirects to `/invite/{token}`. **Signing in with Google through that invite link is what links your Google account to the user.** Until that has happened, plain "Sign in with Google" ends on `/authentication-error` — the server log then says:
+On an empty database, open <https://localhost:7175/setup>, name the first administrator, enter the setup token, and the app redirects to `/invite/{token}`. Unless you have set `Setup:Token` (for example with `dotnet user-secrets set "Setup:Token" "<token>"`), the token is generated at startup and printed in the console log as a warning. **Signing in with Google through that invite link is what links your Google account to the user.** Until that has happened, plain "Sign in with Google" ends on `/authentication-error` — the server log then says:
 
 ```
 Rejecting google sign-in: no user is linked to google subject …

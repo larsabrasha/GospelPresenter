@@ -165,6 +165,24 @@ public class PublicSlideViewTests : TestContext
             .GetAttribute("style")!.ShouldContain("color: #111111");
     }
 
+    /// <summary>
+    /// Bible parts are rendered as markup on this anonymous page, and a device can push any string as a
+    /// part through sync. Only the Bible formatter's own tags may come through.
+    /// </summary>
+    [Fact]
+    public void BibleSlide_DoesNotRenderInjectedMarkup()
+    {
+        var rendered = Render(new LiveSlide(
+            LiveSlideStatus.ShowingPresentation, ProjectItemType.BibleText, "item", 0,
+            "<div class=\"text-left\"><sup class=\"opacity-40\">16</sup>\u00a0For God<script>alert(1)</script>"
+            + "<img src=x onerror=alert(2)></div>", null, null, null, SlideTheme.Classic));
+
+        rendered.FindAll("script").ShouldBeEmpty();
+        rendered.FindAll("img").ShouldBeEmpty();
+        rendered.Find("sup.opacity-40").TextContent.ShouldBe("16");
+        rendered.Find("div.text-left").TextContent.ShouldContain("For God");
+    }
+
     [Fact]
     public void ImageSlide_RendersTheImageAndNoText()
     {

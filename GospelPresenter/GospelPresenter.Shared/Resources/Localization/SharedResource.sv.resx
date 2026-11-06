@@ -422,6 +422,15 @@
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>Du kan inte ändra din egen roll</value>
   </data>
+  <data name="UserProtection.SuperAdminOnly" xml:space="preserve">
+    <value>Bara en superadmin kan ändra eller ta bort en superadmin.</value>
+  </data>
+  <data name="UserProtection.LastSuperAdmin" xml:space="preserve">
+    <value>Den sista superadminen kan inte nedgraderas eller tas bort.</value>
+  </data>
+  <data name="UserProtection.OwnHomeOrganization" xml:space="preserve">
+    <value>Du kan inte ta bort din egen organisation, eftersom ditt konto då också skulle tas bort.</value>
+  </data>
   <data name="Users.InvalidEmail" xml:space="preserve">
     <value>Ogiltig e-postadress</value>
   </data>
@@ -655,6 +664,18 @@
   </data>
   <data name="Setup.OrganizationRequired" xml:space="preserve">
     <value>Organisationens namn måste fyllas i.</value>
+  </data>
+  <data name="Setup.Token" xml:space="preserve">
+    <value>Installationskod</value>
+  </data>
+  <data name="Setup.TokenHint" xml:space="preserve">
+    <value>Den SETUP_TOKEN du har konfigurerat, eller engångskoden som skrivs i serverloggen om ingen är konfigurerad.</value>
+  </data>
+  <data name="Setup.TokenRequired" xml:space="preserve">
+    <value>Installationskoden måste fyllas i.</value>
+  </data>
+  <data name="Setup.TokenInvalid" xml:space="preserve">
+    <value>Installationskoden är inte korrekt.</value>
   </data>
   <data name="AppLogin.Title" xml:space="preserve">
     <value>Du är inloggad</value>

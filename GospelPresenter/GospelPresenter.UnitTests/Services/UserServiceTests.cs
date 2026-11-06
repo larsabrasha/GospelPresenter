@@ -289,6 +289,168 @@ public class UserServiceTests : IDisposable
         exists.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task UpdateUserAsync_AdminDemotingSuperAdmin_ThrowsAndKeepsTheRole()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.UpdateUserAsync(superAdmin.Id, superAdmin.Name, superAdmin.Email, UserRole.User, CallerFor(admin)));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.SuperAdminOnly);
+        (await RoleOf(superAdmin.Id)).ShouldBe(UserRole.SuperAdmin);
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_AdminRenamingSuperAdmin_ThrowsUserProtection()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        // Act & Assert -- the friendly refusal, rather than the generic "cannot assign SuperAdmin"
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.UpdateUserAsync(superAdmin.Id, UpdatedName, superAdmin.Email, UserRole.SuperAdmin, CallerFor(admin)));
+        ex.Reason.ShouldBe(UserProtectionReason.SuperAdminOnly);
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_SuperAdminDemotingAnotherSuperAdmin_Succeeds()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var otherSuperAdmin = AddUser(OtherUserName, OtherUserEmail, UserRole.SuperAdmin, org.Id);
+
+        // Act
+        await service.UpdateUserAsync(otherSuperAdmin.Id, otherSuperAdmin.Name, otherSuperAdmin.Email, UserRole.Admin, CallerFor(superAdmin));
+
+        // Assert
+        (await RoleOf(otherSuperAdmin.Id)).ShouldBe(UserRole.Admin);
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_DemotingTheLastSuperAdmin_Throws()
+    {
+        // Arrange -- a caller with super admin rights that is not itself a stored super admin, the
+        // only way to reach the last one, since nobody can change their own role
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var caller = new CallerContext(UnknownUserId, UserRole.SuperAdmin, org.Id);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.UpdateUserAsync(superAdmin.Id, superAdmin.Name, superAdmin.Email, UserRole.Admin, caller));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.LastSuperAdmin);
+        (await RoleOf(superAdmin.Id)).ShouldBe(UserRole.SuperAdmin);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_AdminDeletingSuperAdmin_ThrowsAndKeepsTheUser()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.DeleteUserAsync(superAdmin.Id, CallerFor(admin)));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.SuperAdminOnly);
+        (await service.UserExistsAsync(superAdmin.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_SuperAdminDeletingAnotherSuperAdmin_Succeeds()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var otherSuperAdmin = AddUser(OtherUserName, OtherUserEmail, UserRole.SuperAdmin, org.Id);
+
+        // Act
+        await service.DeleteUserAsync(otherSuperAdmin.Id, CallerFor(superAdmin));
+
+        // Assert
+        (await service.UserExistsAsync(otherSuperAdmin.Id)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_DeletingTheLastSuperAdmin_Throws()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var caller = new CallerContext(UnknownUserId, UserRole.SuperAdmin, org.Id);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.DeleteUserAsync(superAdmin.Id, caller));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.LastSuperAdmin);
+        (await service.UserExistsAsync(superAdmin.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteOrganizationAsync_OwnHomeOrganization_ThrowsAndDeletesNothing()
+    {
+        // Arrange -- the caller has another organization selected, as a super admin visiting one
+        // would; the home organization must still be recognised as theirs
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var otherUser = AddUserInNewOrganization();
+        var caller = new CallerContext(superAdmin.Id, UserRole.SuperAdmin, otherUser.OrganizationId);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.DeleteOrganizationAsync(org.Id, caller));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.OwnHomeOrganization);
+        (await service.UserExistsAsync(superAdmin.Id)).ShouldBeTrue();
+        (await service.UserExistsAsync(user.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteOrganizationAsync_HoldingTheLastSuperAdmin_Throws()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var caller = new CallerContext(UnknownUserId, UserRole.SuperAdmin, org.Id);
+
+        // Act
+        var ex = await Should.ThrowAsync<UserProtectionException>(
+            () => service.DeleteOrganizationAsync(org.Id, caller));
+
+        // Assert
+        ex.Reason.ShouldBe(UserProtectionReason.LastSuperAdmin);
+        (await service.UserExistsAsync(superAdmin.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteOrganizationAsync_AnotherOrganization_DeletesItAndItsMembers()
+    {
+        // Arrange
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var otherUser = AddUserInNewOrganization();
+
+        // Act
+        await service.DeleteOrganizationAsync(otherUser.OrganizationId!, CallerFor(superAdmin));
+
+        // Assert
+        (await service.UserExistsAsync(otherUser.Id)).ShouldBeFalse();
+        (await service.UserExistsAsync(superAdmin.Id)).ShouldBeTrue();
+    }
+
+    private async Task<UserRole> RoleOf(string userId)
+    {
+        await using var context = factory.CreateDbContext();
+        return (await context.Users.FirstAsync(u => u.Id == userId)).Role;
+    }
+
     private User AddUserInNewOrganization()
     {
         var otherOrg = new Organization { Name = OtherOrgName };

@@ -28,6 +28,27 @@ public record CallerContext(string UserId, UserRole Role, string? OrganizationId
     }
 }
 
+public enum UserProtectionReason
+{
+    /// <summary>Only a super admin may change or delete a super admin.</summary>
+    SuperAdminOnly,
+    /// <summary>The operation would leave the installation without a super admin.</summary>
+    LastSuperAdmin,
+    /// <summary>A super admin's own home organization cannot be deleted, since that deletes them too.</summary>
+    OwnHomeOrganization
+}
+
+/// <summary>
+/// A refusal that protects super admins. It derives from <see cref="UnauthorizedAccessException"/> so
+/// callers that only guard against authorization failures still catch it, and carries a reason so a
+/// page can show a friendly message instead of a generic error.
+/// </summary>
+public class UserProtectionException(UserProtectionReason reason, string message)
+    : UnauthorizedAccessException(message)
+{
+    public UserProtectionReason Reason { get; } = reason;
+}
+
 public interface IUserService
 {
     Task<User?> GetByLoginAsync(string provider, string providerSubjectId);
@@ -259,14 +280,12 @@ public class UserService(
 
             await using var checkContext = await dbContextFactory.CreateDbContextAsync();
 
-            if (!caller.HasPermission(Permission.CrossOrganizationAccess))
-            {
-                var targetUser = await checkContext.Users.FirstOrDefaultAsync(u => u.Id == id);
-                if (targetUser is null)
-                    throw new InvalidOperationException("User not found.");
-                if (targetUser.OrganizationId != caller.OrganizationId)
-                    throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
-            }
+            var targetUser = await checkContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            if (targetUser is null)
+                throw new InvalidOperationException("User not found.");
+            if (!caller.HasPermission(Permission.CrossOrganizationAccess) && targetUser.OrganizationId != caller.OrganizationId)
+                throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+            await RequireSuperAdminProtectionAsync(checkContext, targetUser, newRole: role, caller);
             if (!caller.HasPermission(Permission.AssignSuperAdminRole) && role == UserRole.SuperAdmin)
                 throw new UnauthorizedAccessException("Access denied: you do not have permission to assign the SuperAdmin role.");
         }
@@ -327,18 +346,41 @@ public class UserService(
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
-        if (!caller.HasPermission(Permission.CrossOrganizationAccess))
+        var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (targetUser is null)
         {
-            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (targetUser is null)
-                throw new InvalidOperationException("User not found.");
-            if (targetUser.OrganizationId != caller.OrganizationId)
-                throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+            if (caller.HasPermission(Permission.CrossOrganizationAccess))
+                return;
+            throw new InvalidOperationException("User not found.");
         }
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && targetUser.OrganizationId != caller.OrganizationId)
+            throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+        await RequireSuperAdminProtectionAsync(context, targetUser, newRole: null, caller);
 
         await context.Users
             .Where(u => u.Id == id)
             .ExecuteDeleteAsync();
+    }
+
+    /// <summary>
+    /// The rules that keep an installation administrable: only a super admin may change or delete
+    /// another super admin, and the last one can be neither demoted nor deleted. <paramref name="newRole"/>
+    /// is the role being saved, or null for a delete.
+    /// </summary>
+    private static async Task RequireSuperAdminProtectionAsync(
+        PresentationContext context, User target, UserRole? newRole, CallerContext caller)
+    {
+        if (target.Role != UserRole.SuperAdmin)
+            return;
+
+        if (!caller.HasPermission(Permission.AssignSuperAdminRole))
+            throw new UserProtectionException(UserProtectionReason.SuperAdminOnly,
+                "Access denied: only a super admin can change or delete a super admin.");
+
+        if (newRole != UserRole.SuperAdmin
+            && !await context.Users.AnyAsync(u => u.Role == UserRole.SuperAdmin && u.Id != target.Id))
+            throw new UserProtectionException(UserProtectionReason.LastSuperAdmin,
+                "The last super admin cannot be demoted or deleted.");
     }
 
     public async Task<List<UserLogin>> GetLoginsForUserAsync(string userId, CallerContext caller)
@@ -458,6 +500,21 @@ public class UserService(
         caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await using var transaction = await context.Database.BeginTransactionAsync();
+
+        // Deleting an organization deletes its members. The caller's home organization is read from
+        // the database: a super admin's CallerContext carries the organization they have selected,
+        // not the one they belong to.
+        var callerHomeOrganizationId = await context.Users
+            .Where(u => u.Id == caller.UserId)
+            .Select(u => u.OrganizationId)
+            .FirstOrDefaultAsync();
+        if (callerHomeOrganizationId == id)
+            throw new UserProtectionException(UserProtectionReason.OwnHomeOrganization,
+                "You cannot delete your own home organization.");
+        if (await context.Users.AnyAsync(u => u.OrganizationId == id && u.Role == UserRole.SuperAdmin)
+            && !await context.Users.AnyAsync(u => u.OrganizationId != id && u.Role == UserRole.SuperAdmin))
+            throw new UserProtectionException(UserProtectionReason.LastSuperAdmin,
+                "Deleting this organization would delete the last super admin.");
 
         await context.Users
             .Where(u => u.OrganizationId == id)

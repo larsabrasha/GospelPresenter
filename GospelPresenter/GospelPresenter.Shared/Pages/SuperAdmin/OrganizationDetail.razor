@@ -82,10 +82,21 @@
                 }
             }
         </div>
-        <div class="flex justify-end">
-            <AppButton Variant="ButtonVariant.Danger" OnClick="ShowDeleteConfirmation">
-                @L["OrgDetail.DeleteOrg"]
-            </AppButton>
+        <div class="flex flex-col items-end gap-1">
+            @if (IsOwnHomeOrganization)
+            {
+                <div class="text-sm text-neutral-500">@L["UserProtection.OwnHomeOrganization"]</div>
+            }
+            else
+            {
+                <AppButton Variant="ButtonVariant.Danger" OnClick="ShowDeleteConfirmation">
+                    @L["OrgDetail.DeleteOrg"]
+                </AppButton>
+            }
+            @if (deleteError is not null)
+            {
+                <div class="text-sm text-red-500 dark:text-red-400">@deleteError</div>
+            }
         </div>
     }
 </PageContainer>
@@ -166,6 +177,11 @@
     private bool isDeleting;
     private string deleteConfirmText = "";
     private string? logoError;
+    private string? deleteError;
+
+    // Deleting an organization deletes its members, so a super admin's own home organization would
+    // take them with it. The server refuses that too.
+    private bool IsOwnHomeOrganization => OrgState.UserOrganizationId == OrganizationId;
     private bool showCropDialog;
     private readonly Utils.Debouncer saveDebounce = new();
     private DetailHeader? header;
@@ -212,8 +228,21 @@
     {
         if (isDeleting) return;
         isDeleting = true;
+        deleteError = null;
 
-        await UserService.DeleteOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
+        try
+        {
+            await UserService.DeleteOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
+        }
+        catch (UserProtectionException ex)
+        {
+            deleteError = ex.Reason == UserProtectionReason.LastSuperAdmin
+                ? L["UserProtection.LastSuperAdmin"]
+                : L["UserProtection.OwnHomeOrganization"];
+            showDeleteDialog = false;
+            isDeleting = false;
+            return;
+        }
 
         if (OrgState.SelectedOrganizationId == OrganizationId)
         {
