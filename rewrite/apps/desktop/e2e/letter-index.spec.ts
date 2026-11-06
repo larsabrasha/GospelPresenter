@@ -39,7 +39,10 @@ test('a finger dragged down the index jumps Sånger to the letter under it, show
 
   await expect(index.locator('[aria-hidden="true"]')).toHaveText('M'); // the big letter beside the finger
   const heading = page.getByRole('heading', { name: 'M', exact: true });
-  await expect.poll(async () => (await heading.boundingBox())!.y).toBeLessThan(200); // M's caption at the top
+  // M's caption at the top, just under the search and its row, which stay there (Lars, 2026-11-06), not hidden by them.
+  const bar = (await page.getByRole('button', { name: 'Välj', exact: true }).boundingBox())!;
+  await expect.poll(async () => (await heading.boundingBox())!.y).toBeLessThan(bar.y + bar.height + 40);
+  expect((await heading.boundingBox())!.y).toBeGreaterThanOrEqual(bar.y + bar.height);
   await page.mouse.up();
   await expect(index.locator('[aria-hidden="true"]')).toHaveCount(0);
 });

@@ -18,7 +18,7 @@ import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
 import { LetterIndex } from './LetterIndex.tsx';
 import { NameDialog } from './NameDialog.tsx';
-import { PageContainer, PageHeader } from './PageContainer.tsx';
+import { PageContainer, PageHeader, StickyBar } from './PageContainer.tsx';
 import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
 import { libraryKeyDown, useLibraryShortcuts } from './libraryKeys.ts';
 import { HoldMenu } from './RemoveMenu.tsx';
@@ -345,28 +345,33 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         />
       )}
       {p.notices}
-      {/* The search first, then a row with the order at the left and Välj at the right (Lars, 2026-11-04). */}
-      {!!p.items?.length && (p.search ? <ListSearch query={query} onChange={p.search.onQuery} /> : <ListSearch query={query} onChange={setOwnQuery} />)}
-      {!!p.items?.length && (p.sorts || p.manage || p.switchable) && (
-        <div className="flex items-center justify-between gap-2 px-4 -mt-3 mb-3">
-          <span className="flex items-center gap-1">
-            {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
-            {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
-            {p.switchable && <ViewPicker className="ml-2" value={view} onChange={setView} />}
-          </span>
-          {p.manage && (
-            <span className="flex items-center gap-1 -mr-3">
-              {selecting && (
-                <AppButton variant="plain" className={HEADER_TEXT} onClick={() => setPicked(allPicked ? new Set() : new Set(shown?.map((i) => i.id)))}>
-                  {t(allPicked ? 'library.deselectAll' : 'library.selectAll')}
-                </AppButton>
+      {/* The search first, then a row with the order at the left and Välj at the right (Lars, 2026-11-04), both kept at
+          the top while the list scrolls (Lars, 2026-11-06). */}
+      {!!p.items?.length && (
+        <StickyBar>
+          {p.search ? <ListSearch query={query} onChange={p.search.onQuery} /> : <ListSearch query={query} onChange={setOwnQuery} />}
+          {(p.sorts || p.manage || p.switchable) && (
+            <div className="flex items-center justify-between gap-2 px-4 -mt-3">
+              <span className="flex items-center gap-1">
+                {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
+                {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
+                {p.switchable && <ViewPicker className="ml-2" value={view} onChange={setView} />}
+              </span>
+              {p.manage && (
+                <span className="flex items-center gap-1 -mr-3">
+                  {selecting && (
+                    <AppButton variant="plain" className={HEADER_TEXT} onClick={() => setPicked(allPicked ? new Set() : new Set(shown?.map((i) => i.id)))}>
+                      {t(allPicked ? 'library.deselectAll' : 'library.selectAll')}
+                    </AppButton>
+                  )}
+                  <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+                    {t(selecting ? 'library.done' : 'library.select')}
+                  </AppButton>
+                </span>
               )}
-              <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-                {t(selecting ? 'library.done' : 'library.select')}
-              </AppButton>
-            </span>
+            </div>
           )}
-        </div>
+        </StickyBar>
       )}
       {!p.items && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{p.loading}</div>}
       {p.items && !p.items.length && (

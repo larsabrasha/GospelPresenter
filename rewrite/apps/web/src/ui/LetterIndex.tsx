@@ -38,7 +38,7 @@ export function LetterIndex({ sections, label, jump }: { sections: { key: string
     <nav
       aria-label={label}
       // The page does not scroll under the finger: the finger moves along the index.
-      className="sticky top-2 self-start hidden pointer-coarse:flex flex-col items-center px-1 py-1 touch-none select-none"
+      className="sticky top-[calc(var(--bar,0px)+0.5rem)] self-start hidden pointer-coarse:flex flex-col items-center px-1 py-1 touch-none select-none"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         pick(e);

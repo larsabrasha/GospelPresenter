@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePhoneBarSlots } from './barSlots.ts';
 import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
@@ -50,9 +50,43 @@ export function PageContainer({ children, maxWidthClass, className }: { children
   // In Inställningar the room at the foot is always there, so the floating + never covers the last row; and room at the
   // sides and between groups as iOS's inset grouped lists have it (Lars, 2026-11-03: too little white space).
   const column = filled ? 'px-5 pt-5 pb-24 space-y-7' : `pt-8 pb-24 lg:pb-3 ${maxWidthClass ?? 'sm:w-180'} mx-auto space-y-5`;
+  // A StickyBar's height: what scrolls into view (a jump, a focused tile) stops below it, and `--bar` places the
+  // sticky things under it (LetterIndex).
+  const [bar, setBar] = useState(0);
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto pb-safe-0">
-      <div className={`flex flex-col p-3 w-full ${column} ${className ?? ''}`}>{children}</div>
+    <div className="flex-1 min-h-0 overflow-y-auto pb-safe-0" style={{ scrollPaddingTop: bar, '--bar': `${bar}px` } as CSSProperties}>
+      <BarHeight.Provider value={setBar}>
+        <div className={`flex flex-col p-3 w-full ${column} ${className ?? ''}`}>{children}</div>
+      </BarHeight.Provider>
+    </div>
+  );
+}
+
+const BarHeight = createContext<(height: number) => void>(() => {});
+
+/**
+ * What stays at the top of a PageContainer while its page scrolls: a list's search and the row under it (Lars,
+ * 2026-11-06), its background reaching the column's sides, so nothing shows beside it as the list passes under.
+ */
+export function StickyBar({ children }: { children: ReactNode }) {
+  const filled = useContext(Filled);
+  const setBar = useContext(BarHeight);
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const seen = new ResizeObserver(() => setBar(el.offsetHeight));
+    seen.observe(el);
+    return () => {
+      seen.disconnect();
+      setBar(0);
+    };
+  }, [setBar]);
+  // As far out as the column's padding (`p-3`, in a PageFill `px-5`), and 12 px above and below it, which it takes
+  // from the space between, so the page lies out as it did.
+  return (
+    <div ref={ref} className={`sticky top-0 z-10 bg-ground -mt-3 pt-3 pb-3 flex flex-col gap-5 ${filled ? '-mx-5 px-5' : '-mx-3 px-3'}`}>
+      {children}
     </div>
   );
 }

@@ -160,7 +160,7 @@ Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 
 ## Inställningar
 
-On a phone a list as iOS's Settings: a search field at the top, which finds a row by its name or by words of its own ("projektor" finds Fasta utgångar) and what Mina inställningar holds (Färgtema, Språk, Lagring, Inloggningsmetoder) (Lars, 2026-11-03); Mina inställningar as a profile cell under it, then Bibliotek (Sånger,
+On a phone a list as iOS's Settings: a search field at the top, kept there as the list scrolls (Lars, 2026-11-06), which finds a row by its name or by words of its own ("projektor" finds Fasta utgångar) and what Mina inställningar holds (Färgtema, Språk, Lagring, Inloggningsmetoder) (Lars, 2026-11-03); Mina inställningar as a profile cell under it, then Bibliotek (Sånger,
 Biblar, Bilder, Ljud, Videor), Presentation (Överlägg, Etiketter; "Överlägg" in Swedish, as FreeShow says it, since it lies over the picture: Lars, 2026-11-03), Visning (Fasta utgångar, Följ med, Teman, CCLI-rapport),
 Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width, with a round ‹ alone at the left of the dialog's bar (one step up) and the page's name in
@@ -196,7 +196,8 @@ New songs, slideshows, overlays and themes are made at once and named in their e
 name in it. Organisationer is "Alla organisationer", so it is not taken for Organisationen above it.
 Papperskorg the same, its Töm papperskorgen a red row last. Every list page in Inställningar (the library's, Användare,
 Alla organisationer, Papperskorg) has the same search under its title, iOS's filled grey field as "Sök i inställningar"
-(ui/ListSearch.tsx). A picture has no … on it: a right click or a finger held on it opens Radera at that point, in
+(ui/ListSearch.tsx); in a library it and the row under it (the order, the views, Välj) stay at the top as the list
+scrolls, and a jump to a caption stops below them (`StickyBar` in ui/PageContainer.tsx, Lars 2026-11-06). A picture has no … on it: a right click or a finger held on it opens Radera at that point, in
 the menu an item has (PictureMenu); a context menu opens over dialogs. A page opened alone from outside Inställningar (a song
 from a presentation) is as narrow as iPadOS's form sheet, 672 px; Inställningar's pages have 20 px at the sides and
 28 px between groups. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row

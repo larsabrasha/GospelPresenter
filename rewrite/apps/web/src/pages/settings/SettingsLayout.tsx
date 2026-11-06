@@ -58,7 +58,11 @@ function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route
   const found = searchSettings(groups, query, t);
   return (
     <nav className="flex flex-col gap-[22px] split:gap-4" aria-label={t('nav.adminMenu')}>
-      <SearchField compact filled value={query} onChange={setQuery} label={t('search.field')} />
+      {/* Kept at the top while the list scrolls, as System Settings' on a Mac (Lars, 2026-11-06); its background as far
+          out as the sidebar's padding, and 8 px under it; `-top-4`, as a sticky one keeps below that padding. */}
+      <div className="sticky -top-4 z-10 -mx-4 px-4 -mt-4 pt-4 pb-2 -mb-2 bg-ground split:bg-sidebar">
+        <SearchField compact filled value={query} onChange={setQuery} label={t('search.field')} />
+      </div>
       {query.trim() ? (
         found.length ? (
           <section className="flex flex-col max-split:rounded-[22px] max-split:overflow-hidden max-split:bg-surface" aria-label={t('search.field')}>

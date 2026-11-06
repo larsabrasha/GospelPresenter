@@ -133,7 +133,7 @@ test('a picture imported while the host is down is kept, and reaches the host an
   await expect(page.getByText('En ändring kunde inte synkas.')).toHaveCount(0);
 });
 
-test('another device shows a picture large, in Bilder and in Lägg till bild, fetching each one only near view', async () => {
+test('another device shows a picture large, in Bilder and in Lägg till bild, fetching each one only near view, under a search that stays', async () => {
   host = await launch();
   await setUpHost(host);
   await openAdmin(host.page, 'Bilder');
@@ -157,6 +157,9 @@ test('another device shows a picture large, in Bilder and in Lägg till bild, fe
   await width(cards.last(), 400);
   await cards.last().scrollIntoViewIfNeeded();
   await width(cards.last(), 1600);
+  // The search and the row under it stay at the top while the list scrolls (Lars, 2026-11-06).
+  await expect(page.getByRole('searchbox', { name: 'Sök', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: 'Välj', exact: true })).toBeInViewport({ ratio: 1 });
 
   await page.goto(new URL(page.url()).origin);
   await page.getByRole('link', { name: /Söndag/ }).click();
