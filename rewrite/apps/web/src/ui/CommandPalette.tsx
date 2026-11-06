@@ -160,7 +160,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
         subtitle: [p.eventDate ? dateLabel(p.eventDate, today, true) : null, p.time].filter(Boolean).join(' · ') || undefined,
         verb: t('palette.open'),
         run: () => navigate({ page: 'presentation', id: p.id }),
-        preview: { kind: 'presentation', id: p.id, title: p.name },
+        preview: { kind: 'presentation', id: p.id, title: p.name, when: [p.eventDate ? dateLabel(p.eventDate, today, true) : null, p.time].filter(Boolean).join(' · ') || null, place: p.location || null },
       }));
     // A page of Inställningar a command already goes to is not listed twice ("Gå till Videor" and Videor).
     const goneTo = new Set(commands.flatMap((c) => (c.key.startsWith('c:go:') ? [c.key] : [])).map((k) => GO_PAGES[k.slice(5)]));

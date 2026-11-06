@@ -18,10 +18,13 @@ import { browserLanguage, installLanguage } from './i18n.ts';
 import { currentRoute, installLinkHandler, NAVIGATED } from './ui/router.ts';
 import { installTrail } from './report/trail.ts';
 import { installTheme } from './ui/theme.ts';
+import { installTooltips } from './ui/tooltips.ts';
 import './fonts.css';
 import './app.css';
 
 installTheme();
+// The app's own tooltips in place of the browser's, from every element's `title` (ui/tooltips.ts).
+installTooltips();
 // The desktop app on a Mac: the page's bar is the window's title bar (app.css `.mac-frame`).
 if (window.gpDesktop?.macFrame) document.documentElement.classList.add('mac-frame');
 // The desktop app behaves as a native app: nothing selects but what a native app lets you select (app.css `.native`).
