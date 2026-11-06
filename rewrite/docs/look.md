@@ -201,7 +201,7 @@ current app's from `node scripts/capture-old-app.mjs <url> <dir>` with that app 
 `GP_CAPTURE_ONLY=setup,login,…` takes only the named pictures. Pages with no counterpart in the current app
 (setup, which mock mode skips, and Anslut till värddatorn) are taken in the new app only.
 `node scripts/compare-old-app.mjs <dir> [name,…]` does both in one go: it adds the reference worktree
-`../GospelPresenter-main-ref` if it is missing (detached at `origin/main`, after a fetch; one that is there is
+`../GospelPresenter-main-ref` if it is missing (detached at the tag `v1-final`, fetched if it is not here; one that is there is
 used as it is), runs the current app in mock mode on a free port, takes its pictures into `<dir>/old`, stops it
 (also on Ctrl-C), takes the new app's into `<dir>/new`, and lists the names found on one side only. Three pages
 took 71 s, 4 s of it starting the current app after an earlier build.

@@ -268,7 +268,7 @@ for the host window's start (0.7 s once per start is fine); the server pokes the
 
 ## The small differences from the current app
 
-Lars wants every small difference between the rewrite and the Blazor app on `origin/main` fixed (2026-10-29),
+Lars wants every small difference between the rewrite and the Blazor app (now the tag `v1-final`) fixed (2026-10-29),
 such as dropping files. Next, in a session of its own: go through the current app page by page and dialog by
 dialog (behaviour, dragging and the keyboard, texts, look; the `old-app-compare` skill), and write the
 differences here as a checklist per page, each marked small, medium or large. No code in that session, and no
@@ -291,7 +291,7 @@ address takes it), and a saved screen whose session ended drawing black._
 
 From reading the code of both apps, page by page; S small (under an hour), M medium (hours), L large (a day,
 or a model or sync change). **ask**: Lars decides before it is built. Old paths are under
-`GospelPresenter/GospelPresenter.Shared/` on `origin/main`, its Swedish texts in
+`GospelPresenter/GospelPresenter.Shared/` at `v1-final`, its Swedish texts in
 `Resources/Localization/SharedResource.sv.resx`. The known items above are not repeated. Left out as
 deliberate (docs, spec decisions or code comments): the song editor as a page, PDF-only
 slides, D13, D15 (the dialog never closes), D17, D24 (Bibles and templates for admins), the popup instead of

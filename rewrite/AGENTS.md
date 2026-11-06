@@ -61,8 +61,9 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 
 ## The old app: the reference
 
-The Blazor app on `origin/main` is what the rewrite must match; how to run and compare it: the `old-app-compare`
-skill (`../.claude/skills/old-app-compare/SKILL.md`). Never build the MAUI iOS/Android targets.
+The Blazor app at the tag `v1-final` (the last of the C# app, before the rewrite replaced it on `main`) is what
+the rewrite must match; how to run and compare it: the `old-app-compare` skill
+(`../.claude/skills/old-app-compare/SKILL.md`). Never build the MAUI iOS/Android targets.
 
 ## Workflow
 

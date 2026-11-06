@@ -1,7 +1,7 @@
 // Pictures of the old Blazor app and of the rewrite, same names, in one go (docs/look.md).
 // Usage: node scripts/compare-old-app.mjs <outDir> [name,name,…]
-// Makes the reference worktree ../GospelPresenter-main-ref if it is missing (detached at origin/main, after a
-// fetch; an existing one is used as it is), runs the old app in mock mode on a free port, takes its pictures into
+// Makes the reference worktree ../GospelPresenter-main-ref if it is missing (detached at the tag v1-final, the last of
+// the C# app, fetched from origin if it is not here; an existing one is used as it is), runs the old app in mock mode on a free port, takes its pictures into
 // <outDir>/old (capture-old-app.mjs), stops it, then takes the new app's into <outDir>/new (e2e/capture.spec.ts),
 // and lists the names found on one side only.
 import { spawn, spawnSync } from 'node:child_process';
@@ -31,9 +31,9 @@ if (existsSync(ref)) {
   const head = spawnSync('git', ['-C', ref, 'log', '-1', '--format=%h %cs %s'], { encoding: 'utf8' }).stdout.trim();
   console.log(`compare: the old app from ${ref} as it is (${head})`);
 } else {
-  console.log(`compare: ${ref} is missing; fetching origin and adding it, detached at origin/main`);
-  git('fetch', 'origin', 'main');
-  git('worktree', 'add', '--detach', ref, 'origin/main');
+  console.log(`compare: ${ref} is missing; adding it, detached at v1-final`);
+  if (spawnSync('git', ['rev-parse', '-q', '--verify', 'v1-final^{commit}'], { cwd: repo }).status !== 0) git('fetch', 'origin', 'tag', 'v1-final');
+  git('worktree', 'add', '--detach', ref, 'v1-final');
 }
 
 const port = await new Promise((res, rej) => {

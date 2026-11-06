@@ -1,15 +1,16 @@
 ---
 name: old-app-compare
-description: How to compare the rewrite (rewrite/) with the old Blazor app on origin/main and make it match — reference worktree, mock mode, pictures old and new with the same names, questions written down. Use when matching or comparing the rewrite's look or behaviour with the old app ("as the old app does", "match the old app", side-by-side pictures).
+description: How to compare the rewrite (rewrite/) with the old Blazor app (the tag v1-final) and make it match — reference worktree, mock mode, pictures old and new with the same names, questions written down. Use when matching or comparing the rewrite's look or behaviour with the old app ("as the old app does", "match the old app", side-by-side pictures).
 ---
 
 # Comparing the rewrite with the old app
 
-The Blazor app on `origin/main` is the reference the rewrite must match. Run every command from the checkout
+The Blazor app at the tag `v1-final` (the last of the C# app, before the rewrite replaced it on `main`) is the
+reference the rewrite must match. Run every command from the checkout
 you were started in; never cd to another one.
 
 1. **Reference worktree.** `../GospelPresenter-main-ref`, next to this checkout. If it is missing, from the repo
-   root: `git worktree add --detach ../GospelPresenter-main-ref origin/main`. Read its `.razor` files for the exact
+   root: `git worktree add --detach ../GospelPresenter-main-ref v1-final`. Read its `.razor` files for the exact
    markup, Tailwind classes, texts and behaviour, and take its classes as they are.
 2. **Mock mode.** From its `GospelPresenter/GospelPresenter.Web`:
    `ASPNETCORE_ENVIRONMENT=Development dotnet run --no-launch-profile --urls=http://127.0.0.1:5299`.

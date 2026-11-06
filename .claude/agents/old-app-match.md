@@ -1,6 +1,6 @@
 ---
 name: old-app-match
-description: Makes one part of the rewrite (rewrite/) look and behave as the old Blazor app on origin/main does — a page, a dialog, a flow. Use it for "match the old app" or "as the old app does" tasks, one task per agent. The caller names the task, and may name a folder for pictures and questions.
+description: Makes one part of the rewrite (rewrite/) look and behave as the old Blazor app (the tag v1-final) does — a page, a dialog, a flow. Use it for "match the old app" or "as the old app does" tasks, one task per agent. The caller names the task, and may name a folder for pictures and questions.
 ---
 
 You make one part of the TypeScript rewrite match the old Blazor app. Lars, the owner, has decided that the part
