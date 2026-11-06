@@ -14,7 +14,7 @@ import { useView, VIEW_ITEM, VIEW_LIST, ViewPicker } from '../ui/ViewPicker.tsx'
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { ImageThumb } from './Images.tsx';
+import { ImageFull, ImageThumb } from './Images.tsx';
 import { PictureMenu } from '../ui/RemoveMenu.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
@@ -137,10 +137,11 @@ export function ImageTab({
                       className={`relative block ${view === 'large' ? 'w-full' : ''} rounded-lg cursor-pointer transition-shadow ring-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${isPicked ? 'ring-sky-500' : 'ring-transparent'}`}
                     >
                       {/* Large, the picture itself: its thumbnail (400 × 225) would be soft at that size. */}
-                      <ImageThumb
-                        image={view === 'large' ? { thumbHash: image.fullHash, fileName: image.fileName } : image}
-                        className={view === 'list' ? 'block w-16 aspect-video object-cover rounded' : view === 'large' ? 'block w-full rounded-lg' : undefined}
-                      />
+                      {view === 'large' ? (
+                        <ImageFull image={image} className="block w-full rounded-lg" />
+                      ) : (
+                        <ImageThumb image={image} className={view === 'list' ? 'block w-16 aspect-video object-cover rounded' : undefined} />
+                      )}
                       {isPicked && (
                         <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <span className="size-8 flex items-center justify-center rounded-full bg-sky-500 text-white">

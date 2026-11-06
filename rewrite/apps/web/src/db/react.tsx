@@ -92,6 +92,41 @@ export function useBlobUrl(hash: string | null): string | null {
   return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
 }
 
+/**
+ * A blob of this device, fetched and kept as cache when it is not here yet; null until it is, or if it cannot be had.
+ * A null hash fetches nothing (yet).
+ */
+export function useOpenedUrl(hash: string | null): string | null | undefined {
+  const db = useDb();
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!hash) return;
+    let live = true;
+    let made: string | null = null;
+    void db.openMedia(hash).then((m) => {
+      if (!live) return;
+      made = m ? URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: m.contentType })) : null;
+      setUrl(made);
+    });
+    return () => {
+      live = false;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [db, hash]);
+  return url;
+}
+
+/**
+ * A library picture at full size: the picture itself, fetched and kept as cache when this device lacks it (a browser
+ * keeps only the ones a presentation needs: docs/media-and-files.md), its thumbnail meanwhile, or if it cannot be had.
+ * A null `full` shows the thumbnail and fetches nothing, as for a picture far from view.
+ */
+export function usePictureUrl(full: string | null, thumb: string): string | null {
+  const opened = useOpenedUrl(full);
+  const small = useBlobUrl(opened ? null : thumb);
+  return opened ?? small;
+}
+
 /** What the overlay `id` shows, or null for none (or one deleted meanwhile). */
 export function useShownOverlay(id: string | null): CustomPage | null {
   return useData((db) => shownOverlay(db, id), [id]) ?? null;

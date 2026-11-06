@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { VideoCodec, VideoType } from '@gp/core';
-import { useBlobUrl, useDb } from '../db/react.tsx';
+import { useBlobUrl, useOpenedUrl, usePictureUrl } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
@@ -21,30 +21,8 @@ export type QuickLookContent =
   | { kind: 'audio'; hash: string }
   | { kind: 'video'; hash: string; still: string; type: VideoType; codec: VideoCodec };
 
-/** A blob of this device, fetched and kept as cache when it is not here yet; null until it is, or if it cannot be had. */
-function useOpenedUrl(hash: string): string | null | undefined {
-  const db = useDb();
-  const [url, setUrl] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let live = true;
-    let made: string | null = null;
-    void db.openMedia(hash).then((m) => {
-      if (!live) return;
-      made = m ? URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: m.contentType })) : null;
-      setUrl(made);
-    });
-    return () => {
-      live = false;
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [db, hash]);
-  return url;
-}
-
 function Picture({ full, thumb, name }: { full: string; thumb: string; name: string }) {
-  const opened = useOpenedUrl(full);
-  const small = useBlobUrl(opened ? null : thumb);
-  const url = opened ?? small;
+  const url = usePictureUrl(full, thumb);
   return url ? <img src={url} alt={name} draggable={false} className="max-w-full max-h-full object-contain rounded-lg" data-testid="quick-look-image" /> : <p className="text-stone-400">{t('images.fetching')}</p>;
 }
 

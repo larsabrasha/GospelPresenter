@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
-import { useBlobUrl, useData, useDb } from '../db/react.tsx';
+import { useBlobUrl, useData, useDb, usePictureUrl } from '../db/react.tsx';
 import { listImages } from '../db/images.ts';
 import { t, type TextKey } from '../i18n.ts';
 import { nameFor } from '../media/download.ts';
@@ -18,11 +18,44 @@ import { useToast } from '../ui/Toast.tsx';
  * most 128 px high (Images.razor); a grey box with "Hämtas..." until it has arrived.
  */
 export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'thumbHash' | 'fileName'>; className?: string }) {
-  const url = useBlobUrl(image.thumbHash);
+  return <Thumb url={useBlobUrl(image.thumbHash)} name={image.fileName} className={className} />;
+}
+
+/**
+ * A library picture at full size, for the large view, where its thumbnail (400 × 225) would be soft: the picture
+ * itself, fetched when this device lacks it, which a browser does unless a presentation needs it (Lars, 2026-11-06:
+ * "Hämtas..." stayed on an iPad); its thumbnail meanwhile. Fetched only once it comes within a screen of view, so a
+ * long list does not download every original (Lars, 2026-11-06).
+ */
+export function ImageFull({ image, className }: { image: Pick<LibraryImage, 'fullHash' | 'thumbHash' | 'fileName'>; className?: string }) {
+  const [el, setEl] = useState<Element | null>(null);
+  const near = useNearView(el);
+  return <Thumb url={usePictureUrl(near ? image.fullHash : null, image.thumbHash)} name={image.fileName} className={className} ref={setEl} />;
+}
+
+/** Whether `el` has come within a screen of view in its scrolling box; once true, it stays so. */
+function useNearView(el: Element | null): boolean {
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (!el || near) return;
+    // The scrolling box as the root: the margin reaches past its edges, which it would not past the window's alone.
+    const seen = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), { root: scrollingBox(el), rootMargin: '100% 0px' });
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, [el, near]);
+  return near;
+}
+
+function scrollingBox(el: Element): Element | null {
+  for (let box = el.parentElement; box; box = box.parentElement) if (/auto|scroll/.test(getComputedStyle(box).overflowY)) return box;
+  return null;
+}
+
+function Thumb({ url, name, className, ref }: { url: string | null; name: string; className?: string; ref?: (el: Element | null) => void }) {
   return url ? (
-    <img src={url} alt={image.fileName} draggable={false} className={className ?? 'block max-w-full max-h-32 rounded-lg'} />
+    <img ref={ref} src={url} alt={name} draggable={false} className={className ?? 'block max-w-full max-h-32 rounded-lg'} />
   ) : (
-    <div className="w-32 max-w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised flex items-center justify-center text-xs text-stone-400">{t('images.fetching')}</div>
+    <div ref={ref} className="w-32 max-w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised flex items-center justify-center text-xs text-stone-400">{t('images.fetching')}</div>
   );
 }
 
@@ -112,7 +145,7 @@ export function Images({ role }: { role: Role }) {
         subtitle: `${image.width} × ${image.height}`,
       })}
       // Large, the picture itself rather than its thumbnail (400 × 225), which would be soft at that size.
-      renderTile={(image, large) => (large ? <ImageThumb image={{ thumbHash: image.fullHash, fileName: image.fileName }} className="block w-full rounded-lg" /> : <ImageThumb image={image} />)}
+      renderTile={(image, large) => (large ? <ImageFull image={image} className="block w-full rounded-lg" /> : <ImageThumb image={image} />)}
       preview={(image) => ({ kind: 'image', full: image.fullHash, thumb: image.thumbHash })}
       manage={manage}
       renderActions={(image, row) => (

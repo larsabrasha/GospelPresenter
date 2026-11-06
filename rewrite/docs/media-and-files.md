@@ -201,7 +201,10 @@ client does the same; no machine is set apart.
 **Always:** every picture's and video's thumbnail, which is small and what the library, the pickers and the tiles
 show. **Looking around fetches nothing heavier:** opening a presentation, the editor and remote control show a
 picture's thumbnail where its full picture is not on the device (`SlideView`), and the editor's player of a video
-streams it when played and keeps nothing.
+streams it when played and keeps nothing. **Seeing a picture large fetches it:** Quick Look and the large view of Bilder and
+of the add dialog's picture tab show the full picture (`usePictureUrl` in `db/react.tsx`), fetched through `openMedia`
+when the device lacks it and kept as cache, its thumbnail meanwhile; the large view fetches a picture only once it is
+within a screen of view, so a long list does not fetch every one (Lars, 2026-11-06; `e2e/milestone5.spec.ts`).
 
 **Presenting:** Starta presentation fetches that presentation's files at once, quietly: its full pictures, its
 audio, its videos' stills, its slideshows' PDF pages (both sizes) and pictures, and every overlay's pictures (any can be switched on).

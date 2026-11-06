@@ -3,7 +3,7 @@
 // and shown on the output, all with no internet.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { launch, testPort, type Desktop } from './apps.ts';
 import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
@@ -131,4 +131,41 @@ test('a picture imported while the host is down is kept, and reaches the host an
   // The host fetched the picture's bytes from its own media folder, not just the row.
   await expect.poll(() => onHost.evaluate((img: HTMLImageElement) => img.naturalWidth), { timeout: 10_000 }).toBeGreaterThan(0);
   await expect(page.getByText('En ändring kunde inte synkas.')).toHaveCount(0);
+});
+
+test('another device shows a picture large, in Bilder and in Lägg till bild, fetching each one only near view', async () => {
+  host = await launch();
+  await setUpHost(host);
+  await openAdmin(host.page, 'Bilder');
+  const files = Array.from({ length: 8 }, (_, i) => ({ name: `Bild ${i + 1}.png`, mimeType: 'image/png', buffer: solidPng(1600, 900, [20, 60, 20 + i * 25]) }));
+  await host.page.getByTestId('image-file').setInputFiles(files);
+  await expect(host.page.getByTestId('image-card')).toHaveCount(8);
+  await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');
+  await createPresentation(host.page, 'Söndag');
+  second = await launch({ server: host.base });
+  await pair(host.page, second.page, 'Andra datorn', 'Bo');
+  const page = second.page;
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
+  // The picture itself, 1600 wide, not its thumbnail (400), nor "Hämtas..." for good (Lars, 2026-11-06, on an iPad).
+  const width = (img: Locator, wide: number) => expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth), { timeout: 10_000 }).toBe(wide);
+
+  await openAdmin(page, 'Bilder');
+  await page.getByRole('radio', { name: 'Stora', exact: true }).click();
+  const cards = page.getByTestId('image-card').getByRole('img');
+  await width(cards.first(), 1600);
+  // The last, screens below, is still its thumbnail: the observers answered together, before the first one's fetch.
+  await width(cards.last(), 400);
+  await cards.last().scrollIntoViewIfNeeded();
+  await width(cards.last(), 1600);
+
+  await page.goto(new URL(page.url()).origin);
+  await page.getByRole('link', { name: /Söndag/ }).click();
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  await picker.getByRole('radio', { name: 'Stora', exact: true }).click();
+  const picks = picker.getByTestId('image-picker').getByRole('img');
+  await width(picks.first(), 1600);
+  await picks.last().scrollIntoViewIfNeeded();
+  await width(picks.last(), 1600);
 });
