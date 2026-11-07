@@ -198,7 +198,10 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   item. Fade-out: 5 000 ms, ease-out cubic, then pause, rewind to 0, restore volume
   (`GospelPresenter/GospelPresenter.Shared/wwwroot/utils.js:1112-1144`). While dragging the seek bar
   the audio is muted, unmuted 150 ms after the last move.
-- Audio plays **only on the operator's machine**; outputs and public viewers never play audio.
+- Audio plays **only on the operator's machine**; outputs and public viewers never play audio. The rewrite plays
+  it, and a video's sound, in the first output window opened on that machine, picture and sound from one element,
+  or in the presenting tab while no output window is open; paired screens and public viewers stay silent (Lars,
+  2026-11-07).
 - Remote controller: its own players are muted mirrors; play/pause, seek (with position) and fade are
   relayed to the presenting tab, which executes them on its elements
   (`Presentation.razor:1168-1172`, `:1285-1288`).

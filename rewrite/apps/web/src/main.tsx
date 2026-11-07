@@ -11,6 +11,8 @@ import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
 import { socketProtocols } from '@gp/sync/client';
 import { LiveChannel } from './live/live.ts';
+import { OutputPlayback, Playback, playedFromVideo } from './live/playback.ts';
+import { Player } from './live/player.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
@@ -78,10 +80,14 @@ if (route.page === 'watch') {
   if (stored) {
     const session = workerSession(stored);
     const live = new LiveChannel(session.orgId, 'output');
+    const reader = new SharedReader(shareChannelName(session));
+    // Made before anything renders, so the presenting window's answer to the hello finds it listening.
+    const player = new Player(reader);
+    const playback = new OutputPlayback(live, live.id, player, live);
     root.render(
       <StrictMode>
-        <ReaderProvider reader={new SharedReader(shareChannelName(session))}>
-          <OutputApp live={live} />
+        <ReaderProvider reader={reader}>
+          <OutputApp live={live} playback={playback} player={player} />
         </ReaderProvider>
       </StrictMode>,
     );
@@ -100,13 +106,15 @@ if (route.page === 'watch') {
     await db.open(session);
     // One live channel per window, for the window's lifetime.
     const live = new LiveChannel(session.orgId, 'operator');
+    // The session's audio and video, wherever they play, for the window's lifetime (playback.ts).
+    const playback = new Playback(live, new Player(db), live.restoredVideo && playedFromVideo(live.restoredVideo));
     // The organisation's live sessions, and this window's own (spec 04 §2).
     const link = new LiveLink(socketProtocols({ token: session.token, device: session.device }));
     root.render(
       <StrictMode>
         <CrashGuard>
           <DbProvider db={db}>
-            <App me={stored.me} live={live} link={link} sessionId={windowSessionId()} />
+            <App me={stored.me} live={live} link={link} sessionId={windowSessionId()} playback={playback} />
           </DbProvider>
         </CrashGuard>
       </StrictMode>,

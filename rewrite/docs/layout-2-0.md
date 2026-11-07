@@ -138,8 +138,10 @@ overlay.
   and the file's name; shown, it plays from its start, and any other slide shown stops it (a video does the same).
   Their controls lie on the live picture, on a computer and a phone alike, not in the slides: the audio's name and
   Tona ut at the top, play and pause, the time, the seek bar and the length at the foot (`pages/live/MediaControls.tsx`).
-  Before presenting an item keeps its preview player in the slides. Moving to another page does not stop them: the
-  presentation is still live.
+  On the presenting window the live picture shows the video playing, muted, following the one that plays with its
+  sound in the output window (Lars, 2026-11-07; docs/live.md "Where audio and video play"); a controller's shows its
+  still. Before presenting an item keeps its preview player in the slides. Moving to another page stops neither audio
+  nor video: the presentation is still live.
 - **Folding the columns away** (Lars, 2026-11-03), as iPadOS's and macOS's sidebars: a quiet button with a sidebar
   icon in each column's foot, at its inner edge beside its last line (the left column's at the right of the sync line;
   the live column's at the left, Fjärrstyrning at the right), folds it away ("Göm sidofält", "Göm livekolumnen"); while

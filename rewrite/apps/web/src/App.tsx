@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDropGuard } from './ui/DropZone.tsx';
 import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
@@ -6,8 +6,8 @@ import { updateMe } from './auth/session.ts';
 import { useDb } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
-import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
-import { VideoEngine } from './live/video.ts';
+import type { OutputPlayback, Playback } from './live/playback.ts';
+import type { Player } from './live/player.ts';
 import { KEEP_COMING_CHANGED, keepComingSetting } from './ui/KeepOffline.tsx';
 import { CACHE_LIMIT_CHANGED, cacheLimitSetting, Storage } from './pages/Storage.tsx';
 import { useCcliCounter } from './live/ccli.ts';
@@ -67,15 +67,11 @@ import { ToastProvider } from './ui/Toast.tsx';
  * the background (spec 01 `GET /api/me`), so a name or role change shows
  * without signing in again. Offline, the stored one is used.
  */
-export function App({ me: initial, live, link, sessionId }: { me: Me; live: LiveChannel; link: LiveLink; sessionId: string }) {
+export function App({ me: initial, live, link, sessionId, playback }: { me: Me; live: LiveChannel; link: LiveLink; sessionId: string; playback: Playback }) {
   const route = useRoute();
   const db = useDb();
-  // The session's audio plays in this window, whichever page is open (spec 04 §1b).
-  const audio = useMemo(() => new AudioEngine((itemId) => audioUrlOfItem(db, itemId)), [db]);
-  // So does a video item's, and its picture's clock, which the outputs follow (TODO.md "Video on the outputs").
-  const video = useMemo(() => new VideoEngine(), []);
-  // This window owns whatever it presents, on every page (LIVE-R49).
-  useLiveOwner(live, link, db, sessionId, audio, video);
+  // This window owns whatever it presents, on every page (LIVE-R49); its audio and video play in the primary output, or here.
+  useLiveOwner(live, link, db, sessionId, playback);
   // And counts the songs it shows for the CCLI report (SONG-R48).
   useCcliCounter(live, db);
   // Starta presentation fetches the presentation's files here, at once and quietly; looking around fetches none.
@@ -188,7 +184,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         {under.page === 'presentations' ? (
           <Presentations link={link} ownSessionId={sessionId} manageTemplates={can(me.role, 'ManageTemplates')} />
         ) : under.page === 'presentation' ? (
-          <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} video={video} sessionId={sessionId} remote={under.remote} session={under.session} />
+          <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={playback.audio} video={playback.video} sessionId={sessionId} remote={under.remote} session={under.session} />
         ) : under.page === 'templates' ? (
           can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />
         ) : under.page === 'template' ? (
@@ -314,7 +310,7 @@ function Refused({ text }: { text: string }) {
   );
 }
 
-/** The output window has no chrome; its live channel only listens. */
-export function OutputApp({ live }: { live: LiveChannel }) {
-  return <Output live={live} />;
+/** The output window has no chrome; its live channel listens, and its player plays while it is the primary output. */
+export function OutputApp({ live, playback, player }: { live: LiveChannel; playback: OutputPlayback; player: Player }) {
+  return <Output live={live} playback={playback} player={player} />;
 }

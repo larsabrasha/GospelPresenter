@@ -12,7 +12,7 @@ The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web
 pnpm install
 pnpm check:quick                       # typecheck + lint + core/web/server unit tests (server on the node adapter only)
 pnpm check:quick -- e2e/drag.spec.ts   # the same, then builds and runs the named e2e specs
-pnpm typecheck && pnpm lint && pnpm test && pnpm e2e    # the full checks; run them before saying done
+pnpm typecheck && pnpm lint && pnpm test && pnpm e2e    # the whole suite; only when a change reaches it ("Which e2e specs")
 pnpm build
 pnpm e2e -- drag watch                 # only these e2e specs (by file name), built through turbo
 pnpm --filter @gp/desktop exec playwright test drag     # the same without turbo; its global setup builds first
@@ -29,6 +29,20 @@ e2e runs the BUILT app (`apps/desktop/dist`, `apps/web/dist`), windows hidden, f
 starts its own hosts with their own data dir and port (`testPort()` in `e2e/apps.ts`; use it for any new port).
 `pnpm e2e` builds through turbo; outside turbo, `e2e/global-setup.ts` runs turbo's build (0.3 s when unchanged).
 Unit/server tests and typecheck are cached by turbo: an unchanged package shows "cached", not a rerun.
+
+## Which e2e specs
+
+Before saying done, and before a commit: `pnpm typecheck && pnpm lint && pnpm test` always (cheap, cached), and
+the e2e specs the change reaches, not the whole suite (Lars, 2026-11-06: a whole run is 3 minutes at best, and the
+timing specs go flaky under load).
+
+- The specs of the feature changed, by file name: `pnpm e2e -- video audio`. `grep -l` in `apps/desktop/e2e` for
+  the page, component or text changed finds them; a spec a `docs/scenarios.md` row names for it counts too.
+- `journeys.spec.ts` only when a change crosses features on a Sunday: live, the outputs, sync, presenting.
+- `performance.spec.ts` only when a change can change speed: long lists, search, sync, the database, startup.
+- The whole suite only for a change every page shares: `ui/` building blocks, the router, the db schema, sync,
+  the desktop host.
+- The answer says which specs ran, and which were left out.
 
 ## UI rules
 
@@ -69,7 +83,7 @@ the rewrite must match; how to run and compare it: the `old-app-compare` skill
 
 - Ask before changing behaviour; the spec and `docs/` say what the app does.
 - A spec change is committed together with the code it describes.
-- Commit only after the full checks pass, and only when asked.
+- Commit only after the checks of "Which e2e specs" pass, and only when asked.
 - A Stop hook (`../.claude/hooks/check-rewrite.mjs`) runs `pnpm check:quick` when the turn changed files
   under `rewrite/` (a UserPromptSubmit hook saves their state when the turn begins) and sends failures back; it
-  does not replace the full checks.
+  does not replace those checks.

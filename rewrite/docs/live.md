@@ -39,29 +39,61 @@ running order and the live page name the overlay an item carries.
 data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
 finns på den här enheten" counts them.
 
+## Where audio and video play
+
+The primary output plays them (Lars, 2026-11-07; `apps/web/src/live/playback.ts`): the first output window opened
+that is still open, on the presenting computer. Its video element carries picture and sound, so they are in step on
+the screen the room sees, and it stays on its page while it plays, so nothing the operator does moves it: no page
+change, no reload of the presenting window. Audio items play there too, so all sound comes from one place. With no
+output window open, the presenting window plays them, in elements of its own off the page, and plays on whichever
+page is open. Paired screens and public outputs never play sound.
+
+The presenting window decides, over the live channel (`Playback`; the output's side `OutputPlayback`). An output
+window says hello when it opens and every second after, and bye when it closes; one not heard from for 4 s has
+closed. When the first output opens, the presenting window stops its player and hands over where the audio and video
+were; the output plays on from there, follows the live pointer itself, reports its player's state on every change,
+and takes play, pause, seek and fade as commands relayed by the presenting window. When the primary closes, the next
+output opened takes over from its last report; with none, the presenting window does after 1.5 s, so an output that
+reloads takes over again without the presenting window playing meanwhile. A presenting window that starts asks which
+outputs are open and waits 0.8 s for their answer: one that reloaded finds the output still playing and leaves it be.
+The playback (`Player`, `apps/web/src/live/player.ts`) is the same in either window: a video item shown plays from
+its start, an audio item shown too, anything else stops them, black pauses them. The handover keeps the position and
+whether it played; a fade in progress is not handed over. The desktop app lets its windows play sound untouched
+(`autoplayPolicy`). A browser that holds the sound back until a tap in that window (Safari, and a browser's popup
+nobody has clicked) gets "Tryck för att starta uppspelningen" over the output; the tap plays it, and lets the element
+buffering the next video play later too.
+
+Tested in `apps/web/test/playback.test.ts` (who plays: none, the first output, the next, back to the presenting
+window after the grace, an output that reloads, one gone quiet, a presenting window that reloads; commands to the
+primary; its state moved on), and in the e2e specs below.
+
 ## Video on the outputs
 
-A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the presenting window plays
-it from its start (`VideoEngine`, `apps/web/src/live/video.ts`): one `<video>` element of its own, not on the page,
-unmuted, so its sound plays on the presenting computer as an audio item's does (LIVE-R6) and never on an output.
-Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Släck) pauses it, picture and
+A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the primary output plays
+it from its start (`VideoEngine`, `apps/web/src/live/video.ts`), with its sound (above). Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Släck) pauses it, picture and
 sound, and showing the picture again resumes it where it was; a video paused by hand stays paused (Lars,
-2026-10-31). A reloaded presenting window resumes it where it was, from the state it kept beside the pointer in the
-tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting window (`video` messages,
-relayed like audio commands) and mirrors what it reports (`RemoteVideo`). The player (`VideoPlayer`) under the item's slide on
+2026-10-31). A presenting window that reloads with no output open resumes it where it was, from the state it kept
+beside the pointer in the tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting
+window (`video` messages, relayed like audio commands), which passes them on to the window that plays, and mirrors
+what it reports (`RemoteVideo`). The player (`VideoPlayer`) under the item's slide on
 the live page has play, pause, a seek bar and the time. When the item before
-a video item goes live, a second element buffers the video, and the output window buffers it too, so it starts at
+a video item goes live, a second element buffers the video, and the other output windows buffer it too, so it starts at
 once.
 
-**The output window on the same machine** plays the picture, muted, in an element of its own over the still
-(`FollowingVideo`), streamed with its own token. The presenting window posts on the live channel, beside the
+**Other output windows, and the presenting window's live picture,** play the picture, muted, in an element of their
+own over the still (`FollowingVideo`), streamed with its own token: the picture follows the video, under the overlay
+and the black screen as on an output. The presenting window posts on the live channel, beside the
 pointer, which video plays, whether it plays, its position and the moment (`Date.now()`, a clock both windows
 share), on every play, pause, seek, stall and end, and the next video to buffer. Four times a second the output
 works out where the video should be and plays up to 5 % faster or slower to get within 0.04 s, or seeks when it is
 more than 0.3 s off (`follow`). After a seek while playing it waits until its clock moves (at most 3 s), and its
 next seek aims ahead by how far behind the last one came out (`keepInStep`): in Safari on an iPad a seek stands still
-for about half a second, so the output seeked anew at every check and its picture stood still (Lars, 2026-11-06). The
-operator window is the clock and the sound, whether an output window is open or not.
+for about half a second, so the output seeked anew at every check and its picture stood still (Lars, 2026-11-06). A
+browser that will not start the video untouched (Safari on an iPad refuses even a muted one, NotAllowedError, in a window
+nobody has tapped; Lars, 2026-11-07) gets "Tryck för att starta uppspelningen" over it: the tap plays it, and it
+follows from there; the live picture has its controls there instead, and shows the still. An earlier build put the
+playing element itself in the live picture: moving it in and out of the page made its sound stutter on an iPad (Lars,
+2026-11-07), which is why the element that plays now stays on the output's page.
 
 **A paired screen** gets the same state in its canvas (`canvas.slide.video`: hash, type, codec, playing, position,
 `at`), streams the video itself, muted, from `/api/screen/{id}/video/{hash}` or `/api/display/{code}/video/{hash}`
@@ -74,9 +106,10 @@ presentation the session shows, as for a picture (LIVE-R32). A screen whose brow
 
 Tested in `apps/server/test/video.test.ts` (three adapters: the stamped moment, the screen's video route, the still
 to a public output and no video), `apps/web/test/video.test.ts` (`follow`, `expectedPosition`) and
-`apps/desktop/e2e/video.spec.ts` (the output window plays in step with the operator window, the next video buffers,
-a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still there while
-the output plays it; black pauses and resumes it; a reload resumes it; a controller plays, pauses and moves it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
+`apps/desktop/e2e/video.spec.ts` (the output window plays it with its sound, the next video buffers, the live picture
+follows muted, a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still
+there while the output plays it; black pauses and resumes it; a reload of the presenting window and leaving the
+presentation leave the output playing; a controller plays, pauses and moves it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
 the sound and the output's picture stay on a real projector is not measured.
 
 ## Paired screens

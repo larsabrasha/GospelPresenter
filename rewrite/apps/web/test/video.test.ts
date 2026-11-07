@@ -96,6 +96,44 @@ describe('a follower whose seeks take a moment to start', () => {
   });
 });
 
+describe('a follower the browser will not start untouched', () => {
+  const video = { hash: 'h', type: 'video/mp4', codec: 'h264', playing: true, position: 0, at: 0 } as const;
+  /** An element whose play() the browser answers with `answer`. */
+  const element = (answer: () => Promise<void>) => ({ paused: true, seeking: false, duration: 30, currentTime: 0, playbackRate: 1, play: answer, pause() {} });
+  const heard = async (answer: () => Promise<void>) => {
+    const said: boolean[] = [];
+    keepInStep(element(answer) as unknown as HTMLVideoElement, video, 0, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+    return said;
+  };
+
+  it('says it was refused when the browser wants a tap', async () => {
+    expect(await heard(() => Promise.reject(new DOMException('needs a tap', 'NotAllowedError')))).toEqual([true]);
+  });
+
+  it('says nothing when a play was only cut short', async () => {
+    expect(await heard(() => Promise.reject(new DOMException('a new source', 'AbortError')))).toEqual([]);
+  });
+
+  it('says it plays when the browser lets it while a seek is still settling', async () => {
+    const said: boolean[] = [];
+    let allowed = false;
+    const el = element(() => (allowed ? Promise.resolve() : Promise.reject(new DOMException('needs a tap', 'NotAllowedError'))));
+    keepInStep(el as unknown as HTMLVideoElement, { ...video, position: 10 }, 0, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+    allowed = true;
+
+    keepInStep(el as unknown as HTMLVideoElement, { ...video, position: 10 }, 250, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(said).toEqual([true, false]);
+  });
+
+  it('says it plays once the browser lets it', async () => {
+    expect(await heard(() => Promise.resolve())).toEqual([false]);
+  });
+});
+
 describe('picking a video', () => {
   it('takes MP4 and MOV by the type the browser reports, or by the extension', () => {
     expect(checkPickedVideo({ type: 'video/quicktime', size: 10, name: 'IMG_0001.MOV' })).toBe('video/quicktime');

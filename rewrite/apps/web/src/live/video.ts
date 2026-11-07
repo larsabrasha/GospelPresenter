@@ -3,14 +3,15 @@ import { playUrl } from '../media/video.ts';
 import type { LiveLink } from './remote.ts';
 import { usePlayerState } from './usePlayerState.ts';
 
-// Video during live (TODO.md "Video on the outputs"). The presenting window
-// plays it: one element, unmuted, whose sound is the presenting computer's, as
-// an audio item's is (LIVE-R6), and whose clock every output follows. The
-// output window on the same machine plays the picture, muted, from the state
-// this window posts on the live channel; a paired screen does the same from
-// the state in the canvas the server sends; a public output shows the still.
-// Each follower works out where the video should be now and nudges its speed,
-// or seeks when it is more than a fraction of a second off (`follow`).
+// Video during live (TODO.md "Video on the outputs"). The primary output plays
+// it (playback.ts): one element, unmuted, picture and sound together, whose
+// clock everything else follows; with no output window open, the presenting
+// window plays it. The other output windows, and the presenting window's own
+// picture, play it muted from the state the presenting window posts on the
+// live channel; a paired screen does the same from the state in the canvas the
+// server sends; a public output shows the still. Each follower works out where
+// the video should be now and nudges its speed, or seeks when it is more than
+// a fraction of a second off (`follow`).
 
 /** What the outputs need of a video: which one, and what plays it. */
 export interface VideoRef {
@@ -34,6 +35,8 @@ export interface VideoControl {
   state(): VideoState | null;
   subscribe(fn: () => void): () => void;
   command(c: VideoCommand): void;
+  /** Where the video is at `now`, for a muted copy to follow; a controller, which plays nothing, has none. */
+  live?(now?: number): LiveVideo | null;
 }
 
 /** What the output window follows: the video and where it was at `at` (this machine's clock), and the next one to buffer. */
@@ -69,15 +72,18 @@ export function follow(expected: number, actual: number, playing: boolean): { se
   return { seekTo: null, rate: 1 + Math.max(-MAX_NUDGE, Math.min(MAX_NUDGE, diff / 2)) };
 }
 
-/** Puts an element where `video` says, now; `now` is the clock `video.at` is on. */
-export function keepInStep(el: HTMLVideoElement, video: LiveVideo, now: number) {
+/**
+ * Puts an element where `video` says, now; `now` is the clock `video.at` is on. `refused` hears whether the
+ * browser would not let it play without a tap (true), or played it (false).
+ */
+export function keepInStep(el: HTMLVideoElement, video: LiveVideo, now: number, refused?: (r: boolean) => void) {
   const duration = Number.isFinite(el.duration) ? el.duration : null;
   const expected = expectedPosition(video, now, duration);
   const playing = video.playing && (duration === null || expected < duration);
   const seeks = seeksOf(el);
   if (!playing) seeks.last = null;
   else if (seeks.last && settling(el, seeks, expected, now)) {
-    if (el.paused) void el.play().catch(() => undefined);
+    if (el.paused) play(el, refused);
     return;
   }
   const step = follow(expected, el.currentTime, playing);
@@ -87,8 +93,19 @@ export function keepInStep(el: HTMLVideoElement, video: LiveVideo, now: number) 
     if (playing) seeks.last = { target, at: now };
   }
   if (el.playbackRate !== step.rate) el.playbackRate = step.rate;
-  if (playing && el.paused) void el.play().catch(() => undefined);
+  if (playing && el.paused) play(el, refused);
   if (!playing && !el.paused) el.pause();
+}
+
+/**
+ * Plays a follower, telling `refused` whether the browser wants a tap first. Any other refusal (an AbortError
+ * when a seek or a new source cuts a play short) is tried again at the next check.
+ */
+function play(el: HTMLVideoElement, refused?: (r: boolean) => void) {
+  void el.play().then(
+    () => refused?.(false),
+    (e: unknown) => notAllowed(e) && refused?.(true),
+  );
 }
 
 // A playing follower's seek takes a moment before its clock moves again: half a second in Safari on an iPad,
@@ -128,6 +145,9 @@ function settling(el: HTMLVideoElement, seeks: Seeks, expected: number, now: num
   seeks.last = null;
   return false;
 }
+
+/** Whether a play() was refused for want of a tap. */
+export const notAllowed = (e: unknown) => (e as Error | null)?.name === 'NotAllowedError';
 
 /** Whether an element is advancing: playing, and not waiting for data. */
 const advancing = (el: HTMLVideoElement) => !el.paused && !el.ended && el.readyState >= 3;
@@ -179,6 +199,8 @@ export class VideoEngine implements VideoControl {
 
   /** Whether the video should play: started, and not paused by a hand, the black screen or another item. */
   private wanted = false;
+  /** The browser would play the video only muted, or not at all, until someone taps this window. */
+  private held = false;
   /**
    * Where the video was when the browser paused it because the page was hidden (Lars, 2026-11-06: Safari on an iPad
    * pauses a hidden tab's video, which the output tab in front of it opened, and the outputs stood still with it).
@@ -194,7 +216,44 @@ export class VideoEngine implements VideoControl {
   private halt(el: HTMLVideoElement) {
     this.wanted = false;
     this.hidden = null;
+    this.setHeld(false);
     el.pause();
+  }
+
+  /** Whether the browser holds the video back, or its sound, until someone taps this window. */
+  refused(): boolean {
+    return this.held;
+  }
+
+  private setHeld(held: boolean) {
+    if (held === this.held) return;
+    this.held = held;
+    this.notify();
+  }
+
+  /**
+   * A tap in this window (Safari lets an element play, and play sound, only once it has played inside a tap): the
+   * video held back plays, with its sound, and the element buffering the next one plays a moment, muted, so it may start later.
+   */
+  unlock() {
+    const el = this.current.el;
+    if (this.wanted) {
+      el.muted = false;
+      void el.play().then(
+        () => this.setHeld(false),
+        () => undefined,
+      );
+    }
+    const spare = this.spare.el;
+    if (!this.spare.ref || !spare.paused) return;
+    spare.muted = true;
+    void spare.play().then(
+      () => {
+        spare.pause();
+        spare.muted = false;
+      },
+      () => (spare.muted = false),
+    );
   }
 
   state(): VideoState | null {
@@ -213,6 +272,11 @@ export class VideoEngine implements VideoControl {
   live(now = Date.now()): LiveVideo | null {
     const s = this.state();
     return s && { hash: s.hash, type: s.type, codec: s.codec, playing: s.playing, position: s.position, at: now };
+  }
+
+  /** The element playing the item's video, for the primary output to show. */
+  picture(): HTMLVideoElement | null {
+    return this.itemId && this.current.ref ? this.current.el : null;
   }
 
   /** The video buffered for the next item. */
@@ -308,14 +372,29 @@ export class VideoEngine implements VideoControl {
     this.notify();
   }
 
-  /** Plays; a browser that refuses sound without a gesture gets the picture going muted. */
+  /** Another window plays from here on: the video stops, and where it was goes with it. */
+  release(): VideoState | null {
+    const s = this.state();
+    this.stop();
+    return s;
+  }
+
+  /**
+   * Plays; a browser that refuses sound without a tap gets the picture going muted, and says it holds the sound
+   * back. A play cut short by a pause or another item (an AbortError) is no refusal.
+   */
   private async start(el: HTMLVideoElement) {
     this.wanted = true;
     el.muted = false;
-    await el.play().catch(async () => {
+    try {
+      await el.play();
+      this.setHeld(false);
+    } catch (e) {
+      if (!notAllowed(e) || !this.wanted || el !== this.current.el) return;
       el.muted = true;
       await el.play().catch(() => undefined);
-    });
+      if (this.wanted && el === this.current.el) this.setHeld(true);
+    }
   }
 
   private notify() {

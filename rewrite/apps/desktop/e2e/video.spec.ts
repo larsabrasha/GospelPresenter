@@ -1,8 +1,8 @@
 // Video (TODO.md "Video, and which files a device fetches"): a video is
 // imported from Lägg till's Video tab, uploaded in parts and kept once, on the
-// host's disk; the editor streams a preview; live, the output window plays the
-// picture following the operator window's clock, and a paired screen (played
-// by Playwright's Chromium) streams it muted and follows.
+// host's disk; the editor streams a preview; live, the output window plays it,
+// picture and sound (the primary output, docs/live.md), the live picture and a
+// paired screen (played by Playwright's Chromium) stream it muted and follow.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, expect, test, type Browser, type Locator, type Page } from '@playwright/test';
@@ -106,7 +106,10 @@ test('a video is imported from the Video tab, another codec is refused with a hi
   expect(readdirSync(media).map((o) => readFileSync(join(media, o, 'media', hash)).equals(fixture('h264.mp4')))).toEqual([true]);
 });
 
-test('live: the output window plays the video in step with the operator window, the next video buffers, and a paired screen follows it muted', async () => {
+/** The primary output's own video, picture and sound. */
+const playing = (output: Page) => output.getByTestId('playing-video').locator('video');
+
+test('live: the output window plays the video with its sound, the next video buffers, the live picture and a paired screen follow it muted', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -122,21 +125,26 @@ test('live: the output window plays the video in step with the operator window, 
   const screen = await pairedScreen(page);
 
   // The song goes live: the video after it buffers on the output window already.
+  const buffering = output.waitForRequest((r) => r.url().includes('/api/play/'), { timeout: 5_000 });
   await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await expect(output.getByTestId('buffered-video')).toHaveAttribute('src', /^\/api\/play\//, { timeout: 5_000 });
+  await buffering;
 
-  // The video goes live: it plays on the output, muted; its sound is the operator window's.
+  // The video goes live: the output window plays it, with its sound (Lars, 2026-11-07).
   await pickItem(page, 'Dop.mp4');
   await page.getByRole('button', { name: 'Dop.mp4 1' }).click();
   // Its player under the picture, not among the slides (Lars, 2026-11-06).
   const player = page.getByTestId('live-panel').getByTestId('video-player');
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 10_000 });
   await expect(page.getByTestId('live-slides').getByTestId('video-player')).toHaveCount(0);
-  const onOutput = output.getByTestId('slide-video');
+  const onOutput = playing(output);
   await expect.poll(async () => (await playback(onOutput)).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
-  expect((await playback(onOutput)).muted).toBe(true);
+  expect((await playback(onOutput)).muted).toBe(false);
+  // The live picture follows it, muted.
+  const inPicture = page.getByTestId('live-panel').getByTestId('slide-video');
+  await expect.poll(async () => (await playback(inPicture)).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
+  expect((await playback(inPicture)).muted).toBe(true);
 
   // The paired screen streams it through its own path, muted, near where the output is.
   const onScreen = screen.getByTestId('slide-video');
@@ -164,12 +172,21 @@ test('live: the output window plays the video in step with the operator window, 
   expect(Number(await player.getByRole('slider').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(paused);
   await expect.poll(async () => (await playback(onOutput)).paused, { timeout: 5_000 }).toBe(false);
 
-  // A reload of the operator window resumes the video where it was, not from the start (Lars, 2026-10-31).
+  // A reload of the operator window leaves the output playing, and finds it where it is (Lars, 2026-10-31).
   await expect.poll(async () => Number(await player.getByRole('slider').getAttribute('aria-valuenow')), { timeout: 10_000 }).toBeGreaterThanOrEqual(paused + 2);
-  const before = Number(await player.getByRole('slider').getAttribute('aria-valuenow'));
+  const before = (await playback(onOutput)).time;
   await page.reload();
   await expect(page.getByTestId('video-player')).toHaveAttribute('data-playing', 'true', { timeout: 15_000 });
-  expect(Number(await page.getByTestId('video-player').getByRole('slider').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(before);
+  expect(Number(await page.getByTestId('video-player').getByRole('slider').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(Math.floor(before));
+  expect((await playback(onOutput)).time).toBeGreaterThan(before);
+
+  // Leaving the presentation changes nothing for the output: it plays on, and back on it the picture follows.
+  await page.getByRole('link', { name: 'Tillbaka' }).click();
+  const left = (await playback(onOutput)).time;
+  await expect.poll(async () => (await playback(onOutput)).time, { timeout: 5_000 }).toBeGreaterThan(left + 1);
+  await page.goBack();
+  await expect(page.getByTestId('video-player')).toHaveAttribute('data-playing', 'true', { timeout: 10_000 });
+  expect((await playback(onOutput)).paused).toBe(false);
 });
 
 test('live: a paired screen that cannot play HEVC shows the still, while the output window plays it', async () => {
@@ -186,7 +203,7 @@ test('live: a paired screen that cannot play HEVC shows the still, while the out
 
   await page.getByRole('button', { name: 'IMG_0001.mp4 1' }).click();
 
-  await expect.poll(async () => (await playback(output.getByTestId('slide-video'))).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
+  await expect.poll(async () => (await playback(playing(output))).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
   const still = screen.getByTestId('slide-image');
   await expect(still).toHaveAttribute('src', /^\/api\/screen\/[A-Za-z0-9_-]{43}\/image\/[0-9a-f]{64}$/, { timeout: 10_000 });
   await expect.poll(() => still.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(160);

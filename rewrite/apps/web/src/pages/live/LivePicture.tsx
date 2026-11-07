@@ -1,12 +1,29 @@
 import type { CustomPage, Slide, Theme } from '@gp/core';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { LIFTED } from '../../ui/glass.ts';
 import { BlackScreenIcon, ChevronLeftIcon } from '../../ui/icons.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import type { Players } from '../presentation-editor/ItemParts.tsx';
+import type { VideoControl } from '../../live/video.ts';
+import { FollowingVideo, useVideoSrc } from '../../ui/FollowingVideo.tsx';
 import { MediaControls } from './MediaControls.tsx';
+
+/** This machine's clock: the video's state is on it too. */
+const now = () => Date.now();
+
+/**
+ * The video shown, muted, following the one that plays in the primary output or this window (playback.ts), as an
+ * output window that is not the primary does (Lars, 2026-11-07). A controller, which plays nothing, keeps the still.
+ */
+function PictureVideo({ control }: { control: VideoControl }) {
+  const [video, setVideo] = useState(() => control.live?.() ?? null);
+  // A new state on every change of the video (play, pause, seek, another item), not on every tick.
+  useEffect(() => control.subscribe(() => setVideo(control.live?.() ?? null)), [control]);
+  const src = useVideoSrc(video);
+  return <FollowingVideo key={video?.hash} src={src} video={video} clock={now} tap={false} />;
+}
 
 /**
  * The picture shown and ‹ Släck › under it, the same on a phone and a computer (docs/layout-2-0.md): a red ring while
@@ -56,7 +73,7 @@ export function LivePicture({
   return (
     <div className="flex flex-col gap-3 items-center">
       <div data-live-picture className={`relative w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
-        <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} />
+        <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} video={players?.video?.live && <PictureVideo control={players.video} />} />
         {players && itemId && slide && <MediaControls slide={slide} itemId={itemId} players={players} />}
       </div>
       {/* ‹ Släck › in the middle (a phone: Släck alone); on a phone Visning at the row's right end, round and lifted as the arrows; the picture

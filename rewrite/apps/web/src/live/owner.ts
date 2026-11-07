@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { customPageText, followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
-import { getOverlay, getPresentation, getVideo, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
+import { getOverlay, getPresentation, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
-import type { AudioEngine } from './audio.ts';
-import { expectedPosition, type VideoEngine } from './video.ts';
+import type { Playback, PlaybackVideo } from './playback.ts';
+import type { VideoControl } from './video.ts';
 import { remoteAllowed, type LiveLink } from './remote.ts';
 
 /** Fired when "Tillåt fjärrstyrning" or the chosen outputs change in this window. */
@@ -96,7 +96,7 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
  * (spec 04 §5) gets the canvas the output window draws, overlay picture
  * included; null is black.
  */
-async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
+async function shownOnOutputs(db: ReadDb, p: LivePointer, video: PlaybackVideo): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
   if (!p.presentationId || p.black) return { slide: null, canvas: null };
   const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
   const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
@@ -113,7 +113,7 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): P
 }
 
 /** The video as a controller sees it: the item, playing or not, where and how long. */
-function videoState(video: VideoEngine): LiveVideoState | null {
+function videoState(video: VideoControl): LiveVideoState | null {
   const s = video.state();
   return s && { itemId: s.itemId, playing: s.playing, position: s.position, duration: s.duration };
 }
@@ -124,18 +124,16 @@ function videoState(video: VideoEngine): LiveVideoState | null {
  * controller's command is applied here, to this window's own LiveChannel,
  * if it still makes sense (LIVE-R49): this window is presenting, and the
  * item exists. Its own outputs follow the LiveChannel, never the server;
- * public outputs get the slide it reports.
+ * public outputs get the slide it reports. Its audio and video play in the
+ * primary output, or here (`playback`), and are reported from wherever they play.
  */
-export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string, audio: AudioEngine, video: VideoEngine) {
+export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string, playback: Playback) {
   useEffect(() => {
+    const { audio, video } = playback;
     let current = 0;
     const report = async (p: LivePointer) => {
       const mine = ++current;
-      if (!p.presentationId) {
-        audio.stop();
-        video.stop();
-        return link.own(null);
-      }
+      if (!p.presentationId) return link.own(null);
       const presentation = await getPresentation(db, p.presentationId);
       const { slide, canvas } = chosen.length ? await shownOnOutputs(db, p, video) : { slide: null, canvas: null };
       if (mine !== current) return; // a newer pointer is on its way
@@ -167,40 +165,10 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       const next = p.itemId ? followItemOverlay(p, before.get(p.itemId), live.itemOverlays.get(p.itemId)) : undefined;
       if (next !== undefined) live.set({ overlayId: next });
     };
-    // A video item that goes live plays here, from its start; the next item's video buffers meanwhile (TODO.md "Video").
-    let videoTurn = 0;
-    const followVideo = async (p: LivePointer) => {
-      const mine = ++videoTurn;
-      if (!p.presentationId) return video.stop();
-      const items = await itemsOf(db, p.presentationId);
-      const at = items.findIndex((i) => i.id === p.itemId);
-      const videoOf = async (i: (typeof items)[number] | undefined) => (i?.type === 'video' ? await getVideo(db, i.sourceId) : null);
-      const shownVideo = await videoOf(items[at]);
-      const nextVideo = at >= 0 ? await videoOf(items[at + 1]) : null;
-      if (mine !== videoTurn) return;
-      // Once, after a reload: the video live then resumes where it was, from the state kept with the pointer.
-      const restored = live.restoredVideo;
-      live.restoredVideo = null;
-      const from = restored && shownVideo && restored.hash === shownVideo.hash ? { position: expectedPosition(restored, Date.now()), playing: restored.playing && !p.black } : undefined;
-      await video.show(shownVideo && items[at] ? { itemId: items[at].id, video: shownVideo } : null, from);
-      if (mine !== videoTurn) return;
-      video.setBlack(p.black);
-      void video.buffer(nextVideo);
-    };
-    // An audio item that goes live plays here, from its start; anything else shown stops it (Lars, 2026-11-06).
-    let audioTurn = 0;
-    const followAudio = async (p: LivePointer) => {
-      const mine = ++audioTurn;
-      const item = p.presentationId && p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
-      if (mine !== audioTurn) return;
-      await audio.show(item?.type === 'audio' ? item.id : null);
-      if (mine === audioTurn) audio.setBlack(p.black);
-    };
     let presenting: string | null = null;
     const off = live.subscribe((p) => {
       if (p.presentationId !== presenting) void loadOverlays((presenting = p.presentationId));
-      void followVideo(p);
-      void followAudio(p);
+      playback.follow(p);
       void report(p);
     });
     const again = () => void report(live.pointer);
@@ -228,9 +196,9 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         for (const id of goneScreens(link, saved)) setOutput(id, false);
       });
     });
-    // The audio plays here; what it does reaches the controllers with the next report.
+    // What the audio does reaches the controllers with the next report.
     const offAudio = audio.subscribe(again);
-    // So does the video: the output window on this machine follows it through the live channel, the paired screens through the report.
+    // So does the video: the output windows and this window's picture follow it through the live channel, the paired screens through the report.
     const offVideo = video.subscribe(() => {
       live.setVideo({ video: video.live(), next: video.next() });
       again(); // controllers mirror it
@@ -263,5 +231,5 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       offVideoCommand();
       removeEventListener(REMOTE_CHANGED, again);
     };
-  }, [live, link, db, sessionId, audio, video]);
+  }, [live, link, db, sessionId, playback]);
 }

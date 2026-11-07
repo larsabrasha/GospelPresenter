@@ -22,12 +22,14 @@ import {
   videoSlide,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
+import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
+import type { PlaybackBus, PlaybackMessage } from './playback.ts';
 import { getCustomSlide } from '../db/customSlides.ts';
 import { getImage } from '../db/images.ts';
 import { arrangementsOf, getAudio, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
-type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
+type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | PlaybackMessage;
 
 function restoreVideo(key: string): LiveVideo | null {
   try {
@@ -51,8 +53,12 @@ function restore(key: string): LivePointer | null {
  * The live pointer between the windows of one machine (ADR 0007, decision 4).
  * The operator window owns it and answers `hello` from an output that opens
  * later. Outputs render from their own copy of the database plus the pointer.
+ * It also carries who plays the audio and video (playback.ts).
  */
-export class LiveChannel {
+export class LiveChannel implements PlaybackBus {
+  /** An output window's own name on the channel, for the playback. */
+  readonly id = newId();
+  private playbackListeners = new Set<(m: PlaybackMessage) => void>();
   private channel: BroadcastChannel;
   private current: LivePointer = IDLE;
   private storageKey: string;
@@ -81,15 +87,17 @@ export class LiveChannel {
       this.restoredVideo = this.current.presentationId ? restoreVideo(`${this.storageKey}:video`) : null;
     }
     this.channel.addEventListener('message', (e: MessageEvent<LiveMessage>) => {
-      if (e.data.type === 'hello') {
-        if (this.role !== 'operator') return;
+      const m = e.data;
+      if (m.type === 'pointer') return this.receive(m.pointer);
+      if (m.type === 'video') return void (this.role === 'output' && this.receiveVideo(m.video));
+      // The pointer first, so an output that becomes the primary has it before it plays.
+      if (m.type === 'hello' && this.role === 'operator') {
         this.channel.postMessage({ type: 'pointer', pointer: this.current } satisfies LiveMessage);
         this.channel.postMessage({ type: 'video', video: this.video } satisfies LiveMessage);
-      } else if (e.data.type === 'video') {
-        if (this.role === 'output') this.receiveVideo(e.data.video);
-      } else this.receive(e.data.pointer);
+      }
+      for (const fn of this.playbackListeners) fn(m);
     });
-    if (role === 'output') this.channel.postMessage({ type: 'hello' } satisfies LiveMessage);
+    if (role === 'output') this.channel.postMessage({ type: 'hello', id: this.id } satisfies LiveMessage);
   }
 
   get pointer(): LivePointer {
@@ -147,6 +155,15 @@ export class LiveChannel {
     this.videoListeners.add(fn);
     fn(this.video);
     return () => this.videoListeners.delete(fn);
+  }
+
+  post(m: PlaybackMessage) {
+    this.channel.postMessage(m satisfies LiveMessage);
+  }
+
+  listen(fn: (m: PlaybackMessage) => void): () => void {
+    this.playbackListeners.add(fn);
+    return () => this.playbackListeners.delete(fn);
   }
 
   close() {

@@ -4,12 +4,13 @@ import { getAudio } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import type { LiveLink } from './remote.ts';
 import { usePlayerState } from './usePlayerState.ts';
+import { notAllowed } from './video.ts';
 
-// Audio during live (spec 04 §1b). It plays only on the presenting computer:
-// one audio item at a time is the session's audio, and it keeps playing while
-// the operator moves on, until another audio item is played. Selecting it
-// never changes what is shown (LIVE-R6). A controller drives it by command
-// and sees a muted mirror.
+// Audio during live (spec 04 §1b). It plays only on the presenting computer, in
+// the primary output (playback.ts), or in the presenting window while no output
+// window is open, as a video's sound does: an audio item is a slide, played
+// while it is shown (Lars, 2026-11-06). A controller drives it by command and
+// sees a mirror.
 
 /** What the live page drives: the engine here, or a session's audio elsewhere. */
 export interface AudioControl {
@@ -67,7 +68,7 @@ export class AudioEngine implements AudioControl {
   private unmute: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<() => void>();
   /** Lets go of the file the element holds, when it takes another. */
-  private release: () => void = () => {};
+  private letGo: () => void = () => {};
 
   constructor(private urlOf: (itemId: string) => Promise<string | AudioSource | null>) {
     this.el = new Audio();
@@ -79,19 +80,43 @@ export class AudioEngine implements AudioControl {
     const unlock = () => {
       removeEventListener('pointerdown', unlock, true);
       removeEventListener('keydown', unlock, true);
-      if (this.itemId) return; // already playing a real file: nothing to unlock
-      this.el.src = URL.createObjectURL(new Blob([SILENCE as BlobPart], { type: 'audio/wav' }));
-      this.el.muted = true;
-      void this.el.play().then(
-        () => {
-          if (!this.itemId) this.el.pause();
-          this.el.muted = false;
-        },
-        () => (this.el.muted = false),
-      );
+      this.unlock();
     };
     addEventListener('pointerdown', unlock, true);
     addEventListener('keydown', unlock, true);
+  }
+
+  /** The browser would not start the sound until someone taps this window. */
+  private held = false;
+
+  refused(): boolean {
+    return this.held;
+  }
+
+  /** Plays, and says whether the browser wants a tap first; a play cut short by a pause is no refusal. */
+  private async play() {
+    await this.el.play().then(
+      () => (this.held = false),
+      (e: unknown) => (this.held = notAllowed(e)),
+    );
+    this.notify();
+  }
+
+  /** A tap in this window: the sound held back plays; with none loaded yet, the element plays a moment of silence. */
+  unlock() {
+    if (this.itemId) {
+      if (this.held) void this.play();
+      return;
+    }
+    this.el.src = URL.createObjectURL(new Blob([SILENCE as BlobPart], { type: 'audio/wav' }));
+    this.el.muted = true;
+    void this.el.play().then(
+      () => {
+        if (!this.itemId) this.el.pause();
+        this.el.muted = false;
+      },
+      () => (this.el.muted = false),
+    );
   }
 
   state(): LiveAudio | null {
@@ -112,18 +137,11 @@ export class AudioEngine implements AudioControl {
   private async run(c: AudioCommand) {
     if (c.action !== 'play' && c.itemId !== this.itemId) return; // a command for audio that is not playing here
     if (c.action === 'play') {
-      if (c.itemId !== this.itemId) {
-        const source = await this.urlOf(c.itemId);
-        if (!source) return; // not on this device (yet): nothing to play
-        this.stopFade();
-        this.release();
-        this.release = typeof source === 'string' ? () => {} : source.release;
-        this.el.src = typeof source === 'string' ? source : source.url;
-        this.itemId = c.itemId;
-      }
-      await this.el.play().catch(() => this.notify()); // refused (no user gesture yet): the state says it is not playing
+      if (!(await this.load(c.itemId))) return;
+      await this.play(); // refused (no tap yet): the state says it is not playing
     } else if (c.action === 'pause') {
       this.stopFade();
+      this.held = false;
       this.el.pause();
     } else if (c.action === 'seek') {
       this.el.muted = true;
@@ -134,6 +152,19 @@ export class AudioEngine implements AudioControl {
     this.notify();
   }
 
+  /** Puts the item's file in the element, unless it is there; false when this device does not have it (yet). */
+  private async load(itemId: string): Promise<boolean> {
+    if (itemId === this.itemId) return true;
+    const source = await this.urlOf(itemId);
+    if (!source) return false;
+    this.stopFade();
+    this.letGo();
+    this.letGo = typeof source === 'string' ? () => {} : source.release;
+    this.el.src = typeof source === 'string' ? source : source.url;
+    this.itemId = itemId;
+    return true;
+  }
+
   /** The audio item live, if one is. */
   private shown: string | null = null;
   /** Paused by the black screen, so showing the picture again resumes it. */
@@ -141,16 +172,28 @@ export class AudioEngine implements AudioControl {
 
   /**
    * The item now live (Lars, 2026-11-06: audio is shown and played alone, as a video): an audio item plays from its
-   * start; anything else stops the sound. The same item again changes nothing.
+   * start; anything else stops the sound. The same item again changes nothing. `from` goes on where another window
+   * left it instead, playing or not.
    */
-  async show(itemId: string | null) {
+  async show(itemId: string | null, from?: { position: number; playing: boolean }) {
     if (itemId === this.shown) return;
     this.shown = itemId;
     this.pausedByBlack = false;
     this.stop();
-    if (!itemId) return;
-    if (itemId === this.itemId) this.el.currentTime = 0;
-    await this.run({ action: 'play', itemId });
+    if (!itemId || !(await this.load(itemId)) || this.shown !== itemId) return;
+    this.el.currentTime = from?.position ?? 0;
+    if (!from || from.playing) await this.play();
+    else this.notify();
+  }
+
+  /** Another window plays from here on: the sound stops, and where it was goes with it. */
+  release(): LiveAudio | null {
+    const s = this.state();
+    this.shown = null;
+    this.pausedByBlack = false;
+    this.stop();
+    this.itemId = null;
+    return s;
   }
 
   /** The black screen (B, Släck) pauses the sound, as a video's; the slide shown again resumes it. */
@@ -163,7 +206,7 @@ export class AudioEngine implements AudioControl {
       this.notify();
     } else if (!black && this.pausedByBlack) {
       this.pausedByBlack = false;
-      void this.el.play().catch(() => this.notify());
+      void this.play();
     }
   }
 
@@ -173,6 +216,7 @@ export class AudioEngine implements AudioControl {
    * presents nothing, so telling would report again, for ever.
    */
   stop() {
+    this.held = false;
     if (this.el.paused && !this.fading) return;
     this.stopFade();
     this.el.pause();
