@@ -73,7 +73,8 @@ export function SlideGrid({
           // After Släck nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
           const here = !!shown && shown.pointer.itemId === shown.itemId && shown.pointer.partIndex === i;
           const live = here && !shown.pointer.black;
-          const chosen = !shown && picked?.partIndex === i;
+          // Outlined in blue: before presenting the slide picked, while presenting the one ↵ shows (useEditorKeys.ts).
+          const chosen = picked?.partIndex === i && !live;
           const mark = shown?.mark(i);
           return (
             <li key={s.key} className={`${size} flex`}>
@@ -83,12 +84,16 @@ export function SlideGrid({
                 aria-pressed={shown ? live : chosen}
                 data-current={live}
                 data-picked={chosen}
-                className={`${tileClass(shown ? { selected: live, live: true, rested: here && shown.pointer.black } : { selected: chosen })} w-full p-0`}
+                className={`${tileClass(shown && !chosen ? { selected: live, live: true, rested: here && shown.pointer.black } : { selected: chosen })} w-full p-0`}
                 onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
                 <AudioMark slide={s} />
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
+                {/* Its number, for a number and ↵ to show it while presenting (Lars, 2026-11-07). */}
+                <span className="absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md bg-black/55 px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white" aria-hidden>
+                  {i + 1}
+                </span>
               </AppButton>
             </li>
           );

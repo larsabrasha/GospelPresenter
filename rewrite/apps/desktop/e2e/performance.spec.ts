@@ -550,18 +550,18 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     return page.evaluate(async () => (await window.gpDone) - window.gpStart);
   });
 
-  // The live page: → through the slides.
+  // The live page: PageDown, a clicker's key, through the slides (→ only moves the blue outline, useEditorKeys.ts).
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await pickItem(page, songName(0));
   await page.getByRole('button', { name: `${songName(0)} 1` }).click();
   await expect(page.getByRole('button', { name: `${songName(0)} 1` })).toHaveAttribute('aria-pressed', 'true');
   await helpers();
-  // Each item has five slides, one per part: past the fifth, → goes on to the next item's first.
+  // Each item has five slides, one per part: past the fifth, PageDown goes on to the next item's first.
   let step = 0;
   f.liveStep = await median(runs * 2, async () => {
     step++;
     const name = `${songName(Math.floor(step / 5))} ${(step % 5) + 1}`;
-    return timeKeyPress(page, 'ArrowRight', (label) => window.gpArm(() => document.querySelector(`[aria-label="${label}"]`)?.getAttribute('aria-pressed') === 'true'), name);
+    return timeKeyPress(page, 'PageDown', (label) => window.gpArm(() => document.querySelector(`[aria-label="${label}"]`)?.getAttribute('aria-pressed') === 'true'), name);
   });
   // Ended, so the start page links to the editor again.
   await endPresentation(page);
@@ -684,11 +684,11 @@ test('a slide step reaches the output window and a paired screen at once, measur
   await page.evaluate(pageHelpers);
 
   let at = 1;
-  /** → on the live page; ms from its keydown until the output window and the screen show the next slide. */
+  /** PageDown on the live page; ms from its keydown until the output window and the screen show the next slide. */
   const step = async () => {
     at++;
     await Promise.all([armSlide(output, `Del ${at}`), armSlide(screen, `Del ${at}`)]);
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('PageDown');
     const pressed = await page.evaluate(() => performance.timeOrigin + window.gpKeyAt);
     return { output: (await slideAt(output)) - pressed, screen: (await slideAt(screen)) - pressed };
   };

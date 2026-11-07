@@ -97,8 +97,8 @@ export function SlideList({
     setOwnPicked(null);
   }
   const picked = pickedShown === undefined ? ownPicked : pickedShown;
-  // It scrolls into view as a slide shown does, the one shown while presenting.
-  const markTapped = useFollowShown(box, onShow || !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
+  // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next.
+  const markTapped = useFollowShown(box, !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
   const markOf = slideMarks(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 })), pointer);
   const show =
     onShow &&

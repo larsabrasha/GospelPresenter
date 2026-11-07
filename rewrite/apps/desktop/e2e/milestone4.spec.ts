@@ -90,7 +90,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 
   // Next goes on through the reading into the psalm.
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toContainText('1\u00a0Yahweh is my shepherd');
 
   // Back to the default theme: the output follows at once (THEME-R6), and black stays black.

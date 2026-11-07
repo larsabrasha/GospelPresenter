@@ -50,6 +50,7 @@ export function LivePicture({
   leading,
   players,
   itemId = null,
+  cue,
 }: {
   slide: Slide | null;
   theme: Theme;
@@ -67,6 +68,8 @@ export function LivePicture({
   /** While presenting: the session's audio and video, which the controls drive. */
   players?: Players;
   itemId?: string | null;
+  /** The slide ↵ shows, outlined in blue (useEditorKeys.ts): said in the picture's middle, clear of its controls, so a slip is seen before it shows. */
+  cue?: string | null;
 }) {
   // 36 px on a computer, as every button there; 44 by touch and on a phone (Lars, 2026-11-02).
   const arrow = `size-11 lg:size-9 lg:touch:size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-default ${LIFTED}`;
@@ -75,6 +78,11 @@ export function LivePicture({
       <div data-live-picture className={`relative w-full ${maxWidthClass} aspect-video rounded-2xl overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
         <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} video={players?.video?.live && <PictureVideo control={players.video} />} />
         {players && itemId && slide && <MediaControls slide={slide} itemId={itemId} players={players} />}
+        {cue && (
+          <span className="absolute inset-0 z-[2] m-auto h-fit w-fit rounded-full bg-black/75 px-3 py-1.5 text-sm font-semibold tabular-nums text-white" data-testid="live-cue">
+            {cue}
+          </span>
+        )}
       </div>
       {/* ‹ Släck › in the middle (a phone: Släck alone); on a phone Visning at the row's right end, round and lifted as the arrows; the picture
           stays free of buttons (Lars, 2026-11-02). */}

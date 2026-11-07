@@ -66,6 +66,10 @@ tapped shows nothing, and ▶ starts it.
   to click around and point one out to someone (Lars, 2026-11-03, as the current app), and moved by the keys that
   step while presenting (→ ← PageDown PageUp, and ↓ ↑ to an item's first slide); Starta presentation still starts
   black and lets go of it.
+- **While presenting**, the blue outline is the slide ↵ shows next (Lars, 2026-11-07, as a vision mixer's preview
+  and take): the one after what is shown, or where → ← ↑ ↓ or a number put it, said over the live picture with its
+  item's name; ↵ shows it and the outline goes on, Esc lets it go. A click on a slide, and a clicker's Space PageDown
+  PageUp, still show at once (`pages/presentation-editor/useEditorKeys.ts`).
 - **The picture** that is shown, with **‹ Släck ›** right under it (on a phone Släck alone: a part is shown by a tap
   on it, and the arrows drew the eye there; Lars, 2026-11-03) (Starta presentation brings it in softly: on a phone its block takes its room first, on a computer the live column
   slides in from the right as a macOS sidebar, then the picture fades in out of a slight blur; Avsluta presentation plays it backwards before the presentation ends, all of it by transform and opacity, which

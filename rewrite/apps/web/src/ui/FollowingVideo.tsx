@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { LiveVideo, SlideVideo } from '@gp/core';
 import { keepInStep } from '../live/video.ts';
 import { canPlayVideo, playUrl } from '../media/video.ts';
@@ -60,17 +61,22 @@ export function FollowingVideo({ src, video, clock, tap = true }: { src: string 
   );
 }
 
-/** The button over an output that a browser holding the playback back until a tap gets (Safari on an iPad). */
+/**
+ * The button over an output that a browser holding the playback back until a tap gets (Safari on an iPad). It goes on
+ * the page itself, not the slide's scaled stage, and is sized by the window, in its middle: 16 px on a phone, about 24 on an iPad's
+ * half screen, 44 on a projector (Lars, 2026-11-07: 48 px filled a phone's screen), on one line where it fits.
+ */
 export function TapToPlay({ onTap }: { onTap: () => void }) {
-  return (
+  return createPortal(
     <AppButton
       variant="plain"
-      className="absolute inset-x-0 bottom-20 z-[2] mx-auto w-fit rounded-full bg-black/75 px-14 py-6 font-sans text-[48px] font-semibold text-white cursor-pointer"
+      className="fixed inset-x-0 top-1/2 -translate-y-1/2 z-[70] mx-auto w-fit max-w-[calc(100vw-32px)] rounded-full bg-black/75 px-[1.4em] py-[0.8em] font-sans text-[clamp(16px,4vmin,44px)] leading-tight font-semibold text-center text-white cursor-pointer"
       data-testid="video-tap"
       onClick={onTap}
     >
       {t('video.tapToPlay')}
-    </AppButton>
+    </AppButton>,
+    document.body,
   );
 }
 

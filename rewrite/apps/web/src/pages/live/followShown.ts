@@ -16,7 +16,8 @@ export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: str
     const opening = followed.current === null;
     followed.current = shownKey;
     const el = box.current;
-    const slide = el?.querySelector<HTMLElement>('[data-current="true"], [data-picked="true"]');
+    // The outlined slide when it is the one followed: while presenting the shown one is there too, outlined in red.
+    const slide = el?.querySelector<HTMLElement>(shownKey.startsWith('picked:') ? '[data-picked="true"]' : '[data-current="true"], [data-picked="true"]');
     const byTap = tapped.current;
     tapped.current = false;
     if (!el || !slide) return;

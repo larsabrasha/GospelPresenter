@@ -66,11 +66,11 @@ test('presenting keeps the running order: items are added and removed while live
   await expect(order.getByRole('listitem')).toHaveText([/Sång A/, /Sång B/, /Sång C/]);
   await expect(page.getByTestId('live-panel')).toBeVisible();
 
-  // → past Sång A's last slide shows Sång B's first, and selects Sång B.
+  // PageDown, a clicker's key, past Sång A's last slide shows Sång B's first, and selects Sång B.
   await pickItem(page, 'Sång A');
   await expect(page.getByRole('button', { name: 'Sång A 1' })).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
+  await page.keyboard.press('PageDown');
   await expect(order.getByRole('button', { name: 'Sång B', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Sång B 1' })).toHaveAttribute('aria-pressed', 'true');
 
@@ -107,7 +107,7 @@ test('a reload while presenting goes on presenting the same slide; only Avsluta 
   await expect(page.getByRole('button', { name: 'Starta presentation' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
-  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('PageUp');
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 
   // Avsluta ends it, and a reload after that does not start it again.

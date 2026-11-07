@@ -381,9 +381,9 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Pilgrimsfärd 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Pilgrimsfärd');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toHaveText('Pilgrimsfärd');
 });
 

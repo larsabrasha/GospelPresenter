@@ -12,7 +12,6 @@ import { backToTemplates, href, navigate } from '../../ui/router.ts';
 import { songPage } from '../live/songPage.ts';
 import { newId } from '../../ids.ts';
 import { useAppCommand } from '../../ui/appKeys.ts';
-import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import { KEYS, LiveKeys, PaletteTarget } from './EditorKeys.tsx';
 import type { AudioControl } from '../../live/audio.ts';
@@ -21,6 +20,8 @@ import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
+import { useWakeLock } from '../../ui/useWakeLock.ts';
+import { useEditorKeys } from './useEditorKeys.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
 import type { ItemMenuSource } from '../live/ItemContextMenu.tsx';
@@ -159,33 +160,19 @@ export function PresentationEditor({
   // An item chosen at the left on a computer scrolls the slides to it, each choice anew.
   const [reveal, setReveal] = useState<{ id: string; n: number } | null>(null);
   const overlay = useShownOverlay(pointer.overlayId);
-  // The item shown live is the one selected, as a slide stepped into the next item takes the selection along.
+  // The item shown live is the one selected, as a slide stepped into the next item takes the selection along, and
+  // lets go of a slide outlined to show next (useEditorKeys.ts).
   const [followed, setFollowed] = useState(liveItemId);
   if (presenting && liveItemId !== followed) {
     setFollowed(liveItemId);
     if (liveItemId) setSelectedId(liveItemId);
+    setPicked(null);
   }
   useAutoOutputs(!!owner);
   // An output closed because the app's window was moved onto its display says so, so a dark projector is no surprise.
   useEffect(() => window.gpDesktop?.onOutputClosedHere((name) => toast(t('live.outputClosedHere', { name }))), [toast]);
-  // The screen stays awake while this computer presents (Presentation.razor's wake lock), and takes it again when the page shows.
-  useEffect(() => {
-    if (!owner || !('wakeLock' in navigator)) return;
-    let lock: WakeLockSentinel | null = null;
-    const take = () => {
-      if (document.visibilityState === 'visible')
-        void navigator.wakeLock.request('screen').then(
-          (l) => (lock = l),
-          () => {},
-        );
-    };
-    take();
-    document.addEventListener('visibilitychange', take);
-    return () => {
-      document.removeEventListener('visibilitychange', take);
-      void lock?.release();
-    };
-  }, [owner]);
+  // The screen stays awake while this computer presents (Presentation.razor's wake lock).
+  useWakeLock(!!owner);
 
   /** Every slide of the running order, in order: what → and ← step through while presenting. */
   const steps = useMemo(() => (data ? data.items.flatMap((item) => (data.slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex }))) : []), [data]);
@@ -194,8 +181,11 @@ export function PresentationEditor({
     const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
     if (next) live.set({ ...next, black: false });
   };
+  // While presenting the slide ↵ shows, outlined in blue: the one outlined by the keys, else the one after what is shown.
+  const liveAt = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
+  const cue = presenting ? (picked ?? steps[liveAt + 1] ?? null) : picked;
   const pickStep = (delta: number) => {
-    const at = steps.findIndex((s) => s.itemId === picked?.itemId && s.partIndex === picked.partIndex);
+    const at = steps.findIndex((s) => s.itemId === cue?.itemId && s.partIndex === cue.partIndex);
     const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
     if (!next) return;
     setPicked(next);
@@ -219,9 +209,8 @@ export function PresentationEditor({
     if (ok) failing(db.mutate('removeItem', { itemId: item.id }));
   };
 
-  // Page shortcuts (spec 03 section 6), as ProPresenter's: ↑ ↓ change item wherever focus is, outside text
-  // fields; never behind a dialog (PRES-R37), never a held key repeating (ui/shortcuts.ts).
-  // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+  // Page shortcuts (useEditorKeys.ts). Starta presentation stays on the page, which turns to presenting
+  // (Presentation.razor's StartPresentation).
   const startable = !template && pointer.presentationId === null;
   // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
   const start = () => {
@@ -231,50 +220,24 @@ export function PresentationEditor({
   useShortcutGroup(KEYS);
   // Starta presentation by the desktop app's menu bar, as by F5 and ⌥⌘P below.
   useAppCommand('start', () => startable && start());
-  usePageKeys((e) => {
-    if (ticking) return;
-    // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b` and `.` (a
-    // clicker's blank key) black, as Släck (a slide shows again). ↑ ↓ below also show the item's first slide. Before
-    // presenting the arrows and Page keys move the slide picked instead; Space stays a focused button's, and nothing
-    // blacks.
-    const forward = () => (presenting ? step(1) : pickStep(1));
-    const back = () => (presenting ? step(-1) : pickStep(-1));
-    const black = () => live.set({ black: true });
-    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ArrowLeft: back, PageUp: back, ...(presenting ? { ' ': forward, b: black, B: black, '.': black } : {}) };
-    const liveKey = !e.altKey && !e.ctrlKey && !e.metaKey ? liveKeys[e.key] : undefined;
-    if (liveKey) {
-      e.preventDefault();
-      liveKey();
-      return;
-    }
-    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-      // Alt+↑/↓ moves the selected item one place: the keyboard's way to do what the drag handle does.
-      if (!selected) return;
-      e.preventDefault();
-      failing(db.mutate('moveItem', { itemId: selected.id, by: e.key === 'ArrowUp' ? -1 : 1 }));
-      return;
-    }
-    // F5, as PowerPoint's, and ⌥⌘P, as Keynote's Spela upp: Starta presentation. F5 never reloads this page, so a slip
-    // of it while presenting does not start the page over.
-    if (e.key === 'F5' || ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyP')) {
-      e.preventDefault();
-      if (startable) start();
-      return;
-    }
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === 'a') setAdding({ after: null, kind: 'songs' }); // the most used
-    // The item shown cannot be removed while presenting (docs/layout-2-0.md).
-    else if (e.key === 'Delete' && selected && !(presenting && selected.id === liveItemId)) void removeItem(selected);
-    else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length && !e.shiftKey) {
-      // PRES-R41: no wrap; the first ↓ lands on the first item, the first ↑ on the last.
-      const at = items.findIndex((i) => i.id === selected?.id);
-      const next = at === -1 ? (e.key === 'ArrowDown' ? 0 : items.length - 1) : Math.min(items.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)));
-      const item = items[next]!;
-      setSelectedId(item.id);
-      if (presenting && data?.slides.get(item.id)?.slides.length && item.id !== pointer.itemId) live.set({ itemId: item.id, partIndex: 0, black: false });
-      else if (!presenting && data?.slides.get(item.id)?.slides.length) setPicked({ itemId: item.id, partIndex: 0 });
-    } else return;
-    e.preventDefault();
+  const { cueText } = useEditorKeys({
+    ticking,
+    presenting: !!presenting,
+    live,
+    liveItemId,
+    items,
+    slides: data?.slides,
+    selected,
+    setSelectedId,
+    picked,
+    cue,
+    setPicked,
+    step,
+    pickStep,
+    start: startable ? start : null,
+    onAdd: () => setAdding({ after: null, kind: 'songs' }),
+    onRemove: (item) => void removeItem(item),
+    onMove: (item, by) => failing(db.mutate('moveItem', { itemId: item.id, by })),
   });
 
   if (!data) return null;
@@ -307,6 +270,8 @@ export function PresentationEditor({
   const select = (itemId: string) => {
     setSelectedId(itemId);
     setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
+    // While presenting, its first slide is outlined for ↵, as ↓ does; what is shown is not.
+    if (presenting) setPicked(itemId !== liveItemId && slides.get(itemId)?.slides.length ? { itemId, partIndex: 0 } : null);
   };
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
@@ -435,7 +400,14 @@ export function PresentationEditor({
               overlays={overlays}
               pointer={pointer}
               toItem={reveal}
-              onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
+              onShow={
+                presenting
+                  ? (itemId, partIndex) => {
+                      setPicked(null);
+                      live.set({ itemId, partIndex, black: false });
+                    }
+                  : undefined
+              }
               onAddImages={(itemId) => {
                 setSelectedId(itemId);
                 setAdding({ after: null, kind: 'images', images: true });
@@ -443,7 +415,7 @@ export function PresentationEditor({
               menuSource={menuSource}
               editingImages={editingImages}
               onEditingImages={setEditingImages}
-              picked={picked}
+              picked={cue}
               onPick={(p) => {
                 setPicked(p);
                 setSelectedId(p.itemId);
@@ -465,6 +437,7 @@ export function PresentationEditor({
             theme={theme}
             overlays={overlays}
             canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
+            cue={cueText}
             onStep={step}
             open={panels.open.right}
             onFold={() => panels.toggle('right')}

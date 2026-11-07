@@ -118,11 +118,11 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   await page.getByRole('button', { name: 'Amazing Grace 1' }).click();
   await showsText('Amazing grace');
   await page.clock.fastForward(10_500);
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await showsText('Twas grace');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await showsText('For God so loved the world');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(projector.getByTestId('slide-image')).toBeVisible();
   await expect(tv.getByTestId('slide-image')).toBeVisible({ timeout: 5_000 });
   await expect(phone.getByTestId('watch-image')).toBeVisible({ timeout: 5_000 });
@@ -189,7 +189,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
   await pickItem(page, 'Psalm 1');
   await page.getByRole('button', { name: 'Psalm 1 1' }).click();
   await expect(projector.getByTestId('slide-text')).toHaveText('Härlig är jorden');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   const shown = projector.getByTestId('slide-image').first();
   await expect.poll(() => shown.evaluate((img: HTMLImageElement) => img.naturalWidth), { timeout: 10_000 }).toBeGreaterThan(0);
   await expect(laptop.getByText('En ändring kunde inte synkas.')).toHaveCount(0);

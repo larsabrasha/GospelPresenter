@@ -1,5 +1,5 @@
 // The whole app by the keyboard (Lars, 2026-11-05): an item's … menu with its submenus, the pictures of a picture
-// item put in order, and a slideshow's slide, its elements picked with Tab and moved with the arrows.
+// item put in order, a slideshow's slide, its elements picked with Tab and moved with the arrows, and the live keys.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, nameNew, openAdmin, setUpHost } from './flows.ts';
@@ -148,6 +148,75 @@ test("a theme's texts are picked by Tab on its slide, the main text and then the
   await page.keyboard.press('Escape');
   await expect(canvas).not.toHaveAttribute('data-picked');
   await expect(canvas).toBeFocused();
+});
+
+test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ ↓ and a number move, the clicker’s keys step at once, and Escape lets the outline go', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [
+    ['Verse 1', 'A ett'],
+    ['Verse 2', 'A två'],
+  ]);
+  await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
+  await createSong(page, 'Sång C', [['Verse 1', 'C ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A', 'Sång B', 'Sång C']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
+  await output.getByTestId('output').waitFor();
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  const row = (name: string) => page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name, exact: true });
+  const shown = output.getByTestId('slide-text');
+  const cue = page.getByTestId('live-cue');
+
+  // ↵ shows the slide after, outlined in blue, and the outline goes on: into the next item too (Lars, 2026-11-07).
+  await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('data-picked', 'true');
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('A två');
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('B ett');
+  // A clicker's keys step what is shown at once.
+  await page.keyboard.press('PageUp');
+  await expect(shown).toHaveText('A två');
+  await page.keyboard.press(' ');
+  await expect(shown).toHaveText('B ett');
+
+  // ↑ marks Sång A, its first slide outlined and said over the picture; → moves the outline; nothing shows until ↵.
+  await page.keyboard.press('ArrowUp');
+  await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
+  await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
+  await page.keyboard.press('ArrowRight');
+  await expect(cue).toHaveText('Bild 2 i Sång A – Enter visar');
+  await expect(shown).toHaveText('B ett');
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('A två');
+  await expect(cue).toHaveCount(0);
+
+  // Escape lets an outline go: the mark back on what is shown, nothing new shown.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect(row('Sång C')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(cue).toHaveCount(0);
+  await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
+  await expect(shown).toHaveText('A två');
+
+  // A number outlines that slide of the item marked, and ↵ shows it; a slide it does not have is said, and shows nothing.
+  await page.keyboard.press('1');
+  await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('A ett');
+  await page.keyboard.press('9');
+  await expect(cue).toHaveText('Sång A har ingen bild 9');
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('A ett');
+
+  // A slide clicked keeps the focus, and ↵ there is still the outline's.
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await page.keyboard.press('Enter');
+  await expect(shown).toHaveText('A två');
 });
 
 test('the app\'s keys: g and a letter go to a section, / searches it, the arrows walk its list, Delete asks, n adds, and F5 presents', async () => {

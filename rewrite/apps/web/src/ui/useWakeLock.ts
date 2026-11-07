@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 
-/** Keeps the screen awake while the component is shown, taking the lock again when the window shows (Live.razor, utils.js). */
-export function useWakeLock(): void {
+/** Keeps the screen awake while the component is shown and `on`, taking the lock again when the window shows (Live.razor, utils.js). */
+export function useWakeLock(on = true): void {
   useEffect(() => {
-    if (!('wakeLock' in navigator)) return;
+    if (!on || !('wakeLock' in navigator)) return;
     let lock: WakeLockSentinel | null = null;
     const take = () => {
       if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
@@ -14,5 +14,5 @@ export function useWakeLock(): void {
       document.removeEventListener('visibilitychange', take);
       void lock?.release();
     };
-  }, []);
+  }, [on]);
 }

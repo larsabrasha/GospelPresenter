@@ -334,8 +334,13 @@ Live-updates on start/stop/presence. (Connected-users page belongs to the *Admin
 | Sidebar | ↑/↓, Home/End | change selected item (not live) | `ListNavigation.cs` |
 | Slide grid | arrows (all four step one tile), Home/End | move focus only | `SlideGrid.razor:394-403` |
 | Slide grid | Enter (focused tile) | put slide live | `SlideGrid.razor:366-369` |
-| Live page (2.0) | → Space PageDown | next part, into the next item too | `pages/presentation-editor/PresentationEditor.tsx` |
-| Live page (2.0) | ← PageUp | previous part | same |
+| Live page (2.0) | ↵ (on the page, a row or a slide; anywhere once the keys moved the outline) | the slide outlined in blue: the one after what is shown, unless the keys below moved it; the outline goes on to the next (Lars, 2026-11-07, as a vision mixer's preview and take) | `pages/presentation-editor/useEditorKeys.ts` |
+| Live page (2.0) | → ← | move the outline a slide, into the next or previous item too; nothing shows until ↵ | same |
+| Live page (2.0) | ↑ ↓ | mark the previous or next item, as the sidebar's (not live), the outline on its first slide | same |
+| Live page (2.0) | a number | the outline on that slide of the marked item; said over the live picture with the item's name, or that it has none; each tile shows its number (as ProPresenter's and PowerPoint's number and ↵) | same |
+| Live page (2.0) | Escape | a number typed, then the outline, let go: the outline back after what is shown | same |
+| Live page (2.0) | Space PageDown | next part at once, into the next item too: a clicker's keys | same |
+| Live page (2.0) | PageUp | previous part at once | same |
 | Live page (2.0) | `b` `B` `.` | black screen, as Rensa: only blanks; a part or an arrow shows one again (decided 2026-10-27; `.` is a clicker's blank key, from the old stage mode) | same |
 Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default action prevented.
 `?` (global help) lists the page's shortcuts (*Navigation/Shortcuts* area).

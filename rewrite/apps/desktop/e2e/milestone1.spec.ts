@@ -57,8 +57,8 @@ test('a song made on one client is presented on the other client\'s second scree
   await expect(output.getByText('Chorus')).toHaveCount(0); // LIVE-R20: the part label is the operator's, never the output's
   await expect(one.page.getByRole('button', { name: 'Härlig är jorden 2' }).getByText('Chorus')).toBeVisible();
 
-  // Arrow keys step through the slides.
-  await one.page.keyboard.press('ArrowLeft');
+  // A clicker's keys step through the slides (→ ← move the blue outline, useEditorKeys.ts).
+  await one.page.keyboard.press('PageUp');
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden');
 
   // An edit on the other client reaches the screen without the operator doing anything (D7).

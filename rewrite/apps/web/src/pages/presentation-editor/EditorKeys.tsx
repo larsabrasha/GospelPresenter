@@ -20,14 +20,17 @@ export const KEYS: ShortcutGroup = {
   ],
 };
 
-/** The keys while presenting: ProPresenter's (Lars, 2026-10-29). */
+/** The keys while presenting: a clicker's step at once, the others outline the slide ↵ shows (useEditorKeys.ts, Lars, 2026-11-07). */
 const LIVE_KEYS: ShortcutGroup = {
   title: t('shortcuts.group.live'),
   lines: [
-    { keys: ['ArrowRight', ' ', 'PageDown'], text: t('shortcuts.nextSlide') },
-    { keys: ['ArrowLeft', 'PageUp'], text: t('shortcuts.previousSlide') },
-    { keys: ['ArrowDown'], text: t('shortcuts.nextItem') },
-    { keys: ['ArrowUp'], text: t('shortcuts.previousItem') },
+    { keys: ['Enter'], text: t('shortcuts.showMarked') },
+    { keys: ['ArrowRight', 'ArrowLeft'], text: t('shortcuts.moveOutline') },
+    { keys: ['ArrowDown', 'ArrowUp'], text: t('shortcuts.nextItem') },
+    { keys: ['1–9'], text: t('shortcuts.slideNumber') },
+    { keys: [' ', 'PageDown'], text: t('shortcuts.nextSlide') },
+    { keys: ['PageUp'], text: t('shortcuts.previousSlide') },
+    { keys: ['Escape'], text: t('shortcuts.dropOutline') },
     { keys: ['B', '.'], text: t('shortcuts.black') },
   ],
 };
