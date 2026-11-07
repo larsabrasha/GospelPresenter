@@ -11,7 +11,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
 import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
+import { ACTION_ROW, DANGER_ROW, Group } from '../ui/Group.tsx';
 import { ArrowDownTrayIcon, PlusIcon, QrCodeIcon, ScreenIcon } from '../ui/icons.tsx';
 import { RowChevron } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -159,13 +159,13 @@ function OutputRow({ icon, name, line, status, live, label, onOpen }: { icon: Re
 }
 
 /** A group's rows: its outputs, a grey line when there is none, and the row that adds one. */
-function OutputGroup({ title, label, empty, add, onAdd, children }: { title: string; label: string; empty: string | null; add: string; onAdd: () => void; children: ReactNode }) {
+/** A group of outputs with its row that adds one; empty, the row alone, as iOS's Settings has it (Lars, 2026-11-07). */
+function OutputGroup({ title, label, add, onAdd, children }: { title: string; label: string; add: string; onAdd: () => void; children: ReactNode }) {
   return (
     <Group title={title}>
       <ul aria-label={label} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
         {children}
       </ul>
-      {empty && <p className={`${GROUP_ROW} text-stone-400 dark:text-stone-500`}>{empty}</p>}
       <AppButton variant="plain" className={ACTION_ROW} onClick={onAdd}>
         <span className="flex items-center gap-2">
           <PlusIcon className="size-4" />
@@ -222,7 +222,7 @@ export function Displays({ link }: { link: LiveLink }) {
       {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
       {all && (
         <>
-          <OutputGroup title={t('screens.title')} label={t('screens.title')} empty={screens?.length ? null : t('screens.empty')} add={t('screens.addTitle')} onAdd={() => setCreating('screen')}>
+          <OutputGroup title={t('screens.title')} label={t('screens.title')} add={t('screens.addTitle')} onAdd={() => setCreating('screen')}>
             {screens?.map((d) => {
               const on = online.includes(d.id);
               return (
@@ -238,7 +238,7 @@ export function Displays({ link }: { link: LiveLink }) {
               );
             })}
           </OutputGroup>
-          <OutputGroup title={t('displays.public')} label={t('displays.public')} empty={displays?.length ? null : t('displays.empty')} add={t('displays.create')} onAdd={() => setCreating('public')}>
+          <OutputGroup title={t('displays.public')} label={t('displays.public')} add={t('displays.create')} onAdd={() => setCreating('public')}>
             {displays?.map((d) => {
               const { sending, viewers } = status(d);
               return (

@@ -51,7 +51,7 @@ export function Audios({ role }: { role: Role }) {
       loading={t('audios.loading')}
       empty={{ icon: <SpeakerWaveIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('audios.empty'),
         text: t('audios.emptyText'),
-        action: <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file-empty" label={t('audios.emptyImport')} onFiles={(files) => void importFiles(files)} />,
+        action: <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" label={t('audios.emptyImport')} onFiles={(files) => void importFiles(files)} />,
       }}
       noMatch={t('audios.noMatch')}
       count={(n) => t(n === 1 ? 'audios.count.one' : 'audios.count.many', { n })}

@@ -82,7 +82,7 @@ export function Bibles() {
       empty={{ icon: <BookOpenOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('bibles.empty'),
         // Where a translation comes from, here rather than in the footer, which an empty list does not show.
         text: t('bibles.emptyText'),
-        action: <ImportFilesButton accept=".zip" busy={busy} testId="bible-file-empty" label={t('bibles.emptyImport')} onFiles={(files) => void importFile(files[0])} />,
+        action: <ImportFilesButton accept=".zip" busy={busy} testId="bible-file" label={t('bibles.emptyImport')} onFiles={(files) => void importFile(files[0])} />,
       }}
       count={(n) => t(n === 1 ? 'bibles.count.one' : 'bibles.count.many', { n })}
       // What a bible file is, and why this device keeps none offline, in grey under the list as iOS's footers.

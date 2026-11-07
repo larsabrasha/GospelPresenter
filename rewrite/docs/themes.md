@@ -17,7 +17,7 @@ by a new version of the app:
 Spec 05's Midnatt, Dagsljus and Norrsken, and Norrsken's picture, are gone: no church used them (Lars). A
 presentation or a default that still names one shows Mörkt, as any unknown id does.
 
-A built-in theme is not changed or deleted (the mutators refuse it, `forbidden`); Duplicera on its sheet makes an
+A built-in theme is not changed or deleted (the mutators refuse it, `forbidden`); Duplicera in its ⋯ makes an
 own copy, which is.
 
 ## What a theme sets
@@ -71,11 +71,11 @@ organisation's themes (`live-output-gate.ts`). A public output draws the theme's
 ## Teman and the editor
 
 Teman (`pages/Themes.tsx`) lists the built-in themes, then the organisation's own, as a grid of previews. An admin's
-+ makes a copy of the default, named first, and opens it in the editor. A tap on a theme opens its sheet, as iOS's
-(Lars, 2026-11-04: a row of buttons did not fit a phone): the preview large, a built-in one's description, then its
-choices as rows of a group (Använd som standard, or a tick where it is the default; Redigera for an own theme;
-Duplicera) and Ta bort tema red in a group of its own, asked first. A right click or a finger held on a tile opens
-the same choices as a menu.
++ makes a copy of the default, named first, and opens it in the editor. Each tile has its ⋯ under it, as a library's
+item (Lars, 2026-11-07: a sheet in between added little): Använd som standard where it is not the default, Redigera
+for an own theme, Duplicera, and Ta bort tema red, asked first; a right click or a finger held on a tile opens the
+same menu. A tap on an own theme opens its editor; a built-in one says what it is for as its tooltip. Välj, as every
+list has it, ticks own themes to delete together; the built-in ones are greyed under it.
 
 The editor (`pages/theme-editor/`) is the slideshows' (Lars, 2026-11-04): Ångra and Gör om above the slide (⌘Z,
 ⇧⌘Z), the three kinds of slide (Sång, Bibeltext, Bild och video) where the slideshows' editor has its pages, and

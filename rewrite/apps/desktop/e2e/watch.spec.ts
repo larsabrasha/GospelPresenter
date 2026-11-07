@@ -20,7 +20,7 @@ test('a public output follows the presentation in a browser without signing in; 
 
   // Följ med: make one and take its link.
   await openAdmin(page, 'Utgångar');
-  await expect(page.getByText('Inga länkar ännu')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Följ med' }).getByRole('listitem')).toHaveCount(0);
   await page.getByRole('button', { name: 'Skapa länk' }).click();
   await page.getByRole('dialog', { name: 'Skapa länk' }).getByLabel('Namn').fill('Kyrkkaffet');
   await page.getByRole('dialog', { name: 'Skapa länk' }).getByRole('button', { name: 'Skapa' }).click();

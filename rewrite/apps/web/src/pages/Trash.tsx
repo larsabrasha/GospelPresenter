@@ -15,12 +15,13 @@ import {
   TrashIcon,
   VideoOutlineIcon,
 } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { CARD, ROW_HOVER } from '../ui/List.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
 import { DANGER_ROW, Group } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
+import { SelectButtons, SelectionBar, Tick, useSelection } from '../ui/Selecting.tsx';
 import { TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { templateDetails } from './templates.ts';
@@ -80,6 +81,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   /** The entry being restored: only its own Återställ waits (Trash.razor). */
   const [restoring, setRestoring] = useState<string | null>(null);
   const purgedOnOpen = useRef(false);
+  const selection = useSelection();
   const [now] = useState(Date.now); // days remaining count from when the page opened
 
   // The search waits 200 ms after the last keystroke; clearing is immediate (PRES-E17).
@@ -128,8 +130,41 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     }
   };
 
-  const purge = async (e: TrashEntry) => {
-    await ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), bold: e.name, confirm: t('trash.purge'), busy: t('common.deleting'), run: () => run(() => db.mutate(purgeMutator[e.kind], { id: e.id })) });
+  const purge = (e: TrashEntry) =>
+    ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), bold: e.name, confirm: t('trash.purge'), busy: t('common.deleting'), run: () => run(() => db.mutate(purgeMutator[e.kind], { id: e.id })) });
+
+  // Välj (Lars, 2026-11-07): the entries marked, restored or purged together; one marked asks as its own button does.
+  const picked = shown.filter((e) => selection.picked.has(key(e)));
+  const restorePicked = async () => {
+    if (restoring || !picked.length) return;
+    if (picked.length === 1) {
+      await restore(picked[0]!);
+      return selection.stop();
+    }
+    setRestoring('picked');
+    try {
+      await run(async () => {
+        for (const e of picked) await db.mutate(restoreMutator[e.kind], { id: e.id });
+        toast(t('trash.restoredMany', { n: picked.length }));
+      });
+      selection.stop();
+    } finally {
+      setRestoring(null);
+    }
+  };
+  const purgePicked = async () => {
+    if (!picked.length) return;
+    const done =
+      picked.length === 1
+        ? await purge(picked[0]!)
+        : await ask({
+            title: t('trash.purge'),
+            text: t('trash.purgeConfirmMany', { n: picked.length }),
+            confirm: t('trash.purge'),
+            busy: t('common.deleting'),
+            run: () => run(async () => void (await Promise.all(picked.map((e) => db.mutate(purgeMutator[e.kind], { id: e.id }))))),
+          });
+    if (done) selection.stop();
   };
 
   // "Töm papperskorgen" empties everything the user may manage, not just what the filter shows.
@@ -146,83 +181,123 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   const count = shown.length === 1 ? t('trash.countOne') : t('trash.countMany', { n: shown.length });
   return (
     <PageContainer>
-      {dialog}
-      <PageHeader title={t('trash.title')} />
-      {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
-      {all && !entries.length && (
-        <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
-      )}
-      {/* As the other lists (Lars, 2026-11-03): the kinds and the search under the title, the list alone in its card,
-          how many under it, and Töm papperskorgen as a red row last. */}
-      {!!entries.length && (
-        <>
-          {/* Only the kinds that are in there: a tab that always says nothing is noise. */}
-          {kinds.length > 1 && (
-            <PillTabs label={t('trash.title')}>
-              <PillTab active={activeKind === null} onClick={() => setKind(null)}>
-                {t('trash.all')}
-              </PillTab>
-              {kinds.map((k) => (
-                <PillTab key={k} active={activeKind === k} onClick={() => setKind(k)}>
-                  {t(`trash.kind.${k}`)}
-                </PillTab>
-              ))}
-            </PillTabs>
+      {/* Escape ends Välj, and only that. */}
+      <div className="flex flex-col space-y-5" onKeyDown={selection.escape}>
+        {dialog}
+        <PageHeader title={t('trash.title')}>
+          {selection.selecting && (
+            <SelectionBar count={picked.length}>
+              <AppButton variant="secondary" disabled={!picked.length || !!restoring} onClick={() => void restorePicked()}>
+                {t('common.restore')}
+              </AppButton>
+              <AppButton variant="danger" filled disabled={!picked.length} onClick={() => void purgePicked()}>
+                {t('common.delete')}
+              </AppButton>
+            </SelectionBar>
           )}
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            onClear={() => {
-              setSearch('');
-              setQuery('');
-            }}
-            label={t('trash.search')}
-            compact
-            filled
-          />
-          <div className={CARD}>
-            {!shown.length && <p className="px-5 py-10 text-center text-sm text-stone-400">{t('trash.noMatch')}</p>}
-            {/* Newest first, so what was just deleted by mistake is the first thing in view. */}
-            <ul aria-label={t('trash.title')}>
-              {shown.map((e) => {
-                const days = daysRemaining(e.deletedAt, now);
-                // A presentation's date as the Swedish short date, "2026-11-01" (Trash.razor).
-                const detail = e.template ? templateDetails(e.template) : e.detail;
-                return (
-                  <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0" aria-label={e.name}>
-                    <div className="shrink-0 text-stone-400 dark:text-stone-500" title={t(`trash.one.${e.kind}`)}>
-                      <KindIcon kind={e.kind} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{e.name}</div>
-                      <div className="text-xs text-stone-400 truncate">
-                        {[t(`trash.one.${e.kind}`), detail].filter(Boolean).join(' · ')}
-                        {' · '}
-                        <span className={days <= 1 ? 'text-red-500 dark:text-red-400' : undefined}>{daysText(days)}</span>
+        </PageHeader>
+        {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
+        {all && !entries.length && (
+          <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
+        )}
+        {/* As the other lists (Lars, 2026-11-03): the kinds and the search under the title, the list alone in its card,
+            how many under it, and Töm papperskorgen as a red row last. */}
+        {!!entries.length && (
+          <>
+            {/* Only the kinds that are in there: a tab that always says nothing is noise. */}
+            {kinds.length > 1 && (
+              <PillTabs label={t('trash.title')}>
+                <PillTab active={activeKind === null} onClick={() => setKind(null)}>
+                  {t('trash.all')}
+                </PillTab>
+                {kinds.map((k) => (
+                  <PillTab key={k} active={activeKind === k} onClick={() => setKind(k)}>
+                    {t(`trash.kind.${k}`)}
+                  </PillTab>
+                ))}
+              </PillTabs>
+            )}
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              onClear={() => {
+                setSearch('');
+                setQuery('');
+              }}
+              label={t('trash.search')}
+              compact
+              filled
+            />
+            {/* Välj at the right under the search, as the libraries have it. */}
+            <div className="flex justify-end px-4 -mt-3">
+              <SelectButtons selection={selection} ids={shown.map(key)} />
+            </div>
+            <div className={CARD}>
+              {!shown.length && <p className="px-5 py-10 text-center text-sm text-stone-400">{t('trash.noMatch')}</p>}
+              {/* Newest first, so what was just deleted by mistake is the first thing in view. */}
+              <ul aria-label={t('trash.title')}>
+                {shown.map((e) => {
+                  const days = daysRemaining(e.deletedAt, now);
+                  // A presentation's date as the Swedish short date, "2026-11-01" (Trash.razor).
+                  const detail = e.template ? templateDetails(e.template) : e.detail;
+                  const body = (
+                    <>
+                      <div className="shrink-0 text-stone-400 dark:text-stone-500" title={t(`trash.one.${e.kind}`)}>
+                        <KindIcon kind={e.kind} />
                       </div>
-                    </div>
-                    <AppButton variant="secondary" disabled={restoring === key(e)} onClick={() => void restore(e)}>
-                      {t('common.restore')}
-                    </AppButton>
-                    <AppButton variant="danger" title={t('trash.purge')} aria-label={`${t('trash.purge')} ${e.name}`} onClick={() => void purge(e)}>
-                      <TrashIcon className="size-4" />
-                    </AppButton>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <p className="text-center text-sm text-stone-500 dark:text-stone-400" data-testid="trash-count">
-            {count}
-            {shown.length !== entries.length && ` ${t('trash.countOf', { count: '', total: entries.length }).trim()}`}
-          </p>
-          <Group>
-            <AppButton variant="plain" className={DANGER_ROW} onClick={() => void empty()}>
-              {t('trash.empty')}
-            </AppButton>
-          </Group>
-        </>
-      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{e.name}</div>
+                        <div className="text-xs text-stone-400 truncate">
+                          {[t(`trash.one.${e.kind}`), detail].filter(Boolean).join(' · ')}
+                          {' · '}
+                          <span className={days <= 1 ? 'text-red-500 dark:text-red-400' : undefined}>{daysText(days)}</span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                  if (selection.selecting)
+                    return (
+                      <li key={key(e)} className={`flex border-b border-separator last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${ROW_HOVER}`} aria-label={e.name}>
+                        <AppButton
+                          variant="plain"
+                          role="checkbox"
+                          aria-checked={selection.picked.has(key(e))}
+                          className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-left cursor-pointer rounded-[inherit]"
+                          onClick={(ev) => selection.toggle(key(e), ev, shown.map(key))}
+                        >
+                          <Tick on={selection.picked.has(key(e))} />
+                          {body}
+                        </AppButton>
+                      </li>
+                    );
+                  return (
+                    <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0" aria-label={e.name}>
+                      {body}
+                      <AppButton variant="secondary" disabled={restoring === key(e)} onClick={() => void restore(e)}>
+                        {t('common.restore')}
+                      </AppButton>
+                      <AppButton variant="danger" title={t('trash.purge')} aria-label={`${t('trash.purge')} ${e.name}`} onClick={() => void purge(e)}>
+                        <TrashIcon className="size-4" />
+                      </AppButton>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <p className="text-center text-sm text-stone-500 dark:text-stone-400" data-testid="trash-count">
+              {count}
+              {shown.length !== entries.length && ` ${t('trash.countOf', { count: '', total: entries.length }).trim()}`}
+            </p>
+            {!selection.selecting && (
+              <Group>
+                <AppButton variant="plain" className={DANGER_ROW} onClick={() => void empty()}>
+                  {t('trash.empty')}
+                </AppButton>
+              </Group>
+            )}
+          </>
+        )}
+      </div>
     </PageContainer>
   );
 }

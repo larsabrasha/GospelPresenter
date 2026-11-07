@@ -86,7 +86,7 @@ test("a slideshow's elements are picked by Tab on the slide, moved by the arrows
   const page = host.page;
   await setUpHost(host);
   await openAdmin(page, 'Bildspel');
-  await page.getByRole('button', { name: 'Nytt bildspel' }).click();
+  await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
   await nameNew(page, 'Tangenter');
   const canvas = page.getByTestId('slide-canvas');
   for (const kind of ['Text', 'Rektangel']) {

@@ -81,9 +81,9 @@ export async function signOut(page: Page) {
   await page.getByRole('menuitem', { name: 'Logga ut' }).click();
 }
 
-/** Sånger's + (Ny sång): the song is made at once and opens with its name picked. */
+/** Sånger's + (Ny sång), or Skriv in en sång while the list is empty: the song is made at once and opens with its name picked. */
 export async function newSong(page: Page) {
-  await page.getByRole('button', { name: 'Ny sång', exact: true }).click();
+  await page.getByRole('button', { name: /^(Ny sång|Skriv in en sång)$/ }).click();
 }
 
 /**
@@ -138,7 +138,8 @@ export async function backToSong(page: Page) {
  */
 export async function createOverlay(page: Page, title: string, text: string) {
   await openAdmin(page, 'Överlägg');
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  // + (Skapa), or Nytt överlägg while the list is empty, whose own button stands alone then.
+  await page.getByRole('button', { name: /^(Skapa|Nytt överlägg)$/ }).click();
   await nameNew(page, title);
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Text', exact: true }).click();

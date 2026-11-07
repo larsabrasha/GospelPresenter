@@ -10,26 +10,24 @@ import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { DANGER_ROW, Group } from '../ui/Group.tsx';
-import { CheckIcon, GripIcon, LabelsPicture, MinusIcon } from '../ui/icons.tsx';
-import { HEADER_TEXT } from '../ui/Library.tsx';
-import { CARD, RowChevron } from '../ui/List.tsx';
+import { CheckIcon, GripIcon, LabelsPicture } from '../ui/icons.tsx';
+import { CARD, ROW_HOVER, RowChevron } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { SelectButtons, SelectionBar, Tick, useSelection } from '../ui/Selecting.tsx';
 import { useSortable } from '../ui/sortable.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { PILL } from './songEditorLook.ts';
 
 // Etiketter (spec 02 `/admin/labels`, SONG-R45–R47) as iOS's Reminders lists its lists (Lars, 2026-11-04): a row a
 // label, drawn as the pill it is where it is used, so it is known again; a tap opens a sheet with its name, its
-// colour as a grid of swatches, and Radera; Redigera shows ⊖ to remove and the rows to drag into order.
+// colour as a grid of swatches, and Radera; Välj, as every list has it (Lars, 2026-11-07), ticks labels to delete
+// together and has the rows dragged into order.
 
 /** The labels in their order (SONG-R45), as the song editor lists them. */
 const ordered = async (db: Parameters<typeof listLabels>[0]) => [...(await listLabels(db)).values()];
 
 /** The swatches of the sheet, as Reminders' colours; a label's own colour that is none of them is kept as the last. */
 const SWATCHES = ['#dc2626', '#ea580c', '#d97706', '#ca8a04', '#16a34a', '#0d9488', '#0284c7', '#2563eb', '#4f46e5', '#9333ea', '#db2777', DEFAULT_LABEL_COLOR];
-
-/** iOS's round red ⊖ of a list in edit mode. */
-const ROUND = 'shrink-0 size-5 rounded-full flex items-center justify-center text-white cursor-pointer bg-red-500';
 
 /** A label as a part's pill draws it (PartPill). */
 const Pill = ({ label }: { label: Label }) => (
@@ -144,7 +142,7 @@ export function Labels() {
   const { dialog, ask } = useConfirm();
   const labels = useData(ordered, []);
   const [editing, setEditing] = useState<Label | 'new' | null>(null);
-  const [arranging, setArranging] = useState(false);
+  const selection = useSelection();
   const refocus = useRef<string | null>(null);
 
   const move = (from: number, to: number) => {
@@ -153,84 +151,107 @@ export function Labels() {
     refocus.current = l.id;
     void trySave(db.mutate('moveLabel', { id: l.id, toIndex: to }));
   };
-  const { listRef, rowStyle, handle, dragging } = useSortable<HTMLUListElement>(move);
+  const { listRef, rowStyle, handle, wholeRow, dragging } = useSortable<HTMLUListElement>(move);
   const remove = async (l: Label) => {
     if (await ask(deleteAsk(t('labels.deleteConfirm', { text: l.text }), l.text, () => trySave(db.mutate('deleteLabel', { id: l.id }))))) setEditing(null);
+  };
+  const picked = labels?.filter((l) => selection.picked.has(l.id)) ?? [];
+  const removePicked = async () => {
+    const [one] = picked;
+    if (!one) return;
+    const question = picked.length === 1 ? deleteAsk(t('labels.deleteConfirm', { text: one.text }), one.text, () => trySave(db.mutate('deleteLabel', { id: one.id }))) : deleteAsk(t('labels.deleteMany', { n: picked.length }), undefined, async () => void (await Promise.all(picked.map((l) => trySave(db.mutate('deleteLabel', { id: l.id }))))));
+    if (await ask(question)) selection.stop();
   };
 
   return (
     <PageContainer>
-      {dialog}
-      <PageHeader title={t('labels.title')}>
-        <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
-      </PageHeader>
-      {!labels && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
-      {labels && !labels.length && (
-        <div className={CARD}>
-          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')}>
-            <AppButton onClick={() => setEditing('new')}>{t('labels.addTitle')}</AppButton>
-          </EmptyPicture>
-        </div>
-      )}
-      {!!labels?.length && (
-        // As Välj over a library: its own row, its hover clear of the list (Lars, 2026-11-04).
-        <div className="flex justify-end -mt-3 mb-2">
-          <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => setArranging((a) => !a)}>
-            {t(arranging ? 'library.done' : 'labels.arrange')}
-          </AppButton>
-        </div>
-      )}
-      {!!labels?.length && (
-        <ul ref={listRef} aria-label={t('labels.title')} className="flex flex-col rounded-xl [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
-          {labels.map((l, i) =>
-            arranging ? (
-              // Dragged by the row; with focus on it, Alt+↑/↓ moves it, as an arrangement's parts.
-              <li
-                key={l.id}
-                aria-label={l.text}
-                data-sort-row
-                tabIndex={0}
-                aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
-                ref={(el) => {
-                  if (el && refocus.current === l.id) {
-                    refocus.current = null;
-                    el.focus();
-                  }
-                }}
-                style={rowStyle(i)}
-                {...handle(i)}
-                onKeyDown={(e) => {
-                  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
-                  e.preventDefault();
-                  move(i, e.key === 'ArrowUp' ? i - 1 : i + 1);
-                }}
-                className={`flex items-center gap-3 bg-surface px-4 min-h-11 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 first:rounded-t-xl last:rounded-b-xl ${dragging === i ? 'shadow-lg' : ''}`}
-              >
-                <AppButton variant="plain" className={ROUND} aria-label={t('labels.delete', { text: l.text })} onClick={() => void remove(l)}>
-                  <MinusIcon className="size-3.5" strokeWidth={3} />
-                </AppButton>
-                <Pill label={l} />
-                <span className="flex-1" />
-                <GripIcon className="size-4 text-stone-300 dark:text-stone-500 shrink-0" />
-              </li>
-            ) : (
-              <li key={l.id} aria-label={l.text} className="bg-surface first:rounded-t-xl last:rounded-b-xl">
-                <AppButton
-                  variant="plain"
-                  aria-label={t('labels.edit', { text: l.text })}
-                  className="flex items-center gap-3 w-full px-4 min-h-11 text-left cursor-pointer rounded-[inherit] hover:bg-stone-200/60 dark:hover:bg-white/[0.06]"
-                  onClick={() => setEditing(l)}
-                >
-                  <Pill label={l} />
-                  <span className="flex-1" />
-                  <RowChevron />
-                </AppButton>
-              </li>
-            ),
+      {/* Escape ends Välj, and only that; the toolbar floats elsewhere, but its events come here through React. */}
+      <div className="flex flex-col space-y-5" onKeyDown={selection.escape}>
+        {dialog}
+        <PageHeader title={t('labels.title')}>
+          {selection.selecting ? (
+            <SelectionBar count={picked.length}>
+              <AppButton variant="danger" filled disabled={!picked.length} onClick={() => void removePicked()}>
+                {t('common.delete')}
+              </AppButton>
+            </SelectionBar>
+          ) : (
+            !!labels?.length && <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
           )}
-        </ul>
-      )}
-      {editing && <LabelSheet editing={editing === 'new' ? null : editing} labels={labels ?? []} onRemove={(l) => void remove(l)} onClose={() => setEditing(null)} />}
+        </PageHeader>
+        {!labels && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {labels && !labels.length && (
+          <div className={CARD}>
+            <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')}>
+              <AppButton onClick={() => setEditing('new')}>{t('labels.addTitle')}</AppButton>
+            </EmptyPicture>
+          </div>
+        )}
+        {!!labels?.length && (
+          // As Välj over a library: its own row, its hover clear of the list (Lars, 2026-11-04).
+          <div className="flex justify-end -mt-3 mb-2">
+            <SelectButtons selection={selection} ids={labels.map((l) => l.id)} />
+          </div>
+        )}
+        {!!labels?.length && (
+          <ul ref={listRef} aria-label={t('labels.title')} className="flex flex-col rounded-xl [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
+            {labels.map((l, i) =>
+              selection.selecting ? (
+                // A tap ticks it; a mouse drags the row, a finger its grip; with focus on it, Alt+↑/↓ moves it, as an
+                // arrangement's parts.
+                <li
+                  key={l.id}
+                  aria-label={l.text}
+                  data-sort-row
+                  ref={(el) => {
+                    if (el && refocus.current === l.id) {
+                      refocus.current = null;
+                      el.querySelector('button')?.focus();
+                    }
+                  }}
+                  style={rowStyle(i)}
+                  {...wholeRow(i)}
+                  onKeyDown={(e) => {
+                    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+                    e.preventDefault();
+                    move(i, e.key === 'ArrowUp' ? i - 1 : i + 1);
+                  }}
+                  className={`flex items-center bg-surface select-none [-webkit-touch-callout:none] first:rounded-t-xl last:rounded-b-xl ${ROW_HOVER} ${dragging === i ? 'shadow-lg' : ''}`}
+                >
+                  <AppButton
+                    variant="plain"
+                    role="checkbox"
+                    aria-checked={selection.picked.has(l.id)}
+                    aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                    className="flex-1 min-w-0 flex items-center gap-3 pl-4 min-h-11 text-left cursor-pointer rounded-[inherit]"
+                    onClick={(e) => selection.toggle(l.id, e, labels.map((each) => each.id))}
+                  >
+                    <Tick on={selection.picked.has(l.id)} />
+                    <Pill label={l} />
+                  </AppButton>
+                  <span className="shrink-0 self-stretch flex items-center px-4 cursor-grab active:cursor-grabbing touch-none" aria-hidden="true" {...handle(i)}>
+                    <GripIcon className="size-4 text-stone-300 dark:text-stone-500" />
+                  </span>
+                </li>
+              ) : (
+                <li key={l.id} aria-label={l.text} className="bg-surface first:rounded-t-xl last:rounded-b-xl">
+                  <AppButton
+                    variant="plain"
+                    aria-label={t('labels.edit', { text: l.text })}
+                    className="flex items-center gap-3 w-full px-4 min-h-11 text-left cursor-pointer rounded-[inherit] hover:bg-stone-200/60 dark:hover:bg-white/[0.06]"
+                    onClick={() => setEditing(l)}
+                  >
+                    <Pill label={l} />
+                    <span className="flex-1" />
+                    <RowChevron />
+                  </AppButton>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+        {editing && <LabelSheet editing={editing === 'new' ? null : editing} labels={labels ?? []} onRemove={(l) => void remove(l)} onClose={() => setEditing(null)} />}
+      </div>
     </PageContainer>
   );
 }

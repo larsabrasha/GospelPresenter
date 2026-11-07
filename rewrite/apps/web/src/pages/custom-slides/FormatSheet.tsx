@@ -56,11 +56,13 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         </div>
         <Header title={title} onClose={onClose} />
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">{children}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-4">{children}</div>
     </div>,
     document.body,
   );
 }
+
+// Its rows scroll with a little room above them: a field's focus ring at the top was cut off by the edge (Lars, 2026-11-07).
 
 /**
  * The popover: placed by the editor in its column, under the toolbar at the right (its parent is `relative`), so it
@@ -75,7 +77,7 @@ function Popover({ title, onClose, children }: { title: string; onClose: () => v
       data-testid="format-sheet"
     >
       <Header title={title} onClose={onClose} />
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">{children}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-4">{children}</div>
     </div>
   );
 }

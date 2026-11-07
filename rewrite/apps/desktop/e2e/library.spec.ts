@@ -1,4 +1,5 @@
-// The libraries' common page (apps/web/src/ui/Library.tsx), on Sånger: Välj marks items and Radera trashes them all;
+// The libraries' common page (apps/web/src/ui/Library.tsx), on Sånger: Välj marks items, a Shift-click a range, and
+// Radera trashes them all;
 // a song's menu, opened by a right click, renames it.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
@@ -10,7 +11,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('Välj marks songs, Markera alla marks the rest, and Radera trashes them all after one question', async () => {
+test('Välj marks songs, a Shift-click the ones between, Markera alla the rest, and Radera trashes them all after one question', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -22,6 +23,12 @@ test('Välj marks songs, Markera alla marks the rest, and Radera trashes them al
   await page.getByRole('button', { name: 'Välj', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Alfa' }).click();
   await expect(page.getByRole('toolbar', { name: 'Markerade' })).toContainText('1 markerad');
+  // Shift: from the song clicked before to this one, across the letters' sections; on a marked one, unmarked again.
+  await page.getByRole('checkbox', { name: 'Gamma' }).click({ modifiers: ['Shift'] });
+  await expect(page.getByRole('toolbar', { name: 'Markerade' })).toContainText('3 markerade');
+  await page.getByRole('checkbox', { name: 'Beta' }).click({ modifiers: ['Shift'] });
+  await expect(page.getByRole('toolbar', { name: 'Markerade' })).toContainText('1 markerad');
+  await expect(page.getByRole('checkbox', { name: 'Alfa' })).toBeChecked();
   await page.getByRole('button', { name: 'Markera alla' }).click();
   await expect(page.getByRole('toolbar', { name: 'Markerade' })).toContainText('3 markerade');
   await page.getByRole('toolbar', { name: 'Markerade' }).getByRole('button', { name: 'Radera' }).click();

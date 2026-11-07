@@ -57,11 +57,12 @@ export function ListLinkRow({
   nav?: HTMLAttributes<HTMLAnchorElement>;
 }) {
   return (
-    <li className="flex items-center border-b border-separator last:border-b-0">
+    // The row is the hover's, edge to edge, the control after the link too (Lars, 2026-11-07: it stopped short of it).
+    <li className={`flex items-center border-b border-separator last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${ROW_HOVER}`}>
       <a
         {...nav}
         href={href}
-        className={`flex-1 min-w-0 flex items-center gap-3 px-5 py-3 ${ROW_HOVER} no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500`}
+        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 no-underline text-inherit rounded-[inherit] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>

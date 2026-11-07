@@ -126,7 +126,9 @@ export function CustomSlides() {
           text: t('customSlides.emptyText'),
           action: (
             <>
-              <AppButton onClick={() => void create()}>{t('customSlides.emptyNew')}</AppButton>
+              <AppButton onClick={() => void create()} data-new="">
+                {t('customSlides.emptyNew')}
+              </AppButton>
               <AppButton variant="secondary" disabled={importing} onClick={() => pick(null)}>
                 {t('slides.import')}
               </AppButton>

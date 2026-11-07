@@ -176,7 +176,7 @@ export function Images({ role }: { role: Role }) {
       loading={t('presentation.loadingImages')}
       empty={{ icon: <PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('images.empty'),
         text: t('images.emptyText'),
-        action: <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file-empty" label={t('images.emptyImport')} onFiles={(files) => void importFiles(files)} />,
+        action: <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" label={t('images.emptyImport')} onFiles={(files) => void importFiles(files)} />,
       }}
       noMatch={t('images.noMatch')}
       count={(n) => t(n === 1 ? 'images.count.one' : 'images.count.many', { n })}

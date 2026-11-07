@@ -71,7 +71,11 @@ export function Overlays() {
       add={<AddButton label={t('common.create')} onClick={() => void create()} />}
       loading={t('common.loading')}
       empty={{ icon: <SquaresOverlapIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('overlays.empty'),
-        action: <AppButton onClick={() => void create()}>{t('overlays.new')}</AppButton>,
+        action: (
+          <AppButton onClick={() => void create()} data-new="">
+            {t('overlays.new')}
+          </AppButton>
+        ),
       }}
       noMatch={t('overlays.noMatch')}
       count={(n) => t(n === 1 ? 'overlays.count.one' : 'overlays.count.many', { n })}

@@ -1,5 +1,5 @@
 // Etiketter (spec 02 `/admin/labels`, SONG-R45–R47, SONG-A27–A31): the default labels are there from the
-// start; a label is created, renamed in its sheet, moved and deleted under Redigera, and the song editor follows.
+// start; a label is created, renamed in its sheet, moved under Välj, deleted together there, and the song editor follows.
 import { expect, test } from '@playwright/test';
 import { pro } from '../../../packages/core/test/pro-fixture.ts';
 import { launch, type Desktop } from './apps.ts';
@@ -41,7 +41,7 @@ test('the default labels are listed in order; a label is created with Shift+Ente
   await expect(page.getByRole('dialog', { name: 'Redigera etikett' }).getByRole('radio', { name: '#16a34a' })).toHaveAttribute('aria-checked', 'true');
 });
 
-test('a renamed label shows in the song, a moved one comes first, and a deleted one leaves the part unlabelled', async () => {
+test('a renamed label shows in the song, a moved one comes first, and the ones deleted together under Välj leave the part unlabelled', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -57,13 +57,21 @@ test('a renamed label shows in the song, a moved one comes first, and a deleted 
   await dialog.getByLabel('Etiketttext').fill('Vers');
   await dialog.getByRole('button', { name: 'Spara' }).click();
   await expect(dialog).toBeHidden();
-  await page.getByRole('button', { name: 'Redigera', exact: true }).click();
-  await list.getByRole('listitem', { name: 'Chorus', exact: true }).focus();
+  await page.getByRole('button', { name: 'Välj', exact: true }).click();
+  await list.getByRole('listitem', { name: 'Chorus', exact: true }).getByRole('checkbox').focus();
   await page.keyboard.press('Alt+ArrowUp');
   await expect(list.getByRole('listitem').nth(6)).toHaveAccessibleName('Chorus');
-  await page.getByRole('button', { name: 'Ta bort Bridge', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
+  await list.getByRole('listitem', { name: 'Bridge', exact: true }).getByRole('checkbox').click();
+  await list.getByRole('listitem', { name: 'Blank', exact: true }).getByRole('checkbox').click();
+  const bar = page.getByRole('toolbar', { name: 'Markerade' });
+  await expect(bar).toContainText('2 markerade');
+  await bar.getByRole('button', { name: 'Radera' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Radera' });
+  await expect(confirm).toContainText('Vill du ta bort 2 etiketter?');
+  await confirm.getByRole('button', { name: 'Radera' }).click();
   await expect(list.getByRole('listitem', { name: 'Bridge', exact: true })).toHaveCount(0);
+  await expect(list.getByRole('listitem', { name: 'Blank', exact: true })).toHaveCount(0);
+  await expect(bar).toHaveCount(0);
 
   await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Hos Dig' }).click();

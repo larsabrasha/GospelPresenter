@@ -17,7 +17,7 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await setUpHost(host);
 
   await openAdmin(page, 'Bildspel');
-  await page.getByRole('button', { name: 'Nytt bildspel' }).click();
+  await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
   await nameNew(page, 'Kollekt');
   const canvas = page.getByTestId('slide-canvas');
   await expect(canvas).toBeVisible();
@@ -69,7 +69,7 @@ test('an element covered by another is picked by a tap again or from Lager, and 
   const page = host.page;
   await setUpHost(host);
   await openAdmin(page, 'Bildspel');
-  await page.getByRole('button', { name: 'Nytt bildspel' }).click();
+  await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
   await nameNew(page, 'Lager');
   const canvas = page.getByTestId('slide-canvas');
   for (const kind of ['Text', 'Rektangel']) {

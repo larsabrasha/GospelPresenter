@@ -95,7 +95,10 @@ export function Songs() {
         text: t('songs.emptyText'),
         action: (
           <>
-            <AppButton onClick={() => void create()}>{t('songs.emptyNew')}</AppButton>
+            {/* `n` and ⌘N press it while the list is empty, as they press + (ui/appKeys.ts). */}
+            <AppButton onClick={() => void create()} data-new="">
+              {t('songs.emptyNew')}
+            </AppButton>
             <AppButton variant="secondary" disabled={songImport.busy} onClick={songImport.pick}>
               {t('songs.import.menu')}
             </AppButton>

@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { useTrySave } from './AutoSave.tsx';
@@ -8,11 +7,9 @@ import { Dropdown, MENU_ITEM } from './Dropdown.tsx';
 import { deleteAsk, useConfirm } from './Dialog.tsx';
 import { DropZone } from './DropZone.tsx';
 import { EmptySmall } from './Empty.tsx';
-import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
-import { useHeaderFloat } from './headerFloat.ts';
 import { saveFiles, type DownloadFile } from '../media/download.ts';
-import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
+import { ArrowDownTrayIcon, EllipsisIcon, PencilIcon, TrashIcon } from './icons.tsx';
 import { useView, ViewPicker, type View } from './ViewPicker.tsx';
 import { CARD, ROW_HOVER, RowChevron } from './List.tsx';
 import { ListSearch, matches, NoMatch } from './ListSearch.tsx';
@@ -22,6 +19,7 @@ import { PageContainer, PageHeader, StickyBar } from './PageContainer.tsx';
 import { QuickLook, type QuickLookContent } from './QuickLook.tsx';
 import { libraryKeyDown, useLibraryShortcuts } from './libraryKeys.ts';
 import { HoldMenu } from './RemoveMenu.tsx';
+import { SelectButtons, SelectionBar, Tick, useSelection } from './Selecting.tsx';
 import { SortMenu, useStoredChoice } from './SortMenu.tsx';
 import { useToast } from './Toast.tsx';
 
@@ -108,8 +106,8 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const [ownQuery, setOwnQuery] = useState('');
-  const [selecting, setSelecting] = useState(false);
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const selection = useSelection();
+  const { selecting, picked, stop: stopSelecting } = selection;
   const [renaming, setRenaming] = useState<T | null>(null);
   const [looking, setLooking] = useState<string | null>(null);
 
@@ -123,21 +121,12 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const shown = sort && !(p.search && searching(query)) ? found?.toSorted(sort.compare) : found;
   const searchingNow = searching(query);
   const sections = p.sections && shown && !searchingNow && (!p.sorts || sort?.sections) ? p.sections(shown) : null;
+  /** The items as they stand on the page, for a Shift-click's range. */
+  const order = (sections ? sections.flatMap((s) => s.items) : (shown ?? [])).map((i) => i.id);
   const pickedItems = (p.items ?? []).filter((i) => picked.has(i.id));
-  const allPicked = !!shown?.length && shown.every((i) => picked.has(i.id));
   const lookedIndex = looking ? (shown ?? []).findIndex((i) => i.id === looking) : -1;
   const lookedAt = lookedIndex >= 0 ? { item: shown![lookedIndex]!, before: shown![lookedIndex - 1], after: shown![lookedIndex + 1] } : null;
 
-  const stopSelecting = () => {
-    setSelecting(false);
-    setPicked(new Set());
-  };
-  const toggle = (item: T) =>
-    setPicked((now) => {
-      const next = new Set(now);
-      if (!next.delete(item.id)) next.add(item.id);
-      return next;
-    });
   const remove = async (items: T[]) => {
     if (!items.length) return;
     const question = p.remove.ask(items);
@@ -222,11 +211,12 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       </>
     );
     // The card does not clip, so a ⋯ menu reaches past its edge: the first and last rows round their own corners.
-    const rowClass = `flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-left no-underline text-inherit group-first:rounded-t-xl group-last:rounded-b-xl ${ROW_HOVER}`;
+    const rowClass = 'flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-left no-underline text-inherit group-first:rounded-t-xl group-last:rounded-b-xl';
     return (
-      <li key={item.id} className="group flex items-center border-b border-separator last:border-b-0" aria-label={item.name} data-testid={`${p.testId}-row`}>
+      // The row is the hover's, edge to edge, its ⋯ too (Lars, 2026-11-07: it stopped short of it).
+      <li key={item.id} className={`group flex items-center border-b border-separator last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${ROW_HOVER}`} aria-label={item.name} data-testid={`${p.testId}-row`}>
         {selecting ? (
-          <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} data-library-item={item.id} className={`${rowClass} cursor-pointer`} onClick={() => toggle(item)}>
+          <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} data-library-item={item.id} className={`${rowClass} cursor-pointer`} onClick={(e) => selection.toggle(item.id, e, order)}>
             <Tick on={picked.has(item.id)} />
             {body}
           </AppButton>
@@ -259,7 +249,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
   const gridTile = (item: T) => (
     <li key={item.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid={`${p.testId}-card`}>
       {selecting ? (
-        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} data-library-item={item.id} className={`${TILE} cursor-pointer`} onClick={() => toggle(item)}>
+        <AppButton variant="plain" role="checkbox" aria-checked={picked.has(item.id)} aria-label={item.name} data-library-item={item.id} className={`${TILE} cursor-pointer`} onClick={(e) => selection.toggle(item.id, e, order)}>
           {/* The cell's width, as the tile has it outside Välj: a tile drawn at its width (a slide's page) is not 0 wide. */}
           <span className={`flex w-full justify-center ${picked.has(item.id) ? 'opacity-80' : ''}`}>{p.renderTile?.(item, view === 'large')}</span>
           <Tick on={picked.has(item.id)} className="absolute bottom-1.5 right-1.5" />
@@ -317,8 +307,18 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       {dialog}
       <PageHeader title={p.title}>
         {selecting ? (
-          <Toolbar count={pickedItems.length} onRemove={() => void remove(pickedItems)} onDownload={p.download ? () => void download(pickedItems) : undefined} />
-        ) : (
+          <SelectionBar count={pickedItems.length}>
+            {p.download && (
+              <AppButton variant="secondary" disabled={!pickedItems.length} onClick={() => void download(pickedItems)}>
+                {t('library.download')}
+              </AppButton>
+            )}
+            <AppButton variant="danger" filled disabled={!pickedItems.length} onClick={() => void remove(pickedItems)}>
+              {t('common.delete')}
+            </AppButton>
+          </SelectionBar>
+        ) : p.items && !p.items.length && p.manage && p.empty.action ? null : (
+          // Not beside an empty list's own buttons, which say the same in the middle (Lars, 2026-11-07: it was said twice).
           p.add
         )}
       </PageHeader>
@@ -357,18 +357,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
                 {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
                 {p.switchable && <ViewPicker className="ml-2" value={view} onChange={setView} />}
               </span>
-              {p.manage && (
-                <span className="flex items-center gap-1 -mr-3">
-                  {selecting && (
-                    <AppButton variant="plain" className={HEADER_TEXT} onClick={() => setPicked(allPicked ? new Set() : new Set(shown?.map((i) => i.id)))}>
-                      {t(allPicked ? 'library.deselectAll' : 'library.selectAll')}
-                    </AppButton>
-                  )}
-                  <AppButton variant="plain" className={`${HEADER_TEXT} font-semibold`} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-                    {t(selecting ? 'library.done' : 'library.select')}
-                  </AppButton>
-                </span>
-              )}
+              {p.manage && <SelectButtons selection={selection} ids={shown?.map((i) => i.id) ?? []} />}
             </div>
           )}
         </StickyBar>
@@ -414,9 +403,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       {/* Escape ends Välj, and only that (one step at a time, as everywhere). */}
       <div
         onKeyDown={(e) => {
-          if (e.key !== 'Escape' || !selecting) return libraryKeyDown(e, view !== 'list', removable);
-          e.stopPropagation();
-          stopSelecting();
+          if (!selection.escape(e)) libraryKeyDown(e, view !== 'list', removable);
         }}
       >
         <div className="flex flex-col space-y-5">{content}</div>
@@ -436,37 +423,3 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
 
 /** A library this long or shorter shows no count under it. */
 const COUNT_FROM = 12;
-
-/** Välj, Klar and Markera alla: words in the app's colour, as iOS's bar buttons. */
-export const HEADER_TEXT = 'h-11 px-3 rounded-full text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2';
-
-/** A round tick, as iOS marks a chosen item: empty, or filled in the app's colour with a check. */
-function Tick({ on, className }: { on: boolean; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`size-6 shrink-0 rounded-full flex items-center justify-center ${on ? 'bg-sky-500 text-white' : 'border-2 border-stone-300 dark:border-stone-600 bg-white/80 dark:bg-black/30'} ${className ?? ''}`}
-    >
-      {on && <CheckIcon className="size-4" />}
-    </span>
-  );
-}
-
-/** What Välj floats where + floats: how many are marked, Ladda ner where the items are files, and Radera. */
-function Toolbar({ count, onRemove, onDownload }: { count: number; onRemove: () => void; onDownload?: () => void }) {
-  const float = useHeaderFloat();
-  const bar = (
-    <div role="toolbar" aria-label={t('library.toolbar')} className={`h-14 pl-5 pr-2 rounded-full flex items-center gap-3 ${LIFTED}`}>
-      <span className="text-[15px] text-stone-600 dark:text-stone-300 tabular-nums">{count ? t(count === 1 ? 'library.picked.one' : 'library.picked.many', { n: count }) : t('library.pickNone')}</span>
-      {onDownload && (
-        <AppButton variant="secondary" disabled={!count} onClick={onDownload}>
-          {t('library.download')}
-        </AppButton>
-      )}
-      <AppButton variant="danger" filled disabled={!count} onClick={onRemove}>
-        {t('common.delete')}
-      </AppButton>
-    </div>
-  );
-  return float ? createPortal(bar, float) : <div className="sticky bottom-4 flex justify-center">{bar}</div>;
-}

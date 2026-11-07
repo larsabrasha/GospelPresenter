@@ -47,8 +47,9 @@ test('a saved screen is online while its page is open, shows the slide when swit
   const page = await presenting();
   const origin = new URL(page.url()).origin;
   await openAdmin(page, 'Utgångar');
-  await expect(page.getByText('Inga fasta utgångar')).toBeVisible();
-  // An empty list shows its picture and heading only; the intro card at the top says what fixed outputs are.
+  // An empty group is its row that adds one, alone, as iOS's Settings has it; the intro card says what fixed outputs are.
+  await expect(page.getByRole('list', { name: 'Fasta utgångar' }).getByRole('listitem')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lägg till utgång' })).toBeVisible();
   await expect(page.getByText(/^Projektorer, TV-apparater och datorer som kyrkan har satt upp/)).toBeVisible();
   await page.getByRole('button', { name: 'Lägg till utgång', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');

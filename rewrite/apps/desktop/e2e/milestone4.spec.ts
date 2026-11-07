@@ -43,8 +43,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   // The organisation's default theme: Ljust.
   await openAdmin(page, 'Teman');
   await expect(page.getByTestId('theme-classic').getByText('Standard', { exact: true })).toBeVisible();
-  await page.getByTestId('theme-light').getByRole('button', { name: 'Ljust' }).click();
-  await page.getByRole('dialog', { name: 'Ljust' }).getByRole('button', { name: 'Använd som standard' }).click();
+  await page.getByTestId('theme-light').getByRole('button', { name: 'Fler val för Ljust' }).click();
+  await page.getByRole('menuitem', { name: 'Använd som standard' }).click();
   await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
   await expect(page.getByTestId('theme-light').getByText('Standard', { exact: true })).toBeVisible();
 
