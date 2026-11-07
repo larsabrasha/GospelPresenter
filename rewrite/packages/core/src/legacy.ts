@@ -153,9 +153,31 @@ type OlderRows = Omit<LegacyRows, 'custom_slides'> & { custom_slides?: LegacyRow
 /**
  * A zip's rows as this format has them. Before 4 a deck's pages become a slideshow of PDF pages that its item
  * names: in 3 each `slide_decks` row, before 3 each deck item's own pages, as the item's id. Before 5 a page's
- * pictures of Bilder become its own (`ownPictures`). Before 6 an item has no comment. Before 7 no picture is edited.
+ * pictures of Bilder become its own (`ownPictures`). Before 6 an item has no comment. Before 7 no picture is edited. In every format a song part that is only an RTF
+ * leftover goes (`withoutRtfLeftovers`).
  */
 export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
+  return withoutRtfLeftovers(upgradeFormat(format, rows));
+}
+
+/**
+ * A song part 1.x left with only what its ProPresenter import kept of an empty slide's RTF header (`;;` and `\*;;`
+ * of the colour tables), as schema 26 has it.
+ */
+const isRtfLeftover = (content: LegacyRow[string] | undefined) => typeof content === 'string' && content.includes(';') && /^[\s;\\*]*$/.test(content);
+
+/** The rows without the song parts that are RTF leftovers, and the arrangements without their ids (Lars, 2026-11-07). */
+function withoutRtfLeftovers(rows: LegacyRows): LegacyRows {
+  const gone = new Set(rows.song_parts.filter((p) => isRtfLeftover(p.content)).map((p) => p.id));
+  if (!gone.size) return rows;
+  return {
+    ...rows,
+    song_parts: rows.song_parts.filter((p) => !gone.has(p.id)),
+    song_arrangements: rows.song_arrangements.map((a) => ({ ...a, part_ids: rewrite(a.part_ids, (ids) => (Array.isArray(ids) ? ids.filter((id) => !gone.has(id as LegacyRow[string])) : ids)) })),
+  };
+}
+
+function upgradeFormat(format: number, rows: OlderRows): LegacyRows {
   const { slide_decks: decks = [], custom_slides: slideshows = [], ...given } = rows;
   const unedited = (i: LegacyRow): LegacyRow => ({ ...i, original_full_hash: null, original_thumb_hash: null, original_width: null, original_height: null, edit: null });
   const commented = format >= 6 ? given : { ...given, presentation_items: given.presentation_items.map((item): LegacyRow => ({ ...item, note: null })) };

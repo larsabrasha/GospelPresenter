@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 26;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -123,6 +123,12 @@ const ownPicturesSql = (page: string) => `json_set(json_remove(${page}, '$.backg
         WHERE json_extract(e.value, '$.kind') <> 'image' OR json_extract(e.value, '$.imageId') IS NULL
           OR EXISTS (SELECT 1 FROM images i WHERE i.id = json_extract(e.value, '$.imageId')))))`;
 
+/**
+ * A song part 1.x left with only what its ProPresenter import kept of an empty slide's RTF header: `;;` and `\*;;`
+ * of the colour tables, nothing but semicolons, backslashes, asterisks and white space, a semicolon among them.
+ */
+const rtfLeftoverSql = (content: string) => `(instr(${content}, ';') > 0 AND trim(${content}, ' ;\\*' || char(9, 10, 13)) = '')`;
+
 /** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
 export const orgMigrations: Record<number, string[]> = {
   // A presentation's description (spec 03) and when it was last changed; when an output was made; the indexes (`orgIndexes`).
@@ -177,6 +183,15 @@ export const orgMigrations: Record<number, string[]> = {
   24: ['ALTER TABLE presentation_items ADD COLUMN note TEXT'],
   // A picture edited, its original kept (MEDIA-R19).
   25: ['original_full_hash TEXT', 'original_thumb_hash TEXT', 'original_width INTEGER', 'original_height INTEGER', 'edit TEXT'].map((c) => `ALTER TABLE images ADD COLUMN ${c}`),
+  // The song parts 1.x kept of an empty ProPresenter slide go, and the arrangements name them no more (Lars,
+  // 2026-11-07): the same on every device and the server, so the rows agree before they sync.
+  26: [
+    `UPDATE song_arrangements SET part_ids = (SELECT json_group_array(j.value) FROM json_each(song_arrangements.part_ids) j
+       WHERE j.value NOT IN (SELECT p.id FROM song_parts p WHERE ${rtfLeftoverSql('p.content')}))
+     WHERE json_valid(part_ids) AND EXISTS (SELECT 1 FROM json_each(song_arrangements.part_ids) j
+       JOIN song_parts p ON p.id = j.value WHERE ${rtfLeftoverSql('p.content')})`,
+    `DELETE FROM song_parts WHERE ${rtfLeftoverSql('content')}`,
+  ],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

@@ -187,6 +187,30 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     f.close();
   });
 
+  it("a version 25 file loses the song parts 1.x kept of an empty ProPresenter slide's RTF header, and its arrangements name them no more", () => {
+    const part = (id: string, sort: number, content: string) => `INSERT INTO song_parts (id, song_id, sort, content) VALUES ('${id}', 'S', ${sort}, '${content}')`;
+    const file = fileWith(driver, [
+      ...orgDdl,
+      schemaMetaDdl,
+      'INSERT INTO _schema (one, version) VALUES (1, 25)',
+      `INSERT INTO songs (id, name) VALUES ('S', 'Blomma och sten')`,
+      part('P1', 0, ';;\n\\*;;'),
+      part('P2', 1, 'Blomma\nsten'),
+      part('P3', 2, ';'),
+      part('P4', 3, ''),
+      `INSERT INTO song_arrangements (id, song_id, name, part_ids, sort) VALUES ('A', 'S', NULL, '["P1","P2","P3","P2","P4"]', 0)`,
+    ]);
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    expect([f.query('SELECT id FROM song_parts ORDER BY sort'), f.query('SELECT part_ids FROM song_arrangements')]).toEqual([
+      [{ id: 'P2' }, { id: 'P4' }],
+      [{ part_ids: '["P2","P2","P4"]' }],
+    ]);
+    f.close();
+  });
+
   it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {
     const f = openSqlite(fileWith(driver, []), driver);
     nodeOrgStore(f);

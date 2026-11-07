@@ -70,3 +70,18 @@ describe('a 1.x export of format 4', () => {
     expect([legacyRowsProblem(upgraded), overlay.elements[0]?.kind === 'image' && overlay.elements[0].picture]).toEqual([null, { full: 'f'.repeat(64), thumb: 't'.repeat(64) }]);
   });
 });
+
+describe('a 1.x export of any format', () => {
+  it("leaves out the song parts 1.x kept of an empty ProPresenter slide's RTF header, and the arrangements' names of them", () => {
+    const part = (id: string, content: string) => ({ id, song_id: 'S', sort: 0, label_id: null, content });
+    const rows = {
+      ...rowsWith([]),
+      song_parts: [part('P1', ';;\n\\*;;'), part('P2', 'Blomma\nsten')],
+      song_arrangements: [{ id: 'A', song_id: 'S', name: null, part_ids: '["P1","P2"]', sort: 0 }],
+    };
+
+    const upgraded = upgradeLegacyRows(LEGACY_FORMAT, rows);
+
+    expect([upgraded.song_parts.map((p) => p.id), upgraded.song_arrangements.map((a) => a.part_ids)]).toEqual([['P2'], ['["P2"]']]);
+  });
+});
