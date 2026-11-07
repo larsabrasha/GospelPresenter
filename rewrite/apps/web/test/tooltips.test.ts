@@ -9,6 +9,10 @@ describe('a tooltip\'s text', () => {
     expect(splitKeys('Sök i allt (⌘K)')).toEqual({ text: 'Sök i allt', keys: '⌘K' });
   });
 
+  it('shows a function key apart too, as Starta presentation\'s F5', () => {
+    expect(splitKeys('Starta presentation (F5)')).toEqual({ text: 'Starta presentation', keys: 'F5' });
+  });
+
   it('leaves a title with no shortcut whole, brackets and all', () => {
     expect(splitKeys('Verse 1 (refräng)')).toEqual({ text: 'Verse 1 (refräng)', keys: null });
   });

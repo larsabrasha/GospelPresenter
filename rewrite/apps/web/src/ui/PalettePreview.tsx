@@ -57,7 +57,8 @@ function RunningOrder({ id }: { id: string }) {
 }
 
 export function PalettePreview({ of }: { of: PreviewOf | null }) {
-  if (!of) return null;
+  // With nothing to preview its panel stays, empty, so nothing beside it moves.
+  if (!of) return <div className="h-full rounded-xl bg-raised/60 dark:bg-white/[0.04]" />;
   return (
     <div key={`${of.kind}:${of.id}`} className="dialog-in h-full overflow-y-auto rounded-xl bg-raised/60 dark:bg-white/[0.04] p-4 space-y-3" data-testid="palette-preview">
       <p className="font-semibold truncate">{of.title}</p>

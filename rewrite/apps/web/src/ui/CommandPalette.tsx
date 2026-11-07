@@ -10,10 +10,10 @@ import { runCommand, type AppCommand } from './appKeys.ts';
 import { Dialog } from './Dialog.tsx';
 import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
-import { CalendarIcon, ChevronRightIcon, CogIcon, MusicalNoteIcon, PlayIcon, PlusIcon, SearchIcon } from './icons.tsx';
+import { CalendarIcon, ChevronRightIcon, CogIcon, MusicalNoteIcon, PlusIcon, SearchIcon } from './icons.tsx';
 import { matches } from './ListSearch.tsx';
 import { SearchField } from './Picker.tsx';
-import { keyLabel } from './ShortcutHelp.tsx';
+import { Keys, keyLabel } from './ShortcutHelp.tsx';
 import { href, navigate } from './router.ts';
 import { ctrlLabel } from './shortcuts.ts';
 import { PalettePreview, type PreviewOf } from './PalettePreview.tsx';
@@ -34,6 +34,21 @@ interface PaletteTarget {
   live: boolean;
   /** "Lägg till video…" and the rest, each opening what + opens for it. */
   adds: { key: string; label: string; icon: ReactNode; run: () => void }[];
+  /**
+   * What is likeliest here, first (Lars, 2026-11-07): Starta presentation and Lägg till sång before presenting; then
+   * the next slide, Släck, the shown video's or audio's play and pause, Avsluta. Suggested at the top with nothing typed,
+   * found among the commands by their words; each with its keys, so the search teaches them.
+   */
+  actions: PaletteAction[];
+}
+
+/** A command of the page open, with its keys. */
+export interface PaletteAction {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  keys?: string[];
+  run: () => void;
 }
 
 let target: PaletteTarget | null = null;
@@ -50,6 +65,9 @@ export function usePaletteTarget(own: PaletteTarget): void {
       addSong: (song) => latest.current.addSong(song),
       get live() {
         return latest.current.live;
+      },
+      get actions() {
+        return latest.current.actions;
       },
       get adds() {
         return latest.current.adds;
@@ -87,7 +105,6 @@ interface Hit {
 const go = <ChevronRightIcon className="size-4" />;
 /** The commands, each with its keys as the help writes them, so a command found here teaches its key; `desktop` the menu bar's. */
 const COMMANDS: { text: () => string; icon: ReactNode; command: AppCommand; keys: string[]; desktop?: string }[] = [
-  { text: () => t('shortcuts.start'), icon: <PlayIcon className="size-4" />, command: 'start', keys: ['F5'], desktop: 'Ctrl+Alt+P' },
   { text: () => t('shortcuts.goPresentations'), icon: go, command: 'go:p', keys: ['g p'], desktop: 'Ctrl+1' },
   { text: () => t('shortcuts.goSongs'), icon: go, command: 'go:s', keys: ['g s'], desktop: 'Ctrl+2' },
   { text: () => t('shortcuts.goBibles'), icon: go, command: 'go:b', keys: ['g b'], desktop: 'Ctrl+3' },
@@ -120,7 +137,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
   const adding = target && !document.querySelector('[data-page-dialog]') ? target : null;
 
   const groups = useMemo(() => {
-    const commands: Hit[] = COMMANDS.filter((c) => (c.command !== 'start' || adding) && matches(query, c.text())).map((c) => ({
+    const commands: Hit[] = COMMANDS.filter((c) => matches(query, c.text())).map((c) => ({
       key: `c:${c.command}`,
       icon: c.icon,
       title: c.text(),
@@ -128,6 +145,10 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
       keys: [...c.keys, ...(window.gpDesktop && c.desktop ? [c.desktop] : [])],
       run: () => runCommand(c.command),
     }));
+    // The page's own, likeliest first: all of them suggested with nothing typed, else those the words name.
+    const actionHits: Hit[] = (adding?.actions ?? [])
+      .filter((a) => blank || matches(query, a.label))
+      .map((a) => ({ key: `x:${a.key}`, icon: a.icon, title: a.label, verb: '', keys: a.keys, run: a.run }));
     // The kinds of +, in a presentation: "Lägg till video…" for "video", as the command they are.
     const addHits: Hit[] = (adding?.adds ?? [])
       .filter((a) => !blank && matches(query, a.label, t('palette.addKind', { kind: a.label.toLocaleLowerCase() })))
@@ -182,13 +203,14 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
     // Blank: the coming presentations, then the commands; searching, what the words name most often first.
     const listed: [string, Hit[]][] = blank
         ? [
+            [t('palette.suggested'), actionHits],
             [t('palette.presentations'), presentationHits],
             [t('palette.commands'), commands],
           ]
         : [
             [t('palette.songs'), songHits],
             [t('palette.presentations'), presentationHits],
-            [t('palette.commands'), [...addHits, ...commands]],
+            [t('palette.commands'), [...actionHits, ...addHits.filter((a) => !actionHits.some((x) => x.title === a.title)), ...commands]],
             [t('palette.settings'), settingsHits],
           ];
     return listed.filter(([, hits]) => hits.length);
@@ -224,7 +246,8 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
 
   return (
     // At the top on a phone, as iPhone's Spotlight, above the keyboard it brings up.
-    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass={`${all.some((h) => h.preview) ? 'sm:max-w-3xl' : ''} max-w-xl max-sm:self-start`} hideTitle>
+    // As wide from the first moment, its preview's room kept: it grew when the presentations came, a jolt (Lars, 2026-11-07).
+    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass="sm:max-w-3xl max-w-xl max-sm:self-start" hideTitle>
       <div
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -272,7 +295,11 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
                       {hit.subtitle && <span className={`block truncate text-xs ${on ? 'text-white/80' : 'text-stone-500 dark:text-stone-400'}`}>{hit.subtitle}</span>}
                     </span>
                     {!!hit.keys?.length && (
-                      <span className={`shrink-0 touch:hidden text-xs tabular-nums ${on ? 'text-white/80' : 'text-stone-500 dark:text-stone-400'}`}>{hit.keys.map((k) => keyLabel(k)).join('  ')}</span>
+                      <span className="shrink-0 touch:hidden flex items-center gap-2">
+                        {hit.keys.map((k) => (
+                          <Keys key={k} spec={k} onBlue={on} />
+                        ))}
+                      </span>
                     )}
                     {on && hit.verb && (
                       <span className="shrink-0 text-xs text-white/80 touch:hidden">
@@ -301,11 +328,9 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
           ))}
           {!all.length && <p className="px-4 py-6 text-center text-sm text-stone-500 dark:text-stone-400">{t('palette.none')}</p>}
         </div>
-        {all.some((h) => h.preview) && (
-          <div className="max-sm:hidden flex-1 min-w-0">
-            <PalettePreview of={all[marked]?.preview ?? null} />
-          </div>
-        )}
+        <div className="max-sm:hidden flex-1 min-w-0">
+          <PalettePreview of={all[marked]?.preview ?? null} />
+        </div>
         </div>
       </div>
     </Dialog>

@@ -197,6 +197,7 @@ export function SlideList({
               <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
             ) : !set?.slides.length ? null : wide ? (
               <SlideGrid
+                itemId={item.id}
                 slides={set.slides}
                 label={item.title}
                 theme={theme}

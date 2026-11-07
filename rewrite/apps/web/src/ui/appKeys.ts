@@ -20,7 +20,7 @@ const SECTIONS: Record<string, Route> = {
 };
 
 /** What a key or a choice in the menu bar does. */
-export type AppCommand = `go:${string}` | 'settings' | 'search' | 'new' | 'newSong' | 'back' | 'start' | 'report';
+export type AppCommand = `go:${string}` | 'settings' | 'search' | 'new' | 'newSong' | 'back' | 'start' | 'end' | 'report';
 
 /** How long `g` waits for its letter. */
 const SEQUENCE_MS = 1500;
@@ -37,7 +37,7 @@ function visibleIn(selector: string): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(selector)].filter((el) => el.getClientRects().length > 0);
 }
 
-/** Runs a command. `start` is the presentation page's own (`useAppCommand`). */
+/** Runs a command. `start` and `end` are the presentation page's own (`useAppCommand`). */
 export function runCommand(command: AppCommand): void {
   note('command', command);
   if (command.startsWith('go:')) {

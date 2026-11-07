@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from 'vitest';
-import { describe, keyLabel, type ShortcutGroup } from '../src/ui/ShortcutHelp.tsx';
+import { keyCaps, describe, keyLabel, type ShortcutGroup } from '../src/ui/ShortcutHelp.tsx';
 
 const page: ShortcutGroup = { title: 'Presentation', lines: [{ keys: ['a'], text: 'Lägg till i presentationen' }] };
 const dialog: ShortcutGroup = { title: 'Lägg till', blocks: true, lines: [{ keys: ['Ctrl+1'], text: 'Fliken Sånger' }] };
@@ -26,5 +26,19 @@ group('the keyboard help', () => {
 
   it("writes a letter in capitals, macOS's modifiers as its menus order them, and a sequence a key at a time", () => {
     expect([keyLabel('n', true), keyLabel('Ctrl+Alt+P', true), keyLabel('Ctrl+Alt+P', false), keyLabel('g p', true)]).toEqual(['N', '⌥⌘P', 'Ctrl+Alt+P', 'G P']);
+  });
+});
+
+group('a shortcut as caps', () => {
+  it('gives each key pressed together a cap, as a Mac writes them', () => {
+    expect(keyCaps('Ctrl+.', true)).toEqual([['⌘', '.']]);
+  });
+
+  it('names the modifiers in words elsewhere', () => {
+    expect(keyCaps('Ctrl+ArrowDown', false)).toEqual([['Ctrl', '↓']]);
+  });
+
+  it('gives keys pressed one after the other a group each', () => {
+    expect(keyCaps('g p', true)).toEqual([['G'], ['P']]);
   });
 });

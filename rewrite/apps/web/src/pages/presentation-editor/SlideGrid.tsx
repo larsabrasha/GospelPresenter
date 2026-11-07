@@ -43,7 +43,9 @@ const FIT = 'lg:@min-[708px]:@max-[796px]:w-[calc((100%-1.75rem)/2)] lg:@min-[10
  * width, as the add dialog's preview, which marks its search's words with `highlight`.
  * With `shown`, while presenting, each tile is a button that shows its slide live, and the
  * one shown is marked (SlideGrid.razor's SelectSlide). With `picked`, before presenting, a tile clicked gets the
- * current app's blue outline and nothing more (spec 04: Starta presentation still starts black; Lars, 2026-11-03).
+ * current app's blue outline and nothing more (spec 04: Starta presentation still starts black; Lars, 2026-11-03);
+ * while presenting the slide ↵ shows, which wins over the red of the one shown (VISAS still says it). Each tile names
+ * its slide (`data-slide`, `itemId`/part) for the arrows to move through them as they stand (useEditorKeys.ts).
  */
 export function SlideGrid({
   slides,
@@ -54,7 +56,10 @@ export function SlideGrid({
   highlight,
   shown,
   picked,
+  itemId,
 }: {
+  /** The item the slides are of, for `data-slide`. */
+  itemId?: string;
   slides: ItemSlides['slides'];
   label: string;
   theme: Theme;
@@ -74,7 +79,7 @@ export function SlideGrid({
           const here = !!shown && shown.pointer.itemId === shown.itemId && shown.pointer.partIndex === i;
           const live = here && !shown.pointer.black;
           // Outlined in blue: before presenting the slide picked, while presenting the one ↵ shows (useEditorKeys.ts).
-          const chosen = picked?.partIndex === i && !live;
+          const chosen = picked?.partIndex === i;
           const mark = shown?.mark(i);
           return (
             <li key={s.key} className={`${size} flex`}>
@@ -84,6 +89,7 @@ export function SlideGrid({
                 aria-pressed={shown ? live : chosen}
                 data-current={live}
                 data-picked={chosen}
+                data-slide={itemId && `${itemId}/${i}`}
                 className={`${tileClass(shown && !chosen ? { selected: live, live: true, rested: here && shown.pointer.black } : { selected: chosen })} w-full p-0`}
                 onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >

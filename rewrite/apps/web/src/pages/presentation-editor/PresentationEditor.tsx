@@ -22,6 +22,7 @@ import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { useWakeLock } from '../../ui/useWakeLock.ts';
 import { useEditorKeys } from './useEditorKeys.ts';
+import { FloatingAdd } from './FloatingAdd.tsx';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
 import type { ItemMenuSource } from '../live/ItemContextMenu.tsx';
@@ -181,11 +182,10 @@ export function PresentationEditor({
     const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
     if (next) live.set({ ...next, black: false });
   };
-  // While presenting the slide ↵ shows, outlined in blue: the one outlined by the keys, else the one after what is shown.
-  const liveAt = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
-  const cue = presenting ? (picked ?? steps[liveAt + 1] ?? null) : picked;
+  // The blue outline moves a slide from where it is; while presenting, the first press from the slide shown.
   const pickStep = (delta: number) => {
-    const at = steps.findIndex((s) => s.itemId === cue?.itemId && s.partIndex === cue.partIndex);
+    const from = picked ?? (presenting && pointer.itemId ? pointer : null);
+    const at = steps.findIndex((s) => s.itemId === from?.itemId && s.partIndex === from.partIndex);
     const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
     if (!next) return;
     setPicked(next);
@@ -230,7 +230,7 @@ export function PresentationEditor({
     selected,
     setSelectedId,
     picked,
-    cue,
+    shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null,
     setPicked,
     step,
     pickStep,
@@ -238,6 +238,7 @@ export function PresentationEditor({
     onAdd: () => setAdding({ after: null, kind: 'songs' }),
     onRemove: (item) => void removeItem(item),
     onMove: (item, by) => failing(db.mutate('moveItem', { itemId: item.id, by })),
+    onReveal: (itemId) => setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 })),
   });
 
   if (!data) return null;
@@ -344,6 +345,13 @@ export function PresentationEditor({
             return true;
           }}
           live={!!presenting}
+          ends={!!presenting && !!owner}
+          canStart={startable}
+          onStart={start}
+          onStep={step}
+          onBlack={() => live.set({ black: true })}
+          shown={presenting && current && pointer.itemId ? { slide: current, itemId: pointer.itemId } : null}
+          players={presenting}
           onChoose={(choice) => choose(null, choice)}
         />
       )}
@@ -415,7 +423,7 @@ export function PresentationEditor({
               menuSource={menuSource}
               editingImages={editingImages}
               onEditingImages={setEditingImages}
-              picked={cue}
+              picked={picked}
               onPick={(p) => {
                 setPicked(p);
                 setSelectedId(p.itemId);
@@ -426,6 +434,7 @@ export function PresentationEditor({
         {/* A folded column's way back, floating at the middle's foot (ui/PanelToggle.tsx); its way away is in its foot. */}
         {!phone && !panels.open.left && <FloatingPanelToggle side="left" onShow={() => panels.toggle('left')} />}
         {!phone && presenting && !panels.open.right && <FloatingPanelToggle side="right" onShow={() => panels.toggle('right')} />}
+        {!phone && !panels.open.left && !ticking && <FloatingAdd onChoose={(choice) => choose(null, choice)} liveColumn={!presenting ? 'none' : panels.open.right ? 'open' : 'folded'} />}
         {!phone && presenting && (
           <LivePanel
             presentation={presentation}

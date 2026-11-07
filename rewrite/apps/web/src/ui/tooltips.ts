@@ -12,9 +12,9 @@ const SKIP_MS = 400;
 const GAP = 6;
 const EDGE = 8;
 
-/** A title as its text and the shortcut at its end, if it has one: "Sök i allt (⌘K)" is "Sök i allt" and "⌘K". */
+/** A title as its text and the shortcut at its end, if it has one: "Sök i allt (⌘K)" is "Sök i allt" and "⌘K"; a function key too, "(F5)". */
 export function splitKeys(title: string): { text: string; keys: string | null } {
-  const m = /^(.+?)\s*\(((?:⌘|Ctrl\+|⌥|⇧|Alt\+)[^()]{1,12})\)$/.exec(title.trim());
+  const m = /^(.+?)\s*\(((?:⌘|Ctrl\+|⌥|⇧|Alt\+)[^()]{1,12}|F\d{1,2})\)$/.exec(title.trim());
   return m ? { text: m[1]!, keys: m[2]! } : { text: title.trim(), keys: null };
 }
 

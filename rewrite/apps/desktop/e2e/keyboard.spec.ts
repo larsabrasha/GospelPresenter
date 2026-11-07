@@ -150,7 +150,7 @@ test("a theme's texts are picked by Tab on its slide, the main text and then the
   await expect(canvas).toBeFocused();
 });
 
-test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ ↓ and a number move, the clicker’s keys step at once, and Escape lets the outline go', async () => {
+test('while presenting ↵ shows the next slide, or one the arrows or a number made ready, the clicker’s keys step at once, ⌘↑ ⌘↓ go between items, and Escape lets the outline go', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -171,8 +171,10 @@ test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ �
   const shown = output.getByTestId('slide-text');
   const cue = page.getByTestId('live-cue');
 
-  // ↵ shows the slide after, outlined in blue, and the outline goes on: into the next item too (Lars, 2026-11-07).
-  await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('data-picked', 'true');
+  const ready = page.locator('[data-picked="true"]');
+
+  // Nothing is outlined until the keys make a slide ready; ↵ shows the next, as Space does (Lars, 2026-11-07).
+  await expect(ready).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A två');
   await page.keyboard.press('Enter');
@@ -183,8 +185,9 @@ test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ �
   await page.keyboard.press(' ');
   await expect(shown).toHaveText('B ett');
 
-  // ↑ marks Sång A, its first slide outlined and said over the picture; → moves the outline; nothing shows until ↵.
-  await page.keyboard.press('ArrowUp');
+  // ⌘↑ marks Sång A and makes its first slide ready, said over the picture; → moves it; nothing shows until ↵, and
+  // then the outline is gone.
+  await page.keyboard.press('ControlOrMeta+ArrowUp');
   await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
   await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
   await page.keyboard.press('ArrowRight');
@@ -193,17 +196,17 @@ test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ �
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A två');
   await expect(cue).toHaveCount(0);
+  await expect(ready).toHaveCount(0);
 
-  // Escape lets an outline go: the mark back on what is shown, nothing new shown.
+  // ↓ makes ready the slide under the one shown, as they stand: here the next item's first; Escape lets it go.
   await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect(row('Sång C')).toHaveAttribute('aria-pressed', 'true');
+  await expect(ready).toHaveAttribute('aria-label', 'Sång B 1');
   await page.keyboard.press('Escape');
-  await expect(cue).toHaveCount(0);
+  await expect(ready).toHaveCount(0);
   await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
   await expect(shown).toHaveText('A två');
 
-  // A number outlines that slide of the item marked, and ↵ shows it; a slide it does not have is said, and shows nothing.
+  // A number makes that slide of the item marked ready, and ↵ shows it; a slide it does not have is said, and shows nothing.
   await page.keyboard.press('1');
   await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
   await page.keyboard.press('Enter');
@@ -212,11 +215,26 @@ test('while presenting ↵ shows the slide outlined in blue, which → ← ↑ �
   await expect(cue).toHaveText('Sång A har ingen bild 9');
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A ett');
+  await page.keyboard.press('Escape');
 
-  // A slide clicked keeps the focus, and ↵ there is still the outline's.
+  // A slide clicked keeps the focus, and ↵ there is still the page's: the next slide.
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A två');
+
+  // ⌘K finds Avsluta presentation, and ⌘. (Ctrl+.) asks to end it, as its button does, ↵ ending it (Lars, 2026-11-07).
+  await page.keyboard.press('ControlOrMeta+k');
+  const palette = page.getByRole('dialog', { name: 'Sök i allt' });
+  await palette.getByRole('searchbox', { name: 'Sök i allt' }).fill('avsluta');
+  await expect(palette.getByRole('option', { name: /Avsluta presentation/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(palette).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+.');
+  // Its button is the default: ↵ ends it.
+  const asked = page.getByRole('dialog', { name: 'Avsluta presentation' });
+  await expect(asked.getByRole('button', { name: 'Avsluta presentation' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
 });
 
 test('the app\'s keys: g and a letter go to a section, / searches it, the arrows walk its list, Delete asks, n adds, and F5 presents', async () => {

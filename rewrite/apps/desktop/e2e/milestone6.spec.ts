@@ -36,14 +36,14 @@ test("a clicker's keys drive the live page: next and previous across items, and 
   await page.keyboard.press('PageUp');
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
 
-  // B and . (a clicker's blank key) black the output, as Släck; → goes on from the part last shown.
+  // B and . (a clicker's blank key) black the output, as Släck; PageDown goes on from the part last shown.
   await page.keyboard.press('B');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await page.keyboard.press('.');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('PageUp');
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
 
   // The tests take no focus and no screen: the operator window and the output exist but were never shown.

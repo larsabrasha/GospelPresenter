@@ -362,7 +362,7 @@ interface Flows {
   songsReload: number;
   /** A presentation of 30 songs (and those `syncOne` added) opened from the start page, until its running order and the first item's slides show. */
   openPresentation: number;
-  /** ↓ in the editor, until the next item's slides show. */
+  /** ⌘↓ (Ctrl+↓) in the editor, until the next item's slides show. */
   changeItem: number;
   /** → on the live page, until the next slide is the one shown. */
   liveStep: number;
@@ -423,7 +423,7 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     }, null);
   });
 
-  // ↓ through the items, from the first.
+  // ⌘↓ through the items, from the first (↓ alone moves a row through the slides, useEditorKeys.ts).
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: songName(0), exact: true }).click();
   await page.locator('ol[aria-label="Programpunkter"] [aria-pressed="true"]').waitFor();
   await page.locator('ol[aria-label="Programpunkter"] [aria-pressed="true"]').focus();
@@ -435,7 +435,7 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     });
     return timeKeyPress(
       page,
-      'ArrowDown',
+      'ControlOrMeta+ArrowDown',
       (title) => window.gpArm(() => !!document.querySelector(`ol[aria-label="${CSS.escape(title)}"] > li`) && document.querySelector('ol[aria-label="Programpunkter"] [aria-pressed="true"]')?.textContent?.trim() === title),
       next,
     );

@@ -73,7 +73,8 @@ function DialogFrame({
     const el = box.current!;
     if (el.contains(document.activeElement)) return;
     if (page) el.focus();
-    else el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')?.focus();
+    // The dialog's default button first, when it has one (`data-default`), so ↵ presses it.
+    else (el.querySelector<HTMLElement>('[data-default]') ?? el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])'))?.focus();
   }, [page]);
   const close = onClose;
   const trapTab = (e: React.KeyboardEvent) => {
@@ -331,6 +332,8 @@ export function useConfirm(): { dialog: ReactNode; ask: (o: AskOptions) => Promi
       done(true);
     }
   };
+  // The filled button is the default, focused so ↵ presses it, as a Mac's dialogs have it; Escape is Avbryt
+  // (Lars, 2026-11-07: ⌘. then ↵ ends a presentation).
   const dialog = open && (
     <Dialog title={open.title} onClose={() => done(false)} maxWidthClass={open.compact ? 'max-w-sm' : undefined}>
       <p className={open.compact ? '' : 'text-sm text-stone-600 dark:text-stone-300'}>{emphasised(open.text, open.bold)}</p>
@@ -338,7 +341,7 @@ export function useConfirm(): { dialog: ReactNode; ask: (o: AskOptions) => Promi
         <AppButton variant="cancel" onClick={() => done(false)}>
           {t('common.cancel')}
         </AppButton>
-        <AppButton variant={open.primary ? 'primary' : 'danger'} filled disabled={working} onClick={() => void confirm()}>
+        <AppButton variant={open.primary ? 'primary' : 'danger'} filled disabled={working} onClick={() => void confirm()} data-default>
           {working && open.busy ? open.busy : open.confirm}
         </AppButton>
       </DialogButtons>

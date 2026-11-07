@@ -18,15 +18,9 @@ const BASE = 'block relative aspect-video rounded-2xl overflow-hidden border-t-[
 export function tileClass({ selected, live, rested, interactive = true }: { selected?: boolean; live?: boolean; rested?: boolean; interactive?: boolean }): string {
   if (!interactive) return `${BASE} outline-transparent`;
   // `rested`: the slide last shown before Släck, where → goes on from: a quiet grey, as nothing shows now.
-  const mark = selected
-    ? live
-      ? 'outline-red-500 hover:outline-red-500'
-      : 'outline-sky-500 hover:outline-sky-500'
-    : rested
-      ? 'outline-stone-400 dark:outline-stone-500 hover:outline-red-500'
-      : live
-        ? 'outline-transparent hover:outline-red-500'
-        : 'outline-transparent hover:outline-sky-500';
+  const mark = selected ? (live ? 'outline-red-500' : 'outline-sky-500') : rested ? 'outline-stone-400 dark:outline-stone-500' : 'outline-transparent';
+  // Nothing under the mouse but the pointer, as Keynote's slides and Photos' pictures: red is what shows, blue what ↵
+  // shows, grey where → goes on after Släck, and a red ring on hover looked like the slide shown (Lars, 2026-11-07).
   return `${BASE} cursor-pointer ${mark}`;
 }
 

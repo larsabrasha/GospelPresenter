@@ -334,11 +334,12 @@ Live-updates on start/stop/presence. (Connected-users page belongs to the *Admin
 | Sidebar | ↑/↓, Home/End | change selected item (not live) | `ListNavigation.cs` |
 | Slide grid | arrows (all four step one tile), Home/End | move focus only | `SlideGrid.razor:394-403` |
 | Slide grid | Enter (focused tile) | put slide live | `SlideGrid.razor:366-369` |
-| Live page (2.0) | ↵ (on the page, a row or a slide; anywhere once the keys moved the outline) | the slide outlined in blue: the one after what is shown, unless the keys below moved it; the outline goes on to the next (Lars, 2026-11-07, as a vision mixer's preview and take) | `pages/presentation-editor/useEditorKeys.ts` |
-| Live page (2.0) | → ← | move the outline a slide, into the next or previous item too; nothing shows until ↵ | same |
-| Live page (2.0) | ↑ ↓ | mark the previous or next item, as the sidebar's (not live), the outline on its first slide | same |
-| Live page (2.0) | a number | the outline on that slide of the marked item; said over the live picture with the item's name, or that it has none; each tile shows its number (as ProPresenter's and PowerPoint's number and ↵) | same |
-| Live page (2.0) | Escape | a number typed, then the outline, let go: the outline back after what is shown | same |
+| Live page (2.0) | ↵ (on the page, a row or a slide; anywhere once a slide is ready) | the slide made ready, outlined in blue, the outline gone after; with none ready, the next slide (Lars, 2026-11-07: an outline always there that moved by itself was hard to follow) | `pages/presentation-editor/useEditorKeys.ts` |
+| Live page (2.0) | → ← ↑ ↓ | make a slide ready and move it, a slide sideways, a row up or down as the slides stand (as Finder's icons); nothing shows until ↵; on the slide shown the blue wins, VISAS still says it | same |
+| Live page (2.0) | ⌘↑ ⌘↓ (Ctrl on Windows) | mark the previous or next item, as the sidebar's (not live), its first slide made ready | same |
+| Live page (2.0) | a number | that slide of the marked item made ready; said over the live picture with the item's name, or that it has none; each tile shows its number (as ProPresenter's and PowerPoint's number and ↵) | same |
+| Live page (2.0) | Escape | a number typed, then the slide made ready, let go | same |
+| Live page (2.0) | ⌘. (Ctrl+.) | Avsluta presentation, asked first, its button the default; also in ⌘K | same |
 | Live page (2.0) | Space PageDown | next part at once, into the next item too: a clicker's keys | same |
 | Live page (2.0) | PageUp | previous part at once | same |
 | Live page (2.0) | `b` `B` `.` | black screen, as Rensa: only blanks; a part or an arrow shows one again (decided 2026-10-27; `.` is a clicker's blank key, from the old stage mode) | same |
@@ -569,7 +570,7 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
   2.0 (Lars, 2026-11-03: to click around and point a slide out to someone): the blue outline stays, kept in the window
   only, never in the session; a phone's part row gets a blue border the same way; Start still begins black and lets
   go of it. The keys that step while live move it too: → PageDown the next slide, ← PageUp the previous, ↓ ↑ the
-  next or previous item's first slide; Space stays a focused button's and B . do nothing until Start.
+  slide under or over it as they stand, ⌘↓ ⌘↑ the next or previous item's first slide; Space stays a focused button's and B . do nothing until Start.
 - After Start the outputs are black until the first tile is pressed (public viewers see the waiting
   screen).
 - Out-of-range part (song shortened while live): selection moves, outputs show an empty themed canvas;

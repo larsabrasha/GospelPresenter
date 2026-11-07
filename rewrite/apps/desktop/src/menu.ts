@@ -3,8 +3,8 @@
 // menu does not take the key from the page (`registerAccelerator: false`: it only shows it).
 import { app, Menu, type BrowserWindow, type KeyboardInputEvent, type MenuItemConstructorOptions } from 'electron';
 
-/** A choice that presses one of the page's own keys in the window. */
-function pressing(id: string, label: string, key: string, accelerator: string, win: () => BrowserWindow | null): MenuItemConstructorOptions {
+/** A choice that presses one of the page's own keys in the window, with `modifiers` held. */
+function pressing(id: string, label: string, key: string, accelerator: string, win: () => BrowserWindow | null, modifiers: KeyboardInputEvent['modifiers'] = []): MenuItemConstructorOptions {
   return {
     id,
     label,
@@ -13,7 +13,7 @@ function pressing(id: string, label: string, key: string, accelerator: string, w
     click: () => {
       const w = win();
       if (!w || w.isDestroyed()) return;
-      for (const type of ['keyDown', 'char', 'keyUp'] as KeyboardInputEvent['type'][]) w.webContents.sendInputEvent({ type, keyCode: key });
+      for (const type of ['keyDown', 'char', 'keyUp'] as KeyboardInputEvent['type'][]) w.webContents.sendInputEvent({ type, keyCode: key, modifiers });
     },
   };
 }
@@ -68,12 +68,14 @@ export function setAppMenu(win: () => BrowserWindow | null, send: (command: Comm
       submenu: [
         command('Starta presentation', 'Alt+CmdOrCtrl+P', 'start'),
         { type: 'separator' },
-        pressing('next-slide', 'Nästa bild', 'Right', 'Right', win),
-        pressing('previous-slide', 'Föregående bild', 'Left', 'Left', win),
-        pressing('next-item', 'Nästa inslag', 'Down', 'Down', win),
-        pressing('previous-item', 'Föregående inslag', 'Up', 'Up', win),
+        // A clicker's keys, which step what is shown at once; → ← only make a slide ready (apps/web useEditorKeys.ts).
+        pressing('next-slide', 'Nästa bild', 'PageDown', 'PageDown', win),
+        pressing('previous-slide', 'Föregående bild', 'PageUp', 'PageUp', win),
+        pressing('next-item', 'Nästa inslag', 'Down', 'CmdOrCtrl+Down', win, [mac ? 'meta' : 'control']),
+        pressing('previous-item', 'Föregående inslag', 'Up', 'CmdOrCtrl+Up', win, [mac ? 'meta' : 'control']),
         { type: 'separator' },
         pressing('black', 'Rensa', 'b', 'B', win),
+        pressing('end', 'Avsluta presentation', '.', 'CmdOrCtrl+.', win, [mac ? 'meta' : 'control']),
       ],
     },
     {

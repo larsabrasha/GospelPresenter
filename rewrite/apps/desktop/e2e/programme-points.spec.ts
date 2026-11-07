@@ -40,7 +40,7 @@ test('a programme point from + and one above an item stand in the running order,
   await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
 });
 

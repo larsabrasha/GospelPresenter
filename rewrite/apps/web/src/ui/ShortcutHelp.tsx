@@ -90,6 +90,48 @@ export function keyLabel(spec: string, mac = isMac): string {
   return [...mods, name].join(mac ? '' : '+');
 }
 
+/**
+ * A key's caps, one for each key pressed together, in groups for keys pressed one after the other: `Ctrl+.` is ⌘ and
+ * . on a Mac, Ctrl and . elsewhere; `g p` is G, then P.
+ */
+export function keyCaps(spec: string, mac = isMac): string[][] {
+  if (spec.includes(' ') && spec.trim()) return spec.split(' ').flatMap((k) => keyCaps(k, mac));
+  const parts = spec === '+' ? ['+'] : spec.split('+');
+  const key = parts.pop()!;
+  const mods = parts.map((m) => (m === 'Ctrl' ? (mac ? '⌘' : 'Ctrl') : m === 'Alt' ? (mac ? '⌥' : 'Alt') : m === 'Shift' ? (mac ? '⇧' : 'Shift') : m));
+  if (mac) mods.sort((a, b) => MAC_ORDER.indexOf(a) - MAC_ORDER.indexOf(b));
+  return [[...mods, KEY_NAMES[key] ?? (key.length === 1 ? key.toUpperCase() : key)]];
+}
+
+/** A cap: a framed key with a heavier foot, as a keyboard's, so a shortcut is seen at a glance (Lars, 2026-11-07). */
+const CAP = 'inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-[5px] border border-b-2 font-sans font-semibold text-[11px] leading-none whitespace-nowrap';
+const CAP_LIGHT = 'border-stone-300 bg-stone-50 text-stone-600 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-200';
+/** On a selected row's blue. */
+const CAP_ON_BLUE = 'border-white/45 bg-white/15 text-white';
+
+/**
+ * A shortcut as caps (`keyCaps`): the keys pressed together side by side, as a Mac's menus write them with no + between;
+ * those pressed one after another with "sedan" between, so they are not taken for one chord (Lars, 2026-11-07, as Gmail's).
+ */
+export function Keys({ spec, onBlue = false }: { spec: string; onBlue?: boolean }) {
+  return (
+    <kbd className="inline-flex items-center gap-1.5 font-sans" aria-label={keyLabel(spec)}>
+      {keyCaps(spec).map((chord, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5" aria-hidden>
+          {i > 0 && <span className={`text-[11px] font-normal ${onBlue ? 'text-white/80' : 'text-stone-500 dark:text-stone-400'}`}>{t('shortcuts.then')}</span>}
+          <span className="inline-flex items-center gap-0.5">
+            {chord.map((cap, j) => (
+              <span key={j} className={`${CAP} ${onBlue ? CAP_ON_BLUE : CAP_LIGHT}`}>
+                {cap}
+              </span>
+            ))}
+          </span>
+        </span>
+      ))}
+    </kbd>
+  );
+}
+
 /** The `?` key and the dialog it opens; mounted once, in the signed-in app. */
 export function ShortcutHelp() {
   const [open, setOpen] = useState(false);
@@ -129,11 +171,9 @@ export function ShortcutHelp() {
               {group.lines.map((line) => (
                 <li key={line.text} className={GROUP_ROW}>
                   <span className="min-w-0">{line.text}</span>
-                  <span className="shrink-0 flex flex-wrap justify-end gap-x-3 text-stone-500 dark:text-stone-400 tabular-nums">
+                  <span className="shrink-0 flex flex-wrap justify-end gap-x-3 gap-y-1">
                     {line.keys.map((k) => (
-                      <kbd key={k} className="font-sans whitespace-nowrap">
-                        {keyLabel(k)}
-                      </kbd>
+                      <Keys key={k} spec={k} />
                     ))}
                   </span>
                 </li>

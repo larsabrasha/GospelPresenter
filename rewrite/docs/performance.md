@@ -16,7 +16,7 @@ slowdown shows and a busy machine does not.
 | The window's start (a reload, until the start page lists)           |    157 |   668 |        255 |       743 |
 | Sånger reloaded, until it shows 3 000 songs                         |    477 |   710 |      1 051 |     1 063 |
 | Open a presentation of 30 songs                                     |     86 |     7 |        152 |        30 |
-| ↓ to the next item in the editor                                    |      2 |     2 |          6 |         8 |
+| ⌘↓ to the next item in the editor                                   |      2 |     2 |          6 |         8 |
 | → to the next slide live                                            |      2 |     2 |          8 |         9 |
 | → live, until the output window shows the next slide (receivers 4×) |        |     2 |            |         7 |
 | → live, until a paired screen on the LAN shows it (receivers 4×)    |        |    15 |            |        14 |

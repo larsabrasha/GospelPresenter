@@ -4,6 +4,8 @@ import { outputWindow } from '../../live/outputWindow.ts';
 import type { LiveControl } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { SearchButton } from '../../ui/CommandPalette.tsx';
+import { ctrlLabel, isMac } from '../../ui/shortcuts.ts';
+import { useAppCommand } from '../../ui/appKeys.ts';
 import { useWide } from '../../ui/useWide.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
@@ -67,6 +69,8 @@ export function PresentationBar({
     // The output window closes with the presentation (Live.razor, Lars 2026-10-29); the page stays, editing.
     outputWindow().turn(false);
   };
+  // ⌘. and ⌘K's Avsluta presentation, while this window presents it.
+  useAppCommand('end', () => presenting && owner && void end());
   return (
     // On a phone it floats over the slides, with a soft fade from the page's colour under it rather than an edge, as
     // iOS 26's bars (Lars, 2026-11-02); not while presenting, when the picture stands still under it and the fade only
@@ -149,6 +153,8 @@ export function PresentationBar({
               markLiveStarting();
               onStart();
             }}
+            // Its key in the tooltip, as Sök's: Keynote's ⌥⌘P on a Mac, PowerPoint's F5 elsewhere (both work on both).
+            title={`${t('presentation.start')} (${isMac ? '⌥⌘P' : 'F5'})`}
             className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>
             <PlayIcon className="size-5" />
             <span className="max-lg:sr-only">{t('presentation.start')}</span>
@@ -156,7 +162,7 @@ export function PresentationBar({
         )}
         {presenting && owner && (
           // Filled red as the question's own Avsluta presentation (Lars, 2026-11-02), as ▶ is filled green.
-          <AppButton variant="plain" onClick={() => void end()} className={`${BAR_BUTTON} bg-red-500 text-white hover:bg-red-600 ${RED_SHADOW}`}>
+          <AppButton variant="plain" onClick={() => void end()} title={`${t('live.end')} (${ctrlLabel('.')})`} className={`${BAR_BUTTON} bg-red-500 text-white hover:bg-red-600 ${RED_SHADOW}`}>
             <StopIcon className="size-5" />
             <span className="max-lg:sr-only">{t('live.end')}</span>
           </AppButton>

@@ -68,8 +68,8 @@ them (letters in capitals, ⌥ before ⇧ before ⌘, no keycaps), the groups tw
 hint under them. The group of what is on screen comes first, then "Överallt" with the app's keys and `?`; `?`, Esc
 or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, Del, ↑ ↓, and the
 new Alt+↑ ↓), Lägg till (⌘/Ctrl+↵, ↓; one kind, from +'s menu, so no ⌘/Ctrl+1–6; it hides the editor's group, whose keys are off behind it), and
-the new Live (↵ shows the slide outlined in blue, → ← ↓ ↑ and a number move the outline, Esc lets it go, Space
-PageDown PageUp step at once, B and a clicker's `.`). The old
+the new Live (↵ shows the slide made ready, else the next; → ← ↓ ↑ and a number make one ready, ⌘↑ ⌘↓ go between
+items, Esc lets it go, Space PageDown PageUp step at once, ⌘. ends, B and a clicker's `.`). The old
 editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
 Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
 
