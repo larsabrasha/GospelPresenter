@@ -98,6 +98,8 @@ export function useOutputs(link: LiveLink, sessionId: string) {
         else if (x.id !== OUTPUT_WINDOW) rememberOutput(ownDisplays.find((d) => d.id === x.id)?.name ?? '', on);
       },
     })),
+    /** Chrome, before the user let it see the screens: asks, so the outputs can go on them by name (Lars, 2026-11-07). */
+    askScreens: !ownDisplays.length && output.canAskScreens() ? () => void output.askScreens() : undefined,
     rows,
     temporary: screens.filter((x) => chosen.includes(x.id)).map((x) => ({ id: x.id, n: x.n, disconnect: () => setOutput(x.id, false) })),
   };

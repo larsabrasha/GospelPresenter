@@ -182,3 +182,58 @@ describe('the output on an AirPlay screen in the phone app', () => {
     expect(output.kind()).toBe('phone');
   });
 });
+
+/** Chrome's screens (Window Management API): the laptop's own, where the presenting window is, and an Apple TV beside it. */
+function fakeScreens2(permission: PermissionState) {
+  const laptop = { label: 'Inbyggd skärm', availLeft: 0, availTop: 0, availWidth: 1512, availHeight: 945 };
+  const tv = { label: 'Vardagsrum', availLeft: 1512, availTop: 0, availWidth: 1920, availHeight: 1080 };
+  const details = { screens: [laptop, tv], currentScreen: laptop, addEventListener: () => undefined };
+  return { permission: () => Promise.resolve(permission), details: vi.fn(() => Promise.resolve(details)) };
+}
+
+describe('the outputs in a browser that can place screens (Chrome)', () => {
+  it('lists every screen but the presenting window’s, by name, once the user has let it see them', async () => {
+    const output = new OutputWindow(browserHost(fakePopup, fakeScreens2('granted')));
+
+    const displays = await output.displays();
+
+    expect(displays).toEqual([{ id: '1512,0', name: 'Vardagsrum' }]);
+    expect(output.canAskScreens()).toBe(false);
+  });
+
+  it('lists none, and offers to ask, before the user has answered', async () => {
+    const screens = fakeScreens2('prompt');
+    const output = new OutputWindow(browserHost(fakePopup, screens));
+
+    const displays = await output.displays();
+
+    expect(displays).toEqual([]);
+    expect(screens.details).not.toHaveBeenCalled();
+    expect(output.canAskScreens()).toBe(true);
+  });
+
+  it('opens the output over the whole of the screen chosen', async () => {
+    const open = vi.fn((_name: string, _features: string) => fakePopup());
+    const output = new OutputWindow(browserHost(open, fakeScreens2('granted')));
+    await output.displays();
+
+    output.turn(true, '1512,0');
+
+    expect(open).toHaveBeenCalledWith('gp-output-1512,0', 'popup,left=1512,top=0,width=1920,height=1080');
+    expect(output.openTargets()).toEqual(['1512,0']);
+  });
+
+  it('does not ask again once the user has refused', async () => {
+    const output = new OutputWindow(browserHost(fakePopup, fakeScreens2('denied')));
+
+    await output.displays();
+
+    expect(output.canAskScreens()).toBe(false);
+  });
+
+  it('cannot ask where the browser cannot place screens', () => {
+    const output = new OutputWindow(browserHost(fakePopup));
+
+    expect(output.canAskScreens()).toBe(false);
+  });
+});

@@ -30,6 +30,10 @@ export interface OutputHost {
   displays(): Promise<OutputDisplay[]>;
   /** Starts telling `changed` when the displays change; returns how to stop. */
   watchDisplays(changed: () => void): () => void;
+  /** Where a browser may name and place screens once the user lets it: asks; false if refused. */
+  askScreens?: () => Promise<boolean>;
+  /** Whether there is a question to ask: the user has neither let it nor refused. */
+  screensUnasked?: () => boolean;
 }
 
 export class OutputWindow {
@@ -55,6 +59,12 @@ export class OutputWindow {
   };
 
   displays = (): Promise<OutputDisplay[]> => this.host.displays();
+
+  /** Whether the browser may be asked to name and place screens (Chrome); none elsewhere. */
+  canAskScreens = (): boolean => !!this.host.askScreens && !!this.host.screensUnasked?.();
+
+  /** Asks to see the screens; false if refused, or where a browser cannot. */
+  askScreens = (): Promise<boolean> => this.host.askScreens?.().catch(() => false) ?? Promise.resolve(false);
 
   watchDisplays = (changed: () => void): (() => void) => this.host.watchDisplays(changed);
 
@@ -106,44 +116,110 @@ export interface PopupLike {
 /** How often a browser checks whether the popup was closed: it has no event for it. */
 export const POPUP_POLL_MS = 500;
 
+/** A screen as Chrome's Window Management API names and places it. */
+interface ScreenLike {
+  label: string;
+  availLeft: number;
+  availTop: number;
+  availWidth: number;
+  availHeight: number;
+}
+
+/** Chrome's screens (`getScreenDetails`), kept up to date by the browser. */
+interface ScreenDetailsLike {
+  screens: readonly ScreenLike[];
+  currentScreen: ScreenLike;
+  addEventListener(type: 'screenschange', fn: () => void): void;
+}
+
+/** What a browser that can name and place screens offers (Chrome and Edge; not Safari, nor Firefox). */
+export interface WindowScreens {
+  /** Whether the user has let this site see the screens, refused, or not answered yet. */
+  permission(): Promise<PermissionState>;
+  /** The screens; asks the user first if they have not answered. */
+  details(): Promise<ScreenDetailsLike>;
+}
+
+/** A screen's id while the screens stand as they do: where it is. */
+const screenId = (s: ScreenLike) => `${s.availLeft},${s.availTop}`;
+
 /**
- * A browser: a popup window. Closed by hand, it is noticed within half a
- * second. A reloaded page cannot know of a popup it opened before; switching
- * on again finds that one by its name rather than opening a second.
+ * A browser: a popup window for each output. Closed by hand, it is noticed within half a second. A reloaded page
+ * cannot know of a popup it opened before; switching on again finds that one by its name rather than opening a
+ * second. Where the browser can name and place screens (`screens`, Chrome's Window Management API; Lars, 2026-11-07,
+ * for an Apple TV used as a display through AirPlay), and the user has let it, there is one on each screen but the
+ * presenting window's, placed over the whole of it, as the desktop app's; elsewhere the one popup, which the user moves.
  */
-export function browserHost(openPopup: () => PopupLike | null): OutputHost {
-  let popup: PopupLike | null = null;
+export function browserHost(openPopup: (name: string, features: string) => PopupLike | null, screens?: WindowScreens): OutputHost {
+  const popups = new Map<string, PopupLike>();
   let timer: ReturnType<typeof setInterval> | undefined;
   let report: (open: string[]) => void = () => {};
-  const stop = () => {
-    clearInterval(timer);
-    timer = undefined;
-    popup = null;
+  let details: ScreenDetailsLike | null = null;
+  let permission: PermissionState | null = null;
+  const displaysChanged = new Set<() => void>();
+  const others = () => (details ? details.screens.filter((x) => x !== details!.currentScreen) : []);
+  const watch = () => {
+    timer ??= setInterval(() => {
+      let gone = false;
+      for (const [target, popup] of popups)
+        if (popup.closed) {
+          popups.delete(target);
+          gone = true;
+        }
+      if (!popups.size) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+      if (gone) report([...popups.keys()]);
+    }, POPUP_POLL_MS);
+  };
+  const know = (d: ScreenDetailsLike) => {
+    if (details === d) return;
+    details = d;
+    d.addEventListener('screenschange', () => displaysChanged.forEach((fn) => fn()));
+    displaysChanged.forEach((fn) => fn());
   };
   return {
     kind: 'browser',
-    open() {
-      stop();
-      popup = openPopup();
+    open(target) {
+      const screen = target === OUTPUT_WINDOW ? null : others().find((x) => screenId(x) === target);
+      if (target !== OUTPUT_WINDOW && !screen) return false;
+      const features = screen ? `popup,left=${screen.availLeft},top=${screen.availTop},width=${screen.availWidth},height=${screen.availHeight}` : 'popup';
+      const popup = openPopup(screen ? `gp-output-${target}` : 'gp-output', features);
       if (!popup) return false;
-      const watched = popup;
-      timer = setInterval(() => {
-        if (!watched.closed) return;
-        stop();
-        report([]);
-      }, POPUP_POLL_MS);
+      popups.set(target, popup);
+      watch();
       return true;
     },
-    close() {
-      popup?.close();
-      stop();
+    close(target) {
+      for (const [key, popup] of popups)
+        if (target === undefined || key === target) {
+          popup.close();
+          popups.delete(key);
+        }
     },
     watch(changed) {
       report = changed;
     },
-    // A browser may not place a window on another display: the one popup.
-    displays: () => Promise.resolve([]),
-    watchDisplays: () => () => {},
+    async displays() {
+      if (!details && screens) {
+        permission = await screens.permission();
+        if (permission === 'granted') know(await screens.details());
+      }
+      return others().map((x) => ({ id: screenId(x), name: x.label }));
+    },
+    watchDisplays(changed) {
+      displaysChanged.add(changed);
+      return () => void displaysChanged.delete(changed);
+    },
+    askScreens: screens
+      ? async () => {
+          know(await screens.details());
+          permission = 'granted';
+          return true;
+        }
+      : undefined,
+    screensUnasked: () => permission === 'prompt' && details === null,
   };
 }
 
@@ -192,6 +268,16 @@ export function phoneHost(plugin: Promise<{ screens: OutputScreens }>): OutputHo
   };
 }
 
+/** Chrome's Window Management API, where the browser has it. */
+function windowScreens(): WindowScreens | undefined {
+  const w = window as unknown as { getScreenDetails?: () => Promise<ScreenDetailsLike> };
+  if (!w.getScreenDetails) return undefined;
+  return {
+    permission: () => navigator.permissions.query({ name: 'window-management' as PermissionName }).then((p) => p.state, () => 'denied' as const),
+    details: () => w.getScreenDetails!(),
+  };
+}
+
 let shared: OutputWindow | undefined;
 
 /** This window's output, made on first use. */
@@ -201,7 +287,7 @@ export function outputWindow(): OutputWindow {
       ? desktopHost(window.gpDesktop)
       : serverChangeable
         ? phoneHost(import('@capacitor/core').then(({ registerPlugin }) => ({ screens: registerPlugin<OutputScreens>('OutputScreens') })))
-        : browserHost(() => window.open(`/output${location.search}`, 'gp-output', 'popup')),
+        : browserHost((name, features) => window.open(`/output${location.search}`, name, features), windowScreens()),
   );
   return shared;
 }

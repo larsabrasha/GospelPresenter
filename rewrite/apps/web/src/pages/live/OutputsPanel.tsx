@@ -20,7 +20,7 @@ import { SoundOutputRow } from './SoundOutputRow.tsx';
  * (LIVE-R23). Under this computer's own, Ljud: where the sound goes (SoundOutputRow), on a computer.
  */
 export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessionId: string; sheet?: boolean }) {
-  const { dialog, own, rows, temporary } = useOutputs(link, sessionId);
+  const { dialog, own, rows, temporary, askScreens } = useOutputs(link, sessionId);
   const [pairing, setPairing] = useState(false);
   return (
     <>
@@ -36,6 +36,15 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
             icon={<DesktopIcon className={`size-4 shrink-0 ${x.on ? 'text-green-500' : 'text-stone-500 dark:text-stone-400'}`} />}
             // With no other display, where the window goes: a desktop has none to put it on, a browser leaves it to the user.
             sub={x.id === OUTPUT_WINDOW ? t(window.gpDesktop ? 'live.noOtherScreen' : 'live.dragWindow') : undefined}
+            // Chrome can put the output on a screen by name, once it may see them.
+            extra={
+              x.id === OUTPUT_WINDOW &&
+              askScreens && (
+                <AppButton variant="plain" onClick={askScreens} className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
+                  {t('live.chooseScreen')}
+                </AppButton>
+              )
+            }
           />
         ))}
         {!sheet && <SoundOutputRow />}

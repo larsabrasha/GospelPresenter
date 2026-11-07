@@ -10,14 +10,17 @@ import { t } from '../i18n.ts';
 const WAIT_GRACE_MS = 1500;
 
 /**
- * What the profile menu says of the sync, and whether something is wrong: signed out, an update needed, or offline or
- * changes waiting past `WAIT_GRACE_MS` (`waitedLong`). Only then does the bar show the cloud; a page just loaded has
- * not connected yet, and is not offline for that (Lars, 2026-11-05).
+ * What the profile menu says of the sync, and whether something is wrong: an update needed, or offline or changes
+ * waiting past `WAIT_GRACE_MS` (`waitedLong`). Only then does the bar show the cloud; a page just loaded has not
+ * connected yet, and is not offline for that (Lars, 2026-11-05). Signed out, the yellow line under the bar says so
+ * with its button (Shell.tsx), and the bar and the columns' foot only count the changes that wait (Lars, 2026-11-07:
+ * it was said three times at once).
  */
 export function syncState(s: DbStatus, waitedLong: boolean): { problem: boolean; text: string } {
   const pending = s.pending === 1 ? t('status.pendingOne') : s.pending > 1 ? t('status.pending', { n: s.pending }) : null;
+  if (s.authError !== null) return pending ? { problem: true, text: pending } : { problem: false, text: t('status.authNeeded') };
   const offline = !s.connected && waitedLong;
-  const problem = s.authError !== null ? t('status.authNeeded') : s.updateRequired ? t('status.error') : offline ? t('status.offline') : null;
+  const problem = s.updateRequired ? t('status.error') : offline ? t('status.offline') : null;
   // What is wrong, then the changes that wait for it to be put right.
   if (problem) return { problem: true, text: [problem, pending].filter(Boolean).join(' · ') };
   if (pending && waitedLong) return { problem: true, text: pending };

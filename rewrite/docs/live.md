@@ -63,6 +63,16 @@ whether it played; a fade in progress is not handed over. The desktop app lets i
 nobody has clicked) gets "Tryck för att starta uppspelningen" over the output; the tap plays it, and lets the element
 buffering the next video play later too.
 
+**A browser that can place screens** (Chrome and Edge, the Window Management API; Lars, 2026-11-07, for an Apple TV
+used as a display through AirPlay, or a projector): Utgångar has "Välj skärm" on the output window's row until the user
+answers Chrome's question, then a row for each screen but the presenting window's, named as the system names it, which
+opens the output over the whole of that screen, as the desktop app's (`browserHost`, `apps/web/src/live/outputWindow.ts`).
+Refused, or in Safari and Firefox, the one output window stays, which the user moves; full screen still takes a click
+in it. The old app used the Presentation API instead (Chrome's picker of displays), whose page showed what the server
+sent; the rewrite's output reads the presenting window's database on the same machine, which a presentation's page,
+in a session of its own, likely cannot (not tried). Tested in `apps/web/test/outputWindow.test.ts`; not tried in a
+Chrome with two screens.
+
 **Ljud** under Utgångar (Lars, 2026-11-07, for AirPlay; `apps/web/src/live/soundOutput.ts`, `pages/live/SoundOutputRow.tsx`)
 sends the sound to a device of the computer's, as an Apple TV used as a display through AirPlay or a projector's HDMI,
 in whichever window plays it (`setSinkId`), kept for the computer. Only where the devices can be named and chosen

@@ -33,8 +33,12 @@ describe('syncState', () => {
     expect(syncState({ ...synced, connected: false }, true).text).toBe('Offline');
   });
 
-  it('refused credentials come before being offline, with the changes that wait', () => {
-    expect(syncState({ ...synced, connected: false, authError: 'unauthenticated', pending: 2 }, false)).toEqual({ problem: true, text: 'Logga in igen för att synka · 2 ändringar väntar' });
+  it('signed out, only the changes that wait are counted: the yellow line says to sign in again', () => {
+    expect(syncState({ ...synced, connected: false, authError: 'unauthenticated', pending: 2 }, false)).toEqual({ problem: true, text: '2 ändringar väntar' });
+  });
+
+  it('signed out with nothing waiting is no problem for the bar, and the menu says to sign in again', () => {
+    expect(syncState({ ...synced, connected: false, authError: 'unauthenticated' }, true)).toEqual({ problem: false, text: 'Logga in igen för att synka' });
   });
 
   it('an update the server needs is a problem', () => {
