@@ -66,5 +66,20 @@ test environment has no Google), the app once signed in (the database on OPFS in
 media), a church's server over http or a self-signed https on a LAN (WKWebView likely blocks the first as mixed content and refuses the second's certificate), a
 real iPhone or iPad, and signing for the App Store.
 
+**AirPlay** (Lars, 2026-11-07). A screen iOS gives the app beside its own, an Apple TV through AirPlay or a display
+on a cable, arrives as a scene of its own (`UIWindowSceneSessionRoleExternalDisplayNonInteractive`), which the app
+takes instead of mirroring its screen (`apps/mobile/ios/App/App/ExternalScreens.swift`, picked in `AppDelegate`): black
+until its output is on, then the output page in a web view of its own, on the app's storage and its scheme handler, so
+it reads the app's database and the live channel as a browser's output window does, and plays video and sound with no
+tap. It is the primary output (docs/live.md "Where audio and video play"), and iOS sends the sound to the Apple TV with
+the picture; the app's audio session is `playback`, so the ringer switch does not silence it. The plugin `OutputScreens`
+lists the screens, named by the AirPlay device when the sound goes to one, and opens and closes the output on one; the
+web app's side is `phoneHost` in `apps/web/src/live/outputWindow.ts`, so Utgångar lists the screen as the desktop app
+lists a display, and Slå på utgångar automatiskt switches it on as a presentation starts or when it connects. The phone
+app has no output in a window of its own. Tried (2026-11-07, iPad Pro 11-inch simulator, iOS 26.1, its I/O > External
+Displays): the screen came as its own scene, Utgångar showed it and switched it on by itself, and a song's slide shown
+on the iPad showed on it. Not tried: a real Apple TV, sound through AirPlay, a video, and the screen's size, since the
+simulator gave the scene 720 × 480 whatever mode it drew, and after a change of mode drew black.
+
 **Not done yet:** the bundle on the server and the updater; the app's icon and launch screen (Capacitor's
 placeholders); Android.

@@ -5,12 +5,13 @@ import { outputWindow, type OutputDisplay } from '../../live/outputWindow.ts';
 /**
  * Slå på utgångar automatiskt (live/autoOutputs.ts) while this window presents: at the start every display as it was
  * left last time, then each display plugged in the same way, and a display unplugged has its output closed. Nothing
- * before the presentation starts, nor with the setting off.
+ * before the presentation starts, nor with the setting off. The desktop app's displays and the phone app's AirPlay
+ * screen alike; a browser places no output.
  */
 export function useAutoOutputs(presenting: boolean) {
   useEffect(() => {
-    if (!presenting || !window.gpDesktop || !autoOutputsSetting()) return;
     const output = outputWindow();
+    if (!presenting || output.kind() === 'browser' || !autoOutputsSetting()) return;
     let known: OutputDisplay[] | null = null;
     let current = true;
     const follow = () =>

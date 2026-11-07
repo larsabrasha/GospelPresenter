@@ -3,6 +3,7 @@ import { getVideo, itemsOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { AudioEngine, audioUrlOfItem } from './audio.ts';
 import type { Played, PlayerCommand, Plays } from './playback.ts';
+import { followSoundOutput } from './soundOutput.ts';
 import { expectedPosition, VideoEngine } from './video.ts';
 
 /**
@@ -24,6 +25,8 @@ export class Player implements Plays {
   ) {
     this.video = video ?? new VideoEngine();
     this.audio = audio ?? new AudioEngine((itemId) => audioUrlOfItem(db, itemId));
+    // Its sound to the device chosen under Utgångar, for the window's lifetime.
+    followSoundOutput(() => [...this.video.elements(), ...this.audio.elements()]);
   }
 
   follow(p: LivePointer, from?: Played) {

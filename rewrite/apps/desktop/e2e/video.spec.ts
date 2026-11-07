@@ -141,6 +141,16 @@ test('live: the output window plays the video with its sound, the next video buf
   const onOutput = playing(output);
   await expect.poll(async () => (await playback(onOutput)).time, { timeout: 10_000 }).toBeGreaterThan(0.3);
   expect((await playback(onOutput)).muted).toBe(false);
+  // Ljud sends its sound to a device this computer has, as an Apple TV used as a display (Lars, 2026-11-07); a machine
+  // with one device has no choice to make, and no row.
+  const sound = page.getByRole('combobox', { name: 'Ljud' });
+  if (await sound.count()) {
+    const device = (await sound.locator('option').nth(1).getAttribute('value'))!;
+    await sound.selectOption(device);
+    await expect.poll(() => onOutput.evaluate((v: HTMLVideoElement & { sinkId: string }) => v.sinkId)).toBe(device);
+    await sound.selectOption('');
+    await expect.poll(() => onOutput.evaluate((v: HTMLVideoElement & { sinkId: string }) => v.sinkId)).toBe('');
+  }
   // The live picture follows it, muted.
   const inPicture = page.getByTestId('live-panel').getByTestId('slide-video');
   await expect.poll(async () => (await playback(inPicture)).time, { timeout: 10_000 }).toBeGreaterThan(0.3);

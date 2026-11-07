@@ -2,8 +2,10 @@
  * The output windows behind the live panel's switches (LivePanel.razor): on opens one, off closes it, and each switch
  * shows whether its window is open, so it turns off when the window is closed some other way. The desktop app opens
  * one on each display the main window is not on (Lars, 2026-11-02); a browser, and a computer with one display, one
- * in a window of its own (`OUTPUT_WINDOW`).
+ * in a window of its own (`OUTPUT_WINDOW`); the phone app one on each screen iOS gives it beside its own (AirPlay).
  */
+
+import { serverChangeable } from '../server.ts';
 
 /** The output in a window of its own. */
 export const OUTPUT_WINDOW = 'window';
@@ -16,6 +18,8 @@ export interface OutputDisplay {
 
 /** What can open and close the outputs, and tell when one closed by itself. */
 export interface OutputHost {
+  /** The desktop app and the phone app place an output on a display; a browser only opens a window, which the user moves. */
+  kind: 'desktop' | 'phone' | 'browser';
   /** Opens the output on `target`; false when it could not be opened. */
   open(target: string): boolean;
   /** Closes the output on `target`, or every output with none. */
@@ -35,6 +39,9 @@ export class OutputWindow {
   constructor(private host: OutputHost) {
     host.watch((open) => this.set(open));
   }
+
+  /** How this window's outputs are placed: on displays by the desktop or phone app, or in a browser's window. */
+  kind = (): OutputHost['kind'] => this.host.kind;
 
   /** Whether any output is open. */
   isOpen = (): boolean => this.open.length > 0;
@@ -74,6 +81,7 @@ export class OutputWindow {
 /** The desktop app: native windows the main process opens, closes and reports on, one per display. */
 export function desktopHost(desktop: NonNullable<Window['gpDesktop']>): OutputHost {
   return {
+    kind: 'desktop',
     open(target) {
       desktop.openOutput(target);
       return true;
@@ -113,6 +121,7 @@ export function browserHost(openPopup: () => PopupLike | null): OutputHost {
     popup = null;
   };
   return {
+    kind: 'browser',
     open() {
       stop();
       popup = openPopup();
@@ -138,12 +147,61 @@ export function browserHost(openPopup: () => PopupLike | null): OutputHost {
   };
 }
 
+/** The phone app's screens beside its own (apps/mobile/ios/App/App/ExternalScreens.swift). */
+export interface OutputScreens {
+  displays(): Promise<{ displays: OutputDisplay[] }>;
+  opened(): Promise<{ open: string[] }>;
+  open(options: { id: string; url: string }): Promise<{ opened: boolean }>;
+  close(options: { id?: string }): Promise<void>;
+  addListener(event: 'changed', fn: (e: { displays: OutputDisplay[]; open: string[] }) => void): Promise<unknown>;
+}
+
+/**
+ * The phone app: an AirPlay screen, or one on a cable, which iOS gives the app as a screen of its own; its output is
+ * the output page in a web view of the app's on it (Lars, 2026-11-07). No window of its own: a phone has none to put
+ * one in. `plugin` resolves once Capacitor's plugin is loaded; wrapped, since a plugin is a proxy that takes `then` for
+ * a method of its own, so it cannot be a promise's value.
+ */
+export function phoneHost(plugin: Promise<{ screens: OutputScreens }>): OutputHost {
+  const withScreens = <T>(fn: (s: OutputScreens) => T | Promise<T>) => plugin.then((p) => fn(p.screens));
+  let report: (open: string[]) => void = () => {};
+  const displaysChanged = new Set<() => void>();
+  void withScreens((s) => {
+    void s.addListener('changed', (e) => {
+      report(e.open);
+      for (const fn of displaysChanged) fn();
+    });
+    void s.opened().then((r) => report(r.open));
+  });
+  return {
+    kind: 'phone',
+    open(target) {
+      // Told by `changed` once it shows, or that it did not.
+      void withScreens((s) => s.open({ id: target, url: new URL(`/output${location.search}`, location.href).href }));
+      return true;
+    },
+    close: (target) => void withScreens((s) => s.close({ id: target })),
+    watch(changed) {
+      report = changed;
+    },
+    displays: () => withScreens((s) => s.displays()).then((r) => r.displays),
+    watchDisplays(changed) {
+      displaysChanged.add(changed);
+      return () => void displaysChanged.delete(changed);
+    },
+  };
+}
+
 let shared: OutputWindow | undefined;
 
 /** This window's output, made on first use. */
 export function outputWindow(): OutputWindow {
   shared ??= new OutputWindow(
-    window.gpDesktop ? desktopHost(window.gpDesktop) : browserHost(() => window.open(`/output${location.search}`, 'gp-output', 'popup')),
+    window.gpDesktop
+      ? desktopHost(window.gpDesktop)
+      : serverChangeable
+        ? phoneHost(import('@capacitor/core').then(({ registerPlugin }) => ({ screens: registerPlugin<OutputScreens>('OutputScreens') })))
+        : browserHost(() => window.open(`/output${location.search}`, 'gp-output', 'popup')),
   );
   return shared;
 }

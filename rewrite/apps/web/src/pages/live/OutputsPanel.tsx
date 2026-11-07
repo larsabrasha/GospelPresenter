@@ -9,6 +9,7 @@ import { PairScreenDialog } from '../PairScreen.tsx';
 import { GROUP_LIST, PanelGroup, SHEET_LIST } from './PanelGroup.tsx';
 import { useOutputs } from './useOutputs.ts';
 import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
+import { SoundOutputRow } from './SoundOutputRow.tsx';
 
 /**
  * Utgångar (spec 04 §1) in the live column, a group as iOS's Settings has (Lars, 2026-11-02): this computer's own, one
@@ -16,7 +17,7 @@ import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
  * own); public outputs, each with how many watch; saved screens, which can be switched on only while their page is
  * open (LIVE-A21), an output gone saying so on its row; temporary screens paired from here, with ✕ to let one go; and
  * last "Anslut tillfällig skärm" as a row of its own. Taking an output from another presentation asks first
- * (LIVE-R23).
+ * (LIVE-R23). Under this computer's own, Ljud: where the sound goes (SoundOutputRow), on a computer.
  */
 export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessionId: string; sheet?: boolean }) {
   const { dialog, own, rows, temporary } = useOutputs(link, sessionId);
@@ -37,6 +38,7 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
             sub={x.id === OUTPUT_WINDOW ? t(window.gpDesktop ? 'live.noOtherScreen' : 'live.dragWindow') : undefined}
           />
         ))}
+        {!sheet && <SoundOutputRow />}
         <ul className={sheet ? SHEET_LIST : GROUP_LIST} aria-label={t('live.outputs')}>
           {rows.map(({ display: d, chosen, sending, offline, elsewhere, viewers, toggle }) => (
             <li key={d.id}>

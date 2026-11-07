@@ -16,6 +16,7 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		55F592BDE2898641285C950A /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7473749CE5298C1E0B07787 /* WebAuthPlugin.swift */; };
+		A1B2C3D4E5F6071829304152 /* ExternalScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829304151 /* ExternalScreens.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		CEF15E9EFEF97180CE7FF2EF /* AppViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B595F22069CF2D77349693 /* AppViewController.swift */; };
 /* End PBXBuildFile section */
@@ -34,6 +35,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		F5B595F22069CF2D77349693 /* AppViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppViewController.swift; sourceTree = "<group>"; };
 		F7473749CE5298C1E0B07787 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829304151 /* ExternalScreens.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExternalScreens.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +80,7 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				F7473749CE5298C1E0B07787 /* WebAuthPlugin.swift */,
+				A1B2C3D4E5F6071829304151 /* ExternalScreens.swift */,
 				F5B595F22069CF2D77349693 /* AppViewController.swift */,
 			);
 			path = App;
@@ -167,6 +170,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				55F592BDE2898641285C950A /* WebAuthPlugin.swift in Sources */,
+				A1B2C3D4E5F6071829304152 /* ExternalScreens.swift in Sources */,
 				CEF15E9EFEF97180CE7FF2EF /* AppViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

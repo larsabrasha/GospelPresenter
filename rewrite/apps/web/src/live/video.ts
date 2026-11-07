@@ -274,6 +274,11 @@ export class VideoEngine implements VideoControl {
     return s && { hash: s.hash, type: s.type, codec: s.codec, playing: s.playing, position: s.position, at: now };
   }
 
+  /** Its elements, the one playing and the one buffering, for the sound to go where it is sent (soundOutput.ts). */
+  elements(): HTMLVideoElement[] {
+    return [this.current.el, this.spare.el];
+  }
+
   /** The element playing the item's video, for the primary output to show. */
   picture(): HTMLVideoElement | null {
     return this.itemId && this.current.ref ? this.current.el : null;

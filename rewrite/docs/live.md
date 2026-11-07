@@ -63,6 +63,12 @@ whether it played; a fade in progress is not handed over. The desktop app lets i
 nobody has clicked) gets "Tryck för att starta uppspelningen" over the output; the tap plays it, and lets the element
 buffering the next video play later too.
 
+**Ljud** under Utgångar (Lars, 2026-11-07, for AirPlay; `apps/web/src/live/soundOutput.ts`, `pages/live/SoundOutputRow.tsx`)
+sends the sound to a device of the computer's, as an Apple TV used as a display through AirPlay or a projector's HDMI,
+in whichever window plays it (`setSinkId`), kept for the computer. Only where the devices can be named and chosen
+(the desktop app; not Safari, nor a browser that hides their names), with more than one. On an iPad the phone app's
+AirPlay screen is the primary output, and iOS sends its sound with its picture (docs/phone-app.md "AirPlay").
+
 Tested in `apps/web/test/playback.test.ts` (who plays: none, the first output, the next, back to the presenting
 window after the grace, an output that reloads, one gone quiet, a presenting window that reloads; commands to the
 primary; its state moved on), and in the e2e specs below.

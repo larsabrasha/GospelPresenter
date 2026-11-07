@@ -88,7 +88,8 @@ export function useOutputs(link: LiveLink, sessionId: string) {
   return {
     dialog,
     /** This computer's own outputs, each switched on its own; turning one on says so when the browser would not open it. */
-    own: (ownDisplays.length ? ownDisplays.map((d) => ({ id: d.id, name: d.name || t('live.otherScreen') })) : [{ id: OUTPUT_WINDOW, name: t('live.outputWindow') }]).map((x) => ({
+    // The phone app has no window to put one in: an AirPlay screen, or none.
+    own: (ownDisplays.length ? ownDisplays.map((d) => ({ id: d.id, name: d.name || t('live.otherScreen') })) : output.kind() === 'phone' ? [] : [{ id: OUTPUT_WINDOW, name: t('live.outputWindow') }]).map((x) => ({
       ...x,
       on: openOwn.includes(x.id),
       turn: (on: boolean) => {

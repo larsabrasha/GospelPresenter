@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { browserHost, desktopHost, OutputWindow, POPUP_POLL_MS, type PopupLike } from '../src/live/outputWindow.ts';
+import { browserHost, desktopHost, OutputWindow, phoneHost, POPUP_POLL_MS, type OutputDisplay, type PopupLike } from '../src/live/outputWindow.ts';
 
 /** A popup that can be closed by hand, as a user would with its close button. */
 function fakePopup(): PopupLike {
@@ -135,5 +135,50 @@ describe('the output windows in the desktop app', () => {
     await Promise.resolve();
 
     expect(output.openTargets()).toEqual(['projector']);
+  });
+});
+
+/** The phone app's plugin for the screens beside its own (ExternalScreens.swift), with iOS played by the test. */
+function fakeScreens(displays: OutputDisplay[] = [{ id: 'airplay', name: 'Vardagsrum' }]) {
+  let changed: (e: { displays: OutputDisplay[]; open: string[] }) => void = () => {};
+  const screens = {
+    displays: () => Promise.resolve({ displays }),
+    opened: () => Promise.resolve({ open: [] as string[] }),
+    open: vi.fn((_: { id: string; url: string }) => Promise.resolve({ opened: true })),
+    close: vi.fn((_: { id?: string }) => Promise.resolve()),
+    addListener(_: 'changed', fn: typeof changed) {
+      changed = fn;
+      return Promise.resolve();
+    },
+  };
+  return { plugin: Promise.resolve({ screens }), screens, changed: (e: { displays: OutputDisplay[]; open: string[] }) => changed(e) };
+}
+
+describe('the output on an AirPlay screen in the phone app', () => {
+  beforeEach(() => vi.stubGlobal('location', { href: 'capacitor://localhost/presentations/P?x=1', search: '?x=1' }));
+  afterEach(() => void vi.unstubAllGlobals());
+
+  it('opens the output page on the screen chosen', async () => {
+    const { plugin, screens } = fakeScreens();
+    const output = new OutputWindow(phoneHost(plugin));
+
+    output.turn(true, 'airplay');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(screens.open).toHaveBeenCalledWith({ id: 'airplay', url: 'capacitor://localhost/output?x=1' });
+  });
+
+  it('lists the screens iOS gives the app, and follows what it reports open', async () => {
+    const { plugin, changed } = fakeScreens();
+    const output = new OutputWindow(phoneHost(plugin));
+    const displays = await output.displays();
+    await Promise.resolve();
+
+    changed({ displays, open: ['airplay'] });
+
+    expect(displays).toEqual([{ id: 'airplay', name: 'Vardagsrum' }]);
+    expect(output.openTargets()).toEqual(['airplay']);
+    expect(output.kind()).toBe('phone');
   });
 });

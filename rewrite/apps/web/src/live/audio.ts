@@ -119,6 +119,11 @@ export class AudioEngine implements AudioControl {
     );
   }
 
+  /** Its element, for the sound to go where it is sent (soundOutput.ts). */
+  elements(): HTMLAudioElement[] {
+    return [this.el];
+  }
+
   state(): LiveAudio | null {
     if (!this.itemId) return null;
     const d = this.el.duration;

@@ -1,3 +1,4 @@
+import AVFoundation
 import UIKit
 import Capacitor
 
@@ -7,7 +8,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // The presentation's sound plays with the ringer off, and goes where the picture goes through AirPlay.
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
         return true
     }
 
@@ -36,6 +38,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        // A screen beside the app's own (AirPlay, a cable) shows the output, not a mirror of the app (ExternalScreens.swift).
+        let role = connectingSceneSession.role
+        let external: Bool
+        if #available(iOS 16.0, *) { external = role == .windowExternalDisplayNonInteractive } else { external = role == .windowExternalDisplay }
+        if external {
+            let external = UISceneConfiguration(name: "External Display", sessionRole: connectingSceneSession.role)
+            external.delegateClass = ExternalSceneDelegate.self
+            return external
+        }
         let config = UISceneConfiguration(name: "Default Configuration",
                                           sessionRole: connectingSceneSession.role)
         config.delegateClass = SceneDelegate.self
