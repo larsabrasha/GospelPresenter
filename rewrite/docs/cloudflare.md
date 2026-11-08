@@ -23,6 +23,14 @@ needs the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 after `pnpm build`: `wrangler deploy --config wrangler.test.toml`. Its D1 and its objects migrate on their first
 request after a deploy, as the trial's did.
 
+**apptest.gospelpresenter.com (2026-11-08).** The test environment at the church's own domain, before the
+current app's `app.gospelpresenter.com` moves (Lars, 2026-11-08): Worker `gp-apptest`, D1 `gp-apptest-global`
+(WEUR) and R2 `gp-apptest-media`, named in `apps/server/wrangler.apptest.toml`, apart from gp-test, whose passkeys
+belong to its `workers.dev` address. The address is a Workers custom domain (`routes`, `custom_domain = true`);
+until 2026-11-08 it was the current app's test instance, through a Cloudflare Tunnel to a machine at Lars's home.
+Passkeys only so far, as gp-test; the setup token is the Worker's secret `SETUP_TOKEN`. By hand, from
+`apps/server` after `pnpm build`: `wrangler deploy --config wrangler.apptest.toml`; no workflow deploys it yet.
+
 **A trial on a real account (2026-10-28).** With Lars's go-ahead the Worker ran on
 `https://gp-trial-gospel.lars-arvidsson.workers.dev`, with D1 `gp-trial-global` (region WEUR) and R2
 `gp-trial-media`. It is kept for Lars to try, and deleted afterwards. The repo's `wrangler.toml` was not used:
