@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEGACY_FORMAT, LEGACY_TABLES, legacyRowsProblem, pdfPages, upgradeLegacyRows, type CustomPage, type LegacyRows } from '@gp/core';
+import { LEGACY_FORMAT, LEGACY_TABLES, legacyBlobs, legacyRowsProblem, pdfPages, TABLES_SINCE_8, upgradeLegacyRows, type CustomPage, type LegacyRows } from '@gp/core';
 
 const rowsWith = (overlays: LegacyRows['overlays']) => ({ ...(Object.fromEntries(LEGACY_TABLES.map((t) => [t, []])) as unknown as LegacyRows), overlays });
 
@@ -83,5 +83,39 @@ describe('a 1.x export of any format', () => {
     const upgraded = upgradeLegacyRows(LEGACY_FORMAT, rows);
 
     expect([upgraded.song_parts.map((p) => p.id), upgraded.song_arrangements.map((a) => a.part_ids)]).toEqual([['P2'], ['["P2"]']]);
+  });
+});
+
+describe('an export of format 7', () => {
+  it("gets format 8's tables empty: themes, videos and song materials", () => {
+    const seven = Object.fromEntries(Object.entries(rowsWith([])).filter(([t]) => !(TABLES_SINCE_8 as readonly string[]).includes(t))) as Parameters<typeof upgradeLegacyRows>[1];
+
+    const upgraded = upgradeLegacyRows(7, seven);
+
+    expect([upgraded.themes, upgraded.videos, upgraded.song_materials, legacyRowsProblem(upgraded)]).toEqual([[], [], [], null]);
+  });
+});
+
+describe("the blobs an export's rows name", () => {
+  it("names each with its row, an edited picture's original and a video's still included, and tells the videos", () => {
+    const image = { id: 'img', full_hash: 'a', thumb_hash: 'b', original_full_hash: 'c', original_thumb_hash: null };
+    const video = { id: 'vid', hash: 'v', still_hash: 's', thumb_hash: 't' };
+    const link = { id: 'm1', hash: null };
+    const pdf = { id: 'm2', hash: 'p' };
+
+    const { named, videos } = legacyBlobs({ ...rowsWith([]), images: [image], videos: [video], song_materials: [link, pdf] });
+
+    expect([named, [...videos]]).toEqual([
+      [
+        ['a', 'images img'],
+        ['b', 'images img'],
+        ['c', 'images img'],
+        ['v', 'videos vid'],
+        ['s', 'videos vid'],
+        ['t', 'videos vid'],
+        ['p', 'song_materials m2'],
+      ],
+      ['v'],
+    ]);
   });
 });

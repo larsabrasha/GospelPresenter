@@ -1,6 +1,8 @@
-// Importera från version 1 (docs/import-from-1x.md): an admin picks an export zip under Organisationen, sees what
-// it holds and imports it; its songs, presentations, Bibles and users are there after, beside what was there.
-import { expect, test } from '@playwright/test';
+// Importera (docs/import-from-1x.md): an admin picks an export zip under Organisationen, of version 1 or of this app's
+// Exportera, sees what it holds and imports it; its songs, presentations, Bibles, videos and users are there after,
+// beside what was there.
+import { readFileSync } from 'node:fs';
+import { expect, test, type Page } from '@playwright/test';
 import { bibleTextHash, LEGACY_ENTRIES, LEGACY_TABLES, makeZip, serializeBibleText, utf8Encode } from '@gp/core';
 import { launch, type Desktop } from './apps.ts';
 import { ANNA, closeAdmin, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
@@ -76,4 +78,62 @@ test('an export is imported into an organisation that has songs, keeping them', 
 
   await expect(page.getByText('Bred dina vida vingar')).toBeVisible();
   await expect(page.getByText('En sång')).toBeVisible();
+});
+
+const fixture = (name: string) => readFileSync(new URL(`../../../packages/core/test/fixtures/${name}`, import.meta.url));
+
+/** Clicks Exportera and returns the zip the page saved: the file and the link that saves it are caught, not followed. */
+async function exported(page: Page): Promise<Buffer> {
+  await page.evaluate(() => {
+    const create = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      Object.assign(window, { gpSavedBlob: blob });
+      return create(blob);
+    };
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+      Object.assign(window, { gpSavedName: this.download });
+    };
+  });
+  await page.getByRole('button', { name: 'Exportera', exact: true }).click();
+  await expect(page.getByText('Klart. Zip-filen är sparad.')).toBeVisible({ timeout: 15_000 });
+  const saved = await page.evaluate(async () => {
+    const { gpSavedBlob: blob, gpSavedName: name } = window as unknown as { gpSavedBlob: Blob; gpSavedName: string };
+    const url = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => resolve(String(reader.result)));
+      reader.readAsDataURL(blob);
+    });
+    return { name, base64: url.slice(url.indexOf(',') + 1) };
+  });
+  expect(saved.name).toMatch(/^gospel-presenter-Lilla-Kyrkan-\d{4}-\d{2}-\d{2}\.zip$/);
+  return Buffer.from(saved.base64, 'base64');
+}
+
+test("an organisation exported on one host is imported on another: its song and its video, the video's file in parts", async () => {
+  host = await launch();
+  await setUpHost(host);
+  await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
+  await openAdmin(host.page, 'Videor');
+  await host.page.getByTestId('video-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: fixture('h264-long.mp4') });
+  await expect(host.page.locator('[data-library-item]')).toHaveCount(1, { timeout: 15_000 });
+  await openAdmin(host.page, 'Organisationen');
+  const zip = await exported(host.page);
+  await host.app.close();
+
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Organisationen');
+  await page.getByTestId('legacy-zip').setInputFiles({ name: 'export.zip', mimeType: 'application/zip', buffer: zip });
+  // The video's file, its still and its thumbnail.
+  await expect(page.getByText('Lilla Kyrkan: 1 sånger, 0 presentationer och mallar, 1 användare och 3 filer.')).toBeVisible();
+  await page.getByRole('button', { name: 'Importera', exact: true }).click();
+  await expect(page.getByText('Klart. Lilla Kyrkan är importerad.')).toBeVisible({ timeout: 15_000 });
+
+  await openAdmin(page, 'Sånger');
+  await expect(page.getByText('Härlig är jorden')).toBeVisible();
+  await openAdmin(page, 'Videor');
+  await expect(page.getByTestId('video-card')).toHaveText([/0:20\s*Dop\.mp4/]);
+  await page.getByRole('button', { name: 'Dop.mp4', exact: true }).click();
+  await expect(page.getByTestId('quick-look-video')).toBeVisible();
 });

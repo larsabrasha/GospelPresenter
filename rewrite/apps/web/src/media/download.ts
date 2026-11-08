@@ -10,7 +10,7 @@ export interface DownloadFile {
 }
 
 /** Hands `blob` to the browser to save as `name`. */
-function saveBlob(name: string, blob: Blob) {
+export function saveBlob(name: string, blob: Blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;

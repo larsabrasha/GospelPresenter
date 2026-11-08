@@ -68,6 +68,20 @@ by e-mail, and all history.
 The mapping from old rows to new ones lives in the export (`apps/legacy/src/map*.ts`), so the import only checks
 shapes it already knows.
 
+## From 2.0 itself
+
+Inställningar → Organisationen → **Exportera** (Lars, 2026-11-08) writes the same zip, format 8, of an organisation of
+this app, so it moves to another server (gp-test to apptest, a desktop host to the cloud) through the same Importera.
+The page (`apps/web/src/media/orgExport.ts`) reads every row of the import's tables from this device's database, the
+members with an address from `GET /api/users` (as users to invite, without Google subjects), the Bible texts and
+every blob the rows name (`legacyBlobs`: pictures with an edit's original, sounds, videos with their stills, song
+materials, slideshows', overlays' and own themes' pictures) from the server, and saves the zip (`zipBlob.ts`: stored
+entries, Blobs not copied, no ZIP64, so at most 4 GB). Format 8 adds `themes`, `videos` and `song_materials`; an older
+zip has none of them. The import uploads a video's file in parts, as Videor does (`uploadVideo`), and the rest whole.
+Not moved: sign-ins, sessions, devices, invitations and the trash's own clock beyond `deleted_at`. Tested in
+`apps/desktop/e2e/legacy-import.spec.ts` (a song and a video exported on one host and imported on another) and the
+server's `legacy-import.test.ts`.
+
 ## What maps to what
 
 | 1.x | 2.0 | Notes |

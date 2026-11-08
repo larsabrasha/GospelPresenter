@@ -4,11 +4,9 @@ import {
   DISPLAY_CODE,
   displayCode,
   LEGACY_TABLES,
+  legacyBlobs,
   legacyRowsProblem,
   legacyRowsSchema,
-  customPageBlobs,
-  parseCustomPage,
-  parseCustomPages,
   tableByName,
   type LegacyImportRefusal,
   type LegacyRow,
@@ -20,8 +18,8 @@ import type { Caller } from './auth/index.ts';
 import type { Org } from './app.ts';
 import type { WatchRegistry } from './watch.ts';
 
-// The import from 1.x (docs/import-from-1x.md): an admin sends an organisation the rows of an export zip, after
-// its blobs and Bible texts went up through `PUT /api/media/:hash` and `PUT /api/bibles/:hash`. The rows are
+// The import of an export zip, of 1.x (docs/import-from-1x.md) or of 2.0 itself: an admin sends an organisation its
+// rows, after its blobs and Bible texts went up through `PUT /api/media/:hash` (a video in parts) and `PUT /api/bibles/:hash`. The rows are
 // written in one transaction, so the change log has them and every device pulls them as usual. What the
 // organisation has already is kept: a row whose id is there is left out, so a second run adds only what is new.
 
@@ -42,13 +40,8 @@ function refusal(store: OrgStore, rows: LegacyRows): Refused | null {
   const problem = legacyRowsProblem(rows);
   if (problem) return { error: 'invalid-rows', detail: problem };
 
-  const hashes: [string, string][] = [];
-  for (const i of rows.images) hashes.push([String(i.full_hash), `images ${String(i.id)}`], [String(i.thumb_hash), `images ${String(i.id)}`]);
-  for (const a of rows.audios) hashes.push([String(a.hash), `audios ${String(a.id)}`]);
-  for (const c of rows.custom_slides) for (const hash of customPageBlobs(parseCustomPages(c.pages as string))) hashes.push([hash, `custom_slides ${String(c.id)}`]);
-  for (const o of rows.overlays) for (const hash of customPageBlobs([parseCustomPage(o.content as string)])) hashes.push([hash, `overlays ${String(o.id)}`]);
   const known = new Set(store.query('SELECT hash FROM media_blobs').map((r) => String(r.hash)));
-  const missing = hashes.find(([h]) => !known.has(h));
+  const missing = legacyBlobs(rows).named.find(([h]) => !known.has(h));
   if (missing) return { error: 'missing-media', detail: `${missing[1]}: no file ${missing[0]}` };
   const texts = new Set(store.query('SELECT hash FROM bible_blobs').map((r) => String(r.hash)));
   const bible = rows.bibles.find((b) => !texts.has(String(b.content_hash)));

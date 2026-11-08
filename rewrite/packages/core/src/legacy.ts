@@ -1,23 +1,36 @@
 import { z } from 'zod';
 import { emailSchema } from './accounts.ts';
 import { parseBibleContent } from './bible.ts';
-import { blankPage, CUSTOM_LIMITS, customPagesSchema, pdfPages, type CustomElement, type CustomPage, type Picture } from './custom-slides.ts';
+import {
+  blankPage,
+  CUSTOM_LIMITS,
+  customPageBlobs,
+  customPagesSchema,
+  parseCustomPage,
+  parseCustomPages,
+  pdfPages,
+  type CustomElement,
+  type CustomPage,
+  type Picture,
+} from './custom-slides.ts';
 import { slideDeckPagesSchema } from './slides.ts';
 import { tableByName } from './sync-sql.ts';
-import { CANVAS } from './themes.ts';
+import { CANVAS, parseThemeDefinition, themeBlobs } from './themes.ts';
 
-// The zip one organisation of the current app (1.x) is exported as, and the import that reads it
-// (docs/import-from-1x.md). The export maps the old rows to the new tables, so what is here is only the
-// shape of the file and the checks the server and the web app make on it.
+// The zip one organisation is exported as, and the import that reads it: from the current app (1.x,
+// docs/import-from-1x.md), whose export maps the old rows to the new tables, and from 2.0 itself (Inställningar →
+// Organisationen → Exportera), whose rows are its own. What is here is the shape of the file and the checks the
+// server and the web app make on it.
 
 /**
  * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay
  * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. 4: a slide
  * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. 5: a page's pictures are its own
  * blobs, not pictures of Bilder by id. 6: an item has a comment (`note`, spec 03 2f). 7: a picture may be edited, its
- * original kept (MEDIA-R19). An import reads the older ones too (`upgradeLegacyRows`).
+ * original kept (MEDIA-R19). 8: 2.0's own export, with videos, own themes and song materials (2026-11-08). An import
+ * reads the older ones too (`upgradeLegacyRows`).
  */
-export const LEGACY_FORMAT = 7;
+export const LEGACY_FORMAT = 8;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -32,21 +45,26 @@ export const LEGACY_ENTRIES = {
 export const LEGACY_TABLES = [
   'labels',
   'org_settings',
+  'themes',
   'bibles',
   'images',
   'audios',
+  'videos',
   'overlays',
   'displays',
   'songs',
   'song_parts',
   'song_arrangements',
   'song_versions',
+  'song_materials',
   'presentations',
   'custom_slides',
   'presentation_items',
   'ccli_entries',
 ] as const;
 type LegacyTable = (typeof LEGACY_TABLES)[number];
+/** The tables only format 8 has: a zip of an older one holds none of them. */
+export const TABLES_SINCE_8 = ['themes', 'videos', 'song_materials'] as const satisfies readonly LegacyTable[];
 
 /** At most this many rows of one table: far above a church's, so a damaged file is refused rather than read. */
 const MAX_ROWS = 200_000;
@@ -99,7 +117,7 @@ export function legacyOverlayPage(content: string | null, picture: Picture | nul
  * The formats an import reads: this one, 4 (pictures of Bilder by id on a page), 3 (decks of their own), 2 (decks on
  * their items), 1 (overlays of a text and a picture too).
  */
-export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, 5, 6, LEGACY_FORMAT];
+export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, 5, 6, 7, LEGACY_FORMAT];
 
 const text = (v: LegacyRow[string] | undefined) => (typeof v === 'string' ? v : null);
 /** A deck item's content before format 3: the file's name and its pages. */
@@ -147,8 +165,10 @@ function rewrite(json: LegacyRow[string] | undefined, fn: (v: unknown) => unknow
   }
 }
 
-/** The rows of a zip before format 4: `custom_slides` missing, `slide_decks` there in 3. */
-type OlderRows = Omit<LegacyRows, 'custom_slides'> & { custom_slides?: LegacyRow[]; slide_decks?: LegacyRow[] };
+/** The rows of a zip of an older format: `custom_slides` missing before 4, `slide_decks` there in 3, format 8's tables missing before 8. */
+type OlderRows = Omit<LegacyRows, 'custom_slides' | (typeof TABLES_SINCE_8)[number]> & { custom_slides?: LegacyRow[]; slide_decks?: LegacyRow[] } & Partial<
+    Pick<LegacyRows, (typeof TABLES_SINCE_8)[number]>
+  >;
 
 /**
  * A zip's rows as this format has them. Before 4 a deck's pages become a slideshow of PDF pages that its item
@@ -178,7 +198,8 @@ function withoutRtfLeftovers(rows: LegacyRows): LegacyRows {
 }
 
 function upgradeFormat(format: number, rows: OlderRows): LegacyRows {
-  const { slide_decks: decks = [], custom_slides: slideshows = [], ...given } = rows;
+  const { slide_decks: decks = [], custom_slides: slideshows = [], themes = [], videos = [], song_materials = [], ...older } = rows;
+  const given = { ...older, themes, videos, song_materials };
   const unedited = (i: LegacyRow): LegacyRow => ({ ...i, original_full_hash: null, original_thumb_hash: null, original_width: null, original_height: null, edit: null });
   const commented = format >= 6 ? given : { ...given, presentation_items: given.presentation_items.map((item): LegacyRow => ({ ...item, note: null })) };
   const rest = format >= 7 ? commented : { ...commented, images: commented.images.map(unedited) };
@@ -227,6 +248,28 @@ const readsAsPages = (json: string | null) => {
     return false;
   }
 };
+
+/**
+ * The blobs the rows name, each with the row that names it ("images {id}"), and which of them are videos: those go up
+ * in parts (`POST /api/media/:hash/upload`), the rest whole.
+ */
+export function legacyBlobs(rows: LegacyRows): { named: [hash: string, row: string][]; videos: Set<string> } {
+  const named: [string, string][] = [];
+  const add = (row: string, ...hashes: unknown[]) => {
+    for (const h of hashes) if (typeof h === 'string' && h) named.push([h, row]);
+  };
+  for (const i of rows.images) add(`images ${String(i.id)}`, i.full_hash, i.thumb_hash, i.original_full_hash, i.original_thumb_hash);
+  for (const a of rows.audios) add(`audios ${String(a.id)}`, a.hash);
+  for (const v of rows.videos) add(`videos ${String(v.id)}`, v.hash, v.still_hash, v.thumb_hash);
+  for (const m of rows.song_materials) add(`song_materials ${String(m.id)}`, m.hash);
+  for (const c of rows.custom_slides) add(`custom_slides ${String(c.id)}`, ...customPageBlobs(parseCustomPages(text(c.pages) ?? '')));
+  for (const o of rows.overlays) add(`overlays ${String(o.id)}`, ...customPageBlobs([parseCustomPage(text(o.content) ?? '')]));
+  for (const th of rows.themes) {
+    const definition = parseThemeDefinition(text(th.definition) ?? '');
+    if (definition) add(`themes ${String(th.id)}`, ...themeBlobs(definition));
+  }
+  return { named, videos: new Set(rows.videos.map((v) => String(v.hash))) };
+}
 
 /** What the server answers when it refuses an import, with a `detail` naming the row. */
 export type LegacyImportRefusal = 'invalid-rows' | 'missing-media' | 'missing-bible' | 'write-failed';

@@ -170,7 +170,7 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {(route.page === 'displays' || route.page === 'publicOutputs') && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
       {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
-      {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
+      {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings orgName={me.orgName} /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
   // Inställningar opens in a dialog over the page the user was on, which stays as it was (presenting goes

@@ -119,6 +119,10 @@ export async function mapOrg(data: OldData, media: Media, now = Date.now()): Pro
     custom_slides: items.decks,
     presentation_items: items.rows,
     ccli_entries: mapCcli(data),
+    // 1.x has no videos, own themes or song materials.
+    themes: [],
+    videos: [],
+    song_materials: [],
   };
   return { rows, users: mapUsers(data), bibleTexts: bibles.texts, skipped: items.skipped };
 }

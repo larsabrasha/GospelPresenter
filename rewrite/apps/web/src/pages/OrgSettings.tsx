@@ -7,6 +7,7 @@ import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { LegacyImport } from './LegacyImport.tsx';
+import { OrgExport } from './OrgExport.tsx';
 
 const POLICIES: { value: RemoteControlPolicy; label: TextKey; description: TextKey }[] = [
   { value: 'never', label: 'orgSettings.remoteNever', description: 'orgSettings.remoteNeverDescription' },
@@ -16,10 +17,10 @@ const POLICIES: { value: RemoteControlPolicy; label: TextKey; description: TextK
 
 /**
  * The organisation's settings (`/admin/settings`, TODO.md "Remote control for
- * the whole organisation"): remote control, and the import from 1.x (docs/import-from-1x.md). There is no such page in
+ * the whole organisation"): remote control, the export, and the import of an export (docs/import-from-1x.md). There is no such page in
  * the current app; it looks like "Mina inställningar" (Pages/Settings.razor).
  */
-export function OrgSettings() {
+export function OrgSettings({ orgName }: { orgName: string }) {
   const db = useDb();
   const toast = useToast();
   const saved = useData(orgRemoteControl, []);
@@ -66,6 +67,7 @@ export function OrgSettings() {
             </PopUp>
           </label>
         </Group>
+        <OrgExport orgName={orgName} />
         <LegacyImport />
       </div>
     </PageContainer>

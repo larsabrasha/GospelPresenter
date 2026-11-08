@@ -1,7 +1,7 @@
 // The import from 1.x (docs/import-from-1x.md): the rows of an export zip written into an organisation beside what it
 // has, and its users brought along, on each server adapter.
 import { describe, expect, it } from 'vitest';
-import { DISPLAY_CODE, LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
+import { CLASSIC, DISPLAY_CODE, LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
 import { api, setRole } from './harness.ts';
 import { put, webp } from './media-fixtures.ts';
 import { adapters, syncFixture } from './sync-fixture.ts';
@@ -96,6 +96,28 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     const image = { id: 'img', file_name: 'a.webp', content_type: 'image/webp', full_hash: fullHash, thumb_hash: thumbHash, width: 10, height: 10, created_at: 1, deleted_at: null, ...UNEDITED };
 
     expect((await send(rows({ images: [image] }))).status).toBe(200);
+  });
+
+  it("takes an own theme, a song's link and a video's row of 2.0's export, a theme's picture refused unless uploaded", async () => {
+    const theme = { id: 'theme-own', name: 'Egen', definition: JSON.stringify(CLASSIC.definition), sort: 0, updated_at: 1 };
+    const link = { id: 'mat-1', song_id: 'song-1', kind: 'link', title: 'Noter', url: 'https://example.com/noter', hash: null, content_type: null, size: null, sort: 0, created_at: 1 };
+    const pictured = { ...CLASSIC.definition, media: { ...CLASSIC.definition.media, image: { kind: 'picture' as const, full: 'c'.repeat(64), thumb: 'd'.repeat(64) } } };
+
+    const r = await send(rows({ themes: [theme], songs: [song], song_materials: [link] }));
+    const refused = await send(rows({ themes: [{ ...theme, id: 'theme-pic', definition: JSON.stringify(pictured) }] }));
+
+    expect([r.status, (await fx.server()).tables.themes.map((t) => t.id), (await fx.server()).tables.song_materials.map((m) => m.id), refused.body]).toEqual([
+      200,
+      ['theme-own'],
+      ['mat-1'],
+      { error: 'missing-media', detail: `themes theme-pic: no file ${'c'.repeat(64)}` },
+    ]);
+  });
+
+  it('refuses a video whose file was not uploaded, and names it', async () => {
+    const video = { id: 'vid', file_name: 'Dop.mp4', content_type: 'video/mp4', codec: 'h264', hash: 'e'.repeat(64), size: 10, duration: 1000, width: 16, height: 9, still_hash: 'f'.repeat(64), thumb_hash: 'f'.repeat(64), created_at: 1, deleted_at: null };
+
+    expect(await send(rows({ videos: [video] }))).toEqual({ status: 400, body: { error: 'missing-media', detail: `videos vid: no file ${'e'.repeat(64)}` } });
   });
 
   it('refuses a row that does not name its table’s columns, and names it', async () => {
