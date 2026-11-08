@@ -150,3 +150,30 @@ test('live: an audio slide plays alone on the presenting computer, its controls 
   await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 8_000 });
   await expect(player.getByTestId('audio-time')).toHaveText('0:00');
 });
+
+test("an audio item's preview on another computer, which keeps no file of the presentation, fetches the file and plays it", async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createUser(page, 'Bo', 'bo@kyrkan.se');
+  await openAdmin(page, 'Ljud');
+  await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(2) });
+  await expect(page.locator('[data-library-item]')).toHaveCount(1);
+  await createPresentation(page, 'Söndag');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Ljud', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  await picker.getByRole('button', { name: 'Preludium.wav', exact: true }).click();
+  await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+
+  // Not presented and not kept offline there: the computer fetches none of its files by itself.
+  second = await launch({ server: host.base });
+  await pair(page, second.page, 'Andra datorn', 'Bo');
+  await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
+  await second.page.getByText('Söndag').first().click();
+  await pickItem(second.page, 'Preludium.wav');
+
+  await expect(second.page.getByTestId('audio-preview')).toBeVisible({ timeout: 10_000 });
+  await expect(second.page.getByText('Ljudfilen hämtas...')).toHaveCount(0);
+});

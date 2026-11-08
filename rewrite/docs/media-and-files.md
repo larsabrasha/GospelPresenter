@@ -212,7 +212,10 @@ picture's thumbnail where its full picture is not on the device (`SlideView`), a
 streams it when played and keeps nothing. **Seeing a picture large fetches it:** Quick Look and the large view of Bilder and
 of the add dialog's picture tab show the full picture (`usePictureUrl` in `db/react.tsx`), fetched through `openMedia`
 when the device lacks it and kept as cache, its thumbnail meanwhile; the large view fetches a picture only once it is
-within a screen of view, so a long list does not fetch every one (Lars, 2026-11-06; `e2e/milestone5.spec.ts`).
+within a screen of view, so a long list does not fetch every one (Lars, 2026-11-06; `e2e/milestone5.spec.ts`). **An audio
+item selected in the editor fetches its file** the same way, and a video item its still: before 2026-11-08 the player
+waited for a file only a presented or kept presentation brings, and said "Ljudfilen hämtas..." for ever on a device
+that had not imported it (`e2e/audio.spec.ts`).
 
 **Presenting:** Starta presentation fetches that presentation's files at once, quietly: its full pictures, its
 audio, its videos' stills, its slideshows' PDF pages (both sizes) and pictures, and every overlay's pictures (any can be switched on).

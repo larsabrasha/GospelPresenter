@@ -4,7 +4,7 @@ import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
 import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
-import { useBlobUrl, useDb } from '../../db/react.tsx';
+import { useDb, useOpenedUrl, usePictureUrl } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -20,15 +20,16 @@ import { useToast } from '../../ui/Toast.tsx';
 
 /**
  * An audio item in the editor: the player of the live page (AudioPlayer.razor), on a preview of its
- * own that stops when the item is left; once this device has the file.
+ * own that stops when the item is left; once this device has the file, fetched now when it lacks it, as Quick Look
+ * does: a device keeps by itself only the files of a presentation presented or kept offline.
  */
 function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; name: string }) {
-  const url = useBlobUrl(hash);
+  const url = useOpenedUrl(hash);
   if (!url)
     return (
       <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 border-[0.5px] border-separator space-y-3">
         <p className="text-sm font-medium truncate">{name}</p>
-        <p className="text-sm text-stone-400">{t('presentation.audioFetching')}</p>
+        <p className="text-sm text-stone-400">{url === null ? t('common.error') : t('presentation.audioFetching')}</p>
       </div>
     );
   return <PreviewPlayer key={url} url={url} itemId={itemId} name={name} />;
@@ -49,7 +50,8 @@ function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; nam
  * keeps nothing (TODO.md "Video"), over its still. A device that cannot play the codec says so.
  */
 function VideoPreview({ video }: { video: LibraryVideo }) {
-  const poster = useBlobUrl(video.stillHash);
+  // Its still fetched as a picture at full size is, its thumbnail meanwhile.
+  const poster = usePictureUrl(video.stillHash, video.thumbHash);
   const playable = canPlayVideo(video.contentType, video.codec);
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
