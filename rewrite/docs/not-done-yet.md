@@ -5,34 +5,32 @@ built but not tried where it will run. Checked against the code that day.
 
 ## To build
 
-In this order (the first is Lars's; the rest is the proposed order):
+In this order (proposed; the first of Lars's list, a newer build taken at once, was built on 2026-11-08 as a quiet
+swap: [Updating](lan-https-and-addresses.md#starting-the-app-without-the-host)):
 
-1. **A newer build waiting.** A line that says a newer build is there, with a button to reload. Today nothing says
-   so while the app runs from its kept copy; the sync's update message is all. It matters more with every schema
-   change: an older client stops syncing until it reloads.
-2. **Calendar subscriptions** (spec 01 "Calendar subscription"): a personal secret link to an organisation's coming
+1. **Calendar subscriptions** (spec 01 "Calendar subscription"): a personal secret link to an organisation's coming
    presentations, an iCal feed on the server, made and removed under Mina inställningar.
-3. **Monitoring for super admins**: one page, not the current app's three (Enheter, Aktiva sessioner, Inloggade
+2. **Monitoring for super admins**: one page, not the current app's three (Enheter, Aktiva sessioner, Inloggade
    just nu): every device token with its user, app version and when it was last seen, and above it the
    organisations presenting now. The rewrite's Enheter is the host's paired devices only, and the sync sends the
    protocol and schema version but not the app's version.
-4. **MCP** (spec 01 "MCP API key", the MCP tools of spec 02 and 03): keys, and an MCP server with the current
+3. **MCP** (spec 01 "MCP API key", the MCP tools of spec 02 and 03): keys, and an MCP server with the current
    app's tools (songs listed and searched, presentations read and made, songs and Bible texts added, items
    renamed, moved and removed, arrangement, time and place), each change through the same mutators as the app.
-5. **Your own sessions**: listing and revoking your devices' sessions (D23; removing the user or pairing again are
+4. **Your own sessions**: listing and revoking your devices' sessions (D23; removing the user or pairing again are
    the ways today).
-6. **Sign-in**: passkey autofill (conditional mediation: the sign-in page has a button, no username field); more
+5. **Sign-in**: passkey autofill (conditional mediation: the sign-in page has a button, no username field); more
    than one Google account per user (ORG-R13 allows 5); removing a passkey ends the sessions it made (today
    removing a login ends no session; a new invite ends them all).
-7. **Profile pictures**: initials stand in for them, in the top bar and on the user page.
-8. **Backspace removes** the selected item in a presentation, as Delete does (the libraries take both already).
-9. **Overlays**: their pictures and shapes on a public output (only the texts are sent, `toPublicSlide`), and
+6. **Profile pictures**: initials stand in for them, in the top bar and on the user page.
+7. **Backspace removes** the selected item in a presentation, as Delete does (the libraries take both already).
+8. **Overlays**: their pictures and shapes on a public output (only the texts are sent, `toPublicSlide`), and
    reordering them (spec 03 Q11).
-10. **A limit on an organisation's media**, set by a super admin per organisation, with a default (today only the
+9. **A limit on an organisation's media**, set by a super admin per organisation, with a default (today only the
     number and size of files per kind are limited). How much is used shows as a bar, as iOS's storage in Settings
     does: one coloured run per kind (pictures, videos, sound, slideshows, Bibles), the free part grey, and the
     numbers beside it.
-11. **A video as a theme's background** (docs/themes.md, "Not yet").
+10. **A video as a theme's background** (docs/themes.md, "Not yet").
 
 ## Before 2.0 replaces the current app
 

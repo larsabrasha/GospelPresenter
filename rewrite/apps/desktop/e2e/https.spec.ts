@@ -4,12 +4,11 @@
 // Safari should with the certificate installed, and a service worker keeps
 // the page itself, so it starts again with the host gone.
 import { execFileSync } from 'node:child_process';
-import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { type Desktop, launch, MUTED, testPort } from './apps.ts';
+import { copyOfWebApp, type Desktop, launch, MUTED, testPort } from './apps.ts';
 import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
 import { testDir } from './temp.ts';
 
@@ -96,14 +95,9 @@ async function keptByWorker(page: Page) {
 
 /** A copy of the built web app that looks like the next build: another index.html and another version in sw.js. */
 function nextBuild() {
-  const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web', 'dist');
-  const dir = testDir('gp-web-');
-  cpSync(web, dir, { recursive: true });
-  const index = join(dir, 'index.html');
-  writeFileSync(index, readFileSync(index, 'utf8').replace('<head>', '<head><meta name="gp-build" content="next" />'));
-  const sw = join(dir, 'sw.js');
-  writeFileSync(sw, readFileSync(sw, 'utf8').replace(/"version":"[0-9a-f]+"/, '"version":"e2e0next0build00"'));
-  return dir;
+  const web = copyOfWebApp();
+  web.mark('e2e0next0build00');
+  return web.dir;
 }
 
 test('a device over https on the LAN starts the app with the host gone, and takes the host\'s next build', async () => {
@@ -146,14 +140,14 @@ test('a device over https on the LAN starts the app with the host gone, and take
   // The host comes back with its next build: a reload gets it at once, and the worker keeps it instead of the old one.
   host = await launch({ lan: true, port, dataDir, env: { ...env, GP_WEB_ROOT: nextBuild() } });
   await tablet.goto(`${app}/songs`);
-  await expect(tablet.locator('meta[name="gp-build"]')).toHaveCount(1);
+  await expect(tablet.locator('meta[name="gp-build"]')).toHaveAttribute('content', 'e2e0next0build00');
   await expect(tablet.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await expect.poll(() => appCaches(tablet), { timeout: 15_000 }).toEqual(['gp-app-e2e0next0build00']);
 
   await host.app.close();
   host = undefined;
   await tablet.reload();
-  await expect(tablet.locator('meta[name="gp-build"]')).toHaveCount(1);
+  await expect(tablet.locator('meta[name="gp-build"]')).toHaveAttribute('content', 'e2e0next0build00');
   await expect(tablet.getByTestId('status')).toContainText('Offline', { timeout: 10_000 });
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
 });

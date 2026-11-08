@@ -1,7 +1,27 @@
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { _electron as electron, chromium, type ElectronApplication, type Page } from '@playwright/test';
 import { workerPort } from './ports.ts';
 import { testDir } from './temp.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from '../../server/test/fake-google.ts';
+
+/**
+ * A copy of the built web app, for a host started with it as GP_WEB_ROOT; `mark` makes it another build, as the
+ * page sees it: its index.html's `gp-build` (vite.config.ts) and its service worker's version.
+ */
+export function copyOfWebApp(): { dir: string; mark: (build: string) => void } {
+  const dir = testDir('gp-web-');
+  cpSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web', 'dist'), dir, { recursive: true });
+  const edit = (file: string, from: RegExp, to: string) => writeFileSync(join(dir, file), readFileSync(join(dir, file), 'utf8').replace(from, to));
+  return {
+    dir,
+    mark(build) {
+      edit('index.html', /<meta name="gp-build" content="[^"]*"/, `<meta name="gp-build" content="${build}"`);
+      edit('sw.js', /"version":"[0-9a-z]+"/, `"version":"${build}"`);
+    },
+  };
+}
 
 /** Chromium's switch that keeps the tests' audio and video out of the speakers (Lars, 2026-11-02). */
 export const MUTED = ['--mute-audio'];

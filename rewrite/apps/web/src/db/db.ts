@@ -173,6 +173,23 @@ export class Db implements ReadDb {
     return this.call({ op: 'status' });
   }
 
+  /**
+   * Whether what this window wrote is safe across a reload (newBuild.ts): every call to the worker has answered, as
+   * the page's worker ends when it leaves; and a database kept only in memory (a host window's, or a browser's
+   * without OPFS) has pushed its changes. False if that is not so within `withinMs`.
+   */
+  async settled(withinMs = 5_000): Promise<boolean> {
+    const until = Date.now() + withinMs;
+    while (Date.now() < until) {
+      if (this.waiting.size === 0) {
+        const s = await this.status();
+        if (this.waiting.size === 0 && (s.storage === 'opfs' || s.pending === 0)) return true;
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return false;
+  }
+
   onChange(fn: (tables?: ReadonlySet<string>) => void): () => void {
     this.changeListeners.add(fn);
     return () => this.changeListeners.delete(fn);

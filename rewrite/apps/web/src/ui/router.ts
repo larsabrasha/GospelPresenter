@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { movedPage } from '../newBuild.ts';
 
 // Path routes through the History API (`/songs`, `/admin/images`, ...). The
 // server answers every address that is not a file or an API path with the
@@ -316,6 +317,7 @@ function push(url: string) {
   } else if (parseRoute(to.pathname).page === 'template' && currentRoute().page === 'templates') state = { fromTemplates: true };
   history.pushState(state, '', url);
   dispatchEvent(new Event(NAVIGATED));
+  movedPage(); // a newer build waiting follows with a reload (newBuild.ts)
 }
 
 export function navigate(r: Route) {

@@ -6,6 +6,7 @@ import { Boot, REPAIR_KEY } from './Boot.tsx';
 import { CrashGuard, errorMessage, Stopped } from './Stopped.tsx';
 import { Starting } from './pages/AuthCard.tsx';
 import { keepApp } from './keepApp.ts';
+import { installNewBuild } from './newBuild.ts';
 import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
@@ -118,6 +119,8 @@ if (route.page === 'watch') {
     const playback = new Playback(live, new Player(db), live.restoredVideo && playedFromVideo(live.restoredVideo));
     // The organisation's live sessions, and this window's own (spec 04 §2).
     const link = new LiveLink(socketProtocols({ token: session.token, device: session.device }));
+    // A newer build on the server is taken after the next move to another page, unless this machine presents.
+    installNewBuild(() => live.pointer.presentationId !== null, () => db.settled());
     root.render(
       <StrictMode>
         <CrashGuard>

@@ -7,7 +7,9 @@ import { defineConfig, type Plugin } from 'vite';
 /**
  * Builds the service worker (sw/sw.ts) as `/sw.js`, a fixed name at the root
  * so its scope is the whole app, and writes into it the build's files and a
- * hash of their contents: a new build is a new worker, and so a new cache.
+ * hash of their contents: a new build is a new worker, and so a new cache. The
+ * same hash goes into index.html as `<meta name="gp-build">`, which a page
+ * compares with the server's (src/newBuild.ts).
  */
 function serviceWorker(): Plugin {
   const fileName = 'sw.js';
@@ -30,9 +32,13 @@ function serviceWorker(): Plugin {
       const sw = bundle[fileName];
       if (sw?.type !== 'chunk') throw new Error('the service worker was not built');
       if (!files.includes('/index.html')) throw new Error('the service worker would keep no index.html');
-      const build = JSON.stringify({ version: hash.digest('hex').slice(0, 16), files });
+      const version = hash.digest('hex').slice(0, 16);
+      const build = JSON.stringify({ version, files });
       if (!sw.code.includes('GP_BUILD')) throw new Error('the service worker has no GP_BUILD to fill in');
       sw.code = sw.code.replaceAll('GP_BUILD', `(${build})`);
+      const index = bundle['index.html'];
+      if (index?.type !== 'asset' || typeof index.source !== 'string' || !index.source.includes('</head>')) throw new Error('index.html has no <head> to mark');
+      index.source = index.source.replace('</head>', `  <meta name="gp-build" content="${version}">\n  </head>`);
     },
   };
 }

@@ -72,6 +72,18 @@ the database worker, wa-sqlite's wasm, the CSS, fonts and the background) and a 
   files from it: the app loads everything at start. A device that started from its kept copy while the host was
   gone, and finds the host back with a newer build (the sync's "update first", 426), gets the new app with a
   reload, since a page comes from the network first.
+- **A page that stays open** takes a newer build quietly (`apps/web/src/newBuild.ts`; Lars, 2026-11-08: no line,
+  no button, as Gmail does it). The build writes its hash into index.html as `<meta name="gp-build">`; a signed-in
+  window asks the server for `/` five seconds after it starts, every 10 minutes while it is shown, when it is shown
+  again and when the network comes back (`/` and not `/index.html`, which the worker would answer from its copy).
+  When the server's mark differs, the next move to another page (a link, back or forward) happens in place as
+  always, and a reload follows, with the entry's state kept: 300 ms later, once every call to the database worker
+  has answered (an editor saves as it closes, and the worker ends with the page) and a database kept only in memory
+  has pushed its changes. Never while something is live from this machine (its audio and video play only then) or
+  while the window drives another's session; the output windows close with the presentation, so the next one opens
+  with the newer build. Screens and public outputs do not ask: they move to no other page. The page carries
+  `data-newer-build` on `<html>` while it knows of one, and nothing on screen says it. Tested in
+  `apps/desktop/e2e/new-build.spec.ts`.
 - **Where it registers** (`apps/web/src/keepApp.ts`): only a built app (not `pnpm dev`), only in a secure context,
   and never in the desktop app's windows, whose page comes from their own server. Not for `/watch/{code}`, as
   a viewer's phone needs no copy of the app; a device that already has the worker gets `/watch/` through it,

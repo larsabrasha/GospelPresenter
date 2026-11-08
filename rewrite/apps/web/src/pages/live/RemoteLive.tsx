@@ -9,6 +9,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
 import { RemoteBanner } from './RemoteBanner.tsx';
+import { holdNewBuild } from '../../newBuild.ts';
 import { CloudOffIcon } from '../../ui/icons.tsx';
 
 /**
@@ -92,5 +93,6 @@ function ControlledLive({ id, role, link, sessionId }: { id: string; role: Role;
   const audio = useMemo(() => new RemoteAudio(link, sessionId), [link, sessionId]);
   const video = useMemo(() => new RemoteVideo(link, sessionId), [link, sessionId]);
   useEffect(() => () => control.dispose(), [control]);
+  useEffect(holdNewBuild, []); // a reload would drop the session this window drives
   return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, video, owner: null, link }} />;
 }
