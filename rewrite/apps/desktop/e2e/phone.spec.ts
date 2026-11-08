@@ -1,6 +1,6 @@
 // The presentation on a phone (390×844), one view before and while presenting (docs/layout-2-0.md): the running
 // order with every part's text and Lägg till's song preview over the add dialog; presenting adds the picture and
-// ‹ Släck ›.
+// Släck.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
@@ -29,7 +29,7 @@ async function onScreen(l: Locator) {
   return box;
 }
 
-test('on a phone the presentation is one column before and while presenting; Lägg till previews a song over the dialog; presenting adds the picture and ‹ Släck ›', async () => {
+test('on a phone the presentation is one column before and while presenting; Lägg till previews a song over the dialog; presenting adds the picture and Släck', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -123,7 +123,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(picture).toContainText('A ett');
   await expect(liveOrder.getByRole('button', { name: /A ett/ })).toContainText('VISAS');
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('NÄSTA');
-  // No ‹ › on a phone (Lars, 2026-11-03): a tap on the next part shows it.
+  // No arrows beside Släck (Lars, 2026-11-03): a tap on the next part shows it.
   await expect(page.getByRole('button', { name: 'Nästa bild' })).toHaveCount(0);
   await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(picture).toContainText('A två');
@@ -196,7 +196,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(lying.y).toBeLessThan(order.y + order.height / 2);
   await page.setViewportSize(PHONE);
 
-  // A sheet is pulled down by its bar to close it, as on iOS: Visning's (outputs and overlays), from its button under ‹ Släck ›.
+  // A sheet is pulled down by its bar to close it, as on iOS: Visning's (outputs and overlays), from its button under Släck.
   await live.getByRole('button', { name: 'Visning' }).click();
   const more = await settled(page.getByRole('dialog', { name: 'Visning' }));
   const bar = (await more.getByRole('heading', { name: 'Visning' }).boundingBox())!;

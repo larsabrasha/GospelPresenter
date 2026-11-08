@@ -56,10 +56,11 @@ tapped shows nothing, and ▶ starts it.
 - **The description** sits at the top of the left column on a computer, on a flat card a step lighter than the column, as
   a group in iOS's Settings (Lars, 2026-11-02), three lines with mer at the end of the last to unfold the rest.
   A phone, with no side column, has it too (Lars, 2026-11-03, after leaving it out on 2026-11-02): before presenting
-  the same card at the top of the running order, scrolling away with it; while presenting a round button at the left
-  end of Släck's row, in the room that keeps Släck in the middle, which opens a sheet with the text and Redigera
-  detaljer…; with no description that room stays empty. The picture while presenting is at most a fifth of the screen
-  high, to keep the room for the parts.
+  the same card at the top of the running order, scrolling away with it; while presenting a round button under Släck
+  before Visning (lying down, at the left end of Släck's row, in the room that keeps Släck in the middle), which opens
+  a sheet with the text and Redigera detaljer…; with no description it is not there. While presenting, a phone held upright has the picture small at
+  the left, half the width, with Släck at its right and the round buttons under Släck, to keep room to scroll the
+  parts (Lars, 2026-11-08: the picture over Släck took too much).
   A phone lying down has two columns: the running order at the left, the picture and Släck at the right, the +
   at the foot of the order (Lars, 2026-11-02).
 - **Before presenting**, a slide clicked (a computer's tile, a phone's part row) is outlined in blue and nothing else,
@@ -72,12 +73,12 @@ tapped shows nothing, and ▶ starts it.
   go (Lars, 2026-11-07). On the slide shown the blue wins over the red, VISAS still saying it. A click on a slide, and
   a clicker's Space PageDown PageUp, show at once (`pages/presentation-editor/useEditorKeys.ts`). Under the mouse a
   slide shows nothing but the pointer, as Keynote's.
-- **The picture** that is shown, with **‹ Släck ›** right under it (on a phone Släck alone: a part is shown by a tap
-  on it, and the arrows drew the eye there; Lars, 2026-11-03) (Starta presentation brings it in softly: on a phone its block takes its room first, on a computer the live column
+- **The picture** that is shown, with **Släck** right under it and no arrows beside it (a part is shown by a tap
+  or a click on it, or by the keys; the arrows drew the eye: Lars, 2026-11-03 on a phone, 2026-11-08 on a computer) (Starta presentation brings it in softly: on a phone its block takes its room first, on a computer the live column
   slides in from the right as a macOS sidebar, then the picture fades in out of a slight blur; Avsluta presentation plays it backwards before the presentation ends, all of it by transform and opacity, which
   the graphics card draws (the computer's slides narrow at once as the column starts in, and widen once it is out), "Mjuk" of the variants
   tried, Lars, 2026-11-03; none of it with less motion asked for) (Släck only blacks the outputs, and
-  rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
+  rests while they are black: a part tapped or a key shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
   shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
   (Lars, 2026-11-01). An audio or video slide shown has its controls on the picture (see "Audio and video while
@@ -159,7 +160,7 @@ overlay.
   out is kept on the device, and a start always brings the live column out. Tested in `e2e/panels.spec.ts`.
 - **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a
   clicker's keys (→ ← Space PageDown PageUp, B and .) work on the live page.
-- **Right:** the picture, ‹ Släck ›, the next slide, the overlays as switches (one shown at a time, drawn on the
+- **Right:** the picture, Släck, the next slide, the overlays as switches (one shown at a time, drawn on the
   picture too), and the outputs folded to one line that says how they are ("3 på · 12 tittare", a green dot) and
   turns orange with what is wrong ("Kyrksal är offline"); a click unfolds the switches and Anslut tillfällig utgång.
 

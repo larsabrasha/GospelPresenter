@@ -275,7 +275,6 @@ export function PresentationEditor({
     if (presenting) setPicked(itemId !== liveItemId && slides.get(itemId)?.slides.length ? { itemId, partIndex: 0 } : null);
   };
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
-  const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
   // A phone or an iPad held upright: one column with sheets, before and while presenting (docs/layout-2-0.md).
   const phone = !wide;
   const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
@@ -445,9 +444,7 @@ export function PresentationEditor({
             overlay={overlay}
             theme={theme}
             overlays={overlays}
-            canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
             cue={cueText}
-            onStep={step}
             open={panels.open.right}
             onFold={() => panels.toggle('right')}
           />

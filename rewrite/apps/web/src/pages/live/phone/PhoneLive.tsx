@@ -42,7 +42,7 @@ const ROW = 'w-full min-h-12 px-4 flex items-center gap-3.5 text-[17px] text-lef
 /**
  * A presentation on a phone or an iPad held upright, the same before and while it is presented (docs/layout-2-0.md):
  * the bar (back, the title that opens the presentation's menu, … with Utgångar first, and ■ to end, or ▶ to start),
- * while presenting the picture with ‹ Släck › under it, and the running order filling the rest. An item's … picks its
+ * while presenting the picture with Släck under it, and the running order filling the rest. An item's … picks its
  * arrangement and overlay and edits its song or pictures; it has no Byt namn, which confused (Lars, 2026-11-02).
  */
 export function PhoneLive({
@@ -160,17 +160,17 @@ export function PhoneLive({
       {/* Above the running order, so the buttons' shadows fall over it rather than being cut by its sticky headings. */}
       {presenting && (
       <div ref={pictureArea} className="relative z-[2] px-4 pt-3 shrink-0 landscape:w-[45%] landscape:pt-3">
-        {/* At most a fifth of the screen high, so a small phone keeps room for the running order (Lars, 2026-11-02);
-            lying down, as wide as its column. */}
+        {/* Upright, small at the left with its buttons at the right, so the running order keeps room to scroll (Lars,
+            2026-11-08); lying down, as wide as its column. */}
         <LivePicture
-          maxWidthClass="max-w-[calc(20svh*16/9)] landscape:max-w-none"
+          beside
           slide={current}
           theme={theme}
           overlay={overlay}
           black={pointer.black}
           onClear={() => live.set({ black: true })}
           testId="phone-live-picture"
-          // At the right end of ‹ Släck ›'s row (LivePicture).
+          // Under Släck upright, at the ends of its row lying down (LivePicture).
           leading={presentation.description ? <DescriptionGlyph onClick={() => setOpen('description')} /> : undefined}
           trailing={
             (owner || !!overlays.length) && <DisplayGlyph link={owner ? presenting.link : null} sessionId={owner?.sessionId ?? ''} pointer={pointer} onClick={() => setOpen('display')} />

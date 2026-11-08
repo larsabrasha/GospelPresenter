@@ -105,3 +105,22 @@ test('with both columns folded, an iPad lying down has three slides to a row, an
   await size(1376, 1032);
   await expect.poll(firstRow).toEqual({ count: 3, width: 384 });
 });
+
+test('the live column shows Släck under the picture and no arrows beside it', async () => {
+  // Arrange
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett'], ['Verse 2', 'A två']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+
+  // Act
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+
+  // Assert: a part is shown by a click on it or by the keys, as on a phone (Lars, 2026-11-08).
+  const live = page.getByTestId('live-panel');
+  await expect(live.getByRole('button', { name: 'Släck' })).toBeVisible();
+  await expect(live.getByRole('button', { name: 'Nästa bild' })).toHaveCount(0);
+  await expect(live.getByRole('button', { name: 'Föregående bild' })).toHaveCount(0);
+});

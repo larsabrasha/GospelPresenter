@@ -111,7 +111,7 @@ The rest:
   an e2e test.
 - The touch sizes of an iPad lying down follow `(pointer: coarse)` (the `touch:` variant in `app.css`), tested
   with Chromium's touch emulation in `live-order.spec.ts`, not on an iPad; they cover the live bar, the left
-  column, ‹ Släck › and the switches, not the editor.
+  column, Släck and the switches, not the editor.
 - Two translations with exactly the same text share it on a device, so keeping one shows the other as
   "Tillgänglig offline" too.
 - The English that is not the current app's was written for the rewrite and has not been read by an English

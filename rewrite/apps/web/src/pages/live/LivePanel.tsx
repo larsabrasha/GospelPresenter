@@ -15,7 +15,7 @@ import { RemoteStatus } from './RemotePanel.tsx';
 
 /**
  * The live column on a computer or an iPad lying down (docs/layout-2-0.md): what is used during a service and no
- * more. The picture shown with ‹ Släck ›, as on a phone (LivePicture), the overlays and the outputs folded to their
+ * more. The picture shown with Släck, as on a phone (LivePicture), the overlays and the outputs folded to their
  * state, and at the foot a quiet line for Fjärrstyrning, as the offline line in the left column (Lars, 2026-11-02).
  * Avsluta is in the bar.
  */
@@ -28,8 +28,6 @@ export function LivePanel({
   overlay,
   theme,
   overlays,
-  canStep,
-  onStep,
   cue,
   open = true,
   onFold,
@@ -42,8 +40,6 @@ export function LivePanel({
   overlay: CustomPage | null;
   theme: Theme;
   overlays: Overlay[];
-  canStep: { back: boolean; forward: boolean };
-  onStep: (delta: number) => void;
   /** The slide ↵ shows, said over the picture (useEditorKeys.ts). */
   cue?: string | null;
   /** Out, or folded off the right edge (ui/sidePanels.ts). */
@@ -60,7 +56,7 @@ export function LivePanel({
   // As wide at the right as at the left whatever the scrollbar, as the left column (app.css `--beside-scrollbar`).
   return (
     <aside ref={column} className="flex w-[340px] shrink-0 overflow-y-auto flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-safe-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
-      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} canStep={canStep} onStep={onStep} onClear={() => live.set({ black: true })} players={presenting} itemId={pointer.itemId} cue={cue} />
+      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} onClear={() => live.set({ black: true })} players={presenting} itemId={pointer.itemId} cue={cue} />
       {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
       {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}
