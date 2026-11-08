@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { emailSchema, inviteRefusal, removeUserRefusal, roleChangeRefusal, ROLES, userEditRefusal, type AuthState, type LoginMethod, type Me, type Role, type UserRow } from '@gp/core';
+import { accountRefusal, can, emailSchema, removeUserRefusal, roleChangeRefusal, ROLES, type AuthState, type LoginMethod, type Me, type MemberRole, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
@@ -13,7 +13,7 @@ import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
-import { acceptHere, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
+import { acceptHere, inviteUrl, timeLeft } from './Users.tsx';
 import { copyText } from '../ui/copyText.ts';
 
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
@@ -25,12 +25,12 @@ const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
 
 type Detail = { user: UserRow | string; logins: LoginMethod[] | string | null } | 'gone';
 
-/** The user and their logins, or why they cannot be shown. */
+/** The user and their logins, or why they cannot be shown; no logins where they are not the caller's to see. */
 async function fetchDetail(path: string): Promise<Detail> {
   try {
     const [u, l] = await Promise.all([api<UserRow>('GET', path), api<LoginMethod[]>('GET', `${path}/logins`)]);
     if (u.status === 404) return 'gone';
-    return { user: u.error ? errorText(u) : u.body, logins: l.error ? errorText(l) : l.body };
+    return { user: u.error ? errorText(u) : u.body, logins: l.status === 403 ? null : l.error ? errorText(l) : l.body };
   } catch {
     return { user: t('auth.offline'), logins: null };
   }
@@ -38,16 +38,18 @@ async function fetchDetail(path: string): Promise<Detail> {
 
 /**
  * One user of the organisation (spec 01 `/admin/users/{id}`, UserDetail.razor):
- * name and e-mail saved as they are typed, the role, the linked logins, the
- * invite while there are none, and Radera användare. Online only, as the list.
- * The server checks every change again; the page only stops offering what it
- * would refuse. Not here yet: the profile picture (profiles come later).
+ * the role and Radera användare for an Admin. The account is the person's
+ * (docs/accounts-and-roles.md): their name and e-mail, their logins and a link
+ * that replaces them are changed here only in superadminläge (on a desktop
+ * host also by an Admin, for someone only the host has). Online only, as the
+ * list. The server checks every change again; the page only stops offering
+ * what it would refuse. Not here yet: the profile picture (profiles come later).
  */
-export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean }) {
+export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; host: boolean; hostServer: boolean }) {
   const [user, setUser] = useState<UserRow | string | null>(null);
   const [logins, setLogins] = useState<LoginMethod[] | string | null>(null);
   /** The new invite's link, shown once (AUTH-R13): only until the page is left. A user just made comes with theirs. */
-  const [link, setLink] = useState<string | null>(() => freshInvite(id));
+  const [link, setLink] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -69,7 +71,6 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
   useEffect(() => {
     void fetchDetail(path).then(apply);
   }, [path, apply]);
-  useEffect(() => () => forgetInvite(id), [id]);
   useEffect(() => {
     api<AuthState>('GET', '/api/auth/state').then(
       (r) => setMail(!r.error && r.body.mail),
@@ -110,10 +111,15 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
 
   const actor = { id: me.userId, role: me.role };
   const self = user.id === me.userId;
-  const canEdit = !userEditRefusal(actor, user);
-  const roles = ROLES.filter((r) => r === user.role || !roleChangeRefusal(actor, user, r));
+  /** Name and e-mail: only in superadminläge (your own are under Mina inställningar). */
+  const canEdit = me.role === 'superAdmin';
+  /** Logins and a link that replaces them: yours, or someone's whose account you may change (`accountRefusal`). */
+  const canAccount = self || !accountRefusal(actor, { hostOnly: hostServer && user.onlyHere, superAdmin: user.superAdmin });
+  const manage = can(me.role, 'ManageUsers');
+  // The server knows how many Admins there are, and refuses the last one's demotion itself.
+  const roles = ROLES.filter((r) => r === user.role || !roleChangeRefusal(actor, user, r, 2));
 
-  const changeRole = async (role: Role) => {
+  const changeRole = async (role: MemberRole) => {
     setRoleError(null);
     try {
       const r = await api('PATCH', path, { role });
@@ -212,21 +218,18 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
           <>
             <FloatingInput label={t('users.name')} value={user.name} disabled readOnly />
             <FloatingInput label={t('users.email')} type="email" value={user.email ?? ''} disabled readOnly />
+            <div className="text-sm text-stone-500 -mt-2">{self ? t('userDetail.ownAccountHere') : t('userDetail.theirAccount')}</div>
           </>
         )}
         <div>
-          <FloatingSelect label={t('users.role')} value={user.role} disabled={self || !canEdit} onChange={(e) => void changeRole(e.target.value as Role)}>
+          <FloatingSelect label={t('users.role')} value={user.role} disabled={self || !manage} onChange={(e) => void changeRole(e.target.value as MemberRole)}>
             {roles.map((r) => (
               <option key={r} value={r}>
                 {t(`role.${r}`)}
               </option>
             ))}
           </FloatingSelect>
-          {self ? (
-            <div className="text-sm text-stone-500 mt-1">{t('users.ownRole')}</div>
-          ) : (
-            !canEdit && <div className="text-sm text-stone-500 mt-1">{t('userDetail.superAdminOnly')}</div>
-          )}
+          {self && <div className="text-sm text-stone-500 mt-1">{t('users.ownRole')}</div>}
           {roleError && (
             <div className={`${ERROR} mt-1`} role="alert">
               {roleError}
@@ -248,7 +251,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     <div>{providerName(l)}</div>
                     <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
                   </div>
-                  {canEdit && (
+                  {canAccount && (
                     <AppButton
                       variant="plain"
                       className={RED_TEXT}
@@ -299,7 +302,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                         </span>
                       )}
                     </div>
-                    {!inviteRefusal(actor, user) && (
+                    {canAccount && (
                       <AppButton
                         variant="plain"
                         className={RED_TEXT}
@@ -351,7 +354,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                       {!link && (
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.linkShownOnce')}</div>
-                          {!inviteRefusal(actor, user) && (
+                          {canAccount && (
                             <AppButton variant="secondary" onClick={() => void createInvite(true)}>
                               {t('userDetail.newLink')}
                             </AppButton>
@@ -363,12 +366,12 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                 </div>
               )}
               {/* The invite's actions as rows in sky, as iOS's actions in a group. */}
-              {(!invite || invite.expired) && !inviteRefusal(actor, user) && (
+              {(!invite || invite.expired) && canAccount && (
                 <AppButton variant="plain" className={ACTION_ROW} onClick={() => void createInvite()}>
                   {t('userDetail.createInvite')}
                 </AppButton>
               )}
-              {mail && user.email && !inviteRefusal(actor, user) && (
+              {mail && user.email && canAccount && (
                 <AppButton variant="plain" className={ACTION_ROW} loading={mailing} onClick={() => void mailInvite(user.email!)}>
                   {t('userDetail.mailInvite', { email: user.email })}
                 </AppButton>
@@ -378,7 +381,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
         </Group>
       )}
 
-      {!self && !removeUserRefusal(actor, user) && (
+      {!self && !removeUserRefusal(actor, user, 2) && (
         <Group footer={deleteError && <span className={ERROR}>{deleteError}</span>}>
           <AppButton
             variant="plain"

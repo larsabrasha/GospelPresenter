@@ -1,6 +1,6 @@
 # Bug reports ("Rapportera fel")
 
-Decided on 2026-11-05 (Lars): anyone signed in reports a problem, the SuperAdmin sees every report in one place, and
+Decided on 2026-11-05 (Lars): anyone signed in reports a problem, a Superadmin (in superadminläge) sees every report in one place, and
 a report carries what is needed to see the error and do the same again. Modelled on hovstaspelet's testpilot reports.
 No video for now (Lars chose "Ingen film nu").
 
@@ -32,17 +32,17 @@ showed; the user sees it first and may leave it out.
 where copied in (so a report outlives a deleted user or organisation), the screenshot as its data URL (at most
 `BUG_REPORT_LIMITS.shot`), and the state as JSON. The newest 500 are kept, with their threads. `POST /api/reports`
 takes one from anyone signed in; `GET /api/reports`, `GET`, `PATCH {done}` and
-`DELETE /api/reports/{id}` are the SuperAdmin's (ManageOrganizations).
+`DELETE /api/reports/{id}` are a Superadmin's in superadminläge (ManageOrganizations).
 
 **Felrapporter** (`/admin/reports`, `apps/web/src/pages/BugReports.tsx` and `BugReportDetail.tsx`), in Inställningar
-for the SuperAdmin: newest first, a dot on those not done; one opened shows the text, who and where, the screenshot,
+for the Superadmin: newest first, a dot on those not done; one opened shows the text, who and where, the screenshot,
 the steps before it with their seconds, and the whole state, with Markera som klar and Radera.
 
 **The thread** (Lars, 2026-11-05: answer the one who reported, as a chat). Each report has a thread between the
-SuperAdmin and the one who reported (`bug_report_messages`, at most 200 a report), shown as a chat on both sides
+Superadmin and the one who reported (`bug_report_messages`, at most 200 a report), shown as a chat on both sides
 (`apps/web/src/report/ReportThread.tsx`): on the report's page in Felrapporter, and under Mina inställningar → Mina
 felrapporter (`/my-reports`, `apps/web/src/pages/MyBugReports.tsx`), where a user sees only their own reports. An answer
-from the SuperAdmin (`POST /api/reports/{id}/messages`) is also mailed to the one who reported, when the server sends
+from the Superadmin (`POST /api/reports/{id}/messages`) is also mailed to the one who reported, when the server sends
 mail and they have an address, in the language their app had, with a link to the thread (`bugReplyMail`). Each side's
 last reading is kept (`admin_read_at`, `reporter_read_at`): opening the report reads it. Answers the user has not
 read put a blue dot on the picture in the bar and a row in its menu, asked for (`GET /api/my-reports/unread`) when the
@@ -51,6 +51,6 @@ one who reported (`POST /api/my-reports/{id}/messages`) shows in Felrapporter as
 marked done again.
 
 **Only signed in.** Every route asks for a session; nothing takes a report without one. A church's own desktop host
-keeps its reports, for its own SuperAdmin, and sends nothing on (Lars, 2026-11-05: first "Vidare till molnet", then
+keeps its reports, for its own Superadmin, and sends nothing on (Lars, 2026-11-05: first "Vidare till molnet", then
 "only those signed in may send", and few churches will run their own host). A key per host, made by the cloud's
-SuperAdmin, would let a host send them on later without an open door.
+Superadmin, would let a host send them on later without an open door.

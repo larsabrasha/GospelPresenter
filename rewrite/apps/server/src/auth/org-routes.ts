@@ -1,5 +1,5 @@
 // Organisations (spec 01 `/admin/organizations` and the switcher, decided on 2026-10-31): the ones the caller may
-// act in and the switch between them, and for a SuperAdmin the list, a new one, a new name and deleting one.
+// act in and the switch between them, and in superadminläge the list, a new one, a new name and deleting one.
 import type { Hono } from 'hono';
 import { orgNameRequest, switchOrgRequest, type SignInResponse } from '@gp/core';
 import { body, fail, type AuthKit } from './kit.ts';
@@ -7,10 +7,10 @@ import { body, fail, type AuthKit } from './kit.ts';
 export function orgRoutes(app: Hono, kit: AuthKit) {
   const { deps, accounts, withCaller } = kit;
 
-  /** The switcher's organisations: the caller's own, or every one for a SuperAdmin. */
+  /** The switcher's organisations: the caller's own, or every one in superadminläge. */
   app.get(
     '/api/auth/orgs',
-    withCaller(null, async (c, caller) => c.json(await accounts.members.orgsOf(caller.ctx.userId))),
+    withCaller(null, async (c, caller) => c.json(await accounts.members.orgsOf(caller.ctx.userId, caller.ctx.role === 'superAdmin'))),
   );
 
   /** A session in another organisation the caller may act in (SYNC-R1: the server decides; ORG-R7: the page reloads with it). */
@@ -21,7 +21,8 @@ export function orgRoutes(app: Hono, kit: AuthKit) {
       if (!a) return fail(c, 400, 'invalid-request');
       const s = await accounts.members.switchOrg(caller.sessionId, caller.ctx.userId, a.orgId);
       if (s === 'not-a-member') return fail(c, 403, 'not-a-member');
-      const role = (await accounts.members.roleIn(caller.ctx.userId, a.orgId))!;
+      const role = (await accounts.members.session(s.token))?.role;
+      if (!role) return fail(c, 403, 'not-a-member');
       const me = await accounts.members.me({ sessionId: s.sessionId, userId: caller.ctx.userId, orgId: a.orgId, role });
       return me ? c.json({ token: s.token, me } satisfies SignInResponse) : fail(c, 404, 'not-found');
     }),

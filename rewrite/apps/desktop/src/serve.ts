@@ -24,6 +24,8 @@ const server = await startHost({
     process.env.GP_PASSKEY_RP_ID && process.env.GP_PASSKEY_ORIGINS
       ? { rpId: process.env.GP_PASSKEY_RP_ID, origins: process.env.GP_PASSKEY_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) }
       : undefined,
+  // The Superadmins (docs/accounts-and-roles.md): their addresses, comma-separated. Without them the mark setup gave counts.
+  superAdmins: process.env.GP_SUPER_ADMINS ? process.env.GP_SUPER_ADMINS.split(',').map((e) => e.trim()).filter(Boolean) : undefined,
   // E-mail through Resend: GP_RESEND_API_KEY, GP_MAIL_FROM and GP_APP_URL (the address links point at), all three or none.
   mail: mailConfigFrom({ apiKey: process.env.GP_RESEND_API_KEY, from: process.env.GP_MAIL_FROM, appUrl: process.env.GP_APP_URL, endpoint: process.env.GP_RESEND_URL }),
 });

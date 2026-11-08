@@ -18,13 +18,22 @@ async function fresh(driver: NodeDriver) {
   const accounts = new Accounts(sql, { now: () => clock.now });
   const setup = await accounts.members.setup({ name: 'Anna', orgName: 'Lilla Kyrkan' });
   if (setup === 'setup-done') throw new Error('setup');
-  // The SuperAdmin links Google through the setup invite.
+  // The Superadmin links Google through the setup invite.
   const linked = await accounts.signIn.signInWithGoogle(google('anna'), await sha256(setup.inviteToken));
   if (typeof linked === 'string') throw new Error(linked);
   return { clock, accounts, ...setup };
 }
 
 const google = (sub: string, email: string | null = `${sub}@gmail.com`) => ({ sub: `sub-${sub}`, email, name: sub });
+
+/** Someone invited to `orgId` who made their account with the Google account `sub`; their user id. */
+async function newMember(accounts: Accounts, orgId: string, by: string, sub: string): Promise<string> {
+  const inv = await accounts.invitations.create(orgId, { email: `${sub}@x.se`, role: 'user', mailed: false, byUserId: by });
+  if (typeof inv === 'string') throw new Error(inv);
+  const r = await accounts.signIn.signInWithGoogle(google(sub), await sha256(inv.token));
+  if (typeof r === 'string') throw new Error(r);
+  return r.userId;
+}
 
 describe('crypto', () => {
   it('the PKCE challenge is RFC 7636\'s S256: base64url of the SHA-256, no padding', async () => {
@@ -38,7 +47,7 @@ describe('crypto', () => {
 });
 
 describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (driver) => {
-  it('setup happens once: a second setup after the SuperAdmin linked Google creates nothing', async () => {
+  it('setup happens once: a second setup after its Superadmin linked Google creates nothing', async () => {
     const { accounts } = await fresh(driver);
     expect(await accounts.members.setupDone()).toBe(true);
     expect(await accounts.members.setup({ name: 'Eve', orgName: 'Evil' })).toBe('setup-done');
@@ -46,7 +55,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.sql.all('SELECT count(*) AS n FROM orgs')).toEqual([{ n: 1 }]);
   });
 
-  it('a setup left before signing in can be done again: same SuperAdmin and organisation, only the newest invite works', async () => {
+  it('a setup left before signing in can be done again: same Superadmin and organisation, only the newest invite works', async () => {
     const sql = nodeGlobalSql(openSqlite(':memory:', driver));
     await migrateGlobal(sql);
     const accounts = new Accounts(sql);
@@ -69,21 +78,42 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.signIn.signInWithGoogle(google('nobody'), null)).toBe('not-linked');
   });
 
-  it('an invite links one Google account; one already linked to someone else is refused and the invite is kept', async () => {
-    const { accounts, orgId } = await fresh(driver);
-    const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
-    expect(await accounts.signIn.signInWithGoogle(google('anna'), await sha256(bo.inviteToken))).toBe('login-taken');
-    expect(await accounts.members.invite(bo.inviteToken)).toMatchObject({ state: 'valid' });
-    expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(bo.inviteToken))).toEqual({ userId: bo.id, orgId });
-    expect(await accounts.sql.all('SELECT email FROM users WHERE id = ?', [bo.id])).toEqual([{ email: 'bo@x.se' }]); // kept, not overwritten
-    expect(await accounts.signIn.signInWithGoogle(google('bo'), null)).toEqual({ userId: bo.id, orgId });
+  it('an invitation: an account one has gains the membership, keeping its role; a new Google account makes a new account', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const forBo = await accounts.invitations.create(orgId, { email: 'bo@x.se', role: 'user', mailed: false, byUserId: userId });
+    if (typeof forBo === 'string') throw new Error(forBo);
+    expect(await accounts.signIn.signInWithGoogle(google('anna'), await sha256(forBo.token))).toEqual({ userId, orgId });
+    expect(await accounts.members.member(userId, orgId)).toMatchObject({ role: 'admin' });
+    expect(await accounts.invitations.lookup(forBo.token)).toEqual({ state: 'invalid' });
+
+    const again = await accounts.invitations.create(orgId, { email: 'bo@x.se', role: 'user', mailed: false, byUserId: userId });
+    if (typeof again === 'string') throw new Error(again);
+    const bo = await accounts.signIn.signInWithGoogle(google('bo'), await sha256(again.token));
+    if (typeof bo === 'string') throw new Error(bo);
+    expect(bo.userId).not.toBe(userId);
+    // A copied link vouches for nothing: Google's own address is the one confirmed.
+    expect(await accounts.sql.all('SELECT name, email, email_confirmed FROM users WHERE id = ?', [bo.userId])).toEqual([{ name: 'bo', email: 'bo@gmail.com', email_confirmed: 1 }]);
+    expect(await accounts.signIn.signInWithGoogle(google('bo'), null)).toEqual(bo);
+  });
+
+  it('an invitation whose link went only by mail confirms its address; an expired one is refused', async () => {
+    const { accounts, clock, orgId, userId } = await fresh(driver);
+    const inv = await accounts.invitations.create(orgId, { email: 'cy@x.se', role: 'user', mailed: true, byUserId: userId });
+    if (typeof inv === 'string') throw new Error(inv);
+    const cy = await accounts.signIn.signInWithGoogle(google('cy'), await sha256(inv.token));
+    if (typeof cy === 'string') throw new Error(cy);
+    expect(await accounts.sql.all('SELECT email, email_confirmed FROM users WHERE id = ?', [cy.userId])).toEqual([{ email: 'cy@x.se', email_confirmed: 1 }]);
+    const late = await accounts.invitations.create(orgId, { email: 'dy@x.se', role: 'user', mailed: true, byUserId: userId });
+    if (typeof late === 'string') throw new Error(late);
+    clock.now += ACCOUNT_LIMITS.inviteTtlMs;
+    expect(await accounts.invitations.lookup(late.token)).toEqual({ state: 'expired' });
+    expect(await accounts.signIn.signInWithGoogle(google('dy'), await sha256(late.token))).toBe('invite-expired');
   });
 
   it('a session is refused once revoked, once idle too long, and once its user is deleted; use renews it', async () => {
     const { accounts, clock, userId, orgId } = await fresh(driver);
     const a = await accounts.members.createSession(userId, orgId, 'Mac');
-    expect(await accounts.members.session(a.token)).toMatchObject({ userId, orgId, role: 'superAdmin' });
+    expect(await accounts.members.session(a.token)).toMatchObject({ userId, orgId, role: 'admin', superUntil: null });
     // Used at day 80, so day 160 is still within 90 idle days.
     clock.now += 80 * DAY;
     expect(await accounts.members.session(a.token)).not.toBeNull();
@@ -99,6 +129,26 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.members.session('not a token')).toBeNull();
   });
 
+  it('superadminläge ends by itself after an hour', async () => {
+    const { accounts, clock, userId, orgId } = await fresh(driver);
+    const s = await accounts.members.createSession(userId, orgId, 'Mac');
+    await accounts.members.setSuperMode(s.sessionId, clock.now + ACCOUNT_LIMITS.superModeMs);
+    expect(await accounts.members.session(s.token)).toMatchObject({ role: 'superAdmin' });
+    clock.now += ACCOUNT_LIMITS.superModeMs;
+    expect(await accounts.members.session(s.token)).toMatchObject({ role: 'admin', superUntil: null });
+  });
+
+  it('with Superadmins in the configuration, only an account that confirmed one of their addresses is one; the mark counts for nothing', async () => {
+    const { accounts, userId } = await fresh(driver);
+    expect(await accounts.members.isSuperAdmin(userId)).toBe(true); // the mark setup gave
+    const configured = new Accounts(accounts.sql, { superAdmins: ['Anna@Gmail.com'] });
+    expect(await configured.members.isSuperAdmin(userId)).toBe(true); // Google confirmed anna@gmail.com
+    await accounts.sql.run('UPDATE users SET email_confirmed = 0 WHERE id = ?', [userId]);
+    expect(await configured.members.isSuperAdmin(userId)).toBe(false);
+    expect(await new Accounts(accounts.sql, { superAdmins: ["o'brien@x.se"] }).members.isSuperAdmin(userId)).toBe(false);
+    expect(await new Accounts(accounts.sql, { superAdmins: [] }).members.isSuperAdmin(userId)).toBe(false);
+  });
+
   it('at most 10 active sessions per user: the least recently used is revoked (AUTH-R8)', async () => {
     const { accounts, clock, userId, orgId } = await fresh(driver);
     const sessions = [];
@@ -110,64 +160,104 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     for (const s of sessions.slice(1)) expect(await accounts.members.session(s.token)).not.toBeNull();
   });
 
-  it('an invite is valid for 7 days and once; using it replaces the Google account and revokes other sessions', async () => {
-    const { accounts, clock, orgId } = await fresh(driver);
-    const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
-    expect(await accounts.members.invite(bo.inviteToken)).toEqual({ state: 'valid', name: 'Bo', orgName: 'Lilla Kyrkan', email: 'bo@x.se' });
-
+  it('a reset link is valid for 7 days and once; using it replaces the Google account and revokes other sessions', async () => {
+    const { accounts, clock, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    const first = await accounts.members.createInvite(bo, orgId);
+    if (first === 'limit') throw new Error('limit');
+    expect(await accounts.members.invite(first)).toEqual({ state: 'valid', kind: 'reset', name: 'bo', orgName: 'Lilla Kyrkan', email: 'bo@gmail.com' });
     clock.now += ACCOUNT_LIMITS.inviteTtlMs;
-    expect(await accounts.members.invite(bo.inviteToken)).toEqual({ state: 'expired' });
-    expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(bo.inviteToken))).toBe('invite-expired');
+    expect(await accounts.members.invite(first)).toEqual({ state: 'expired' });
+    expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(first))).toBe('invite-expired');
 
-    const second = await accounts.members.createInvite(bo.id, orgId);
+    const old = await accounts.members.createSession(bo, orgId, 'old phone');
+    const second = await accounts.members.createInvite(bo, orgId);
     if (second === 'limit') throw new Error('limit');
-    expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(second))).toEqual({ userId: bo.id, orgId });
-    const old = await accounts.members.createSession(bo.id, orgId, 'old phone');
-
-    // A new invite is the reset: Bo's new Google account replaces the old one, and his sessions end.
-    const third = await accounts.members.createInvite(bo.id, orgId);
-    if (third === 'limit') throw new Error('limit');
-    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), await sha256(third))).toEqual({ userId: bo.id, orgId });
+    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), await sha256(second))).toEqual({ userId: bo, orgId });
     expect(await accounts.members.session(old.token)).toBeNull();
     expect(await accounts.signIn.signInWithGoogle(google('bo'), null)).toBe('not-linked');
-    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), null)).toEqual({ userId: bo.id, orgId });
-    expect(await accounts.members.invite(third)).toEqual({ state: 'invalid' });
-    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), await sha256(third))).toBe('invite-invalid'); // replayed
+    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), null)).toEqual({ userId: bo, orgId });
+    expect(await accounts.members.invite(second)).toEqual({ state: 'invalid' });
+    expect(await accounts.signIn.signInWithGoogle(google('bo-new'), await sha256(second))).toBe('invite-invalid'); // replayed
     expect(await accounts.members.invite('gpin_unknown')).toEqual({ state: 'invalid' });
   });
 
-  it('at most 20 unused invites per user, expired ones included (AUTH-R3); 100 users per organisation (ORG-R10)', async () => {
-    const { accounts, orgId } = await fresh(driver);
-    const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
-    for (let i = 1; i < ACCOUNT_LIMITS.unusedInvitesPerUser; i++) expect(await accounts.members.createInvite(bo.id, orgId)).toMatch(/^gpin_/);
-    expect(await accounts.members.createInvite(bo.id, orgId)).toBe('limit');
+  it('at most 20 unused reset links per user (AUTH-R3); members and invitations together at most 100 per organisation (ORG-R10)', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    for (let i = 0; i < ACCOUNT_LIMITS.unusedInvitesPerUser; i++) expect(await accounts.members.createInvite(bo, orgId)).toMatch(/^gpin_/);
+    expect(await accounts.members.createInvite(bo, orgId)).toBe('limit');
 
     for (let i = 2; i < ACCOUNT_LIMITS.usersPerOrg; i++) {
-      expect(typeof (await accounts.members.createUser(orgId, { name: `U${i}`, email: `u${i}@x.se`, role: 'user' }))).toBe('object');
+      expect(typeof (await accounts.invitations.create(orgId, { email: `u${i}@x.se`, role: 'user', mailed: false, byUserId: userId }))).toBe('object');
     }
-    expect(await accounts.members.createUser(orgId, { name: 'One too many', email: 'more@x.se', role: 'user' })).toBe('limit');
-    expect(await accounts.sql.all('SELECT count(*) AS n FROM users WHERE email = ?', ['more@x.se'])).toEqual([{ n: 0 }]);
+    expect(await accounts.invitations.create(orgId, { email: 'more@x.se', role: 'user', mailed: false, byUserId: userId })).toBe('limit');
+    // An invitation to the same address again replaces the old one, so it fits.
+    expect(typeof (await accounts.invitations.create(orgId, { email: 'u2@x.se', role: 'admin', mailed: false, byUserId: userId }))).toBe('object');
   });
 
-  it('an email belongs to one user', async () => {
-    const { accounts, orgId } = await fresh(driver);
-    expect(await accounts.members.createUser(orgId, { name: 'Anna 2', email: 'anna@gmail.com', role: 'user' })).toBe('email-taken');
+  it('the last Admin stays one even when asked twice: the role change and the removal check it in their own statement', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    await accounts.members.setRole(bo, orgId, 'admin');
+
+    expect(await accounts.members.setRole(userId, orgId, 'user')).toBe('ok');
+    expect(await accounts.members.setRole(bo, orgId, 'user')).toBe('last-admin');
+    expect(await accounts.members.removeMember(bo, orgId)).toBe('last-admin');
+    expect(await accounts.members.member(bo, orgId)).toMatchObject({ role: 'admin' });
+    expect(await accounts.sql.all('SELECT count(*) AS n FROM users WHERE id = ?', [bo])).toEqual([{ n: 1 }]);
+    expect(await accounts.members.removeMember(userId, orgId)).toBe('ok');
   });
 
-  it('deleting a user takes their logins, sessions, invites and membership', async () => {
-    const { accounts, orgId } = await fresh(driver);
-    const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'admin' });
-    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
-    const s = await accounts.members.createSession(bo.id, orgId, 'x');
-    const invite = await accounts.members.createInvite(bo.id, orgId);
-    expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(invite as string))).toMatchObject({ userId: bo.id });
-    await accounts.members.deleteUser(bo.id);
+  it('an invitation is not accepted into a full organisation, and stays usable', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const inv = await accounts.invitations.create(orgId, { email: 'late@x.se', role: 'user', mailed: false, byUserId: userId });
+    if (typeof inv === 'string') throw new Error(inv);
+    for (let i = 1; i < ACCOUNT_LIMITS.usersPerOrg; i++) await accounts.members.createLocalUser(orgId, { name: `U${i}`, email: null, role: 'user' });
+
+    expect(await accounts.signIn.signInWithGoogle(google('late'), await sha256(inv.token))).toBe('limit');
+    expect(await accounts.invitations.lookup(inv.token)).toMatchObject({ state: 'valid' });
+  });
+
+  it('only a confirmed address is unique: an unconfirmed one may be on two accounts; a link confirms it unless another account has', async () => {
+    const { accounts, clock, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    await accounts.members.updateUser(bo, { email: 'anna@gmail.com' });
+    expect(await accounts.sql.all('SELECT email, email_confirmed FROM users WHERE id = ?', [bo])).toEqual([{ email: 'anna@gmail.com', email_confirmed: 0 }]);
+    // Anna's is confirmed, so Bo gets no link and Google cannot confirm it for him.
+    expect(await accounts.emails.startConfirm(bo, 'anna@gmail.com')).toBeNull();
+    await accounts.emails.vouch(bo, 'anna@gmail.com');
+    expect(await accounts.sql.all('SELECT email_confirmed FROM users WHERE id = ?', [bo])).toEqual([{ email_confirmed: 0 }]);
+    // A free address: the link sets it, confirmed, once; an expired link does nothing.
+    const link = await accounts.emails.startConfirm(bo, 'bo@new.se');
+    expect(await accounts.emails.confirm(link!)).toEqual({ userId: bo });
+    expect(await accounts.sql.all('SELECT email, email_confirmed FROM users WHERE id = ?', [bo])).toEqual([{ email: 'bo@new.se', email_confirmed: 1 }]);
+    expect(await accounts.emails.confirm(link!)).toBe('invalid');
+    const late = await accounts.emails.startConfirm(bo, 'bo@later.se');
+    clock.now += ACCOUNT_LIMITS.emailLinkTtlMs;
+    expect(await accounts.emails.confirm(late!)).toBe('invalid');
+    // Two accounts each with a link to one address: the second to open it is refused.
+    const cy = await newMember(accounts, orgId, userId, 'cy');
+    const forBo = await accounts.emails.startConfirm(bo, 'shared@x.se');
+    const forCy = await accounts.emails.startConfirm(cy, 'shared@x.se');
+    expect(await accounts.emails.confirm(forBo!)).toEqual({ userId: bo });
+    expect(await accounts.emails.confirm(forCy!)).toBe('email-taken');
+    // "Glömt hur du loggar in?" finds only a confirmed address.
+    await accounts.members.updateUser(cy, { email: 'cy@x.se' });
+    expect(await accounts.members.userByEmail('cy@x.se')).toBeNull();
+    expect(await accounts.members.userByEmail('shared@x.se')).toMatchObject({ id: bo });
+  });
+
+  it('deleting a user takes their logins, sessions, reset links and membership', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    const s = await accounts.members.createSession(bo, orgId, 'x');
+    const reset = await accounts.members.createInvite(bo, orgId);
+    await accounts.members.deleteUser(bo);
     expect(await accounts.signIn.signInWithGoogle(google('bo'), null)).toBe('not-linked');
     expect(await accounts.members.session(s.token)).toBeNull();
-    expect(await accounts.members.invite(bo.inviteToken)).toEqual({ state: 'invalid' });
-    expect(await accounts.members.member(bo.id, orgId)).toBeNull();
+    expect(await accounts.members.invite(reset as string)).toEqual({ state: 'invalid' });
+    expect(await accounts.members.member(bo, orgId)).toBeNull();
   });
 
   it('throttling: 20 failures lock an address for 15 minutes; a failure after the window starts counting again', async () => {
@@ -292,8 +382,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
 
     await accounts.members.revokeSession(sessionId);
     expect(await accounts.logins.add(userId, sessionId, pk('late'))).toBe('unauthenticated');
-    const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
+    const bo = (await accounts.members.createLocalUser(orgId, { name: 'Bo', email: null, role: 'user' })) as { id: string };
     const boSession = await accounts.members.createSession(bo.id, orgId, 'Mac');
     expect(await accounts.logins.add(bo.id, boSession.sessionId, { provider: 'google', subject: 'sub-anna', name: null })).toBe('login-taken');
     expect(await accounts.logins.add(userId, boSession.sessionId, pk('x'))).toBe('unauthenticated'); // someone else's session

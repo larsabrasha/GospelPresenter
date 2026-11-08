@@ -20,7 +20,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { ROLE_VALUE } from './Users.tsx';
 import { ROW_HOVER, RowChevron } from '../ui/List.tsx';
 
-// The SuperAdmin's organisations (spec 01 `/admin/organizations`, Organizations.razor and OrganizationDetail.razor;
+// The Superadmin's organisations (spec 01 `/admin/organizations`, Organizations.razor and OrganizationDetail.razor;
 // decided on 2026-10-31). Online only: organisations are not synced (spec 06). No logo yet (GAPS.md: later).
 
 /** An organisation's round mark: its first letter (OrganizationAvatar.razor without a logo). */
@@ -42,7 +42,7 @@ export async function load<T>(path: string): Promise<T | string> {
   }
 }
 
-/** "Skapa organisation": the name; Skapa makes it and opens its users, as the SuperAdmin visiting it (Organizations.razor). */
+/** "Skapa organisation": the name; Skapa makes it and opens its users, as the Superadmin visiting it (Organizations.razor). */
 function CreateOrgDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +127,7 @@ export function Orgs() {
 
 /**
  * "Radera organisation" (OrganizationDetail.razor): what goes, and Radera once the name is typed exactly. Deleting the
- * organisation the SuperAdmin is in moves them to another first, which they then are in.
+ * organisation the Superadmin is in moves them to another first, which they then are in.
  */
 function DeleteOrgDialog({ org, me, onClose }: { org: OrgRow; me: Me; onClose: () => void }) {
   const toast = useToast();

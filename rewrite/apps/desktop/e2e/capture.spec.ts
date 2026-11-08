@@ -137,6 +137,7 @@ test('capture every page', async () => {
     await create.getByLabel('Namn').fill('Eva');
     await create.getByLabel('E-post').fill('eva@kyrkan.se');
     await create.getByRole('button', { name: 'Skapa', exact: true }).click();
+    await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
     await page.getByRole('button', { name: 'Logga in som Eva här' }).click();
     await page.getByRole('heading', { name: 'Välkommen Eva!' }).waitFor();
     const url = new URL(page.url());

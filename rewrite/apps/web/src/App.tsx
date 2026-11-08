@@ -53,6 +53,7 @@ import { BugReportDetail } from './pages/BugReportDetail.tsx';
 import { MyBugReportPage, MyBugReports } from './pages/MyBugReports.tsx';
 import { PageDialog } from './ui/Dialog.tsx';
 import { TopBar } from './TopBar.tsx';
+import { SuperModeLine } from './SuperModeLine.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { settingsGroups } from './pages/settings/settingsLinks.ts';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
@@ -99,6 +100,8 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
   }, [db]);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
+  /** A desktop host's server (`PairStatus.required`), whichever device asks; null until it has answered. */
+  const [hostServer, setHostServer] = useState<boolean | null>(null);
   // Whether the intro card's title of a page in Inställningar is in view: the bar names the page only once it is not.
   const [introTitleInView, setIntroTitleInView] = useState(false);
 
@@ -111,8 +114,11 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       })
       .catch(() => undefined); // offline: keep the stored identity
     api<PairStatus>('GET', '/api/pair/status')
-      .then((r) => setHost(!r.error && r.body.host))
-      .catch(() => undefined);
+      .then((r) => {
+        setHost(!r.error && r.body.host);
+        setHostServer(!r.error && r.body.required);
+      })
+      .catch(() => setHostServer(false));
   }, []);
 
   // A file dropped outside a drop zone must not make the browser open it and leave the app.
@@ -121,15 +127,23 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
   const admin = (
     <>
       {(route.page === 'songs' || route.page === 'admin') && <Songs />}
-      {route.page === 'settings' && <Settings />}
+      {route.page === 'settings' && (
+        <Settings
+          me={me}
+          onMe={(m) => {
+            updateMe(m);
+            setMe(m);
+          }}
+        />
+      )}
       {route.page === 'logins' && <Logins error={route.error} />}
       {route.page === 'storage' && <Storage />}
       {route.page === 'myReports' && <MyBugReports />}
       {route.page === 'myReport' && <MyBugReportPage key={route.id} id={route.id} />}
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
-      {route.page === 'users' && (viewUsers ? <Users me={me} /> : <Refused text={t('users.forbidden')} />)}
-      {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
+      {route.page === 'users' && (viewUsers ? <Users me={me} hostServer={hostServer} /> : <Refused text={t('users.forbidden')} />)}
+      {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} hostServer={!!hostServer} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'bible' && (can(me.role, 'ManageBibles') ? <BibleDetail key={route.id} id={route.id} /> : <Refused text={t('bibles.forbidden')} />)}
@@ -173,6 +187,7 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       <UnexpectedError />
       <RejectedChanges />
       <BugReportHost me={me} live={live} />
+      <SuperModeLine me={me} />
       {/* Out of reach under the dialog, for the keyboard and screen readers too. */}
       <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
         {/* A presentation has its own bar (PresentationBar, PhoneLive); the warnings stay under it. */}

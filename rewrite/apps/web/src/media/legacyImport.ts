@@ -92,7 +92,7 @@ export interface LegacyProgress {
 export interface LegacyImportResult {
   manifest: LegacyManifest;
   /** What became of the users (`/api/import/users`). */
-  users: { created: number; member: number; kept: number; limit: number };
+  users: { created: number; member: number; kept: number; invited: number; limit: number };
 }
 
 const json = async (e: Entry | undefined) => {

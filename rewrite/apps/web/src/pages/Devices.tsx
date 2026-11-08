@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { inviteRefusal, type Me, type PairedDevice, type UserRow } from '@gp/core';
+import { accountRefusal, type Me, type PairedDevice, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { locale, t } from '../i18n.ts';
@@ -16,14 +16,14 @@ import { useToast } from '../ui/Toast.tsx';
 
 const when = (ms: number) => new Date(ms).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' });
 
-/** Who the new device will be signed in as: the caller, or a member they may make an invite for (D20, D21). */
+/** Who the new device will be signed in as: the caller, or a member whose account they may reset (`accountRefusal`). */
 function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: string; expiresAt: number; name: string }) => void; onClose: () => void }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [userId, setUserId] = useState(me.userId);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     api<UserRow[]>('GET', '/api/users').then(
-      (r) => !r.error && setUsers(r.body.filter((u) => u.id === me.userId || !inviteRefusal({ id: me.userId, role: me.role }, u))),
+      (r) => !r.error && setUsers(r.body.filter((u) => u.id === me.userId || !accountRefusal({ id: me.userId, role: me.role }, { hostOnly: u.onlyHere, superAdmin: u.superAdmin }))),
       () => undefined,
     );
   }, [me]);

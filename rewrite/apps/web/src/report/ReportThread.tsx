@@ -4,7 +4,7 @@ import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Group } from '../ui/Group.tsx';
 
-// A bug report's thread (docs/bug-reports.md), the same on both sides: the SuperAdmin's page of the report and the
+// A bug report's thread (docs/bug-reports.md), the same on both sides: the Superadmin's page of the report and the
 // reporter's Mina felrapporter. One's own messages on the right in blue, the other side's on the left, as a chat.
 
 const when = (ms: number) => new Date(ms).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' });

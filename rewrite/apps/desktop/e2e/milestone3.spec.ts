@@ -163,6 +163,7 @@ test('invites on the host: the invited person signs in with Google here, and the
   await dialog.getByLabel('Namn').fill('Eva');
   await dialog.getByLabel('E-post').fill('eva@kyrkan.se');
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await host.page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
   await host.page.getByTestId('invite').getByRole('button', { name: 'Logga in som Eva här' }).click();
   await expect(host.page.getByRole('heading', { name: 'Välkommen Eva!' })).toBeVisible();
   // InvitePage.razor: the organisation, "Välj hur du vill logga in", the first way and the rest behind "Fler alternativ".
@@ -179,7 +180,7 @@ test('invites on the host: the invited person signs in with Google here, and the
   await expect(host.page.getByTestId('me')).toHaveAccessibleName('Eva · Lilla Kyrkan');
 });
 
-test('creating a user: every role is described, and a bad or taken address is said under its field before anyone is created', async () => {
+test('creating a person on the host: every role is described, and a bad address is said under its field before anyone is created', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -187,20 +188,16 @@ test('creating a user: every role is described, and a bad or taken address is sa
   await openAdmin(page, 'Användare');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
-  // The roles this SuperAdmin may give, each with its bold label (Users.razor).
+  // The roles a membership can have, each with its bold label (Users.razor); Superadmin is no role to give.
   await expect(dialog.getByTestId('role-descriptions').locator('div')).toHaveText([
     'Användare: Kan skapa presentationer och hantera sånger och överlägg.',
     'Admin: Allt en användare kan göra, plus hantera mallar och användare.',
-    'Superadmin: Full åtkomst, inklusive hantering av organisationer.',
   ]);
-  await expect(dialog.getByTestId('role-descriptions').locator('.font-medium')).toHaveText(['Användare:', 'Admin:', 'Superadmin:']);
+  await expect(dialog.getByTestId('role-descriptions').locator('.font-medium')).toHaveText(['Användare:', 'Admin:']);
   await dialog.getByLabel('Namn').fill('Eva igen');
   await dialog.getByLabel('E-post').fill('inte-en-adress');
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
   await expect(dialog.getByRole('alert')).toHaveText('Ogiltig e-postadress');
-  await dialog.getByLabel('E-post').fill('eva@kyrkan.se');
-  await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await expect(dialog.getByRole('alert')).toHaveText('E-postadressen används redan av en annan användare');
   await dialog.getByRole('button', { name: 'Avbryt' }).click();
   await expect(page.getByRole('list', { name: 'Användare' }).getByRole('listitem')).toHaveCount(2);
 });

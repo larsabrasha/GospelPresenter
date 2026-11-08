@@ -2,6 +2,8 @@
 import { ACCOUNT_LIMITS } from '@gp/core';
 import { BugReportService } from './bug-reports.ts';
 import { DebugService } from './debug.ts';
+import { EmailService } from './emails.ts';
+import { InvitationService } from './invitations.ts';
 import { LegacyUserService } from './legacy-users.ts';
 import { LoginService } from './logins.ts';
 import { MemberService } from './members.ts';
@@ -15,6 +17,11 @@ export interface AccountOptions {
   now?: () => number;
   /** A session unused for this long is refused (ACCOUNT_LIMITS.sessionIdleMs by default). */
   sessionIdleMs?: number;
+  /**
+   * The Superadmins' addresses, from the server's configuration (`GP_SUPER_ADMINS`): only an account that has
+   * confirmed one of them is a Superadmin. Absent: the mark in the database counts (a desktop host: whoever ran setup).
+   */
+  superAdmins?: readonly string[] | null;
 }
 
 /**
@@ -25,6 +32,10 @@ export interface AccountOptions {
 export class Accounts {
   readonly now: () => number;
   readonly members: MemberService;
+  /** Invitations: pending memberships of an address. */
+  readonly invitations: InvitationService;
+  /** Confirming a person's own address, and the Superadmins' log. */
+  readonly emails: EmailService;
   readonly signIn: SignInService;
   readonly logins: LoginService;
   readonly passkeys: PasskeyService;
@@ -42,8 +53,10 @@ export class Accounts {
     opts: AccountOptions = {},
   ) {
     const now = (this.now = opts.now ?? Date.now);
-    this.members = new MemberService(sql, now, opts.sessionIdleMs ?? ACCOUNT_LIMITS.sessionIdleMs);
-    this.signIn = new SignInService(sql, now);
+    this.members = new MemberService(sql, now, opts.sessionIdleMs ?? ACCOUNT_LIMITS.sessionIdleMs, opts.superAdmins ?? null);
+    this.emails = new EmailService(sql, now);
+    this.invitations = new InvitationService(sql, now, this.emails);
+    this.signIn = new SignInService(sql, now, this.invitations, this.emails);
     this.logins = new LoginService(sql, now);
     this.passkeys = new PasskeyService(sql, now);
     this.throttle = new ThrottleService(sql, now);

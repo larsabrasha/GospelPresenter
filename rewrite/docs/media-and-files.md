@@ -47,7 +47,7 @@ that waits longer than the hour (a laptop asleep) still finds them. A device als
 organisation's queue, as every write does; it is rare enough that this is not worth the race of running it
 outside.
 
-**In the app.** Bilder (everyone may see and import: User, Admin and SuperAdmin, as spec 05): a grid of
+**In the app.** Bilder (everyone may see and import: User, Admin and Superadmin, as spec 05): a grid of
 thumbnails, newest first, import by button or by dropping files on the page, "Importerar i av n...", failures
 listed with their reason, search by file name, "⋯" moves to the trash without confirmation. Bilder, Videor and Bildspel, and the add dialog's
 Bild, Video and Bildspel, show as a list, a grid or one large picture per row (`ui/ViewPicker.tsx`), each view's

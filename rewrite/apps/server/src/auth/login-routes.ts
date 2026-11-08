@@ -24,7 +24,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
     }),
   );
 
-  /** Removes one of your own logins, never the last one: then only an admin's new invite would let you in. */
+  /** Removes one of your own logins, never the last one: then only a reset link would let you in. */
   app.delete(
     '/api/auth/logins/:provider/:id',
     withCaller(null, async (c, caller) => {
@@ -55,15 +55,17 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
 
   // -------------------------------------------------------------- invites (the token travels in a body, not a URL)
 
+  /** What a link is: an invitation, or a reset link. */
   app.post('/api/auth/invites/lookup', async (c) => {
-    const token = (await c.req.json().catch(() => null))?.token;
-    return c.json(await accounts.members.invite(typeof token === 'string' ? token : ''));
+    const raw = (await c.req.json().catch(() => null))?.token;
+    const token = typeof raw === 'string' ? raw : '';
+    return c.json((await accounts.invitations.lookup(token)) ?? (await accounts.members.invite(token)));
   });
 
   /**
-   * "Glömt hur du loggar in?" (decided on 2026-10-31): a new invite to the user with this e-mail address, which they
-   * accept with Google or a new passkey, as an admin's new invite. The answer is the same whether the address has an
-   * account or not; every ask counts against the address it came from and the e-mail address it names.
+   * "Glömt hur du loggar in?" (decided on 2026-10-31): a reset link to the user who has confirmed this address, which
+   * they use with Google or a new passkey. The answer is the same whether the address has an account or not; every ask
+   * counts against the address it came from and the e-mail address it names.
    */
   app.post('/api/auth/recover', async (c) => {
     const mail = deps.mail;

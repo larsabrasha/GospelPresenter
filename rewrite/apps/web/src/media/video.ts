@@ -98,22 +98,17 @@ async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'w
   video.playsInline = true;
   video.preload = 'auto';
   try {
+    // Its size and length first. iOS Safari seems to load no more than that of a video nobody plays, whatever `preload`
+    // says, and waiting for a frame here (`loadeddata`) refused an H.264 video from an iPhone (2026-11-08).
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new VideoRefused('decode')), 30_000);
-      video.addEventListener('loadeddata', () => (clearTimeout(timer), resolve()), { once: true });
+      video.addEventListener('loadedmetadata', () => (clearTimeout(timer), resolve()), { once: true });
       video.addEventListener('error', () => (clearTimeout(timer), reject(new VideoRefused('decode'))), { once: true });
       video.src = url;
     });
     // No picture: a track it cannot decode, or none at all.
     if (!video.videoWidth || !video.videoHeight) throw new VideoRefused('decode');
-    const at = stillTime(video.duration);
-    if (at > 0) {
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 10_000); // a frame that never comes: the first one is drawn
-        video.addEventListener('seeked', () => (clearTimeout(timer), resolve()), { once: true });
-        video.currentTime = at;
-      });
-    }
+    await frameAt(video, stillTime(video.duration));
     const full = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.full.width, IMAGE_VARIANTS.full.height);
     const thumb = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.thumb.width, IMAGE_VARIANTS.thumb.height);
     let type: 'image/webp' | 'image/jpeg' = 'image/webp';
@@ -136,6 +131,28 @@ async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'w
     video.load();
     URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * Has `video` decode the frame at `at` seconds: a seek makes every browser load and decode one, iOS Safari too (never
+ * to 0 itself, where a video already is and no `seeked` comes). A frame that does not come in 15 s is asked for by
+ * playing, muted, for a moment; after that the still is whatever the video shows. A video that fails to decode is refused.
+ */
+async function frameAt(video: HTMLVideoElement, at: number): Promise<void> {
+  const waitFor = (event: 'seeked' | 'timeupdate', ms: number) =>
+    new Promise<boolean>((resolve, reject) => {
+      const timer = setTimeout(() => (video.removeEventListener('error', failed), resolve(false)), ms);
+      const failed = () => (clearTimeout(timer), reject(new VideoRefused('decode')));
+      video.addEventListener(event, () => (clearTimeout(timer), video.removeEventListener('error', failed), resolve(true)), { once: true });
+      video.addEventListener('error', failed, { once: true });
+    });
+  const seeked = waitFor('seeked', 15_000);
+  video.currentTime = Math.max(at, 0.001);
+  if (await seeked) return;
+  const played = waitFor('timeupdate', 5_000);
+  await video.play().catch(() => undefined);
+  await played;
+  video.pause();
 }
 
 /** Where an upload is: the share sent, 0 to 1, and whether it waits for the network. */

@@ -88,7 +88,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
         can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', keywords: 'search.users', icon: UsersIcon, colour: 'bg-blue-500', pages: ['users', 'user'] },
         host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', keywords: 'search.devices', icon: DevicesIcon, colour: 'bg-teal-500', pages: ['devices'], intro: 'intro.devices' },
         can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', keywords: 'search.orgSettings', icon: CogIcon, colour: 'bg-stone-500', pages: ['orgSettings'], intro: 'intro.orgSettings' },
-        // The SuperAdmin's pages, across organisations (spec 01 sidebar).
+        // The Superadmin's pages, across organisations (spec 01 sidebar).
         can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', keywords: 'search.orgs', icon: ViewGridIcon, colour: 'bg-indigo-600', pages: ['orgs', 'org'] },
         // What anyone reported with Rapportera fel, from every organisation on this server (docs/bug-reports.md).
         can(me.role, 'ManageOrganizations') && { route: { page: 'reports' }, label: 'nav.reports', keywords: 'search.reports', icon: BugIcon, colour: 'bg-red-500', pages: ['reports', 'report'] },

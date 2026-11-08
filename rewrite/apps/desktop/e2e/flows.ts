@@ -225,6 +225,16 @@ export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Ky
   await page.getByTestId('status').waitFor();
 }
 
+/**
+ * Turns superadminläge on under Mina inställningar (docs/accounts-and-roles.md): the setup person has the mark, and has
+ * just signed in. The page loads again with it, and the violet line says so.
+ */
+export async function superMode(page: Page) {
+  await openAdmin(page, 'Mina inställningar');
+  await page.getByText('Superadminläge', { exact: true }).click();
+  await expect(page.getByTestId('super-mode')).toContainText('Superadminläge till');
+}
+
 /** "Logga in med Google" in the app, finished in the system browser as `who`. */
 export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
   await expect(d.page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
@@ -232,7 +242,10 @@ export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
   return browserSignIn(d, who);
 }
 
-/** On the host: a new user. The invite it makes is for accepting at the host; devices are paired instead. */
+/**
+ * On the host: a new person, a member of the host's organisation only (docs/accounts-and-roles.md, "The desktop host"),
+ * and a link for them to sign in with at the host; devices are paired instead.
+ */
 export async function createUser(page: Page, name: string, email: string, role: 'Användare' | 'Admin' = 'Användare') {
   await openAdmin(page, 'Användare');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
@@ -241,8 +254,9 @@ export async function createUser(page: Page, name: string, email: string, role: 
   await dialog.getByLabel('E-post').fill(email);
   await dialog.getByLabel('Roll').selectOption({ label: role });
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
-  // The new user's page, with their invite.
+  // The new person's page, and a link for them, which an Admin at the host may make for someone only the host has.
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
   await expect(page.getByTestId('invite')).toBeVisible();
 }
 

@@ -16,7 +16,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
 
   app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.members.setupDone()), google: !!google, passkeys: !!passkeys, mail: !!deps.mail } satisfies AuthState));
 
-  /** First run (D19): makes the SuperAdmin and answers with their invite, which they accept with Google or a new passkey. */
+  /** First run (D19): makes the first Admin, a Superadmin, and answers with their invite, which they accept with Google or a new passkey. */
   app.post('/api/auth/setup', async (c) => {
     const a = await body(c, setupRequest);
     if (!a) return fail(c, 400, 'invalid-request');
@@ -59,7 +59,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
       link = { userId: caller.ctx.userId, sessionId: caller.sessionId };
     }
     if (a.invite) {
-      const state = await accounts.members.invite(a.invite);
+      const state = (await accounts.invitations.lookup(a.invite)) ?? (await accounts.members.invite(a.invite));
       if (state.state !== 'valid') return fail(c, 400, state.state === 'expired' ? 'invite-expired' : 'invite-invalid');
     }
     const state = await accounts.signIn.createFlow({
@@ -140,11 +140,12 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
 
     if (flow.link) {
       // Linking to a signed-in user: no session is made, the page goes back to their logins.
-      const added = await accounts.logins.add(flow.link.userId, flow.link.sessionId, { provider: 'google', subject: identity.sub, name: identity.email }, identity.email);
+      const added = await accounts.logins.add(flow.link.userId, flow.link.sessionId, { provider: 'google', subject: identity.sub, name: identity.email });
       if (typeof added === 'string') {
         log({ event: 'google-refused', reason: `link: ${added}` });
         return isApp ? signInFailed(c, added, true) : c.redirect(`/logins?error=${added}`, 302);
       }
+      await accounts.emails.vouch(flow.link.userId, identity.email);
       return isApp ? page(c, 200, 'Google-kontot är kopplat', '<p>Gå tillbaka till Gospel Presenter. Du kan stänga den här fliken.</p>') : c.redirect('/logins', 302);
     }
 

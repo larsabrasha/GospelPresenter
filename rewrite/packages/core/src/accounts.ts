@@ -1,12 +1,13 @@
 import { z } from 'zod';
-import { can, type Role } from './permissions.ts';
+import { can, type MemberRole, type Role } from './permissions.ts';
 
 // Accounts, sign-in, membership and pairing (spec 01, ADR 0007 decision 6).
 // Users, organisations and tokens are not synced (spec 06): they live in the
 // server's global tables and are changed through its HTTP API. The request
 // shapes and the policy are here so the server and the UI share them.
 
-export const ROLES = ['user', 'admin', 'superAdmin'] as const satisfies readonly Role[];
+/** The roles a membership can have (docs/accounts-and-roles.md): a Superadmin is a mark on the account, not a role. */
+export const ROLES = ['user', 'admin'] as const satisfies readonly MemberRole[];
 
 /** Limits of spec 01 (ORG-R10, AUTH-R1, AUTH-R3, AUTH-R8) and of pairing (LIVE-R28, made stricter). */
 export const ACCOUNT_LIMITS = {
@@ -28,6 +29,12 @@ export const ACCOUNT_LIMITS = {
    * that has been around for a while cannot plant a passkey of its own.
    */
   freshSignInMs: 10 * 60_000,
+  /** How long superadminläge stays on after a fresh sign-in turns it on. */
+  superModeMs: 60 * 60_000,
+  /** How long a link that confirms an e-mail address works. */
+  emailLinkTtlMs: 24 * 60 * 60_000,
+  /** How long an invitation a 1.x import made waits: its people come back over weeks. */
+  importInviteTtlMs: 90 * 24 * 60 * 60_000,
 } as const;
 
 export const roleSchema = z.enum(ROLES);
@@ -40,6 +47,9 @@ export const emailSchema = z
   .max(320)
   .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'invalid-email');
 const deviceName = z.string().trim().max(200).default('');
+
+/** The app's languages; a mail goes out in the language of the page that asked for it (decided on 2026-10-31). */
+export const mailLanguage = z.enum(['sv', 'en']).catch('sv');
 
 /**
  * Where a desktop app may be handed its token after a sign-in in the system
@@ -61,7 +71,7 @@ export function isCallbackScheme(s: unknown): s is CallbackScheme {
 export const LOGIN_PROVIDERS = ['google', 'passkey'] as const;
 export type LoginProvider = (typeof LOGIN_PROVIDERS)[number];
 
-/** First run: the organisation and its SuperAdmin, who then links a Google account through the invite it answers with. */
+/** First run: the organisation and its first Admin, a Superadmin, who then links a login through the invite it answers with. */
 export const setupRequest = z.object({
   setupToken: z.string().min(1).max(200),
   name: personName,
@@ -69,7 +79,7 @@ export const setupRequest = z.object({
 });
 
 export interface SetupResponse {
-  /** The SuperAdmin's invite: accepting it with Google finishes setup. */
+  /** The first Admin's invite: accepting it with Google or a passkey finishes setup. */
   inviteToken: string;
 }
 
@@ -89,15 +99,18 @@ export const passkeyName = z.string().trim().min(1).max(100);
 
 /**
  * Starts a passkey ceremony. `signin`: any passkey of this server's RP ID,
- * which says who it is (discoverable). `register`: a new passkey, for the
- * invited user with `invite`, else for the caller's own session. With
- * `app`, the ceremony runs in the system browser (`url` in the answer) and
- * the token goes to the app through its callback scheme.
+ * which says who it is (discoverable); with an invitation's `invite`, that
+ * account accepts it. `register`: a new passkey, for a new account named
+ * `personName` with an invitation, for the user a reset link names, else for
+ * the caller's own session. With `app`, the ceremony runs in the system
+ * browser (`url` in the answer) and the token goes to the app through its
+ * callback scheme.
  */
 export const passkeyBeginRequest = z.object({
   mode: z.enum(['signin', 'register']),
   invite: z.string().min(1).max(200).optional(),
   name: passkeyName.optional(),
+  personName: z.string().trim().min(1).max(200).optional(),
   app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
 });
 
@@ -169,15 +182,38 @@ export interface LoginMethod {
 /** After a web sign-in, the page trades its one-time handoff cookie for a session. */
 export const googleFinishRequest = z.object({ deviceName });
 
-export const createUserRequest = z.object({ name: personName, email: emailSchema, role: roleSchema });
+/**
+ * `POST /api/invitations` (Användare → Bjud in): a pending membership of an address. Where the server sends mail the
+ * link goes only by mail, so that opening it confirms the address; elsewhere it is answered, to be copied.
+ */
+export const inviteRequest = z.object({ email: emailSchema, role: roleSchema, language: mailLanguage.optional() });
 
 /**
- * `PATCH /api/users/{id}` (the user detail page): any of the name, the e-mail
- * (null clears it) and the role. Each field is checked by its own rule.
+ * `POST /api/users`, on a desktop host only: a person who is a member there and nowhere else, with a name and maybe an
+ * address (unconfirmed), to pair devices as (docs/accounts-and-roles.md, "The desktop host"). A host sends no mail, and
+ * only its own window signs in, so an invitation could not be accepted from another device.
+ */
+export const createUserRequest = z.object({ name: personName, email: emailSchema.nullable().optional(), role: roleSchema });
+
+/**
+ * `PATCH /api/users/{id}` (the user detail page): the role, for an Admin; the name and the e-mail (null clears it)
+ * too, only in superadminläge. Each field is checked by its own rule.
  */
 export const updateUserRequest = z
   .object({ name: personName.optional(), email: emailSchema.nullable().optional(), role: roleSchema.optional() })
   .refine((a) => a.name !== undefined || a.email !== undefined || a.role !== undefined);
+
+/** `PATCH /api/auth/me`: your own name (Mina inställningar). */
+export const updateMeRequest = z.object({ name: personName });
+
+/** `POST /api/auth/email`: your own new address, or your address as it is to confirm it. */
+export const changeEmailRequest = z.object({ email: emailSchema, language: mailLanguage.optional() });
+
+/** `POST /api/auth/email/confirm`: the token of the link that reached the address. */
+export const confirmEmailRequest = z.object({ token: z.string().min(1).max(200) });
+
+/** `POST /api/auth/superadmin`: turns superadminläge on (after a fresh sign-in) or off. */
+export const superModeRequest = z.object({ on: z.boolean() });
 
 /** `POST /api/orgs` and `PATCH /api/orgs/{id}`: an organisation's name (ORG-R1). */
 export const orgNameRequest = z.object({ name: z.string().trim().min(1).max(200) });
@@ -203,7 +239,14 @@ export interface Me {
   userId: string;
   name: string;
   email: string | null;
+  /** The address reached them by a link, or Google vouches for it. */
+  emailConfirmed: boolean;
+  /** The role they act with now: their membership's, or `superAdmin` in superadminläge. */
   role: Role;
+  /** The account has the Superadmin mark, whether or not superadminläge is on. */
+  superAdmin: boolean;
+  /** When superadminläge turns itself off; null while it is off. */
+  superUntil: number | null;
   orgId: string;
   orgName: string;
   sessionId: string;
@@ -213,6 +256,15 @@ export interface SignInResponse {
   token: string;
   me: Me;
 }
+
+/** `POST /api/auth/superadmin`: who you are now, and a new token when turning it off left an organisation you are not a member of. */
+export interface SuperModeResponse {
+  token?: string;
+  me: Me;
+}
+
+/** `POST /api/auth/email`: `sent` when a link went to the address; without mail (a desktop host) the address is set, unconfirmed. */
+export type ChangeEmailResponse = { sent: true } | { changed: true };
 
 /** A claimed pairing code: the device's token, and a session for the user the host chose. */
 export interface PairClaimResponse {
@@ -232,29 +284,48 @@ export interface AuthState {
   mail: boolean;
 }
 
-/** The app's languages; a mail goes out in the language of the page that asked for it (decided on 2026-10-31). */
-export const mailLanguage = z.enum(['sv', 'en']).catch('sv');
 
-/** "Glömt hur du loggar in?": the address to send a new invite to. */
+/** "Glömt hur du loggar in?": the confirmed address to send a recovery link to. */
 export const recoverRequest = z.object({ email: emailSchema, language: mailLanguage.optional() });
 
-/** An admin's "Skicka inbjudan": the language to write the mail in. */
+/** A Superadmin's "Skicka via e-post" of a reset link: the language to write the mail in. */
 export const mailInviteRequest = z.object({ language: mailLanguage.optional() });
 
+/**
+ * What an invite link is: `join`, an invitation to an organisation, accepted with an account one has or a new one;
+ * `reset`, a link that replaces a person's logins (setup, "Glömt hur du loggar in?", a Superadmin's reset).
+ */
 export type InviteState =
-  | { state: 'valid'; name: string; orgName: string; email: string | null }
+  | { state: 'valid'; kind: 'join'; orgName: string; email: string }
+  | { state: 'valid'; kind: 'reset'; name: string; orgName: string; email: string | null }
   | { state: 'expired' }
   | { state: 'invalid' };
+
+/** An invitation not yet accepted, as Användare lists it (Inbjuden). */
+export interface InvitationRow {
+  id: string;
+  email: string;
+  role: MemberRole;
+  expiresAt: number;
+  expired: boolean;
+}
+
+/** `POST /api/invitations`: the link, unless it went by mail (`mailed`). */
+export type InvitationResponse = { id: string; mailed: true } | { id: string; mailed: false; inviteToken: string };
 
 export interface UserRow {
   id: string;
   name: string;
   email: string | null;
-  role: Role;
+  role: MemberRole;
   /** Whether the user has a linked login (accepted an invite). */
   active: boolean;
-  /** The newest unused invite, if any. */
+  /** The newest unused reset link, if any. */
   invite: { expiresAt: number; expired: boolean } | null;
+  /** This is their only membership: on a desktop host an Admin may reset them (`accountRefusal`). */
+  onlyHere: boolean;
+  /** The account has the Superadmin mark. */
+  superAdmin: boolean;
 }
 
 export interface PairStatus {
@@ -306,63 +377,48 @@ export type AuthError =
   | 'mail-disabled'
   | 'mail-failed'
   | 'no-email'
-  | 'super-admin-home';
+  | 'super-admin-home'
+  | 'last-admin';
 
 export interface Actor {
   id: string;
   role: Role;
 }
 
-/** Roles `actor` may hand out (PERM-R4): SuperAdmin only by a SuperAdmin. */
-export function assignableRoles(actor: Role): Role[] {
-  return ROLES.filter((r) => r !== 'superAdmin' || can(actor, 'AssignSuperAdminRole'));
+/** A member as a policy sees them: their role in the caller's organisation. */
+export interface MemberActor {
+  id: string;
+  role: MemberRole;
 }
 
 /**
- * Why `actor` may not give `target` the role `role`, or null if it may.
- * PERM-R5: never your own role. PERM-R4: SuperAdmin only by a SuperAdmin.
- * D20: an Admin cannot demote a SuperAdmin. Together these keep at least one
- * SuperAdmin: only a SuperAdmin can demote one, and never itself.
+ * Why `actor` may not give `target` the role `role`, or null if it may. PERM-R5: never your own role. An
+ * organisation always has at least one Admin (`admins`, how many it has): the last one stays one. Making someone
+ * Admin also asks for a fresh sign-in, which the server checks.
  */
-export function roleChangeRefusal(actor: Actor, target: Actor, role: Role): AuthError | null {
+export function roleChangeRefusal(actor: Actor, target: MemberActor, role: MemberRole, admins: number): AuthError | null {
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
   if (actor.id === target.id) return 'own-role';
-  if ((role === 'superAdmin' || target.role === 'superAdmin') && !can(actor.role, 'AssignSuperAdminRole')) return 'super-admin-only';
+  if (target.role === 'admin' && role !== 'admin' && admins <= 1) return 'last-admin';
   return null;
 }
 
-/** Why `actor` may not remove `target`, or null. PERM-R6: never yourself. D20: a SuperAdmin only by a SuperAdmin. */
-export function removeUserRefusal(actor: Actor, target: Actor): AuthError | null {
+/** Why `actor` may not remove `target`, or null. PERM-R6: never yourself; never the organisation's last Admin. */
+export function removeUserRefusal(actor: Actor, target: MemberActor, admins: number): AuthError | null {
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
   if (actor.id === target.id) return 'own-account';
-  if (target.role === 'superAdmin' && !can(actor.role, 'AssignSuperAdminRole')) return 'super-admin-only';
+  if (target.role === 'admin' && admins <= 1) return 'last-admin';
   return null;
 }
 
 /**
- * Why `actor` may not make a new invite for `target`, or null (D21). An
- * invite links the login that accepts it (a Google account or a new
- * passkey) in place of all the user's own, so it is a reset: an Admin may not reset a SuperAdmin's (D20). The
- * same holds for pairing a device as `target`, which signs it in as them.
+ * Why `actor` may not change another person's account (their name, address or logins, or a link that replaces
+ * their logins), or null (docs/accounts-and-roles.md): the account is the person's, so only a Superadmin in
+ * superadminläge may. On a desktop host an Admin may also reset someone whose only membership is the host's
+ * organisation (`hostOnly`), and pair a device as them, unless that person is a Superadmin.
  */
-export function inviteRefusal(actor: Actor, target: Actor): AuthError | null {
-  return userEditRefusal(actor, target);
-}
-
-/**
- * Why `actor` may not change `target`'s name, e-mail or linked logins, or
- * null. D21: ManageUsers for anyone, yourself included (the page is an admin
- * page). D20: an Admin may not change a SuperAdmin's.
- */
-export function userEditRefusal(actor: Actor, target: Actor): AuthError | null {
+export function accountRefusal(actor: Actor, target: { hostOnly: boolean; superAdmin: boolean }): AuthError | null {
+  if (actor.role === 'superAdmin') return null;
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
-  if (target.role === 'superAdmin' && actor.id !== target.id && !can(actor.role, 'AssignSuperAdminRole')) return 'super-admin-only';
-  return null;
-}
-
-/** Why `actor` may not create a user with `role`, or null. */
-export function createUserRefusal(actor: Role, role: Role): AuthError | null {
-  if (!can(actor, 'ManageUsers')) return 'forbidden';
-  if (role === 'superAdmin' && !can(actor, 'AssignSuperAdminRole')) return 'super-admin-only';
-  return null;
+  return target.hostOnly && !target.superAdmin ? null : 'super-admin-only';
 }

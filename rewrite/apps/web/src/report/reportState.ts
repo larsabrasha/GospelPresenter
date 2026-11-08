@@ -7,7 +7,7 @@ import { appCommit } from '../version.ts';
 import { trail } from './trail.ts';
 
 // What a bug report carries besides the text and the picture (docs/bug-reports.md): where the user was, the device,
-// the sync, what was live, and the last steps, so the SuperAdmin can do the same again. Shown whole in the dialog
+// the sync, what was live, and the last steps, so the Superadmin can do the same again. Shown whole in the dialog
 // before it is sent. Ids, not content: no song's words, no session token, no field's value.
 
 /** Which app this is: the desktop app as the host or a client of another, the phone app, or a browser. */

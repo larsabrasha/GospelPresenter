@@ -9,7 +9,7 @@ import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { load } from './Orgs.tsx';
 
-// Felrapporter (docs/bug-reports.md): what anyone reported with Rapportera fel, newest first, for the SuperAdmin. Online
+// Felrapporter (docs/bug-reports.md): what anyone reported with Rapportera fel, newest first, for the Superadmin. Online
 // only, as Alla organisationer: the reports are the server's, not an organisation's.
 
 /** When, short: the date and the time. */

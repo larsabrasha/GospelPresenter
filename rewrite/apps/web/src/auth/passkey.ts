@@ -75,28 +75,26 @@ async function inPage<T extends PasskeyFinishResponse>(begin: object): Promise<s
 }
 
 /**
- * Signs in with a passkey, or with `invite` accepts it by making one.
- * Resolves to an error text, the session (in a browser), or null once the
- * system browser has it (the desktop app then waits for its callback).
+ * Signs in with a passkey, or with `invite` uses it: a reset link by making a passkey; an invitation by signing in with
+ * one (`mode: 'signin'`) or by making a new account named `personName`. Resolves to an error text, the session (in a
+ * browser), or null once the system browser has it (the desktop app then waits for its callback).
  */
-export async function startPasskey(invite?: string): Promise<string | SignInResponse | null> {
+export async function startPasskey(invite?: string, opts: { mode?: 'signin' | 'register'; personName?: string } = {}): Promise<string | SignInResponse | null> {
   const native = appSignIn();
+  const mode = opts.mode ?? (invite ? 'register' : 'signin');
+  const begin = { mode, ...(invite ? { invite } : {}), ...(opts.personName ? { personName: opts.personName } : {}) };
   try {
     if (native) {
       let path = `/api/app-login?${new URLSearchParams({ method: 'passkey', device: deviceName(), callback_scheme: native.callbackScheme })}`;
       if (invite) {
-        const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', {
-          mode: 'register',
-          invite,
-          app: { deviceName: deviceName(), callbackScheme: native.callbackScheme },
-        });
+        const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', { ...begin, app: { deviceName: deviceName(), callbackScheme: native.callbackScheme } });
         if (r.error || !('url' in r.body)) return errorText(r);
         path = r.body.url;
       }
       return (await native.openSignIn(path)) ? null : t('auth.failed');
     }
     if (!passkeysInPage()) return t('passkey.unsupported');
-    return await inPage<SignInResponse>(invite ? { mode: 'register', invite } : { mode: 'signin' });
+    return await inPage<SignInResponse>(begin);
   } catch {
     return t('auth.offline');
   }

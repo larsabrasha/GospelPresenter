@@ -7,60 +7,88 @@ way lands on the same user. The email is only filled in, and never used to find 
 AUTH-R4). There is no self-registration: a Google account or passkey that is not linked is refused.
 
 The first start of the host shows "Välkommen!": the person names themselves and the church, and setup
-answers with an invite for the new SuperAdmin, which they accept by making a passkey or signing in
-with Google. Setup is done when that link exists; until then it can be done again, and finishes the
-same SuperAdmin rather than making a second church. The host window gets the setup token from the main process; a server
-without one prints it (`Setup token: …`) and the setup form asks for it (D19). After that every
-account comes from an admin: Användare → Skapa makes the user and an invite link, valid for 7 days and once
-(AUTH-R1), and opens the new user's page, where the invite card shows the link with Kopiera and, where the system
-can share, Dela (`navigator.share`). The link is shown only there and then (AUTH-R13: the server keeps only its
-hash); once the page is left the card says the invite is active and when it expires, and "Skapa ny länk"
-deletes the user's invites and makes a new one, so a lost link stops working. On a host the card has "Logga in
-som … här" instead, as the invited person accepts there (`users.spec.ts`). The invited person opens it and makes a passkey or signs in with
-Google, and that becomes their way in. A new invite for a user is the reset: the login that accepts it
-replaces every login the user had, passkeys and Google alike, and the user's sessions end.
+answers with an invite for its first Admin, who has the Superadmin mark, and who accepts it by making a passkey or
+signing in with Google. Setup is done when that link exists; until then it can be done again, and finishes the same
+person rather than making a second church. The host window gets the setup token from the main process; a server
+without one prints it (`Setup token: …`) and the setup form asks for it (D19).
+
+After that the account is the person's ([accounts-and-roles.md](accounts-and-roles.md)): an organisation invites an
+address, and the person accepts with an account they have or makes one. Användare → Bjud in takes an address and a role
+(`POST /api/invitations`); the list shows the address under Inbjudna until it is accepted, with Dra tillbaka. Where the
+server sends mail the link goes only by mail, and is not answered, so that opening it confirms the address; elsewhere
+the dialog shows the link once, to copy (AUTH-R13: the server keeps only its hash). It is valid for 7 days and once
+(AUTH-R1); a new invitation to the same address replaces the old. The person opening it signs in with Google or a
+passkey they have, and that account gains the membership and nothing else; or makes an account: Google (whose
+account is new here), or a new passkey under the name they type. Accepting never replaces a login and never ends a
+session. A link that replaces someone's logins (`invites`, a reset link) is made only by setup, by "Glömt hur du
+loggar in?" to a confirmed address, and by a Superadmin in superadminläge; on a desktop host also by an Admin, for
+someone whose only membership is the host's (below).
 
 Under Inloggningsmetoder (in the menu behind the user's picture in the top bar) a signed-in user sees their own logins, adds
 a passkey, links a Google account, renames a passkey and removes any login but the last. Adding needs
 a sign-in from the last 10 minutes, made by the user themselves (not by a pairing); otherwise the page
 asks them to sign out and in again. Linking a Google account that is already another user's is
 refused (`login-taken`). No one adds a login to another user. Someone who lost every login gets back in through a
-new invite: from an admin, or, on a server that can send e-mail, mailed to them.
+reset link: "Glömt hur du loggar in?" mails one to their confirmed address, or a Superadmin makes one.
 
-**E-mail** (decided on 2026-10-31; the current app sends none) goes through Resend (`apps/server/src/mail.ts`). On the
-user's page an admin presses "Skicka inbjudan till {e-post}" (`POST /api/users/{id}/invites/email`): a new invite,
-mailed, whose link shows on the page too. On the sign-in page "Glömt hur du loggar in?" takes an address
-(`POST /api/auth/recover`); if a user has it, a new invite to their oldest organisation is mailed to it. The answer is
+Mina inställningar has the person's own name (`PATCH /api/auth/me`) and address. A new address gets a link
+(`POST /api/auth/email`, `/confirm-email#{token}` → `POST /api/auth/email/confirm`, 24 hours, once), and replaces the
+old one, confirmed, only when the link is opened; an unconfirmed address can be confirmed the same way. Google
+vouches for the address of the Google account one signs in with. Only a confirmed address is unique, and no answer
+tells whose an address is; the rules are in [accounts-and-roles.md](accounts-and-roles.md). Without mail (a desktop
+host) a new address is set at once, unconfirmed.
+
+**E-mail** (decided on 2026-10-31; the current app sends none) goes through Resend (`apps/server/src/mail.ts`): an
+invitation, a link that confirms an address, and reset links. On a user's page a Superadmin (or a host's Admin, for
+someone only the host has) presses "Skicka inbjudan till {e-post}" (`POST /api/users/{id}/invites/email`): a reset
+link, mailed, whose link shows on the page too. On the sign-in page "Glömt hur du loggar in?" takes an address
+(`POST /api/auth/recover`); if a user has confirmed it, a reset link to their oldest organisation is mailed to it. The answer is
 the same either way, and the mail goes after it, so neither the answer nor its time tells whether the address has an
 account. Every ask counts against the asking address and the e-mail address: five an hour each, then an hour's lock.
-The link is an ordinary invite, so accepting it replaces the user's logins and ends their sessions; nothing changes
-before then. Links point at the configured app address, never at the request's Host header. Configuration: the
+The link is a reset link, so using it replaces the user's logins and ends their sessions; nothing changes before
+then. Links point at the configured app address, never at the request's Host header. Configuration: the
 Worker reads `RESEND_API_KEY` (a secret), `MAIL_FROM` (`Gospel Presenter <noreply@example.org>`, on a domain verified
 at Resend) and `APP_URL`; Node hosts read `GP_RESEND_API_KEY`, `GP_MAIL_FROM` and `GP_APP_URL` (`GP_RESEND_URL` points
 the tests at a fake). Without all three there is no mail: `/api/auth/state` says `mail: false`, the button and the
 link are not shown, and the routes answer 503 `mail-disabled`.
 
-**Organisations** (decided on 2026-10-31; D1 as changed then). A SuperAdmin makes, renames and deletes them under
-Alla organisationer (`/admin/organizations`, `POST`/`PATCH`/`DELETE /api/orgs`), and acts as SuperAdmin in any of them without
-being a member (`MemberService.roleIn`), so they are in no organisation's user list. A user is in several when an admin
-creates a user with an address another organisation's user has: that user becomes a member here with the role given,
-with an invite only if they cannot sign in yet. The switcher in the top bar (in the account menu on a phone) lists the
-organisations the user may act in; choosing one asks `POST /api/auth/switch` for a new session there, keeps it, and loads
-the start page, so the database worker opens that organisation's database (D3). The old session stays, since another tab
-may still sync the old organisation with it; the new one keeps the sign-in time. The next sign-in opens the organisation
-switched to last (`users.last_org_id`), else the first by name. Radera användare removes the membership; a user in no
-other organisation goes for good. Deleting an organisation (its name typed) removes its memberships, invites, sessions,
-codes and screens, the users in no other organisation, its database (the file, or the Durable Object's storage) and its
-files; it is refused while it is a SuperAdmin's only organisation (`super-admin-home`), so no SuperAdmin is left without one.
+**Organisations** (decided on 2026-10-31; D1 as changed then). A Superadmin in superadminläge makes, renames and deletes
+them under Alla organisationer (`/admin/organizations`, `POST`/`PATCH`/`DELETE /api/orgs`), and acts as Superadmin in
+any of them without being a member (`MemberService.roleIn`), so they are in no organisation's user list. A user is in
+several when they accept an invitation from each. The switcher in the top bar (in the account menu on a phone) lists
+the organisations the user may act in (every one in superadminläge); choosing one asks `POST /api/auth/switch` for a
+new session there, keeps it, and loads the start page, so the database worker opens that organisation's database (D3).
+The old session stays, since another tab may still sync the old organisation with it; the new one keeps the sign-in
+time and superadminläge. The next sign-in opens the organisation switched to last (`users.last_org_id`, only one the
+user is a member of), else the first by name. Radera användare removes the membership; a user in no other
+organisation goes for good. Deleting an organisation (its name typed) removes its memberships, invitations, invites,
+sessions, codes and screens, the users in no other organisation, its database (the file, or the Durable Object's
+storage) and its files; it is refused while it is a Superadmin's only organisation (`super-admin-home`), so no
+Superadmin is left without one.
 
-Användare lists the users; each row opens the user's page (`/admin/users/{id}`, as UserDetail.razor). There an
-admin changes the name and e-mail (saved 500 ms after typing; the address must be valid and no other user's,
-`PATCH /api/users/{id}`), the role, sees the user's logins and removes one (`GET`/`DELETE
-/api/users/{id}/logins[/{provider}/{id}]`; another user's last login too, after which only a new invite lets them
-in, spec 01 E9; never your own last, and never the last on the server), makes an invite or deletes the unused
-ones (`DELETE /api/users/{id}/invites`), and removes the user. Removing a login ends no session. The rules
-(PERM-R4–R6, D20, D21: an Admin touches no SuperAdmin's name, e-mail, logins or invite) are in
-`packages/core/src/accounts.ts`, which the server and the UI share.
+**Superadmins and superadminläge** ([accounts-and-roles.md](accounts-and-roles.md)). A Superadmin is a mark on the
+account, not a role: on a server whose configuration names them (`GP_SUPER_ADMINS` on Node, `SUPER_ADMINS` on the
+Worker, comma-separated addresses) an account that has confirmed one of the addresses; elsewhere (the desktop app,
+gp-test, which has neither Google nor mail to confirm an address with) the mark setup gave (`users.super_admin`).
+Their powers wait behind superadminläge, a switch under Mina inställningar (`POST /api/auth/superadmin`): it needs a
+sign-in of their own from the last 10 minutes, lasts an hour (`sessions.super_until`), and shows a violet line at the
+top with Avsluta. Turned off in an organisation they are no member of, the page opens their own. What a Superadmin does
+to someone else's account is logged (`audit_log`; nothing shows it yet).
+
+Användare lists the members and, under them, the invitations not yet accepted; each member's row opens their page
+(`/admin/users/{id}`, as UserDetail.razor). There an Admin changes the role and removes the member. An organisation
+always has at least one Admin (`last-admin`), and making someone Admin asks for a sign-in from the last 10 minutes
+(`reauth-required`). The name and e-mail (saved 500 ms after typing, `PATCH /api/users/{id}`), the logins (`GET`/`DELETE
+/api/users/{id}/logins[/{provider}/{id}]`; another user's last login too, after which only a reset link lets them in,
+spec 01 E9; never your own last, and never the last on the server), and the reset links (`POST`/`DELETE
+/api/users/{id}/invites`) are a Superadmin's in superadminläge; on a desktop host an Admin's too for someone whose only
+membership is the host's and who is no Superadmin. Removing a login ends no session. The rules (PERM-R5, R6 and
+`accountRefusal`) are in `packages/core/src/accounts.ts`, which the server and the UI share.
+
+**On a desktop host**, which sends no mail and where only the host's window signs in, an Admin makes people rather than
+inviting them: Användare → Skapa takes a name, maybe an address (unconfirmed) and a role (`POST /api/users`, refused
+elsewhere), and the person's page makes a link they sign in with at the host ("Logga in som … här"), or a device is
+paired as them.
 
 How the sign-in runs (`apps/server/src/google.ts`, `auth/sign-in-routes.ts`): the authorization code flow with PKCE
 (S256), `state` and `nonce`, and `prompt=select_account`. A sign-in in progress is a row in
@@ -94,8 +122,8 @@ strip under the top bar asks it to sign in again (SYNC-A15).
 The desktop host refuses every API request from a device it has not paired, on localhost too: only
 the static app and `/api/pair/status`, `/api/pair/claim` answer (and the sign-in above, from the host machine).
 Its own window's requests carry a host token that the Electron main process adds and no page sees. On
-the host, Enheter → Anslut enhet asks who the device signs in as (the admin, or a member they may make
-an invite for), and shows a six-digit code (10 minutes, one use, dead after five wrong guesses); the
+the host, Enheter → Anslut enhet asks who the device signs in as (the admin, or a member whose account they may
+reset: one only the host has, and no Superadmin), and shows a six-digit code (10 minutes, one use, dead after five wrong guesses); the
 other device types it and gets a device token (`gppd_…`) and a session as that member. Pairing is how
 a device signs in to a host, also after its session ends. Enheter also disconnects a device, which
 stops it and ends the session its pairing made. `pnpm --filter @gp/desktop serve` has no pairing
@@ -103,7 +131,7 @@ unless `GP_LAN=1`.
 
 **For development only, `GP_DEV_PAIR=1`** lets a device in without a code: `/api/pair/status` says `dev`,
 and the pairing page asks `/api/pair/dev` at once, which pairs the device as the first organisation's
-first admin (a SuperAdmin before an Admin). Anyone on the network then gets in as that admin, so it is
+first Admin (a Superadmin before another). Anyone on the network then gets in as that admin, so it is
 never on by itself; without it the route does not exist. Before setup there is no admin, and the page
 shows the code form.
 
@@ -136,7 +164,8 @@ desktop app (`app.isPackaged`) also never reads `GP_GOOGLE_TEST_ISSUER`.
 ## Passkeys
 
 How a ceremony runs (`apps/server/src/webauthn.ts`, `auth/passkey-routes.ts`): `POST /api/auth/passkey/begin` with
-`mode` `signin` or `register` (with an invite, or for the caller's own session) makes a row in
+`mode` `signin` (with an invitation, which the account accepts) or `register` (with a reset link, with an invitation and
+`personName` for a new account, or for the caller's own session) makes a row in
 `passkey_flows` with a fresh 32-byte challenge: single use, 5 minutes, bound to the browser by a
 cookie, and to its kind, so a registration's challenge never signs anyone in. `POST
 /auth/passkey/finish` finds the flow by the challenge in the client data, uses it up, and verifies with
@@ -176,11 +205,15 @@ client refuses an organisation database older than that, with "delete it and sta
 clear the site's data. A change after the
 baseline is a migration in `orgMigrations` again, run when the database is opened; a client then pulls
 everything again, because the schema is part of the pull cookie. The server's global database has
-its own version (`GLOBAL_SCHEMA_VERSION`, now 4): the placeholder memberships of milestones 1 and 2
+its own version (`GLOBAL_SCHEMA_VERSION`, now 10): the placeholder memberships of milestones 1 and 2
 are dropped when it migrates, so data made by the old desktop host belongs to no account afterwards.
 Version 3 drops milestone 3's passwords and its per-account lockout, and adds `user_logins` and
 `login_flows`; users, memberships and sessions stay. Nobody has a linked login after it, so setup opens
-again and finishes the existing SuperAdmin and church; other users need a new invite, or on a host a
+again and finishes the existing Superadmin and church; other users need a new invite, or on a host a
 new pairing. Version 4 adds passkeys: columns for the key, counter, transports and name in
 `user_logins`, the link columns in `login_flows`, and `passkey_flows`. Every login and session stays.
+Version 10 is the account model of [accounts-and-roles.md](accounts-and-roles.md): `invitations`, `email_links` and
+`audit_log`; `users.email_confirmed` (an address a linked Google account has counts as confirmed), unique only when
+confirmed; a `superAdmin` membership becomes the mark (`users.super_admin`) and an Admin membership;
+`sessions.super_until`; and an unused reset link of someone who can sign in is deleted.
 The global database keeps its migrations.

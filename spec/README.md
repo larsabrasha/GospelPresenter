@@ -99,8 +99,8 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | # | Question | Recommendation | Sources |
 |---|---|---|---|
 | D19 | `/setup` claimable by the first visitor | **Decided:** setup token from configuration, generated and logged once if unset — already fixed in the current app (PR #59) | 01 Q16 |
-| D20 | Admin can demote or delete a SuperAdmin; deleting your home org deletes you | **Decided:** forbid both; keep at least one SuperAdmin — already fixed in the current app (PR #59) | 01 Q4 |
-| D21 | Invite, login-link and profile-image actions only check the organisation | **Decided:** require `ManageUsers` for anyone but yourself | 01 Q3 |
+| D20 | Admin can demote or delete a SuperAdmin; deleting your home org deletes you | **Decided:** forbid both; keep at least one SuperAdmin — already fixed in the current app (PR #59). In the new app replaced by D33: no SuperAdmin membership to demote; deleting a Superadmin's only organisation is still refused | 01 Q4 |
+| D21 | Invite, login-link and profile-image actions only check the organisation | **Decided:** require `ManageUsers` for anyone but yourself. In the new app replaced by D33 | 01 Q3 |
 | D22 | Role changes take up to 240 minutes on the web | **Decided:** apply immediately (role read per request) | 01 Q6 |
 | D23 | Devices cannot be revoked | **Decided:** users see and revoke their own devices on the profile page; admins revoke any in the organisation; a revoked device signs out on next contact and keeps its local data unsynced | 01 Q7 |
 | D24 | `User` role can import and delete Bibles; template items editable by URL | **Decided:** importing/deleting Bibles and editing templates require Admin; everyone can still use Bibles and create from templates | 05 Q4, 03 Q3 |
@@ -108,6 +108,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | D26 | `returnUrl` and `/culture` not validated | **Decided:** local URLs and known cultures only — already fixed in the current app (PR #59) | 01 Q11–Q12 |
 | D27 | MCP keys never expire and are SuperAdmin-only | **Decided:** Admins manage keys for their organisation, with optional expiry and revocation; a key acts with its creator's current role, never more | 01 Q8 |
 | D28 | Authenticated media served `Cache-Control: public` | **Decided:** `private, immutable` with content-addressed keys | 05 Q11 |
+| D33 | An Admin of one organisation can change any member's account (address, logins, a reset invite), and so take over a Superadmin's | **Decided (Lars, 2026-11-08), new app:** the account is the person's. An invite is a pending membership of an address, accepted by an account one has or a new one, never replacing a login; only a confirmed address is unique; roles are User and Admin, at least one Admin; Superadmin is a mark on the account (named in the server's configuration), its powers behind an hour of superadminläge after a fresh sign-in (rewrite/docs/accounts-and-roles.md) | 01 PERM-R4, AUTH-R1, AUTH-R2 |
 
 Everything else under each section's Open questions is an apparent bug or a leftover: fix it in the new
 app and note the rule it falls under, without a separate decision.

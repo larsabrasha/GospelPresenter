@@ -14,7 +14,7 @@ import { reportedAt } from './BugReports.tsx';
 import { load } from './Orgs.tsx';
 
 // Mina felrapporter (docs/bug-reports.md), under Mina inställningar: what the user reported, newest first, a dot on
-// those with an answer not read yet; one opened is its thread with the SuperAdmin, where the user answers. Online only.
+// those with an answer not read yet; one opened is its thread with the Superadmin, where the user answers. Online only.
 
 export function MyBugReports() {
   const [reports, setReports] = useState<MyBugReportRow[] | string | null>(null);
@@ -51,7 +51,7 @@ export function MyBugReports() {
   );
 }
 
-/** One of the user's reports: what they wrote, and the thread with the SuperAdmin. */
+/** One of the user's reports: what they wrote, and the thread with the Superadmin. */
 export function MyBugReportPage({ id }: { id: string }) {
   const [report, setReport] = useState<MyBugReport | string | null>(null);
   const path = `/api/my-reports/${encodeURIComponent(id)}`;

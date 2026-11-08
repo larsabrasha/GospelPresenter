@@ -1,17 +1,15 @@
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from 'vitest';
 import {
+  accountRefusal,
   arrangedParts,
-  assignableRoles,
   can,
-  createUserRefusal,
   emailSchema,
-  inviteRefusal,
+  inviteRequest,
   isCallbackScheme,
   removeUserRefusal,
   roleChangeRefusal,
   updateUserRequest,
-  userEditRefusal,
   daysRemaining,
   DEFAULT_LABELS,
   highlight,
@@ -86,42 +84,37 @@ describe('permissions (spec 01)', () => {
   });
 });
 
-describe('account policy (spec 01, D20, D21)', () => {
+describe('account policy (spec 01, docs/accounts-and-roles.md)', () => {
   const su = { id: 'su', role: 'superAdmin' as const };
   const ad = { id: 'ad', role: 'admin' as const };
   const us = { id: 'us', role: 'user' as const };
 
-  it('only a SuperAdmin hands out or takes away SuperAdmin (PERM-R4, D20)', () => {
-    expect(assignableRoles('admin')).toEqual(['user', 'admin']);
-    expect(assignableRoles('superAdmin')).toEqual(['user', 'admin', 'superAdmin']);
-    expect(createUserRefusal('admin', 'superAdmin')).toBe('super-admin-only');
-    expect(createUserRefusal('user', 'user')).toBe('forbidden');
-    expect(roleChangeRefusal(ad, su, 'user')).toBe('super-admin-only');
-    expect(roleChangeRefusal(ad, us, 'superAdmin')).toBe('super-admin-only');
-    expect(roleChangeRefusal(ad, us, 'admin')).toBeNull();
-    expect(roleChangeRefusal(su, { id: 'su2', role: 'superAdmin' }, 'admin')).toBeNull();
+  it('a membership is a User or an Admin; Superadmin is no role to give', () => {
+    expect(inviteRequest.safeParse({ email: 'a@x.se', role: 'superAdmin' }).success).toBe(false);
+    expect(inviteRequest.parse({ email: ' A@X.se ', role: 'admin', language: 'de' })).toEqual({ email: 'a@x.se', role: 'admin', language: 'sv' });
   });
 
-  it('nobody changes their own role or removes themselves (PERM-R5, R6), so a SuperAdmin always remains', () => {
-    expect(roleChangeRefusal(su, su, 'admin')).toBe('own-role');
-    expect(removeUserRefusal(su, su)).toBe('own-account');
-    expect(removeUserRefusal(ad, su)).toBe('super-admin-only');
-    expect(removeUserRefusal(us, ad)).toBe('forbidden');
-    expect(removeUserRefusal(ad, us)).toBeNull();
+  it('nobody changes their own role or removes themselves (PERM-R5, R6)', () => {
+    expect(roleChangeRefusal(ad, ad, 'user', 2)).toBe('own-role');
+    expect(removeUserRefusal(ad, ad, 2)).toBe('own-account');
+    expect(removeUserRefusal(us, ad, 2)).toBe('forbidden');
+    expect(removeUserRefusal(ad, us, 1)).toBeNull();
+    expect(roleChangeRefusal(ad, us, 'admin', 1)).toBeNull();
   });
 
-  it('an invite resets the linked Google account: an Admin may not make one for a SuperAdmin (D21)', () => {
-    expect(inviteRefusal(ad, su)).toBe('super-admin-only');
-    expect(inviteRefusal(us, us)).toBe('forbidden');
-    expect(inviteRefusal(ad, ad)).toBeNull();
-    expect(inviteRefusal(su, ad)).toBeNull();
+  it('the last Admin stays one: never made a User, never removed', () => {
+    expect(roleChangeRefusal(su, ad, 'user', 1)).toBe('last-admin');
+    expect(removeUserRefusal(su, ad, 1)).toBe('last-admin');
+    expect(roleChangeRefusal(ad, { id: 'ad2', role: 'admin' }, 'user', 2)).toBeNull();
+    expect(roleChangeRefusal(su, ad, 'admin', 1)).toBeNull();
   });
 
-  it('a name, e-mail or login of a SuperAdmin is changed only by a SuperAdmin or themselves (D20, D21)', () => {
-    expect(userEditRefusal(ad, su)).toBe('super-admin-only');
-    expect(userEditRefusal(us, us)).toBe('forbidden');
-    expect(userEditRefusal(su, su)).toBeNull();
-    expect(userEditRefusal(ad, us)).toBeNull();
+  it("someone else's account is a Superadmin's; on a desktop host an Admin's too for one only the host has, unless a Superadmin", () => {
+    expect(accountRefusal(su, { hostOnly: false, superAdmin: true })).toBeNull();
+    expect(accountRefusal(ad, { hostOnly: false, superAdmin: false })).toBe('super-admin-only');
+    expect(accountRefusal(ad, { hostOnly: true, superAdmin: false })).toBeNull();
+    expect(accountRefusal(ad, { hostOnly: true, superAdmin: true })).toBe('super-admin-only');
+    expect(accountRefusal(us, { hostOnly: true, superAdmin: false })).toBe('forbidden');
   });
 
   it('a user update needs at least one field; a null e-mail clears it', () => {
@@ -146,7 +139,7 @@ describe('account policy (spec 01, D20, D21)', () => {
   it('an unknown role has no permissions', () => {
     expect(can('constructor' as never, 'ViewSongs')).toBe(false);
     expect(can('admin', 'ViewUsers')).toBe(true);
-    expect(can('admin', 'AssignSuperAdminRole')).toBe(false);
+    expect(can('admin', 'ManageOrganizations')).toBe(false);
   });
 });
 

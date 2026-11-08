@@ -61,7 +61,7 @@ Remote control for the whole organisation (LIVE-R38 and R39 as changed on 2026-1
 
 - **The policy is a row of `org_settings`**, `remoteControl` = `never`, `presenter` or `always`; no row (or a
   value this build does not know) is `presenter`, today's behaviour. It is set by `setRemoteControl`, which needs
-  `ManageOrganizationSettings`, a new permission that Admin and SuperAdmin have. Spec 01 ORG-R8 has settings
+  `ManageOrganizationSettings`, a new permission that Admin and Superadmin have. Spec 01 ORG-R8 has settings
   written with `ManageUsers`; a permission of its own keeps it apart from managing users.
 - **The server decides**: the live hub reads the row on every command and every sessions list, so a window
   that reports "Tillåt fjärrstyrning" under "Aldrig" is still refused, and one that does not under "Alltid" is
@@ -165,21 +165,21 @@ Song history (spec 02 `/admin/songs/{id}/history`, SONG-R20–R24, D9; built 202
 
 Several organisations (spec 01 `/admin/organizations` and the switcher, ORG-R1–R7; built 2026-10-31):
 
-- **A user can be in several organisations** (Lars chose "Admin lägger till med e-post"; D1 changed): Skapa användare
-  with an address another organisation's user has adds that user, with the role given there. They get no invite if they
-  can sign in already: an invite would replace their logins. The current app had one organisation per user.
-- **A SuperAdmin visits without a membership** (Lars chose "Besöka utan medlemskap"), as the current app's selected
-  organisation: SuperAdmin wherever they have no membership, and in no user list there. A new organisation has no
-  members; the SuperAdmin lands on its Användare to make the first.
+- **A user can be in several organisations** (D1 changed): they accept an invitation from each
+  ([accounts-and-roles.md](accounts-and-roles.md); until 2026-11-08 an Admin added an existing account by its address,
+  which let an Admin take it over). The current app had one organisation per user.
+- **A Superadmin visits without a membership** (Lars chose "Besöka utan medlemskap"), as the current app's selected
+  organisation: in superadminläge Superadmin wherever they have no membership, and in no user list there. A new
+  organisation has no members; the Superadmin lands on its Användare to invite the first.
 - **Switching makes a new session** rather than moving the old one: another tab may sync the old organisation's database
   with the old token. The new one keeps the sign-in time. Switching is online only, as the users pages are.
 - **Deleting deletes everything** (Lars chose "Allt, och ensamma användare"), users in no other organisation included,
-  but never a SuperAdmin's only organisation (D20 kept: the current app deleted you with your home organisation, E5).
-  Deleting the organisation the SuperAdmin is in moves them to another first.
+  but never a Superadmin's only organisation (D20 kept: the current app deleted you with your home organisation, E5).
+  Deleting the organisation the Superadmin is in moves them to another first.
 - **The desktop host can hold several** (Lars chose "Ja, som servern"): it runs the same server; a pairing code is for the
   organisation the host window is in.
 - **No Aktiva sessioner or Inloggade just nu** (Lars, 2026-10-31): they would have had to ask every organisation's
-  live hub every few seconds, and a SuperAdmin seldom needs them. ORG-R17, A18 and A19 do not apply.
+  live hub every few seconds, and a Superadmin seldom needs them. ORG-R17, A18 and A19 do not apply.
 - **No logo**: the list shows the first letter, the switcher a grid icon (GAPS.md: the logo later). At most 100
   organisations. The labels are written when the server first opens the new organisation's database.
 
@@ -353,7 +353,7 @@ Milestone 5 (media library):
 - **No server-side resize.** The 1920×1080 and 400×225 sizes are the client's work; the server does not check
   the dimensions of a blob or that `thumb` is smaller than `full`. A client that lies can store a big
   thumbnail, up to the 10 MiB limit.
-- **Everyone may import and trash images** (spec 05: User, Admin, SuperAdmin), and everyone may trash anyone's.
+- **Everyone may import and trash images** (spec 05: User, Admin, Superadmin), and everyone may trash anyone's.
 - **A file name over 200 characters is refused**, not shortened (spec 05 names the limit and no rule).
 - **A picked file's type is what the browser reports; the extension counts only when it reports none**
   (MEDIA-R13 uses the extension on a device; a browser's own type is the better guide on the web).
@@ -415,15 +415,14 @@ Milestone 3 (sign-in, membership, pairing):
 - **At most 5 logins per user** (ORG-R13), and at most one Google account; passkeys fill the rest.
 - **The passkey's default name** is the device's name (the app's, or the browser's guess); the user
   can rename it.
-- **Spec 01 E4 is refused**: an invite accepted with a Google account already linked to another user
-  fails (`login-taken`) and leaves the invite unused, rather than signing in as the invited user while
-  the login stays with the other.
-- **An invite replaces all the user's logins**, passkeys and Google alike, and ends their sessions: it
-  is how an admin resets a lost account, so whoever held an old passkey is out. That is why an Admin may
-  not make one for a SuperAdmin (D20, D21). Email is
-  required for users an admin makes, lower-cased and unique (01 Q2 limits uniqueness to real
-  addresses); the setup SuperAdmin has none until Google fills it in. An email Google gives is filled
-  in only when the user has none and no other user has it.
+- **The account is the person's** (Lars, 2026-11-08; [accounts-and-roles.md](accounts-and-roles.md), D21 replaced): an
+  invitation is a pending membership of an address; whoever opens it with an account they have gains the membership
+  and nothing else, so spec 01 E4's case (a Google account linked to someone else) is that account accepting. A reset
+  link (spec 01's invite) replaces all of a user's logins and ends their sessions; only setup, recovery to a confirmed
+  address, a Superadmin, and on a desktop host an Admin for someone only the host has, make one. A reset link used with
+  a Google account linked to another user still fails (`login-taken`). Addresses are lower-cased; only a confirmed
+  one is unique (01 Q2 limited uniqueness to real addresses); Google fills or confirms one only when no other account
+  has it confirmed.
 - **Setup is done when a user has a linked login**, not when a user exists, so a setup left before
   its passkey or Google sign-in, or a church migrated from milestone 3, can be finished with the setup
   token.
@@ -476,7 +475,7 @@ Milestone 3 (sign-in, membership, pairing):
 - **LIVE-R20: the "Visas nu" preview hides the part label too**, as the output does: it shows what
   the screen shows. Thumbnails keep it.
 - **Rapportera fel (Lars, 2026-11-05)** is not in the spec; docs/bug-reports.md has it whole. The choices made there:
-  everyone signed in may report, only a SuperAdmin reads; the reports are the server's, across organisations, not
+  everyone signed in may report, only a Superadmin reads; the reports are the server's, across organisations, not
   synced; a desktop host keeps its own and sends nothing on (Lars: only those signed in may send); no video yet (Lars's
   choice); a screenshot is taken only in the desktop app, elsewhere attached; and the steps are names and paths,
   never what is typed.

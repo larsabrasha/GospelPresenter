@@ -182,6 +182,8 @@ export interface NodeServerOptions {
   /** Refuse every API request from a device that is not paired (the desktop host). */
   pairing?: Pairing;
   sessionIdleMs?: number;
+  /** The Superadmins' addresses (`AccountOptions.superAdmins`); absent on a desktop host, where the mark setup gave counts. */
+  superAdmins?: readonly string[];
   /** Sign-in with Google. */
   google?: GoogleConfig;
   /** E-mail through Resend (`mailConfigFrom`): invites by mail and "Glömt hur du loggar in?". */
@@ -229,7 +231,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const globalFile = openSqlite(join(opts.dataDir, 'global.sqlite'), driver);
   const globalSql = nodeGlobalSql(globalFile);
   await migrateGlobal(globalSql);
-  const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
+  const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs, superAdmins: opts.superAdmins });
   const watch = new WatchRegistry(globalSql);
   const screens = new ScreenRegistry(globalSql);
   const playTokens = new PlayTokens(globalSql);

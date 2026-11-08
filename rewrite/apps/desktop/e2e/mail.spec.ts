@@ -1,5 +1,5 @@
-// E-mail (GAPS.md "E-post", decided on 2026-10-31): with a Resend key the host mails an invite from the user's page,
-// and the sign-in page offers "Glömt hur du loggar in?". A fake Resend in this process keeps what it is sent.
+// E-mail (GAPS.md "E-post", decided on 2026-10-31): with a Resend key the host mails a link from the page of someone
+// only it has, and the sign-in page offers "Glömt hur du loggar in?". A fake Resend in this process keeps what it is sent.
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test } from '@playwright/test';
@@ -36,7 +36,7 @@ async function fakeResend() {
   return { url: `http://127.0.0.1:${(resend.address() as AddressInfo).port}/emails`, sent };
 }
 
-test('an invite is mailed from the user page, and a new one is asked for on the sign-in page', async () => {
+test('a link is mailed from the user page, and a new one is asked for on the sign-in page', async () => {
   const fake = await fakeResend();
   const port = testPort();
   const app = `http://127.0.0.1:${port}`;
@@ -47,7 +47,7 @@ test('an invite is mailed from the user page, and a new one is asked for on the 
   await createUser(page, 'Bo', 'bo@x.se');
   await page.getByRole('button', { name: 'Skicka inbjudan till bo@x.se' }).click();
   await expect(page.getByText('Inbjudan skickad till bo@x.se')).toBeVisible();
-  expect(fake.sent.map((m) => [m.to, m.subject, m.key])).toEqual([[['bo@x.se'], 'Du är inbjuden till Lilla Kyrkan i Gospel Presenter', 'Bearer re_test']]);
+  expect(fake.sent.map((m) => [m.to, m.subject, m.key])).toEqual([[['bo@x.se'], 'Ett nytt sätt att logga in i Gospel Presenter', 'Bearer re_test']]);
   expect(fake.sent[0]!.text).toContain(`${app}/invite#gpin_`);
 
   await signOut(page);

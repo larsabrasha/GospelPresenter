@@ -1,9 +1,9 @@
 // Several organisations (spec 01 `/admin/organizations` and the switcher, ORG-A9–A11, decided on 2026-10-31): the
-// SuperAdmin makes one and lands among its users, each organisation has its own songs, the picture's Byt organisation moves between
+// Superadmin, in superadminläge, makes one and lands among its users, each organisation has its own songs, the picture's Byt organisation moves between
 // them, and deleting one needs its name typed.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { closeAdmin, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
+import { closeAdmin, createSong, openAdmin, openPresentations, setUpHost, superMode } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -16,6 +16,7 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   const page = host.page;
   await setUpHost(host);
   await createSong(page, 'Bara hemma', [['Verse', 'Ett']]);
+  await superMode(page);
 
   await openAdmin(page, 'Alla organisationer');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
@@ -54,10 +55,11 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await openPresentations(page);
 });
 
-test('the organisation the SuperAdmin is in is refused deletion while it is their only one', async () => {
+test('the organisation the Superadmin is in is refused deletion while it is their only one', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
+  await superMode(page);
 
   await openAdmin(page, 'Alla organisationer');
   await page.getByRole('link', { name: /Lilla Kyrkan/ }).click();

@@ -21,16 +21,20 @@ const FALLBACK: Pick<AuthState, 'google' | 'passkeys'> = { google: true, passkey
 /**
  * The sign-in buttons, a passkey and Google, as far as the server offers
  * them, and in the desktop app the wait for the system browser. With
- * `invite`, the passkey made (or the Google account chosen) becomes the
- * invited user's. There are no passwords, and no self-registration (AUTH-R4).
- * With `firstOnly`, as SignIn.razor: the first way, and the rest behind
- * "Fler alternativ". `footer` comes under the buttons.
+ * `invite`, a reset link: the passkey made (or the Google account chosen)
+ * becomes its user's. With `join` too, an invitation: Google signs in with the
+ * account one has or makes one, and a passkey either signs in or makes a new
+ * account under the name typed (docs/accounts-and-roles.md). There are no
+ * passwords, and no self-registration without an invitation (AUTH-R4). With
+ * `firstOnly`, as SignIn.razor: the first way, and the rest behind "Fler
+ * alternativ". `footer` comes under the buttons.
  */
 export function SignInChoices({
   title,
   titleClassName,
   children,
   invite,
+  join,
   methods,
   initialError = null,
   autoStart = false,
@@ -43,6 +47,7 @@ export function SignInChoices({
   titleClassName?: string;
   children?: ReactNode;
   invite?: string;
+  join?: boolean;
   methods: Pick<AuthState, 'google' | 'passkeys'> | null;
   initialError?: string | null;
   /** Start Google at once when it is the only way: setup has already asked the person to go on. */
@@ -55,6 +60,9 @@ export function SignInChoices({
 }) {
   const s = useDesktopSignIn(onSignedIn);
   const [more, setMore] = useState(false);
+  /** An invitation's new account with a passkey: the name it gets, asked for first. */
+  const [naming, setNaming] = useState(false);
+  const [personName, setPersonName] = useState('');
   const { google, passkeys } = methods ?? FALLBACK;
   const started = useRef(false);
   useEffect(() => {
@@ -85,12 +93,38 @@ export function SignInChoices({
       ),
     },
     passkeys && {
-      button: (
+      button: join ? (
+        <AppButton key="passkey" variant="plain" className={OTHER} onClick={() => void s.passkey(invite, { mode: 'signin' })}>
+          {t('passkey.signIn')}
+        </AppButton>
+      ) : (
         <AppButton key="passkey" variant="plain" className={OTHER} onClick={() => void s.passkey(invite)}>
           {invite ? t('passkey.create') : t('passkey.signIn')}
         </AppButton>
       ),
     },
+    passkeys &&
+      join && {
+        button: naming ? (
+          <form
+            key="new"
+            className="w-64 space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (personName.trim()) void s.passkey(invite, { mode: 'register', personName: personName.trim() });
+            }}
+          >
+            <FloatingInput label={t('invite.yourName')} autoFocus maxLength={200} value={personName} onChange={(e) => setPersonName(e.target.value)} />
+            <AppButton type="submit" variant="plain" className={OTHER} disabled={!personName.trim()}>
+              {t('passkey.create')}
+            </AppButton>
+          </form>
+        ) : (
+          <AppButton key="new" variant="plain" className="text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:underline" onClick={() => setNaming(true)}>
+            {t('invite.newWithPasskey')}
+          </AppButton>
+        ),
+      },
   ].filter((w) => !!w);
   return (
     <AuthCard title={title} titleClassName={titleClassName} centered={centered}>

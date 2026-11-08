@@ -9,7 +9,7 @@ import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 import { methodsText, SignInChoices } from './SignIn.tsx';
 
 /**
- * First run (spec 01 `/setup`, D19): the organisation and its SuperAdmin,
+ * First run (spec 01 `/setup`, D19): the organisation and its Superadmin,
  * who then makes a passkey or signs in with Google through the invite setup
  * answers with (spec 01: setup goes on to `/invite/{token}`). Needs the setup token,
  * which the desktop host hands its own window and a self-hosted server

@@ -81,7 +81,7 @@ export function LegacyImport() {
       {state.at === 'done' && (
         <div role="status" className={`${GROUP_ROW} flex-col items-start!`}>
           <span>{t('legacy.done', { name: state.result.manifest.orgName })}</span>
-          <span className="text-stone-500 dark:text-stone-400">{t('legacy.usersDone', { created: state.result.users.created, member: state.result.users.member })}</span>
+          <span className="text-stone-500 dark:text-stone-400">{t('legacy.usersDone', { created: state.result.users.created, member: state.result.users.member, invited: state.result.users.invited })}</span>
           {state.result.users.limit > 0 && <span className="text-red-600 dark:text-red-400">{t('legacy.usersLimit', { n: state.result.users.limit })}</span>}
         </div>
       )}

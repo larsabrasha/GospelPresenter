@@ -1,8 +1,9 @@
-// The user detail page (spec 01 `/admin/users/{id}`, UserDetail.razor): name and e-mail saved as
-// they are typed, the role, the linked logins, the invite while there are none, and removal.
+// The user detail page (spec 01 `/admin/users/{id}`, UserDetail.razor): the role and removal for an Admin; name and
+// e-mail, saved as they are typed, only in superadminläge (docs/accounts-and-roles.md); on the host, an Admin also
+// manages the logins and the link of someone only the host has.
 import { expect, test } from '@playwright/test';
 import { browserSignIn, launch, type Desktop } from './apps.ts';
-import { ANNA, createUser, openAdmin, pair, setUpHost, signInWithGoogle, signOut } from './flows.ts';
+import { ANNA, createUser, openAdmin, pair, setUpHost, signInWithGoogle, signOut, superMode } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -13,7 +14,7 @@ test.afterEach(async () => {
   host = second = undefined;
 });
 
-test("a user's page: rename, change the e-mail and the role, remove a login, make an invite, delete the user", async () => {
+test("a user's page: the role; in superadminläge the name and e-mail; on the host a login removed and a link made; deleting the user", async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -22,8 +23,8 @@ test("a user's page: rename, change the e-mail and the role, remove a login, mak
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const create = page.getByRole('dialog', { name: 'Skapa användare' });
   await create.getByLabel('Namn').fill('Eva');
-  await create.getByLabel('E-post').fill('eva@kyrkan.se');
   await create.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
   await page.getByTestId('invite').getByRole('button', { name: 'Logga in som Eva här' }).click();
   await page.getByRole('button', { name: 'Logga in med Google' }).click();
   await browserSignIn(host, { sub: 'google-eva', email: 'eva.private@gmail.com' });
@@ -38,7 +39,14 @@ test("a user's page: rename, change the e-mail and the role, remove a login, mak
   await expect(page).toHaveURL(/\/admin\/users\/[^/]+$/);
   await expect(page.getByRole('heading', { name: 'Eva', exact: true })).toBeVisible();
 
-  // Name and e-mail save while typing; a bad or taken address is said under the field.
+  // Her name and address are hers: an Admin sees them, read-only.
+  await expect(page.getByLabel('Namn')).toBeDisabled();
+  await expect(page.getByText('Bara personen själv ändrar sitt namn och sin e-post.')).toBeVisible();
+
+  // In superadminläge, turned on under Mina inställningar, they save while typing; a bad address is said under the field.
+  await superMode(page);
+  await openAdmin(page, 'Användare');
+  await page.getByRole('list', { name: 'Användare' }).getByRole('link', { name: /Eva/ }).click();
   await page.getByLabel('Namn').fill('Eva Berg');
   await expect(page.getByTestId('saved')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Eva Berg', exact: true })).toBeVisible();
@@ -46,11 +54,12 @@ test("a user's page: rename, change the e-mail and the role, remove a login, mak
   const emailError = page.getByRole('alert').filter({ hasText: /./ });
   await email.fill('inte-en-adress');
   await expect(emailError).toHaveText('Ogiltig e-postadress');
-  await email.fill(ANNA.email!);
-  await expect(emailError).toHaveText('E-postadressen används redan av en annan användare');
   await email.fill('eva.berg@kyrkan.se');
   await expect(emailError).toHaveCount(0);
   await expect(page.getByTestId('saved')).toBeVisible();
+  await page.getByTestId('super-mode').getByRole('button', { name: 'Avsluta' }).click();
+  await expect(page.getByTestId('super-mode')).toHaveCount(0);
+  await expect(page.getByLabel('Namn')).toBeDisabled();
 
   // The role saves at once.
   await page.getByLabel('Roll').selectOption({ label: 'Admin' });
@@ -91,7 +100,7 @@ test("a user's page: rename, change the e-mail and the role, remove a login, mak
   await expect(page.getByRole('list', { name: 'Användare' })).not.toContainText('Eva');
 });
 
-test("Skapa användare lands on the new user's page, which shows the invite link once; Skapa ny länk replaces it", async () => {
+test("Skapa användare on the host lands on the new person's page; the link made there shows once; Skapa ny länk replaces it", async () => {
   // On a computer paired to the host, which is not the host: the link is for sending.
   host = await launch();
   await setUpHost(host);
@@ -105,13 +114,13 @@ test("Skapa användare lands on the new user's page, which shows the invite link
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const create = page.getByRole('dialog', { name: 'Skapa användare' });
   await create.getByLabel('Namn').fill('Cia');
-  await create.getByLabel('E-post').fill('cia@kyrkan.se');
   await create.getByRole('button', { name: 'Skapa', exact: true }).click();
 
-  // Her page, no dialog: the card has the link, Kopiera, Dela where the system can share, and that it is shown only now.
+  // Her page, no dialog; the link made there has Kopiera, Dela where the system can share, and that it is shown only now.
   await expect(page).toHaveURL(/\/admin\/users\/[^/]+$/);
   await expect(page.getByRole('heading', { name: 'Cia', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Skapa användare' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
   const invite = page.getByTestId('invite');
   await expect(invite).toContainText('Aktiv');
   await expect(invite).toContainText('Den visas inte igen.');

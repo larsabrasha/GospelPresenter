@@ -49,13 +49,14 @@ test('an export from version 1 is imported into an empty organisation', async ()
   await page.getByRole('button', { name: 'Importera', exact: true }).click();
 
   await expect(page.getByText('Klart. Gamla kyrkan är importerad.')).toBeVisible();
-  await expect(page.getByText('1 nya användare, 0 som redan fanns på servern.')).toBeVisible();
+  // Anna's import makes and links the accounts only in superadminläge; without it the users are invited.
+  await expect(page.getByText('1 inbjudna, 0 nya användare, 0 som redan fanns på servern.')).toBeVisible();
   await openAdmin(page, 'Sånger');
   await expect(page.getByText('Bred dina vida vingar')).toBeVisible();
   await openAdmin(page, 'Biblar');
   await expect(page.getByText('Svenska 1917')).toBeVisible();
   await openAdmin(page, 'Användare');
-  await expect(page.getByText('Bo Berg')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Inbjudna' })).toContainText('bo@kyrkan.se');
   await closeAdmin(page);
   await openPresentations(page);
   await expect(page.getByText('Gudstjänst i oktober')).toBeVisible();

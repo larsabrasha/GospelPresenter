@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 9;
+export const GLOBAL_SCHEMA_VERSION = 10;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -75,19 +75,49 @@ const loginDdl = [
      created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, browser_hash TEXT, used_at INTEGER,
      user_id TEXT, org_id TEXT, handoff_hash TEXT, link_user_id TEXT, link_session_id TEXT)`,
   `CREATE INDEX IF NOT EXISTS login_flows_address ON login_flows (address, expires_at)`,
-  ...passkeyFlowDdl,
+  // As version 4 made it, with version 10's `person_name`: a new account's name, for an invitation accepted with a passkey.
+  passkeyFlowDdl[0]!.replace('used_at INTEGER)', 'used_at INTEGER, person_name TEXT)'),
+  ...passkeyFlowDdl.slice(1),
+];
+
+/**
+ * Version 10 (docs/accounts-and-roles.md): an invitation is a pending membership of an address, accepted by whoever
+ * signs in with an account they have or makes one; the `invites` table keeps the links that replace a person's logins.
+ * `mailed`: the link went only by mail, so opening it confirms the address. `google_subjects` (a JSON array): a 1.x
+ * import's Google logins, which accept it by signing in. A link to an address confirms it (`email_links`). What a
+ * Superadmin does to someone else's account is logged (`audit_log`).
+ */
+const accountsDdlV10 = [
+  `CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE, email TEXT NOT NULL,
+     org_id TEXT NOT NULL, role TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER,
+     mailed INTEGER NOT NULL, google_subjects TEXT, name TEXT, by_user_id TEXT, use_nonce TEXT)`,
+  `CREATE INDEX IF NOT EXISTS invitations_org ON invitations (org_id, email)`,
+  `CREATE TABLE IF NOT EXISTS email_links (token_hash TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, email TEXT NOT NULL,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS email_links_user ON email_links (user_id)`,
+  `CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY NOT NULL, at INTEGER NOT NULL, actor_id TEXT NOT NULL,
+     action TEXT NOT NULL, target_id TEXT, org_id TEXT, detail TEXT)`,
+  `CREATE INDEX IF NOT EXISTS audit_log_at ON audit_log (at)`,
+];
+
+/** Only a confirmed address is unique (version 10); an unconfirmed one may be on more than one account until one confirms it. */
+const usersEmailIndex = [
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email) WHERE email IS NOT NULL AND email_confirmed = 1`,
+  `CREATE INDEX IF NOT EXISTS users_email_any ON users (email)`,
 ];
 
 /** The current tables, as a new database gets them. */
 const accountDdl = [
   `CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL, last_org_id TEXT)`,
-  // 01 Q2: only a real address must be unique; users without one are allowed.
-  `CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email) WHERE email IS NOT NULL`,
+  // `super_admin`: the Superadmin mark, which counts where the server's configuration names no Superadmins (a desktop host).
+  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL, last_org_id TEXT,
+     email_confirmed INTEGER NOT NULL DEFAULT 0, super_admin INTEGER NOT NULL DEFAULT 0)`,
+  ...usersEmailIndex,
   ...loginDdl,
+  // `super_until`: superadminläge is on for this session until then.
   `CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
      user_id TEXT NOT NULL, org_id TEXT NOT NULL, device_name TEXT NOT NULL, created_at INTEGER NOT NULL,
-     last_used_at INTEGER NOT NULL, revoked_at INTEGER, paired_device_id TEXT)`,
+     last_used_at INTEGER NOT NULL, revoked_at INTEGER, paired_device_id TEXT, super_until INTEGER)`,
   `CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)`,
   `CREATE TABLE IF NOT EXISTS invites (token_hash TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL,
      created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, use_nonce TEXT)`,
@@ -97,6 +127,7 @@ const accountDdl = [
   `CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
      name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, revoked_at INTEGER)`,
   pairCodesDdl(),
+  ...accountsDdlV10,
 ];
 
 /** A pairing code names the user the device will be signed in as (version 3). */
@@ -136,8 +167,8 @@ const playTokensDdl = [
 ];
 
 /**
- * Version 9: "Rapportera fel" (docs/bug-reports.md), across organisations, for the SuperAdmin. Who and where are
- * copied in, so a report outlives a deleted user or organisation. Each report has a thread between the SuperAdmin and
+ * Version 9: "Rapportera fel" (docs/bug-reports.md), across organisations, for the Superadmins. Who and where are
+ * copied in, so a report outlives a deleted user or organisation. Each report has a thread between a Superadmin and
  * the one who reported (`from_admin`), and when each side last read it.
  */
 const bugReportsDdl = [
@@ -186,16 +217,37 @@ const globalMigrations: Record<number, string[]> = {
   // The organisation a user last switched to, which their next sign-in opens (spec 01 `LastSelectedOrganizationId`).
   8: [`ALTER TABLE users ADD COLUMN last_org_id TEXT`],
   9: bugReportsDdl,
+  // The account is the person's (docs/accounts-and-roles.md). Every login and session stays.
+  10: [
+    `ALTER TABLE users ADD COLUMN email_confirmed INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN super_admin INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE sessions ADD COLUMN super_until INTEGER`,
+    `ALTER TABLE passkey_flows ADD COLUMN person_name TEXT`,
+    // The addresses here are not asked again (Lars, 2026-11-08): one a linked Google account has is confirmed.
+    `UPDATE users SET email_confirmed = 1 WHERE email IS NOT NULL
+       AND EXISTS (SELECT 1 FROM user_logins l WHERE l.user_id = users.id AND l.provider = 'google' AND lower(l.name) = users.email)`,
+    `DROP INDEX users_email`,
+    ...usersEmailIndex,
+    // A SuperAdmin membership becomes the mark on the account and an Admin membership.
+    `UPDATE users SET super_admin = 1 WHERE id IN (SELECT user_id FROM memberships WHERE role = 'superAdmin')`,
+    `UPDATE memberships SET role = 'admin' WHERE role = 'superAdmin'`,
+    // An unused link that would replace the logins of someone who can sign in was how an Admin took an account over.
+    `DELETE FROM invites WHERE used_at IS NULL AND user_id IN (SELECT user_id FROM user_logins)`,
+    ...accountsDdlV10,
+  ],
 };
 
-/** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */
-export function globalSchemaPlan(version: number | null, hasMemberships: boolean): string[] {
+/**
+ * What to run to bring a global database to GLOBAL_SCHEMA_VERSION (or to `target`, for the tests of one migration);
+ * `version` is null without a row.
+ */
+export function globalSchemaPlan(version: number | null, hasMemberships: boolean, target = GLOBAL_SCHEMA_VERSION): string[] {
   const from = version ?? (hasMemberships ? 1 : 0);
   if (from > GLOBAL_SCHEMA_VERSION) throw new Error(`the global database has schema ${from}, newer than this server's ${GLOBAL_SCHEMA_VERSION}`);
   const steps: string[] = [];
   if (from === 0) steps.push(...globalDdl);
-  else for (let v = from + 1; v <= GLOBAL_SCHEMA_VERSION; v++) steps.push(...globalMigrations[v]!);
-  if (from !== GLOBAL_SCHEMA_VERSION) steps.push(`INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${GLOBAL_SCHEMA_VERSION})`);
+  else for (let v = from + 1; v <= target; v++) steps.push(...globalMigrations[v]!);
+  if (from !== target) steps.push(`INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${from === 0 ? GLOBAL_SCHEMA_VERSION : target})`);
   return steps;
 }
 

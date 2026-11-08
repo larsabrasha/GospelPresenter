@@ -19,11 +19,16 @@ export const PASSKEY_FLOW = { ttlMs: 5 * 60_000, perAddress: 20 } as const;
 /** A passkey ceremony, as its start and its finish find it. */
 export interface PasskeyFlow {
   kind: 'register' | 'authenticate';
-  /** Registration from a signed-in session: whose, and that session (which must still be valid at the end). */
+  /**
+   * Registration from a signed-in session: whose, and that session (which must still be valid at the end). With an
+   * invitation and no session: the id the new account gets.
+   */
   userId: string | null;
   sessionId: string | null;
-  /** Registration that accepts an invite. */
+  /** Registration that uses a reset link or accepts an invitation, or a sign-in that accepts an invitation. */
   inviteHash: string | null;
+  /** The new account's name, for an invitation accepted with a new passkey. */
+  personName: string | null;
   /** The new passkey's name. */
   name: string | null;
   deviceName: string;
@@ -49,6 +54,7 @@ export class PasskeyService {
     sessionId?: string;
     inviteToken?: string;
     name?: string;
+    personName?: string;
     deviceName: string;
     callbackScheme: string | null;
   }): Promise<string | 'limit'> {
@@ -57,8 +63,8 @@ export class PasskeyService {
     const [, inserted] = await this.sql.batch([
       ['DELETE FROM passkey_flows WHERE expires_at < ?', [now - 24 * 60 * 60_000]],
       [
-        `INSERT INTO passkey_flows (state_hash, kind, address, user_id, session_id, invite_hash, name, device_name, callback_scheme, created_at, expires_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        `INSERT INTO passkey_flows (state_hash, kind, address, user_id, session_id, invite_hash, name, device_name, callback_scheme, created_at, expires_at, person_name)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE (SELECT count(*) FROM passkey_flows WHERE address = ? AND used_at IS NULL AND expires_at > ?) < ?`,
         [
           await sha256(state),
@@ -72,6 +78,7 @@ export class PasskeyService {
           a.callbackScheme,
           now,
           now + PASSKEY_FLOW.ttlMs,
+          a.personName ?? null,
           a.address,
           now,
           PASSKEY_FLOW.perAddress,
@@ -108,7 +115,7 @@ export class PasskeyService {
 
   private async flowRow(column: 'state_hash' | 'challenge_hash', hash: string): Promise<PasskeyFlow | null> {
     const [r] = await this.sql.all(
-      `SELECT kind, user_id, session_id, invite_hash, name, device_name, callback_scheme FROM passkey_flows WHERE ${column} = ?`,
+      `SELECT kind, user_id, session_id, invite_hash, name, device_name, callback_scheme, person_name FROM passkey_flows WHERE ${column} = ?`,
       [hash],
     );
     if (!r) return null;
@@ -117,6 +124,7 @@ export class PasskeyService {
       userId: (r.user_id as string | null) ?? null,
       sessionId: (r.session_id as string | null) ?? null,
       inviteHash: (r.invite_hash as string | null) ?? null,
+      personName: (r.person_name as string | null) ?? null,
       name: (r.name as string | null) ?? null,
       deviceName: String(r.device_name),
       callbackScheme: (r.callback_scheme as string | null) ?? null,
@@ -124,11 +132,17 @@ export class PasskeyService {
   }
 
   /**
-   * Who a registration flow makes a passkey for: the invited user, or the
-   * owner of the session that began it while it is still valid. With the
-   * user's passkeys to exclude (none for an invite, which replaces them).
+   * Who a registration flow makes a passkey for: the user a reset link names, the new account an invitation makes, or
+   * the owner of the session that began it while it is still valid. With the user's passkeys to exclude (none for a
+   * reset link, which replaces them, or a new account).
    */
   async registrant(flow: PasskeyFlow): Promise<{ userId: string; name: string; email: string | null; exclude: { id: string; transports: string[] }[] } | AuthError> {
+    if (flow.inviteHash && flow.personName && flow.userId) {
+      const [r] = await this.sql.all('SELECT email, expires_at, used_at FROM invitations WHERE token_hash = ?', [flow.inviteHash]);
+      if (!r || r.used_at !== null) return 'invite-invalid';
+      if (Number(r.expires_at) <= this.now()) return 'invite-expired';
+      return { userId: flow.userId, name: flow.personName, email: String(r.email), exclude: [] };
+    }
     if (flow.inviteHash) {
       const [r] = await this.sql.all(
         `SELECT i.user_id, i.expires_at, i.used_at, u.name, u.email FROM invites i JOIN users u ON u.id = i.user_id

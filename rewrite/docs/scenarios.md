@@ -54,7 +54,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Scenario | Tests |
 | --- | --- |
 | First setup and sign-in | `milestone3.spec.ts`: "sign-in", `passkeys.spec.ts`: "desktop host: set up with a passkey" |
-| Add a user and invite them | `milestone3.spec.ts`: "creating a user", `milestone3.spec.ts`: "invites on the host", `mail.spec.ts`: "an invite is mailed" |
+| Add a user and invite them | `milestone3.spec.ts`: "creating a person on the host", `milestone3.spec.ts`: "invites on the host", `mail.spec.ts`: "a link is mailed" |
 | Connect a second computer | `milestone3.spec.ts`: "pairing" |
 | A user removed or demoted | `milestone3.spec.ts`: "membership" |
 | Several organisations | `orgs.spec.ts`: "an organisation is made" |

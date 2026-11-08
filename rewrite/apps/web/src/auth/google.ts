@@ -90,7 +90,7 @@ export function useDesktopSignIn(onSignedIn: (r: SignInResponse) => void) {
     waiting,
     error,
     start: (invite?: string) => run(() => startGoogle(invite)),
-    passkey: (invite?: string) => run(() => startPasskey(invite)),
+    passkey: (invite?: string, opts?: { mode?: 'signin' | 'register'; personName?: string }) => run(() => startPasskey(invite, opts)),
     cancel: () => setWaiting(false),
     setError,
   };

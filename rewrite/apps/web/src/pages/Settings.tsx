@@ -8,6 +8,8 @@ import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
 import { autoOutputsSetting, setAutoOutputsSetting } from '../live/autoOutputs.ts';
 import { StorageRow } from './Storage.tsx';
+import { Profile } from './settings/Profile.tsx';
+import type { Me } from '@gp/core';
 
 /** Slå på utgångar automatiskt (live/autoOutputs.ts): in the desktop app only, where an output goes to a display. */
 function AutoOutputs() {
@@ -122,15 +124,16 @@ function Account() {
 }
 
 /**
- * "Mina inställningar" (Pages/Settings.razor), as grouped rows (ui/Group.tsx): the colour theme and the language of
- * this device, its storage (a page of its own) and what it does with its displays, and the ways to sign in. The version is
- * under Om Gospel Presenter.
+ * "Mina inställningar" (Pages/Settings.razor), as grouped rows (ui/Group.tsx): one's name and address (and
+ * superadminläge, for a Superadmin), the colour theme and the language of this device, its storage (a page of its own)
+ * and what it does with its displays, and the ways to sign in. The version is under Om Gospel Presenter.
  */
-export function Settings() {
+export function Settings({ me, onMe }: { me: Me; onMe: (m: Me) => void }) {
   return (
     <PageContainer>
       <PageHeader title={t('nav.settings')} />
       <div className="space-y-6">
+        <Profile me={me} onMe={onMe} />
         <Group title={t('settings.theme')}>
           <ThemePicker />
         </Group>

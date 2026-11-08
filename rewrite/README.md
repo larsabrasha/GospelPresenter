@@ -63,6 +63,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | File | What it holds |
 |---|---|
 | [sign-in-and-pairing.md](docs/sign-in-and-pairing.md) | Google and passkey sign-in, setup, invites, logins, sessions, pairing a device with the host, their configuration, the fake Google, and the schema versions of the global and organisation databases |
+| [accounts-and-roles.md](docs/accounts-and-roles.md) | The account as the person's: invitations as pending memberships, a confirmed and unique address that tells no one whose it is, the Users and Admins of an organisation (at least one Admin), the Superadmin as a mark on the account and its superadminläge, when a fresh sign-in is asked, and the desktop host's people; the four takeovers it closed, and what is not built |
 | [bibles-and-themes.md](docs/bibles-and-themes.md) | How a translation's text is stored, uploaded and kept per device, importing and checking a real translation; the themes' fonts |
 | [media-and-files.md](docs/media-and-files.md) | Pictures, audio and video: what syncs, where the bytes live, the endpoints, the client pipeline, video's upload in parts and streaming, clean-up, audio during live, and which files a device keeps |
 | [custom-slides.md](docs/custom-slides.md) | Custom slides and overlays: a page of texts, pictures and shapes, where it is stored, how the outputs draw it, the editor, and the steps |

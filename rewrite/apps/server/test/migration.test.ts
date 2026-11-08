@@ -343,7 +343,29 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
   /** Every table's columns, sorted (a migrated table has its added columns last). */
   const shape = (f: ReturnType<typeof openSqlite>) =>
     Object.fromEntries(tables(f).map((t) => [t, f.query(`SELECT name FROM pragma_table_info('${String(t)}')`).map((r) => String(r.name)).toSorted()]));
-  const ALL = ['_schema', 'auth_throttle', 'bug_report_messages', 'bug_reports', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'passkey_flows', 'play_tokens', 'screen_tokens', 'screens', 'sessions', 'user_logins', 'users', 'watch_codes'];
+  const ALL = [
+    '_schema',
+    'audit_log',
+    'auth_throttle',
+    'bug_report_messages',
+    'bug_reports',
+    'email_links',
+    'invitations',
+    'invites',
+    'login_flows',
+    'memberships',
+    'orgs',
+    'pair_codes',
+    'paired_devices',
+    'passkey_flows',
+    'play_tokens',
+    'screen_tokens',
+    'screens',
+    'sessions',
+    'user_logins',
+    'users',
+    'watch_codes',
+  ];
 
   async function freshShape(dir: string) {
     const f = openSqlite(join(dir, `fresh-${crypto.randomUUID()}.sqlite`), driver);
@@ -391,7 +413,9 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
     expect(shape(f)).toEqual(await freshShape(dir));
     expect(shape(f).users).not.toContain('password_hash');
     expect(f.query('SELECT id, name, email FROM users')).toEqual([{ id: 'anna', name: 'Anna', email: 'anna@x.se' }]);
-    expect(f.query('SELECT * FROM memberships')).toEqual([{ user_id: 'anna', org_id: 'church', role: 'superAdmin' }]);
+    // A SuperAdmin membership is the Superadmin mark and an Admin membership now (version 10).
+    expect(f.query('SELECT * FROM memberships')).toEqual([{ user_id: 'anna', org_id: 'church', role: 'admin' }]);
+    expect(f.query('SELECT super_admin FROM users')).toEqual([{ super_admin: 1 }]);
     expect(f.query('SELECT id, paired_device_id FROM sessions')).toEqual([{ id: 's1', paired_device_id: null }]);
     expect(f.query('SELECT key FROM auth_throttle')).toEqual([{ key: 'address:10.0.0.9' }]);
     expect(f.query('SELECT * FROM pair_codes')).toEqual([]);
@@ -446,6 +470,32 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
     await migrateGlobal(nodeGlobalSql(again));
     expect(again.query('SELECT count(*) AS n FROM user_logins')).toEqual([{ n: 2 }]);
     again.close();
+  });
+
+  it('migrates a version 9 file: an address its Google login has is confirmed, others not; an unused reset link of one who can sign in goes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const f = openSqlite(join(dir, 'global.sqlite'), driver);
+    for (const sql of version3Global) f.exec(sql);
+    const sql = nodeGlobalSql(f);
+    await sql.batch(globalSchemaPlan(3, true, 9).map((s) => [s, []]));
+    await sql.batch([
+      ["UPDATE user_logins SET name = 'Anna@Gmail.com'", []],
+      ["INSERT INTO users (id, name, email, created_at) VALUES ('bo', 'Bo', 'bo@x.se', 1)", []],
+      ["INSERT INTO memberships VALUES ('bo', 'church', 'user')", []],
+      ["INSERT INTO invites (token_hash, user_id, org_id, created_at, expires_at) VALUES ('for-anna', 'anna', 'church', 1, 9999999999999), ('for-bo', 'bo', 'church', 1, 9999999999999)", []],
+    ]);
+
+    await migrateGlobal(sql);
+
+    expect(f.query('SELECT id, email_confirmed, super_admin FROM users ORDER BY id')).toEqual([
+      { id: 'anna', email_confirmed: 1, super_admin: 1 },
+      { id: 'bo', email_confirmed: 0, super_admin: 0 },
+    ]);
+    expect(f.query('SELECT token_hash FROM invites')).toEqual([{ token_hash: 'for-bo' }]);
+    expect(f.query("SELECT role FROM memberships WHERE user_id = 'anna'")).toEqual([{ role: 'admin' }]);
+    expect(shape(f)).toEqual(await freshShape(dir));
+    f.close();
   });
 
   it('a new file gets the current tables', async () => {

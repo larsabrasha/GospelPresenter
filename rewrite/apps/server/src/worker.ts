@@ -27,6 +27,8 @@ interface Env {
   POKE_WINDOW_MS?: string;
   /** What first-run setup must be given (D19). Unset: setup stays closed. A secret, so never in wrangler.toml. */
   SETUP_TOKEN?: string;
+  /** The Superadmins' addresses, comma-separated (docs/accounts-and-roles.md); without it the mark setup gave counts. */
+  SUPER_ADMINS?: string;
   SESSION_IDLE_MS?: string;
   /** Tests only: how long a picture blob nothing names is kept. */
   MEDIA_GRACE_MS?: string;
@@ -148,7 +150,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       );
     }
     const clientAddress = (c: Context) => c.req.header('cf-connecting-ip') ?? 'unknown';
-    this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: new Accounts(d1Sql(env.DB)), clientAddress }));
+    this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: new Accounts(d1Sql(env.DB), { superAdmins: superAdminsOf(env) }), clientAddress }));
     this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
@@ -282,7 +284,7 @@ function globals(env: Env) {
   ready ??= (async () => {
     const sql = d1Sql(env.DB);
     await migrateGlobal(sql);
-    const accounts = new Accounts(sql, { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined });
+    const accounts = new Accounts(sql, { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
     const auth = authRoutes({
       accounts,
       setupToken: env.SETUP_TOKEN || null,
@@ -407,3 +409,8 @@ worker.all('*', async (c) => {
 });
 
 export default worker;
+
+/** `SUPER_ADMINS` as a list, or null without it. */
+function superAdminsOf(env: Env): string[] | null {
+  return env.SUPER_ADMINS ? env.SUPER_ADMINS.split(',').map((e) => e.trim()).filter(Boolean) : null;
+}

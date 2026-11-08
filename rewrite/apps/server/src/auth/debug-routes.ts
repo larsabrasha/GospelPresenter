@@ -1,6 +1,9 @@
 // Routes for tests only, on a debug server.
 import type { Hono } from 'hono';
-import { roleSchema } from '@gp/core';
+import { roleSchema, type Role } from '@gp/core';
+
+/** A membership's role, or `superAdmin` for a Superadmin's session in superadminläge. */
+const sessionRole = (role: string): Role => (role === 'superAdmin' ? role : roleSchema.parse(role));
 import type { AuthKit } from './kit.ts';
 
 export function debugRoutes(app: Hono, kit: AuthKit) {
@@ -12,7 +15,7 @@ export function debugRoutes(app: Hono, kit: AuthKit) {
     app.get('/api/debug/counts', async (c) => c.json(await accounts.debug.counts()));
     app.post('/api/debug/session', async (c) => {
       const { userId, orgId, role } = await c.req.json<{ userId: string; orgId: string; role: string }>();
-      return c.json({ token: await accounts.debug.session(userId, orgId, roleSchema.parse(role)) });
+      return c.json({ token: await accounts.debug.session(userId, orgId, sessionRole(role)) });
     });
     /** Sets a membership's role, or removes the membership with `role: null`. */
     app.post('/api/debug/membership', async (c) => {

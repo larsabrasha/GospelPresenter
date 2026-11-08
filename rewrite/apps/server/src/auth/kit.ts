@@ -11,7 +11,7 @@ import type { MailConfig } from '../mail.ts';
 import type { Passkeys } from '../webauthn.ts';
 import { authenticate, type Caller } from './caller.ts';
 import { signInFailed } from './pages.ts';
-import type { Pairing } from './pairing-guard.ts';
+import { deviceOf, type Pairing } from './pairing-guard.ts';
 
 export interface AuthDeps {
   accounts: Accounts;
@@ -131,6 +131,19 @@ export function authKit(deps: AuthDeps) {
     return c.redirect(await google.authorizeUrl({ state, nonce: flow.nonce, verifier: flow.verifier, redirectUri: google.redirectUri(c.req.url) }), 302);
   }
 
+  /**
+   * Whether the caller signed in by themselves (not by a pairing someone else made), and recently: what turning on
+   * superadminläge and making someone Admin ask for.
+   */
+  const fresh = (caller: Pick<Caller, 'paired' | 'signedInAt'>) => !caller.paired && accounts.now() - caller.signedInAt <= freshMs;
+
+  /**
+   * Whether the caller may make someone Admin: a fresh sign-in (`fresh`), or, on a desktop host, its own window, which
+   * stands in the church and signs in only through the system browser; a paired device never may.
+   */
+  const mayMakeAdmin = async (c: Context, caller: Caller) =>
+    fresh(caller) || (!!deps.pairing && !caller.paired && (await deviceOf(c.req.raw, accounts, deps.pairing)) === 'host');
+
   /** The target user, only if they are in the caller's organisation (PERM-R3). */
   const target = (caller: Caller, id: string) => accounts.members.member(id, caller.orgId);
   const actor = (caller: Caller) => ({ id: caller.ctx.userId, role: caller.ctx.role });
@@ -149,7 +162,7 @@ export function authKit(deps: AuthDeps) {
     }
   };
 
-  return { deps, accounts, google, passkeys, log, tooMany, inBackground, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor };
+  return { deps, accounts, google, passkeys, log, tooMany, inBackground, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor, fresh, mayMakeAdmin };
 }
 
 export type AuthKit = ReturnType<typeof authKit>;

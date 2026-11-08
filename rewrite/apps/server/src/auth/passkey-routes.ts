@@ -3,6 +3,7 @@
 import type { Hono } from 'hono';
 import { deleteCookie, getCookie } from 'hono/cookie';
 import { ACCOUNT_LIMITS, isCallbackScheme, passkeyBeginRequest, passkeyFinishRequest, type AuthError, type PasskeyBeginResponse, type PasskeyFinishResponse } from '@gp/core';
+import { newRowId } from '../crypto.ts';
 import { PASSKEY_FLOW, type NewLogin } from '../global/index.ts';
 import { parseClientData } from '../webauthn.ts';
 import type { Caller } from './caller.ts';
@@ -28,7 +29,13 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
     if (a.app && !isCallbackScheme(a.app.callbackScheme)) return fail(c, 400, 'callback-scheme');
     if (!passkeys) return fail(c, 503, 'passkey-disabled');
     if (deps.pairing && (!a.app || (await deviceOf(c.req.raw, accounts, deps.pairing)) !== 'host')) return fail(c, 403, 'forbidden');
-    if (a.mode === 'signin' && a.invite) return fail(c, 400, 'invalid-request');
+    // A sign-in may accept an invitation (an account one has gains the membership); a reset link wants a new passkey.
+    const kind = a.invite ? (await accounts.invitations.lookup(a.invite)) ?? (await accounts.members.invite(a.invite)) : null;
+    if (kind && kind.state !== 'valid') return fail(c, 400, kind.state === 'expired' ? 'invite-expired' : 'invite-invalid');
+    const join = kind?.state === 'valid' && kind.kind === 'join';
+    if (a.mode === 'signin' && a.invite && !join) return fail(c, 400, 'invalid-request');
+    // A new account is named by the person making it.
+    if (a.mode === 'register' && join && !a.personName) return fail(c, 400, 'invalid-request');
     // A passkey for yourself, from your own fresh session: never for someone else (there is no user id to give).
     let owner: Caller | null = null;
     if (a.mode === 'register' && !a.invite) {
@@ -37,17 +44,14 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
       if ((await accounts.logins.list(caller.ctx.userId)).length >= ACCOUNT_LIMITS.loginsPerUser) return fail(c, 409, 'limit');
       owner = caller;
     }
-    if (a.invite) {
-      const state = await accounts.members.invite(a.invite);
-      if (state.state !== 'valid') return fail(c, 400, state.state === 'expired' ? 'invite-expired' : 'invite-invalid');
-    }
     const state = await accounts.passkeys.createFlow({
       kind: a.mode === 'signin' ? 'authenticate' : 'register',
       address: deps.clientAddress(c),
-      userId: owner?.ctx.userId,
+      userId: owner?.ctx.userId ?? (join && a.mode === 'register' ? newRowId() : undefined),
       sessionId: owner?.sessionId,
       inviteToken: a.invite,
       name: a.name,
+      personName: join && a.mode === 'register' ? a.personName : undefined,
       deviceName: a.app?.deviceName ?? '',
       callbackScheme: a.app?.callbackScheme ?? null,
     });
@@ -106,7 +110,9 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
         if (typeof added === 'string') return refused(added, added);
         return c.json((flow.callbackScheme ? { done: true } : { added }) satisfies PasskeyFinishResponse);
       }
-      const r = await accounts.signIn.acceptInvite(flow.inviteHash, login);
+      const r = flow.personName
+        ? await accounts.invitations.createAccount(flow.inviteHash, { userId: flow.userId ?? undefined, name: flow.personName, login, googleEmail: null })
+        : await accounts.signIn.acceptInvite(flow.inviteHash, login);
       if (typeof r === 'string') return refused(r, r);
       who = r;
     } else {
@@ -115,7 +121,7 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
       const v = await passkeys.verifyAssertion(cred, cd, stored);
       if ('problem' in v) return refused('passkey-failed', v.problem);
       if (!(await accounts.passkeys.use(cred.id, stored.signCount, v.signCount))) return refused('passkey-failed', 'counter-race');
-      const r = await accounts.signIn.signedInAs(stored.userId);
+      const r = flow.inviteHash ? await accounts.invitations.accept(flow.inviteHash, stored.userId) : await accounts.signIn.signedInAs(stored.userId);
       if (typeof r === 'string') return refused(r, r);
       who = r;
     }

@@ -1,7 +1,7 @@
 // Pairing a device with a desktop host: the status anyone may ask for, and,
 // on a host, claiming a code, making codes and managing paired devices.
 import type { Context, Hono } from 'hono';
-import { ACCOUNT_LIMITS, inviteRefusal, pairClaimRequest, pairCodeRequest, pairDevRequest, type PairClaimResponse, type PairStatus } from '@gp/core';
+import { ACCOUNT_LIMITS, accountRefusal, pairClaimRequest, pairCodeRequest, pairDevRequest, type PairClaimResponse, type PairStatus } from '@gp/core';
 import { newDigits } from '../crypto.ts';
 import { THROTTLE } from '../global/index.ts';
 import type { Caller } from './caller.ts';
@@ -11,11 +11,11 @@ import { deviceOf } from './pairing-guard.ts';
 export function pairingRoutes(app: Hono, kit: AuthKit) {
   const { deps, accounts, tooMany, signedIn, withCaller, target, actor } = kit;
 
-  /** The first organisation's first admin, a SuperAdmin before an Admin. */
+  /** The first organisation's first Admin, a Superadmin before another. */
   async function firstAdmin(): Promise<{ userId: string; orgId: string } | null> {
     for (const org of await accounts.members.listOrgs()) {
-      const admins = (await accounts.members.listUsers(org.id)).filter((u) => u.role !== 'user');
-      const admin = admins.find((u) => u.role === 'superAdmin') ?? admins[0];
+      const admins = (await accounts.members.listUsers(org.id)).filter((u) => u.role === 'admin');
+      const admin = admins.find((u) => u.superAdmin) ?? admins[0];
       if (admin) return { userId: admin.id, orgId: org.id };
     }
     return null;
@@ -74,7 +74,10 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
     const atHost = (fn: (c: Context, caller: Caller) => Promise<Response>) =>
       withCaller('ManageUsers', async (c, caller) => ((await deviceOf(c.req.raw, accounts, pairing)) === 'host' ? fn(c, caller) : fail(c, 403, 'forbidden')));
 
-    /** A code that signs the device in as a member: the caller, or someone they may make an invite for (D20, D21). */
+    /**
+     * A code that signs the device in as a member: the caller, or someone whose account they may reset (an Admin: one
+     * whose only membership is the host's, and who is no Superadmin; docs/accounts-and-roles.md).
+     */
     app.post(
       '/api/pair/code',
       atHost(async (c, caller) => {
@@ -82,7 +85,7 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
         if (!a) return fail(c, 400, 'invalid-request');
         const t = await target(caller, a.userId ?? caller.ctx.userId);
         if (!t) return fail(c, 404, 'not-found');
-        const refusal = inviteRefusal(actor(caller), t);
+        const refusal = t.id === caller.ctx.userId ? null : accountRefusal(actor(caller), t);
         if (refusal) return fail(c, 403, refusal);
         const code = newDigits(6);
         return c.json({ code, expiresAt: await accounts.pairing.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, t.id, caller.orgId) });

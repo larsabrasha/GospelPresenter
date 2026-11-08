@@ -4,8 +4,11 @@ import { newRowId } from '../crypto.ts';
 import type { MemberService } from './members.ts';
 import type { GlobalSql } from './sql.ts';
 
-/** What became of one user: a new account, a membership for one who had an account, or nothing for a member already. */
-export type LegacyUserOutcome = 'created' | 'member' | 'kept' | 'limit';
+/**
+ * What became of one user: a new account, a membership for one who had an account, nothing for a member already, or
+ * an invitation (`invited`, an Admin's import).
+ */
+export type LegacyUserOutcome = 'created' | 'member' | 'kept' | 'invited' | 'limit';
 
 export class LegacyUserService {
   constructor(
@@ -15,13 +18,13 @@ export class LegacyUserService {
   ) {}
 
   /**
-   * One user, by e-mail. Their Google logins are linked, so their first sign-in finds the account (AUTH-R4 matches by
-   * subject); a subject someone else has is left with them. One with an account already becomes a member with `role`
-   * (`createUser`), and a member here already is left as they are. One with no way to sign in gets an invite, which an
-   * admin sends from Användare.
+   * One user, by e-mail, for a Superadmin's import (an Admin's invites them instead). Their Google logins are linked,
+   * so their first sign-in finds the account (AUTH-R4 matches by subject); a subject someone else has is left with
+   * them. One with an account already becomes a member with `role` at once, and a member here already is left as they
+   * are. One with no way to sign in gets a reset link, which a Superadmin sends from Användare.
    */
   async import(orgId: string, u: LegacyUser): Promise<LegacyUserOutcome> {
-    const [taken] = await this.sql.all('SELECT id FROM users WHERE email = ?', [u.email]);
+    const [taken] = await this.sql.all('SELECT id FROM users WHERE email = ? ORDER BY email_confirmed DESC, created_at LIMIT 1', [u.email]);
     let outcome: LegacyUserOutcome;
     let userId: string;
     if (taken) {

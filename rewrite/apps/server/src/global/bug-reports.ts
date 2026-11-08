@@ -1,5 +1,5 @@
-// "Rapportera fel" (docs/bug-reports.md): the reports, newest first, for the SuperAdmin; each one's thread between the
-// SuperAdmin and the one who reported; and a user's own reports, for Mina felrapporter.
+// "Rapportera fel" (docs/bug-reports.md): the reports, newest first, for the Superadmin; each one's thread between the
+// Superadmin and the one who reported; and a user's own reports, for Mina felrapporter.
 import { BUG_REPORT_LIMITS, type BugReport, type BugReporter, type BugReportInput, type BugReportMessage, type BugReportRow, type MyBugReport, type MyBugReportRow } from '@gp/core';
 import type { GlobalSql, Row } from './sql.ts';
 
@@ -76,7 +76,7 @@ export class BugReportService {
     return (await this.sql.all('SELECT * FROM bug_report_messages WHERE report_id = ? ORDER BY created_at, rowid', [id])).map(message);
   }
 
-  /** One report whole, for the SuperAdmin, who has then read its thread. */
+  /** One report whole, for the Superadmin, who has then read its thread. */
   async get(id: string): Promise<BugReport | null> {
     const [r] = await this.sql.all(`SELECT *, ${ROW_COLUMNS} FROM bug_reports WHERE id = ?`, [id]);
     if (!r) return null;
@@ -98,7 +98,7 @@ export class BugReportService {
     return (await this.sql.all(`SELECT ${MINE_COLUMNS} FROM bug_reports WHERE user_id = ? ORDER BY created_at DESC`, [userId])).map(mine);
   }
 
-  /** How many of the SuperAdmin's messages to the user's reports the user has not read. */
+  /** How many of the Superadmin's messages to the user's reports the user has not read. */
   async unreadMine(userId: string): Promise<number> {
     const rows = await this.sql.all(`SELECT ${UNREAD('reporter')} FROM bug_reports WHERE user_id = ?`, [userId]);
     return rows.reduce((n, r) => n + Number(r.unread), 0);
@@ -113,7 +113,7 @@ export class BugReportService {
   }
 
   /**
-   * Adds a message to a report's thread: from the SuperAdmin, or from the one who reported (`reporterId`, who must be
+   * Adds a message to a report's thread: from the Superadmin, or from the one who reported (`reporterId`, who must be
    * them), which opens a report marked done again. The writer has then read the thread. Null when there is no such
    * report (of theirs), 'limit' at `BUG_REPORT_LIMITS.messages`; else who reported, for the mail a reply sends.
    */

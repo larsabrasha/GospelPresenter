@@ -52,10 +52,10 @@ export type Route =
   | { page: 'labels' }
   /** The CCLI report (`/admin/ccli-report`, CcliReport.razor). */
   | { page: 'ccliReport' }
-  /** The SuperAdmin's organisations (`/admin/organizations`, Organizations.razor), and one of them. */
+  /** The Superadmin's organisations (`/admin/organizations`, Organizations.razor), and one of them. */
   | { page: 'orgs' }
   | { page: 'org'; id: string }
-  /** The SuperAdmin's bug reports (`/admin/reports`, docs/bug-reports.md), and one of them. */
+  /** The Superadmin's bug reports (`/admin/reports`, docs/bug-reports.md), and one of them. */
   | { page: 'reports' }
   | { page: 'report'; id: string }
   | { page: 'overlay'; id: string }
@@ -91,6 +91,8 @@ export type Route =
   | { page: 'myReport'; id: string }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
   | { page: 'invite'; token: string }
+  /** A link that confirms an e-mail address (docs/accounts-and-roles.md), its token in the fragment as an invite's. */
+  | { page: 'confirmEmail'; token: string }
   /** Back from Google on the web: the page collects its session (`POST /auth/google/finish`). */
   | { page: 'signedIn' }
   /** Back from a refused sign-in, with the server's error code. */
@@ -165,6 +167,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   }
   if (first === 'templates') return id ? { page: 'template', id } : { page: 'templates' };
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
+  if (first === 'confirm-email' && hash.length > 1) return { page: 'confirmEmail', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
   if (first === 'output') return { page: 'output' };
@@ -255,6 +258,8 @@ export function href(r: Route): string {
     }
     case 'invite':
       return `/invite#${encodeURIComponent(r.token)}`;
+    case 'confirmEmail':
+      return `/confirm-email#${encodeURIComponent(r.token)}`;
     case 'signedIn':
       return '/signed-in';
     case 'signIn':

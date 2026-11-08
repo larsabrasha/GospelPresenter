@@ -87,6 +87,8 @@ export async function startHost(opts: {
   google?: GoogleConfig;
   passkeys?: PasskeyConfig;
   mail?: MailConfig | null;
+  /** The Superadmins' addresses (docs/accounts-and-roles.md); absent in the desktop app, where the one who ran setup is one. */
+  superAdmins?: readonly string[];
 }) {
   mkdirSync(opts.dataDir, { recursive: true });
   const tls = tlsConfig(opts.dataDir);
@@ -107,6 +109,7 @@ export async function startHost(opts: {
     // The redirect is to this server on this machine: the system browser beside it comes back here.
     google: opts.google,
     passkeys: opts.passkeys,
+    superAdmins: opts.superAdmins,
     mail: opts.mail,
   });
 }

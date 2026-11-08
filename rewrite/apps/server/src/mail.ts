@@ -50,11 +50,31 @@ export const inviteLink = (appUrl: string, token: string) => `${appUrl.replace(/
 
 type MailText = { subject: (orgName: string) => string; lines: (a: { name: string; orgName: string; link: string }) => string[] };
 
-const MAILS: Record<'sv' | 'en', Record<'invite' | 'recovery', MailText>> = {
+const MAILS: Record<'sv' | 'en', Record<'invite' | 'reset' | 'recovery', MailText>> = {
   sv: {
     invite: {
       subject: (org) => `Du är inbjuden till ${org} i Gospel Presenter`,
-      lines: (a) => [`Hej ${a.name}!`, '', `Du är inbjuden till ${a.orgName} i Gospel Presenter. Öppna länken och logga in med Google eller skapa en passkey:`, '', a.link, '', 'Länken gäller i 7 dagar och kan användas en gång.'],
+      lines: (a) => [
+        'Hej!',
+        '',
+        `Du är inbjuden till ${a.orgName} i Gospel Presenter. Öppna länken och logga in med det konto du har, eller skapa ett med Google eller en passkey:`,
+        '',
+        a.link,
+        '',
+        'Länken gäller i 7 dagar och kan användas en gång.',
+      ],
+    },
+    reset: {
+      subject: () => 'Ett nytt sätt att logga in i Gospel Presenter',
+      lines: (a) => [
+        `Hej ${a.name}!`,
+        '',
+        `Här är ett nytt sätt att logga in i ${a.orgName} i Gospel Presenter. Öppna länken och logga in med Google eller skapa en passkey; dina tidigare sätt att logga in slutar då gälla:`,
+        '',
+        a.link,
+        '',
+        'Länken gäller i 7 dagar och kan användas en gång.',
+      ],
     },
     recovery: {
       subject: () => 'Logga in i Gospel Presenter igen',
@@ -73,7 +93,27 @@ const MAILS: Record<'sv' | 'en', Record<'invite' | 'recovery', MailText>> = {
   en: {
     invite: {
       subject: (org) => `You are invited to ${org} in Gospel Presenter`,
-      lines: (a) => [`Hi ${a.name}!`, '', `You are invited to ${a.orgName} in Gospel Presenter. Open the link and sign in with Google or create a passkey:`, '', a.link, '', 'The link is valid for 7 days and can be used once.'],
+      lines: (a) => [
+        'Hi!',
+        '',
+        `You are invited to ${a.orgName} in Gospel Presenter. Open the link and sign in with the account you have, or create one with Google or a passkey:`,
+        '',
+        a.link,
+        '',
+        'The link is valid for 7 days and can be used once.',
+      ],
+    },
+    reset: {
+      subject: () => 'A new way to sign in to Gospel Presenter',
+      lines: (a) => [
+        `Hi ${a.name}!`,
+        '',
+        `Here is a new way to sign in to ${a.orgName} in Gospel Presenter. Open the link and sign in with Google or create a passkey; your earlier ways to sign in then stop working:`,
+        '',
+        a.link,
+        '',
+        'The link is valid for 7 days and can be used once.',
+      ],
     },
     recovery: {
       subject: () => 'Sign in to Gospel Presenter again',
@@ -91,14 +131,39 @@ const MAILS: Record<'sv' | 'en', Record<'invite' | 'recovery', MailText>> = {
   },
 };
 
-/** The mail with an invite: from an admin (`invite`), or asked for on the sign-in page (`recovery`), in the asking page's language. */
-export function inviteMail(kind: 'invite' | 'recovery', a: { to: string; name: string; orgName: string; link: string }, language: 'sv' | 'en' = 'sv'): Mail {
+/**
+ * The mail with a link: an invitation from an Admin (`invite`), a Superadmin's reset (`reset`), or a reset asked for
+ * on the sign-in page (`recovery`), in the asking page's language.
+ */
+export function inviteMail(kind: 'invite' | 'reset' | 'recovery', a: { to: string; name: string; orgName: string; link: string }, language: 'sv' | 'en' = 'sv'): Mail {
   const m = MAILS[language][kind];
   return { to: a.to, subject: m.subject(a.orgName), text: m.lines(a).join('\n') };
 }
 
+/** The page a link that confirms an address opens (`/confirm-email#{token}`). */
+export const confirmEmailLink = (appUrl: string, token: string) => `${appUrl.replace(/\/+$/, '')}/confirm-email#${encodeURIComponent(token)}`;
+
 /**
- * The mail a SuperAdmin's answer to a bug report sends the one who reported (docs/bug-reports.md), in the language their
+ * The mail to an address someone gave as theirs (docs/accounts-and-roles.md): the link that confirms it, or, when
+ * another account has confirmed it (`link` null), word that someone tried and how to sign in instead. The one who
+ * asked is answered the same either way.
+ */
+export function emailMail(a: { to: string; name: string; link: string | null; appUrl: string }, language: 'sv' | 'en' = 'sv'): Mail {
+  const en = language === 'en';
+  if (a.link) {
+    const lines = en
+      ? [`Hi ${a.name}!`, '', 'Open the link to use this address in Gospel Presenter:', '', a.link, '', 'The link is valid for 24 hours. If you did not ask for this, you can ignore this email.']
+      : [`Hej ${a.name}!`, '', 'Öppna länken för att använda den här adressen i Gospel Presenter:', '', a.link, '', 'Länken gäller i 24 timmar. Bad du inte om det här kan du strunta i mejlet.'];
+    return { to: a.to, subject: en ? 'Confirm your email address' : 'Bekräfta din e-postadress', text: lines.join('\n') };
+  }
+  const lines = en
+    ? ['Hi!', '', 'Someone tried to use this address for another account in Gospel Presenter. It is already yours, so nothing changed.', '', 'Sign in as usual at:', a.appUrl, 'If you have lost your way in, choose "Forgot how you sign in?" there.']
+    : ['Hej!', '', 'Någon försökte använda den här adressen för ett annat konto i Gospel Presenter. Den är redan din, så inget ändrades.', '', 'Logga in som vanligt på:', a.appUrl, 'Har du tappat bort hur du loggar in, välj "Glömt hur du loggar in?" där.'];
+  return { to: a.to, subject: en ? 'Your email address in Gospel Presenter' : 'Din e-postadress i Gospel Presenter', text: lines.join('\n') };
+}
+
+/**
+ * The mail a Superadmin's answer to a bug report sends the one who reported (docs/bug-reports.md), in the language their
  * app had when they reported: the answer, and a link to the report's thread in Mina felrapporter.
  */
 export function bugReplyMail(a: { to: string; name: string; answer: string; link: string }, language: string): Mail {

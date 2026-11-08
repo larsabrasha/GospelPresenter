@@ -155,30 +155,36 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
     const anna = { name: 'Anna', email: `anna-${crypto.randomUUID()}@example.com`, role: 'admin', google: [`sub-${crypto.randomUUID()}`] };
     const importUsers = (users: unknown) => api<Record<string, number>>(fx.h, 'POST', '/api/import/users', { user: 'alice', org: fx.org, body: users });
 
-    it('creates a user with their role, and says so', async () => {
+    it("invites each user with their role, as an admin's import: no account is made or linked", async () => {
       const r = await importUsers([anna]);
-      const listed = await api<{ email: string; role: string }[]>(fx.h, 'GET', '/api/users', { user: 'alice', org: fx.org });
+      const invited = await api<{ email: string; role: string }[]>(fx.h, 'GET', '/api/invitations', { user: 'alice', org: fx.org });
+      const listed = await api<{ email: string }[]>(fx.h, 'GET', '/api/users', { user: 'alice', org: fx.org });
 
-      expect(r.body).toEqual({ created: 1, member: 0, kept: 0, limit: 0 });
-      expect(listed.body.find((u) => u.email === anna.email)?.role).toBe('admin');
+      expect(r.body).toEqual({ created: 0, member: 0, kept: 0, invited: 1, limit: 0 });
+      expect(invited.body.find((u) => u.email === anna.email)?.role).toBe('admin');
+      expect(listed.body.map((u) => u.email)).not.toContain(anna.email);
     });
 
-    it('makes a user who has an account in another organisation a member here', async () => {
-      const elsewhere = { ...anna, email: `bo-${crypto.randomUUID()}@example.com`, google: [] };
-      await importUsers([elsewhere]);
+    it("makes and links the accounts at once in a Superadmin's import, and a member elsewhere becomes one here", async () => {
+      const bo = { ...anna, email: `bo-${crypto.randomUUID()}@example.com`, google: [] };
+      const boss = `boss-${crypto.randomUUID()}`;
+      await setRole(fx.h, boss, fx.org, 'superAdmin');
       const other = `org-${crypto.randomUUID()}`;
-      await setRole(fx.h, 'alice', other, 'admin');
+      await setRole(fx.h, boss, other, 'superAdmin');
 
-      const r = await api<Record<string, number>>(fx.h, 'POST', '/api/import/users', { user: 'alice', org: other, body: [elsewhere] });
+      const here = await api<Record<string, number>>(fx.h, 'POST', '/api/import/users', { user: boss, org: fx.org, body: [bo] });
+      const there = await api<Record<string, number>>(fx.h, 'POST', '/api/import/users', { user: boss, org: other, body: [bo] });
 
-      expect(r.body).toMatchObject({ member: 1 });
+      expect([here.body, there.body]).toMatchObject([{ created: 1 }, { member: 1 }]);
     });
 
     it('leaves a member here as they are', async () => {
-      const once = { ...anna, email: `cy-${crypto.randomUUID()}@example.com`, google: [] };
-      await importUsers([once]);
+      const cy = { ...anna, email: `cy-${crypto.randomUUID()}@example.com`, google: [] };
+      const boss = `boss-${crypto.randomUUID()}`;
+      await setRole(fx.h, boss, fx.org, 'superAdmin');
+      await api(fx.h, 'POST', '/api/import/users', { user: boss, org: fx.org, body: [cy] });
 
-      expect((await importUsers([once])).body).toMatchObject({ kept: 1 });
+      expect((await importUsers([cy])).body).toMatchObject({ kept: 1 });
     });
 
     it('refuses a user', async () => {

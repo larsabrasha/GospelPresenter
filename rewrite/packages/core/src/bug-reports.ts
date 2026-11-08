@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 // "Rapportera fel" (Lars, 2026-11-05): what the user wrote, a screenshot they may leave out, and the app's state and
-// its last steps, so the SuperAdmin can see the error and do the same again (docs/bug-reports.md). A desktop host keeps
-// its own, for its own SuperAdmin: nothing is sent on.
+// its last steps, so the Superadmin can see the error and do the same again (docs/bug-reports.md). A desktop host keeps
+// its own, for its own Superadmin: nothing is sent on.
 
 export const BUG_REPORT_LIMITS = {
   text: 4000,
@@ -43,7 +43,7 @@ export const bugReportDoneRequest = z.object({ done: z.boolean() });
 /** A message in a report's thread, from either side. */
 export const bugReportMessageRequest = z.object({ text: z.string().trim().min(1).max(BUG_REPORT_LIMITS.text) });
 
-/** A message in a report's thread: from the SuperAdmin (`fromAdmin`) or from the one who reported. */
+/** A message in a report's thread: from the Superadmin (`fromAdmin`) or from the one who reported. */
 export interface BugReportMessage {
   id: string;
   createdAt: number;
@@ -52,7 +52,7 @@ export interface BugReportMessage {
   text: string;
 }
 
-/** One of the user's own reports, in Mina felrapporter: `unread` is the SuperAdmin's messages not read yet. */
+/** One of the user's own reports, in Mina felrapporter: `unread` is the Superadmin's messages not read yet. */
 export interface MyBugReportRow {
   id: string;
   createdAt: number;
@@ -67,7 +67,7 @@ export interface MyBugReport extends MyBugReportRow {
   messages: BugReportMessage[];
 }
 
-/** A report in the SuperAdmin's list. */
+/** A report in the Superadmin's list. */
 export interface BugReportRow {
   id: string;
   createdAt: number;
@@ -76,7 +76,7 @@ export interface BugReportRow {
   orgName: string;
   hasShot: boolean;
   done: boolean;
-  /** The reporter's messages the SuperAdmin has not read yet. */
+  /** The reporter's messages the Superadmin has not read yet. */
   unread: number;
 }
 

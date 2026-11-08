@@ -62,9 +62,9 @@ function Unusable({ picture, title, titleClassName, text }: { picture: ReactNode
 }
 
 /**
- * `/invite#{token}` (spec 01): the invited person makes a passkey or signs
- * in with Google, and that becomes their way in. More can be added later
- * under Inloggningsmetoder.
+ * `/invite#{token}` (spec 01, docs/accounts-and-roles.md): an invitation, which the person accepts by signing in with
+ * the account they have or by making one; or a reset link, with which they make a passkey or sign in with Google, and
+ * that becomes their way in. More can be added later under Inloggningsmetoder.
  */
 export function Invite({ token, methods, onSignedIn }: { token: string; methods: AuthState | null; onSignedIn: (r: SignInResponse) => void }) {
   const [state, setState] = useState<InviteState | 'offline' | null>(null);
@@ -85,6 +85,19 @@ export function Invite({ token, methods, onSignedIn }: { token: string; methods:
     );
   if (state.state === 'expired') return <Unusable picture={<ExpiredPicture />} title={t('error.invite-expired')} titleClassName="text-stone-500 dark:text-stone-400" />;
   if (state.state === 'invalid') return <Unusable picture={<InvalidPicture />} title={t('error.invite-invalid')} titleClassName="text-red-400" text={t('invite.invalidHelp')} />;
+  if (state.kind === 'join')
+    return (
+      <SignInChoices
+        title={<Emphasis text={t('invite.joinTitle', { org: '{value}' })} value={state.orgName} />}
+        titleClassName="text-lg/7 font-normal dark:text-stone-100 text-center px-4"
+        invite={token}
+        join
+        methods={methods}
+        onSignedIn={onSignedIn}
+      >
+        <p className="mt-4 mb-2 text-sm text-stone-500 dark:text-stone-400 text-center">{t('invite.joinChoose')}</p>
+      </SignInChoices>
+    );
   return (
     <SignInChoices
       title={<Emphasis text={t('invite.welcome', { name: '{value}' })} value={state.name} />}

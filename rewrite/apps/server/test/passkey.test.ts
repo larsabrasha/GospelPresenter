@@ -4,7 +4,7 @@
 // tried, and both kinds of login on one user.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthState, LoginMethod, Me, PasskeyBeginResponse, PasskeyCreationOptions, PasskeyCredentialJson, PasskeyRequestOptions, SignInResponse } from '@gp/core';
-import { api, startAdapter, type AdapterName, type Harness } from './harness.ts';
+import { api, invite, startAdapter, type AdapterName, type Harness } from './harness.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from './fake-google.ts';
 import { b64url, SoftAuthenticator, type Alg, type Spoil } from './soft-authenticator.ts';
 
@@ -61,7 +61,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   }
 
   /** Makes a passkey on `auth`: for an invite, or for the session `token`. */
-  async function register<T = SignInResponse>(auth: SoftAuthenticator, body: { invite?: string; name?: string }, opts: { token?: string; spoil?: Spoil } = {}) {
+  async function register<T = SignInResponse>(auth: SoftAuthenticator, body: { invite?: string; name?: string; personName?: string }, opts: { token?: string; spoil?: Spoil } = {}) {
     const browser = new TestBrowser();
     const b = await begin(browser, { mode: 'register', ...body }, opts.token);
     if (b.status !== 200 || !('options' in b.body) || !('create' in b.body.options)) return { status: b.status, body: b.body as unknown as T & { error?: string } };
@@ -95,28 +95,21 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   const counts = async () => (await api<Record<string, number>>(h, 'GET', '/api/debug/counts')).body;
   const logins = async (token: string) => (await api<LoginMethod[]>(h, 'GET', '/api/auth/logins', { token })).body;
 
-  /** An admin-made user who accepted their invite with a new passkey on `auth`. */
+  /** Someone an admin invited, who made their account with a new passkey on `auth`. */
   async function passkeyMember(name: string, auth = key(), role: 'user' | 'admin' = 'user') {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
-      token: admin.token,
-      body: { name, email: `${name.toLowerCase().replace(/\W/g, '')}-${crypto.randomUUID().slice(0, 8)}@x.se`, role },
-    });
-    expect(created.status, JSON.stringify(created.body)).toBe(200);
-    const r = await register(auth, { invite: created.body.inviteToken });
+    const inv = await invite(h, admin, role);
+    const r = await register(auth, { invite: inv.token, personName: name });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
-    return { ...r.body, id: created.body.id, key: auth };
+    return { ...r.body, id: r.body.me.userId, key: auth };
   }
 
-  /** An admin-made user who accepted their invite with Google. */
+  /** Someone an admin invited, who made their account with Google. */
   async function googleMember(name: string) {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
-      token: admin.token,
-      body: { name, email: `${name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}@x.se`, role: 'user' },
-    });
+    const inv = await invite(h, admin);
     const who = googleAccount(name);
-    const r = await google(who, { invite: created.body.inviteToken });
+    const r = await google(who, { invite: inv.token });
     expect(r.session, JSON.stringify(r)).toBeDefined();
-    return { ...r.session!, id: created.body.id, google: who };
+    return { ...r.session!, id: r.session!.me.userId, google: who };
   }
 
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
@@ -146,7 +139,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const r = await finish(browser, await adminKey.create(o));
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.token).toMatch(/^gpdt_[\w-]{43}$/);
-    expect(r.body.me).toMatchObject({ name: 'Anna', role: 'superAdmin', orgName: 'Lilla Kyrkan', email: null });
+    expect(r.body.me).toMatchObject({ name: 'Anna', role: 'admin', superAdmin: true, superUntil: null, orgName: 'Lilla Kyrkan', email: null });
     admin = r.body;
     expect(o.user.id).toBe(b64url(admin.me.userId)); // the user handle is the random user id, nothing personal
     expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body.setupRequired).toBe(false);
@@ -186,15 +179,12 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   it.each<Spoil>(['origin', 'rp-id', 'no-uv', 'no-up', 'type', 'cross-origin', 'attestation', 'challenge'])(
     'registration with a wrong %s is refused: nothing linked, and the invite still good',
     async (spoil) => {
-      const created = await api<{ inviteToken: string }>(h, 'POST', '/api/users', {
-        token: admin.token,
-        body: { name: `R ${spoil}`, email: `r-${spoil}-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' },
-      });
+      const inv = await invite(h, admin);
       const before = await counts();
-      expect(await register(key(), { invite: created.body.inviteToken }, { spoil })).toEqual({ status: 400, body: { error: 'passkey-failed' } });
+      expect(await register(key(), { invite: inv.token, personName: `R ${spoil}` }, { spoil })).toEqual({ status: 400, body: { error: 'passkey-failed' } });
       expect((await counts()).user_logins).toBe(before.user_logins);
       expect((await counts()).sessions).toBe(before.sessions);
-      expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
+      expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: inv.token } })).body).toMatchObject({ state: 'valid', kind: 'join' });
     },
   );
 
@@ -285,8 +275,8 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect((await logins(p.token)).map((l) => l.provider)).toEqual(['passkey', 'google']);
     expect((await google(pias)).session?.me.userId).toBe(p.id);
     expect((await signIn(p.key)).body.me?.userId).toBe(p.id);
-    // The email is filled from Google's when the user has none... Pia has one, so it stays.
-    expect((await api<Me>(h, 'GET', '/api/auth/me', { token: p.token })).body.email).toMatch(/^pia-.*@x\.se$/);
+    // Google vouches only for its own address: Pia's, a copied invitation's, stays hers and unconfirmed.
+    expect((await api<Me>(h, 'GET', '/api/auth/me', { token: p.token })).body).toMatchObject({ email: expect.stringMatching(/^p-.*@x\.se$/), emailConfirmed: false });
     // One Google account per user.
     expect((await api(h, 'POST', '/api/auth/google/begin', { token: p.token, body: { link: true } })).body).toEqual({ error: 'limit' });
 
@@ -351,19 +341,38 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect((await api(h, 'DELETE', `/api/auth/logins/passkey/${r.body.added.id}`, { token: admin.token })).status).toBe(200);
   });
 
-  it('a new invite is the reset: the passkey that accepts it replaces every login, and the old sessions end', async () => {
+  it('a reset link, only from a Superadmin: the passkey that uses it replaces every login, and the old sessions end', async () => {
     const g = await googleMember('Reset');
     const old = key();
     await register(old, {}, { token: g.token });
-    const invite = await api<{ inviteToken: string }>(h, 'POST', `/api/users/${g.id}/invites`, { token: admin.token });
+    expect(await api(h, 'POST', `/api/users/${g.id}/invites`, { token: admin.token })).toEqual({ status: 403, body: { error: 'super-admin-only' } });
+    expect((await api(h, 'POST', '/api/auth/superadmin', { token: admin.token, body: { on: true } })).status).toBe(200);
+    const reset = await api<{ inviteToken: string }>(h, 'POST', `/api/users/${g.id}/invites`, { token: admin.token });
+    expect((await api(h, 'POST', '/api/auth/superadmin', { token: admin.token, body: { on: false } })).status).toBe(200);
     const fresh = key();
-    const r = await register(fresh, { invite: invite.body.inviteToken });
+    const r = await register(fresh, { invite: reset.body.inviteToken });
     expect(r.body.me?.userId).toBe(g.id);
     expect((await api(h, 'GET', '/api/auth/me', { token: g.token })).status).toBe(401);
     expect(await google(g.google)).toMatchObject({ error: 'not-linked' });
     expect(await signIn(old)).toEqual({ status: 400, body: { error: 'passkey-failed' } });
     expect((await signIn(fresh)).body.me?.userId).toBe(g.id);
     expect((await logins(r.body.token)).map((l) => l.provider)).toEqual(['passkey']);
+  });
+
+  it('an invitation accepted by signing in with a passkey one has: that account gains the membership, its logins stay', async () => {
+    const m = await passkeyMember('Hanna');
+    const org = `org-${crypto.randomUUID()}`;
+    const { setRole } = await import('./harness.ts');
+    const other = await setRole(h, `ot-${crypto.randomUUID()}`, org, 'admin');
+    const inv = await invite(h, { token: other });
+    const browser = new TestBrowser();
+    const b = await begin(browser, { mode: 'signin', invite: inv.token });
+    const r = await finish(browser, await m.key.get((b.body as { options: { get: PasskeyRequestOptions } }).options.get));
+    expect(r.body.me).toMatchObject({ userId: m.id, orgId: org, role: 'user' });
+    expect((await api(h, 'GET', '/api/auth/me', { token: m.token })).status).toBe(200);
+    expect(await logins(m.token)).toHaveLength(1);
+    // A new account needs a name; a reset link is not for signing in.
+    expect((await begin(new TestBrowser(), { mode: 'register', invite: (await invite(h, admin)).token })).body).toEqual({ error: 'invalid-request' });
   });
 
   // ------------------------------------------------------------ apps: the ceremony in the system browser (spec 01 device sign-in)
@@ -392,13 +401,10 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   });
 
   it('an app begins an invite or a new passkey; the system browser opens it once and gets the callback, or a done', async () => {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
-      token: admin.token,
-      body: { name: 'Desk', email: `desk-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' },
-    });
+    const inv = await invite(h, admin);
     const app = { deviceName: 'Mac', callbackScheme: 'gospelpresenter-test' };
-    expect((await begin(new TestBrowser(), { mode: 'register', invite: created.body.inviteToken, app: { ...app, callbackScheme: 'evil' } })).status).toBe(400);
-    const b = await begin(new TestBrowser(), { mode: 'register', invite: created.body.inviteToken, app });
+    expect((await begin(new TestBrowser(), { mode: 'register', invite: inv.token, personName: 'Desk', app: { ...app, callbackScheme: 'evil' } })).status).toBe(400);
+    const b = await begin(new TestBrowser(), { mode: 'register', invite: inv.token, personName: 'Desk', app });
     const url = h.url + (b.body as { url: string }).url;
     const browser = new TestBrowser();
     const page = await browser.open(url);
@@ -407,7 +413,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const auth = key();
     const done = await finish<{ callback: string }>(browser, await auth.create(pageOptions(page.html).create!));
     const token = new URLSearchParams(new URL(done.body.callback).hash.slice(1)).get('token')!;
-    expect((await api<Me>(h, 'GET', '/api/auth/me', { token })).body.userId).toBe(created.body.id);
+    expect((await api<Me>(h, 'GET', '/api/auth/me', { token })).body).toMatchObject({ name: 'Desk', email: inv.email, role: 'user' });
     expect(appCallbackLink(page.html)).toBeNull(); // the link appears only once the script has it
 
     // A signed-in app adds a passkey the same way; nothing is handed back but "done".

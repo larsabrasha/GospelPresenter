@@ -1,8 +1,9 @@
 // "Rapportera fel" (docs/bug-reports.md): the picture's menu opens it with the window as it showed and everything that is
-// sent shown; the SuperAdmin finds it under Felrapporter with its screenshot and the steps before it, and marks it done.
+// sent shown; a Superadmin, in superadminläge, finds it under Felrapporter with its screenshot and the steps before it,
+// and marks it done.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { adminDialog, closeAdmin, createSong, openAdmin, setUpHost } from './flows.ts';
+import { adminDialog, closeAdmin, createSong, openAdmin, setUpHost, superMode } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -10,7 +11,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('a bug report is sent with its screenshot and steps, and the SuperAdmin reads it and marks it done', async () => {
+test('a bug report is sent with its screenshot and steps, and a Superadmin reads it and marks it done', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -31,6 +32,7 @@ test('a bug report is sent with its screenshot and steps, and the SuperAdmin rea
   await expect(page.getByRole('dialog', { name: 'Tack!' })).toBeVisible();
   await page.getByRole('button', { name: 'Klar' }).click();
 
+  await superMode(page);
   await openAdmin(page, 'Felrapporter');
   await page.getByRole('link', { name: /Sången blev dubbel/ }).click();
   await expect(page.getByTestId('report-detail-shot')).toBeVisible();
@@ -41,17 +43,18 @@ test('a bug report is sent with its screenshot and steps, and the SuperAdmin rea
   await expect(page.getByRole('button', { name: 'Markera som ny' })).toBeVisible();
 });
 
-test('the SuperAdmin answers a report, and the one who reported reads the answer under Mina felrapporter and answers back', async () => {
+test('a Superadmin answers a report, and the one who reported reads the answer under Mina felrapporter and answers back', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  // The SuperAdmin reports themself, so one user is both sides of the thread.
+  // The Superadmin reports themself, so one user is both sides of the thread.
   await page.getByTestId('me').click();
   await page.getByRole('menuitem', { name: 'Rapportera fel' }).click();
   await page.getByRole('dialog', { name: 'Rapportera fel' }).getByLabel('Vad hände?').fill('Bilden hackar');
   await page.getByRole('button', { name: 'Skicka' }).click();
   await page.getByRole('button', { name: 'Klar' }).click();
 
+  await superMode(page);
   await openAdmin(page, 'Felrapporter');
   await page.getByRole('link', { name: /Bilden hackar/ }).click();
   await page.getByLabel('Skriv ett svar').fill('Vilken dator var det?');

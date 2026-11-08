@@ -1,8 +1,10 @@
-// Sign-in with Google, and accepting an invite with a Google account or a new passkey.
+// Sign-in with Google, and using a reset link or an invitation with a Google account or a new passkey.
 import type { AuthError } from '@gp/core';
 import { newRowId, newSecret, sha256 } from '../crypto.ts';
 import type { GoogleIdentity } from '../google.ts';
 import type { NewPasskey } from '../webauthn.ts';
+import type { EmailService } from './emails.ts';
+import type { InvitationService } from './invitations.ts';
 import type { GlobalSql } from './sql.ts';
 
 /** A sign-in that left for Google, as the callback finds it. */
@@ -34,6 +36,8 @@ export class SignInService {
   constructor(
     private readonly sql: GlobalSql,
     private readonly now: () => number,
+    private readonly invitations: InvitationService,
+    private readonly emails: EmailService,
   ) {}
 
   /**
@@ -140,27 +144,46 @@ export class SignInService {
   }
 
   /**
-   * Who a verified Google identity signs in as (spec 01 callback rules).
-   * Without an invite: the user its `sub` is linked to, or no one (AUTH-R4:
-   * no self-registration, and never a match by email). With an invite: the
-   * invited user, whose logins this one replaces (`acceptInvite`).
+   * Who a verified Google identity signs in as (spec 01 callback rules). Without a link: the user its `sub` is linked
+   * to, else a new account from an invitation a 1.x import made for that `sub`, else no one (AUTH-R4: no
+   * self-registration, and never a match by email). With a reset link: its user, whose logins this one replaces
+   * (`acceptInvite`). With an invitation: the account the `sub` is linked to gains the membership, or a new account is
+   * made. Google vouches for its address each time (`EmailService.vouch`).
    */
   async signInWithGoogle(id: GoogleIdentity, inviteHash: string | null): Promise<{ userId: string; orgId: string } | AuthError> {
-    if (inviteHash) return this.acceptInvite(inviteHash, { provider: 'google', subject: id.sub, name: id.email }, id.email);
+    const login: NewLogin = { provider: 'google', subject: id.sub, name: id.email };
     const [linked] = await this.sql.all("SELECT user_id FROM user_logins WHERE provider = 'google' AND subject = ?", [id.sub]);
-    if (!linked) return 'not-linked';
-    await this.sql.run("UPDATE user_logins SET last_used_at = ? WHERE provider = 'google' AND subject = ?", [this.now(), id.sub]);
-    return this.signedInAs(String(linked.user_id));
+    let who: { userId: string; orgId: string } | AuthError;
+    if (inviteHash && (await this.isReset(inviteHash))) who = await this.acceptInvite(inviteHash, login);
+    else if (inviteHash) {
+      who = linked
+        ? await this.invitations.accept(inviteHash, String(linked.user_id))
+        : await this.invitations.createAccount(inviteHash, { name: id.name, login, googleEmail: id.email });
+    } else if (linked) {
+      await this.sql.run("UPDATE user_logins SET last_used_at = ? WHERE provider = 'google' AND subject = ?", [this.now(), id.sub]);
+      who = await this.signedInAs(String(linked.user_id));
+    } else {
+      const [imported] = await this.invitations.forGoogle(id.sub);
+      if (!imported) return 'not-linked';
+      who = await this.invitations.createAccount(imported, { name: id.name, login, googleEmail: id.email });
+    }
+    if (typeof who !== 'string') await this.emails.vouch(who.userId, id.email);
+    return who;
+  }
+
+  /** Whether a link's hash is a reset link (an `invites` row) rather than an invitation. */
+  async isReset(inviteHash: string): Promise<boolean> {
+    return (await this.sql.all('SELECT 1 FROM invites WHERE token_hash = ?', [inviteHash])).length > 0;
   }
 
   /**
-   * The organisation a user signs in to: the one they last switched to while they may still act there (a member, or a
-   * SuperAdmin while it exists), else their first by name (spec 01 switcher, initial pick).
+   * The organisation a user signs in to: the one they last switched to while they are still a member there, else
+   * their first by name (spec 01 switcher, initial pick).
    */
   async signedInAs(userId: string): Promise<{ userId: string; orgId: string } | 'not-a-member'> {
     const [last] = await this.sql.all(
       `SELECT o.id FROM users u JOIN orgs o ON o.id = u.last_org_id
-       WHERE u.id = ? AND EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = u.id AND (m.org_id = o.id OR m.role = 'superAdmin'))`,
+       WHERE u.id = ? AND EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = u.id AND m.org_id = o.id)`,
       [userId],
     );
     if (last) return { userId, orgId: String(last.id) };
@@ -169,14 +192,14 @@ export class SignInService {
   }
 
   /**
-   * Accepts an invite with `login`, a Google account or a new passkey. It
-   * replaces every login the user had and revokes their sessions, since a new
-   * invite is also how an admin resets a lost account: whoever held the old
-   * passkey or Google account is out. A login already linked to another user
-   * is refused (spec 01 E4 says otherwise; docs/assumptions.md). The invite is
-   * used in the same batch, so it is spent only by a link that succeeds.
+   * Uses a reset link with `login`, a Google account or a new passkey. It replaces every login the user had and
+   * revokes their sessions: whoever held the old passkey or Google account is out. Only setup, "Glömt hur du loggar
+   * in?" (to a confirmed address) and a Superadmin make one, and on a desktop host an Admin for someone whose only
+   * membership is the host's (docs/accounts-and-roles.md). A login already linked to another user is refused (spec 01
+   * E4 says otherwise; docs/assumptions.md). The link is used in the same batch, so it is spent only by a link that
+   * succeeds.
    */
-  async acceptInvite(inviteHash: string, login: NewLogin, email: string | null = null): Promise<{ userId: string; orgId: string } | AuthError> {
+  async acceptInvite(inviteHash: string, login: NewLogin): Promise<{ userId: string; orgId: string } | AuthError> {
     const now = this.now();
     const [inv] = await this.sql.all(
       `SELECT i.user_id, i.expires_at, i.used_at FROM invites i JOIN memberships m ON m.user_id = i.user_id AND m.org_id = i.org_id
@@ -200,12 +223,6 @@ export class SignInService {
           `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at, name, public_key, sign_count, transports)
            SELECT ?, ?, user_id, ?, ?, ?, ?, ?, ? FROM invites WHERE token_hash = ? AND use_nonce = ?`,
           [provider, subject, now, now, name, publicKey, signCount, transports, inviteHash, nonce],
-        ],
-        // Spec 01: an empty email is filled from Google's, unless another user has that address.
-        [
-          `UPDATE users SET email = ? WHERE id = ${used} AND email IS NULL AND ? IS NOT NULL
-             AND NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`,
-          [email, inviteHash, nonce, email, email],
         ],
         [`UPDATE sessions SET revoked_at = ? WHERE user_id = ${used} AND revoked_at IS NULL`, [now, inviteHash, nonce]],
       ]);

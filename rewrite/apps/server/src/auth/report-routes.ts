@@ -1,5 +1,5 @@
-// "Rapportera fel" (docs/bug-reports.md): anyone signed in sends a report and talks with the SuperAdmin about it in its
-// thread; the SuperAdmin reads them all, answers, marks them done and deletes them. Nothing here takes anything
+// "Rapportera fel" (docs/bug-reports.md): anyone signed in sends a report and talks with the Superadmin about it in its
+// thread; the Superadmin reads them all, answers, marks them done and deletes them. Nothing here takes anything
 // without a session.
 import type { Hono } from 'hono';
 import { bugReportDoneRequest, bugReportMessageRequest, bugReportSchema } from '@gp/core';
@@ -59,7 +59,7 @@ export function reportRoutes(app: Hono, kit: AuthKit) {
     }),
   );
 
-  // The SuperAdmin's.
+  // The Superadmin's.
   app.get(
     '/api/reports',
     withCaller('ManageOrganizations', async (c) => c.json(await accounts.bugReports.list())),

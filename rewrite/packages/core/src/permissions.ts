@@ -1,7 +1,14 @@
 // Roles and permissions (spec 01 "Role and permission"). Permissions follow
 // from the role only. Only the permissions something checks are listed.
 
+/**
+ * The role a caller acts with: their membership's (`MemberRole`), or `superAdmin` while a Superadmin has
+ * superadminläge on (docs/accounts-and-roles.md).
+ */
 export type Role = 'user' | 'admin' | 'superAdmin';
+
+/** The roles a membership can have. */
+export type MemberRole = Exclude<Role, 'superAdmin'>;
 
 export type Permission =
   | 'ViewPresentations'
@@ -28,8 +35,7 @@ export type Permission =
   | 'ManageOrganizationSettings'
   | 'ViewCcliReport'
   | 'ManageCcliReport'
-  | 'ManageOrganizations'
-  | 'AssignSuperAdminRole';
+  | 'ManageOrganizations';
 
 const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewVideos', 'ManageVideos', 'ViewOverlays', 'ManageOverlays'];
 /**
@@ -52,7 +58,7 @@ const admin: Permission[] = [
 const grants: Record<Role, ReadonlySet<Permission>> = {
   user: new Set(everyone),
   admin: new Set(admin),
-  superAdmin: new Set([...admin, 'ManageOrganizations', 'AssignSuperAdminRole']),
+  superAdmin: new Set([...admin, 'ManageOrganizations']),
 };
 
 /**

@@ -6,8 +6,10 @@
 // One file per concern. `authRoutes` registers the route groups in a fixed
 // order, the order the routes had in one file: Hono matches in registration order.
 import { Hono } from 'hono';
+import { accountRoutes } from './account-routes.ts';
 import { clientErrorRoutes } from './client-error-routes.ts';
 import { debugRoutes } from './debug-routes.ts';
+import { invitationRoutes } from './invitation-routes.ts';
 import { authKit, type AuthDeps } from './kit.ts';
 import { loginRoutes } from './login-routes.ts';
 import { orgRoutes } from './org-routes.ts';
@@ -27,7 +29,9 @@ export function authRoutes(deps: AuthDeps) {
   signInRoutes(app, kit);
   passkeyRoutes(app, kit);
   loginRoutes(app, kit);
+  accountRoutes(app, kit);
   userRoutes(app, kit);
+  invitationRoutes(app, kit);
   orgRoutes(app, kit);
   pairingRoutes(app, kit);
   clientErrorRoutes(app, kit);

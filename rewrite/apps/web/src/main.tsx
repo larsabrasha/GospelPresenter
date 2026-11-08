@@ -16,6 +16,7 @@ import { Player } from './live/player.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
+import { ConfirmEmail } from './pages/ConfirmEmail.tsx';
 import { browserLanguage, installLanguage } from './i18n.ts';
 import { currentRoute, installLinkHandler, NAVIGATED } from './ui/router.ts';
 import { installTrail } from './report/trail.ts';
@@ -72,6 +73,13 @@ if (route.page === 'watch') {
   root.render(
     <StrictMode>
       <Display id={route.id} name={route.name} token={route.token} />
+    </StrictMode>,
+  );
+} else if (route.page === 'confirmEmail') {
+  // A link that confirms an address: it works signed in or not, on any device, and opens no database.
+  root.render(
+    <StrictMode>
+      <ConfirmEmail token={route.token} />
     </StrictMode>,
   );
 } else if (route.page === 'output') {

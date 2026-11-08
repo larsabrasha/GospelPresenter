@@ -1,20 +1,13 @@
 // Sign-in, sessions and membership over HTTP, against Node (both drivers)
 // and Workers (D1 + Durable Objects in workerd), with a fake Google in this
 // process. Security first: every way a request should be refused is tried.
-// Pairing is Node-only (the desktop host) and has its own describe block at the end.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { Hono } from 'hono';
-import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type LoginMethod, type Me, type PairClaimResponse, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
+// The desktop host, where pairing is how devices sign in, is in host-auth.test.ts.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type LoginMethod, type Me, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
 import { SyncClient, httpTransport, socketProtocols } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { Accounts, migrateGlobal, pairingGuard } from '@gp/server';
-import { nodeGlobalSql, openSqlite, startNodeServer, type RunningServer } from '@gp/server/node';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { api, pokeUrl, setRole, startAdapter, type AdapterName, type Harness, type ServerDump } from './harness.ts';
+import { api, invite, pokeUrl, setRole, startAdapter, type AdapterName, type Harness, type ServerDump } from './harness.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle, type Tamper } from './fake-google.ts';
-import { SoftAuthenticator } from './soft-authenticator.ts';
 
 /** The path and query a redirect ended at: the app's pages are paths now, not fragments. */
 const where = (url: string) => new URL(url).pathname + new URL(url).search;
@@ -93,20 +86,22 @@ describe.each(adapters)('%s adapter', (adapterName) => {
 
   const dumpOf = async (who: { token: string }) => (await api<ServerDump>(h, 'GET', '/api/debug/dump', as(who))).body;
 
-  /** An admin-made user who accepted their invite with Google and is signed in. */
-  async function member(name: string, role: 'user' | 'admin' | 'superAdmin', by = admin) {
-    const email = `${name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}@x.se`;
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', { ...as(by), body: { name, email, role } });
-    expect(created.status, JSON.stringify(created.body)).toBe(200);
+  /** Someone an admin invited, who made their account with Google and is signed in. */
+  async function member(name: string, role: 'user' | 'admin', by = admin) {
+    const inv = await invite(h, by, role);
     const google = account(name);
-    const r = await webSignIn(h, google, { invite: created.body.inviteToken });
+    const r = await webSignIn(h, google, { invite: inv.token });
     expect(r.error).toBeUndefined();
-    return { ...r.session!, id: created.body.id, email, google, inviteToken: created.body.inviteToken };
+    return { ...r.session!, id: r.session!.me.userId, email: r.session!.me.email!, google, inviteToken: inv.token };
   }
+
+  /** Turns superadminläge on or off for `who`'s session. */
+  const superMode = async (who: { token: string }, on: boolean) =>
+    expect((await api(h, 'POST', '/api/auth/superadmin', { ...as(who), body: { on } })).status).toBe(200);
 
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
 
-  it('AUTH-A1/D19: setup needs the setup token, answers with an invite, and is done once the SuperAdmin linked Google', async () => {
+  it('AUTH-A1/D19: setup needs the setup token, answers with an invite, and is done once its Superadmin linked Google', async () => {
     expect(await api(h, 'GET', '/api/auth/state')).toEqual({ status: 200, body: { setupRequired: true, google: true, passkeys: false, mail: false } satisfies AuthState });
     const body = { name: 'Anna', orgName: 'Lilla Kyrkan' };
     expect((await api(h, 'POST', '/api/auth/setup', { body: { ...body, setupToken: 'gpst_guess' } })).body).toEqual({ error: 'setup-token' });
@@ -121,7 +116,8 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const anna = account('Anna');
     const r = await webSignIn(h, anna, { invite: again.body.inviteToken });
     expect(r.session?.token).toMatch(/^gpdt_[\w-]{43}$/);
-    expect(r.session?.me).toMatchObject({ name: 'Anna', email: 'anna@gmail.com', role: 'superAdmin', orgName: 'Lilla Kyrkan' });
+    // An Admin of her church, with the Superadmin mark; Google vouches for her address.
+    expect(r.session?.me).toMatchObject({ name: 'Anna', email: 'anna@gmail.com', emailConfirmed: true, role: 'admin', superAdmin: true, superUntil: null, orgName: 'Lilla Kyrkan' });
     admin = r.session!;
 
     expect((await api(h, 'POST', '/api/auth/setup', { body: { ...body, setupToken: SETUP_TOKEN } })).status).toBe(409);
@@ -165,15 +161,12 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   it.each<Tamper>(['aud', 'iss', 'expired', 'signature', 'nonce', 'unverified', 'alg-none'])(
     'an ID token with a wrong %s is refused; no session, and the invite is still good',
     async (tamper) => {
-      const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
-        ...as(admin),
-        body: { name: `T ${tamper}`, email: `t-${tamper}-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' },
-      });
+      const inv = await invite(h, admin);
       const before = await counts(h);
-      expect(await webSignIn(h, account('T'), { invite: created.body.inviteToken, tamper })).toEqual({ error: 'google-failed' });
+      expect(await webSignIn(h, account('T'), { invite: inv.token, tamper })).toEqual({ error: 'google-failed' });
       expect((await counts(h)).sessions).toBe(before.sessions);
       expect((await counts(h)).user_logins).toBe(before.user_logins);
-      expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
+      expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: inv.token } })).body).toMatchObject({ state: 'valid', kind: 'join' });
     },
   );
 
@@ -212,11 +205,16 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect((await api(h, 'POST', '/api/auth/google/finish', { body: {} })).status).toBe(401);
   });
 
-  it('an invite links one Google account: one already linked to another user is refused (spec 01 E4)', async () => {
+  it('an invitation opened with a Google account someone has: that account gains the membership and nothing else', async () => {
     const dag = await member('Dag', 'user');
-    const created = await api<{ inviteToken: string }>(h, 'POST', '/api/users', { ...as(admin), body: { name: 'Eva', email: `eva-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' } });
-    expect(await webSignIn(h, dag.google, { invite: created.body.inviteToken })).toEqual({ error: 'login-taken' });
-    expect((await webSignIn(h, dag.google)).session?.me.userId).toBe(dag.id); // still Dag's
+    const org = `org-${crypto.randomUUID()}`;
+    const other = await setRole(h, `ot-${crypto.randomUUID()}`, org, 'admin');
+    const inv = await invite(h, { token: other }, 'user', `eva-${crypto.randomUUID().slice(0, 6)}@x.se`);
+    const r = await webSignIn(h, dag.google, { invite: inv.token });
+    expect(r.session?.me).toMatchObject({ userId: dag.id, orgId: org, role: 'user', email: dag.email });
+    // Dag's own sign-in, address and session are as they were.
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(dag))).body).toMatchObject({ orgId: admin.me.orgId, email: dag.email });
+    expect((await webSignIn(h, dag.google)).session?.me.userId).toBe(dag.id);
   });
 
   it('AUTH-R10/AUTH-A11/A12: /app-login refuses an unknown callback scheme before anything is minted, and hands a token to a known one in the fragment', async () => {
@@ -245,7 +243,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect([refused.status, refused.link, /data-error="not-linked"/.test(refused.html)]).toEqual([400, null, true]);
   });
 
-  it('replayed: a signed-out token and a used invite are refused', async () => {
+  it('replayed: a signed-out token and a used invitation are refused', async () => {
     const di = await member('Di', 'user');
     expect((await api(h, 'POST', '/api/auth/signout', as(di))).status).toBe(200);
     expect((await api(h, 'GET', '/api/auth/me', as(di))).status).toBe(401);
@@ -255,46 +253,101 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: di.inviteToken } })).body).toEqual({ state: 'invalid' });
   });
 
-  it('a new invite is the reset: it links a new Google account in place of the old one and ends the old sessions', async () => {
+  it('a reset link, only from a Superadmin in superadminläge: it links a new Google account in place of the old one and ends the old sessions', async () => {
     const gi = await member('Gi', 'user');
-    const invite = await api<{ inviteToken: string }>(h, 'POST', `/api/users/${gi.id}/invites`, as(admin));
+    expect(await api(h, 'POST', `/api/users/${gi.id}/invites`, as(admin))).toEqual({ status: 403, body: { error: 'super-admin-only' } });
+    await superMode(admin, true);
+    const reset = await api<{ inviteToken: string }>(h, 'POST', `/api/users/${gi.id}/invites`, as(admin));
+    await superMode(admin, false);
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: reset.body.inviteToken } })).body).toMatchObject({ state: 'valid', kind: 'reset', name: 'Gi' });
     const fresh = account('Gi');
-    expect((await webSignIn(h, fresh, { invite: invite.body.inviteToken })).session?.me.userId).toBe(gi.id);
+    expect((await webSignIn(h, fresh, { invite: reset.body.inviteToken })).session?.me.userId).toBe(gi.id);
     expect((await api(h, 'GET', '/api/auth/me', as(gi))).status).toBe(401);
     expect(await webSignIn(h, gi.google)).toEqual({ error: 'not-linked' });
   });
 
+  // ------------------------------------------------------------ taking over someone else's account (docs/accounts-and-roles.md, "Why")
+
+  it('an Admin of another organisation who invites a person\'s address gets an invitation, never their account', async () => {
+    const eveOrg = `org-${crypto.randomUUID()}`;
+    const eve = await setRole(h, `eve-${crypto.randomUUID()}`, eveOrg, 'admin');
+    const inv = await invite(h, { token: eve }, 'user', 'anna@gmail.com');
+    // Anna is not made a member, and the list shows only the address.
+    expect((await api<UserRow[]>(h, 'GET', '/api/users', { token: eve })).body.map((u) => u.email)).not.toContain('anna@gmail.com');
+    expect((await api<{ email: string }[]>(h, 'GET', '/api/invitations', { token: eve })).body).toEqual([expect.objectContaining({ email: 'anna@gmail.com', role: 'user' })]);
+    // Eve opens the link with a Google account of her own: a new account, not Anna's.
+    const evesGoogle = account('Eve');
+    const r = await webSignIn(h, evesGoogle, { invite: inv.token });
+    expect(r.session?.me.userId).not.toBe(admin.me.userId);
+    expect(r.session?.me).toMatchObject({ email: 'eve@gmail.com', emailConfirmed: true, orgId: eveOrg });
+    // Anna keeps her logins and her session.
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(admin))).status).toBe(200);
+    expect((await api<LoginMethod[]>(h, 'GET', '/api/auth/logins', as(admin))).body).toHaveLength(1);
+  });
+
+  it('an Admin cannot change a member\'s address, and a 1.x import links no Google id to an existing account', async () => {
+    const eveOrg = `org-${crypto.randomUUID()}`;
+    const eve = await setRole(h, `eve-${crypto.randomUUID()}`, eveOrg, 'admin');
+    const ok = await member('Okke', 'user');
+    expect(await api(h, 'PATCH', `/api/users/${ok.id}`, { ...as(await member('Ad', 'admin')), body: { email: 'eve@evil.se' } })).toEqual({
+      status: 403,
+      body: { error: 'super-admin-only' },
+    });
+    expect((await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { token: eve, body: { email: 'eve@evil.se' } })).status).toBe(404);
+    // The import invites Anna's address with Eve's Google id: signing in with it makes Eve a new account.
+    const evesGoogle = account('Eve');
+    const imported = await api(h, 'POST', '/api/import/users', { token: eve, body: [{ name: 'Anna', email: 'anna@gmail.com', role: 'admin', google: [evesGoogle.sub] }] });
+    expect(imported.body).toEqual({ created: 0, member: 0, kept: 0, invited: 1, limit: 0 });
+    const r = await webSignIn(h, evesGoogle);
+    expect(r.session?.me.userId).not.toBe(admin.me.userId);
+    expect(r.session?.me).toMatchObject({ orgId: eveOrg, role: 'admin', email: 'eve@gmail.com' });
+    expect((await api<LoginMethod[]>(h, 'GET', '/api/auth/logins', as(admin))).body.map((l) => l.id)).not.toContain(evesGoogle.sub);
+  });
+
   // ------------------------------------------------------------ roles and membership
 
-  it('PERM-A2: a User cannot list, create, change or remove users', async () => {
+  it('PERM-A2: a User cannot list, invite, change or remove users', async () => {
     const fa = await member('Fa', 'user');
     expect(await api(h, 'GET', '/api/users', as(fa))).toEqual({ status: 403, body: { error: 'forbidden' } });
-    expect((await api(h, 'POST', '/api/users', { ...as(fa), body: { name: 'X', email: 'x@x.se', role: 'user' } })).status).toBe(403);
+    expect((await api(h, 'GET', '/api/invitations', as(fa))).status).toBe(403);
+    expect((await api(h, 'POST', '/api/invitations', { ...as(fa), body: { email: 'x@x.se', role: 'user' } })).status).toBe(403);
     expect((await api(h, 'PATCH', `/api/users/${fa.id}`, { ...as(fa), body: { role: 'admin' } })).status).toBe(403);
     expect((await api(h, 'DELETE', `/api/users/${admin.me.userId}`, as(fa))).status).toBe(403);
     expect((await api(h, 'POST', `/api/users/${fa.id}/invites`, as(fa))).status).toBe(403);
   });
 
-  it('PERM-R4/R5/R6, D20: an Admin cannot make or touch a SuperAdmin; nobody changes their own role or removes themselves', async () => {
+  it('PERM-R5/R6: an Admin sets roles and removes members, never their own; someone else\'s account is a Superadmin\'s', async () => {
     const gu = await member('Gu', 'admin');
     const refused = (r: { status: number; body: unknown }) => r.body;
-    expect(refused(await api(h, 'POST', '/api/users', { ...as(gu), body: { name: 'S', email: 's@x.se', role: 'superAdmin' } }))).toEqual({
-      error: 'super-admin-only',
-    });
-    expect(refused(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(gu), body: { role: 'user' } }))).toEqual({ error: 'super-admin-only' });
-    expect(refused(await api(h, 'DELETE', `/api/users/${admin.me.userId}`, as(gu)))).toEqual({ error: 'super-admin-only' });
-    // A new invite would let the Admin link their own Google account to the SuperAdmin.
+    // A link that replaces the logins, the logins themselves, the name: the account is the person's.
     expect(refused(await api(h, 'POST', `/api/users/${admin.me.userId}/invites`, as(gu)))).toEqual({ error: 'super-admin-only' });
-    expect(refused(await api(h, 'PATCH', `/api/users/${gu.id}`, { ...as(gu), body: { role: 'superAdmin' } }))).toEqual({ error: 'own-role' });
-    expect(refused(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(admin), body: { role: 'admin' } }))).toEqual({ error: 'own-role' });
+    expect(refused(await api(h, 'GET', `/api/users/${admin.me.userId}/logins`, as(gu)))).toEqual({ error: 'super-admin-only' });
+    expect(refused(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(gu), body: { name: 'Not Anna' } }))).toEqual({ error: 'super-admin-only' });
+    expect(refused(await api(h, 'PATCH', `/api/users/${gu.id}`, { ...as(gu), body: { role: 'user' } }))).toEqual({ error: 'own-role' });
+    expect(refused(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(admin), body: { role: 'user' } }))).toEqual({ error: 'own-role' });
     expect(refused(await api(h, 'DELETE', `/api/users/${gu.id}`, as(gu)))).toEqual({ error: 'own-account' });
-    expect(await api(h, 'POST', '/api/users', { ...as(gu), body: { name: 'Anna 2', email: 'anna@gmail.com', role: 'user' } })).toEqual({
-      status: 409,
-      body: { error: 'email-taken' },
-    });
-    // What the Admin may do: list, and manage Users and Admins.
+    // People are invited; only a desktop host makes them directly.
+    expect(await api(h, 'POST', '/api/users', { ...as(gu), body: { name: 'X', role: 'user' } })).toEqual({ status: 403, body: { error: 'forbidden' } });
+    // 'superAdmin' is no role to give.
+    expect((await api(h, 'POST', '/api/invitations', { ...as(gu), body: { email: 's@x.se', role: 'superAdmin' } })).status).toBe(400);
+    // An address a member here has: the Admin sees it in the list already.
+    expect(await api(h, 'POST', '/api/invitations', { ...as(gu), body: { email: 'anna@gmail.com', role: 'user' } })).toEqual({ status: 409, body: { error: 'email-taken' } });
     const users = await api<UserRow[]>(h, 'GET', '/api/users', as(gu));
-    expect(users.body.find((u) => u.id === admin.me.userId)).toMatchObject({ role: 'superAdmin', active: true, invite: null });
+    expect(users.body.find((u) => u.id === admin.me.userId)).toMatchObject({ role: 'admin', superAdmin: true, active: true, invite: null });
+  });
+
+  it('an organisation always has at least one Admin: the last one is neither made a User nor removed', async () => {
+    const org = `org-${crypto.randomUUID()}`;
+    const solo = `solo-${crypto.randomUUID()}`;
+    await setRole(h, solo, org, 'admin');
+    const boss = await setRole(h, `boss-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'superAdmin');
+    const there = await api<SignInResponse>(h, 'POST', '/api/auth/switch', { token: boss, body: { orgId: org } });
+    expect(there.body.me.role).toBe('superAdmin');
+    expect(await api(h, 'PATCH', `/api/users/${solo}`, { token: there.body.token, body: { role: 'user' } })).toEqual({ status: 403, body: { error: 'last-admin' } });
+    expect(await api(h, 'DELETE', `/api/users/${solo}`, { token: there.body.token })).toEqual({ status: 403, body: { error: 'last-admin' } });
+    // With a second Admin, either may go.
+    await setRole(h, `second-${crypto.randomUUID()}`, org, 'admin');
+    expect((await api(h, 'PATCH', `/api/users/${solo}`, { token: there.body.token, body: { role: 'user' } })).status).toBe(200);
   });
 
   it('demoted: the role is read on every request; the next pull starts over and admin APIs are refused', async () => {
@@ -370,79 +423,100 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const other = await setRole(h, `ko-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
     expect(await api(h, 'GET', `/api/users/${ka.id}`, as(admin))).toEqual({
       status: 200,
-      body: { id: ka.id, name: 'Ka', email: ka.email, role: 'user', active: true, invite: null } satisfies UserRow,
+      body: { id: ka.id, name: 'Ka', email: 'ka@gmail.com', role: 'user', active: true, invite: null, onlyHere: true, superAdmin: false } satisfies UserRow,
     });
     expect((await api(h, 'GET', `/api/users/${ka.id}`, as(ka))).status).toBe(403);
     expect(await api(h, 'GET', `/api/users/${ka.id}`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
   });
 
-  it('name and e-mail: an admin changes them; the address is lower-cased, checked and one user\'s only', async () => {
+  it('name and e-mail: a Superadmin in superadminläge changes them; an address set so is unconfirmed', async () => {
     const la = await member('La', 'user');
-    const other = await member('Lo', 'user');
+    expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { name: 'Lars' } })).toEqual({ status: 403, body: { error: 'super-admin-only' } });
+    await superMode(admin, true);
     expect((await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { name: 'Lars', email: 'Lars@X.se' } })).status).toBe(200);
-    expect((await api<UserRow>(h, 'GET', `/api/users/${la.id}`, as(admin))).body).toMatchObject({ name: 'Lars', email: 'lars@x.se' });
-    expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: other.email } })).toEqual({ status: 409, body: { error: 'email-taken' } });
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(la))).body).toMatchObject({ name: 'Lars', email: 'lars@x.se', emailConfirmed: false });
     expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: 'inte-en-adress' } })).toEqual({ status: 400, body: { error: 'invalid-request' } });
     expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { name: '  ' } })).toEqual({ status: 400, body: { error: 'invalid-request' } });
     expect((await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: null } })).status).toBe(200);
+    await superMode(admin, false);
     expect((await api<UserRow>(h, 'GET', `/api/users/${la.id}`, as(admin))).body).toMatchObject({ name: 'Lars', email: null });
   });
 
-  it('name and e-mail: a User is refused, an Admin may not change a SuperAdmin\'s, anyone with ManageUsers their own; another organisation finds no one', async () => {
-    const ma = await member('Ma', 'admin');
+  it('your own name and address under Mina inställningar; without mail an address is set at once, unconfirmed', async () => {
     const mu = await member('Mu', 'user');
-    const other = await setRole(h, `mo-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
-    expect(await api(h, 'PATCH', `/api/users/${mu.id}`, { ...as(mu), body: { name: 'Mumin' } })).toEqual({ status: 403, body: { error: 'forbidden' } });
-    expect(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(ma), body: { name: 'Not Anna' } })).toEqual({ status: 403, body: { error: 'super-admin-only' } });
-    expect(await api(h, 'PATCH', `/api/users/${ma.id}`, { ...as(ma), body: { name: 'Maja' } })).toEqual({ status: 200, body: { ok: true } });
-    expect(await api(h, 'PATCH', `/api/users/${mu.id}`, { token: other, body: { name: 'X' } })).toEqual({ status: 404, body: { error: 'not-found' } });
-    // A role refused in the same request leaves the name as it was.
-    expect((await api(h, 'PATCH', `/api/users/${ma.id}`, { ...as(ma), body: { name: 'Malin', role: 'user' } })).body).toEqual({ error: 'own-role' });
-    expect((await api<UserRow>(h, 'GET', `/api/users/${ma.id}`, as(admin))).body.name).toBe('Maja');
+    expect(await api(h, 'PATCH', '/api/auth/me', { ...as(mu), body: { name: ' Mumin ' } })).toEqual({ status: 200, body: { ok: true } });
+    expect(await api(h, 'POST', '/api/auth/email', { ...as(mu), body: { email: 'Mumin@Dalen.se' } })).toEqual({ status: 200, body: { changed: true } });
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(mu))).body).toMatchObject({ name: 'Mumin', email: 'mumin@dalen.se', emailConfirmed: false });
+    // Anna's confirmed address on another account stays unconfirmed there, and Anna's is untouched.
+    expect((await api(h, 'POST', '/api/auth/email', { ...as(mu), body: { email: 'anna@gmail.com' } })).status).toBe(200);
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(mu))).body).toMatchObject({ email: 'anna@gmail.com', emailConfirmed: false });
+    expect((await api<Me>(h, 'GET', '/api/auth/me', as(admin))).body).toMatchObject({ email: 'anna@gmail.com', emailConfirmed: true });
+    expect((await api(h, 'PATCH', '/api/auth/me', { body: { name: 'X' } })).status).toBe(401);
   });
 
-  it('logins: an admin lists a user\'s and removes one, the last too, after which they cannot sign in until a new invite', async () => {
+  it('logins: a Superadmin in superadminläge lists a user\'s and removes one, the last too, after which they cannot sign in', async () => {
     const na = await member('Na', 'user');
+    await superMode(admin, true);
     const logins = await api<LoginMethod[]>(h, 'GET', `/api/users/${na.id}/logins`, as(admin));
     expect(logins.body).toEqual([expect.objectContaining({ provider: 'google', id: na.google.sub })]);
     expect((await api(h, 'DELETE', `/api/users/${na.id}/logins/google/${encodeURIComponent(na.google.sub)}`, as(admin))).status).toBe(200);
     expect((await api(h, 'GET', `/api/users/${na.id}/logins`, as(admin))).body).toEqual([]);
+    await superMode(admin, false);
     expect((await api<UserRow>(h, 'GET', `/api/users/${na.id}`, as(admin))).body.active).toBe(false);
     expect(await webSignIn(h, na.google)).toEqual({ error: 'not-linked' });
-    expect(await api(h, 'DELETE', `/api/users/${na.id}/logins/google/${encodeURIComponent(na.google.sub)}`, as(admin))).toEqual({ status: 404, body: { error: 'not-found' } });
   });
 
-  it('logins: a User is refused, an Admin may not remove a SuperAdmin\'s, nobody their own last; another organisation finds no one', async () => {
+  it('logins: a User and an Admin are refused someone else\'s, nobody removes their own last; another organisation finds no one', async () => {
     const oa = await member('Oa', 'admin');
     const ou = await member('Ou', 'user');
     const other = await setRole(h, `oo-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
-    const [annaLogin] = (await api<LoginMethod[]>(h, 'GET', `/api/users/${admin.me.userId}/logins`, as(oa))).body;
     const path = (id: string, l: { google: FakeAccount }) => `/api/users/${id}/logins/google/${encodeURIComponent(l.google.sub)}`;
     expect(await api(h, 'GET', `/api/users/${ou.id}/logins`, as(ou))).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect(await api(h, 'GET', `/api/users/${ou.id}/logins`, as(oa))).toEqual({ status: 403, body: { error: 'super-admin-only' } });
     expect(await api(h, 'DELETE', path(oa.id, oa), as(ou))).toEqual({ status: 403, body: { error: 'forbidden' } });
-    expect(await api(h, 'DELETE', `/api/users/${admin.me.userId}/logins/${annaLogin!.provider}/${encodeURIComponent(annaLogin!.id)}`, as(oa))).toEqual({
-      status: 403,
-      body: { error: 'super-admin-only' },
-    });
+    expect(await api(h, 'DELETE', path(ou.id, ou), as(oa))).toEqual({ status: 403, body: { error: 'super-admin-only' } });
     expect(await api(h, 'DELETE', path(oa.id, oa), as(oa))).toEqual({ status: 409, body: { error: 'last-login' } });
     expect(await api(h, 'GET', `/api/users/${ou.id}/logins`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
     expect(await api(h, 'DELETE', path(ou.id, ou), { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
-    expect((await api<LoginMethod[]>(h, 'GET', `/api/users/${ou.id}/logins`, as(admin))).body).toHaveLength(1);
   });
 
-  it('invites: an admin deletes a user\'s unused invite and its link stops working; refused as the other actions are', async () => {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', { ...as(admin), body: { name: 'Pa', email: `pa-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' } });
+  it('invitations: an admin lists and withdraws one, and its link stops working; a User is refused, another organisation finds nothing', async () => {
     const pu = await member('Pu', 'user');
-    const pa = await member('Pa2', 'admin');
     const other = await setRole(h, `po-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
-    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, as(pu))).toEqual({ status: 403, body: { error: 'forbidden' } });
-    expect(await api(h, 'DELETE', `/api/users/${admin.me.userId}/invites`, as(pa))).toEqual({ status: 403, body: { error: 'super-admin-only' } });
-    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
-    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
+    const inv = await invite(h, admin, 'user', `pa-${crypto.randomUUID().slice(0, 6)}@x.se`);
+    // A second invitation to the same address replaces the first.
+    const again = await invite(h, admin, 'user', inv.email);
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: inv.token } })).body).toEqual({ state: 'invalid' });
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: again.token } })).body).toEqual({ state: 'valid', kind: 'join', orgName: 'Lilla Kyrkan', email: inv.email });
+    expect((await api<{ id: string; email: string }[]>(h, 'GET', '/api/invitations', as(admin))).body.filter((i) => i.email === inv.email)).toHaveLength(1);
+    expect((await api(h, 'DELETE', `/api/invitations/${again.id}`, as(pu))).status).toBe(403);
+    expect(await api(h, 'DELETE', `/api/invitations/${again.id}`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
+    expect(await api(h, 'DELETE', `/api/invitations/${again.id}`, as(admin))).toEqual({ status: 200, body: { ok: true } });
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: again.token } })).body).toEqual({ state: 'invalid' });
+  });
 
-    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, as(admin))).toEqual({ status: 200, body: { ok: true } });
-    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toEqual({ state: 'invalid' });
-    expect((await api<UserRow>(h, 'GET', `/api/users/${created.body.id}`, as(admin))).body.invite).toBeNull();
+  it('superadminläge: off after sign-in; on, a Superadmin sees every organisation; off again, they are what their membership says', async () => {
+    expect((await api(h, 'GET', '/api/orgs', as(admin))).status).toBe(403);
+    const off = await api<Me>(h, 'GET', '/api/auth/me', as(admin));
+    expect(off.body).toMatchObject({ role: 'admin', superAdmin: true, superUntil: null });
+    const on = await api<{ me: Me }>(h, 'POST', '/api/auth/superadmin', { ...as(admin), body: { on: true } });
+    expect(on.body.me).toMatchObject({ role: 'superAdmin', superUntil: expect.any(Number) });
+    expect(on.body.me.superUntil! - Date.now()).toBeGreaterThan(59 * 60_000);
+    expect((await api(h, 'GET', '/api/orgs', as(admin))).status).toBe(200);
+    // Visiting a church one is no member of, and coming home when it is turned off there.
+    const org = `org-${crypto.randomUUID()}`;
+    await setRole(h, `vi-${crypto.randomUUID()}`, org, 'admin');
+    expect((await api<{ id: string }[]>(h, 'GET', '/api/auth/orgs', as(admin))).body.map((o) => o.id)).toContain(org);
+    const there = await api<SignInResponse>(h, 'POST', '/api/auth/switch', { ...as(admin), body: { orgId: org } });
+    expect(there.body.me).toMatchObject({ orgId: org, role: 'superAdmin' });
+    const home = await api<{ token: string; me: Me }>(h, 'POST', '/api/auth/superadmin', { token: there.body.token, body: { on: false } });
+    expect(home.body.me).toMatchObject({ orgId: admin.me.orgId, role: 'admin', superUntil: null });
+    expect((await api(h, 'GET', '/api/auth/me', { token: there.body.token })).status).toBe(401);
+    await superMode(admin, false);
+    expect((await api<{ id: string }[]>(h, 'GET', '/api/auth/orgs', as(admin))).body.map((o) => o.id)).not.toContain(org);
+    // Nobody without the mark turns it on.
+    const ro = await member('Ro', 'admin');
+    expect(await api(h, 'POST', '/api/auth/superadmin', { ...as(ro), body: { on: true } })).toEqual({ status: 403, body: { error: 'forbidden' } });
   });
 
   it('a server that is not a desktop host requires no pairing', async () => {
@@ -489,242 +563,3 @@ describe.each(adapters)('%s adapter, Google not configured', (adapterName) => {
 });
 
 // ---------------------------------------------------------------- pairing (desktop host, Node only)
-
-describe('desktop host: sign-in only from this machine', () => {
-  it('/app-login, the Google callback and the passkey page answer an unpaired browser on loopback, and nothing else', async () => {
-    const sql = nodeGlobalSql(openSqlite(':memory:', 'better-sqlite3'));
-    await migrateGlobal(sql);
-    const accounts = new Accounts(sql);
-    for (const [address, open] of [
-      ['127.0.0.1', true],
-      ['::1', true],
-      ['::ffff:127.0.0.1', true],
-      ['192.168.1.20', false],
-      ['::ffff:192.168.1.20', false],
-      ['10.0.0.127', false],
-    ] as const) {
-      const app = new Hono();
-      app.use('*', pairingGuard(accounts, { hostToken: 'gphost_x' }, () => address));
-      app.all('*', (c) => c.text('reached'));
-      for (const path of ['/api/app-login', '/api/auth/google/start', '/api/auth/google/callback', '/api/auth/app-callback.js', '/api/auth/passkey/start', '/api/auth/passkey/finish', '/api/auth/passkey.js']) {
-        expect([address, path, (await app.request(path)).status]).toEqual([address, path, open ? 200 : 403]);
-      }
-      // The rest of the API needs pairing from anywhere.
-      for (const path of ['/api/auth/google/begin', '/api/auth/google/finish', '/api/auth/passkey/begin', '/api/auth/logins', '/api/auth/state', '/api/sync/pull']) {
-        expect((await app.request(path)).status).toBe(403);
-      }
-    }
-  });
-});
-
-describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing, %s', (driver) => {
-  const HOST = 'gphost_' + 'h'.repeat(43);
-  const HOST_PASSKEY_ORIGIN = 'http://localhost:47800';
-  let server: RunningServer;
-  let dataDir: string;
-  let admin: SignInResponse;
-  const anna = account('Anna');
-  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
-  const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
-    api<T>(host, method, path, {
-      token: opts.token,
-      body: opts.body,
-      headers: opts.device ? { 'x-gp-device': opts.device } : {},
-    });
-
-  /** The host's own sign-in: its window begins (it holds the host token), the system browser does the rest. */
-  async function hostSignIn(who: FakeAccount, invite?: string) {
-    const begin = await req<{ url: string }>('POST', '/api/auth/google/begin', { device: HOST, body: { invite, app: { deviceName: 'Värddatorn', callbackScheme: 'gospelpresenter-local' } } });
-    expect(begin.status).toBe(200);
-    fake.next(who);
-    const page = await new TestBrowser().open(host.url + begin.body.url);
-    const link = appCallbackLink(page.html);
-    expect(link, page.html).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-    return new URLSearchParams(new URL(link!).hash.slice(1)).get('token')!;
-  }
-
-  beforeAll(async () => {
-    dataDir = mkdtempSync(join(tmpdir(), 'gp-pair-'));
-    server = await startNodeServer({
-      dataDir,
-      driver,
-      pairing: { hostToken: HOST },
-      setupToken: SETUP_TOKEN,
-      google: { clientId: fake.clientId, clientSecret: fake.clientSecret, testIssuer: fake.url },
-      passkeys: { rpId: 'localhost', origins: [HOST_PASSKEY_ORIGIN] },
-      log: () => undefined,
-    });
-    host.url = server.url;
-    const setup = await req<{ inviteToken: string }>('POST', '/api/auth/setup', { device: HOST, body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Kyrkan' } });
-    expect(setup.status).toBe(200);
-    const token = await hostSignIn(anna, setup.body.inviteToken);
-    admin = { token, me: (await req<Me>('GET', '/api/auth/me', { device: HOST, token })).body };
-    expect(admin.me.role).toBe('superAdmin');
-  });
-  afterAll(async () => {
-    await server?.close();
-    rmSync(dataDir, { recursive: true, force: true });
-  });
-
-  it('an unpaired device is refused everywhere but the pairing itself, also with a valid session token', async () => {
-    expect((await req<PairStatus>('GET', '/api/pair/status')).body).toEqual({ required: true, paired: false, host: false, dev: false });
-    expect((await req<PairStatus>('GET', '/api/pair/status', { device: HOST })).body).toEqual({ required: true, paired: true, host: true, dev: false });
-    for (const device of [undefined, 'gppd_forged', 'gphost_' + 'x'.repeat(43)]) {
-      expect(await req('GET', '/api/auth/state', { device })).toEqual({ status: 403, body: { error: 'device-not-paired' } });
-      expect((await req('POST', '/api/auth/google/begin', { device, body: { app: { deviceName: 'x', callbackScheme: 'gospelpresenter' } } })).status).toBe(403);
-      expect((await req('POST', '/api/auth/google/finish', { device, body: {} })).status).toBe(403);
-      expect((await req('POST', '/api/sync/pull', { device, token: admin.token, body: pull() })).status).toBe(403);
-      expect((await req('GET', '/api/users', { device, token: admin.token })).status).toBe(403);
-      expect((await req('POST', '/api/pair/code', { device, token: admin.token })).status).toBe(403);
-    }
-    const ws = pokeUrl(host) + '?clientId=x';
-    expect(await socketOpens(ws, socketProtocols({ token: admin.token }))).toBe(false);
-    expect(await socketOpens(ws, socketProtocols({ token: admin.token, device: HOST }))).toBe(true);
-  });
-
-  it('only the host window starts a Google sign-in, and only for itself; a paired device signs in by pairing', async () => {
-    const { body: code } = await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: {} });
-    const paired = await req<PairClaimResponse>('POST', '/api/pair/claim', { body: { code: code.code, name: 'iPad' } });
-    const device = paired.body.device;
-    expect((await req('POST', '/api/auth/google/begin', { device, body: { app: { deviceName: 'iPad', callbackScheme: 'gospelpresenter' } } })).body).toEqual({ error: 'forbidden' });
-    expect((await req('POST', '/api/auth/google/begin', { device: HOST, body: {} })).body).toEqual({ error: 'forbidden' }); // a web sign-in
-    // The host signs in again with its linked Google account (no invite), in the system browser.
-    const again = await hostSignIn(anna);
-    expect((await req<Me>('GET', '/api/auth/me', { device: HOST, token: again })).body.userId).toBe(admin.me.userId);
-  });
-
-  it('passkeys on the host: only its window begins, through the system browser; a paired device neither begins nor manages logins', async () => {
-    const auth = new SoftAuthenticator(HOST_PASSKEY_ORIGIN);
-    const app = { deviceName: 'Värddatorn', callbackScheme: 'gospelpresenter-local' };
-    // In the system browser: the page, then the credential, with this browser's cookie.
-    async function inBrowser(url: string, create: boolean) {
-      const browser = new TestBrowser();
-      const page = await browser.open(host.url + url);
-      const options = JSON.parse(/data-options="([^"]*)"/.exec(page.html)![1]!.replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n))));
-      const credential = create ? await auth.create(options.create) : await auth.get(options.get);
-      const res = await browser.fetch(`${host.url}/api/auth/passkey/finish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential }) });
-      return { status: res.status, body: (await res.json()) as { callback?: string; done?: true; error?: string } };
-    }
-    // The host window, signed in as Anna, adds a passkey for herself.
-    const add = await req<{ url: string }>('POST', '/api/auth/passkey/begin', { device: HOST, token: admin.token, body: { mode: 'register', app } });
-    expect(add.body.url).toMatch(/^\/api\/auth\/passkey\/start\?flow=/);
-    expect(await inBrowser(add.body.url, true)).toEqual({ status: 200, body: { done: true } });
-    // Then signs in with it: the app gets its token on its callback scheme.
-    const signin = await req<{ url: string }>('POST', '/api/auth/passkey/begin', { device: HOST, body: { mode: 'signin', app } });
-    const done = await inBrowser(signin.body.url, false);
-    expect(done.body.callback).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-    // A web ceremony (no app) is refused on a host, as for Google.
-    expect((await req('POST', '/api/auth/passkey/begin', { device: HOST, body: { mode: 'signin' } })).body).toEqual({ error: 'forbidden' });
-
-    // A paired device: refused before anything, and its session cannot add or remove Anna's logins.
-    const { body: code } = await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: {} });
-    const paired = await req<PairClaimResponse>('POST', '/api/pair/claim', { body: { code: code.code, name: 'iPad' } });
-    const { device, session } = paired.body;
-    expect((await req('POST', '/api/auth/passkey/begin', { device, token: session.token, body: { mode: 'register', app } })).body).toEqual({ error: 'forbidden' });
-    expect((await req('POST', '/api/auth/passkey/begin', { device: HOST, token: session.token, body: { mode: 'register', app } })).body).toEqual({ error: 'forbidden' });
-    const mine = await req<{ provider: string; id: string }[]>('GET', '/api/auth/logins', { device, token: session.token });
-    expect(mine.body.map((l) => l.provider)).toEqual(['google', 'passkey']);
-    expect((await req('DELETE', `/api/auth/logins/passkey/${mine.body[1]!.id}`, { device, token: session.token })).body).toEqual({ error: 'forbidden' });
-    expect((await req('DELETE', `/api/auth/logins/passkey/${mine.body[1]!.id}`, { device: HOST, token: admin.token })).status).toBe(200);
-  });
-
-  it('a code pairs one device once, signed in as the member the host chose; disconnecting it ends its session', async () => {
-    expect((await req('POST', '/api/pair/code', { device: HOST })).status).toBe(401);
-    const created = await req<{ id: string }>('POST', '/api/users', { device: HOST, token: admin.token, body: { name: 'Bo', email: 'bo@x.se', role: 'admin' } });
-    const { body: code } = await req<{ code: string; expiresAt: number }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: created.body.id } });
-    expect(code.code).toMatch(/^\d{6}$/);
-
-    const claim = (c: string) => req<PairClaimResponse>('POST', '/api/pair/claim', { body: { code: c, name: 'iPad i koret' } });
-    const paired = await claim(code.code);
-    expect(paired.status).toBe(200);
-    const { device, session } = paired.body;
-    expect(device).toMatch(/^gppd_[\w-]{43}$/);
-    expect(session.me).toMatchObject({ userId: created.body.id, name: 'Bo', role: 'admin' });
-    expect(await claim(code.code)).toEqual({ status: 400, body: { error: 'pair-code-invalid' } }); // replayed
-
-    // The paired device syncs as Bo, but cannot make codes for others: that is the host's.
-    expect((await req('POST', '/api/sync/pull', { device, token: session.token, body: pull('ipad') })).status).toBe(200);
-    expect((await req('POST', '/api/pair/code', { device, token: session.token, body: {} })).status).toBe(403);
-
-    // Bo, an Admin at the host, may not pair a device as the SuperAdmin (D20, D21); nor anyone outside the church.
-    const bo = await req<PairClaimResponse>('POST', '/api/pair/claim', {
-      body: { code: (await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: created.body.id } })).body.code, name: 'Host as Bo' },
-    });
-    expect((await req('POST', '/api/pair/code', { device: HOST, token: bo.body.session.token, body: { userId: admin.me.userId } })).body).toEqual({ error: 'super-admin-only' });
-    expect((await req('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: 'someone-else' } })).status).toBe(404);
-
-    // Disconnecting the device on the host refuses it at once, and its session is over too.
-    const devices = await req<{ id: string; name: string }[]>('GET', '/api/pair/devices', { device: HOST, token: admin.token });
-    const ipad = devices.body.find((d) => d.name === 'iPad i koret')!;
-    expect((await req('DELETE', `/api/pair/devices/${ipad.id}`, { device: HOST, token: admin.token })).status).toBe(200);
-    expect((await req('POST', '/api/sync/pull', { device, token: session.token, body: pull('ipad') })).body).toEqual({ error: 'device-not-paired' });
-    expect((await req('GET', '/api/auth/me', { device: HOST, token: session.token })).status).toBe(401);
-  });
-
-  it('a User at the host cannot make codes; five wrong guesses kill the code; a removed user\'s code pairs nothing', async () => {
-    const created = await req<{ id: string }>('POST', '/api/users', { device: HOST, token: admin.token, body: { name: 'Cy', email: 'cy@x.se', role: 'user' } });
-    const asCy = await req<PairClaimResponse>('POST', '/api/pair/claim', {
-      body: { code: (await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: created.body.id } })).body.code, name: 'Cy' },
-    });
-    expect((await req('POST', '/api/pair/code', { device: HOST, token: asCy.body.session.token, body: {} })).status).toBe(403);
-
-    const { body: code } = await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: {} });
-    const wrong = code.code === '000000' ? '000001' : '000000';
-    for (let i = 0; i < 5; i++) expect((await req('POST', '/api/pair/claim', { body: { code: wrong, name: 'guess' } })).status).toBe(400);
-    expect((await req('POST', '/api/pair/claim', { body: { code: code.code, name: 'too late' } })).status).toBe(400);
-
-    const forCy = await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: created.body.id } });
-    expect((await req('DELETE', `/api/users/${created.body.id}`, { device: HOST, token: admin.token })).status).toBe(200);
-    expect((await req('POST', '/api/pair/claim', { body: { code: forCy.body.code, name: 'Cy again' } })).body).toEqual({ error: 'pair-code-invalid' });
-  });
-
-  it('without GP_DEV_PAIR, a device cannot pair without a code', async () => {
-    const r = await fetch(`${host.url}/api/pair/dev`, { method: 'POST', body: JSON.stringify({ name: 'iPhone' }) });
-
-    expect(r.status).toBe(404);
-  });
-});
-
-describe('a development host (GP_DEV_PAIR=1)', () => {
-  const HOST = 'gphost_' + 'd'.repeat(43);
-  let server: RunningServer;
-  let dataDir: string;
-  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
-  const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
-    api<T>(host, method, path, { token: opts.token, body: opts.body, headers: opts.device ? { 'x-gp-device': opts.device } : {} });
-
-  beforeEach(async () => {
-    dataDir = mkdtempSync(join(tmpdir(), 'gp-devpair-'));
-    server = await startNodeServer({
-      dataDir,
-      driver: 'node:sqlite',
-      pairing: { hostToken: HOST, dev: true },
-      setupToken: SETUP_TOKEN,
-      // Setup needs a way to sign in; the admin never does here.
-      passkeys: { rpId: 'localhost', origins: ['http://localhost:47800'] },
-      log: () => undefined,
-    });
-    host.url = server.url;
-  });
-  afterEach(async () => {
-    await server?.close();
-    rmSync(dataDir, { recursive: true, force: true });
-  });
-
-  it('pairs a device that asks, without a code, as the first admin', async () => {
-    const setup = await req('POST', '/api/auth/setup', { device: HOST, body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Kyrkan' } });
-    expect(setup.status).toBe(200);
-
-    const paired = await req<PairClaimResponse>('POST', '/api/pair/dev', { body: { name: 'iPhone' } });
-
-    expect(paired.status).toBe(200);
-    expect((await req<PairStatus>('GET', '/api/pair/status', { device: paired.body.device })).body).toEqual({ required: true, paired: true, host: false, dev: true });
-    expect((await req<Me>('GET', '/api/auth/me', { device: paired.body.device, token: paired.body.session.token })).body).toMatchObject({ name: 'Anna', role: 'superAdmin' });
-  });
-
-  it('refuses while the host is not set up, as there is no admin to pair as', async () => {
-    const r = await req('POST', '/api/pair/dev', { body: { name: 'iPhone' } });
-
-    expect(r).toEqual({ status: 400, body: { error: 'pair-code-invalid' } });
-  });
-});

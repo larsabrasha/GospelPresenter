@@ -174,6 +174,16 @@ export async function api<T = unknown>(
  * Makes `userId` a member of `orgId` with `role` (creating both if needed)
  * through the debug route, and keeps a session token for them. Debug servers only.
  */
+/**
+ * An invitation of `email` (a new address when absent) with `role`, made by `by`, on a server without mail: its link's
+ * token comes back. `role: 'admin'` needs `by` to have signed in within the last few minutes.
+ */
+export async function invite(h: Harness, by: { token: string }, role: 'user' | 'admin' = 'user', email = `p-${crypto.randomUUID().slice(0, 8)}@x.se`) {
+  const r = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/invitations', { token: by.token, body: { email, role } });
+  if (r.status !== 200) throw new Error(`invitation: ${r.status} ${JSON.stringify(r.body)}`);
+  return { id: r.body.id, token: r.body.inviteToken, email };
+}
+
 export async function setRole(h: Harness, userId: string, orgId: string, role: Role): Promise<string> {
   const r = await api<{ token: string }>(h, 'POST', '/api/debug/session', { body: { userId, orgId, role } });
   if (r.status !== 200) throw new Error(`debug session: ${r.status} ${JSON.stringify(r.body)}`);
