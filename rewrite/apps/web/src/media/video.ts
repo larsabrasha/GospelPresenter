@@ -20,6 +20,8 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { render } from './process.ts';
 import { serverUrl } from '../server.ts';
+import { reportClientError } from '../clientErrors.ts';
+import { decodedFrame } from './videoFrame.ts';
 
 // Importing a video (TODO.md "Video, and which files a device fetches"): MP4
 // or MOV with H.264 or HEVC, kept as it is. The page reads the codec from the
@@ -86,49 +88,97 @@ export function stillTime(duration: number): number {
   return Math.max(0, Math.min(1, duration / 10, duration - 0.05));
 }
 
+type VideoStill = Pick<VideoImport, 'duration' | 'width' | 'height' | 'stillType' | 'still' | 'thumb'>;
+
 /**
- * One load of the file in a <video>: its length, its size, and a still from
- * a bit into it (`stillTime`) in a picture's two sizes, encoded as a picture is (WebP, or JPEG
- * where the canvas cannot encode WebP). A device that cannot decode it is refused.
+ * The video's length, its size, and a still from a bit into it (`stillTime`) in a picture's two sizes, encoded as a
+ * picture is (WebP, or JPEG where the canvas cannot encode WebP): decoded from the file (`decodedFrame`), else from a
+ * <video>. A device that can do neither is refused.
  */
-async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'width' | 'height' | 'stillType' | 'still' | 'thumb'>> {
+async function videoStill(file: Blob): Promise<VideoStill> {
+  const decoded = await decodedFrame(file, stillTime).catch((e: unknown) => {
+    reportClientError(new Error(`video frame not decoded: ${e instanceof Error ? e.message : String(e)}, ${Math.round(file.size / 1e6)} MB`));
+    return null;
+  });
+  if (decoded) return encodeStill(decoded.frame, decoded.width, decoded.height, decoded.duration);
+  return playedStill(file);
+}
+
+/** The still in a picture's two sizes, from a frame `width` × `height` of a video `duration` seconds long. */
+async function encodeStill(frame: CanvasImageSource, width: number, height: number, duration: number): Promise<VideoStill> {
+  const full = fitWithin(width, height, IMAGE_VARIANTS.full.width, IMAGE_VARIANTS.full.height);
+  const thumb = fitWithin(width, height, IMAGE_VARIANTS.thumb.width, IMAGE_VARIANTS.thumb.height);
+  let type: 'image/webp' | 'image/jpeg' = 'image/webp';
+  let stillBlob = await render(frame, full, type, IMAGE_VARIANTS.full.quality);
+  if (stillBlob.type !== type) {
+    type = 'image/jpeg';
+    stillBlob = await render(frame, full, type, IMAGE_VARIANTS.full.quality);
+  }
+  const thumbBlob = await render(frame, thumb, type, IMAGE_VARIANTS.thumb.quality);
+  return {
+    duration: Number.isFinite(duration) ? Math.round(duration * 1000) : 0,
+    width,
+    height,
+    stillType: type,
+    still: new Uint8Array(await stillBlob.arrayBuffer()),
+    thumb: new Uint8Array(await thumbBlob.arrayBuffer()),
+  };
+}
+
+/** The still from one load of the file in a <video>, where it cannot be decoded without one. */
+async function playedStill(file: Blob): Promise<VideoStill> {
   const url = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
   video.preload = 'auto';
+  // On the page, out of sight: an iPhone (Safari 27.2, 2026-11-08) never began loading a video that was not, nor played
+  // (networkState 0 after 30 s); the simulator did.
+  video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  document.body.append(video);
+  /** Whether it had to be played, muted, before it loaded (for the log). */
+  let kicked = false;
+  /**
+   * A refusal because this device could not decode the video, written to the server's log with why (which step, the
+   * MediaError, how far it loaded) and the file's size, never its name: the error text is the same for each.
+   */
+  const refused = (step: string) => {
+    const e = video.error;
+    reportClientError(
+      new Error(
+        `video not decoded at ${step}${kicked ? ' (played)' : ''}: error ${e ? `${e.code} ${e.message}` : 'none'}, readyState ${video.readyState}, networkState ${video.networkState}, ` +
+          `${video.videoWidth}x${video.videoHeight}, duration ${video.duration}, ${Math.round(file.size / 1e6)} MB, ${file.type || 'no type'}`,
+      ),
+    );
+    return new VideoRefused('decode');
+  };
   try {
     // Its size and length first. iOS Safari seems to load no more than that of a video nobody plays, whatever `preload`
     // says, and waiting for a frame here (`loadeddata`) refused an H.264 video from an iPhone (2026-11-08).
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new VideoRefused('decode')), 30_000);
-      video.addEventListener('loadedmetadata', () => (clearTimeout(timer), resolve()), { once: true });
-      video.addEventListener('error', () => (clearTimeout(timer), reject(new VideoRefused('decode'))), { once: true });
+      const timer = setTimeout(() => reject(refused('metadata timeout')), 30_000);
+      // Still nothing after a while: play it, muted, which iOS allows without a tap and which makes it load.
+      const kick = setTimeout(() => {
+        kicked = true;
+        void video.play().catch(() => undefined);
+      }, 3_000);
+      const done = () => (clearTimeout(timer), clearTimeout(kick));
+      video.addEventListener('loadedmetadata', () => (done(), resolve()), { once: true });
+      video.addEventListener('error', () => (done(), reject(refused('metadata error'))), { once: true });
       video.src = url;
+      video.load();
     });
+    video.pause();
     // No picture: a track it cannot decode, or none at all.
-    if (!video.videoWidth || !video.videoHeight) throw new VideoRefused('decode');
-    await frameAt(video, stillTime(video.duration));
-    const full = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.full.width, IMAGE_VARIANTS.full.height);
-    const thumb = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.thumb.width, IMAGE_VARIANTS.thumb.height);
-    let type: 'image/webp' | 'image/jpeg' = 'image/webp';
-    let stillBlob = await render(video, full, type, IMAGE_VARIANTS.full.quality);
-    if (stillBlob.type !== type) {
-      type = 'image/jpeg';
-      stillBlob = await render(video, full, type, IMAGE_VARIANTS.full.quality);
-    }
-    const thumbBlob = await render(video, thumb, type, IMAGE_VARIANTS.thumb.quality);
-    return {
-      duration: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : 0,
-      width: video.videoWidth,
-      height: video.videoHeight,
-      stillType: type,
-      still: new Uint8Array(await stillBlob.arrayBuffer()),
-      thumb: new Uint8Array(await thumbBlob.arrayBuffer()),
-    };
+    if (!video.videoWidth || !video.videoHeight) throw refused('no size');
+    await frameAt(video, stillTime(video.duration), refused);
+    await drawable(video);
+    return await encodeStill(video, video.videoWidth, video.videoHeight, video.duration);
   } finally {
+    video.pause();
     video.removeAttribute('src');
     video.load();
+    video.remove();
     URL.revokeObjectURL(url);
   }
 }
@@ -138,11 +188,11 @@ async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'w
  * to 0 itself, where a video already is and no `seeked` comes). A frame that does not come in 15 s is asked for by
  * playing, muted, for a moment; after that the still is whatever the video shows. A video that fails to decode is refused.
  */
-async function frameAt(video: HTMLVideoElement, at: number): Promise<void> {
+async function frameAt(video: HTMLVideoElement, at: number, refused: (step: string) => VideoRefused): Promise<void> {
   const waitFor = (event: 'seeked' | 'timeupdate', ms: number) =>
     new Promise<boolean>((resolve, reject) => {
       const timer = setTimeout(() => (video.removeEventListener('error', failed), resolve(false)), ms);
-      const failed = () => (clearTimeout(timer), reject(new VideoRefused('decode')));
+      const failed = () => (clearTimeout(timer), reject(refused(`${event} error`)));
       video.addEventListener(event, () => (clearTimeout(timer), video.removeEventListener('error', failed), resolve(true)), { once: true });
       video.addEventListener('error', failed, { once: true });
     });
@@ -153,6 +203,24 @@ async function frameAt(video: HTMLVideoElement, at: number): Promise<void> {
   await video.play().catch(() => undefined);
   await played;
   video.pause();
+}
+
+/**
+ * Waits until `video` draws its frame, at most 5 s: in iOS Safari a frame drawn just after `seeked`, even after
+ * `loadeddata`, can come out empty (seen in the simulator, 2026-11-08). A decoded frame is opaque, so an empty one is
+ * told by its alpha.
+ */
+async function drawable(video: HTMLVideoElement): Promise<void> {
+  const probe = document.createElement('canvas');
+  probe.width = probe.height = 8;
+  const g = probe.getContext('2d', { willReadFrequently: true });
+  if (!g) return;
+  for (let tries = 0; tries < 25; tries++) {
+    g.clearRect(0, 0, 8, 8);
+    g.drawImage(video, 0, 0, 8, 8);
+    if (g.getImageData(0, 0, 8, 8).data.some((v, i) => i % 4 === 3 && v > 0)) return;
+    await new Promise((r) => setTimeout(r, 200)); // not drawn yet: the next try a moment later
+  }
 }
 
 /** Where an upload is: the share sent, 0 to 1, and whether it waits for the network. */
