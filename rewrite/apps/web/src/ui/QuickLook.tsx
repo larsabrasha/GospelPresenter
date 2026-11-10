@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { VideoCodec, VideoType } from '@gp/core';
-import { useBlobUrl, useOpenedUrl, usePictureUrl } from '../db/react.tsx';
+import { useOpenedUrl, usePictureUrl } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
@@ -19,7 +19,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWave
 export type QuickLookContent =
   | { kind: 'image'; full: string; thumb: string }
   | { kind: 'audio'; hash: string }
-  | { kind: 'video'; hash: string; still: string; type: VideoType; codec: VideoCodec };
+  | { kind: 'video'; hash: string; still: string; thumb: string; type: VideoType; codec: VideoCodec };
 
 function Picture({ full, thumb, name }: { full: string; thumb: string; name: string }) {
   const url = usePictureUrl(full, thumb);
@@ -40,8 +40,10 @@ function Sound({ hash, name }: { hash: string; name: string }) {
   );
 }
 
-function Video({ hash, still, type, codec, name }: { hash: string; still: string; type: VideoType; codec: VideoCodec; name: string }) {
-  const poster = useBlobUrl(still);
+function Video({ hash, still, thumb, type, codec, name }: { hash: string; still: string; thumb: string; type: VideoType; codec: VideoCodec; name: string }) {
+  // Its still as a picture looked at large: fetched when the device lacks it, its thumbnail meanwhile (a device keeps the
+  // stills only of what it presents or keeps offline).
+  const poster = usePictureUrl(still, thumb);
   const playable = canPlayVideo(type, codec);
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
@@ -174,7 +176,7 @@ export function QuickLook({
       <div ref={room} className="look-item flex-1 min-h-0 flex items-center justify-center px-4 touch-none" data-testid="quick-look-room">
         {content.kind === 'image' && <Picture key={content.full} full={content.full} thumb={content.thumb} name={name} />}
         {content.kind === 'audio' && <Sound key={content.hash} hash={content.hash} name={name} />}
-        {content.kind === 'video' && <Video key={content.hash} hash={content.hash} still={content.still} type={content.type} codec={content.codec} name={name} />}
+        {content.kind === 'video' && <Video key={content.hash} hash={content.hash} still={content.still} thumb={content.thumb} type={content.type} codec={content.codec} name={name} />}
       </div>
       {/* Under the item, never on it (Lars, 2026-11-04); greyed at either end, so they keep their places. */}
       <div className="relative z-10 flex items-center justify-center gap-6 py-4">

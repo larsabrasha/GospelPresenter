@@ -52,6 +52,15 @@ describe('a bug report', () => {
     expect([r.text, r.userName, r.userEmail, r.orgName, r.role, r.shot, r.state, r.done]).toEqual(['Bilden blev svart', 'Bo', 'bo@x.se', 'Lilla Kyrkan', 'user', SHOT, REPORT.state, false]);
   });
 
+  it('is refused past ten an hour from one user, so nobody pushes the others out of what is kept', async () => {
+    const s = await server();
+    const bo = await s.user('Bo');
+    const sent = [];
+    for (let i = 0; i < 11; i++) sent.push((await s.call(bo, 'POST', '/api/reports', REPORT)).status);
+
+    expect(sent).toEqual([...Array<number>(10).fill(200), 429]);
+  });
+
   it('is listed newest first', async () => {
     let now = Date.now();
     const s = await server(() => now);

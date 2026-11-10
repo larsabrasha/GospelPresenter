@@ -20,6 +20,10 @@ export const THROTTLE = {
   recover: { free: 5, windowMs: 60 * 60_000, lockMs: 60 * 60_000, maxLockMs: 60 * 60_000 },
   /** Per address: slows one machine making temporary screens, each a row until it is paired or a day old. */
   screen: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  /** Bug reports per user: every one counts, so one user cannot push the others out of the kept cap. */
+  report: { free: 10, windowMs: 60 * 60_000, lockMs: 60 * 60_000, maxLockMs: 60 * 60_000 },
+  /** Client errors per user: every one counts, so one client in a loop cannot flood the log. */
+  clientError: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
 } satisfies Record<string, ThrottlePolicy>;
 
 /** Sign-in failures per key, and the locks they earn. */

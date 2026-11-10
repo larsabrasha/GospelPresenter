@@ -37,7 +37,7 @@ function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; na
 
 function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; name: string }) {
   const [engine] = useState(() => new AudioEngine(async () => url));
-  useEffect(() => () => engine.stop(), [engine]);
+  useEffect(() => () => engine.dispose(), [engine]);
   return (
     <div className="w-full sm:max-w-lg">
       <AudioPlayer control={engine} itemId={itemId} name={name} testId="audio-preview" />

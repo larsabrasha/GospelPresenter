@@ -1,6 +1,7 @@
+import { whileHolding } from '../newBuild.ts';
 import { useState } from 'react';
 import type { LegacyManifest } from '@gp/core';
-import { isTextKey, t } from '../i18n.ts';
+import { isTextKey, t, type TextKey } from '../i18n.ts';
 import { importLegacy, LegacyImportError, readLegacyManifest, type LegacyImportResult, type LegacyProgress } from '../media/legacyImport.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { GROUP_ROW, Group } from '../ui/Group.tsx';
@@ -14,6 +15,8 @@ type State =
   | { at: 'failed'; error: string };
 
 function errorText(e: unknown): string {
+  // A refusal the server explains as for any request (a sign-in that is not fresh, for one), in its own words.
+  if (e instanceof LegacyImportError && isTextKey(`error.${e.detail}`)) return t(`error.${e.detail}` as TextKey);
   const reason = e instanceof LegacyImportError ? e.reason : e instanceof Error ? e.message : String(e);
   const key = `legacy.error.${reason}`;
   const text = isTextKey(key) ? t(key) : reason;
@@ -46,7 +49,7 @@ export function LegacyImport() {
   const run = async (file: File) => {
     setState({ at: 'running', progress: { step: 'files', done: 0, total: 0 } });
     try {
-      const result = await importLegacy(file, (progress) => setState({ at: 'running', progress }));
+      const result = await whileHolding(() => importLegacy(file, (progress) => setState({ at: 'running', progress })));
       setState({ at: 'done', result });
     } catch (e) {
       setState({ at: 'failed', error: errorText(e) });

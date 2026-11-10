@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WatchEvent } from '@gp/core';
-import { followStream, type StreamSource } from '../src/live/watchStream.ts';
+import { followStream, STREAM_SILENT_MS, type StreamSource } from '../src/live/watchStream.ts';
 
 class FakeSource implements StreamSource {
   readyState = 0;
@@ -89,5 +89,47 @@ describe('following a public output', () => {
     t.sources[0]!.fire('full', { type: 'full' });
     expect(t.events.map((e) => e.type)).toEqual(['slide', 'full']);
     expect(t.sources[0]!.closed).toBe(true);
+  });
+});
+
+describe('a stream that goes silent', () => {
+  function silent() {
+    let now = 0;
+    let check = () => {};
+    const sources: FakeSource[] = [];
+    const stop = followStream(
+      '/api/display/x/stream',
+      { event: () => {}, notFound: () => {} },
+      {
+        open: () => {
+          const s = new FakeSource();
+          sources.push(s);
+          return s;
+        },
+        exists: async () => 200,
+        later: () => {},
+        now: () => now,
+        every: (fn) => ((check = fn), () => {}),
+      },
+    );
+    return { sources, stop, at: (ms: number) => ((now = ms), check()) };
+  }
+
+  it('is opened again when nothing, not even a ping, came for longer than the pings allow: a router that lost its state', () => {
+    const t = silent();
+
+    t.at(STREAM_SILENT_MS + 1);
+
+    expect([t.sources.length, t.sources[0]!.closed]).toEqual([2, true]);
+  });
+
+  it('is left open while the server pings it', () => {
+    const t = silent();
+    t.at(STREAM_SILENT_MS - 1);
+    t.sources[0]!.fire('ping');
+
+    t.at(2 * STREAM_SILENT_MS - 2);
+
+    expect(t.sources.length).toBe(1);
   });
 });

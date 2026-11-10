@@ -87,15 +87,27 @@ export class SignInService {
    * a secret in that browser's cookie) and gives what the authorization
    * request needs. A flow starts once.
    */
-  async startFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
+  async startFlow(state: string, browser: string, appOnly = false): Promise<{ nonce: string; verifier: string } | null> {
     const hash = await sha256(state);
-    const n = await this.sql.run('UPDATE login_flows SET browser_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?', [
+    // `appOnly`: only an app's flow, begun elsewhere, may be bound by the browser that opens it first.
+    const app = appOnly ? ' AND callback_scheme IS NOT NULL' : '';
+    const n = await this.sql.run(`UPDATE login_flows SET browser_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?${app}`, [
       await sha256(browser),
       hash,
       this.now(),
     ]);
     if (n !== 1) return null;
     const [r] = await this.sql.all('SELECT nonce, verifier FROM login_flows WHERE state_hash = ?', [hash]);
+    return r ? { nonce: String(r.nonce), verifier: String(r.verifier) } : null;
+  }
+
+  /** A flow bound to `browser` when it was begun (a web sign-in): its nonce and verifier, once more, while it is unused. */
+  async resumeFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
+    const [r] = await this.sql.all('SELECT nonce, verifier FROM login_flows WHERE state_hash = ? AND browser_hash = ? AND used_at IS NULL AND expires_at > ?', [
+      await sha256(state),
+      await sha256(browser),
+      this.now(),
+    ]);
     return r ? { nonce: String(r.nonce), verifier: String(r.verifier) } : null;
   }
 

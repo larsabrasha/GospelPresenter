@@ -158,7 +158,7 @@ const pagePictures = (cols: string, from: string, where = '1') =>
 export const SLIDE_PAGES_SQL = pagePictures('p.presentation_id, ', `presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg`, `p.type = 'custom'`);
 
 /** Every picture of every slideshow of the library, the trash too: blobs a slideshow still names. */
-const SLIDESHOW_PICTURES_SQL = pagePictures('', 'custom_slides c, json_each(c.pages) pg');
+export const SLIDESHOW_PICTURES_SQL = pagePictures('', 'custom_slides c, json_each(c.pages) pg');
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single

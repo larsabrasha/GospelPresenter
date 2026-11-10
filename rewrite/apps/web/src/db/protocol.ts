@@ -42,6 +42,8 @@ export type DbCall =
   /** The ids of the songs that match, best first; all of them in library order for a blank query (SONG-R30–R33). */
   | { op: 'searchSongs'; query: string }
   | { op: 'status' }
+  /** The page leaves: the worker finishes what it was sent, then ends, letting go of the database file. */
+  | { op: 'close' }
   /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
   | { op: 'addImage'; image: ImageImport }
   /** A library picture edited (MEDIA-R19): the edited blobs kept here, then `editImage`, uploaded before it is pushed. */
@@ -84,6 +86,8 @@ export type DbCall =
   | { op: 'fetchMedia'; hash: string };
 
 export type DbMessage =
+  /** A fault of background work that was not the network (offline.ts), for the page to report. */
+  | { type: 'error'; message: string }
   | { type: 'reply'; id: number; ok: true; value: unknown }
   | { type: 'reply'; id: number; ok: false; error: string }
   /** The database changed; `tables` are those it wrote, or every one when not given. */

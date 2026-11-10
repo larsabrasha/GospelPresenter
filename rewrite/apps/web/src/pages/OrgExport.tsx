@@ -1,3 +1,4 @@
+import { whileHolding } from '../newBuild.ts';
 import { useState } from 'react';
 import { useDb } from '../db/react.tsx';
 import { isTextKey, t } from '../i18n.ts';
@@ -26,7 +27,7 @@ export function OrgExport({ orgName }: { orgName: string }) {
   const run = async () => {
     setState({ at: 'running', progress: null });
     try {
-      const zip = await exportOrg(db, orgName, (progress) => setState({ at: 'running', progress }));
+      const zip = await whileHolding(() => exportOrg(db, orgName, (progress) => setState({ at: 'running', progress })));
       saveBlob(exportName(orgName), zip);
       setState({ at: 'done' });
     } catch (e) {

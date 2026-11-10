@@ -171,6 +171,9 @@ function newSlot(onEvent: (e: Event) => void): Slot {
  * own, with sound. A second element buffers the next video item, so it starts
  * at once when it goes live. Leaving the item stops it.
  */
+/** How long a video item whose file cannot be had waits before it asks again. */
+const VIDEO_RETRY_MS = 3_000;
+
 export class VideoEngine implements VideoControl {
   private current: Slot;
   private spare: Slot;
@@ -311,8 +314,17 @@ export class VideoEngine implements VideoControl {
     if (this.spare.ref?.hash === ref.hash && this.current.ref?.hash !== ref.hash) [this.current, this.spare] = [this.spare, this.current];
     this.itemId = item.itemId;
     if (this.current.ref?.hash !== ref.hash) {
+      // The video before must not show under this item meanwhile (the review, 2026-11-09).
+      this.current.ref = null;
+      this.current.el.removeAttribute('src');
       const url = await this.urlOf(ref.hash);
-      if (turn !== this.turn || !url) return this.notify();
+      if (turn !== this.turn) return this.notify();
+      if (!url) {
+        // Not to be had now (offline, the server busy): asked for again while the item stays live.
+        this.itemId = null;
+        setTimeout(() => turn === this.turn && void this.show(item, from), VIDEO_RETRY_MS);
+        return this.notify();
+      }
       this.current.ref = ref;
       this.current.el.src = url;
     }

@@ -93,7 +93,11 @@ paired as them.
 How the sign-in runs (`apps/server/src/google.ts`, `auth/sign-in-routes.ts`): the authorization code flow with PKCE
 (S256), `state` and `nonce`, and `prompt=select_account`. A sign-in in progress is a row in
 `login_flows`: single use, 10 minutes, and bound to the browser that started it by a cookie, so a
-callback from another browser, a forged `state` or a replay is refused. The ID token is checked with
+callback from another browser, a forged `state` or a replay is refused. A page's own sign-in is bound when the page
+begins it (`POST /api/auth/google/begin` sets the cookie), so its start link goes on only in that browser: sent to
+someone else, it signs nobody in, nor makes their account join an invitation's organisation (the review, 2026-11-09).
+An app's sign-in begins in the app and goes on in the system browser, so the browser that opens its link first is bound
+then, as before. The ID token is checked with
 Web Crypto: RS256 only, against Google's published keys (cached, fetched again for a new key at most
 once a minute), then `iss`, `aud`, `exp`, `iat`, `nonce`, `sub` and `email_verified`. Why a sign-in was
 refused goes to the server log; the user sees one generic error (spec 01). A browser comes back to

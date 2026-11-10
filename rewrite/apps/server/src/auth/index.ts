@@ -6,6 +6,7 @@
 // One file per concern. `authRoutes` registers the route groups in a fixed
 // order, the order the routes had in one file: Hono matches in registration order.
 import { Hono } from 'hono';
+import { AUTH_BODY_MAX, capped, REPORT_BODY_MAX } from '../body-cap.ts';
 import { accountRoutes } from './account-routes.ts';
 import { clientErrorRoutes } from './client-error-routes.ts';
 import { debugRoutes } from './debug-routes.ts';
@@ -26,6 +27,9 @@ export type { AuthDeps } from './kit.ts';
 export function authRoutes(deps: AuthDeps) {
   const kit = authKit(deps);
   const app = new Hono();
+  // Every body capped as it is read (body-cap.ts); only these paths, as this app's middleware reaches the whole API.
+  for (const path of ['/api/auth/*', '/api/users', '/api/users/*', '/api/invitations', '/api/invitations/*', '/api/import/users', '/api/client-errors']) app.use(path, capped(AUTH_BODY_MAX));
+  for (const path of ['/api/reports', '/api/reports/*']) app.use(path, capped(REPORT_BODY_MAX));
   signInRoutes(app, kit);
   passkeyRoutes(app, kit);
   loginRoutes(app, kit);

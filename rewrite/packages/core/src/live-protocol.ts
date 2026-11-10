@@ -251,6 +251,8 @@ export const liveClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('audio'), sessionId: id, command: audioCommandSchema }),
   /** A controller's video command (play, pause, seek), relayed to the owner like `audio`. */
   z.object({ type: z.literal('video'), sessionId: id, command: videoCommandSchema }),
+  /** Whether the socket still reaches the server: answered with `pong` at once, whatever the role. */
+  z.object({ type: z.literal('ping') }),
 ]);
 export type LiveClientMessage = z.infer<typeof liveClientMessageSchema>;
 
@@ -280,6 +282,8 @@ export interface LiveScreen {
 }
 
 export type LiveServerMessage =
+  /** The answer to a `ping`. */
+  | { type: 'pong' }
   /**
    * `online`: the outputs with a page open on them, so a saved screen can be
    * switched on only while it is (LIVE-A21). `screens`: the temporary screens

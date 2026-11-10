@@ -20,6 +20,7 @@ import type { GoogleConfig } from '@gp/server';
 import { mailConfigFrom } from '@gp/server/node';
 import { lanUrls, pageUrl, startHost } from './host.ts';
 import { setAppMenu } from './menu.ts';
+import { allowsPermission } from './permissions.ts';
 import { outputWindows } from './outputs.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -152,6 +153,7 @@ function guardWindow(win: BrowserWindow) {
 /** Only the server this window was loaded from: no request leaves for the internet. */
 function lockNetwork(origin: string) {
   const allowed = new Set([origin, origin.replace(/^http/, 'ws')]);
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, done) => done(allowsPermission(permission)));
   session.defaultSession.webRequest.onBeforeRequest((details, done) => {
     const u = new URL(details.url);
     const ok = allowed.has(u.origin) || ['devtools:', 'data:', 'blob:'].includes(u.protocol);

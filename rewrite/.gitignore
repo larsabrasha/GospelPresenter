@@ -5,6 +5,9 @@ dist-electron/
 apps/desktop/release/
 .turbo/
 .wrangler/
+# Wrangler's local secrets (SETUP_TOKEN, debug flags): never in the repository.
+.dev.vars
+.dev.vars.*
 *.sqlite
 *.sqlite-*
 test-results/

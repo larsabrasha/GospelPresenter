@@ -53,7 +53,7 @@ describe.skipIf(!pem)('https beside http', () => {
     execFileSync('mkdir', ['-p', join(web, 'assets')]);
     execFileSync('sh', ['-c', `printf 'self;' > '${join(web, 'sw.js')}'; printf 'x;' > '${join(web, 'assets', 'index-abc.js')}'`]);
     server = await startNodeServer({ dataDir: join(dir, 'data'), debug: true, webRoot: web, tls: { ...pem!, port: 0 }, log: () => undefined });
-    h = { name: 'node', url: server.url, mediaKeys: async () => [], close: () => server.close() };
+    h = { name: 'node', url: server.url, mediaKeys: async () => [], dropMedia: async () => {}, close: () => server.close() };
   });
   afterAll(async () => {
     await server?.close();

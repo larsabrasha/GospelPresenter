@@ -10,6 +10,8 @@
     "lint": "oxlint --deny-warnings && node scripts/check-mutator-sql.mjs && node scripts/check-forbidden-classes.mjs && knip --no-progress --treat-config-hints-as-errors",
     "e2e": "turbo run e2e",
     "check:quick": "node scripts/check-quick.mjs",
+    "deploy:test": "node scripts/deploy.mjs test",
+    "deploy:apptest": "node scripts/deploy.mjs apptest",
     "screenshots": "GP_WEBSITE=\"$PWD/../docs/src/screenshots\" pnpm --filter @gp/desktop exec playwright test website"
   },
   "devDependencies": {

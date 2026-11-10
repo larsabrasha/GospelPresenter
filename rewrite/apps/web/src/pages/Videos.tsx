@@ -67,7 +67,7 @@ export function Videos({ role }: { role: Role }) {
       })}
       sorts={fileSorts<LibraryVideo & { name: string }>([{ key: 'length', label: t('library.sort.length'), compare: (a, b) => b.duration - a.duration }])}
       renderTile={(v) => <Still video={v} />}
-      preview={(v) => ({ kind: 'video', hash: v.hash, still: v.stillHash, type: v.contentType, codec: v.codec })}
+      preview={(v) => ({ kind: 'video', hash: v.hash, still: v.stillHash, thumb: v.thumbHash, type: v.contentType, codec: v.codec })}
       manage={manage}
       download={{
         zipName: t('videos.page'),

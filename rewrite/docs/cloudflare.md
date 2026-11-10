@@ -84,8 +84,21 @@ unused blobs on R2 (`media.test.ts` ran with none). Behaviour under load, and wh
 The web app in a browser on Cloudflare was tried by hand only: Lars opened the trial, set it up with a passkey
 and the setup token, signed in and found it working; no browser test runs against it.
 
+**Deploys and restores (the review, 2026-11-09).** `pnpm deploy:test` and `pnpm deploy:apptest`
+(`scripts/deploy.mjs`) refuse a working tree with changes, build with `GP_COMMIT` (the page's version is the commit) and
+name the Worker version by the commit (`--tag`), so `wrangler rollback` finds the one before; the workflow does the
+same and runs typecheck, lint and the tests first. A rollback works only for a deploy that changed no schema: the server
+refuses a database newer than its code, so after a migration the way back is a fix forward. And a client whose schema
+is not the server's stops syncing until it reloads (426), which the quiet swap does only away from live: so no deploy
+from Saturday evening to Sunday afternoon, and a commit that bumps a schema says so. Restores: D1 has Time Travel
+(`wrangler d1 time-travel restore <db> --timestamp …`, 30 days); a Durable Object's SQLite can be brought back to a
+point in time with `ctx.storage.getBookmarkForTime` and `onNextSessionRestoreBookmark`, which no route calls yet; R2 has
+no versions, so a purged file is gone, and so is an organisation deleted (`/internal/drop`). Until a scheduled export
+exists, Exportera under Organisationen is a church's copy of its data.
+
 **Logs (2026-11-04).** The Worker writes its events as JSON lines (`console.warn`; on Node, stderr): a refused
-sign-in (`passkey-refused`) and an error a client caught nothing for (`client-error`). `[observability] enabled`
+sign-in (`passkey-refused`), an error a client caught nothing for (`client-error`), and since 2026-11-09 one the server
+caught nothing for (`server-error`, its method and path; `apps/server/src/server-error.ts`). `[observability] enabled`
 in both wrangler configs keeps them in Workers Logs, searchable in the dashboard under the Worker's Observability,
 or followed live with `wrangler tail --config wrangler.test.toml`. A client error is sent by the app itself
 (`apps/web/src/clientErrors.ts`) when the yellow "Ett oväntat fel har inträffat." bar shows or a page crashes:

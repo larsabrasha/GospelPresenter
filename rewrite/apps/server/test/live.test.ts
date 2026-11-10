@@ -245,3 +245,52 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     expect(refused).toBe(true);
   });
 });
+
+describe.each(adapters)('%s adapter: a live socket that pings', (adapterName) => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await startAdapter(adapterName);
+  }, 60_000);
+  afterAll(async () => {
+    await h?.close();
+  });
+
+  it('is answered at once, for any member: a window can tell a socket that went quiet without closing', async () => {
+    const org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'bo', org, 'user');
+    const w = await Window.open(h, org, 'bo');
+
+    w.send({ type: 'ping' });
+
+    expect(await w.next((m) => m.type === 'pong')).toEqual({ type: 'pong' });
+    w.close();
+  });
+});
+
+describe.each(adapters)('%s adapter: a live socket whose session ends', (adapterName) => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { liveSessionCheckMs: 0 });
+  }, 60_000);
+  afterAll(async () => {
+    await h?.close();
+  });
+
+  it('is closed after its next message once the session is signed out: it drives no session any more', async () => {
+    const org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'anna', org, 'admin');
+    const token = await setRole(h, 'bo', org, 'admin');
+    const owner = await Window.open(h, org, 'anna');
+    const phone = await Window.open(h, org, 'bo');
+    owner.send({ type: 'own', state: state('S1') });
+    await phone.sessions((s) => s.length === 1);
+    const closed = new Promise<void>((resolve) => phone.ws.addEventListener('close', () => resolve()));
+
+    await api(h, 'POST', '/api/auth/signout', { token });
+    phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 2, black: false } });
+
+    await closed;
+    expect(phone.ws.readyState).toBe(WebSocket.CLOSED);
+    owner.close();
+  });
+});

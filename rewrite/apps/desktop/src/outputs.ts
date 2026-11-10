@@ -2,9 +2,7 @@
 // switched on and off on its own from Utgångar, so a projector and a TV can both show, or the laptop's own display
 // while the app stands on an external one; with no other display, one in a window of its own (`WINDOW`).
 import { BrowserWindow, screen, type WebPreferences } from 'electron';
-
-/** The output in a window of its own, for a computer with one display. */
-const WINDOW = 'window';
+import { goneTargets, WINDOW } from './output-targets.ts';
 
 /** A display an output may go to, named as the operating system names it ("EPSON PJ", "Built-in Retina Display"). */
 export interface OutputDisplay {
@@ -66,6 +64,11 @@ export function outputWindows({
     });
     open.set(target, win);
     guard(win);
+    // A page that crashed would leave the projector black with its switch on: it starts again, and says so in the log.
+    win.webContents.on('render-process-gone', (_e, details) => {
+      log({ event: 'output-crashed', target, reason: details.reason });
+      if (!win.isDestroyed()) win.reload();
+    });
     if (!hidden) win.once('ready-to-show', () => win.show());
     // However it closes (the switch, the window's own close button, the OS), the switches hear of it.
     win.on('closed', () => {
@@ -90,6 +93,8 @@ export function outputWindows({
    */
   function watchDisplays(win: BrowserWindow) {
     const tell = () => {
+      // An output whose display went away closes; its switch goes off, and the display back opens it again.
+      for (const target of goneTargets([...open.keys()], screen.getAllDisplays().map((d) => String(d.id)))) hide(target);
       if (!hidden && !win.isDestroyed()) {
         const here = screen.getDisplayMatching(win.getBounds());
         if (open.has(String(here.id))) {

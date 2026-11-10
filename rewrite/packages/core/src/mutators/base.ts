@@ -59,6 +59,16 @@ export async function requireBlobs(tx: Tx, hashes: string[]) {
   }
 }
 
+/**
+ * `values` in runs that one statement may bind each: a Durable Object binds at most 100 values a statement (the security
+ * review, 2026-11-09, found "Töm papperskorgen" failing past 100 presentations on Cloudflare).
+ */
+export function inRuns<T>(values: readonly T[], size = 90): T[][] {
+  const runs: T[][] = [];
+  for (let at = 0; at < values.length; at += size) runs.push(values.slice(at, at + size));
+  return runs;
+}
+
 export const id = z.string().min(1).max(100);
 /** Trimmed and non-blank, as the UI requires (spec 02, 03). */
 export const name = z.string().trim().min(1).max(200);

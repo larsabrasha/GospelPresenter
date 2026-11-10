@@ -10,7 +10,7 @@ const MAX_ENTRIES = 0xffff;
 /** How much of a Blob is read at a time for its checksum. */
 const CHUNK = 8 * 1024 * 1024;
 
-class ZipTooLarge extends Error {}
+export class ZipTooLarge extends Error {}
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;

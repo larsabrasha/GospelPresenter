@@ -10,7 +10,7 @@ import { APP_CALLBACK_JS, callbackLink, escapeHtml, page, passkeyPage, signInFai
 import { deviceOf } from './pairing-guard.ts';
 
 export function signInRoutes(app: Hono, kit: AuthKit) {
-  const { deps, accounts, google, passkeys, log, tooMany, signedIn, secure, cookie, mayAddLogin, startPasskey, start } = kit;
+  const { deps, accounts, google, passkeys, log, tooMany, signedIn, secure, cookie, mayAddLogin, startPasskey, start, bindFlow } = kit;
 
   // -------------------------------------------------------------- first run, sign-in, sign-out
 
@@ -70,6 +70,8 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
       link,
     });
     if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: 600 });
+    // A page's own sign-in goes on only in its browser (`start`); an app's in the system browser that opens it first.
+    if (!a.app && !(await bindFlow(c, state))) return fail(c, 409, 'google-failed');
     return c.json({ url: `/api/auth/google/start?flow=${encodeURIComponent(state)}` });
   });
 

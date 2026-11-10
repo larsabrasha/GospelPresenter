@@ -1,19 +1,14 @@
 import {
   ABANDONED_SESSION_MS,
   can,
-  
   LIVE_MESSAGE_MAX,
   liveClientMessageSchema,
-  
   REMOTE_CONTROL_SETTING,
   SCREEN_IDLE_MS,
   SESSION_IDLE_MS,
   remoteControlAllowed,
   remoteControlPolicy,
-  
-  
   type Canvas,
-  
   type LiveOwnState,
   type LiveScreen,
   type LiveServerMessage,
@@ -121,6 +116,7 @@ export class LiveHub {
     }
     const m = liveClientMessageSchema.safeParse(parsed);
     if (!m.success) return reply(s, { type: 'error', error: 'invalid-message' });
+    if (m.data.type === 'ping') return reply(s, { type: 'pong' });
     // Starting and controlling a presentation need ManagePresentations (ADR 0007 decision 5).
     if (!can(s.role, 'ManagePresentations')) return reply(s, { type: 'error', error: 'forbidden' });
     const msg = m.data;

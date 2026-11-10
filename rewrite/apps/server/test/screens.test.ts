@@ -96,6 +96,21 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect((await Viewer.open(h, first.body.id, undefined, 'screen')).status).toBe(404);
   });
 
+  // Only the Worker takes the address from a header (`cf-connecting-ip`), so only there can a test change it.
+  it.skipIf(adapterName !== 'workers')('twenty wrong codes lock the user and the organisation, whatever addresses they come from', async () => {
+    // Users of their own: the locks outlast the test, and the other tests' Anna claims codes.
+    const [guesser, other] = [`guesser-${crypto.randomUUID()}`, `other-${crypto.randomUUID()}`];
+    await setRole(h, guesser, org, 'user');
+    await setRole(h, other, org, 'user');
+    const guess = (n: number, user = guesser) =>
+      api<{ error?: string }>(h, 'POST', '/api/live/screens/claim', { user, org, body: { pin: String(9000 + n), sessionId: 'S1' }, headers: { 'cf-connecting-ip': `2001:db8::${n}` } });
+    for (let n = 0; n < 20; n++) expect((await guess(n)).body).toEqual({ error: 'pin-invalid' });
+
+    const [user, colleague] = [await guess(20), await guess(21, other)];
+
+    expect([user.status, colleague.status]).toEqual([429, 429]);
+  });
+
   it('pairs by QR token once; the dialog learns which screen used it (LIVE-A18)', async () => {
     const owner = track(await Window.open(h, org, 'anna'));
     owner.send({ type: 'own', state: ownState('S1') });

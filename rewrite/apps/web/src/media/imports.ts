@@ -1,3 +1,4 @@
+import { whileHolding } from '../newBuild.ts';
 import { AUDIO_TYPES, audioTypeFromName, MEDIA_LIMITS, sniffAudio } from '@gp/core';
 import { useState } from 'react';
 import type { AudioImport } from '../db/protocol.ts';
@@ -49,7 +50,9 @@ export function useMediaImport(kind: 'image' | 'audio') {
   const db = useDb();
   const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
   const [failures, setFailures] = useState<string[]>([]);
-  const run = async (files: File[]): Promise<string[]> => {
+  // The newer build waits while files go up (newBuild.ts).
+  const run = (files: File[]): Promise<string[]> => whileHolding(() => runFiles(files));
+  const runFiles = async (files: File[]): Promise<string[]> => {
     if (!files.length || progress) return [];
     setFailures([]);
     const failed: string[] = [];

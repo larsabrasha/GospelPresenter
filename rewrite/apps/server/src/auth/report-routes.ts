@@ -5,10 +5,11 @@ import type { Hono } from 'hono';
 import { bugReportDoneRequest, bugReportMessageRequest, bugReportSchema } from '@gp/core';
 import { bugReplyMail, myReportLink } from '../mail.ts';
 import type { Caller } from './caller.ts';
+import { THROTTLE } from '../global/index.ts';
 import { body, fail, type AuthKit } from './kit.ts';
 
 export function reportRoutes(app: Hono, kit: AuthKit) {
-  const { deps, accounts, withCaller, inBackground, log } = kit;
+  const { deps, accounts, withCaller, inBackground, log, tooMany } = kit;
   /** The caller as the server knows them now: name, e-mail and organisation. */
   const who = (caller: Caller) => accounts.members.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
 
@@ -17,6 +18,10 @@ export function reportRoutes(app: Hono, kit: AuthKit) {
     withCaller(null, async (c, caller) => {
       const a = await body(c, bugReportSchema);
       if (!a) return fail(c, 400, 'invalid-request');
+      const key = `report:${caller.ctx.userId}`;
+      const locked = await accounts.throttle.lockedUntil([key]);
+      if (locked) return tooMany(c, locked);
+      await accounts.throttle.fail(key, THROTTLE.report);
       const me = await who(caller);
       if (!me) return fail(c, 404, 'not-found');
       const id = crypto.randomUUID();

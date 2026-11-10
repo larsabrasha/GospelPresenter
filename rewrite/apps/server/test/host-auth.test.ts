@@ -70,7 +70,7 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
   let dataDir: string;
   let admin: SignInResponse;
   const anna = account('Anna');
-  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
+  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], dropMedia: async () => {}, close: async () => {} };
   const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
     api<T>(host, method, path, {
       token: opts.token,
@@ -255,7 +255,7 @@ describe('a development host (GP_DEV_PAIR=1)', () => {
   const HOST = 'gphost_' + 'd'.repeat(43);
   let server: RunningServer;
   let dataDir: string;
-  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
+  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], dropMedia: async () => {}, close: async () => {} };
   const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
     api<T>(host, method, path, { token: opts.token, body: opts.body, headers: opts.device ? { 'x-gp-device': opts.device } : {} });
 

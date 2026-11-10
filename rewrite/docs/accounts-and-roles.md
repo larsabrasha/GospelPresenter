@@ -109,7 +109,11 @@ membership is the host's organisation and who is no Superadmin; anyone else asks
 
 **The 1.x import** makes invitations for the users it brings, valid for 90 days, not accounts with linked Google ids.
 A Google id from the zip is kept on the invitation, and signing in with that Google account, with or without the link,
-makes the account and accepts it. A Superadmin's import still links them at once, and is logged.
+makes the account and accepts it. A Superadmin's import still links them at once, and is logged; only to an account it
+makes, never to one that exists, whose address may be unconfirmed and which is the person's (the review, 2026-11-09). An
+Admin's import of users needs a fresh sign-in, never a paired device, as making an Admin does: its invitations may make
+Admins and carry Google ids, so a stolen session could otherwise leave an account of its own behind. A Superadmin's
+membership is removed only by a Superadmin, as removing someone's only membership deletes their account.
 
 ## What it replaced
 

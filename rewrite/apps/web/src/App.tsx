@@ -150,8 +150,9 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
       {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
-      {route.page === 'customSlides' && <CustomSlides />}
-      {route.page === 'customSlide' && <SlideEditor key={route.id} id={route.id} />}
+      {/* The same checks as Inställningar's links (settingsLinks.ts): an address typed reaches no page its link hides. */}
+      {route.page === 'customSlides' && (can(me.role, 'ManagePresentations') ? <CustomSlides /> : <Refused text={t('error.forbidden')} />)}
+      {route.page === 'customSlide' && (can(me.role, 'ManagePresentations') ? <SlideEditor key={route.id} id={route.id} /> : <Refused text={t('error.forbidden')} />)}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <SlideEditor key={route.id} id={route.id} edits="overlay" /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
@@ -159,7 +160,7 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {route.page === 'reports' && (can(me.role, 'ManageOrganizations') ? <BugReports /> : <Refused text={t('reports.forbidden')} />)}
       {route.page === 'report' && (can(me.role, 'ManageOrganizations') ? <BugReportDetail key={route.id} id={route.id} /> : <Refused text={t('reports.forbidden')} />)}
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
-      {route.page === 'labels' && <Labels />}
+      {route.page === 'labels' && (can(me.role, 'ManageSongs') ? <Labels /> : <Refused text={t('error.forbidden')} />)}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
       {route.page === 'songArrangements' && <SongArrangements key={route.id} id={route.id} />}
       {route.page === 'songArrangement' && <SongArrangement key={route.arrangementId} id={route.id} arrangementId={route.arrangementId} />}

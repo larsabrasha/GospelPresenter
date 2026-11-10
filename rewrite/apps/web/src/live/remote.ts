@@ -50,6 +50,14 @@ export function remoteAllowed(): boolean {
   }
 }
 
+/** How often an open live socket asks whether it still reaches the server. */
+export const LIVE_PING_MS = 20_000;
+/**
+ * How long a ping waits for an answer, any message, before the socket is taken for dead and opened again: one behind a
+ * router that lost its state never closes, and would show "connected" while nothing arrives (the review, 2026-11-09).
+ */
+export const LIVE_PONG_MS = 10_000;
+
 export class LiveLink {
   sessions: LiveSessionInfo[] = [];
   /** The outputs with a page open on them (a saved screen can be switched on only then). */
@@ -59,6 +67,9 @@ export class LiveLink {
   connected = false;
   private ws: WebSocket | null = null;
   private attempt = 0;
+  private pinging: ReturnType<typeof setInterval> | null = null;
+  /** The ping waiting for its answer; any message is one. */
+  private waiting: ReturnType<typeof setTimeout> | null = null;
   private owned: LiveOwnState | null = null;
   private lastSent = '';
   private closed = false;
@@ -80,12 +91,21 @@ export class LiveLink {
     ws.addEventListener('open', () => {
       this.attempt = 0;
       this.connected = true;
+      this.stopPinging();
+      this.pinging = setInterval(() => {
+        if (this.ws !== ws || this.waiting) return;
+        this.send({ type: 'ping' });
+        this.waiting = setTimeout(() => ws.close(), LIVE_PONG_MS);
+      }, LIVE_PING_MS);
       // The whole state again on every reconnect (LIVE-R47).
       this.lastSent = '';
       if (this.owned) this.sendOwned();
       this.notify();
     });
     ws.addEventListener('message', (e) => {
+      const answered = this.waiting !== null;
+      if (this.waiting) clearTimeout(this.waiting);
+      this.waiting = null;
       let m: LiveServerMessage;
       try {
         m = JSON.parse(String(e.data)) as LiveServerMessage;
@@ -101,6 +121,9 @@ export class LiveLink {
       else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
       else if (m.type === 'video-command') for (const fn of this.videoListeners) fn(m.sessionId, m.command);
       else if (m.type === 'released') for (const fn of this.releasedListeners) fn(m.sessionId, m.outputs);
+      else if (m.type === 'pong') return;
+      // An older server knows no ping and refuses it: that answer is a pong as well, and no error to show.
+      else if (answered && m.error === 'invalid-message') return;
       else {
         // A refused report is not what the server holds: send the next one even if it is the same.
         this.lastSent = '';
@@ -109,10 +132,18 @@ export class LiveLink {
     });
     ws.addEventListener('close', () => {
       if (this.ws !== ws) return;
+      this.stopPinging();
       this.connected = false;
       this.notify();
       setTimeout(() => this.connect(), liveReconnectDelay(this.attempt++)); // LIVE-R51
     });
+  }
+
+  private stopPinging() {
+    if (this.pinging) clearInterval(this.pinging);
+    if (this.waiting) clearTimeout(this.waiting);
+    this.pinging = null;
+    this.waiting = null;
   }
 
   private send(m: unknown) {
@@ -191,6 +222,7 @@ export class LiveLink {
 
   close() {
     this.closed = true;
+    this.stopPinging();
     this.ws?.close();
   }
 

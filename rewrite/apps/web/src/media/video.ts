@@ -1,3 +1,4 @@
+import { whileHolding } from '../newBuild.ts';
 import { useState } from 'react';
 import {
   fitWithin,
@@ -375,7 +376,9 @@ export function useVideoImport() {
   const [state, setState] = useState<VideoImportState>(null);
   const [failures, setFailures] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const run = async (files: File[]): Promise<string[]> => {
+  // The newer build waits while files go up (newBuild.ts).
+  const run = (files: File[]): Promise<string[]> => whileHolding(() => runFiles(files));
+  const runFiles = async (files: File[]): Promise<string[]> => {
     if (!files.length || busy) return [];
     setBusy(true);
     setFailures([]);

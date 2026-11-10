@@ -59,12 +59,15 @@ export function invitationRoutes(app: Hono, kit: AuthKit) {
     withCaller('ManageUsers', async (c, caller) => {
       const users = await body(c, legacyUsersSchema);
       if (!users) return fail(c, 400, 'invalid-request');
+      // Invitations that may make an Admin and carry Google accounts the zip names: as making an Admin, only from a
+      // fresh sign-in, never a paired device, so a stolen session cannot leave an account of its own behind.
+      if (!(await mayMakeAdmin(c, caller))) return fail(c, 403, 'reauth-required');
       const outcomes: Record<LegacyUserOutcome, number> = { created: 0, member: 0, kept: 0, invited: 0, limit: 0 };
       for (const u of users) {
         if (caller.ctx.role === 'superAdmin') {
           const outcome = await accounts.legacy.import(caller.orgId, u);
           outcomes[outcome]++;
-          if (outcome === 'created' || outcome === 'member') await accounts.emails.audit(caller.ctx.userId, 'import-linked', null, caller.orgId, u.email);
+          if (outcome !== 'limit') await accounts.emails.audit(caller.ctx.userId, 'import-linked', null, caller.orgId, u.email);
           continue;
         }
         const r = await accounts.invitations.create(caller.orgId, {

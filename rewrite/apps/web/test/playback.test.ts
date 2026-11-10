@@ -247,3 +247,28 @@ describe('driving what plays in the primary output', () => {
     expect(operator.playback.video.state()?.position).toBeCloseTo(12.5);
   });
 });
+
+describe('a second presenting window on the machine', () => {
+  it('plays nothing while another window presents: the sound is not heard twice', async () => {
+    vi.useFakeTimers();
+    const bus = { ...new Hub().end(), presents: () => false };
+    const player = new FollowingPlayer();
+    const playback = new Playback(bus, player);
+    vi.advanceTimersByTime(ROLL_MS + GRACE_MS);
+
+    playback.follow(SHOWN);
+
+    expect(player.followed.at(-1)).toEqual(IDLE);
+    playback.close();
+    vi.useRealTimers();
+  });
+});
+
+/** A player that keeps what it was told to follow. */
+class FollowingPlayer extends FakePlayer {
+  followed: LivePointer[] = [];
+  override follow(p: LivePointer, from?: Played) {
+    this.followed.push(p);
+    super.follow(p, from);
+  }
+}

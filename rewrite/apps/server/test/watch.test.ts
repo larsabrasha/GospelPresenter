@@ -213,7 +213,7 @@ describe('the global index of codes', () => {
     const { startNodeServer, openSqlite } = await import('@gp/server/node');
     const dataDir = mkdtempSync(join(tmpdir(), 'gp-watch-'));
     const s = await startNodeServer({ dataDir, debug: true, log: () => undefined });
-    const h: Harness = { name: 'node', url: s.url, mediaKeys: async () => [], close: () => s.close() };
+    const h: Harness = { name: 'node', url: s.url, mediaKeys: async () => [], dropMedia: async () => {}, close: () => s.close() };
     const org = `org-${crypto.randomUUID()}`;
     await setRole(h, 'anna', org, 'admin');
     const d = await device(h, org, 'anna', 'admin');

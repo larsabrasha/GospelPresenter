@@ -21,7 +21,8 @@ import type { WatchRegistry } from './watch.ts';
 // The import of an export zip, of 1.x (docs/import-from-1x.md) or of 2.0 itself: an admin sends an organisation its
 // rows, after its blobs and Bible texts went up through `PUT /api/media/:hash` (a video in parts) and `PUT /api/bibles/:hash`. The rows are
 // written in one transaction, so the change log has them and every device pulls them as usual. What the
-// organisation has already is kept: a row whose id is there is left out, so a second run adds only what is new.
+// organisation has already is kept: a row whose id is there is left out, and so is one removed here since, so a second
+// run adds only what is new.
 
 /** A Durable Object binds at most 100 values a statement. */
 const MAX_PARAMS = 100;
@@ -61,7 +62,9 @@ function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): Re
   const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
   for (const t of LEGACY_TABLES) {
     const info = tableByName.get(t)!;
-    let all: LegacyRow[] = rows[t];
+    // A row removed here since an earlier import has a delete in the change log, kept for ever: it stays removed.
+    const removed = new Set(store.query("SELECT pk FROM sync_change WHERE tbl = ? AND op = 'del'", [t]).map((r) => String(r.pk)));
+    let all: LegacyRow[] = rows[t].filter((r) => !removed.has(String(r.id)));
     if (t === 'song_versions') all = all.map((r) => ({ ...r, user_id: userId }));
     if (t === 'displays') {
       all = all.map((d) => {

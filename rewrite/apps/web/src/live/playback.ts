@@ -52,6 +52,8 @@ export type PlaybackMessage =
 export interface PlaybackBus {
   post(m: PlaybackMessage): void;
   listen(fn: (m: PlaybackMessage) => void): () => void;
+  /** Whether this window presents (`LiveChannel.presents`): one that does not plays nothing here. Always, without it. */
+  presents?(): boolean;
 }
 
 /** How often an output window says it is open. */
@@ -146,7 +148,8 @@ export class Playback {
   /** The pointer changed: the player here plays what it shows; the primary output reads the pointer itself. */
   follow(p: LivePointer) {
     this.pointer = p;
-    if (this.local) this.player.follow(p);
+    // Another window on this machine presents: it plays here, this one stays quiet.
+    if (this.local) this.player.follow(this.bus.presents?.() === false ? IDLE : p);
   }
 
   /** Which output window plays; null while the presenting window does, or nobody yet. */
@@ -252,7 +255,7 @@ export class Playback {
     const from = this.pending;
     this.pending = null;
     this.remote = null;
-    this.player.follow(this.pointer, from ?? undefined);
+    this.player.follow(this.bus.presents?.() === false ? IDLE : this.pointer, from ?? undefined);
     this.notify();
   }
 

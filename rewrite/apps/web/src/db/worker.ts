@@ -1,6 +1,7 @@
 // The local database: wa-sqlite on OPFS (OPFSCoopSyncVFS) in a dedicated
 // worker, since OPFS sync access handles exist only in workers. One file per
 // account and organisation (D3). The sync client runs here too.
+import { isOffline } from './offline.ts';
 import SQLiteESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
@@ -53,6 +54,10 @@ let notifyChanged: (tables?: Iterable<string>) => void = () => {};
 const BIBLE_TABLES = ['bible_texts', 'bible_blobs', 'kept_bibles'];
 
 const post = (m: DbMessage) => self.postMessage(m);
+/** Background work that failed: the network tries again later (`isOffline`); anything else goes to the page to report. */
+const offlineOr = (e: unknown) => {
+  if (!isOffline(e)) post({ type: 'error', message: e instanceof Error ? `${e.name}: ${e.message}` : String(e) });
+};
 
 async function openDb(file: string, s: Session): Promise<ClientSqlite> {
   const module = await SQLiteESMFactory({ locateFile: () => wasmUrl });
@@ -214,7 +219,7 @@ function syncMediaBlobs() {
     blobCache = r.cache;
     if (r.downloaded.length || r.removed) notifyChanged(['media_blobs']);
   })
-    .catch(() => undefined) // offline: the next change or poll tries again
+    .catch(offlineOr) // offline: the next change or poll tries again
     .finally(syncVideoFiles);
 }
 
@@ -238,7 +243,7 @@ function syncVideoFiles() {
     () => notifyChanged(['video_files']),
   )
     .then(() => undefined)
-    .catch(() => undefined) // offline: the next change or poll goes on from where this stopped
+    .catch(offlineOr) // offline: the next change or poll goes on from where this stopped
     .finally(() => {
       videoRun = null;
       if (videoAgain) {
@@ -264,7 +269,9 @@ async function openMedia(hash: string): Promise<MediaBytes | null> {
   }
   const type = bytes && (await sha256HexBytes(bytes)) === hash ? (sniffMedia(bytes)?.type ?? null) : null;
   if (!bytes || !type) return null;
-  await serialStore(() => client!.localWrite([recordMediaBlobSql(hash, type, bytes.length, bytes, Date.now())]));
+  // Kept as cache afterwards, in line with the other stored blobs, but answered now: behind a whole media sync in the
+  // queue, a preview said "hämtas" with its bytes already here (the review, 2026-11-09).
+  void serialStore(() => client!.localWrite([recordMediaBlobSql(hash, type, bytes.length, bytes, Date.now())])).catch(() => undefined);
   return { contentType: type, bytes };
 }
 
@@ -283,7 +290,7 @@ function syncBibles() {
     if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
     const r = await syncBibleTexts(client!, downloadBibleText, 'chosen');
     if (r.downloaded.length || r.removed) notifyChanged(BIBLE_TABLES);
-  }).catch(() => undefined); // offline: the next change or poll tries again
+  }).catch(offlineOr); // offline: the next change or poll tries again
 }
 
 /** A host's own window: a media blob from the server beside it, not stored; null elsewhere, or if the server has none. */
@@ -334,6 +341,8 @@ function importBible(data: Uint8Array): Promise<BibleImportResult> {
 
 async function handle(call: DbCall): Promise<unknown> {
   switch (call.op) {
+    case 'close':
+      return; // answered by the listener below
     case 'open': {
       if (client) return client.id;
       server = call.server;
@@ -441,11 +450,24 @@ async function handle(call: DbCall): Promise<unknown> {
   }
 }
 
+/** The calls being handled, so a page that leaves has every one finished before the worker ends. */
+const inFlight = new Set<Promise<unknown>>();
+
 self.addEventListener('message', async (e: MessageEvent<{ id: number; call: DbCall }>) => {
   const { id, call } = e.data;
+  if (call.op === 'close') {
+    // After the page's last saves (sent before this), never before them; then the file is let go at once.
+    await Promise.allSettled(inFlight);
+    self.close();
+    return;
+  }
+  const work = handle(call);
+  inFlight.add(work);
   try {
-    post({ type: 'reply', id, ok: true, value: await handle(call) });
+    post({ type: 'reply', id, ok: true, value: await work });
   } catch (err) {
     post({ type: 'reply', id, ok: false, error: err instanceof Error ? err.message : String(err) });
+  } finally {
+    inFlight.delete(work);
   }
 });

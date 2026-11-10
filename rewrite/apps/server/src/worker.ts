@@ -3,11 +3,13 @@ import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
 import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
-import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth/index.ts';
+import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
 import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { logServerErrors } from './server-error.ts';
+import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { PlayTokens } from './play-tokens.ts';
 import { Passkeys } from './webauthn.ts';
@@ -44,6 +46,8 @@ interface Env {
   PASSKEY_ORIGINS?: string;
   /** Tests only: how young a session must be to add a login. */
   FRESH_SIGN_IN_MS?: string;
+  /** How long a live socket's session is trusted before its next message checks it (`LIVE_SESSION_CHECK_MS`; tests shorten it). */
+  LIVE_SESSION_CHECK_MS?: string;
   /** The built web app (Workers static assets, wrangler.toml's [assets]). Without it, only the API answers. */
   ASSETS?: Fetcher;
   /** E-mail through Resend: the key (a secret), the sender ("Gospel Presenter <noreply@example.org>") and the app's public address for links. All three, or no mail. */
@@ -89,6 +93,8 @@ export class OrgDurableObject extends DurableObject<Env> {
   private org: Org;
   private app: Hono;
   private live: LiveHub;
+  private accounts: Accounts;
+  private liveSessionCheckMs: number;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -123,6 +129,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       watch: new WatchRegistry(d1Sql(env.DB)),
       playTokens: new PlayTokens(d1Sql(env.DB)),
     });
+    // The organisation's routes log what they throw too; the Worker's own are in `globals`.
+    logServerErrors(this.app, (e) => console.warn(JSON.stringify(e)));
     const media = env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null;
     // A video's stream: the Worker checked the token in D1 and names its organisation (only it reaches this object).
     this.app.route(
@@ -150,7 +158,9 @@ export class OrgDurableObject extends DurableObject<Env> {
       );
     }
     const clientAddress = (c: Context) => c.req.header('cf-connecting-ip') ?? 'unknown';
-    this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: new Accounts(d1Sql(env.DB), { superAdmins: superAdminsOf(env) }), clientAddress }));
+    this.accounts = new Accounts(d1Sql(env.DB), { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
+    this.liveSessionCheckMs = env.LIVE_SESSION_CHECK_MS ? Number(env.LIVE_SESSION_CHECK_MS) : LIVE_SESSION_CHECK_MS;
+    this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: this.accounts, clientAddress }));
     this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
@@ -161,7 +171,14 @@ export class OrgDurableObject extends DurableObject<Env> {
       const pair = new WebSocketPair();
       if (url.pathname === '/api/live/socket') {
         this.ctx.acceptWebSocket(pair[1], ['live']);
-        pair[1].serializeAttachment({ id: crypto.randomUUID(), userId: request.headers.get('x-user')!, role: request.headers.get('x-role') as Role, owns: [] } satisfies LiveAttachment);
+        pair[1].serializeAttachment({
+          id: crypto.randomUUID(),
+          userId: request.headers.get('x-user')!,
+          role: request.headers.get('x-role') as Role,
+          owns: [],
+          tokenHash: await liveTokenHash(credentials(request).token),
+          checkedAt: Date.now(),
+        } satisfies LiveAttachment);
         const s = liveSocket(pair[1]);
         void this.org.queue.run(() => this.live.opened(s));
       } else this.ctx.acceptWebSocket(pair[1], ['poke', url.searchParams.get('clientId') ?? '']);
@@ -181,6 +198,12 @@ export class OrgDurableObject extends DurableObject<Env> {
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     if (this.ctx.getTags(ws)[0] !== 'live') return;
     await this.org.queue.run(() => this.live.message(liveSocket(ws), typeof message === 'string' ? message : new TextDecoder().decode(message)));
+    // After the message, never before it (live-session.ts): the session is checked again now and then.
+    const a = ws.deserializeAttachment() as LiveAttachment;
+    // A socket let in before sockets kept their session has none to check: it goes on until it reconnects.
+    if (a.tokenHash === undefined || Date.now() - a.checkedAt < this.liveSessionCheckMs) return;
+    ws.serializeAttachment({ ...a, checkedAt: Date.now() } satisfies LiveAttachment);
+    if (!(await liveSessionHolds(this.accounts, a.tokenHash, a).catch(() => true))) ws.close(4401, 'session-ended');
   }
   override async webSocketClose(ws: WebSocket, code: number) {
     if (this.ctx.getTags(ws)[0] === 'live') await this.org.queue.run(() => this.live.closed(liveSocket(ws)));
@@ -192,12 +215,15 @@ export class OrgDurableObject extends DurableObject<Env> {
   }
 }
 
-/** What a live socket carries through hibernation: who it is, and the sessions it owns. */
+/** What a live socket carries through hibernation: who it is, the sessions it owns, and its session to check again. */
 interface LiveAttachment {
   id: string;
   userId: string;
   role: Role;
   owns: string[];
+  /** The hash of the session token it was let in with (live-session.ts), never the token. */
+  tokenHash: string | null;
+  checkedAt: number;
 }
 
 /** A hibernatable live socket as the hub sees it. */
@@ -300,6 +326,7 @@ function globals(env: Env) {
       debug: env.SPIKE_DEBUG === '1',
       log: (e) => console.warn(JSON.stringify(e)),
     });
+    logServerErrors(auth, (e) => console.warn(JSON.stringify(e)));
     return { accounts, auth };
   })().catch((e: unknown) => {
     ready = undefined;

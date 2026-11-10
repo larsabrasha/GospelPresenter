@@ -403,10 +403,15 @@ export function roleChangeRefusal(actor: Actor, target: MemberActor, role: Membe
   return null;
 }
 
-/** Why `actor` may not remove `target`, or null. PERM-R6: never yourself; never the organisation's last Admin. */
-export function removeUserRefusal(actor: Actor, target: MemberActor, admins: number): AuthError | null {
+/**
+ * Why `actor` may not remove `target`, or null. PERM-R6: never yourself; never the organisation's last Admin. A
+ * Superadmin's membership only a Superadmin removes: where it is their only one, removing it deletes their account,
+ * which nobody but a Superadmin touches (docs/accounts-and-roles.md).
+ */
+export function removeUserRefusal(actor: Actor, target: MemberActor & { superAdmin?: boolean }, admins: number): AuthError | null {
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
   if (actor.id === target.id) return 'own-account';
+  if (target.superAdmin && actor.role !== 'superAdmin') return 'super-admin-only';
   if (target.role === 'admin' && admins <= 1) return 'last-admin';
   return null;
 }

@@ -6,6 +6,18 @@ import { adapters, syncFixture } from './sync-fixture.ts';
 describe.each(adapters)('%s adapter: presentations and templates', (adapterName) => {
   const fx = syncFixture(adapterName);
 
+  it('empties a trash of more than a hundred presentations, past what one statement may bind on a Durable Object', async () => {
+    for (let i = 0; i < 101; i++) {
+      await fx.alice.client.mutate('createPresentation', { id: `T${i}`, name: `Gammal ${i}` });
+      await fx.alice.client.mutate('trashPresentation', { id: `T${i}`, at: 1 });
+    }
+    await fx.alice.client.mutate('emptyTrash', {});
+
+    await fx.syncAll(fx.alice);
+
+    expect([(await fx.server()).tables.presentations.filter((p) => String(p.id).startsWith('T')).length, fx.alice.client.rejected.map((r) => r.error)]).toEqual([0, []]);
+  }, 60_000);
+
   it('PRES-R26: expired trash is purged by the fx.server clock; a client clock that runs ahead purges nothing early', async () => {
     await fx.seed();
     const day = 86_400_000;

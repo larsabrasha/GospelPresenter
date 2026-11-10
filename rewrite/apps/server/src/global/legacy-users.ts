@@ -18,10 +18,11 @@ export class LegacyUserService {
   ) {}
 
   /**
-   * One user, by e-mail, for a Superadmin's import (an Admin's invites them instead). Their Google logins are linked,
-   * so their first sign-in finds the account (AUTH-R4 matches by subject); a subject someone else has is left with
-   * them. One with an account already becomes a member with `role` at once, and a member here already is left as they
-   * are. One with no way to sign in gets a reset link, which a Superadmin sends from Användare.
+   * One user, by e-mail, for a Superadmin's import (an Admin's invites them instead). A new account gets their Google
+   * logins, so their first sign-in finds it (AUTH-R4 matches by subject); a subject someone else has is left with them.
+   * One with an account already becomes a member with `role` at once, and a member here already is left as they are;
+   * neither gets a login from the zip, which anyone could have written: the account is the person's, and its address
+   * may be unconfirmed. One with no way to sign in gets a reset link, which a Superadmin sends from Användare.
    */
   async import(orgId: string, u: LegacyUser): Promise<LegacyUserOutcome> {
     const [taken] = await this.sql.all('SELECT id FROM users WHERE email = ? ORDER BY email_confirmed DESC, created_at LIMIT 1', [u.email]);
@@ -50,7 +51,7 @@ export class LegacyUserService {
       outcome = inserted === 1 ? 'created' : 'limit';
     }
     if (outcome === 'limit') return outcome;
-    for (const subject of u.google) {
+    for (const subject of outcome === 'created' ? u.google : []) {
       await this.sql.run(
         `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at, name) VALUES ('google', ?, ?, ?, ?, ?) ON CONFLICT (provider, subject) DO NOTHING`,
         [subject, userId, this.now(), this.now(), u.email],

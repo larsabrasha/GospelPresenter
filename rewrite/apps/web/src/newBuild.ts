@@ -60,10 +60,25 @@ export function installNewBuild(isBusy: () => boolean, isSettled: () => Promise<
   addEventListener('popstate', movedPage);
 }
 
-/** Holds the newer build back while it is held (a window driving another's session); the result lets go. */
+/** Holds the newer build back while it is held (a window driving another's session, a long job); the result lets go. */
 export function holdNewBuild(): () => void {
   holds++;
-  return () => void holds--;
+  let held = true;
+  // Let go once, however often it is called (an effect's cleanup and a job's `finally` both may).
+  return () => {
+    if (held) holds--;
+    held = false;
+  };
+}
+
+/** Runs a long job (an upload, an import, an export) with the newer build held back, so a move meanwhile cuts nothing. */
+export async function whileHolding<T>(job: () => Promise<T>): Promise<T> {
+  const release = holdNewBuild();
+  try {
+    return await job();
+  } finally {
+    release();
+  }
 }
 
 /** The page moved to another in place: with a newer build waiting, and nothing a reload would cut, the reload follows. */

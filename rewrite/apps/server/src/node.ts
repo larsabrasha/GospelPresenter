@@ -14,11 +14,13 @@ import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
 import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
-import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
+import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { logServerErrors } from './server-error.ts';
+import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
 import type { MailConfig } from './mail.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
@@ -196,6 +198,8 @@ export interface NodeServerOptions {
   passkeys?: PasskeyConfig;
   /** How young a session must be to add a login (tests shorten it). */
   freshSignInMs?: number;
+  /** How long a live socket's session is trusted before its next message checks it (`LIVE_SESSION_CHECK_MS`; tests shorten it). */
+  liveSessionCheckMs?: number;
   /**
    * Also serve over https, with a certificate the operator provides (PEM),
    * on its own port and address: on a desktop host, the LAN gets https while
@@ -285,6 +289,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const socketAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
   const clientAddress = proxies ? (c: Context) => forwardedClient(socketAddress(c), c.req.header('x-forwarded-for'), proxies) : socketAddress;
   const app = new Hono<{ Bindings: HttpBindings }>();
+  logServerErrors(app, opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')));
   // The phone app's calls, before any guard: a preflight carries no credentials (cors.ts).
   app.use('/api/*', appCors());
   if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
@@ -392,13 +397,23 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     const org = openOrg(caller.orgId);
     if (url.pathname === '/api/live/socket') {
       // Live sessions (spec 04): every call runs in the organisation's queue, never inside a mutation.
+      const tokenHash = await liveTokenHash(credentials(request).token);
       return void wss.handleUpgrade(req, socket, head, (ws) => {
         const s: LiveSocket = { id: crypto.randomUUID(), userId: caller.ctx.userId, role: caller.ctx.role, owns: [], send: (m) => ws.send(m) };
         org.liveSockets.set(ws, s);
         // A failure here is a closing server: the socket is going with it.
         const run = (fn: () => void) => void org.queue.run(fn).catch(() => undefined);
         run(() => org.live.opened(s));
-        ws.on('message', (data) => run(() => org.live.message(s, String(data))));
+        let checkedAt = Date.now();
+        ws.on('message', (data) => {
+          run(() => org.live.message(s, String(data)));
+          if (Date.now() - checkedAt < (opts.liveSessionCheckMs ?? LIVE_SESSION_CHECK_MS)) return;
+          checkedAt = Date.now();
+          void liveSessionHolds(accounts, tokenHash, caller.ctx).then(
+            (holds) => holds || ws.close(4401, 'session-ended'),
+            () => undefined,
+          );
+        });
         ws.on('close', () => {
           org.liveSockets.delete(ws);
           run(() => org.live.closed(s));

@@ -20,6 +20,8 @@ export interface AudioControl {
   command(c: AudioCommand): void;
 }
 
+/** How long an audio item whose file is not on the device waits before it asks again. */
+const AUDIO_RETRY_MS = 3_000;
 /** Fade-out (Tona ut): 5 s, ease-out cubic, then pause, rewind and the volume back (spec 04 §1b). */
 const FADE_MS = 5000;
 /** While the seek bar moves the sound is muted, until 150 ms after the last move. */
@@ -78,12 +80,26 @@ export class AudioEngine implements AudioControl {
     // element that has played after such a gesture. A controller's "play" comes with no gesture here, so the
     // element plays a moment of silence at the operator's first click or key, and may start sound later.
     const unlock = () => {
+      this.stopListening();
+      this.unlock();
+    };
+    this.stopListening = () => {
       removeEventListener('pointerdown', unlock, true);
       removeEventListener('keydown', unlock, true);
-      this.unlock();
     };
     addEventListener('pointerdown', unlock, true);
     addEventListener('keydown', unlock, true);
+  }
+
+  /** Takes away what it listens for on the window. */
+  private stopListening: () => void = () => {};
+
+  /** Lets the engine go (an editor's preview left): it stops, and keeps nothing on the window or of its file. */
+  dispose() {
+    this.stopListening();
+    this.stop();
+    this.letGo();
+    this.letGo = () => {};
   }
 
   /** The browser would not start the sound until someone taps this window. */
@@ -185,7 +201,17 @@ export class AudioEngine implements AudioControl {
     this.shown = itemId;
     this.pausedByBlack = false;
     this.stop();
-    if (!itemId || !(await this.load(itemId)) || this.shown !== itemId) return;
+    if (!itemId) return;
+    if (!(await this.load(itemId))) {
+      // Not on this device yet (the presentation was just started on a slow line): asked for again while it stays live.
+      setTimeout(() => {
+        if (this.shown !== itemId) return;
+        this.shown = null;
+        void this.show(itemId, from);
+      }, AUDIO_RETRY_MS);
+      return;
+    }
+    if (this.shown !== itemId) return;
     this.el.currentTime = from?.position ?? 0;
     if (!from || from.playing) await this.play();
     else this.notify();

@@ -251,8 +251,9 @@ async function timeKey(page: Page, value: string, expected: { first: string[]; c
       };
       /** Resolves with the time `shown(screen)` first holds, after the layout. */
       const when = (screen: boolean) =>
-        new Promise<number>((resolve) => {
+        new Promise<number>((resolve, reject) => {
           const done = () => {
+            clearTimeout(timer);
             void (dialog as HTMLElement).offsetHeight; // the layout of the new list
             resolve(performance.now());
           };
@@ -261,6 +262,8 @@ async function timeKey(page: Page, value: string, expected: { first: string[]; c
             mo.disconnect();
             done();
           });
+          // A list that never shows fails here, named, rather than at the test's 10 minutes.
+          const timer = setTimeout(() => (mo.disconnect(), reject(new Error(`the ${screen ? 'first screen' : 'whole list'} never showed`))), 30_000);
           mo.observe(dialog, { childList: true, subtree: true, characterData: true, attributes: true });
         });
       const screen = when(true);
@@ -400,7 +403,12 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   f.startReload = await median(runs, async () => {
     await page.reload({ waitUntil: 'commit' });
     return page.evaluate(async () => {
-      while (!document.querySelector('a[href="/presentations/perf-p0"]')) await new Promise((r) => setTimeout(r, 5));
+      // A start that never shows the list fails here, named, rather than at the test's 10 minutes (the review, 2026-11-09).
+      const until = performance.now() + 30_000;
+      while (!document.querySelector('a[href="/presentations/perf-p0"]')) {
+        if (performance.now() > until) throw new Error('the start page never showed perf-p0');
+        await new Promise((r) => setTimeout(r, 5)); // polls the page for the list, 5 ms at a time
+      }
       return performance.now();
     });
   });
@@ -511,7 +519,10 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   await picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)').fill('');
   // Back to the tab's list of books; the book is the last button of its name (the path above may name it too).
   const toBooks = async () => {
-    while (await picker.getByRole('button', { name: 'Tillbaka' }).isVisible()) await picker.getByRole('button', { name: 'Tillbaka' }).click();
+    for (let steps = 0; await picker.getByRole('button', { name: 'Tillbaka' }).isVisible(); steps++) {
+      if (steps > 5) throw new Error('Tillbaka never reached the books');
+      await picker.getByRole('button', { name: 'Tillbaka' }).click({ timeout: 10_000 });
+    }
   };
   const psalms = () => [...document.querySelectorAll<HTMLElement>('[role="dialog"] button')].filter((e) => e.textContent?.trim() === 'Psaltaren').at(-1)!;
   await page.evaluate(`window.gpPsalms = ${psalms.toString()}`);
@@ -590,7 +601,11 @@ test('the most used flows with 3 000 songs, 50 presentations and a whole Bible, 
     median(3, async () => {
       await page.reload({ waitUntil: 'commit' });
       return page.evaluate(async () => {
-        while (!document.body?.textContent?.includes('3000 sånger')) await new Promise((r) => setTimeout(r, 5));
+        const until = performance.now() + 30_000;
+        while (!document.body?.textContent?.includes('3000 sånger')) {
+          if (performance.now() > until) throw new Error('Sånger never said 3000 sånger');
+          await new Promise((r) => setTimeout(r, 5)); // polls the page for the count, 5 ms at a time
+        }
         return performance.now();
       });
     });

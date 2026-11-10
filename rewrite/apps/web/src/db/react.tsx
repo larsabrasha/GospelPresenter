@@ -48,9 +48,9 @@ export function useData<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unkn
 
 /**
  * `useData` that loads again only when a change wrote one of `tables`, every
- * table `load` reads (or the change does not say what it wrote). Only for the
- * song library, which a reload on every change would draw again; a table
- * missing from `tables` is an update missed.
+ * table `load` reads (or the change does not say what it wrote). For the song
+ * library, which a reload on every change would draw again, and a stored file's
+ * URL; a table missing from `tables` is an update missed.
  */
 function useDataOf<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[], tables?: readonly string[]): T | undefined {
   const db = useReader();
@@ -89,7 +89,8 @@ export function useDbStatus(): DbStatus | undefined {
 export function useBlobUrl(hash: string | null): string | null {
   // Held while shown, so it is not let go under the picture; let go a while after.
   useEffect(() => (hash ? holdBlobUrl(hash) : undefined), [hash]);
-  return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
+  // Loaded again only when a file arrives or goes: on a new device every picture missing would ask again on every change.
+  return useDataOf(async (db) => (hash ? blobUrl(db, hash) : null), [hash], ['media_blobs']) ?? null;
 }
 
 /**
@@ -98,22 +99,27 @@ export function useBlobUrl(hash: string | null): string | null {
  */
 export function useOpenedUrl(hash: string | null): string | null | undefined {
   const db = useDb();
-  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  // Kept with its hash: another file, or none, never shows the one before, whose URL is let go (the review, 2026-11-09).
+  const [opened, setOpened] = useState<{ hash: string; url: string | null } | null>(null);
   useEffect(() => {
     if (!hash) return;
     let live = true;
     let made: string | null = null;
-    void db.openMedia(hash).then((m) => {
-      if (!live) return;
-      made = m ? URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: m.contentType })) : null;
-      setUrl(made);
-    });
+    void db.openMedia(hash).then(
+      (m) => {
+        if (!live) return;
+        made = m ? URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: m.contentType })) : null;
+        setOpened({ hash, url: made });
+      },
+      // A call that failed cannot have it: said so, rather than "hämtas" for ever.
+      () => live && setOpened({ hash, url: null }),
+    );
     return () => {
       live = false;
       if (made) URL.revokeObjectURL(made);
     };
   }, [db, hash]);
-  return url;
+  return hash && opened?.hash === hash ? opened.url : undefined;
 }
 
 /**

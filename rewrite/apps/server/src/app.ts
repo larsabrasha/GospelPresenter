@@ -1,5 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { capped, IMPORT_BODY_MAX, PUSH_BODY_MAX } from './body-cap.ts';
 import {
   BIBLE_LIMITS,
   bibleTextHash,
@@ -13,6 +14,7 @@ import {
   LOAD_BIBLE_TEXT_SQL,
   MEDIA_HASH,
   MEDIA_LIMITS,
+  VIDEO_LIMITS,
   mediaKey,
   SCREEN_ID,
   ORPHAN_BLOBS_SQL,
@@ -110,6 +112,12 @@ export interface SyncRouteOptions {
 export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
   const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null, playTokens = null } = opts;
   const app = new Hono();
+  // Before the routes, so every body below is capped as it is read (body-cap.ts).
+  app.use('/api/sync/push', capped(PUSH_BODY_MAX));
+  app.use('/api/bibles/:hash', capped(BIBLE_LIMITS.textBytes));
+  app.use('/api/media/:hash', capped(MEDIA_LIMITS.audioBytes));
+  app.use('/api/media/:hash/upload/:part', capped(opts.videoPartBytes ?? VIDEO_LIMITS.partBytes));
+  app.use('/api/import/legacy', capped(IMPORT_BODY_MAX));
   app.route('/', videoRoutes(resolve, { media, playTokens, partBytes: opts.videoPartBytes }));
   app.route('/', legacyRoutes(resolve, watch));
 
@@ -228,8 +236,13 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     const type = kind.type;
     const orgId = r.caller.orgId;
     await r.org.queue.run(async () => {
-      // Known already: the upload says it is about to be used, so its grace period starts over.
-      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return;
+      // Known already: the upload says it is about to be used, so its grace period starts over. Its bytes are stored
+      // again all the same (the same key is the same bytes): a clean-up cut off between removing the bytes and the row
+      // leaves a row without them, which nothing else would ever mend.
+      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) {
+        await media.put(mediaKey(orgId, hash), bytes);
+        return;
+      }
       await media.put(mediaKey(orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
       const s = recordMediaBlobSql(hash, type, bytes.length, null, Date.now());
       r.org.store.query(s.sql, s.params);
@@ -344,7 +357,7 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
     c.header('cache-control', 'no-cache, no-store');
     c.header('x-accel-buffering', 'no');
     return streamSSE(c, async (stream) => {
-      const live = { open: true };
+      const live = { open: true, end: () => {} };
       const done = new Promise<void>((resolveDone) => {
         const viewer: Viewer = {
           // Only the newest state matters (LIVE-R36): a write that fails ends the stream.
@@ -356,12 +369,15 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
             resolveDone();
           },
         };
+        live.end = () => viewer.close();
         stream.onAbort(() => viewer.close());
         void t.org.queue.run(() => t.live.watch(t.displayId, code, viewerId, viewer, { orgName: t.orgName, outputName: display.name }, kind !== 'watch')).catch(() => viewer.close());
       });
       while (live.open) {
         await Promise.race([done, stream.sleep(PING_MS)]);
-        if (live.open) await stream.write(': ping\n\n').catch(() => undefined);
+        // A named event, not a comment, so the page can tell a stream gone silent (watchStream.ts); a ping that cannot be
+        // written ends the stream, so a viewer gone away is no longer counted, nor a screen shown as online.
+        if (live.open) await stream.writeSSE({ event: 'ping', data: '{}' }).catch(() => live.end());
       }
     });
   });

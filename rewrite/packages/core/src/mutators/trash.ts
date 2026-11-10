@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { can } from '../permissions.ts';
 import { audios, customSlides, images, presentationItems, presentations, songs, videos } from '../schema.ts';
 import { TRASH_RETENTION_MS } from '../trash.ts';
-import type { MutatorCtx, Tx } from './base.ts';
+import { inRuns, type MutatorCtx, type Tx } from './base.ts';
 import { deleteSongRows } from './songs.ts';
 
 // ------------------------------------------------------------------ trash
@@ -41,8 +41,7 @@ async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
       .select({ id: presentations.id })
       .from(presentations)
       .where(and(eq(presentations.isTemplate, isTemplate), isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff)));
-    const ids = expired.map((p) => p.id);
-    if (ids.length) {
+    for (const ids of inRuns(expired.map((p) => p.id))) {
       await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, ids));
       await tx.delete(presentations).where(inArray(presentations.id, ids));
     }

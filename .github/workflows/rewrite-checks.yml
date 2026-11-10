@@ -1,0 +1,50 @@
+name: Check the rewrite
+
+# The rewrite's checks on every pull request and push that touches it (the review, 2026-11-09: nothing gated a merge):
+# typecheck, lint and the unit and server tests, as `pnpm typecheck && pnpm lint && pnpm test` runs them before a commit
+# (rewrite/AGENTS.md). Minutes, with no Electron; the e2e suite stays a local run. Branch protection on main can require it.
+
+on:
+  pull_request:
+    paths:
+      - 'rewrite/**'
+      - '.github/workflows/rewrite-checks.yml'
+  push:
+    branches: ['main']
+    paths:
+      - 'rewrite/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rewrite-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rewrite
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rewrite/package.json
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: rewrite/pnpm-lock.yaml
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test

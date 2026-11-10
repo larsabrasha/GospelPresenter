@@ -4,7 +4,7 @@
 // `addAudio`, `addVideo`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names. A video itself is never kept on a device: it was uploaded before its
 // `addVideo` was queued, is recorded here without its bytes, and streams from the server.
-import { customPageBlobs, ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, parseThemeDefinition, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia, THEME_PICTURES_SQL, themeBlobs, type CustomPage } from '@gp/core';
+import { customPageBlobs, ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, parseThemeDefinition, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, SLIDESHOW_PICTURES_SQL, sniffMedia, THEME_PICTURES_SQL, themeBlobs, type CustomPage } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -140,8 +140,13 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
     'SELECT hash FROM (SELECT thumb_hash AS hash, created_at FROM images UNION ALL SELECT thumb_hash AS hash, created_at FROM videos) ORDER BY created_at DESC',
   )) as { hash: string }[];
   const hashes: string[] = thumbs.map((t) => t.hash);
-  // A theme's pictures as Teman shows them, on every device (docs/themes.md).
-  hashes.push(...((await client.query(`SELECT thumb_hash AS hash FROM (${THEME_PICTURES_SQL})`)) as { hash: string }[]).map((t) => t.hash));
+  // A theme's pictures as Teman shows them, on every device (docs/themes.md); and the pages of every slideshow and
+  // overlay, as Bildspel, Överlägg and an item's slides show them: a page draws its thumbnail where its full picture
+  // is not on the device, which it then always is (the review, 2026-11-09: they showed blank on a device that had not
+  // made them).
+  for (const sql of [THEME_PICTURES_SQL, SLIDESHOW_PICTURES_SQL, OVERLAY_PICTURES_SQL]) {
+    hashes.push(...((await client.query(`SELECT thumb_hash AS hash FROM (${sql}) WHERE thumb_hash IS NOT NULL`)) as { hash: string }[]).map((t) => t.hash));
+  }
   const order = [...new Set([...(policy.presenting ? [policy.presenting] : []), ...(await keptPresentations(client, policy))])];
   // Every overlay's picture, and every theme's: any of them can be switched on or chosen during live.
   if (order.length) {

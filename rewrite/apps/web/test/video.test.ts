@@ -252,6 +252,9 @@ describe('uploading a video in parts', () => {
 
 /** A video element as far as the engine uses one, and a page whose tab can be hidden, as Safari's. */
 class FakeVideo extends EventTarget {
+  removeAttribute(name: string) {
+    if (name === 'src') this.src = '';
+  }
   paused = true;
   ended = false;
   muted = false;

@@ -12,16 +12,17 @@ import {
   type UserRow,
 } from '@gp/core';
 import { api, authHeaders } from '../auth/api.ts';
+import type { DbStatus } from '../db/protocol.ts';
 import type { ReadDb } from '../db/share.ts';
 import { serverUrl } from '../server.ts';
-import { zipBlob } from './zipBlob.ts';
+import { zipBlob, ZipTooLarge } from './zipBlob.ts';
 
 // The organisation exported as a zip (Inställningar → Organisationen → Exportera; Lars, 2026-11-08), in the format the
 // import reads (LEGACY_ENTRIES), so an organisation moves from one server to another: gp-test to apptest, a desktop
 // host to the cloud. Its rows come from this device's database, which has all of them; its users, Bible texts and
 // files from the server, a video too, whole. Nothing is changed anywhere.
 
-export type OrgExportReason = 'download' | 'rows' | 'too-large';
+export type OrgExportReason = 'download' | 'rows' | 'too-large' | 'not-synced';
 
 export class OrgExportError extends Error {
   constructor(
@@ -48,8 +49,11 @@ async function download(path: string, row: string): Promise<Blob> {
   return res.blob();
 }
 
+/** What the export reads a device's database through: its rows, and a sync now. */
+type ExportDb = Pick<ReadDb, 'query'> & { syncNow(): Promise<DbStatus> };
+
 /** Every row of the tables the import writes, with exactly their columns. */
-async function readRows(db: ReadDb): Promise<LegacyRows> {
+async function readRows(db: Pick<ReadDb, 'query'>): Promise<LegacyRows> {
   const entries = await Promise.all(
     LEGACY_TABLES.map(async (t) => [t, await db.query<LegacyRows[typeof t][number]>(`SELECT ${tableByName.get(t)!.columns.join(', ')} FROM ${t} ORDER BY id`)] as const),
   );
@@ -71,8 +75,14 @@ export function exportName(orgName: string, now = new Date()): string {
   return `gospel-presenter-${fileSafe(orgName)}-${now.toISOString().slice(0, 10)}.zip`;
 }
 
-/** The organisation as an export zip. */
-export async function exportOrg(db: ReadDb, orgName: string, progress: (p: OrgExportProgress) => void): Promise<Blob> {
+/**
+ * The organisation as an export zip. Only from a device in step with the server (the security review, 2026-11-09): it
+ * syncs first, and one with changes left to send, an older app, or a session the server refuses exports nothing, as
+ * what it has may not be what the server has.
+ */
+export async function exportOrg(db: ExportDb, orgName: string, progress: (p: OrgExportProgress) => void): Promise<Blob> {
+  const status = await db.syncNow();
+  if (status.pending > 0 || status.updateRequired || status.authError) throw new OrgExportError('not-synced');
   const rows = await readRows(db);
   const problem = legacyRowsProblem(rows);
   if (problem) throw new OrgExportError('rows', problem);
@@ -88,10 +98,17 @@ export async function exportOrg(db: ReadDb, orgName: string, progress: (p: OrgEx
   let done = 0;
   progress({ step: 'files', done, total: wanted.length });
   const queue = [...wanted];
+  let failed = false;
   await Promise.all(
     Array.from({ length: PARALLEL }, async () => {
-      for (let w = queue.shift(); w; w = queue.shift()) {
-        files.push({ name: w.name, data: await download(w.path, w.row) });
+      // One failed download stops the others: the export is then made again from the start.
+      for (let w = queue.shift(); w && !failed; w = queue.shift()) {
+        try {
+          files.push({ name: w.name, data: await download(w.path, w.row) });
+        } catch (e) {
+          failed = true;
+          throw e;
+        }
         progress({ step: 'files', done: ++done, total: wanted.length });
       }
     }),
@@ -110,6 +127,7 @@ export async function exportOrg(db: ReadDb, orgName: string, progress: (p: OrgEx
   try {
     return await zipBlob(entries, (n) => progress({ step: 'zip', done: n, total: entries.length }));
   } catch (e) {
-    throw e instanceof OrgExportError ? e : new OrgExportError('too-large');
+    // Only a zip past 4 GB or 65,535 entries is too large; a file that cannot be read says so as itself.
+    throw e instanceof ZipTooLarge ? new OrgExportError('too-large') : e;
   }
 }

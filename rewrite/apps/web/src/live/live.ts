@@ -29,7 +29,8 @@ import { getCustomSlide } from '../db/customSlides.ts';
 import { getImage } from '../db/images.ts';
 import { arrangementsOf, getAudio, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
-type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | PlaybackMessage;
+/** `ask`: a presenting window just opened asks what is shown, and every window that knows answers with its pointer. */
+type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'ask' } | PlaybackMessage;
 
 function restoreVideo(key: string): LiveVideo | null {
   try {
@@ -61,6 +62,7 @@ export class LiveChannel implements PlaybackBus {
   private playbackListeners = new Set<(m: PlaybackMessage) => void>();
   private channel: BroadcastChannel;
   private current: LivePointer = IDLE;
+  private presenting = false;
   private storageKey: string;
   private listeners = new Set<(p: LivePointer) => void>();
   private video: OutputVideo = { video: null, next: null };
@@ -85,10 +87,14 @@ export class LiveChannel implements PlaybackBus {
     if (role === 'operator') {
       this.current = restore(this.storageKey) ?? IDLE;
       this.restoredVideo = this.current.presentationId ? restoreVideo(`${this.storageKey}:video`) : null;
+      this.presenting = this.current.presentationId !== null;
     }
     this.channel.addEventListener('message', (e: MessageEvent<LiveMessage>) => {
       const m = e.data;
-      if (m.type === 'pointer') return this.receive(m.pointer);
+      if (m.type === 'pointer') return this.receive(m.pointer, false);
+      // A window opened later (a second tab, the app opened again) takes up what the outputs show, so its own changes,
+      // numbered after it, reach them (the review, 2026-11-09).
+      if (m.type === 'ask') return void (this.current.rev > 0 && this.channel.postMessage({ type: 'pointer', pointer: this.current } satisfies LiveMessage));
       if (m.type === 'video') return void (this.role === 'output' && this.receiveVideo(m.video));
       // The pointer first, so an output that becomes the primary has it before it plays.
       if (m.type === 'hello' && this.role === 'operator') {
@@ -98,23 +104,33 @@ export class LiveChannel implements PlaybackBus {
       for (const fn of this.playbackListeners) fn(m);
     });
     if (role === 'output') this.channel.postMessage({ type: 'hello', id: this.id } satisfies LiveMessage);
+    else this.channel.postMessage({ type: 'ask' } satisfies LiveMessage);
+  }
+
+  /**
+   * Whether this window presents: it set the pointer last, or another window has not set one since. Only that window
+   * plays sound and video here, so a second tab on the machine never plays it again (the review, 2026-11-09).
+   */
+  presents(): boolean {
+    return this.presenting;
   }
 
   get pointer(): LivePointer {
     return this.current;
   }
 
-  private receive(p: LivePointer) {
+  private receive(p: LivePointer, own: boolean) {
     const next = newer(this.current, p);
     if (next === this.current) return;
     this.current = next;
+    this.presenting = own;
     for (const fn of this.listeners) fn(next);
   }
 
   /** Operator only: changes what the outputs show, with the overlay rules of `applyLiveChange`. */
   set(change: LivePointerChange) {
     const pointer = { ...applyLiveChange(this.current, change, (itemId) => this.itemOverlays.get(itemId) ?? null), rev: this.current.rev + 1 };
-    this.receive(pointer);
+    this.receive(pointer, true);
     this.channel.postMessage({ type: 'pointer', pointer } satisfies LiveMessage);
     try {
       sessionStorage.setItem(this.storageKey, JSON.stringify(pointer));

@@ -71,13 +71,14 @@ export function screenPairRoutes(resolve: (c: Context) => Promise<{ caller: Call
     const a = ((await c.req.json().catch(() => null)) ?? {}) as { pin?: unknown; sessionId?: unknown };
     const sessionId = sessionOf(a.sessionId);
     if (typeof a.pin !== 'string' || !SCREEN_PIN.test(a.pin) || !sessionId) return c.json({ error: 'invalid-request' }, 400);
-    // Shared with setup tokens and device pairing codes: twenty wrong guesses lock the address.
-    const address = `address:${deps.clientAddress(c)}`;
-    const locked = await deps.accounts.throttle.lockedUntil([address]);
+    // Twenty wrong guesses lock the address (shared with setup tokens and device pairing codes), and the user and the
+    // organisation too: a code is four digits and any organisation's, so one with many addresses is held back as well.
+    const keys = [`address:${deps.clientAddress(c)}`, `screen-pin-user:${r.caller.ctx.userId}`, `screen-pin-org:${r.caller.orgId}`];
+    const locked = await deps.accounts.throttle.lockedUntil(keys);
     if (locked) return watchLocked(locked, deps.accounts.now());
     const id = await deps.screens.claimPin(a.pin, r.caller.orgId);
     if (!id) {
-      await deps.accounts.throttle.fail(address, THROTTLE.address);
+      for (const key of keys) await deps.accounts.throttle.fail(key, THROTTLE.address);
       return c.json({ error: 'pin-invalid' }, 400);
     }
     const screen = await add(r, id, sessionId);

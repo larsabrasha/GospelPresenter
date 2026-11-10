@@ -5,6 +5,10 @@ import type { MediaBytes, ReadDb } from './share.ts';
 import { locale } from '../i18n.ts';
 import { serverOrigin } from '../server.ts';
 import { note } from '../report/trail.ts';
+import { reportClientError } from '../clientErrors.ts';
+
+/** What saves a page's unsaved edits when it leaves (an editor's field, AutoSave.tsx), before the worker ends. */
+export const beforeLeaving = new Set<() => void>();
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
 export class Db implements ReadDb {
@@ -23,6 +27,8 @@ export class Db implements ReadDb {
         const tables = m.tables && new Set(m.tables);
         for (const fn of this.changeListeners) fn(tables);
       } else if (m.type === 'status') for (const fn of this.statusListeners) fn(m.status);
+      // Reported once a page (clientErrors.ts), however often the work tries again.
+      else if (m.type === 'error') reportClientError(new Error(`database worker: ${m.message}`));
       else {
         const w = this.waiting.get(m.id);
         this.waiting.delete(m.id);
@@ -34,12 +40,17 @@ export class Db implements ReadDb {
     // the reason, so the start says what went wrong rather than waiting for ever.
     this.worker.addEventListener('error', (e: ErrorEvent) => {
       const error = new Error(`database worker: ${e.message || 'failed to load'}`);
+      this.dead = error;
       for (const w of this.waiting.values()) w.reject(error);
       this.waiting.clear();
     });
   }
 
+  /** Why the worker can answer nothing any more: every later call fails with it rather than waiting for ever. */
+  private dead: Error | null = null;
+
   private call<T>(c: DbCall): Promise<T> {
+    if (this.dead) return Promise.reject(this.dead);
     const id = this.next++;
     return new Promise<T>((resolve, reject) => {
       this.waiting.set(id, { resolve: resolve as (v: unknown) => void, reject });
@@ -53,7 +64,16 @@ export class Db implements ReadDb {
     // once: iOS's web view kept the old page's worker, and the file's lock with it, past a reload, and the new page waited
     // for it with a blank screen (the phone app, 2026-11-03). Only where there is a file: a host window's database is in
     // memory, and ending its worker there left a reload under load hanging in the e2e tests.
-    if (!session.hostWindow && session.storage !== 'memory') addEventListener('pagehide', () => this.worker.terminate());
+    // The page's editors save first (`beforeLeaving`), and the worker ends once it has written what it was sent: ended at
+    // once, it lost the last words typed on an iPhone, which sends no `beforeunload` (the review, 2026-11-09). A page
+    // kept for going back (`persisted`) keeps its worker.
+    if (!session.hostWindow && session.storage !== 'memory')
+      addEventListener('pagehide', (e) => {
+        if (e.persisted) return;
+        for (const flush of beforeLeaving) flush();
+        // After the saves the flushes start, which post in a microtask of their own.
+        queueMicrotask(() => this.worker.postMessage({ id: 0, call: { op: 'close' } satisfies DbCall }));
+      });
     return this.call({ op: 'open', session, locale: locale(), server: serverOrigin() });
   }
 

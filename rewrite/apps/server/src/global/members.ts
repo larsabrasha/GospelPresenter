@@ -140,13 +140,18 @@ export class MemberService {
    */
   async session(token: string): Promise<SessionInfo | null> {
     if (!token.startsWith('gpdt_')) return null;
+    return this.sessionByHash(await sha256(token));
+  }
+
+  /** The session whose token has this hash, as `session` finds it: for a live socket, which keeps only the hash. */
+  async sessionByHash(tokenHash: string): Promise<SessionInfo | null> {
     const [r] = await this.sql.all(
       `SELECT s.id, s.user_id, s.org_id, s.created_at, s.last_used_at, s.revoked_at, s.paired_device_id, s.super_until,
          (SELECT role FROM memberships m WHERE m.user_id = s.user_id AND m.org_id = s.org_id) AS member_role,
          (s.super_until > ? AND ${this.superSql} AND EXISTS (SELECT 1 FROM orgs WHERE id = s.org_id)) AS super_on
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ?`,
-      [this.now(), await sha256(token)],
+      [this.now(), tokenHash],
     );
     if (!r || r.revoked_at !== null) return null;
     const now = this.now();

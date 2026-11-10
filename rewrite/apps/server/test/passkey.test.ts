@@ -79,17 +79,19 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   /** A web Google sign-in (as in auth.test.ts), optionally linking to `link`'s session instead. */
   async function google(who: FakeAccount, opts: { invite?: string; link?: string } = {}) {
     const browser = new TestBrowser();
-    const begun = await api<{ url: string; error?: string }>(h, 'POST', '/api/auth/google/begin', {
-      token: opts.link,
-      body: opts.invite ? { invite: opts.invite } : opts.link ? { link: true } : {},
+    // Begun in the browser, as the page does: the flow goes on only there.
+    const res = await browser.fetch(`${h.url}/api/auth/google/begin`, {
+      ...json(opts.invite ? { invite: opts.invite } : opts.link ? { link: true } : {}),
+      headers: { 'content-type': 'application/json', ...(opts.link ? { authorization: `Bearer ${opts.link}` } : {}) },
     });
+    const begun = { status: res.status, body: (await res.json()) as { url: string; error?: string } };
     if (begun.status !== 200) return { error: begun.body.error!, hash: '' };
     fake.next(who);
     const end = await browser.open(h.url + begun.body.url);
     const hash = where(end.url);
     if (hash !== '/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? null, hash };
-    const res = await browser.fetch(`${h.url}/api/auth/google/finish`, json({ deviceName: 'Browser' }));
-    return { session: (await res.json()) as SignInResponse, hash };
+    const done = await browser.fetch(`${h.url}/api/auth/google/finish`, json({ deviceName: 'Browser' }));
+    return { session: (await done.json()) as SignInResponse, hash };
   }
 
   const counts = async () => (await api<Record<string, number>>(h, 'GET', '/api/debug/counts')).body;

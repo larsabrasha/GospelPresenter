@@ -1,3 +1,4 @@
+import { beforeLeaving } from '../db/db.ts';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
@@ -174,10 +175,11 @@ export function AutoSaveField({
 
   useEffect(() => {
     const flush = () => void saver.flush();
-    addEventListener('pagehide', flush);
+    // On leaving, before the database worker ends (db.ts `beforeLeaving`); `beforeunload` too, where a browser sends it.
+    beforeLeaving.add(flush);
     addEventListener('beforeunload', flush);
     return () => {
-      removeEventListener('pagehide', flush);
+      beforeLeaving.delete(flush);
       removeEventListener('beforeunload', flush);
       flush();
     };

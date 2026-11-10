@@ -248,6 +248,16 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.members.userByEmail('shared@x.se')).toMatchObject({ id: bo });
   });
 
+  it("a Superadmin's import links no Google account to an account that exists, a member's here or anyone's", async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+
+    const outcome = await accounts.legacy.import(orgId, { name: 'Bo', email: 'bo@gmail.com', role: 'admin', google: ['sub-eve'] });
+
+    expect([outcome, await accounts.signIn.signInWithGoogle(google('eve'), null)]).toEqual(['kept', 'not-linked']);
+    expect((await accounts.members.member(bo, orgId))?.role).toBe('user');
+  });
+
   it('deleting a user takes their logins, sessions, reset links and membership', async () => {
     const { accounts, orgId, userId } = await fresh(driver);
     const bo = await newMember(accounts, orgId, userId, 'bo');

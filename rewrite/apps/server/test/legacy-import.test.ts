@@ -1,7 +1,7 @@
 // The import from 1.x (docs/import-from-1x.md): the rows of an export zip written into an organisation beside what it
 // has, and its users brought along, on each server adapter.
 import { describe, expect, it } from 'vitest';
-import { CLASSIC, DISPLAY_CODE, LEGACY_TABLES, sha256HexBytes, type LegacyRows } from '@gp/core';
+import { CLASSIC, DISPLAY_CODE, LEGACY_TABLES, PROTOCOL_VERSION, SCHEMA_VERSION, sha256HexBytes, type LegacyRows } from '@gp/core';
 import { api, setRole } from './harness.ts';
 import { put, webp } from './media-fixtures.ts';
 import { adapters, syncFixture } from './sync-fixture.ts';
@@ -79,6 +79,16 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
 
     expect(r.status).toBe(200);
     expect((await fx.server()).tables.songs.map((s) => s.name)).toEqual([song.name]);
+  });
+
+  it('brings back no row removed since an earlier import when the zip is imported again', async () => {
+    await send(rows({ songs: [song], presentations: [presentation], presentation_items: [songItem] }));
+    const removed = { protocol: PROTOCOL_VERSION, schemaVersion: SCHEMA_VERSION, clientId: crypto.randomUUID(), mutations: [{ id: 1, name: 'removeItem', v: 1, args: { itemId: songItem.id } }] };
+    expect((await api<{ results: unknown[] }>(fx.h, 'POST', '/api/sync/push', { user: 'alice', org: fx.org, body: removed })).body.results).toEqual([]);
+
+    const again = await send(rows({ songs: [song], presentations: [presentation], presentation_items: [songItem] }));
+
+    expect([again.status, (await fx.server()).tables.presentation_items]).toEqual([200, []]);
   });
 
   it('refuses a picture whose blobs were not uploaded', async () => {

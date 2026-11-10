@@ -32,7 +32,9 @@ type WebResult = { session: SignInResponse; error?: undefined } | { session?: un
  */
 async function webSignIn(h: Harness, who: FakeAccount | null, opts: { invite?: string; tamper?: Tamper; browser?: TestBrowser } = {}): Promise<WebResult> {
   const browser = opts.browser ?? new TestBrowser();
-  const begin = await api<{ url: string; error?: string }>(h, 'POST', '/api/auth/google/begin', { body: opts.invite ? { invite: opts.invite } : {} });
+  // Begun in the browser itself, as the page does: the flow is bound to it then.
+  const res0 = await browser.fetch(`${h.url}/api/auth/google/begin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(opts.invite ? { invite: opts.invite } : {}) });
+  const begin = { status: res0.status, body: (await res0.json()) as { url: string; error?: string } };
   if (begin.status !== 200) return { error: begin.body.error! };
   fake.next(who, opts.tamper);
   const end = await browser.open(h.url + begin.body.url);
@@ -49,6 +51,9 @@ async function appSignIn(h: Harness, who: FakeAccount | null, query: string) {
   const end = await new TestBrowser().open(`${h.url}/api/app-login?${query}`);
   return { ...end, link: appCallbackLink(end.html) };
 }
+
+/** A JSON POST's options, for a TestBrowser's fetch. */
+const json = (body: unknown) => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 const counts = async (h: Harness) => (await api<Record<string, number>>(h, 'GET', '/api/debug/counts')).body;
 
@@ -176,21 +181,21 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const forged = await new TestBrowser().open(`${h.url}/api/auth/google/callback?state=forged&code=x`);
     expect([forged.status, /data-error="google-failed"/.test(forged.html)]).toEqual([400, true]);
 
-    // A flow started in one browser, finished in another (login CSRF): refused.
-    const begin = await api<{ url: string }>(h, 'POST', '/api/auth/google/begin', { body: {} });
-    const victim = new TestBrowser();
+    // A flow begun in one browser, finished in another (login CSRF): refused.
+    const starter = new TestBrowser();
+    const begin = { body: (await (await starter.fetch(`${h.url}/api/auth/google/begin`, json({}))).json()) as { url: string } };
     fake.next(google);
-    const toGoogle = await victim.fetch(h.url + begin.body.url);
+    const toGoogle = await starter.fetch(h.url + begin.body.url);
     const back = await fetch(toGoogle.headers.get('location')!, { redirect: 'manual' });
     const callback = back.headers.get('location')!;
     const other = await new TestBrowser().open(callback);
     expect(other.status).toBe(400);
-    // The flow cannot be started a second time either.
+    // Another browser cannot start it either.
     expect((await new TestBrowser().open(h.url + begin.body.url)).status).toBe(400);
 
     // The right browser, once; the same callback again is a replay.
     const browser = new TestBrowser();
-    const b2 = await api<{ url: string }>(h, 'POST', '/api/auth/google/begin', { body: {} });
+    const b2 = { body: (await (await browser.fetch(`${h.url}/api/auth/google/begin`, json({}))).json()) as { url: string } };
     fake.next(google);
     const r1 = await browser.fetch(h.url + b2.body.url);
     const cb = (await fetch(r1.headers.get('location')!, { redirect: 'manual' })).headers.get('location')!;
@@ -283,6 +288,22 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     // Anna keeps her logins and her session.
     expect((await api<Me>(h, 'GET', '/api/auth/me', as(admin))).status).toBe(200);
     expect((await api<LoginMethod[]>(h, 'GET', '/api/auth/logins', as(admin))).body).toHaveLength(1);
+  });
+
+  it("a web sign-in begun in one browser does not go on in another: an invitation's link cannot make someone else's account join", async () => {
+    const eveOrg = `org-${crypto.randomUUID()}`;
+    const eve = await setRole(h, `eve-${crypto.randomUUID()}`, eveOrg, 'admin');
+    const inv = await invite(h, { token: eve });
+    const evesBrowser = new TestBrowser();
+    const begun = await evesBrowser.fetch(`${h.url}/api/auth/google/begin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ invite: inv.token }) });
+    const { url } = (await begun.json()) as { url: string };
+    const victim = await member('Vi', 'user');
+
+    fake.next(victim.google);
+    const end = await new TestBrowser().open(h.url + url);
+
+    expect(where(end.url)).not.toBe('/signed-in');
+    expect((await api<UserRow[]>(h, 'GET', '/api/users', { token: eve })).body.map((u) => u.id)).not.toContain(victim.id);
   });
 
   it('an Admin cannot change a member\'s address, and a 1.x import links no Google id to an existing account', async () => {
@@ -539,6 +560,25 @@ describe.each(adapters)('%s adapter, short session idle time', (adapterName) => 
     await new Promise((r) => setTimeout(r, 1700)); // past the harness's idle time, on the server's own clock
     expect((await api(h, 'GET', '/api/auth/me', { token })).status).toBe(401);
     expect((await api(h, 'POST', '/api/sync/pull', { token, body: pull() })).status).toBe(401);
+  });
+});
+
+describe.each(adapters)('%s adapter, a session that is no longer fresh', (adapterName) => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { freshSignInMs: 1000 });
+  }, 60_000);
+  afterAll(async () => {
+    await h?.close();
+  });
+
+  it("an Admin's import of users needs a fresh sign-in, as making an Admin does: a stale session links no Google account", async () => {
+    const token = await setRole(h, 'stale-admin', 'org-stale', 'admin');
+    await new Promise((r) => setTimeout(r, 1200)); // past the harness's fresh sign-in time, on the server's own clock
+
+    const r = await api(h, 'POST', '/api/import/users', { token, body: [{ name: 'Eve', email: 'eve@evil.se', role: 'admin', google: ['sub-eve'] }] });
+
+    expect(r).toEqual({ status: 403, body: { error: 'reauth-required' } });
   });
 });
 

@@ -3,8 +3,8 @@
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, pdfPages, sha256HexBytes, type CustomPage } from '@gp/core';
-import { hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
-import { device, serverDump, setRole, startAdapter, type AdapterName, type Device, type Harness } from './harness.ts';
+import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
+import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { downloader, get, imageArgs, jpeg, presentingP, put, refusedAsTooLarge, TODAY, uploaded, webp } from './media-fixtures.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -61,6 +61,39 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     const big = jpeg('big', MEDIA_LIMITS.blobBytes + 1);
     expect(await refusedAsTooLarge(put(h, org, 'alice', await sha256HexBytes(big), big))).toBe(true);
     expect((await get(h, org, 'alice', hash)).status).toBe(404); // none of it was kept
+  });
+
+  it('refuses a body sent without its length once it passes the cap, rather than reading it all (chunked)', async () => {
+    const chunk = new Uint8Array(1024 * 1024);
+    let sent = 0;
+    // Endless: a server that reads without a cap never answers.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += chunk.length;
+        controller.enqueue(chunk);
+      },
+    });
+
+    const r = fetch(`${h.url}/api/media/${'a'.repeat(64)}`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${tokenOf(h, org, 'alice')}`, 'content-type': 'application/octet-stream' },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+
+    expect(await refusedAsTooLarge(r)).toBe(true);
+    expect(sent).toBeLessThan(MEDIA_LIMITS.audioBytes * 4);
+  });
+
+  it('stores the bytes again when a blob it knows has lost them, as a clean-up cut off between the two leaves it', async () => {
+    const bytes = jpeg('lost');
+    const hash = await sha256HexBytes(bytes);
+    await put(h, org, 'alice', hash, bytes);
+    await h.dropMedia(mediaKey(org, hash));
+
+    await put(h, org, 'alice', hash, bytes);
+
+    expect((await get(h, org, 'alice', hash)).status).toBe(200);
   });
 
   it('answers 401 to a caller who is not signed in', async () => {
@@ -567,6 +600,17 @@ describe.each(adapters)('%s adapter: PDFs as slideshows (PRES-R11, D29, docs/cus
 
     expect(r.downloaded.toSorted()).toEqual(deck.flatMap((p) => [p.full, p.thumb]).toSorted());
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+  });
+
+  it("a device that only looks fetches the thumbnails of a library slideshow's pages, as of pictures: none shows blank", async () => {
+    const deck = await pages(alice, 'library', 2);
+    await alice.client.mutate('createCustomSlide', { id: 'D1', name: 'Predikan.pdf', pages: pdfPages(deck), at: 1 });
+    await alice.client.sync();
+    await bob.client.sync();
+
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), { ...DEFAULT_MEDIA_POLICY, today: TODAY });
+
+    expect(r.downloaded.toSorted()).toEqual(deck.map((p) => p.thumb).toSorted());
   });
 
   it('keeps the pages while the slideshow is in the library, named by no item or in the trash, and removes them when it is purged', async () => {

@@ -102,6 +102,12 @@ describe('account policy (spec 01, docs/accounts-and-roles.md)', () => {
     expect(roleChangeRefusal(ad, us, 'admin', 1)).toBeNull();
   });
 
+  it("a Superadmin's membership is removed only by a Superadmin: an Admin would delete their account", () => {
+    const target = { id: 'su2', role: 'admin' as const, superAdmin: true };
+
+    expect([removeUserRefusal(ad, target, 2), removeUserRefusal(su, target, 2)]).toEqual(['super-admin-only', null]);
+  });
+
   it('the last Admin stays one: never made a User, never removed', () => {
     expect(roleChangeRefusal(su, ad, 'user', 1)).toBe('last-admin');
     expect(removeUserRefusal(su, ad, 1)).toBe('last-admin');
