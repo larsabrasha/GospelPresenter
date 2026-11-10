@@ -78,7 +78,7 @@ export function screenPairRoutes(resolve: (c: Context) => Promise<{ caller: Call
     if (locked) return tooManyAttempts(locked, deps.accounts.now());
     const id = await deps.screens.claimPin(a.pin, r.caller.orgId);
     if (!id) {
-      for (const key of keys) await deps.accounts.throttle.fail(key, THROTTLE.address);
+      await deps.accounts.throttle.fail(keys, THROTTLE.address);
       return c.json({ error: 'pin-invalid' }, 400);
     }
     const screen = await add(r, id, sessionId);

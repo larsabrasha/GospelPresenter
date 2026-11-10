@@ -288,16 +288,16 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     const flow = { address: '10.0.0.1', inviteToken: null, deviceName: 'Mac', callbackScheme: 'gospelpresenter' };
     const state = (await accounts.signIn.createFlow(flow)) as string;
     expect(state).toMatch(/^[\w-]{43}$/);
-    const started = await accounts.signIn.startFlow(state, 'browser-a');
+    const started = await accounts.signIn.claimFlow(state, 'browser-a');
     expect(started?.verifier).toMatch(/^[\w-]{43}$/);
-    expect(await accounts.signIn.startFlow(state, 'browser-b')).toBeNull(); // started already
+    expect(await accounts.signIn.claimFlow(state, 'browser-b')).toBeNull(); // another browser has it
     expect(await accounts.signIn.takeFlow(state, 'browser-b')).toBeNull(); // another browser
     expect(await accounts.signIn.takeFlow('forged', 'browser-a')).toBeNull();
     expect(await accounts.signIn.takeFlow(state, 'browser-a')).toMatchObject({ nonce: started!.nonce, verifier: started!.verifier, callbackScheme: 'gospelpresenter' });
     expect(await accounts.signIn.takeFlow(state, 'browser-a')).toBeNull(); // replayed
 
     const late = (await accounts.signIn.createFlow(flow)) as string;
-    await accounts.signIn.startFlow(late, 'browser-a');
+    await accounts.signIn.claimFlow(late, 'browser-a');
     clock.now += LOGIN_FLOW.ttlMs;
     expect(await accounts.signIn.takeFlow(late, 'browser-a')).toBeNull();
   });

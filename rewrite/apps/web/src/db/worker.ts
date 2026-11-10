@@ -341,8 +341,6 @@ function importBible(data: Uint8Array): Promise<BibleImportResult> {
 
 async function handle(call: DbCall): Promise<unknown> {
   switch (call.op) {
-    case 'close':
-      return; // answered by the listener below
     case 'open': {
       if (client) return client.id;
       server = call.server;
@@ -453,14 +451,14 @@ async function handle(call: DbCall): Promise<unknown> {
 /** The calls being handled, so a page that leaves has every one finished before the worker ends. */
 const inFlight = new Set<Promise<unknown>>();
 
-self.addEventListener('message', async (e: MessageEvent<{ id: number; call: DbCall }>) => {
-  const { id, call } = e.data;
-  if (call.op === 'close') {
-    // After the page's last saves (sent before this), never before them; then the file is let go at once.
+self.addEventListener('message', async (e: MessageEvent<{ id: number; call: DbCall } | { close: true }>) => {
+  if ('close' in e.data) {
+    // The page leaves: after its last saves (sent before this), never before them; then the file is let go at once.
     await Promise.allSettled(inFlight);
     self.close();
     return;
   }
+  const { id, call } = e.data;
   const work = handle(call);
   inFlight.add(work);
   try {

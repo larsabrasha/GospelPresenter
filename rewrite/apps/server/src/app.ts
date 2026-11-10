@@ -1,6 +1,5 @@
 import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { capped, IMPORT_BODY_MAX, PUSH_BODY_MAX } from './body-cap.ts';
 import {
   BIBLE_LIMITS,
   bibleTextHash,
@@ -13,8 +12,7 @@ import {
   joinBibleText,
   LOAD_BIBLE_TEXT_SQL,
   MEDIA_HASH,
-  MEDIA_LIMITS,
-  VIDEO_LIMITS,
+  STREAM_PING_MS,
   mediaKey,
   SCREEN_ID,
   ORPHAN_BLOBS_SQL,
@@ -100,21 +98,13 @@ export interface SyncRouteOptions {
   watch?: WatchRegistry | null;
   /** Where the tokens a `<video src>` streams with are kept (global); without it, no video streams. */
   playTokens?: PlayTokens | null;
-  /** The size of a video upload's parts but the last (tests). */
-  videoPartBytes?: number;
 }
 
 export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
   const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null, playTokens = null } = opts;
   const app = new Hono();
-  // Before the routes, so every body below is capped as it is read (body-cap.ts): the routes check no size of their own,
-  // only a kind's own limit once the bytes are known.
-  app.use('/api/sync/push', capped(PUSH_BODY_MAX));
-  app.use('/api/bibles/:hash', capped(BIBLE_LIMITS.textBytes));
-  app.use('/api/media/:hash', capped(MEDIA_LIMITS.audioBytes));
-  app.use('/api/media/:hash/upload/:part', capped(opts.videoPartBytes ?? VIDEO_LIMITS.partBytes));
-  app.use('/api/import/legacy', capped(IMPORT_BODY_MAX));
-  app.route('/', videoRoutes(resolve, { media, playTokens, partBytes: opts.videoPartBytes }));
+  // Every body is capped as it is read, at the server's root (body-cap.ts).
+  app.route('/', videoRoutes(resolve, { media, playTokens }));
   app.route('/', legacyRoutes(resolve, watch));
 
   app.post('/api/sync/push', async (c) => {
@@ -227,18 +217,18 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (bytes.length > kind.maxBytes) return c.json({ error: 'too-large' }, 413);
     const type = kind.type;
     const orgId = r.caller.orgId;
-    await r.org.queue.run(async () => {
-      // Known already: the upload says it is about to be used, so its grace period starts over. Its bytes are stored
-      // again all the same (the same key is the same bytes): a clean-up cut off between removing the bytes and the row
-      // leaves a row without them, which nothing else would ever mend.
-      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) {
-        await media.put(mediaKey(orgId, hash), bytes);
-        return;
-      }
+    const known = await r.org.queue.run(async () => {
+      // Known already: the upload says it is about to be used, so its grace period starts over.
+      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return true;
       await media.put(mediaKey(orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
       const s = recordMediaBlobSql(hash, type, bytes.length, null, Date.now());
       r.org.store.query(s.sql, s.params);
+      return false;
     });
+    // A known file's bytes stored again all the same (the same key is the same bytes), outside the queue, so live and
+    // sync never wait on it, and safe there, as its grace period has just started over: a clean-up cut off between
+    // removing the bytes and the row leaves a row without them, which nothing else would ever mend.
+    if (known) await media.put(mediaKey(orgId, hash), bytes);
     return c.body(null, 204);
   });
 
@@ -307,8 +297,6 @@ function outputName(kind: OutputKind, t: WatchTargetRuntime): string | null {
   return d?.name ?? null;
 }
 
-/** How often an open stream is pinged (LIVE-R35). */
-const PING_MS = 15_000;
 
 /** A public output's routes, or a screen's: the same stream and pictures (spec 04 §5 renders as `/live` does). */
 export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
@@ -356,7 +344,7 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
         void t.org.queue.run(() => t.live.watch(t.displayId, code, viewerId, viewer, { orgName: t.orgName, outputName: display.name }, kind !== 'watch')).catch(() => viewer.close());
       });
       while (live.open) {
-        await Promise.race([done, stream.sleep(PING_MS)]);
+        await Promise.race([done, stream.sleep(STREAM_PING_MS)]);
         // A named event, not a comment, so the page can tell a stream gone silent (watchStream.ts); a ping that cannot be
         // written ends the stream, so a viewer gone away is no longer counted, nor a screen shown as online.
         if (live.open) await stream.writeSSE({ event: 'ping', data: '{}' }).catch(() => live.end());

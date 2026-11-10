@@ -46,19 +46,21 @@ export class ThrottleService {
     return t > this.now() ? t : 0;
   }
 
-  /** Counts a failure for `key`; a failure after the window starts a new one. */
-  async fail(key: string, p: ThrottlePolicy): Promise<void> {
+  /** Counts a failure for each of `keys`, in one batch; a failure after a key's window starts a new one. */
+  async fail(keys: string | string[], p: ThrottlePolicy): Promise<void> {
     const now = this.now();
-    await this.sql.batch([
-      [
-        `INSERT INTO auth_throttle (key, failures, first_at, locked_until) VALUES (?, 1, ?, 0)
-         ON CONFLICT (key) DO UPDATE SET
-           failures = CASE WHEN ? - first_at > ? THEN 1 ELSE failures + 1 END,
-           first_at = CASE WHEN ? - first_at > ? THEN ? ELSE first_at END`,
-        [key, now, now, p.windowMs, now, p.windowMs, now],
-      ],
-      ['UPDATE auth_throttle SET locked_until = ? WHERE key = ? AND failures >= ?', [now + p.windowMs, key, p.free]],
-    ]);
+    await this.sql.batch(
+      [keys].flat().flatMap((key): [string, unknown[]][] => [
+        [
+          `INSERT INTO auth_throttle (key, failures, first_at, locked_until) VALUES (?, 1, ?, 0)
+           ON CONFLICT (key) DO UPDATE SET
+             failures = CASE WHEN ? - first_at > ? THEN 1 ELSE failures + 1 END,
+             first_at = CASE WHEN ? - first_at > ? THEN ? ELSE first_at END`,
+          [key, now, now, p.windowMs, now, p.windowMs, now],
+        ],
+        ['UPDATE auth_throttle SET locked_until = ? WHERE key = ? AND failures >= ?', [now + p.windowMs, key, p.free]],
+      ]),
+    );
   }
 
   /**
@@ -67,7 +69,7 @@ export class ThrottleService {
    */
   async count(keys: string[], p: ThrottlePolicy): Promise<number> {
     const locked = await this.lockedUntil(keys);
-    if (!locked) for (const key of keys) await this.fail(key, p);
+    if (!locked) await this.fail(keys, p);
     return locked;
   }
 }

@@ -158,12 +158,11 @@ function libraryChanges(table: LibraryTable, permission: Permission, what: strin
 const trashArgs = z.object({ id, at: z.number().int() });
 const renameArgs = z.object({ id, fileName });
 const byIdArgs = z.object({ id });
+/** The arguments of every kind's library changes: the same for pictures, sounds and videos. */
+export const LIBRARY_ARGS = { trash: trashArgs, rename: renameArgs, restore: byIdArgs, purge: byIdArgs };
 
-export const [trashImageArgs, renameImageArgs, restoreImageArgs, purgeImageArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
 export const { trash: trashImage, rename: renameImage, restore: restoreImage, purge: purgeImage } = libraryChanges(images, 'ManageImages', 'image');
-export const [trashAudioArgs, renameAudioArgs, restoreAudioArgs, purgeAudioArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
 export const { trash: trashAudio, rename: renameAudio, restore: restoreAudio, purge: purgeAudio } = libraryChanges(audios, 'ManageAudios', 'audio file');
-export const [trashVideoArgs, renameVideoArgs, restoreVideoArgs, purgeVideoArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
 export const { trash: trashVideo, rename: renameVideo, restore: restoreVideo, purge: purgeVideo } = libraryChanges(videos, 'ManageVideos', 'video');
 
 const imageIds = z.array(id).min(1).max(MAX_ITEM_IMAGES);

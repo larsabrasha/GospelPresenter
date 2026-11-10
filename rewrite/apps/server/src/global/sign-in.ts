@@ -51,7 +51,7 @@ export class SignInService {
     deviceName: string;
     callbackScheme: string | null;
     link?: { userId: string; sessionId: string };
-    /** A page's own sign-in: bound to its browser now, so it goes on only there (`resumeFlow`). */
+    /** A page's own sign-in: bound to its browser now, so it goes on only there (`claimFlow`). */
     browser?: string;
   }): Promise<string | 'limit'> {
     const state = newSecret('');
@@ -86,30 +86,18 @@ export class SignInService {
   }
 
   /**
-   * Binds a flow to the browser that opens it first (its hash of `browser`,
-   * a secret in that browser's cookie) and gives what the authorization
-   * request needs. A flow starts once.
+   * The flow `state` names, for `browser` (its hash of a secret in that browser's cookie), with what the authorization
+   * request needs: one no browser has yet (an app's, begun in the app) is bound to it now; one already bound (a page's
+   * own, bound when it began) only for that browser. Null for another browser, a used or an expired flow.
    */
-  async startFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
-    const hash = await sha256(state);
-    // Only a flow no browser has yet: an app's, begun in the app; a page's own was bound when it began.
-    const n = await this.sql.run('UPDATE login_flows SET browser_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?', [
-      await sha256(browser),
-      hash,
-      this.now(),
-    ]);
-    if (n !== 1) return null;
-    const [r] = await this.sql.all('SELECT nonce, verifier FROM login_flows WHERE state_hash = ?', [hash]);
-    return r ? { nonce: String(r.nonce), verifier: String(r.verifier) } : null;
-  }
-
-  /** A flow bound to `browser` when it was begun (a web sign-in): its nonce and verifier, once more, while it is unused. */
-  async resumeFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
-    const [r] = await this.sql.all('SELECT nonce, verifier FROM login_flows WHERE state_hash = ? AND browser_hash = ? AND used_at IS NULL AND expires_at > ?', [
-      await sha256(state),
-      await sha256(browser),
-      this.now(),
-    ]);
+  async claimFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
+    const b = await sha256(browser);
+    const [r] = await this.sql.all(
+      `UPDATE login_flows SET browser_hash = coalesce(browser_hash, ?)
+       WHERE state_hash = ? AND (browser_hash IS NULL OR browser_hash = ?) AND used_at IS NULL AND expires_at > ?
+       RETURNING nonce, verifier`,
+      [b, await sha256(state), b, this.now()],
+    );
     return r ? { nonce: String(r.nonce), verifier: String(r.verifier) } : null;
   }
 

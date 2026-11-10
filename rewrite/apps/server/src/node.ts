@@ -20,8 +20,9 @@ import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { capBodies } from './body-cap.ts';
 import { logServerErrors } from './server-error.ts';
-import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
+import { endIfGone, LIVE_SESSION_CHECK_MS, liveTokenHash, recheckDue } from './live-session.ts';
 import type { MailConfig } from './mail.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
@@ -290,9 +291,11 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const socketAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
   const clientAddress = proxies ? (c: Context) => forwardedClient(socketAddress(c), c.req.header('x-forwarded-for'), proxies) : socketAddress;
   const app = new Hono<{ Bindings: HttpBindings }>();
-  logServerErrors(app, opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')));
+  const log = opts.log ?? ((e: Record<string, unknown>) => void process.stderr.write(JSON.stringify(e) + '\n'));
+  logServerErrors(app, log);
   // The phone app's calls, before any guard: a preflight carries no credentials (cors.ts).
   app.use('/api/*', appCors());
+  app.use('/api/*', capBodies); // every body, before any route reads it (body-cap.ts)
   if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
   app.route(
     '/',
@@ -307,7 +310,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       dropOrgData: dropOrg,
       pairing: opts.pairing,
       debug: opts.debug,
-      log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),
+      log,
     }),
   );
   // Public outputs and saved screens are found by their code, temporary screens by their id (spec 04 §5, §6).
@@ -408,12 +411,9 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
         let checkedAt = Date.now();
         ws.on('message', (data) => {
           run(() => org.live.message(s, String(data)));
-          if (Date.now() - checkedAt < (opts.liveSessionCheckMs ?? LIVE_SESSION_CHECK_MS)) return;
+          if (!recheckDue(checkedAt, opts.liveSessionCheckMs ?? LIVE_SESSION_CHECK_MS)) return;
           checkedAt = Date.now();
-          void liveSessionHolds(accounts, tokenHash, caller.ctx).then(
-            (holds) => holds || ws.close(4401, 'session-ended'),
-            () => undefined,
-          );
+          void endIfGone(accounts, tokenHash, caller.ctx, (code, reason) => ws.close(code, reason));
         });
         ws.on('close', () => {
           org.liveSockets.delete(ws);

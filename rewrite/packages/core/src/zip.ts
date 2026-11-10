@@ -4,7 +4,8 @@ import { utf8Encode } from './platform.ts';
 // the web app's export of Blobs (apps/web/src/media/zipBlob.ts) and 1.x's export to a file (apps/legacy). Each writes
 // the entries its own way; the bytes of the headers and the checksum are the same.
 
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+/** As 32-bit integers, not doubles: a video of 2 GB goes through this loop byte by byte. */
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
   return c >>> 0;
@@ -15,7 +16,7 @@ export class Crc32 {
   private c = 0xffffffff;
   update(bytes: Uint8Array): this {
     let c = this.c;
-    for (const byte of bytes) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]!) & 0xff]! ^ (c >>> 8);
     this.c = c;
     return this;
   }

@@ -72,7 +72,7 @@ export class Db implements ReadDb {
         if (e.persisted) return;
         for (const flush of beforeLeaving) flush();
         // After the saves the flushes start, which post in a microtask of their own.
-        queueMicrotask(() => this.worker.postMessage({ id: 0, call: { op: 'close' } satisfies DbCall }));
+        queueMicrotask(() => this.worker.postMessage({ close: true }));
       });
     return this.call({ op: 'open', session, locale: locale(), server: serverOrigin() });
   }

@@ -123,10 +123,8 @@ export function authKit(deps: AuthDeps) {
    */
   async function start(c: Context, state: string, forApp: boolean): Promise<Response> {
     if (!google) return signInFailed(c, 'google-disabled', forApp);
-    const bound = forApp ? null : (getCookie(c, FLOW_COOKIE) ?? null);
-    const browser = bound ?? newSecret('');
-    // A web flow only where it was begun; an app's (the system browser) bound now, the first time it is opened.
-    const flow = bound ? await accounts.signIn.resumeFlow(state, bound) : await accounts.signIn.startFlow(state, browser);
+    const browser = getCookie(c, FLOW_COOKIE) ?? newSecret('');
+    const flow = await accounts.signIn.claimFlow(state, browser);
     if (!flow) return signInFailed(c, 'google-failed', forApp);
     cookie(c, FLOW_COOKIE, browser, LOGIN_FLOW.ttlMs / 1000);
     c.header('referrer-policy', 'no-referrer');

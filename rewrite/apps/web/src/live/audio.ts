@@ -1,4 +1,4 @@
-import type { AudioCommand, LiveAudio } from '@gp/core';
+import { liveReconnectDelay, type AudioCommand, type LiveAudio } from '@gp/core';
 import { blobUrl, holdBlobUrl } from '../db/blobUrls.ts';
 import { getAudio } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
@@ -20,8 +20,6 @@ export interface AudioControl {
   command(c: AudioCommand): void;
 }
 
-/** How long an audio item whose file is not on the device waits before it asks again. */
-const AUDIO_RETRY_MS = 3_000;
 /** Fade-out (Tona ut): 5 s, ease-out cubic, then pause, rewind and the volume back (spec 04 §1b). */
 const FADE_MS = 5000;
 /** While the seek bar moves the sound is muted, until 150 ms after the last move. */
@@ -196,19 +194,20 @@ export class AudioEngine implements AudioControl {
    * start; anything else stops the sound. The same item again changes nothing. `from` goes on where another window
    * left it instead, playing or not.
    */
-  async show(itemId: string | null, from?: { position: number; playing: boolean }) {
+  async show(itemId: string | null, from?: { position: number; playing: boolean }, attempt = 0) {
     if (itemId === this.shown) return;
     this.shown = itemId;
     this.pausedByBlack = false;
     this.stop();
     if (!itemId) return;
     if (!(await this.load(itemId))) {
-      // Not on this device yet (the presentation was just started on a slow line): asked for again while it stays live.
+      // Not on this device yet (the presentation was just started on a slow line): asked for again while it stays live,
+      // a little later each time, as a live socket reconnects (LIVE-R51).
       setTimeout(() => {
         if (this.shown !== itemId) return;
         this.shown = null;
-        void this.show(itemId, from);
-      }, AUDIO_RETRY_MS);
+        void this.show(itemId, from, attempt + 1);
+      }, liveReconnectDelay(attempt + 1));
       return;
     }
     if (this.shown !== itemId) return;

@@ -18,9 +18,11 @@ class FakeSource implements StreamSource {
   }
 }
 
-function setup(status: () => number | null) {
+function setup(status: () => number | null, now?: () => number) {
   const sources: FakeSource[] = [];
   const timers: { fn: () => void; ms: number }[] = [];
+  /** The silence checks, apart from the reconnects' waits. */
+  const checks: (() => void)[] = [];
   const events: WatchEvent[] = [];
   let notFound = 0;
   const stop = followStream(
@@ -33,10 +35,11 @@ function setup(status: () => number | null) {
         return s;
       },
       exists: async () => status(),
-      later: (fn, ms) => timers.push({ fn, ms }),
+      later: (fn, ms) => (ms === STREAM_SILENT_MS / 3 ? checks.push(fn) : timers.push({ fn, ms })),
+      now,
     },
   );
-  return { sources, timers, events, stop, notFound: () => notFound };
+  return { sources, timers, checks, events, stop, notFound: () => notFound };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -93,26 +96,12 @@ describe('following a public output', () => {
 });
 
 describe('a stream that goes silent', () => {
+  /** A stream on a clock the test sets; `at` moves it and runs the silence check. */
   function silent() {
     let now = 0;
-    let check = () => {};
-    const sources: FakeSource[] = [];
-    const stop = followStream(
-      '/api/display/x/stream',
-      { event: () => {}, notFound: () => {} },
-      {
-        open: () => {
-          const s = new FakeSource();
-          sources.push(s);
-          return s;
-        },
-        exists: async () => 200,
-        later: () => {},
-        now: () => now,
-        every: (fn) => ((check = fn), () => {}),
-      },
-    );
-    return { sources, stop, at: (ms: number) => ((now = ms), check()) };
+    const t = setup(() => 200, () => now);
+    const check = () => t.checks.at(-1)!();
+    return { ...t, at: (ms: number) => ((now = ms), check()) };
   }
 
   it('is opened again when nothing, not even a ping, came for longer than the pings allow: a router that lost its state', () => {

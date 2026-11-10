@@ -27,8 +27,9 @@ export async function zipBlob(entries: { name: string; data: Blob }[], progress:
   let offset = 0;
   for (const [i, e] of entries.entries()) {
     const size = e.data.size;
+    // Too large before its checksum reads it: 30 bytes and the name are the most a local header adds.
+    if (offset + 30 + 4 * e.name.length + size > MAX_OFFSET) throw new ZipTooLarge();
     const headers = zipEntry(e.name, await crc32(e.data), size, offset);
-    if (offset + headers.local.length + size > MAX_OFFSET) throw new ZipTooLarge();
     parts.push(headers.local, e.data);
     central.push(headers.central);
     offset += headers.local.length + size;

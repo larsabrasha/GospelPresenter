@@ -18,8 +18,9 @@ describe('UI texts', () => {
       .join('\n');
     // `role.${r}` uses every role.… text; a key only ever made from variables would hide here, so write keys out.
     const prefixes = [...web.matchAll(/`([\w.-]+\.)\$\{/g)].map((m) => m[1]!);
-    const quoted = (key: string) => ["'", '"', '`'].some((q) => web.includes(`${q}${key}${q}`));
+    // Every quoted word in one pass: looking for each key in the whole app, three ways, took seconds under load.
+    const quoted = new Set([...web.matchAll(/(['"`])([\w.-]+)\1/g)].map((m) => m[2]!));
 
-    expect(keys().filter((key) => !quoted(key) && !prefixes.some((p) => key.startsWith(p)))).toEqual([]);
+    expect(keys().filter((key) => !quoted.has(key) && !prefixes.some((p) => key.startsWith(p)))).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@ class FakeSocket extends EventTarget {
     this.dispatchEvent(new Event('open'));
   }
   send(data: string) {
-    this.sent.push(JSON.parse(data));
+    this.sent.push(JSON.parse(data) as unknown);
   }
   close() {
     this.readyState = 3;
@@ -28,7 +28,7 @@ class FakeSocket extends EventTarget {
 vi.stubGlobal('WebSocket', FakeSocket);
 vi.stubGlobal('location', { origin: 'http://kyrkan.local' });
 vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
-const { LIVE_PING_MS, LIVE_PONG_MS, LiveLink } = await import('../src/live/remote.ts');
+const { LIVE_PING_MS, LiveLink } = await import('../src/live/remote.ts');
 
 afterEach(() => {
   FakeSocket.made = [];
@@ -41,7 +41,7 @@ describe('the live socket', () => {
     const link = new LiveLink([]);
     FakeSocket.made[0]!.open();
 
-    await vi.advanceTimersByTimeAsync(LIVE_PING_MS + LIVE_PONG_MS + 1);
+    await vi.advanceTimersByTimeAsync(2 * LIVE_PING_MS); // the second tick finds it silent past a ping and its answer
     await vi.advanceTimersByTimeAsync(10_000); // past the reconnect's first wait
 
     expect([FakeSocket.made[0]!.sent, FakeSocket.made.length]).toEqual([[{ type: 'ping' }], 2]);

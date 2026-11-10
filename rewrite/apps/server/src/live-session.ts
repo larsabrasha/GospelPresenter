@@ -14,7 +14,18 @@ export const LIVE_SESSION_CHECK_MS = 60_000;
 export const liveTokenHash = (token: string | null) => (token ? sha256(token) : Promise.resolve(null));
 
 /** Whether the session behind `tokenHash` still stands for `who`: not signed out or revoked, a member with the same role. */
-export async function liveSessionHolds(accounts: Accounts, tokenHash: string | null, who: { userId: string; role: Role }): Promise<boolean> {
+async function liveSessionHolds(accounts: Accounts, tokenHash: string | null, who: { userId: string; role: Role }): Promise<boolean> {
   const s = tokenHash ? await accounts.members.sessionByHash(tokenHash) : null;
   return !!s && s.userId === who.userId && s.role === who.role;
+}
+
+/** Whether a socket whose session was checked at `checkedAt` is due for its next check. */
+export const recheckDue = (checkedAt: number, ms: number, now = Date.now()) => now - checkedAt >= ms;
+
+/**
+ * Closes the socket (`close`) when its session no longer holds, with the code a page reconnects on and is refused. A
+ * check that fails (the database out of reach) leaves it open: the next message checks again.
+ */
+export async function endIfGone(accounts: Accounts, tokenHash: string | null, who: { userId: string; role: Role }, close: (code: number, reason: string) => void): Promise<void> {
+  if (!(await liveSessionHolds(accounts, tokenHash, who).catch(() => true))) close(4401, 'session-ended');
 }

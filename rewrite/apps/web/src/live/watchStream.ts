@@ -1,4 +1,4 @@
-import { liveReconnectDelay, type WatchEvent } from '@gp/core';
+import { liveReconnectDelay, STREAM_PING_MS, type WatchEvent } from '@gp/core';
 
 // A public output's stream (spec 04 §6, LIVE-R35). EventSource reconnects by
 // itself after a network error, but gives up for good after any answer that
@@ -19,20 +19,14 @@ export interface StreamDeps {
   later(fn: () => void, ms: number): unknown;
   /** The clock (Date.now). */
   now?(): number;
-  /** Runs `fn` every `ms` until the result is called (setInterval). */
-  every?(fn: () => void, ms: number): () => void;
 }
 
 /**
- * A stream heard nothing from for this long, not even the server's ping (every 15 s), is taken for dead and opened
+ * A stream heard nothing from for this long, three of the server's pings, is taken for dead and opened
  * again: a TV behind a router that lost its state would otherwise wait for TCP to give up (the review, 2026-11-09).
  */
-export const STREAM_SILENT_MS = 45_000;
+export const STREAM_SILENT_MS = 3 * STREAM_PING_MS;
 
-const every = (fn: () => void, ms: number) => {
-  const timer = setInterval(fn, ms);
-  return () => clearInterval(timer);
-};
 
 const CLOSED = 2;
 
@@ -50,7 +44,6 @@ export function followStream(
 
   const stop = () => {
     stopped = true;
-    cancel();
     source?.close();
     source = null;
   };
@@ -88,12 +81,18 @@ export function followStream(
     });
   };
 
-  const cancel = (deps.every ?? every)(() => {
-    if (stopped || !source || now() - heard <= STREAM_SILENT_MS) return;
-    source.close();
-    source = null;
-    connect();
-  }, STREAM_SILENT_MS / 3);
+  // Looks again a third of the silence on: a stream silent past it is opened again (until the page stops following).
+  const watch = () =>
+    deps.later(() => {
+      if (stopped) return;
+      if (source && now() - heard > STREAM_SILENT_MS) {
+        source.close();
+        source = null;
+        connect();
+      }
+      watch();
+    }, STREAM_SILENT_MS / 3);
+  watch();
   connect();
   return stop;
 }

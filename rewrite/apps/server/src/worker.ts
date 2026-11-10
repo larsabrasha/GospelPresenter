@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
-import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -9,8 +9,9 @@ import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { capBodies } from './body-cap.ts';
 import { logServerErrors } from './server-error.ts';
-import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
+import { endIfGone, LIVE_SESSION_CHECK_MS, liveTokenHash, recheckDue } from './live-session.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { PlayTokens } from './play-tokens.ts';
 import { Passkeys } from './webauthn.ts';
@@ -131,7 +132,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       playTokens: new PlayTokens(d1Sql(env.DB)),
     });
     // The organisation's routes log what they throw too; the Worker's own are in `globals`.
-    logServerErrors(this.app, (e) => console.warn(JSON.stringify(e)));
+    logServerErrors(this.app, log);
     const media = env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null;
     // A video's stream: the Worker checked the token in D1 and names its organisation (only it reaches this object).
     this.app.route(
@@ -159,7 +160,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       );
     }
     const clientAddress = (c: Context) => c.req.header('cf-connecting-ip') ?? 'unknown';
-    this.accounts = new Accounts(d1Sql(env.DB), { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
+    this.accounts = accountsOf(env);
     this.liveSessionCheckMs = env.LIVE_SESSION_CHECK_MS ? Number(env.LIVE_SESSION_CHECK_MS) : LIVE_SESSION_CHECK_MS;
     this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: this.accounts, clientAddress }));
   }
@@ -169,6 +170,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       const url = new URL(request.url);
       const pair = new WebSocketPair();
       if (url.pathname === '/api/live/socket') {
+        // A live socket's ping is answered by the runtime: the object is not woken for it, so it can sleep between services.
+        this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(LIVE_PING, LIVE_PONG));
         this.ctx.acceptWebSocket(pair[1], ['live']);
         pair[1].serializeAttachment({
           id: crypto.randomUUID(),
@@ -200,9 +203,9 @@ export class OrgDurableObject extends DurableObject<Env> {
     // After the message, never before it (live-session.ts): the session is checked again now and then.
     const a = ws.deserializeAttachment() as LiveAttachment;
     // A socket let in before sockets kept their session has none to check: it goes on until it reconnects.
-    if (a.tokenHash === undefined || Date.now() - a.checkedAt < this.liveSessionCheckMs) return;
+    if (a.tokenHash === undefined || !recheckDue(a.checkedAt, this.liveSessionCheckMs)) return;
     ws.serializeAttachment({ ...a, checkedAt: Date.now() } satisfies LiveAttachment);
-    if (!(await liveSessionHolds(this.accounts, a.tokenHash, a).catch(() => true))) ws.close(4401, 'session-ended');
+    await endIfGone(this.accounts, a.tokenHash, a, (code, reason) => ws.close(code, reason));
   }
   override async webSocketClose(ws: WebSocket, code: number) {
     if (this.ctx.getTags(ws)[0] === 'live') await this.org.queue.run(() => this.live.closed(liveSocket(ws)));
@@ -250,13 +253,21 @@ function d1Sql(db: D1Database): GlobalSql {
   };
 }
 
+/** The server's events as JSON lines, kept in Workers Logs (docs/cloudflare.md, "Logs"). */
+const log = (e: Record<string, unknown>) => console.warn(JSON.stringify(e));
+
+/** The global tables' services against D1, as the Worker and every organisation's object make them. */
+function accountsOf(env: Env): Accounts {
+  return new Accounts(d1Sql(env.DB), { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
+}
+
 /** The global tables and the auth routes, made once per isolate (and again if the migration failed). */
 let ready: Promise<{ accounts: Accounts; auth: Hono }> | undefined;
 function globals(env: Env) {
   ready ??= (async () => {
     const sql = d1Sql(env.DB);
     await migrateGlobal(sql);
-    const accounts = new Accounts(sql, { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
+    const accounts = accountsOf(env);
     const auth = authRoutes({
       accounts,
       setupToken: env.SETUP_TOKEN || null,
@@ -270,9 +281,9 @@ function globals(env: Env) {
         if (env.MEDIA) await r2Storage(env.MEDIA as unknown as R2Like).deleteAll(`org/${orgId}/`);
       },
       debug: env.SPIKE_DEBUG === '1',
-      log: (e) => console.warn(JSON.stringify(e)),
+      log,
     });
-    logServerErrors(auth, (e) => console.warn(JSON.stringify(e)));
+    logServerErrors(auth, log);
     return { accounts, auth };
   })().catch((e: unknown) => {
     ready = undefined;
@@ -299,6 +310,7 @@ const worker = new Hono<{ Bindings: Env }>();
 
 // The phone app's calls, before everything else: a preflight carries no credentials (cors.ts).
 worker.use('/api/*', appCors());
+worker.use('/api/*', capBodies); // every body, before any route reads it or hands it to an organisation's object (body-cap.ts)
 
 worker.use('/api/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
 

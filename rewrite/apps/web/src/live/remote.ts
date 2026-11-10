@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  liveReconnectDelay,
+  LIVE_PING, liveReconnectDelay,
   type AudioCommand,
   type VideoCommand,
   type LiveChange,
@@ -50,13 +50,13 @@ export function remoteAllowed(): boolean {
   }
 }
 
-/** How often an open live socket asks whether it still reaches the server. */
-export const LIVE_PING_MS = 20_000;
 /**
- * How long a ping waits for an answer, any message, before the socket is taken for dead and opened again: one behind a
- * router that lost its state never closes, and would show "connected" while nothing arrives (the review, 2026-11-09).
+ * How often an open live socket pings the server. One that heard nothing (no answer, no message) for longer than a ping
+ * and its answer's time (`LIVE_PONG_MS`) is taken for dead and opened again: one behind a router that lost its state
+ * never closes, and would show "connected" while nothing arrives (the review, 2026-11-09).
  */
-export const LIVE_PONG_MS = 10_000;
+export const LIVE_PING_MS = 20_000;
+const LIVE_PONG_MS = 10_000;
 
 export class LiveLink {
   sessions: LiveSessionInfo[] = [];
@@ -68,8 +68,10 @@ export class LiveLink {
   private ws: WebSocket | null = null;
   private attempt = 0;
   private pinging: ReturnType<typeof setInterval> | null = null;
-  /** The ping waiting for its answer; any message is one. */
-  private waiting: ReturnType<typeof setTimeout> | null = null;
+  /** When the socket last heard anything. */
+  private heard = 0;
+  /** A ping is out: the next message answers it. */
+  private pinged = false;
   private owned: LiveOwnState | null = null;
   private lastSent = '';
   private closed = false;
@@ -92,10 +94,12 @@ export class LiveLink {
       this.attempt = 0;
       this.connected = true;
       this.stopPinging();
+      this.heard = Date.now();
       this.pinging = setInterval(() => {
-        if (this.ws !== ws || this.waiting) return;
-        this.send({ type: 'ping' });
-        this.waiting = setTimeout(() => ws.close(), LIVE_PONG_MS);
+        if (this.ws !== ws) return;
+        if (Date.now() - this.heard > LIVE_PING_MS + LIVE_PONG_MS) return ws.close();
+        this.pinged = true;
+        if (ws.readyState === WebSocket.OPEN) ws.send(LIVE_PING);
       }, LIVE_PING_MS);
       // The whole state again on every reconnect (LIVE-R47).
       this.lastSent = '';
@@ -103,9 +107,9 @@ export class LiveLink {
       this.notify();
     });
     ws.addEventListener('message', (e) => {
-      const answered = this.waiting !== null;
-      if (this.waiting) clearTimeout(this.waiting);
-      this.waiting = null;
+      const answered = this.pinged;
+      this.pinged = false;
+      this.heard = Date.now();
       let m: LiveServerMessage;
       try {
         m = JSON.parse(String(e.data)) as LiveServerMessage;
@@ -141,9 +145,7 @@ export class LiveLink {
 
   private stopPinging() {
     if (this.pinging) clearInterval(this.pinging);
-    if (this.waiting) clearTimeout(this.waiting);
     this.pinging = null;
-    this.waiting = null;
   }
 
   private send(m: unknown) {

@@ -242,6 +242,15 @@ export const liveOwnStateSchema = z.object({
 });
 export type LiveOwnState = z.infer<typeof liveOwnStateSchema>;
 
+/**
+ * A live socket's ping and its answer, written exactly so: on Cloudflare the runtime answers the ping itself, without
+ * waking the organisation's object (`setWebSocketAutoResponse`); on Node the hub answers it.
+ */
+export const LIVE_PING = '{"type":"ping"}';
+export const LIVE_PONG = '{"type":"pong"}';
+/** How often the server pings an open output stream (LIVE-R35); a page that hears nothing for longer opens it again. */
+export const STREAM_PING_MS = 15_000;
+
 export const liveClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('own'), state: liveOwnStateSchema }),
   /** The owner stops; or anyone ends a session whose owner is gone (LIVE-R50). */

@@ -144,15 +144,14 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
   // overlay, as Bildspel, Överlägg and an item's slides show them: a page draws its thumbnail where its full picture
   // is not on the device, which it then always is (the review, 2026-11-09: they showed blank on a device that had not
   // made them).
-  for (const sql of [THEME_PICTURES_SQL, SLIDESHOW_PICTURES_SQL, OVERLAY_PICTURES_SQL]) {
+  for (const sql of [THEME_PICTURES_SQL, SLIDESHOW_PICTURES_SQL]) {
     hashes.push(...((await client.query(`SELECT thumb_hash AS hash FROM (${sql}) WHERE thumb_hash IS NOT NULL`)) as { hash: string }[]).map((t) => t.hash));
   }
+  const overlays = (await client.query(`SELECT full_hash, thumb_hash FROM (${OVERLAY_PICTURES_SQL}) ORDER BY sort`)) as { full_hash: string; thumb_hash: string | null }[];
+  hashes.push(...overlays.flatMap((o) => (o.thumb_hash ? [o.thumb_hash] : [])));
   const order = [...new Set([...(policy.presenting ? [policy.presenting] : []), ...(await keptPresentations(client, policy))])];
   // Every overlay's picture, and every theme's: any of them can be switched on or chosen during live.
-  if (order.length) {
-    const overlayImages = (await client.query(`SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o ORDER BY o.sort`)) as { hash: string }[];
-    hashes.push(...overlayImages.map((o) => o.hash), ...(await themePictures(client)));
-  }
+  if (order.length) hashes.push(...overlays.map((o) => o.full_hash), ...(await themePictures(client)));
   for (const presentationId of order) hashes.push(...(await presentationFiles(client, presentationId)));
   return [...new Set(hashes)];
 }

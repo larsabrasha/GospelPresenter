@@ -63,12 +63,7 @@ export function installNewBuild(isBusy: () => boolean, isSettled: () => Promise<
 /** Holds the newer build back while it is held (a window driving another's session, a long job); the result lets go. */
 export function holdNewBuild(): () => void {
   holds++;
-  let held = true;
-  // Let go once, however often it is called (an effect's cleanup and a job's `finally` both may).
-  return () => {
-    if (held) holds--;
-    held = false;
-  };
+  return () => void holds--;
 }
 
 /** Runs a long job (an upload, an import, an export) with the newer build held back, so a move meanwhile cuts nothing. */

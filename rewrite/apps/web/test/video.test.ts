@@ -330,3 +330,28 @@ describe('the presenting window’s video while its tab is hidden', () => {
     expect({ playing: engine.state()?.playing, paused: el.paused }).toEqual({ playing: false, paused: true });
   });
 });
+
+describe('a video item whose file cannot be had for the moment', () => {
+  const page = Object.assign(new EventTarget(), { hidden: false, createElement: () => new FakeVideo() });
+  const video = (hash: string) => ({ hash, contentType: 'video/mp4', codec: 'h264', duration: 20_000 }) as unknown as LibraryVideo;
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows nothing of the video before it, and plays its own once it can be had: it is asked for again', async () => {
+    vi.stubGlobal('document', page);
+    vi.useFakeTimers();
+    let online = true;
+    const engine = new VideoEngine(async (hash) => (online ? `blob:${hash}` : null));
+    await engine.show({ itemId: 'I1', video: video('first') });
+    online = false;
+
+    await engine.show({ itemId: 'I2', video: video('second') });
+    const meanwhile = [engine.state()?.hash ?? null, engine.picture()];
+    online = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect([meanwhile, engine.state()?.hash]).toEqual([[null, null], 'second']);
+  });
+});

@@ -1,4 +1,4 @@
-import type { LibraryVideo, LiveVideo, LiveVideoState, VideoCodec, VideoCommand, VideoType } from '@gp/core';
+import { liveReconnectDelay, type LibraryVideo, type LiveVideo, type LiveVideoState, type VideoCodec, type VideoCommand, type VideoType } from '@gp/core';
 import { playUrl } from '../media/video.ts';
 import type { LiveLink } from './remote.ts';
 import { usePlayerState } from './usePlayerState.ts';
@@ -171,9 +171,6 @@ function newSlot(onEvent: (e: Event) => void): Slot {
  * own, with sound. A second element buffers the next video item, so it starts
  * at once when it goes live. Leaving the item stops it.
  */
-/** How long a video item whose file cannot be had waits before it asks again. */
-const VIDEO_RETRY_MS = 3_000;
-
 export class VideoEngine implements VideoControl {
   private current: Slot;
   private spare: Slot;
@@ -302,7 +299,7 @@ export class VideoEngine implements VideoControl {
    * was buffered; anything else stops the video. The same item again changes nothing.
    * `from` resumes it where it was instead (a reloaded window, Lars 2026-10-31), playing or not.
    */
-  async show(item: { itemId: string; video: LibraryVideo } | null, from?: { position: number; playing: boolean }) {
+  async show(item: { itemId: string; video: LibraryVideo } | null, from?: { position: number; playing: boolean }, attempt = 0) {
     if ((item?.itemId ?? null) === this.itemId) return;
     const turn = ++this.turn;
     this.halt(this.current.el);
@@ -320,9 +317,10 @@ export class VideoEngine implements VideoControl {
       const url = await this.urlOf(ref.hash);
       if (turn !== this.turn) return this.notify();
       if (!url) {
-        // Not to be had now (offline, the server busy): asked for again while the item stays live.
+        // Not to be had now (offline, the server busy): asked for again while the item stays live, a little later each
+        // time, as a live socket reconnects (LIVE-R51).
         this.itemId = null;
-        setTimeout(() => turn === this.turn && void this.show(item, from), VIDEO_RETRY_MS);
+        setTimeout(() => turn === this.turn && void this.show(item, from, attempt + 1), liveReconnectDelay(attempt + 1));
         return this.notify();
       }
       this.current.ref = ref;
