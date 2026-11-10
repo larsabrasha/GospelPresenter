@@ -4,6 +4,7 @@ import { MEDIA_LIMITS } from '../media.ts';
 import { audios, images, mediaBlobs, presentationItems, videos } from '../schema.ts';
 import { VIDEO_CODECS, VIDEO_LIMITS, VIDEO_TYPES } from '../video.ts';
 import { imageItemIds, MAX_ITEM_IMAGES } from '../slides.ts';
+import type { Permission } from '../permissions.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { insertItem, changePresentation } from './presentations.ts';
 
@@ -119,38 +120,51 @@ export async function revertImage(tx: Tx, a: z.output<typeof revertImageArgs>, c
     .where(eq(images.id, a.id));
 }
 
-export const trashImageArgs = z.object({ id, at: z.number().int() });
-/** Soft delete (MEDIA-R8): still served, so presentations that use it keep working. */
-export async function trashImage(tx: Tx, a: z.output<typeof trashImageArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageImages');
-  await tx.update(images).set({ deletedAt: a.at }).where(eq(images.id, a.id));
-}
-
 const fileName = z.string().trim().min(1).max(MEDIA_LIMITS.fileName);
 
-export const renameImageArgs = z.object({ id, fileName });
-/** A library picture's name, as the library lists it; presentations keep the item titles they have. */
-export async function renameImage(tx: Tx, a: z.output<typeof renameImageArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageImages');
-  await tx.update(images).set({ fileName: a.fileName }).where(eq(images.id, a.id));
-}
+/** The kinds of the library a file is kept in: each trashed, renamed, restored and purged the same way. */
+type LibraryTable = typeof images | typeof audios | typeof videos;
 
-export const restoreImageArgs = z.object({ id });
-/** Restoring may exceed the maximum (MEDIA-R8). */
-export async function restoreImage(tx: Tx, a: z.output<typeof restoreImageArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageImages');
-  await tx.update(images).set({ deletedAt: null }).where(eq(images.id, a.id));
+/**
+ * A kind's four library changes, each under `permission`: trash (soft delete, MEDIA-R8: still served, so presentations
+ * that use it keep working), rename (the library's name; items keep their titles), restore (which may exceed the
+ * maximum, MEDIA-R8) and purge (only of one in the trash where this runs; its blobs go with the next clean-up).
+ */
+function libraryChanges(table: LibraryTable, permission: Permission, what: string) {
+  // One kind at a time: Drizzle types a call per table, not per union of them.
+  const t = table as typeof images;
+  return {
+    trash: async (tx: Tx, a: z.output<typeof trashArgs>, ctx: MutatorCtx) => {
+      requirePermission(ctx, permission);
+      await tx.update(t).set({ deletedAt: a.at }).where(eq(t.id, a.id));
+    },
+    rename: async (tx: Tx, a: z.output<typeof renameArgs>, ctx: MutatorCtx) => {
+      requirePermission(ctx, permission);
+      await tx.update(t).set({ fileName: a.fileName }).where(eq(t.id, a.id));
+    },
+    restore: async (tx: Tx, a: z.output<typeof byIdArgs>, ctx: MutatorCtx) => {
+      requirePermission(ctx, permission);
+      await tx.update(t).set({ deletedAt: null }).where(eq(t.id, a.id));
+    },
+    purge: async (tx: Tx, a: z.output<typeof byIdArgs>, ctx: MutatorCtx) => {
+      requirePermission(ctx, permission);
+      const [f] = await tx.select({ deletedAt: t.deletedAt }).from(t).where(eq(t.id, a.id));
+      if (!f) return;
+      if (f.deletedAt === null) throw new MutationError('not-in-trash', `${what} is not in the trash`);
+      await tx.delete(t).where(eq(t.id, a.id));
+    },
+  };
 }
+const trashArgs = z.object({ id, at: z.number().int() });
+const renameArgs = z.object({ id, fileName });
+const byIdArgs = z.object({ id });
 
-export const purgeImageArgs = z.object({ id });
-/** Permanent delete: only of an image in the trash where this runs. Its blobs go with the next clean-up. */
-export async function purgeImage(tx: Tx, a: z.output<typeof purgeImageArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageImages');
-  const [i] = await tx.select({ deletedAt: images.deletedAt }).from(images).where(eq(images.id, a.id));
-  if (!i) return;
-  if (i.deletedAt === null) throw new MutationError('not-in-trash', 'image is not in the trash');
-  await tx.delete(images).where(eq(images.id, a.id));
-}
+export const [trashImageArgs, renameImageArgs, restoreImageArgs, purgeImageArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
+export const { trash: trashImage, rename: renameImage, restore: restoreImage, purge: purgeImage } = libraryChanges(images, 'ManageImages', 'image');
+export const [trashAudioArgs, renameAudioArgs, restoreAudioArgs, purgeAudioArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
+export const { trash: trashAudio, rename: renameAudio, restore: restoreAudio, purge: purgeAudio } = libraryChanges(audios, 'ManageAudios', 'audio file');
+export const [trashVideoArgs, renameVideoArgs, restoreVideoArgs, purgeVideoArgs] = [trashArgs, renameArgs, byIdArgs, byIdArgs];
+export const { trash: trashVideo, rename: renameVideo, restore: restoreVideo, purge: purgeVideo } = libraryChanges(videos, 'ManageVideos', 'video');
 
 const imageIds = z.array(id).min(1).max(MAX_ITEM_IMAGES);
 
@@ -267,34 +281,6 @@ export async function addAudio(tx: Tx, a: z.output<typeof addAudioArgs>, ctx: Mu
   await tx.insert(audios).values({ id: a.id, fileName: a.fileName, contentType: a.contentType, hash: a.hash, size: a.size, createdAt: a.createdAt, deletedAt: null });
 }
 
-export const trashAudioArgs = z.object({ id, at: z.number().int() });
-export async function trashAudio(tx: Tx, a: z.output<typeof trashAudioArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageAudios');
-  await tx.update(audios).set({ deletedAt: a.at }).where(eq(audios.id, a.id));
-}
-
-export const renameAudioArgs = z.object({ id, fileName });
-export async function renameAudio(tx: Tx, a: z.output<typeof renameAudioArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageAudios');
-  await tx.update(audios).set({ fileName: a.fileName }).where(eq(audios.id, a.id));
-}
-
-export const restoreAudioArgs = z.object({ id });
-export async function restoreAudio(tx: Tx, a: z.output<typeof restoreAudioArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageAudios');
-  await tx.update(audios).set({ deletedAt: null }).where(eq(audios.id, a.id));
-}
-
-export const purgeAudioArgs = z.object({ id });
-/** Permanent delete: only of a file in the trash where this runs. Its blob goes with the next clean-up. */
-export async function purgeAudio(tx: Tx, a: z.output<typeof purgeAudioArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageAudios');
-  const [f] = await tx.select({ deletedAt: audios.deletedAt }).from(audios).where(eq(audios.id, a.id));
-  if (!f) return;
-  if (f.deletedAt === null) throw new MutationError('not-in-trash', 'audio file is not in the trash');
-  await tx.delete(audios).where(eq(audios.id, a.id));
-}
-
 export const addAudioToPresentationArgs = z.object({ itemId: id, presentationId: id, audioId: id, afterItemId: id.nullable().optional() });
 /**
  * Adds an audio file as an item (spec 03): it has no slides, and selecting it
@@ -355,35 +341,6 @@ export async function addVideo(tx: Tx, a: z.output<typeof addVideoArgs>, ctx: Mu
   const [n] = await tx.select({ n: count() }).from(videos).where(isNull(videos.deletedAt));
   limit((n?.n ?? 0) >= VIDEO_LIMITS.videos, 'videos');
   await tx.insert(videos).values({ ...a, deletedAt: null });
-}
-
-export const trashVideoArgs = z.object({ id, at: z.number().int() });
-/** Soft delete (MEDIA-R8): it still plays where a presentation uses it. */
-export async function trashVideo(tx: Tx, a: z.output<typeof trashVideoArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageVideos');
-  await tx.update(videos).set({ deletedAt: a.at }).where(eq(videos.id, a.id));
-}
-
-export const renameVideoArgs = z.object({ id, fileName });
-export async function renameVideo(tx: Tx, a: z.output<typeof renameVideoArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageVideos');
-  await tx.update(videos).set({ fileName: a.fileName }).where(eq(videos.id, a.id));
-}
-
-export const restoreVideoArgs = z.object({ id });
-export async function restoreVideo(tx: Tx, a: z.output<typeof restoreVideoArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageVideos');
-  await tx.update(videos).set({ deletedAt: null }).where(eq(videos.id, a.id));
-}
-
-export const purgeVideoArgs = z.object({ id });
-/** Permanent delete: only of a video in the trash where this runs. Its blobs go with the next clean-up. */
-export async function purgeVideo(tx: Tx, a: z.output<typeof purgeVideoArgs>, ctx: MutatorCtx) {
-  requirePermission(ctx, 'ManageVideos');
-  const [v] = await tx.select({ deletedAt: videos.deletedAt }).from(videos).where(eq(videos.id, a.id));
-  if (!v) return;
-  if (v.deletedAt === null) throw new MutationError('not-in-trash', 'video is not in the trash');
-  await tx.delete(videos).where(eq(videos.id, a.id));
 }
 
 export const addVideoToPresentationArgs = z.object({ itemId: id, presentationId: id, videoId: id, afterItemId: id.nullable().optional() });

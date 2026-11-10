@@ -36,7 +36,7 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
       if (!a) return fail(c, 400, 'invalid-request');
       const address = `address:${deps.clientAddress(c)}`;
       const locked = await accounts.throttle.lockedUntil([address]);
-      if (locked) return tooMany(c, locked);
+      if (locked) return tooMany(locked);
       const claimed = await accounts.pairing.claimPairCode(a.code, a.name, ACCOUNT_LIMITS.pairCodeAttempts);
       if (!claimed) {
         await accounts.throttle.fail(address, THROTTLE.address);

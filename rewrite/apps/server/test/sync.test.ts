@@ -412,17 +412,6 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     expect(bobPokes).toBe(0); // the writer is not woken by its own change (SYNC-R39)
   });
 
-  it.runIf(adapterName === 'workers' || adapterName === 'remote')('DO SQLite: only storage.transaction() makes an async mutator atomic', async () => {
-    const { body } = await api<Record<string, { error: string; rowsLeft: string[] }>>(fx.h, 'GET', '/api/debug/tx-probe', {
-      user: 'alice',
-      org: fx.org,
-    });
-    console.log('[measure] DO transaction probe', JSON.stringify(body));
-    expect(body.rawBegin!.error).toMatch(/transactionSync|BEGIN|transaction/i); // BEGIN is refused
-    expect(body.transactionSync!.rowsLeft).toHaveLength(2); // committed early: NOT atomic
-    expect(body.transaction).toEqual({ error: 'mutator failed', rowsLeft: [] }); // rolled back: atomic
-  });
-
   it.runIf(adapterName === 'node')('better-sqlite3: db.transaction() refuses an async mutator; BEGIN/COMMIT works', async () => {
     const Database = (await import('better-sqlite3')).default;
     const db = new Database(':memory:');
@@ -444,10 +433,5 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     await mutator().catch(() => db.exec('ROLLBACK'));
     expect(db.prepare('SELECT count(*) AS n FROM t').get()).toEqual({ n: 0 });
     db.close();
-  });
-
-  it.runIf(adapterName === 'workers' || adapterName === 'remote')('SQLite triggers fire in DO SQLite and in local D1', async () => {
-    expect(await api(fx.h, 'GET', '/api/debug/d1-triggers')).toEqual({ status: 200, body: { fired: true } });
-    expect(await api(fx.h, 'GET', '/api/debug/triggers', { user: 'alice', org: fx.org })).toEqual({ status: 200, body: { fired: true } });
   });
 });

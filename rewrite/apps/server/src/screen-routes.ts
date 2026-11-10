@@ -1,8 +1,8 @@
 import { Hono, type Context } from 'hono';
 import { can, SCREEN_ID, SCREEN_PIN, SCREEN_TOKEN, type LiveScreen } from '@gp/core';
-import { watchLocked, type Org } from './app.ts';
+import type { Org } from './app.ts';
 import type { Caller } from './auth/index.ts';
-import { THROTTLE, type Accounts } from './global/index.ts';
+import { THROTTLE, tooManyAttempts, type Accounts } from './global/index.ts';
 import type { ScreenRegistry } from './screens.ts';
 
 // Pairing a temporary screen (spec 04 §5, §8; LIVE-R28). The TV asks for its
@@ -29,7 +29,7 @@ export function screenStartRoutes(deps: Deps) {
     const token = typeof a.token === 'string' ? a.token : null;
     const address = `screen:${deps.clientAddress(c)}`;
     const locked = await deps.accounts.throttle.lockedUntil([address]);
-    if (locked) return watchLocked(locked, deps.accounts.now());
+    if (locked) return tooManyAttempts(locked, deps.accounts.now());
     if (token !== null) {
       const paired = SCREEN_TOKEN.test(token) ? await deps.screens.startWithToken(token) : null;
       if (!paired) {
@@ -75,7 +75,7 @@ export function screenPairRoutes(resolve: (c: Context) => Promise<{ caller: Call
     // organisation too: a code is four digits and any organisation's, so one with many addresses is held back as well.
     const keys = [`address:${deps.clientAddress(c)}`, `screen-pin-user:${r.caller.ctx.userId}`, `screen-pin-org:${r.caller.orgId}`];
     const locked = await deps.accounts.throttle.lockedUntil(keys);
-    if (locked) return watchLocked(locked, deps.accounts.now());
+    if (locked) return tooManyAttempts(locked, deps.accounts.now());
     const id = await deps.screens.claimPin(a.pin, r.caller.orgId);
     if (!id) {
       for (const key of keys) await deps.accounts.throttle.fail(key, THROTTLE.address);

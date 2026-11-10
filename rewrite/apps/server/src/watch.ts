@@ -58,6 +58,6 @@ export async function lookupThrottled(
   const until = await accounts.throttle.lockedUntil([key]);
   if (until) return { lockedUntil: until };
   const target = await registry.lookup(code);
-  if (!target) await accounts.throttle.fail(key, THROTTLE.watch);
+  if (!target) await accounts.throttle.fail(key, THROTTLE.address);
   return target;
 }

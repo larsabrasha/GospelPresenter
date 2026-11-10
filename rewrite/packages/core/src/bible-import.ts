@@ -1,5 +1,5 @@
 import { sortBibleBooks, type BibleBookText } from './bible.ts';
-import { inflateRaw, utf8Decode, utf8Encode } from './platform.ts';
+import { inflateRaw, utf8Decode } from './platform.ts';
 
 // Importing a translation from a .zip of USX or USFM (spec 05 BIBLE-R3–R6).
 // It runs on the device that imports, so a desktop host needs no internet and
@@ -396,52 +396,4 @@ export async function importBibleZip(data: Uint8Array, yieldNow: () => Promise<v
     language: language?.slice(0, 20) ?? null,
     books: sortBibleBooks([...books.values()]),
   };
-}
-
-// ------------------------------------------------------------------ tests and fixtures
-
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-
-function crc32(d: Uint8Array): number {
-  let c = 0xffffffff;
-  for (const byte of d) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-/** Little-endian header fields: [value, bytes] pairs. */
-function header(fields: [number, 2 | 4][]): Uint8Array {
-  const out = new Uint8Array(fields.reduce((n, [, size]) => n + size, 0));
-  let o = 0;
-  for (const [v, size] of fields) for (let k = 0; k < size; k++) out[o++] = (v >>> (8 * k)) & 0xff;
-  return out;
-}
-
-/** A zip of the given files, stored uncompressed: for tests and fixtures, and the libraries' downloads of several files. */
-export function makeZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
-  const chunks: Uint8Array[] = [];
-  const central: Uint8Array[] = [];
-  let offset = 0;
-  for (const f of files) {
-    const name = utf8Encode(f.name);
-    const crc = crc32(f.data);
-    const common: [number, 2 | 4][] = [[20, 2], [0x0800, 2], [0, 2], [0, 4], [crc, 4], [f.data.length, 4], [f.data.length, 4], [name.length, 2], [0, 2]];
-    const local = header([[0x04034b50, 4], ...common]);
-    chunks.push(local, name, f.data);
-    central.push(header([[0x02014b50, 4], [20, 2], ...common, [0, 2], [0, 2], [0, 2], [0, 4], [offset, 4]]), name);
-    offset += local.length + name.length + f.data.length;
-  }
-  const centralSize = central.reduce((n, c) => n + c.length, 0);
-  const end = header([[0x06054b50, 4], [0, 2], [0, 2], [files.length, 2], [files.length, 2], [centralSize, 4], [offset, 4], [0, 2]]);
-  const all = [...chunks, ...central, end];
-  const out = new Uint8Array(all.reduce((n, c) => n + c.length, 0));
-  let o = 0;
-  for (const c of all) {
-    out.set(c, o);
-    o += c.length;
-  }
-  return out;
 }

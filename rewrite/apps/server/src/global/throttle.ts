@@ -1,32 +1,38 @@
-// Sign-in throttling: failures per key, and the locks they earn.
+// Throttling: failures (or asks) per key, and the locks they earn.
 import type { GlobalSql } from './sql.ts';
 
-/** How sign-in failures slow an attacker down (docs/assumptions.md). */
+/** How failures slow an attacker down (docs/assumptions.md): `free` in `windowMs`, then a lock as long as the window. */
 export interface ThrottlePolicy {
-  /** Failures allowed in `windowMs` before a lock. */
   free: number;
   windowMs: number;
-  /** The first lock; each further failure doubles it, up to `maxLockMs`. */
-  lockMs: number;
-  maxLockMs: number;
 }
 
+const QUARTER = 15 * 60_000;
+const HOUR = 60 * 60_000;
+
 export const THROTTLE = {
-  /** Per address: slows one machine trying setup tokens or pairing codes. */
-  address: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
-  /** Per address: slows one machine guessing public output codes (`/api/watch/`). Only unknown codes count. */
-  watch: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  /** Per address (setup tokens, pairing and screen codes, public output codes), and per user and organisation for screen codes. */
+  address: { free: 20, windowMs: QUARTER },
   /** "Glömt hur du loggar in?" per address and per e-mail address: every ask counts, so nobody floods a mailbox. */
-  recover: { free: 5, windowMs: 60 * 60_000, lockMs: 60 * 60_000, maxLockMs: 60 * 60_000 },
+  recover: { free: 5, windowMs: HOUR },
   /** Per address: slows one machine making temporary screens, each a row until it is paired or a day old. */
-  screen: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  screen: { free: 30, windowMs: QUARTER },
   /** Bug reports per user: every one counts, so one user cannot push the others out of the kept cap. */
-  report: { free: 10, windowMs: 60 * 60_000, lockMs: 60 * 60_000, maxLockMs: 60 * 60_000 },
+  report: { free: 10, windowMs: HOUR },
   /** Client errors per user: every one counts, so one client in a loop cannot flood the log. */
-  clientError: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  clientError: { free: 30, windowMs: QUARTER },
 } satisfies Record<string, ThrottlePolicy>;
 
-/** Sign-in failures per key, and the locks they earn. */
+/** The answer to a key that is locked: 429 with how long to wait. */
+export function tooManyAttempts(lockedUntil: number, now: number): Response {
+  const seconds = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+  return new Response(JSON.stringify({ error: 'too-many-attempts', retryAfter: seconds }), {
+    status: 429,
+    headers: { 'content-type': 'application/json', 'retry-after': String(seconds) },
+  });
+}
+
+/** Failures per key, and the locks they earn. */
 export class ThrottleService {
   constructor(
     private readonly sql: GlobalSql,
@@ -51,15 +57,17 @@ export class ThrottleService {
            first_at = CASE WHEN ? - first_at > ? THEN ? ELSE first_at END`,
         [key, now, now, p.windowMs, now, p.windowMs, now],
       ],
-      [
-        `UPDATE auth_throttle SET locked_until = ? + min(?, ? * (1 << min(failures - ?, 20)))
-         WHERE key = ? AND failures >= ?`,
-        [now, p.maxLockMs, p.lockMs, p.free, key, p.free],
-      ],
+      ['UPDATE auth_throttle SET locked_until = ? WHERE key = ? AND failures >= ?', [now + p.windowMs, key, p.free]],
     ]);
   }
 
-  async clear(key: string): Promise<void> {
-    await this.sql.run('DELETE FROM auth_throttle WHERE key = ?', [key]);
+  /**
+   * An ask where every one counts (a mail sent, a report kept): the time `keys` are locked until, or 0, and then the
+   * ask counted against each of them.
+   */
+  async count(keys: string[], p: ThrottlePolicy): Promise<number> {
+    const locked = await this.lockedUntil(keys);
+    if (!locked) for (const key of keys) await this.fail(key, p);
+    return locked;
   }
 }

@@ -4,13 +4,13 @@ import type { Hono } from 'hono';
 import { deleteCookie, getCookie } from 'hono/cookie';
 import { ACCOUNT_LIMITS, googleBeginRequest, googleFinishRequest, isCallbackScheme, setupRequest, type AuthError, type AuthState, type SetupResponse } from '@gp/core';
 import { constantTimeEqual, newSecret } from '../crypto.ts';
-import { PASSKEY_FLOW, THROTTLE } from '../global/index.ts';
+import { LOGIN_FLOW, PASSKEY_FLOW, THROTTLE } from '../global/index.ts';
 import { body, fail, FLOW_COOKIE, HANDOFF_COOKIE, type AuthKit } from './kit.ts';
 import { APP_CALLBACK_JS, callbackLink, escapeHtml, page, passkeyPage, signInFailed } from './pages.ts';
 import { deviceOf } from './pairing-guard.ts';
 
 export function signInRoutes(app: Hono, kit: AuthKit) {
-  const { deps, accounts, google, passkeys, log, tooMany, signedIn, secure, cookie, mayAddLogin, startPasskey, start, bindFlow } = kit;
+  const { deps, accounts, google, passkeys, log, tooMany, signedIn, secure, cookie, mayAddLogin, startPasskey, start } = kit;
 
   // -------------------------------------------------------------- first run, sign-in, sign-out
 
@@ -22,7 +22,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     if (!a) return fail(c, 400, 'invalid-request');
     const address = `address:${deps.clientAddress(c)}`;
     const locked = await accounts.throttle.lockedUntil([address]);
-    if (locked) return tooMany(c, locked);
+    if (locked) return tooMany(locked);
     if (await accounts.members.setupDone()) return fail(c, 409, 'setup-done');
     if (!deps.setupToken || !constantTimeEqual(a.setupToken, deps.setupToken)) {
       await accounts.throttle.fail(address, THROTTLE.address);
@@ -62,16 +62,18 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
       const state = (await accounts.invitations.lookup(a.invite)) ?? (await accounts.members.invite(a.invite));
       if (state.state !== 'valid') return fail(c, 400, state.state === 'expired' ? 'invite-expired' : 'invite-invalid');
     }
+    // A page's own sign-in goes on only in its browser (`start`); an app's in the system browser that opens it first.
+    const browser = a.app ? undefined : newSecret('');
     const state = await accounts.signIn.createFlow({
       address: deps.clientAddress(c),
       inviteToken: a.invite ?? null,
       deviceName: a.app?.deviceName ?? '',
       callbackScheme: a.app?.callbackScheme ?? null,
       link,
+      browser,
     });
     if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: 600 });
-    // A page's own sign-in goes on only in its browser (`start`); an app's in the system browser that opens it first.
-    if (!a.app && !(await bindFlow(c, state))) return fail(c, 409, 'google-failed');
+    if (browser) cookie(c, FLOW_COOKIE, browser, LOGIN_FLOW.ttlMs / 1000);
     return c.json({ url: `/api/auth/google/start?flow=${encodeURIComponent(state)}` });
   });
 

@@ -2,11 +2,12 @@ import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
 import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
+import { outputRoutes, syncRoutes, type Org } from './app.ts';
+import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
 import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
-import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
+import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { logServerErrors } from './server-error.ts';
 import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
@@ -161,8 +162,6 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.accounts = new Accounts(d1Sql(env.DB), { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined, superAdmins: superAdminsOf(env) });
     this.liveSessionCheckMs = env.LIVE_SESSION_CHECK_MS ? Number(env.LIVE_SESSION_CHECK_MS) : LIVE_SESSION_CHECK_MS;
     this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: this.accounts, clientAddress }));
-    this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
-    this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -243,59 +242,6 @@ function liveSocket(ws: WebSocket): LiveSocket {
   };
 }
 
-/** Creates a table with a trigger in a scratch table set and reports whether the trigger fired. */
-function triggerCheck(run: (sql: string, ...params: unknown[]) => unknown[]) {
-  run('CREATE TABLE IF NOT EXISTS _tc_t (id TEXT PRIMARY KEY)');
-  run('CREATE TABLE IF NOT EXISTS _tc_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, pk TEXT, UNIQUE (pk))');
-  run(`CREATE TRIGGER IF NOT EXISTS _tc_tr AFTER INSERT ON _tc_t BEGIN
-         INSERT OR REPLACE INTO _tc_log (pk) VALUES (NEW.id); END`);
-  const id = crypto.randomUUID();
-  run('INSERT INTO _tc_t (id) VALUES (?)', id);
-  return { fired: run('SELECT seq FROM _tc_log WHERE pk = ?', id).length === 1 };
-}
-
-/**
- * The three ways to make an async mutator atomic on DO SQLite, tried side by
- * side with a "mutator" that writes, awaits, writes and throws.
- */
-async function transactionProbe(storage: DurableObjectStorage) {
-  const sql = storage.sql;
-  sql.exec('CREATE TABLE IF NOT EXISTS _probe (id TEXT PRIMARY KEY)');
-  const mutator = async (id: string) => {
-    sql.exec('INSERT INTO _probe (id) VALUES (?)', id + '-a');
-    await Promise.resolve();
-    sql.exec('INSERT INTO _probe (id) VALUES (?)', id + '-b');
-    throw new Error('mutator failed');
-  };
-  const left = (id: string) => sql.exec('SELECT id FROM _probe WHERE id LIKE ?', id + '%').toArray().map((r) => r.id);
-  const outcome = async (run: () => unknown) => {
-    try {
-      await run();
-      return 'no error';
-    } catch (e) {
-      return (e as Error).message;
-    }
-  };
-
-  const id1 = crypto.randomUUID();
-  const begin = await outcome(() => sql.exec('BEGIN'));
-  const id2 = crypto.randomUUID();
-  // transactionSync commits when the callback returns, i.e. at the first await.
-  const sync = await outcome(() =>
-    storage.transactionSync(() => {
-      mutator(id2).catch(() => undefined); // its rejection arrives after the commit
-    }),
-  );
-  await new Promise((r) => setTimeout(r, 10));
-  const id3 = crypto.randomUUID();
-  const asyncTx = await outcome(() => storage.transaction(() => mutator(id3)));
-  return {
-    rawBegin: { error: begin, rowsLeft: left(id1) },
-    transactionSync: { error: sync, rowsLeft: left(id2) },
-    transaction: { error: asyncTx, rowsLeft: left(id3) },
-  };
-}
-
 function d1Sql(db: D1Database): GlobalSql {
   return {
     all: async (sql, params = []) => (await db.prepare(sql).bind(...params).all<Row>()).results,
@@ -335,8 +281,19 @@ function globals(env: Env) {
   return ready;
 }
 
+/** The headers the Worker tells an organisation's object who and what with: a request's own are never passed on. */
+const TRUSTED = ['x-user', 'x-role', 'x-session', 'x-org', 'x-play-org', 'x-display', 'x-org-name', 'x-code'];
+
+/** The request to organisation `orgId`'s object, with every trusted header the client sent removed and `trusted` set. */
+function toOrg(c: Context<{ Bindings: Env }>, orgId: string, trusted: Record<string, string>): Promise<Response> {
+  const headers = new Headers(c.req.raw.headers);
+  for (const h of TRUSTED) headers.delete(h);
+  for (const [h, v] of Object.entries(trusted)) headers.set(h, v);
+  return c.env.ORG.get(c.env.ORG.idFromName(orgId)).fetch(new Request(c.req.raw, { headers }));
+}
+
 /** Paths an organisation's Durable Object answers; everything else is the global auth API. */
-const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/live/', '/api/import/legacy', '/api/debug/dump', '/api/debug/triggers', '/api/debug/tx-probe'];
+const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/live/', '/api/import/legacy', '/api/debug/dump'];
 
 const worker = new Hono<{ Bindings: Env }>();
 
@@ -344,39 +301,18 @@ const worker = new Hono<{ Bindings: Env }>();
 worker.use('/api/*', appCors());
 
 worker.use('/api/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
-// Triggers in local D1: same check as in the Durable Object.
-worker.get('/api/debug/d1-triggers', async (c) => {
-  const db = c.env.DB;
-  await db.prepare('CREATE TABLE IF NOT EXISTS _tc_t (id TEXT PRIMARY KEY)').run();
-  await db.prepare('CREATE TABLE IF NOT EXISTS _tc_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, pk TEXT, UNIQUE (pk))').run();
-  await db
-    .prepare(`CREATE TRIGGER IF NOT EXISTS _tc_tr AFTER INSERT ON _tc_t BEGIN
-                INSERT OR REPLACE INTO _tc_log (pk) VALUES (NEW.id); END`)
-    .run();
-  const id = crypto.randomUUID();
-  await db.prepare('INSERT INTO _tc_t (id) VALUES (?)').bind(id).run();
-  const { results } = await db.prepare('SELECT seq FROM _tc_log WHERE pk = ?').bind(id).all();
-  return c.json({ fired: results.length === 1 });
-});
 
 // Sign-in and users are answered here, against D1. Everything for an
 // organisation is authenticated against D1, then handed to its Durable Object.
 // Public outputs and saved screens (spec 04 §5, §6): anonymous. The code names the organisation and the output.
 const toOutput = (c: Context<{ Bindings: Env }>, target: { orgId: string; orgName: string; displayId: string }, key: string) => {
-  const stub = c.env.ORG.get(c.env.ORG.idFromName(target.orgId));
-  const headers = new Headers(c.req.raw.headers);
-  for (const h of ['x-user', 'x-role', 'x-session', 'x-play-org']) headers.delete(h);
-  headers.set('x-org', target.orgId);
-  headers.set('x-display', target.displayId);
-  headers.set('x-org-name', encodeURIComponent(target.orgName));
-  headers.set('x-code', key);
-  return stub.fetch(new Request(c.req.raw, { headers }));
+  return toOrg(c, target.orgId, { 'x-org': target.orgId, 'x-display': target.displayId, 'x-org-name': encodeURIComponent(target.orgName), 'x-code': key });
 };
 for (const kind of ['watch', 'display']) {
   worker.get(`/api/${kind}/:code/*`, async (c) => {
     const { accounts } = await globals(c.env); // the global tables are migrated before the first lookup
     const target = await lookupThrottled(new WatchRegistry(d1Sql(c.env.DB)), accounts, c.req.param('code'), c.req.header('cf-connecting-ip') ?? 'unknown');
-    if (target && 'lockedUntil' in target) return watchLocked(target.lockedUntil);
+    if (target && 'lockedUntil' in target) return tooManyAttempts(target.lockedUntil, Date.now());
     if (!target) return c.json({ error: 'not-found' }, 404);
     return toOutput(c, target, c.req.param('code'));
   });
@@ -393,10 +329,7 @@ worker.get('/api/play/:token/:hash', async (c) => {
   await globals(c.env);
   const orgId = await new PlayTokens(d1Sql(c.env.DB)).orgOf(c.req.param('token'), c.req.param('hash'));
   if (!orgId) return c.json({ error: 'not-found' }, 404);
-  const headers = new Headers(c.req.raw.headers);
-  for (const h of ['x-user', 'x-role', 'x-session', 'x-org']) headers.delete(h);
-  headers.set('x-play-org', orgId);
-  return c.env.ORG.get(c.env.ORG.idFromName(orgId)).fetch(new Request(c.req.raw, { headers }));
+  return toOrg(c, orgId, { 'x-play-org': orgId });
 });
 // Made once per isolate, like the auth routes: every TV showing a code asks every 3 s.
 let screenStart: Hono | undefined;
@@ -425,14 +358,8 @@ worker.all('*', async (c) => {
   if (!orgPaths.some((p) => c.req.path.startsWith(p))) return auth.fetch(c.req.raw, c.env, c.executionCtx);
   const caller = await authenticate(c.req.raw, accounts);
   if (caller instanceof Response) return caller;
-  const stub = c.env.ORG.get(c.env.ORG.idFromName(caller.orgId));
-  const headers = new Headers(c.req.raw.headers);
-  headers.delete('x-play-org'); // only the play route names an organisation that way
-  headers.set('x-user', caller.ctx.userId);
-  headers.set('x-session', caller.sessionId); // a video's play token ends with this session
-  headers.set('x-role', caller.ctx.role);
-  headers.set('x-org', caller.orgId);
-  return stub.fetch(new Request(c.req.raw, { headers }));
+  // A video's play token ends with the session (`x-session`).
+  return toOrg(c, caller.orgId, { 'x-user': caller.ctx.userId, 'x-session': caller.sessionId, 'x-role': caller.ctx.role, 'x-org': caller.orgId });
 });
 
 export default worker;

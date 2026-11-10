@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { VideoCodec, VideoType } from '@gp/core';
-import { useOpenedUrl, usePictureUrl } from '../db/react.tsx';
+import { useFetchedUrl, usePictureUrl } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
@@ -27,7 +27,7 @@ function Picture({ full, thumb, name }: { full: string; thumb: string; name: str
 }
 
 function Sound({ hash, name }: { hash: string; name: string }) {
-  const url = useOpenedUrl(hash);
+  const url = useFetchedUrl(hash);
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-md">
       <SpeakerWaveIcon className="size-24 text-stone-400" />

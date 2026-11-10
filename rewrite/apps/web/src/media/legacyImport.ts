@@ -13,6 +13,7 @@ import {
 } from '@gp/core';
 import { api, authHeaders } from '../auth/api.ts';
 import { serverUrl } from '../server.ts';
+import { inParallel } from './inParallel.ts';
 import { uploadVideo } from './video.ts';
 
 // The import of an export zip in the web app, of 1.x (docs/import-from-1x.md) or of 2.0 (orgExport.ts): the zip read
@@ -107,8 +108,6 @@ const json = async (e: Entry | undefined) => {
   return JSON.parse(utf8Decode(await e.read())) as unknown;
 };
 
-/** At most this many uploads at a time. */
-const PARALLEL = 4;
 
 async function put(path: string, body: Uint8Array, contentType: string) {
   const res = await fetch(serverUrl(path), { method: 'PUT', headers: { 'content-type': contentType, ...authHeaders() }, body: body as BodyInit });
@@ -117,7 +116,11 @@ async function put(path: string, body: Uint8Array, contentType: string) {
 
 /** The manifest of an export zip, or why it is not one this build imports. */
 export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
-  const parsed = legacyManifestSchema.safeParse(await json((await readZipFile(file)).get(LEGACY_ENTRIES.manifest)));
+  return manifestOf(await readZipFile(file));
+}
+
+async function manifestOf(entries: Map<string, Entry>): Promise<LegacyManifest> {
+  const parsed = legacyManifestSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.manifest)));
   if (!parsed.success) throw new LegacyImportError('not-export');
   if (!LEGACY_FORMATS_READ.includes(parsed.data.format)) throw new LegacyImportError('format');
   return parsed.data;
@@ -130,7 +133,7 @@ export async function readLegacyManifest(file: Blob): Promise<LegacyManifest> {
  */
 export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => void): Promise<LegacyImportResult> {
   const entries = await readZipFile(file);
-  const manifest = await readLegacyManifest(file);
+  const manifest = await manifestOf(entries);
   // A zip of an older format has the tables of its own: `slide_decks` in 3, no `custom_slides` before 4, none of
   // format 8's before 8. The upgrade makes this format's of them.
   const since8 = new Set<string>(TABLES_SINCE_8);
@@ -147,26 +150,16 @@ export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => 
 
   const files = [...entries.values()].filter((e) => e.name.startsWith('blobs/') || e.name.startsWith('bibles/'));
   const videos = legacyBlobs(rows).videos;
-  let done = 0;
-  let failed = false;
-  progress({ step: 'files', done, total: files.length });
-  const queue = [...files];
-  await Promise.all(
-    Array.from({ length: PARALLEL }, async () => {
-      // One failed upload stops the others: the import is then run again from the start.
-      for (let e = queue.shift(); e && !failed; e = queue.shift()) {
-        try {
-          const hash = e.name.startsWith('blobs/') ? e.name.slice('blobs/'.length) : null;
-          if (hash && videos.has(hash)) await uploadVideo(await e.blob(), hash).catch((err: unknown) => Promise.reject(new LegacyImportError('upload', `${e.name}: ${String(err)}`)));
-          else if (hash) await put(`/api/media/${hash}`, await e.read(), 'application/octet-stream');
-          else await put(`/api/bibles/${e.name.slice('bibles/'.length, -'.json'.length)}`, await e.read(), 'application/json');
-        } catch (err) {
-          failed = true;
-          throw err;
-        }
-        progress({ step: 'files', done: ++done, total: files.length });
-      }
-    }),
+  progress({ step: 'files', done: 0, total: files.length });
+  await inParallel(
+    files,
+    async (e) => {
+      const hash = e.name.startsWith('blobs/') ? e.name.slice('blobs/'.length) : null;
+      if (hash && videos.has(hash)) await uploadVideo(await e.blob(), hash).catch((err: unknown) => Promise.reject(new LegacyImportError('upload', `${e.name}: ${String(err)}`)));
+      else if (hash) await put(`/api/media/${hash}`, await e.read(), 'application/octet-stream');
+      else await put(`/api/bibles/${e.name.slice('bibles/'.length, -'.json'.length)}`, await e.read(), 'application/json');
+    },
+    (done) => progress({ step: 'files', done, total: files.length }),
   );
 
   progress({ step: 'rows', done: 0, total: 1 });

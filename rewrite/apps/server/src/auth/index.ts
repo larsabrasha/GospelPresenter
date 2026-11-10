@@ -21,7 +21,7 @@ import { signInRoutes } from './sign-in-routes.ts';
 import { userRoutes } from './user-routes.ts';
 
 export { authenticate, credentials, WS_PROTOCOL, type Caller } from './caller.ts';
-export { deviceOf, isApiPath, isLoopback, pairingGuard, type Pairing } from './pairing-guard.ts';
+export { deviceOf, isApiPath, pairingGuard, type Pairing } from './pairing-guard.ts';
 export type { AuthDeps } from './kit.ts';
 
 export function authRoutes(deps: AuthDeps) {

@@ -18,10 +18,8 @@ export function reportRoutes(app: Hono, kit: AuthKit) {
     withCaller(null, async (c, caller) => {
       const a = await body(c, bugReportSchema);
       if (!a) return fail(c, 400, 'invalid-request');
-      const key = `report:${caller.ctx.userId}`;
-      const locked = await accounts.throttle.lockedUntil([key]);
-      if (locked) return tooMany(c, locked);
-      await accounts.throttle.fail(key, THROTTLE.report);
+      const locked = await accounts.throttle.count([`report:${caller.ctx.userId}`], THROTTLE.report);
+      if (locked) return tooMany(locked);
       const me = await who(caller);
       if (!me) return fail(c, 404, 'not-found');
       const id = crypto.randomUUID();

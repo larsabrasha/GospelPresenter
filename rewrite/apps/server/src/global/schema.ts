@@ -182,7 +182,7 @@ const bugReportsDdl = [
   `CREATE INDEX IF NOT EXISTS bug_report_messages_report ON bug_report_messages (report_id, created_at)`,
 ];
 
-export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl];
+const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl];
 
 const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that

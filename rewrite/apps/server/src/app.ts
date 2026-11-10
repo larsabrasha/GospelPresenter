@@ -38,14 +38,9 @@ import type { PlayTokens } from './play-tokens.ts';
 import { serveVideo, videoBlob, videoRoutes } from './video-routes.ts';
 import type { WatchRegistry } from './watch.ts';
 
-export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth/index.ts';
-export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, type TokenProblem } from './google.ts';
-export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global/index.ts';
-export { Passkeys, type PasskeyConfig } from './webauthn.ts';
-export { memoryStorage, r2Storage, streamBytes, type MediaStorage, type R2Like } from './media.ts';
-export { PlayTokens } from './play-tokens.ts';
-export { parseRange, playRoutes } from './video-routes.ts';
-export { lookupThrottled, WatchRegistry, type WatchTarget } from './watch.ts';
+// What the package exports: only what the desktop app imports (its server is ./node). The tests import the modules.
+export type { GoogleConfig } from './google.ts';
+export type { PasskeyConfig } from './webauthn.ts';
 
 /** An organisation's runtime: its database, its write queue, its poke hub and its live sessions. */
 export interface Org {
@@ -112,7 +107,8 @@ export interface SyncRouteOptions {
 export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
   const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null, playTokens = null } = opts;
   const app = new Hono();
-  // Before the routes, so every body below is capped as it is read (body-cap.ts).
+  // Before the routes, so every body below is capped as it is read (body-cap.ts): the routes check no size of their own,
+  // only a kind's own limit once the bytes are known.
   app.use('/api/sync/push', capped(PUSH_BODY_MAX));
   app.use('/api/bibles/:hash', capped(BIBLE_LIMITS.textBytes));
   app.use('/api/media/:hash', capped(MEDIA_LIMITS.audioBytes));
@@ -168,9 +164,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (!can(r.caller.ctx.role, 'ManageBibles')) return c.json({ error: 'forbidden' }, 403);
     const hash = c.req.param('hash');
     if (!HASH.test(hash)) return c.json({ error: 'invalid-hash' }, 400);
-    if (Number(c.req.header('content-length') ?? 0) > BIBLE_LIMITS.textBytes) return c.json({ error: 'too-large' }, 413);
     const body = await c.req.text();
-    if (body.length > BIBLE_LIMITS.textBytes) return c.json({ error: 'too-large' }, 413);
     let parsed: unknown;
     try {
       parsed = JSON.parse(body);
@@ -224,10 +218,8 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (!media) return c.json({ error: 'media-disabled' }, 503);
     const hash = c.req.param('hash');
     if (!MEDIA_HASH.test(hash)) return c.json({ error: 'invalid-hash' }, 400);
-    if (Number(c.req.header('content-length') ?? 0) > MEDIA_LIMITS.audioBytes) return c.json({ error: 'too-large' }, 413);
     const bytes = new Uint8Array(await c.req.arrayBuffer());
     if (!bytes.length) return c.json({ error: 'empty' }, 400);
-    if (bytes.length > MEDIA_LIMITS.audioBytes) return c.json({ error: 'too-large' }, 413);
     if ((await sha256HexBytes(bytes)) !== hash) return c.json({ error: 'hash-mismatch' }, 400);
     // The signature, not the type the client claims, decides what is kept (MEDIA-A6): a stored picture, a sound or a PDF.
     const kind = sniffMedia(bytes);
@@ -318,16 +310,6 @@ function outputName(kind: OutputKind, t: WatchTargetRuntime): string | null {
 /** How often an open stream is pinged (LIVE-R35). */
 const PING_MS = 15_000;
 
-/**
- * Public outputs (spec 04 §6): anonymous, read-only, found by code. The
- * stream sends the newest state first, then each change; nothing else of the
- * organisation is reachable from here, and a picture only while it is on
- * screen (LIVE-R32).
- */
-export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
-  return outputRoutes('watch', resolve, media);
-}
-
 /** A public output's routes, or a screen's: the same stream and pictures (spec 04 §5 renders as `/live` does). */
 export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
   const app = new Hono();
@@ -415,13 +397,4 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
   }
 
   return app;
-}
-
-/** The answer to an address that guessed too many codes: 429 with how long to wait. */
-export function watchLocked(lockedUntil: number, now = Date.now()): Response {
-  const seconds = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
-  return new Response(JSON.stringify({ error: 'too-many-attempts', retryAfter: seconds }), {
-    status: 429,
-    headers: { 'content-type': 'application/json', 'retry-after': String(seconds) },
-  });
 }

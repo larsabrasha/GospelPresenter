@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { LibraryVideo } from '@gp/core';
-import { useBlobUrl, useData, useDb } from '../db/react.tsx';
+import { useLocalUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
@@ -28,7 +28,7 @@ export function formatDuration(ms: number): string {
 
 /** A video's still: its thumbnail, kept on every device as a picture's is; small in a row, or a tile's (`tile`) with its length. */
 function VideoThumb({ video, tile }: { video: LibraryVideo; tile?: boolean }) {
-  const url = useBlobUrl(video.thumbHash);
+  const url = useLocalUrl(video.thumbHash);
   return (
     <span className={`relative ${tile ? 'w-full rounded-lg' : 'w-20 rounded'} aspect-video shrink-0 bg-stone-200 dark:bg-raised overflow-hidden flex items-center justify-center`}>
       {url ? <img src={url} alt="" className={`absolute inset-0 size-full ${tile ? 'object-cover' : 'object-contain'}`} draggable={false} /> : <VideoIcon className="size-5 text-stone-400" />}

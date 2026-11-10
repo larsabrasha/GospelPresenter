@@ -73,9 +73,8 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
     const a = await body(c, recoverRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     const keys = [`recover:${deps.clientAddress(c)}`, `recover-email:${a.email}`];
-    const locked = await accounts.throttle.lockedUntil(keys);
-    if (locked) return tooMany(c, locked);
-    for (const k of keys) await accounts.throttle.fail(k, THROTTLE.recover);
+    const locked = await accounts.throttle.count(keys, THROTTLE.recover);
+    if (locked) return tooMany(locked);
     inBackground(c, async () => {
       const user = await accounts.members.userByEmail(a.email);
       if (!user) return;

@@ -144,7 +144,7 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} hostServer={hostServer} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} hostServer={!!hostServer} /> : <Refused text={t('users.forbidden')} />)}
-      {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
+      {route.page === 'devices' && (!host ? <Refused text={t('devices.onlyHost')} /> : can(me.role, 'ManageUsers') ? <Devices me={me} /> : <Refused text={t('error.forbidden')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'bible' && (can(me.role, 'ManageBibles') ? <BibleDetail key={route.id} id={route.id} /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
@@ -167,8 +167,8 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {route.page === 'songMaterials' && <SongMaterials key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'theme' && (can(me.role, 'ManageThemes') ? <ThemeEditor key={route.id} id={route.id} /> : <Refused text={t('themes.forbidden')} />)}
-      {/* One page for both (Lars, 2026-11-04); /admin/public-outputs, the page of before, opens it too. */}
-      {(route.page === 'displays' || route.page === 'publicOutputs') && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
+      {/* One page for both (Lars, 2026-11-04); /admin/public-outputs, the page of before, opens it too (router.ts). */}
+      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
       {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings orgName={me.orgName} /> : <Refused text={t('orgSettings.forbidden')} />)}

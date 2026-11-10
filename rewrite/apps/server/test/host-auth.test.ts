@@ -4,7 +4,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { Hono } from 'hono';
 import { PROTOCOL_VERSION, SCHEMA_VERSION, type Me, type PairClaimResponse, type PairStatus, type SignInResponse } from '@gp/core';
 import { socketProtocols } from '@gp/sync/client';
-import { Accounts, migrateGlobal, pairingGuard } from '@gp/server';
+import { pairingGuard } from '../src/auth/index.ts';
+import { Accounts, migrateGlobal } from '../src/global/index.ts';
 import { nodeGlobalSql, openSqlite, startNodeServer, type RunningServer } from '@gp/server/node';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -51,6 +51,8 @@ export class SignInService {
     deviceName: string;
     callbackScheme: string | null;
     link?: { userId: string; sessionId: string };
+    /** A page's own sign-in: bound to its browser now, so it goes on only there (`resumeFlow`). */
+    browser?: string;
   }): Promise<string | 'limit'> {
     const state = newSecret('');
     const now = this.now();
@@ -58,8 +60,8 @@ export class SignInService {
       ['DELETE FROM login_flows WHERE expires_at < ?', [now - 24 * 60 * 60_000]],
       [
         `INSERT INTO login_flows (state_hash, address, nonce, verifier, invite_hash, device_name, callback_scheme, created_at, expires_at,
-           link_user_id, link_session_id)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+           link_user_id, link_session_id, browser_hash)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE (SELECT count(*) FROM login_flows WHERE address = ? AND used_at IS NULL AND expires_at > ?) < ?`,
         [
           await sha256(state),
@@ -73,6 +75,7 @@ export class SignInService {
           now + LOGIN_FLOW.ttlMs,
           a.link?.userId ?? null,
           a.link?.sessionId ?? null,
+          a.browser ? await sha256(a.browser) : null,
           a.address,
           now,
           LOGIN_FLOW.perAddress,
@@ -87,11 +90,10 @@ export class SignInService {
    * a secret in that browser's cookie) and gives what the authorization
    * request needs. A flow starts once.
    */
-  async startFlow(state: string, browser: string, appOnly = false): Promise<{ nonce: string; verifier: string } | null> {
+  async startFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
     const hash = await sha256(state);
-    // `appOnly`: only an app's flow, begun elsewhere, may be bound by the browser that opens it first.
-    const app = appOnly ? ' AND callback_scheme IS NOT NULL' : '';
-    const n = await this.sql.run(`UPDATE login_flows SET browser_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?${app}`, [
+    // Only a flow no browser has yet: an app's, begun in the app; a page's own was bound when it began.
+    const n = await this.sql.run('UPDATE login_flows SET browser_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?', [
       await sha256(browser),
       hash,
       this.now(),

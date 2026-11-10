@@ -77,7 +77,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
     {
       title: 'settings.group.display',
       links: [
-        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', keywords: 'search.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays', 'publicOutputs'], intro: 'intro.displays' },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', keywords: 'search.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
         { route: { page: 'themes' }, label: 'nav.themes', keywords: 'search.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes', 'theme'], intro: 'themes.text' },
         can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', keywords: 'search.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
       ],

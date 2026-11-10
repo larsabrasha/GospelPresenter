@@ -5,7 +5,7 @@ import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { ACCOUNT_LIMITS, can, type AuthError, type PasskeyOptions, type Permission, type SignInResponse } from '@gp/core';
 import { newSecret } from '../crypto.ts';
-import { LOGIN_FLOW, PASSKEY_FLOW, type Accounts } from '../global/index.ts';
+import { LOGIN_FLOW, PASSKEY_FLOW, type Accounts, tooManyAttempts } from '../global/index.ts';
 import type { GoogleOidc } from '../google.ts';
 import type { MailConfig } from '../mail.ts';
 import type { Passkeys } from '../webauthn.ts';
@@ -62,11 +62,7 @@ export function authKit(deps: AuthDeps) {
   const freshMs = deps.freshSignInMs ?? ACCOUNT_LIMITS.freshSignInMs;
   const log = deps.log ?? (() => undefined);
 
-  const tooMany = (c: Context, until: number) => {
-    const seconds = Math.ceil((until - accounts.now()) / 1000);
-    c.header('retry-after', String(seconds));
-    return fail(c, 429, 'too-many-attempts', { retryAfter: seconds });
-  };
+  const tooMany = (until: number) => tooManyAttempts(until, accounts.now());
 
   async function signedIn(userId: string, orgId: string, deviceName: string, pairedDeviceId: string | null = null): Promise<SignInResponse | null> {
     const role = await accounts.members.roleIn(userId, orgId);
@@ -121,7 +117,7 @@ export function authKit(deps: AuthDeps) {
   }
 
   /**
-   * Sends `state` to Google. A web sign-in's flow was bound to its browser when the page began it (`bindFlow`), and goes on
+   * Sends `state` to Google. A web sign-in's flow was bound to its browser when the page began it, and goes on
    * only there: a start link sent to someone else signs nobody in, nor makes their account join an invitation's
    * organisation. An app's begins in the system browser, so the browser that opens it first is bound now.
    */
@@ -130,19 +126,11 @@ export function authKit(deps: AuthDeps) {
     const bound = forApp ? null : (getCookie(c, FLOW_COOKIE) ?? null);
     const browser = bound ?? newSecret('');
     // A web flow only where it was begun; an app's (the system browser) bound now, the first time it is opened.
-    const flow = bound ? await accounts.signIn.resumeFlow(state, bound) : await accounts.signIn.startFlow(state, browser, !forApp);
+    const flow = bound ? await accounts.signIn.resumeFlow(state, bound) : await accounts.signIn.startFlow(state, browser);
     if (!flow) return signInFailed(c, 'google-failed', forApp);
     cookie(c, FLOW_COOKIE, browser, LOGIN_FLOW.ttlMs / 1000);
     c.header('referrer-policy', 'no-referrer');
     return c.redirect(await google.authorizeUrl({ state, nonce: flow.nonce, verifier: flow.verifier, redirectUri: google.redirectUri(c.req.url) }), 302);
-  }
-
-  /** Binds a web sign-in's new flow to the browser whose page began it (`start`). False when it cannot be bound. */
-  async function bindFlow(c: Context, state: string): Promise<boolean> {
-    const browser = newSecret('');
-    if (!(await accounts.signIn.startFlow(state, browser))) return false;
-    cookie(c, FLOW_COOKIE, browser, LOGIN_FLOW.ttlMs / 1000);
-    return true;
   }
 
   /**
@@ -176,7 +164,7 @@ export function authKit(deps: AuthDeps) {
     }
   };
 
-  return { deps, accounts, google, passkeys, log, tooMany, inBackground, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, bindFlow, target, actor, fresh, mayMakeAdmin };
+  return { deps, accounts, google, passkeys, log, tooMany, inBackground, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor, fresh, mayMakeAdmin };
 }
 
 export type AuthKit = ReturnType<typeof authKit>;

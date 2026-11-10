@@ -7,7 +7,7 @@ import { Miniflare } from 'miniflare';
 import { SyncClient, httpTransport, socketProtocols, type SyncClientOptions, type Transport } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import type { Dump, MutatorCtx, Role } from '@gp/core';
-import { memoryStorage } from '@gp/server';
+import { memoryStorage } from '../src/media.ts';
 import { startNodeServer } from '@gp/server/node';
 
 export type AdapterName = 'node' | 'node-sqlite' | 'workers' | 'remote';

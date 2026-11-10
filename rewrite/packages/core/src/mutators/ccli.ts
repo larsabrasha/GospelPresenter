@@ -1,7 +1,7 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ccliEntries, orgSettings } from '../schema.ts';
-import { id, inRuns, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { id, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // The CCLI report (spec 02 "CCLI", SONG-R48–R53, decided on 2026-10-31): the window that presents
 // counts a song shown for 10 s and records it here, so a session is counted once whatever else
@@ -61,10 +61,9 @@ export const setCcliReportedArgs = z.object({ ids: z.array(z.string().min(1).max
 /** A card's "Rapporterad": marks its entries reported at `at`, or not reported (SONG-A36). */
 export async function setCcliReported(tx: Tx, a: z.output<typeof setCcliReportedArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageCcliReport');
-  for (const ids of inRuns(a.ids)) {
-    await tx
-      .update(ccliEntries)
-      .set({ reportedAt: a.reported ? a.at : null })
-      .where(inArray(ccliEntries.id, ids));
-  }
+  // The ids as one JSON value: a Durable Object binds at most 100 values a statement, and a card may have more.
+  await tx
+    .update(ccliEntries)
+    .set({ reportedAt: a.reported ? a.at : null })
+    .where(sql`${ccliEntries.id} IN (SELECT value FROM json_each(${JSON.stringify(a.ids)}))`);
 }

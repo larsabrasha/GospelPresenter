@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
-import { useBlobUrl, useData, useDb, usePictureUrl } from '../db/react.tsx';
+import { useLocalUrl, useData, useDb, usePictureUrl } from '../db/react.tsx';
 import { listImages } from '../db/images.ts';
 import { t, type TextKey } from '../i18n.ts';
 import { nameFor } from '../media/download.ts';
@@ -18,7 +18,7 @@ import { useToast } from '../ui/Toast.tsx';
  * most 128 px high (Images.razor); a grey box with "Hämtas..." until it has arrived.
  */
 export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'thumbHash' | 'fileName'>; className?: string }) {
-  return <Thumb url={useBlobUrl(image.thumbHash)} name={image.fileName} className={className} />;
+  return <Thumb url={useLocalUrl(image.thumbHash)} name={image.fileName} className={className} />;
 }
 
 /**

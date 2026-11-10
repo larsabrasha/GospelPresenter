@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CustomElement, CustomPage, Theme } from '@gp/core';
-import { useBlobUrl } from '../db/react.tsx';
+import { useLocalUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
 
 // A slideshow's page on the 1920×1080 stage (docs/custom-slides.md): what is not set follows the theme, the text
@@ -9,8 +9,8 @@ import { mainCss } from '../themes.ts';
 
 /** A picture of Bilder: this device's full copy, else its thumbnail; or, on a page with no database, `media`'s URL. */
 function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
-  const full = useBlobUrl(media ? null : hash);
-  const small = useBlobUrl(media || full || thumb === hash ? null : thumb);
+  const full = useLocalUrl(media ? null : hash);
+  const small = useLocalUrl(media || full || thumb === hash ? null : thumb);
   const url = media ? media(hash) : (full ?? small);
   return url ? <img src={url} alt="" draggable={false} style={style} data-element={id} /> : <div style={style} data-element={id} />;
 }

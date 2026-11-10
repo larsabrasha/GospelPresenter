@@ -85,8 +85,12 @@ export function useDbStatus(): DbStatus | undefined {
   return status;
 }
 
-/** The object URL of a stored picture blob, or null while there is none (not synced to this device yet, or no hash). */
-export function useBlobUrl(hash: string | null): string | null {
+/**
+ * A file of this device, never fetched: its object URL, or null while it is not here (not synced to this device yet, or
+ * no hash). For what every device keeps (thumbnails, a presented presentation's files); a file looked at or played
+ * that a device may lack takes `useFetchedUrl` or `usePictureUrl` (the review, 2026-11-09: a preview waited for ever).
+ */
+export function useLocalUrl(hash: string | null): string | null {
   // Held while shown, so it is not let go under the picture; let go a while after.
   useEffect(() => (hash ? holdBlobUrl(hash) : undefined), [hash]);
   // Loaded again only when a file arrives or goes: on a new device every picture missing would ask again on every change.
@@ -94,10 +98,10 @@ export function useBlobUrl(hash: string | null): string | null {
 }
 
 /**
- * A blob of this device, fetched and kept as cache when it is not here yet; null until it is, or if it cannot be had.
+ * A file, fetched now and kept as cache when this device lacks it: undefined while it comes, null if it cannot be had.
  * A null hash fetches nothing (yet).
  */
-export function useOpenedUrl(hash: string | null): string | null | undefined {
+export function useFetchedUrl(hash: string | null): string | null | undefined {
   const db = useDb();
   // Kept with its hash: another file, or none, never shows the one before, whose URL is let go (the review, 2026-11-09).
   const [opened, setOpened] = useState<{ hash: string; url: string | null } | null>(null);
@@ -128,8 +132,8 @@ export function useOpenedUrl(hash: string | null): string | null | undefined {
  * A null `full` shows the thumbnail and fetches nothing, as for a picture far from view.
  */
 export function usePictureUrl(full: string | null, thumb: string): string | null {
-  const opened = useOpenedUrl(full);
-  const small = useBlobUrl(opened ? null : thumb);
+  const opened = useFetchedUrl(full);
+  const small = useLocalUrl(opened ? null : thumb);
   return opened ?? small;
 }
 

@@ -12,10 +12,8 @@ export function clientErrorRoutes(app: Hono, kit: AuthKit) {
     kit.withCaller(null, async (c, caller) => {
       const report = await body(c, clientErrorReportSchema);
       if (!report) return fail(c, 400, 'invalid-request');
-      const key = `client-error:${caller.ctx.userId}`;
-      const locked = await accounts.throttle.lockedUntil([key]);
-      if (locked) return tooMany(c, locked);
-      await accounts.throttle.fail(key, THROTTLE.clientError);
+      const locked = await accounts.throttle.count([`client-error:${caller.ctx.userId}`], THROTTLE.clientError);
+      if (locked) return tooMany(locked);
       log({ event: 'client-error', orgId: caller.orgId, userId: caller.ctx.userId, paired: caller.paired, userAgent: c.req.header('user-agent') ?? null, ...report });
       return c.json({ ok: true });
     }),

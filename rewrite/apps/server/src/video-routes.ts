@@ -185,7 +185,6 @@ export function videoRoutes(resolve: (c: Context) => Promise<{ caller: Caller; o
     if (u instanceof Response) return u;
     const part = Number(c.req.param('part'));
     if (!Number.isInteger(part) || part < 1) return c.json({ error: 'invalid-part' }, 400);
-    if (Number(c.req.header('content-length') ?? 0) > partBytes) return c.json({ error: 'too-large' }, 413);
     const bytes = new Uint8Array(await c.req.arrayBuffer());
     const store = u.org.store;
     const before = await u.org.queue.run(async () => {

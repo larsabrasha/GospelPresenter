@@ -35,7 +35,7 @@ export type Route =
    * naming which. An old link's `?stage=true` is left out: the stage view is gone (Lars, 2026-11-01).
    */
   | { page: 'presentation'; id: string; remote?: boolean; session?: string | null }
-  /** The templates page, under the admin menu (spec 03 screen 3). */
+  /** The templates page (spec 03 screen 3), Mallar in the bar. */
   | { page: 'templates' }
   /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
   | { page: 'template'; id: string }
@@ -64,8 +64,6 @@ export type Route =
   | { page: 'customSlides' }
   | { page: 'customSlide'; id: string }
   | { page: 'displays' }
-  /** Publika utgångar, apart from Skärmar (Lars, 2026-11-02). */
-  | { page: 'publicOutputs' }
   /** A public output (spec 04 §6): anonymous, no database. */
   | { page: 'watch'; code: string }
   /**
@@ -148,7 +146,8 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'reports') return third ? { page: 'report', id: third } : { page: 'reports' };
     if (second === 'themes') return third ? { page: 'theme', id: third } : { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
-    if (second === 'public-outputs') return { page: 'publicOutputs' };
+    // Publika utgångar's page of before (Lars, 2026-11-04: one page for both).
+    if (second === 'public-outputs') return { page: 'displays' };
     if (second === 'settings') return { page: 'orgSettings' };
     if (second === 'about') return { page: 'about' };
     return second ? { page: 'songs' } : { page: 'admin' };
@@ -182,7 +181,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'customSlides', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'customSlides', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'about']);
 
 /** The pages pushed in from a song's page. */
 export const SONG_PAGES = ['songHistory', 'songArrangements', 'songArrangement', 'songMaterials'] as const satisfies Route['page'][];
@@ -269,8 +268,6 @@ export function href(r: Route): string {
       return '/admin/settings';
     case 'ccliReport':
       return '/admin/ccli-report';
-    case 'publicOutputs':
-      return '/admin/public-outputs';
     case 'orgs':
       return '/admin/organizations';
     case 'org':

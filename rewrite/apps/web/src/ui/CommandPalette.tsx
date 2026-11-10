@@ -6,7 +6,7 @@ import { t } from '../i18n.ts';
 import { dateLabel, localToday } from '../pages/dashboard.ts';
 import { searchSettings, settingsGroups } from '../pages/settings/settingsLinks.ts';
 import { AppButton } from './AppButton.tsx';
-import { runCommand, type AppCommand } from './appKeys.ts';
+import { runCommand, SECTIONS, type AppCommand } from './appKeys.ts';
 import { Dialog } from './Dialog.tsx';
 import { LIFTED } from './glass.ts';
 import { CAPTION } from './Group.tsx';
@@ -80,8 +80,6 @@ export function usePaletteTarget(own: PaletteTarget): void {
   }, []);
 }
 
-/** The page each `g` letter goes to, to tell a page of Inställningar a command already offers. */
-const GO_PAGES: Record<string, string> = { p: 'presentations', s: 'songs', b: 'bibles', i: 'images', l: 'audios', v: 'videos', e: 'customSlides' };
 
 /** At most this many of a kind, as Spotlight shows a few of each. */
 const PER_GROUP = 5;
@@ -105,13 +103,7 @@ interface Hit {
 const go = <ChevronRightIcon className="size-4" />;
 /** The commands, each with its keys as the help writes them, so a command found here teaches its key; `desktop` the menu bar's. */
 const COMMANDS: { text: () => string; icon: ReactNode; command: AppCommand; keys: string[]; desktop?: string }[] = [
-  { text: () => t('shortcuts.goPresentations'), icon: go, command: 'go:p', keys: ['g p'], desktop: 'Ctrl+1' },
-  { text: () => t('shortcuts.goSongs'), icon: go, command: 'go:s', keys: ['g s'], desktop: 'Ctrl+2' },
-  { text: () => t('shortcuts.goBibles'), icon: go, command: 'go:b', keys: ['g b'], desktop: 'Ctrl+3' },
-  { text: () => t('shortcuts.goImages'), icon: go, command: 'go:i', keys: ['g i'], desktop: 'Ctrl+4' },
-  { text: () => t('shortcuts.goAudios'), icon: go, command: 'go:l', keys: ['g l'], desktop: 'Ctrl+5' },
-  { text: () => t('shortcuts.goVideos'), icon: go, command: 'go:v', keys: ['g v'], desktop: 'Ctrl+6' },
-  { text: () => t('shortcuts.goSlides'), icon: go, command: 'go:e', keys: ['g e'], desktop: 'Ctrl+7' },
+  ...SECTIONS.map(({ letter, text }, i) => ({ text: () => t(text), icon: go, command: `go:${letter}` as const, keys: [`g ${letter}`], desktop: `Ctrl+${i + 1}` })),
   { text: () => t('songs.new'), icon: <PlusIcon className="size-4" />, command: 'newSong', keys: [] },
   { text: () => t('shortcuts.settings'), icon: <CogIcon className="size-4" />, command: 'settings', keys: [','], desktop: 'Ctrl+,' },
 ];
@@ -184,7 +176,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
         preview: { kind: 'presentation', id: p.id, title: p.name, when: [p.eventDate ? dateLabel(p.eventDate, today, true) : null, p.time].filter(Boolean).join(' · ') || null, place: p.location || null },
       }));
     // A page of Inställningar a command already goes to is not listed twice ("Gå till Videor" and Videor).
-    const goneTo = new Set(commands.flatMap((c) => (c.key.startsWith('c:go:') ? [c.key] : [])).map((k) => GO_PAGES[k.slice(5)]));
+    const goneTo = new Set<string>(commands.flatMap((c) => (c.key.startsWith('c:go:') ? [c.key] : [])).map((k) => SECTIONS.find((s) => s.letter === k.slice(5))?.page ?? ''));
     const settingsHits: Hit[] = searchSettings(settingsGroups(me, host), query, t)
       .filter((l) => !goneTo.has(l.route.page))
       .slice(0, PER_GROUP)

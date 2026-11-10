@@ -281,8 +281,6 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.throttle.lockedUntil(['address:a'])).toBe(0);
     await accounts.throttle.fail('address:a', p);
     expect(await accounts.throttle.lockedUntil(['address:a'])).toBe(0);
-    await accounts.throttle.clear('address:a');
-    expect(await accounts.sql.all('SELECT * FROM auth_throttle')).toEqual([]);
   });
 
   it('a sign-in flow starts once, in one browser, is taken once, and dies after 10 minutes', async () => {

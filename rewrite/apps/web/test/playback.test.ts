@@ -22,6 +22,7 @@ class Hub {
         mine.add(fn);
         return () => mine.delete(fn);
       },
+      presents: () => true,
     };
   }
 }

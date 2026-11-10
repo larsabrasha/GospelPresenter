@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { can } from '../permissions.ts';
 import { audios, customSlides, images, presentationItems, presentations, songs, videos } from '../schema.ts';
 import { TRASH_RETENTION_MS } from '../trash.ts';
-import { inRuns, type MutatorCtx, type Tx } from './base.ts';
+import type { MutatorCtx, Tx } from './base.ts';
 import { deleteSongRows } from './songs.ts';
 
 // ------------------------------------------------------------------ trash
@@ -37,14 +37,10 @@ async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
     [true, 'ManageTemplates'],
   ] as const) {
     if (!can(ctx.role, permission)) continue;
-    const expired = await tx
-      .select({ id: presentations.id })
-      .from(presentations)
-      .where(and(eq(presentations.isTemplate, isTemplate), isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff)));
-    for (const ids of inRuns(expired.map((p) => p.id))) {
-      await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, ids));
-      await tx.delete(presentations).where(inArray(presentations.id, ids));
-    }
+    // A subquery, not a list of ids: a Durable Object binds at most 100 values a statement.
+    const expired = and(eq(presentations.isTemplate, isTemplate), isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff));
+    await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, tx.select({ id: presentations.id }).from(presentations).where(expired)));
+    await tx.delete(presentations).where(expired);
   }
   if (can(ctx.role, 'ManageImages')) {
     await tx.delete(images).where(and(isNotNull(images.deletedAt), lte(images.deletedAt, cutoff)));

@@ -13,11 +13,12 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
-import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
+import { outputRoutes, syncRoutes, type Org } from './app.ts';
+import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
-import { Accounts, migrateGlobal, type GlobalSql } from './global/index.ts';
+import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { logServerErrors } from './server-error.ts';
 import { LIVE_SESSION_CHECK_MS, liveSessionHolds, liveTokenHash } from './live-session.ts';
@@ -315,7 +316,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       '/',
       outputRoutes(kind, async (c, code) => {
         const t = await lookupThrottled(watch, accounts, code, clientAddress(c));
-        if (t && 'lockedUntil' in t) return watchLocked(t.lockedUntil);
+        if (t && 'lockedUntil' in t) return tooManyAttempts(t.lockedUntil, Date.now());
         if (!t) return null;
         const org = openOrg(t.orgId);
         return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: t.displayId, code };

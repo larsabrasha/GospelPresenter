@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { backgroundOf, CANVAS, CLASSIC, slideStyle, textAreaCss, type CustomPage, type Slide, type SlideKind, type Theme } from '@gp/core';
-import { useBlobUrl } from '../db/react.tsx';
+import { useLocalUrl } from '../db/react.tsx';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { CustomPageView } from './CustomPageView.tsx';
 import { FittedText } from './FittedText.tsx';
@@ -37,8 +37,8 @@ type Media = ((hash: string) => string) | undefined;
  * else its thumbnail, which every device has, so looking around shows pictures without fetching them.
  */
 function BlobPicture({ hash, thumb, className, testId }: { hash: string | null; thumb: string | null; className: string; testId?: string }) {
-  const full = useBlobUrl(hash);
-  const small = useBlobUrl(full || !thumb || thumb === hash ? null : thumb);
+  const full = useLocalUrl(hash);
+  const small = useLocalUrl(full || !thumb || thumb === hash ? null : thumb);
   const url = full ?? small;
   return url ? <img className={className} src={url} alt="" data-testid={testId} draggable={false} /> : null;
 }

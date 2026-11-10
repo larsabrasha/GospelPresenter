@@ -38,9 +38,8 @@ export function accountRoutes(app: Hono, kit: AuthKit) {
         return c.json({ changed: true } satisfies ChangeEmailResponse);
       }
       const keys = [`email:${deps.clientAddress(c)}`, `email-to:${a.email}`];
-      const locked = await accounts.throttle.lockedUntil(keys);
-      if (locked) return tooMany(c, locked);
-      for (const k of keys) await accounts.throttle.fail(k, THROTTLE.recover);
+      const locked = await accounts.throttle.count(keys, THROTTLE.recover);
+      if (locked) return tooMany(locked);
       const me = await accounts.members.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
       inBackground(c, async () => {
         const token = await accounts.emails.startConfirm(caller.ctx.userId, a.email);

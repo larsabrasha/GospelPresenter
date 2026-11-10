@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useState, useSyncExternalStore } from 'react
 import { t } from '../i18n.ts';
 import { Dialog } from './Dialog.tsx';
 import { CAPTION, GROUP_ROW } from './Group.tsx';
+import { SECTIONS } from './appKeys.ts';
 import { isMac, isTextEntry } from './shortcuts.ts';
 
 // The keyboard help (KeyboardShortcuts.razor, ShortcutHelpDialog.razor): `?` opens a dialog that lists the
@@ -45,15 +46,8 @@ export function describe(registered: ShortcutGroup[]): ShortcutGroup[] {
 
 /** "Överallt": ui/appKeys.ts's keys; the desktop app's menu bar has ⌘ ones beside them. */
 function globalLines(desktop: boolean): ShortcutLine[] {
-  const go = (letter: string, n: number, text: string): ShortcutLine => ({ keys: [`g ${letter}`, ...(desktop ? [`Ctrl+${n}`] : [])], text });
   return [
-    go('p', 1, t('shortcuts.goPresentations')),
-    go('s', 2, t('shortcuts.goSongs')),
-    go('b', 3, t('shortcuts.goBibles')),
-    go('i', 4, t('shortcuts.goImages')),
-    go('l', 5, t('shortcuts.goAudios')),
-    go('v', 6, t('shortcuts.goVideos')),
-    go('e', 7, t('shortcuts.goSlides')),
+    ...SECTIONS.map(({ letter, text }, i): ShortcutLine => ({ keys: [`g ${letter}`, ...(desktop ? [`Ctrl+${i + 1}`] : [])], text: t(text) })),
     { keys: [',', ...(desktop ? ['Ctrl+,'] : [])], text: t('shortcuts.settings') },
     { keys: ['Ctrl+K'], text: t('shortcuts.palette') },
     { keys: ['/', ...(desktop ? ['Ctrl+F'] : [])], text: t('shortcuts.search') },

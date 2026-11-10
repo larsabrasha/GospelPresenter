@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { can, MEDIA_LIMITS, type LibraryVideo, type Role } from '@gp/core';
-import { useBlobUrl, useData, useDb } from '../db/react.tsx';
+import { useLocalUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { playUrl, useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
@@ -14,7 +14,7 @@ import { formatDuration } from './VideoTab.tsx';
 
 /** A video's still in the grid, as Photos shows one: its length at the bottom right, its size and codec as a tooltip. */
 function Still({ video, small }: { video: LibraryVideo; small?: boolean }) {
-  const url = useBlobUrl(video.thumbHash);
+  const url = useLocalUrl(video.thumbHash);
   return (
     <span
       className="relative block w-full aspect-video rounded-lg bg-stone-200 dark:bg-raised overflow-hidden"

@@ -4,7 +4,7 @@ import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
 import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
-import { useDb, useOpenedUrl, usePictureUrl } from '../../db/react.tsx';
+import { useDb, useFetchedUrl, usePictureUrl } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -24,7 +24,7 @@ import { useToast } from '../../ui/Toast.tsx';
  * does: a device keeps by itself only the files of a presentation presented or kept offline.
  */
 function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; name: string }) {
-  const url = useOpenedUrl(hash);
+  const url = useFetchedUrl(hash);
   if (!url)
     return (
       <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 border-[0.5px] border-separator space-y-3">

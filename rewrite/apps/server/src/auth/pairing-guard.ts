@@ -50,7 +50,7 @@ export function isApiPath(path: string): boolean {
 }
 
 /** Whether a socket address is this machine. */
-export function isLoopback(address: string): boolean {
+function isLoopback(address: string): boolean {
   return address === '::1' || /^(::ffff:)?127\./.test(address);
 }
 

@@ -2,22 +2,28 @@ import { useEffect, useEffectEvent, useRef } from 'react';
 import { navigate, type Route } from './router.ts';
 import { isTextEntry } from './shortcuts.ts';
 import { note } from '../report/trail.ts';
+import type { TextKey } from '../i18n.ts';
 
 // The app's own keys, on every page and in Inställningar (Lars, 2026-11-05: the whole app by the keyboard): `g` and a
 // letter goes to a section ("go to", as Gmail and GitHub have it: `a`, `b` and `n` are a page's own), `,` opens
 // Inställningar, `/` the page's search, and `n` in Inställningar a list's + (the start page has its own `n`). The
 // desktop app's menu bar sends the same as commands (⌘1–⌘7, ⌘,, ⌘F, ⌘N, ⌘[, ⌥⌘P), which a browser keeps for itself.
 
-/** The sections `g` goes to, by their letter. */
-const SECTIONS: Record<string, Route> = {
-  p: { page: 'presentations' },
-  s: { page: 'songs' },
-  b: { page: 'bibles' },
-  i: { page: 'images' },
-  l: { page: 'audios' },
-  v: { page: 'videos' },
-  e: { page: 'customSlides' },
-};
+/**
+ * The sections `g` goes to, in order (the desktop app's menu bar has them as ⌘1–⌘7, apps/desktop/src/menu.ts): the one
+ * list the keys, the command palette and the help of shortcuts all read.
+ */
+export const SECTIONS = [
+  { letter: 'p', page: 'presentations', text: 'shortcuts.goPresentations' },
+  { letter: 's', page: 'songs', text: 'shortcuts.goSongs' },
+  { letter: 'b', page: 'bibles', text: 'shortcuts.goBibles' },
+  { letter: 'i', page: 'images', text: 'shortcuts.goImages' },
+  { letter: 'l', page: 'audios', text: 'shortcuts.goAudios' },
+  { letter: 'v', page: 'videos', text: 'shortcuts.goVideos' },
+  { letter: 'e', page: 'customSlides', text: 'shortcuts.goSlides' },
+] as const satisfies readonly { letter: string; page: Route['page']; text: TextKey }[];
+
+const sectionOf = (letter: string) => SECTIONS.find((s) => s.letter === letter);
 
 /** What a key or a choice in the menu bar does. */
 export type AppCommand = `go:${string}` | 'settings' | 'search' | 'new' | 'newSong' | 'back' | 'start' | 'end' | 'report';
@@ -41,7 +47,8 @@ function visibleIn(selector: string): HTMLElement[] {
 export function runCommand(command: AppCommand): void {
   note('command', command);
   if (command.startsWith('go:')) {
-    const route = SECTIONS[command.slice(3)];
+    const section = sectionOf(command.slice(3));
+    const route = section && ({ page: section.page } as Route);
     if (route) navigate(route);
   } else if (command === 'settings') navigate({ page: 'admin' });
   else if (command === 'search') {
@@ -92,7 +99,7 @@ export function useAppKeys(): void {
     let command: AppCommand | null = null;
     if (waiting.current && e.timeStamp - waiting.current < SEQUENCE_MS) {
       waiting.current = 0;
-      if (SECTIONS[key]) command = `go:${key}`;
+      if (sectionOf(key)) command = `go:${key}`;
       else return;
     } else if (key === 'g') {
       // Not while presenting: a slip of `g` must not turn the live page's B (black) into Biblar.

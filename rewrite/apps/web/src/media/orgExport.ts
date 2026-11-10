@@ -15,6 +15,7 @@ import { api, authHeaders } from '../auth/api.ts';
 import type { DbStatus } from '../db/protocol.ts';
 import type { ReadDb } from '../db/share.ts';
 import { serverUrl } from '../server.ts';
+import { inParallel } from './inParallel.ts';
 import { zipBlob, ZipTooLarge } from './zipBlob.ts';
 
 // The organisation exported as a zip (Inställningar → Organisationen → Exportera; Lars, 2026-11-08), in the format the
@@ -39,8 +40,6 @@ export interface OrgExportProgress {
   total: number;
 }
 
-/** At most this many downloads at a time. */
-const PARALLEL = 4;
 
 /** A file of the server's, as a Blob: a video is held by the browser, on disk where it is large, never in a buffer here. */
 async function download(path: string, row: string): Promise<Blob> {
@@ -95,23 +94,11 @@ export async function exportOrg(db: ExportDb, orgName: string, progress: (p: Org
     ...[...texts].map(([hash, row]) => ({ name: LEGACY_ENTRIES.bible(hash), path: `/api/bibles/${hash}`, row })),
   ];
   const files: { name: string; data: Blob }[] = [];
-  let done = 0;
-  progress({ step: 'files', done, total: wanted.length });
-  const queue = [...wanted];
-  let failed = false;
-  await Promise.all(
-    Array.from({ length: PARALLEL }, async () => {
-      // One failed download stops the others: the export is then made again from the start.
-      for (let w = queue.shift(); w && !failed; w = queue.shift()) {
-        try {
-          files.push({ name: w.name, data: await download(w.path, w.row) });
-        } catch (e) {
-          failed = true;
-          throw e;
-        }
-        progress({ step: 'files', done: ++done, total: wanted.length });
-      }
-    }),
+  progress({ step: 'files', done: 0, total: wanted.length });
+  await inParallel(
+    wanted,
+    async (w) => void files.push({ name: w.name, data: await download(w.path, w.row) }),
+    (done) => progress({ step: 'files', done, total: wanted.length }),
   );
 
   const counts: Record<string, number> = Object.fromEntries(LEGACY_TABLES.map((t) => [t, rows[t].length]));
