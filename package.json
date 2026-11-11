@@ -1,0 +1,27 @@
+{
+  "name": "gospel-presenter",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "oxlint --deny-warnings && node scripts/check-mutator-sql.mjs && node scripts/check-forbidden-classes.mjs && knip --no-progress --treat-config-hints-as-errors",
+    "e2e": "turbo run e2e",
+    "check:quick": "node scripts/check-quick.mjs",
+    "deploy:test": "node scripts/deploy.mjs test",
+    "deploy:apptest": "node scripts/deploy.mjs apptest",
+    "deploy:app": "node scripts/deploy.mjs app",
+    "screenshots": "GP_WEBSITE=\"$PWD/website/src/screenshots\" pnpm --filter @gp/desktop exec playwright test website"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^22.10.0",
+    "knip": "6.42.1",
+    "oxlint": "1.89.0",
+    "turbo": "2.11.10",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

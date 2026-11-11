@@ -83,7 +83,7 @@ All paths cited below are relative to the repository root.
 ### Built-in themes
 (`GospelPresenter/GospelPresenter.Shared/Services/BuiltInThemes.cs:20-178`, names from resx). The rewrite has two,
 Mörkt (`classic`, as below) and Ljust (`light`, the same black on white), and organisations' own themes with an
-editor (Lars, 2026-11-04; `rewrite/docs/themes.md`); the table is the old app's.
+editor (Lars, 2026-11-04; `docs/themes.md`); the table is the old app's.
 
 | Slug (sort) | EN / SV name | Song main text | Bible main text | Credits | Backgrounds |
 |---|---|---|---|---|---|
@@ -626,7 +626,7 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
 ### Themes
 - **THEME-A1** Given an Admin on `/admin/themes` in Swedish, Then the two built-in themes appear first, Mörkt
   (`classic`) and Ljust (`light`), then the organisation's own, and Mörkt is the default when nothing was chosen
-  (the rewrite, Lars 2026-11-04: Midnatt, Dagsljus and Norrsken are gone; `rewrite/docs/themes.md`).
+  (the rewrite, Lars 2026-11-04: Midnatt, Dagsljus and Norrsken are gone; `docs/themes.md`).
 - **THEME-A2** When the admin clicks "Använd som standard" on Ljust, Then it is the default at once, toast
   "Standardtemat sparat", and after reload Ljust is still default.
 - **THEME-A3** Given a presentation without its own theme, When the org default is Ljust, Then its slides render
@@ -676,8 +676,8 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
 - **MEDIA-A15** `PUT /api/sync/media/org/{other org}/images/{id}/full` → 403; empty body → 400.
 - **MEDIA-A17** *(2.0)* A 400 × 400 picture cropped to 16:9 shows as 16:9 in the library and in the presentations
   that use it; Återgå till original shows it square again and takes the choice away; a JPEG stored sideways with
-  EXIF Orientation 6 imports standing (`rewrite/apps/desktop/e2e/image-edit.spec.ts`,
-  `rewrite/apps/server/test/image-edit.test.ts`).
+  EXIF Orientation 6 imports standing (`apps/desktop/e2e/image-edit.spec.ts`,
+  `apps/server/test/image-edit.test.ts`).
 - **MEDIA-A16** Profile picture: choosing a 12 MB JPEG shows "Bilden är för stor (max 10 MB)"; a
   `.bmp` shows "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF."; a valid image opens the
   cropper and saves a 256×256 avatar.

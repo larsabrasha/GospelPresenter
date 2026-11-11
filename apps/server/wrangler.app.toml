@@ -1,0 +1,51 @@
+# Production at app.gospelpresenter.com (docs/cloudflare.md, "app.gospelpresenter.com"): `pnpm deploy:app`.
+# Its own D1 and R2, apart from apptest and gp-test. Until the cutover the address is the C# app's, through a
+# Cloudflare Tunnel: the first deploy fails while that DNS record is there, which keeps a deploy from taking the
+# address by mistake. Sign-in by passkey; Google and mail are set before the cutover. The setup token is a
+# secret (`wrangler secret put SETUP_TOKEN --config wrangler.app.toml`), kept across deploys.
+name = "gp-app"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+workers_dev = false
+preview_urls = false
+
+# The address: a Workers custom domain, which makes its own DNS record and certificate.
+routes = [{ pattern = "app.gospelpresenter.com", custom_domain = true }]
+
+[define]
+GP_TEST_ISSUER = "false"
+
+[vars]
+PASSKEY_RP_ID = "app.gospelpresenter.com"
+PASSKEY_ORIGINS = "https://app.gospelpresenter.com"
+
+# Workers Logs: what the Worker writes (its JSON events, client errors among them) is kept and searchable in the
+# dashboard, under the Worker's Observability (docs/cloudflare.md, "Logs").
+[observability]
+enabled = true
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# headers of web/public/_headers, and an address with no file gets index.html.
+run_worker_first = ["/api/*"]
+html_handling = "none"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-app-global"
+database_id = "d8e58827-03a2-4871-a19f-eed114b78b73"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-app-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

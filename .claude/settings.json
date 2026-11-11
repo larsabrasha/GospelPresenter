@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-rewrite.mjs\" turn-start",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-app.mjs\" turn-start",
             "timeout": 60
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-rewrite.mjs\"",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-app.mjs\"",
             "timeout": 600
           }
         ]

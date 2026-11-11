@@ -1,6 +1,6 @@
 ---
 name: old-app-compare
-description: How to compare the rewrite (rewrite/) with the old Blazor app (the tag v1-final) and make it match — reference worktree, mock mode, pictures old and new with the same names, questions written down. Use when matching or comparing the rewrite's look or behaviour with the old app ("as the old app does", "match the old app", side-by-side pictures).
+description: How to compare the new app (the repository's root) with the old Blazor app (the tag v1-final) and make it match — reference worktree, mock mode, pictures old and new with the same names, questions written down. Use when matching or comparing the rewrite's look or behaviour with the old app ("as the old app does", "match the old app", side-by-side pictures).
 ---
 
 # Comparing the rewrite with the old app
@@ -14,11 +14,11 @@ you were started in; never cd to another one.
    markup, Tailwind classes, texts and behaviour, and take its classes as they are.
 2. **Mock mode.** From its `GospelPresenter/GospelPresenter.Web`:
    `ASPNETCORE_ENVIRONMENT=Development dotnet run --no-launch-profile --urls=http://127.0.0.1:5299`.
-   Pictures of it alone: `node rewrite/scripts/capture-old-app.mjs http://127.0.0.1:5299 <dir> [name,…]`.
+   Pictures of it alone: `node scripts/capture-old-app.mjs http://127.0.0.1:5299 <dir> [name,…]`.
    Never build the MAUI iOS/Android targets. Stop every server you start.
-3. **Pictures, old and new, same names.** `node rewrite/scripts/compare-old-app.mjs <dir> [name,…]` adds the
+3. **Pictures, old and new, same names.** `node scripts/compare-old-app.mjs <dir> [name,…]` adds the
    worktree if missing, runs the old app in mock mode on a free port, writes `<dir>/old` and `<dir>/new` with the
-   same file names, and lists names found on one side only (`rewrite/docs/look.md`, last paragraph). A page with
+   same file names, and lists names found on one side only (`docs/look.md`, last paragraph). A page with
    no counterpart in the old app is taken in the new app only.
 4. **Do not guess.** When the old app does not settle something, or settling it would break another part, a
    spec rule or the sync model, take the smallest choice that keeps today's behaviour and write the question
