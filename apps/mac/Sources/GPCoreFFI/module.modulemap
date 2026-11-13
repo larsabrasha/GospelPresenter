@@ -1,0 +1,5 @@
+module GPCoreFFI {
+    header "gp_core.h"
+    link "gp_core"
+    export *
+}

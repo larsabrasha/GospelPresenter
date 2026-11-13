@@ -1,0 +1,42 @@
+#!/bin/sh
+# Builds the Rust core (WASM for the checks in Node, a static library for apps/mac) and the Mac app.
+#   crates/gp-core/build.sh          build
+#   crates/gp-core/build.sh test     build, then every parity check against the TS core (packages/core)
+#   crates/gp-core/build.sh run      build, then start the Mac app on a fresh copy of the demo data
+set -e
+cd "$(dirname "$0")"
+CRATE=$PWD
+ROOT=$(cd ../.. && pwd)
+OUT=$CRATE/parity/.out
+mkdir -p "$OUT/fixtures"
+
+# The TS core, bundled from packages/core: the reference every check compares with.
+sed "s|@REPO@|$ROOT|g" parity/ts-entry.template.ts > "$OUT/ts-entry.ts"
+ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
+export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
+"$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
+"$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
+
+(cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \
+  && cp target/wasm32-unknown-unknown/release/gp_core.wasm "$OUT/" \
+  && cargo rustc -p gp-core --release --lib --crate-type staticlib --quiet)
+(cd "$ROOT/apps/mac" && swift build -c release 2>&1 | grep -E "error|warning: |Build complete")
+
+case "$1" in
+  test)
+    node --no-warnings parity/diff.mjs 3000 10
+    node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
+    node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
+    node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"
+    mkdir -p "$OUT/native"
+    GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
+    node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"
+    ;;
+  run)
+    RUN=$ROOT/apps/mac/run
+    [ -f "$OUT/fixtures/demo.sqlite" ] || node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
+    mkdir -p "$RUN" && rm -f "$RUN/app.sqlite" "$RUN/app.sqlite-wal" "$RUN/app.sqlite-shm"
+    cp "$OUT/fixtures/demo.sqlite" "$RUN/"
+    GP_MAC_DATA="$RUN" exec "$ROOT/apps/mac/.build/release/GPMac"
+    ;;
+esac

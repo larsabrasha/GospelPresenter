@@ -26,3 +26,9 @@ Thumbs.db
 
 # Local MCP server config — contains API keys
 .mcp.json
+
+# The Rust core's builds and generated checks (crates/gp-core/build.sh), and the Mac app's
+/target/
+crates/gp-core/parity/.out/
+apps/mac/.build/
+apps/mac/run/
