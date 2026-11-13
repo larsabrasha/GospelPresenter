@@ -1,4 +1,4 @@
-import { can, type PresentationItem, type Role } from '@gp/core';
+import { can, presentingKey, slideOrder, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
@@ -176,20 +176,17 @@ export function PresentationEditor({
   useWakeLock(!!owner);
 
   /** Every slide of the running order, in order: what → and ← step through while presenting. */
-  const steps = useMemo(() => (data ? data.items.flatMap((item) => (data.slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex }))) : []), [data]);
-  const step = (delta: number) => {
-    const at = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
-    const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
-    if (next) live.set({ ...next, black: false });
-  };
-  // The blue outline moves a slide from where it is; while presenting, the first press from the slide shown.
-  const pickStep = (delta: number) => {
-    const from = picked ?? (presenting && pointer.itemId ? pointer : null);
-    const at = steps.findIndex((s) => s.itemId === from?.itemId && s.partIndex === from.partIndex);
-    const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
-    if (!next) return;
-    setPicked(next);
-    setSelectedId(next.itemId);
+  const order = useMemo(() => (data ? slideOrder(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
+  // A key's effect is the core's (presentingKey): what is shown goes to the outputs, the outline here, which takes the
+  // selection along.
+  const press = (key: PresentingKey) => {
+    const now = { presenting: !!presenting, shown: { itemId: pointer.itemId, partIndex: pointer.partIndex, black: pointer.black }, picked };
+    const next = presentingKey(order, now, key);
+    if (next.shown !== now.shown) live.set(next.shown);
+    if (next.picked !== now.picked) {
+      setPicked(next.picked);
+      if (next.picked) setSelectedId(next.picked.itemId);
+    }
   };
 
   // "Presentationen har uppdaterats" when another session changed it: its time of change moved while this window wrote nothing.
@@ -223,7 +220,6 @@ export function PresentationEditor({
   const { cueText } = useEditorKeys({
     ticking,
     presenting: !!presenting,
-    live,
     liveItemId,
     items,
     slides: data?.slides,
@@ -232,8 +228,7 @@ export function PresentationEditor({
     picked,
     shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null,
     setPicked,
-    step,
-    pickStep,
+    press,
     start: startable ? start : null,
     onAdd: () => setAdding({ after: null, kind: 'songs' }),
     onRemove: (item) => void removeItem(item),
@@ -347,7 +342,7 @@ export function PresentationEditor({
           ends={!!presenting && !!owner}
           canStart={startable}
           onStart={start}
-          onStep={step}
+          onStep={(delta) => press({ type: 'step', delta })}
           onBlack={() => live.set({ black: true })}
           shown={presenting && current && pointer.itemId ? { slide: current, itemId: pointer.itemId } : null}
           players={presenting}

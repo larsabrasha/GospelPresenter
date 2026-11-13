@@ -1,25 +1,14 @@
 import {
   applyLiveChange,
-  bibleItemSlides,
-  customPageText,
   IDLE,
-  imageItemIds,
-  imageSlide,
   newer,
-  parseBibleContent,
-  songSlides,
+  readItemSlides,
+  type ItemSlides,
   type LivePointer,
-  type Label,
   type LivePointerChange,
   type PresentationItem,
-  type Slide,
-  type Song,
-  type SongArrangement,
-  type SongPart,
-  type LibraryVideo,
+  type SlideSources,
   type LiveVideo,
-  audioSlide,
-  videoSlide,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { newId } from '../ids.ts';
@@ -187,86 +176,21 @@ export class LiveChannel implements PlaybackBus {
   }
 }
 
-export interface ItemSlides {
-  slides: Slide[];
-  /** Why the item has no slides, if it has none. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | 'custom-missing' | null;
-  /** An audio item's file: its one slide, shown, plays it on the presenting computer (Lars, 2026-11-06). */
-  audio?: { hash: string; fileName: string };
-  /** A video item's video: its one slide plays it on the outputs, its sound on the presenting computer. */
-  video?: LibraryVideo;
-}
+/** The database's reads the core's slides take (`SlideSources`). */
+const sourcesOf = (db: ReadDb): SlideSources => ({
+  songData: async (ids) => ({ songs: await songsById(db, ids), parts: await songPartsOf(db, ids), labels: await listLabels(db), arrangements: await arrangementsOf(db, ids) }),
+  audio: (id) => getAudio(db, id),
+  video: (id) => getVideo(db, id),
+  customSlide: (id) => getCustomSlide(db, id),
+  image: (id) => getImage(db, id),
+});
 
-/**
- * The slides of one item. A song item is a reference: its slides come from
- * the current song in the item's arrangement (spec 03). A Bible item carries
- * its own slides, frozen when it was added (BIBLE-R12); a slideshow item
- * names a slideshow of the library, a PDF's pages too (D29).
- */
+/** One item's slides, as the core works them out (`readItemSlides`). */
 export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
-  return (await slidesOfItems(db, [item])).get(item.id)!;
+  return (await readItemSlides(sourcesOf(db), [item])).get(item.id)!;
 }
 
-/** What song items read, for every song of a running order at once. */
-interface SongData {
-  songs: Map<string, Song>;
-  parts: SongPart[];
-  labels: Map<string, Label>;
-  arrangements: SongArrangement[];
-}
-
-/**
- * `slidesOf` for every item of a running order, by item id. The songs are read
- * together, in four queries rather than four an item: a running order of 30
- * songs waited on 120 answers in turn after every change.
- */
+/** Every item's slides of a running order, by item id, as the core works them out. */
 export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
-  const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
-  const songs: SongData | null = songIds.length
-    ? { songs: await songsById(db, songIds), parts: await songPartsOf(db, songIds), labels: await listLabels(db), arrangements: await arrangementsOf(db, songIds) }
-    : null;
-  const out = new Map<string, ItemSlides>();
-  for (const item of items) out.set(item.id, await itemSlides(db, item, songs));
-  return out;
-}
-
-async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData | null): Promise<ItemSlides> {
-  // A heading shows nothing: presenting steps over it (spec 03 2f).
-  if (item.type === 'header') return { slides: [], problem: null };
-  if (item.type === 'bible') {
-    const content = parseBibleContent(item.content);
-    const slides = content ? bibleItemSlides(item.title, content) : [];
-    return { slides, problem: slides.length ? null : 'no-parts' };
-  }
-  if (item.type === 'audio') {
-    const audio = await getAudio(db, item.sourceId);
-    return audio ? { slides: [audioSlide(audio.fileName)], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
-  }
-  if (item.type === 'video') {
-    const video = await getVideo(db, item.sourceId);
-    return video ? { slides: [videoSlide(video)], problem: null, video } : { slides: [], problem: 'video-missing' };
-  }
-  if (item.type === 'custom') {
-    // A reference as a song is: the slide as it is in the library now, a page a slide; trashed, it still shows.
-    const custom = await getCustomSlide(db, item.sourceId);
-    if (!custom) return { slides: [], problem: 'custom-missing' };
-    // A PDF's page is a picture slide too: a public output and a screen show its picture (the gate's SLIDE_PAGES_SQL).
-    const slides = custom.pages.map((page, i): Slide => {
-      const pdf = page.backgroundPage;
-      return { key: `page${i}`, kind: pdf ? 'media' : 'song', image: pdf?.full ?? null, thumb: pdf?.thumb ?? null, text: customPageText(page), verses: null, label: null, credits: null, custom: page };
-    });
-    return { slides, problem: null };
-  }
-  if (item.type === 'image') {
-    // A slide per picture. A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.
-    const ids = imageItemIds(item);
-    const found = await Promise.all(ids.map((id) => getImage(db, id)));
-    const slides = found.flatMap((image, i) => (image ? [imageSlide(image.fullHash, `image${i}`, image.thumbHash)] : []));
-    return slides.length ? { slides, problem: null } : { slides: [], problem: 'image-missing' };
-  }
-  const song = songData?.songs.get(item.sourceId);
-  if (!song) return { slides: [], problem: 'song-missing' };
-  if (song.deletedAt !== null) return { slides: [], problem: 'song-trashed' }; // D17: skipped live
-  const slides = songSlides(song, songData!.parts, songData!.labels, songData!.arrangements, item.arrangementId);
-  return { slides, problem: slides.length ? null : 'no-parts' };
+  return readItemSlides(sourcesOf(db), items);
 }

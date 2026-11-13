@@ -1,8 +1,6 @@
-import { type LivePointer, type Overlay, type PresentationItem, type Slide, type Song, type Theme } from '@gp/core';
+import { slideMarks, slideOrder, type LivePointer, type Overlay, type PresentationItem, type Slide, type SlideMarkKind, type Song, type Theme, type ItemSlides } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
 import { t } from '../../i18n.ts';
-import { slideMarks, type SlideMarkKind } from '../../live/liveList.ts';
-import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
 import { AudioMark, SlideMark } from '../../ui/SlideTile.tsx';
@@ -99,7 +97,7 @@ export function SlideList({
   const picked = pickedShown === undefined ? ownPicked : pickedShown;
   // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next.
   const markTapped = useFollowShown(box, !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
-  const markOf = slideMarks(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 })), pointer);
+  const markOf = slideMarks(slideOrder(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 }))), pointer);
   const show =
     onShow &&
     ((itemId: string, partIndex: number) => {

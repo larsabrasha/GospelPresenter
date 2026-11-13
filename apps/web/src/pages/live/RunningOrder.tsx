@@ -1,8 +1,7 @@
-import type { PresentationItem } from '@gp/core';
+import type { PresentationItem, ItemSlides } from '@gp/core';
 import { useEffect, useRef, useState } from 'react';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
-import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';

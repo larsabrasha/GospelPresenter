@@ -44,24 +44,3 @@ export function itemActions(order: readonly string[], itemId: string, shownId: s
   const at = order.indexOf(itemId);
   return { up: at > 0, down: at !== -1 && at < order.length - 1, remove: itemId !== shownId };
 }
-
-/** How a slide is marked while presenting: shown now, or the one → shows next. */
-export type SlideMarkKind = 'shown' | 'next';
-
-/**
- * The marks of the running order's slides, the same on a computer and a phone (Lars, 2026-11-02): VISAS on the slide
- * shown, NÄSTA on the one → shows next, after Släck too, from the slide last shown (Lars, 2026-11-01).
- */
-export function slideMarks(
-  order: readonly { itemId: string; parts: number }[],
-  pointer: { itemId: string | null; partIndex: number; black: boolean },
-): (itemId: string, partIndex: number) => SlideMarkKind | null {
-  const steps = order.flatMap((o) => Array.from({ length: o.parts }, (_, partIndex) => ({ itemId: o.itemId, partIndex })));
-  const at = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
-  const next = at === -1 ? null : (steps[at + 1] ?? null);
-  return (itemId, partIndex) => {
-    if (!pointer.black && itemId === pointer.itemId && partIndex === pointer.partIndex) return 'shown';
-    if (next && itemId === next.itemId && partIndex === next.partIndex) return 'next';
-    return null;
-  };
-}

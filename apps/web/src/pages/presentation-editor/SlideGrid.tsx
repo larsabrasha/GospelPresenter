@@ -1,9 +1,7 @@
-import type { LivePointer, SongArrangement, Theme } from '@gp/core';
+import type { LivePointer, SongArrangement, Theme, ItemSlides, SlideMarkKind } from '@gp/core';
 import { useShownOverlay } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
-import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import type { SlideMarkKind } from '../../live/liveList.ts';
 import { AudioMark, SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
