@@ -1,7 +1,5 @@
-import type { PresentationItem } from '@gp/core';
+import type { PresentationItem, PresentingKey, ItemSlides } from '@gp/core';
 import { t } from '../../i18n.ts';
-import type { ItemSlides } from '../../live/live.ts';
-import type { LiveControl } from '../../live/remote.ts';
 import { runCommand } from '../../ui/appKeys.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import type { SlidePick } from '../live/SlideList.tsx';
@@ -24,7 +22,6 @@ import { placedSlides, slideAcross } from './slideGridNav.ts';
 export function useEditorKeys(o: {
   ticking: boolean;
   presenting: boolean;
-  live: LiveControl;
   liveItemId: string | null;
   items: PresentationItem[];
   slides: Map<string, ItemSlides> | undefined;
@@ -35,9 +32,8 @@ export function useEditorKeys(o: {
   /** The slide shown while presenting, where the outline starts from. */
   shown: SlidePick | null;
   setPicked: (p: SlidePick | null) => void;
-  /** Steps what is shown, or the outline, by a slide through the running order. */
-  step: (delta: number) => void;
-  pickStep: (delta: number) => void;
+  /** A key's effect on what is shown and on the outline, as the core works it out (`presentingKey`). */
+  press: (key: PresentingKey) => void;
   /** Starta presentation, when it may start. */
   start: (() => void) | null;
   onAdd: () => void;
@@ -46,7 +42,7 @@ export function useEditorKeys(o: {
   /** Scrolls the slides to an item, as a click on its row does. */
   onReveal: (itemId: string) => void;
 }): { cueText: string | null } {
-  const { presenting, live, liveItemId, items, slides, selected, picked } = o;
+  const { presenting, liveItemId, items, slides, selected, picked } = o;
   const typing = useTypedNumber();
   const count = (itemId: string) => slides?.get(itemId)?.slides.length ?? 0;
   const title = (itemId: string) => items.find((i) => i.id === itemId)?.title ?? '';
@@ -55,7 +51,7 @@ export function useEditorKeys(o: {
     const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
     const arrow = (delta: number) => {
       typing.clear();
-      o.pickStep(delta);
+      o.press({ type: 'pick', delta });
     };
     // ↑ ↓ a row as the slides stand; where they stand in one column (a phone), the same as ← →.
     const row = (dir: 1 | -1) => {
@@ -67,8 +63,8 @@ export function useEditorKeys(o: {
       o.setPicked({ itemId, partIndex: Number(part) });
       o.setSelectedId(itemId);
     };
-    const clicker = (delta: number) => (presenting ? o.step(delta) : o.pickStep(delta));
-    const black = () => live.set({ black: true });
+    const clicker = (delta: number) => o.press({ type: presenting ? 'step' : 'pick', delta });
+    const black = () => o.press({ type: 'black' });
     const keys: Record<string, () => void> = {
       ArrowRight: () => arrow(1),
       ArrowLeft: () => arrow(-1),
@@ -130,17 +126,14 @@ export function useEditorKeys(o: {
       if (itemId && at >= 0 && at < count(itemId)) o.setPicked({ itemId, partIndex: at });
     } else if (e.key === 'Escape' && typing.typed) typing.clear();
     else if (e.key === 'Escape' && presenting && picked) {
-      o.setPicked(null);
+      o.press({ type: 'escape' });
       if (liveItemId) o.setSelectedId(liveItemId);
     } else if (e.key === 'Enter' && presenting && (picked || typing.typed || onPage(e.target))) {
       // A slide made ready, or a number, take the ↵ wherever the focus is; else only on the page, a row or a slide, so
       // any other focused button keeps its ↵. A number with no such slide shows nothing; with none made ready, the next.
       typing.clear();
       if (typing.typed && !(picked && Number(typing.typed) - 1 === picked.partIndex)) return void e.preventDefault();
-      if (picked) {
-        live.set({ ...picked, black: false });
-        o.setPicked(null);
-      } else o.step(1);
+      o.press({ type: 'enter' });
     } else return;
     e.preventDefault();
   });

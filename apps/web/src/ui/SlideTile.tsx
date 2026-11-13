@@ -1,7 +1,7 @@
 import type { Slide } from '@gp/core';
 import { t } from '../i18n.ts';
 import { SpeakerWaveIcon } from './icons.tsx';
-import type { SlideMarkKind } from '../live/liveList.ts';
+import type { SlideMarkKind } from '@gp/core';
 
 // A slide in a grid, as the current app draws one (Components/Slide.razor):
 // rounded, with a thin dark edge at the top and a thick outline that marks
@@ -24,7 +24,7 @@ export function tileClass({ selected, live, rested, interactive = true }: { sele
   return `${BASE} cursor-pointer ${mark}`;
 }
 
-/** VISAS or NÄSTA on a slide while presenting (live/liveList.ts `slideMarks`), on a computer's tile and a phone's row. */
+/** VISAS or NÄSTA on a slide while presenting (`slideMarks` in packages/core), on a computer's tile and a phone's row. */
 export function SlideMark({ kind, className }: { kind: SlideMarkKind; className?: string }) {
   return (
     <span

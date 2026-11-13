@@ -1,10 +1,9 @@
-import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type CustomPage, type Song, type SongArrangement, type Theme } from '@gp/core';
+import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type CustomPage, type Song, type SongArrangement, type Theme, type ItemSlides } from '@gp/core';
 import { Children, useRef, useState, type ReactNode } from 'react';
 import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { addAfter } from '../../../live/liveList.ts';
-import type { ItemSlides } from '../../../live/live.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';

@@ -64,7 +64,7 @@ The numbers move by 20 % or more from run to run; the second keystroke, "he", ju
   300 more per task, each step a transition that any other update goes ahead of, so the running order and the
   keyboard are not held up by 3 000 new rows (300 ms in one go). Each row is drawn again only when it changes.
   The whole list takes longer to be complete than before; what is on the screen is there sooner.
-- **A running order's slides** are read with four queries for all its songs (`slidesOfItems`), not four for
+- **A running order's slides** are read with four queries for all its songs (`readItemSlides` in packages/core), not four for
   each song in turn: after every change, a presentation of 30 songs waited on 120 answers.
 - **The song library reloads only when the songs change** (`useSongSearch`; `SyncClient.onChange` gives the
   tables a transaction wrote). Every other page reloads on every change, as before: cheap now that the worker

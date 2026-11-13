@@ -8,6 +8,8 @@ export * from './sync-sql.ts';
 export * from './serial-queue.ts';
 export * from './slides.ts';
 export * from './live.ts';
+export * from './presenting.ts';
+export * from './item-slides.ts';
 export * from './trash.ts';
 export * from './search.ts';
 export * from './accounts.ts';

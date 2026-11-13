@@ -1,4 +1,4 @@
-import type { LibraryVideo, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
+import type { LibraryVideo, Overlay, PresentationItem, Song, SongArrangement, Theme, ItemSlides } from '@gp/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
@@ -6,7 +6,6 @@ import type { VideoControl } from '../../live/video.ts';
 import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
 import { useDb, useFetchedUrl, usePictureUrl } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
-import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
