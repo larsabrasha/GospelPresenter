@@ -105,6 +105,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [not-done-yet.md](docs/not-done-yet.md) | The smaller gaps, per area |
 | [bug-reports.md](docs/bug-reports.md) | "Rapportera fel": what a report carries and never carries, the steps before it, Felrapporter for the SuperAdmin, and the thread with the one who reported |
 | [assumptions.md](docs/assumptions.md) | Where the spec and ADR 0007 leave a choice open, the choice made, per milestone |
+| [rust-core.md](docs/rust-core.md) | The Rust core on its branch: why, the reference it is proved against, where it runs, its interface, the loop function by function and view by view, and where it stands |
 
 ### Next steps
 

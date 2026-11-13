@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Rust core in the browser</title>
+<script type="module">
+  // The runs, each in its own worker, one after the other; `?runs=` may name others (JSON: engine, opfs, pragmas).
+  const asked = new URLSearchParams(location.search).get('runs');
+  const runs = asked ? JSON.parse(asked) : [false, true].flatMap((opfs) => ['rust', 'ts'].map((engine) => ({ engine, opfs })));
+  for (const run of runs) {
+    const box = document.body.appendChild(document.createElement('pre'));
+    box.textContent = `${run.engine} ${run.opfs ? 'opfs' : 'memory'} ${(run.pragmas ?? []).join('; ')}: running…\n`;
+    await new Promise((resolve) => {
+      const worker = new Worker('./worker.js', { type: 'module' });
+      worker.onmessage = ({ data }) => {
+        if (data === 'done') return resolve(worker.terminate());
+        box.textContent += `${data}\n`;
+      };
+      worker.postMessage(run);
+    });
+  }
+  document.title = 'done';
+</script>

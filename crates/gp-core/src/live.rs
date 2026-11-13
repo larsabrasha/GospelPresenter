@@ -1,5 +1,5 @@
-// Presenting (apps/web: PresentationEditor's `step` and `pickStep`, useEditorKeys, liveList's `slideMarks`), as a
-// reducer: the shell sends what it holds and what was pressed, and shows what comes back.
+// Presenting (packages/core's presentingKey and slideMarks, presenting.ts), as a reducer: the shell sends what it
+// holds and what was pressed, and shows what comes back.
 //
 // `pointer` is what the outputs show ({itemId, partIndex, black}); `picked` the slide made ready, outlined in blue,
 // which ↵ shows. Before presenting the same keys move `picked` and nothing is shown.
@@ -38,9 +38,9 @@ pub async fn run(a: &Obj) -> R<Value> {
     let delta = action.get("delta").and_then(Value::as_i64).unwrap_or(1);
     let mut presenting_now = presenting;
     match action.get("type").and_then(Value::as_str).unwrap_or("") {
-        // Space, PageDown/PageUp, a clicker: steps what is shown; before presenting, the outline.
-        "step" if presenting => if let Some(n) = from(&pointer, delta) { pointer = Some(n); black = false },
-        "step" | "pick" => {
+        // Space, PageDown/PageUp, a clicker: steps what is shown (a shell sends `pick` before presenting, as the web).
+        "step" => if let Some(n) = from(&pointer, delta) { pointer = Some(n); black = false },
+        "pick" => {
             let start = if picked.is_some() { picked.clone() } else if presenting { pointer.clone() } else { None };
             if let Some(n) = from(&start, delta) { picked = Some(n) }
         }
@@ -50,7 +50,7 @@ pub async fn run(a: &Obj) -> R<Value> {
             None => if let Some(n) = from(&pointer, 1) { pointer = Some(n); black = false },
         },
         "black" if presenting => black = true,
-        "escape" => { picked = None }
+        "escape" if presenting => { picked = None }
         // A slide clicked: shown at once while presenting; else made ready.
         "show" => {
             let target = at_of(&action).filter(|t| order.contains(t));

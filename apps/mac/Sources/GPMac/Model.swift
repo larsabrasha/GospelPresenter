@@ -15,6 +15,8 @@ struct Slide: Decodable, Hashable, Identifiable {
 struct Arrangement: Decodable, Identifiable, Hashable { let id: String, name: String? }
 struct ItemView: Decodable, Identifiable, Hashable {
     let id: String, type: String, title: String, note: String?, slides: [Slide], arrangementId: String?, arrangements: [Arrangement]
+    /** Why the item has no slides, if it has none: a song in the trash, a file gone. */
+    let problem: String?
 }
 struct TrashRow: Decodable, Identifiable, Hashable { let id: String, name: String, deletedAt: Int }
 struct PresentationView: Decodable {

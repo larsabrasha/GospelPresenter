@@ -31,6 +31,17 @@ case "$1" in
     mkdir -p "$OUT/native"
     GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
     node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"
+    node --no-warnings parity/workerd-check.mjs "$ROOT" "$OUT/fixtures"
+    # The browser: a Web Worker over wa-sqlite, in memory and on OPFS, in Chromium (a hidden Electron) and WebKit.
+    mkdir -p "$OUT/browser"
+    NODE_PATH=$ROOT/apps/web/node_modules:$ROOT/packages/sync/node_modules:$ROOT/packages/core/node_modules "$ESBUILD" parity/browser/worker.js \
+      --bundle --format=esm --platform=browser --outfile="$OUT/browser/worker.js" --log-level=warning \
+      --alias:gp-wa-sqlite-api="$ROOT/packages/sync/src/client/wa-sqlite-api.ts" --alias:gp-org-schema="$ROOT/packages/core/src/org-schema.ts" \
+      --alias:gp-mutators="$ROOT/packages/core/src/mutators/registry.ts" --alias:gp-schema="$ROOT/packages/core/src/schema.ts"
+    WA=$(cd "$ROOT/apps/web" && node -p "require('path').join(require('path').dirname(require.resolve('@journeyapps/wa-sqlite')), '..', 'dist', 'wa-sqlite.wasm')")
+    cp parity/browser/index.html "$OUT/gp_core.wasm" "$OUT/fixtures/parity.jsonl" "$OUT/fixtures/parity-final.json" "$WA" "$OUT/browser/"
+    node --no-warnings parity/browser-check.mjs "$ROOT" chromium | grep -E "core|DIFF|error"
+    node --no-warnings parity/browser-check.mjs "$ROOT" webkit | grep -E "core|DIFF|error"
     ;;
   run)
     RUN=$ROOT/apps/mac/run

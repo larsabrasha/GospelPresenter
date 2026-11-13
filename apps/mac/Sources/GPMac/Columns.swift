@@ -235,7 +235,8 @@ struct SlidesColumn: View {
             case .rightArrow, .downArrow: model.live(["type": "pick", "delta": 1])
             case .leftArrow, .upArrow: model.live(["type": "pick", "delta": -1])
             case .return: model.live(["type": "enter"])
-            case .space: model.live(["type": "step", "delta": 1])
+            // Space steps what is shown while presenting, else the outline, as the web's clicker keys do.
+            case .space: model.live(["type": model.presenting ? "step" : "pick", "delta": 1])
             case .escape: model.live(["type": "escape"])
             default: model.live(["type": "black"])
             }

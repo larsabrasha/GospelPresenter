@@ -1,8 +1,9 @@
 // Builds demo.sqlite for the Mac app: the presentations of apptest's list, the running order of its first one, songs
-// with made-up text (no real lyrics), and checks that the Rust core's slides are the TS core's (songSlides, bibleItemSlides).
+// with made-up text (no real lyrics), and checks that the Rust core's slides are the TS core's (readItemSlides).
 import { rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { migrateOrgSchemaSync, labelSeedSql, songSlides, bibleItemSlides } from './.out/ts-core.mjs';
+import { migrateOrgSchemaSync, labelSeedSql } from './.out/ts-core.mjs';
+import { canon, tsSlides } from './sources.mjs';
 import { viewRust } from './diff.mjs';
 
 const out = process.argv[2];
@@ -38,7 +39,9 @@ const titles = ['Tusen skäl', 'Jag går på livets väg', 'His Mercy is More', 
 const songId = (t) => `song-${titles.indexOf(t)}`;
 titles.forEach((name, i) => {
   const id = `song-${i}`;
-  db.prepare('INSERT INTO songs (id, name, author) VALUES (?, ?, ?)').run(id, name, i % 3 ? null : 'Okänd');
+  // Credits of every kind: an author, a publisher, a year, none; the last song in the trash.
+  db.prepare('INSERT INTO songs (id, name, author, publisher, year, deleted_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, name, i % 3 ? null : 'Okänd', i % 4 === 1 ? 'Förlaget' : null, i % 5 === 2 ? 1980 + i : null, i === titles.length - 1 ? 1000 : null);
   const parts = [['Verse 1', 4], ['Verse 2', 4], ['Verse 3', 4], ['Chorus', 6], ...(i % 4 === 0 ? [['Bridge', 3]] : [])];
   parts.forEach(([label, n], k) =>
     db.prepare('INSERT INTO song_parts (id, song_id, sort, label_id, content) VALUES (?, ?, ?, ?, ?)').run(`${id}-p${k}`, id, k, labelId[label], lines(n)));
@@ -56,8 +59,18 @@ function presentation(id, name, date, time, location, description, items) {
     .run(id, name, date, time, location, description, updated--);
   items.forEach(([type, title, extra = {}], sort) =>
     db.prepare('INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort, arrangement_id, content) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(`${id}-i${sort}`, id, type, title, type === 'song' ? songId(title) : `${id}-src${sort}`, sort, extra.arrangement ?? null, extra.content ?? null));
+      .run(`${id}-i${sort}`, id, type, title, extra.source ?? (type === 'song' ? songId(title) : `${id}-src${sort}`), sort, extra.arrangement ?? null, extra.content ?? null));
 }
+
+// The library's media, by made-up hashes: a video, a sound, a picture, and a slideshow page with two texts.
+db.prepare(`INSERT INTO videos (id, file_name, content_type, codec, hash, size, duration, width, height, still_hash, thumb_hash, created_at, deleted_at)
+  VALUES ('vid-1', 'FOREVERGREEN.mp4', 'video/mp4', 'h264', 'h-video', 1000, 60, 1920, 1080, 'h-still', 'h-vthumb', 0, NULL)`).run();
+db.prepare(`INSERT INTO audios (id, file_name, content_type, hash, size, created_at, deleted_at) VALUES ('aud-1', 'Äventyret - Jesusparty.mp3', 'audio/mpeg', 'h-audio', 100, 0, NULL)`).run();
+db.prepare(`INSERT INTO images (id, file_name, content_type, full_hash, thumb_hash, width, height, created_at) VALUES ('img-1', 'swish.jpg', 'image/jpeg', 'h-full', 'h-thumb', 800, 600, 0)`).run();
+const text = (id, y, x, t) => ({ id, x, y, w: 800, h: 100, kind: 'text', text: t, size: 60, bold: true, italic: false, align: 'center', color: '#ffffff' });
+const page = { background: '#000000', backgroundPicture: null, backgroundPage: null, elements: [text('b', 500, 10, ' Swisha till 123 456 '), text('a', 100, 10, 'Kollekt'), text('c', 300, 10, '   ')] };
+db.prepare(`INSERT INTO custom_slides (id, name, pages, created_at, updated_at, deleted_at) VALUES ('cs-1', 'Kollekt', ?, 0, 0, NULL)`).run(JSON.stringify([page]));
+db.prepare(`INSERT INTO custom_slides (id, name, pages, created_at, updated_at, deleted_at) VALUES ('cs-bad', 'Trasig', 'not json', 0, 0, NULL)`).run();
 
 const bible = (title, first, n) => ['bible', title, {
   content: JSON.stringify({ translation: 'Demo', slides: Array.from({ length: n }, (_, s) => [0, 1].map((k) => ({ n: k === 0 || s % 2 ? first + s * 2 + k : null, t: lines(2).replace('\n', ' ') + '.' }))) }),
@@ -67,8 +80,8 @@ const song = (t) => ['song', t];
 presentation('pres-main', 'Presentation', '2026-11-08', '11:00', null,
   '* Simon välkomnar\n• Tusen skäl\n• Livets väg\n• Frågor för barn\n• Film och Jesusparty\n• Kollekt med Swish', [
     ['header', 'Simon välkomnar'], song('Tusen skäl'), song('Jag går på livets väg'), ['header', 'Frågor för barn'],
-    ['video', 'FOREVERGREEN — Academy Award Nominated Short Film'], ['audio', 'Äventyret - Jesusparty'],
-    ['header', 'Barnen erbjuds lämna till söndagsskolan'], ['image', 'swish.jpg'], song('His Mercy is More'), song('Så stor är vår Gud'),
+    ['video', 'FOREVERGREEN — Academy Award Nominated Short Film', { source: 'vid-1' }], ['audio', 'Äventyret - Jesusparty', { source: 'aud-1' }],
+    ['header', 'Barnen erbjuds lämna till söndagsskolan'], ['image', 'swish.jpg', { source: 'img-1', content: JSON.stringify({ images: ['gone-img', 'img-1'] }) }], song('His Mercy is More'), song('Så stor är vår Gud'),
     song('I din famn'), song('Bara Du'), song('Vilken vän jag fann'), song('Välsignelsen (bön)'), song('Brustna kärl'),
   ]);
 
@@ -83,6 +96,13 @@ list.forEach(([name, date, time, location, n], p) => {
   const items = [];
   for (let k = 0; k < n; k++) {
     if (k === 0) items.push(['header', 'Välkommen']);
+    // The rest of what an item can be, in the first two: a slideshow, a broken one, a song in the trash, files gone.
+    else if (p === 0 && k === 1) items.push(['custom', 'Kollekt', { source: 'cs-1' }]);
+    else if (p === 0 && k === 2) items.push(['custom', 'Trasig', { source: 'cs-bad' }]);
+    else if (p === 1 && k === 1) items.push(song(titles.at(-1)));
+    else if (p === 1 && k === 2) items.push(['audio', 'Borta', { source: 'gone' }]);
+    else if (p === 1 && k === 4) items.push(['video', 'Borta', { source: 'gone' }]);
+    else if (p === 1 && k === 5) items.push(['image', 'Borta', { source: 'gone' }]);
     else if (k === 3) items.push(bible(pick(['Johannes 3:16–21', 'Psaltaren 23', 'Matteus 5:1–12', 'Romarbrevet 8:28–39']), 1 + k, 2 + (p % 3)));
     else if (k === Math.floor(n / 2)) items.push(['header', 'Predikan']);
     else items.push(song(pick(titles)));
@@ -93,28 +113,20 @@ list.forEach(([name, date, time, location, n], p) => {
 // ---------------------------------------------------------------- the Rust core's slides against the TS core's
 
 const all = (s) => db.prepare(s).all();
-const songs = new Map(all('SELECT * FROM songs').map((s) => [s.id, s]));
-const parts = all('SELECT id, song_id AS songId, sort, label_id AS labelId, content FROM song_parts');
-const arrangements = all('SELECT id, song_id AS songId, name, part_ids AS partIds, sort FROM song_arrangements');
-const labels = new Map(all('SELECT * FROM labels').map((l) => [l.id, l]));
 let checked = 0, differ = 0;
 for (const { id } of all('SELECT id FROM presentations')) {
   const view = await viewRust(db, 'presentationView', { id });
-  const items = all(`SELECT * FROM presentation_items WHERE presentation_id = '${id}' ORDER BY sort, id`);
-  items.forEach((item, k) => {
-    const ts =
-      item.type === 'song' ? songSlides(songs.get(item.source_id), parts, labels, arrangements, item.arrangement_id)
-      : item.type === 'bible' ? bibleItemSlides(item.title, JSON.parse(item.content))
-      : item.type === 'header' ? [] : null;
-    if (!ts) return;
-    const want = JSON.stringify(ts.map((s) => [s.key, s.text, s.label ? [s.label.text, s.label.color] : null]));
-    const got = JSON.stringify(view.items[k].slides.map((s) => [s.key, s.text, s.label ? [s.label.text, s.label.color] : null]));
+  const ts = await tsSlides(db, id);
+  ts.items.forEach((item, k) => {
+    const want = canon(ts.slides.get(item.id));
+    const { slides, problem, audio, video } = view.items[k];
+    const got = canon({ slides, problem, audio, video });
     checked++;
-    if (want !== got) { differ++; if (differ < 4) console.log(`DIFF ${item.title}\n  TS   ${want.slice(0, 300)}\n  Rust ${got.slice(0, 300)}`); }
+    if (want !== got) { differ++; if (differ < 4) console.log(`DIFF ${item.type} ${item.title}\n  TS   ${want.slice(0, 400)}\n  Rust ${got.slice(0, 400)}`); }
   });
 }
 console.log(`slides: ${checked} items compared, ${differ} different`);
 
 rmSync(`${out}/demo.sqlite`, { force: true });
 db.exec(`VACUUM INTO '${out}/demo.sqlite'`);
-console.log(`demo.sqlite: ${all('SELECT count(*) n FROM presentations')[0].n} presentations, ${songs.size} songs, ${all('SELECT count(*) n FROM presentation_items')[0].n} items`);
+console.log(`demo.sqlite: ${all('SELECT count(*) n FROM presentations')[0].n} presentations, ${all('SELECT count(*) n FROM songs')[0].n} songs, ${all('SELECT count(*) n FROM presentation_items')[0].n} items`);

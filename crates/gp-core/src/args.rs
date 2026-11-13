@@ -7,7 +7,7 @@ pub type R<T> = Result<T, String>;
 fn bad<T>() -> R<T> { Err("invalid-args".into()) }
 
 /** String.prototype.trim: its white space is not Rust's (it takes U+FEFF, and leaves U+0085). */
-fn js_trim(s: &str) -> &str {
+pub fn js_trim(s: &str) -> &str {
     let ws = |c: char| matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}');
     s.trim_matches(ws)
 }

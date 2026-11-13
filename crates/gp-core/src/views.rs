@@ -32,43 +32,6 @@ async fn presentations() -> Value {
     })).collect())
 }
 
-/// `parsePartIds`: an arrangement's part ids; anything else reads as empty.
-fn part_ids(text: &str) -> Vec<String> {
-    match serde_json::from_str::<Value>(text) {
-        Ok(Value::Array(a)) => a.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
-        _ => vec![],
-    }
-}
-
-/// `songSlides`: one slide per arranged part (SONG-R18, R19), a repeated part keyed `id#n`.
-async fn song_slides(song_id: &str, item_arrangement: Option<String>, labels: &HashMap<String, Value>) -> Vec<Value> {
-    let mut parts = sql("SELECT id, sort, label_id, content FROM song_parts WHERE song_id = ?", vec![json!(song_id)]).await;
-    parts.sort_by(|a, b| a[1].as_i64().cmp(&b[1].as_i64()).then(s(&a[0]).cmp(&s(&b[0]))));
-    let mut arrangements = sql("SELECT id, part_ids, sort FROM song_arrangements WHERE song_id = ?", vec![json!(song_id)]).await;
-    arrangements.sort_by(|a, b| a[2].as_i64().cmp(&b[2].as_i64()).then(s(&a[0]).cmp(&s(&b[0]))));
-    let wanted = item_arrangement.or_else(|| arrangements.first().map(|a| s(&a[0])));
-    let arranged: Vec<&Vec<Value>> = match wanted.and_then(|w| arrangements.iter().find(|a| s(&a[0]) == w)) {
-        None => parts.iter().collect(),
-        Some(arr) => part_ids(&s(&arr[1])).iter().filter_map(|pid| parts.iter().find(|p| s(&p[0]) == *pid)).collect(),
-    };
-    let mut seen: HashMap<String, usize> = HashMap::new();
-    arranged.into_iter().map(|p| {
-        let pid = s(&p[0]);
-        let n = seen.entry(pid.clone()).or_insert(0);
-        let key = if *n == 0 { pid.clone() } else { format!("{pid}#{n}") };
-        *n += 1;
-        json!({ "key": key, "kind": "song", "text": p[3], "label": p[2].as_str().and_then(|l| labels.get(l)).cloned() })
-    }).collect()
-}
-
-/// A song item's slides: none for a song that is gone or in the trash (D17: skipped live).
-async fn song_item_slides(song_id: &str, arrangement: Option<String>, labels: &HashMap<String, Value>) -> Vec<Value> {
-    match sql("SELECT deleted_at FROM songs WHERE id = ?", vec![json!(song_id)]).await.into_iter().next() {
-        Some(r) if r[0].is_null() => song_slides(song_id, arrangement, labels).await,
-        _ => vec![],
-    }
-}
-
 /// The presentations in the trash, last trashed first.
 async fn trash() -> Value {
     Value::Array(sql("SELECT id, name, deleted_at FROM presentations WHERE deleted_at IS NOT NULL AND is_template = 0 ORDER BY deleted_at DESC, name", vec![]).await
@@ -81,19 +44,6 @@ pub async fn steps(pid: &str) -> R<Vec<(String, usize)>> {
     Ok(view["items"].as_array().unwrap().iter().map(|i| (s(&i["id"]), i["slides"].as_array().map_or(0, |a| a.len()))).collect())
 }
 
-/// `bibleItemSlides`: the frozen slides, each run with its verse number if it starts a verse.
-fn bible_slides(content: &str) -> Vec<Value> {
-    let c: Value = serde_json::from_str(content).unwrap_or(Value::Null);
-    let slides = c["slides"].as_array().cloned().unwrap_or_default();
-    slides.iter().enumerate().map(|(i, slide)| {
-        let text: Vec<String> = slide.as_array().map(|runs| runs.iter().map(|r| {
-            let t = s(&r["t"]);
-            match r["n"].as_i64() { None => t, Some(n) if t.is_empty() => n.to_string(), Some(n) => format!("{n} {t}") }
-        }).collect()).unwrap_or_default();
-        json!({ "key": format!("b{i}"), "kind": "bible", "text": text.join(" "), "label": null })
-    }).collect()
-}
-
 /// A presentation's details, and its items in order, each with its slides.
 pub async fn presentation(pid: &str) -> R<Value> {
     let p = sql("SELECT name, event_date, time, location, description FROM presentations WHERE id = ?", vec![json!(pid)]).await
@@ -104,17 +54,17 @@ pub async fn presentation(pid: &str) -> R<Value> {
     let mut items = Vec::new();
     for r in rows {
         let kind = s(&r[1]);
-        let slides = match kind.as_str() {
-            "song" => song_item_slides(&s(&r[3]), r[4].as_str().map(String::from), &labels).await,
-            "bible" => bible_slides(&s(&r[5])),
-            "header" => vec![],
-            _ => vec![json!({ "key": kind, "kind": "media", "text": r[2], "label": null })],
-        };
+        let item = crate::slides::Item { kind: kind.clone(), title: s(&r[2]), source_id: s(&r[3]), arrangement_id: r[4].as_str().map(String::from), content: r[5].as_str().map(String::from) };
+        let mut shown = crate::slides::item_slides(&item, &labels).await;
         let arrangements = if kind == "song" {
             sql("SELECT id, name FROM song_arrangements WHERE song_id = ? ORDER BY sort, id", vec![r[3].clone()]).await
                 .into_iter().map(|a| json!({ "id": a[0], "name": a[1] })).collect()
         } else { vec![] };
-        items.push(json!({ "id": r[0], "type": kind, "title": r[2], "note": r[6], "slides": slides, "arrangementId": r[4], "arrangements": arrangements }));
+        let entry = shown.as_object_mut().unwrap();
+        for (k, v) in [("id", r[0].clone()), ("type", json!(kind)), ("title", r[2].clone()), ("note", r[6].clone()), ("arrangementId", r[4].clone()), ("arrangements", Value::Array(arrangements))] {
+            entry.insert(k.into(), v);
+        }
+        items.push(shown);
     }
     Ok(json!({ "id": pid, "name": p[0], "eventDate": p[1], "time": p[2], "location": p[3], "description": p[4], "items": items }))
 }
