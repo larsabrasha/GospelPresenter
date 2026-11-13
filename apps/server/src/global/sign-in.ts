@@ -1,0 +1,238 @@
+// Sign-in with Google, and using a reset link or an invitation with a Google account or a new passkey.
+import type { AuthError } from '@gp/core';
+import { newRowId, newSecret, sha256 } from '../crypto.ts';
+import type { GoogleIdentity } from '../google.ts';
+import type { NewPasskey } from '../webauthn.ts';
+import type { EmailService } from './emails.ts';
+import type { InvitationService } from './invitations.ts';
+import type { GlobalSql } from './sql.ts';
+
+/** A sign-in that left for Google, as the callback finds it. */
+export interface LoginFlow {
+  nonce: string;
+  verifier: string;
+  inviteHash: string | null;
+  deviceName: string;
+  /** Set when a desktop app gets the token through its callback scheme; null for this browser. */
+  callbackScheme: string | null;
+  /** Set when the flow links the Google account to this user's session rather than signing in. */
+  link: { userId: string; sessionId: string } | null;
+}
+
+/** How long a sign-in may take from start to callback, and the most one address may have open. */
+export const LOGIN_FLOW = { ttlMs: 10 * 60_000, perAddress: 20 } as const;
+
+/** A login to link: a Google account, or a passkey that registration verified. */
+export type NewLogin = { provider: 'google'; subject: string; name: string | null } | { provider: 'passkey'; passkey: NewPasskey; name: string };
+
+export function loginValues(l: NewLogin): [provider: string, subject: string, name: string | null, publicKey: string | null, signCount: number | null, transports: string | null] {
+  return l.provider === 'google'
+    ? ['google', l.subject, l.name, null, null, null]
+    : ['passkey', l.passkey.id, l.name, l.passkey.publicKey, l.passkey.signCount, JSON.stringify(l.passkey.transports)];
+}
+
+/** Sign-in with Google, and accepting invites. */
+export class SignInService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+    private readonly invitations: InvitationService,
+    private readonly emails: EmailService,
+  ) {}
+
+  /**
+   * A sign-in about to leave for Google. Its `state` is the returned secret;
+   * only its hash is kept. At most LOGIN_FLOW.perAddress unfinished per address,
+   * so a stranger cannot fill the table; old ones are swept here.
+   */
+  async createFlow(a: {
+    address: string;
+    inviteToken: string | null;
+    deviceName: string;
+    callbackScheme: string | null;
+    link?: { userId: string; sessionId: string };
+    /** A page's own sign-in: bound to its browser now, so it goes on only there (`claimFlow`). */
+    browser?: string;
+  }): Promise<string | 'limit'> {
+    const state = newSecret('');
+    const now = this.now();
+    const [, inserted] = await this.sql.batch([
+      ['DELETE FROM login_flows WHERE expires_at < ?', [now - 24 * 60 * 60_000]],
+      [
+        `INSERT INTO login_flows (state_hash, address, nonce, verifier, invite_hash, device_name, callback_scheme, created_at, expires_at,
+           link_user_id, link_session_id, browser_hash)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE (SELECT count(*) FROM login_flows WHERE address = ? AND used_at IS NULL AND expires_at > ?) < ?`,
+        [
+          await sha256(state),
+          a.address,
+          newSecret(''),
+          newSecret(''), // the PKCE verifier: 43 characters of [A-Za-z0-9_-], as RFC 7636 asks
+          a.inviteToken ? await sha256(a.inviteToken) : null,
+          a.deviceName.slice(0, 200) || 'App',
+          a.callbackScheme,
+          now,
+          now + LOGIN_FLOW.ttlMs,
+          a.link?.userId ?? null,
+          a.link?.sessionId ?? null,
+          a.browser ? await sha256(a.browser) : null,
+          a.address,
+          now,
+          LOGIN_FLOW.perAddress,
+        ],
+      ],
+    ]);
+    return inserted === 1 ? state : 'limit';
+  }
+
+  /**
+   * The flow `state` names, for `browser` (its hash of a secret in that browser's cookie), with what the authorization
+   * request needs: one no browser has yet (an app's, begun in the app) is bound to it now; one already bound (a page's
+   * own, bound when it began) only for that browser. Null for another browser, a used or an expired flow.
+   */
+  async claimFlow(state: string, browser: string): Promise<{ nonce: string; verifier: string } | null> {
+    const b = await sha256(browser);
+    const [r] = await this.sql.all(
+      `UPDATE login_flows SET browser_hash = coalesce(browser_hash, ?)
+       WHERE state_hash = ? AND (browser_hash IS NULL OR browser_hash = ?) AND used_at IS NULL AND expires_at > ?
+       RETURNING nonce, verifier`,
+      [b, await sha256(state), b, this.now()],
+    );
+    return r ? { nonce: String(r.nonce), verifier: String(r.verifier) } : null;
+  }
+
+  /**
+   * The callback's flow: the one `state` names, in the browser that started
+   * it, not expired, and not used before. Taking it uses it, so a replayed
+   * callback finds nothing.
+   */
+  async takeFlow(state: string, browser: string): Promise<LoginFlow | null> {
+    const hash = await sha256(state);
+    const now = this.now();
+    const n = await this.sql.run('UPDATE login_flows SET used_at = ? WHERE state_hash = ? AND browser_hash = ? AND used_at IS NULL AND expires_at > ?', [
+      now,
+      hash,
+      await sha256(browser),
+      now,
+    ]);
+    if (n !== 1) return null;
+    const [r] = await this.sql.all('SELECT nonce, verifier, invite_hash, device_name, callback_scheme, link_user_id, link_session_id FROM login_flows WHERE state_hash = ?', [
+      hash,
+    ]);
+    if (!r) return null;
+    return {
+      nonce: String(r.nonce),
+      verifier: String(r.verifier),
+      inviteHash: (r.invite_hash as string | null) ?? null,
+      deviceName: String(r.device_name),
+      callbackScheme: (r.callback_scheme as string | null) ?? null,
+      link: r.link_user_id === null ? null : { userId: String(r.link_user_id), sessionId: String(r.link_session_id) },
+    };
+  }
+
+  /** After a web sign-in: who signed in, waiting for the page to collect it with `handoff` (a secret in its cookie). */
+  async setHandoff(state: string, handoff: string, userId: string, orgId: string): Promise<void> {
+    await this.sql.run('UPDATE login_flows SET handoff_hash = ?, user_id = ?, org_id = ? WHERE state_hash = ?', [await sha256(handoff), userId, orgId, await sha256(state)]);
+  }
+
+  /** Collects a web sign-in, once, before its flow expires. */
+  async takeHandoff(handoff: string): Promise<{ userId: string; orgId: string } | null> {
+    const hash = await sha256(handoff);
+    const now = this.now();
+    const [r] = await this.sql.all('SELECT state_hash, user_id, org_id FROM login_flows WHERE handoff_hash = ? AND expires_at > ?', [hash, now]);
+    if (!r || r.user_id === null) return null;
+    const n = await this.sql.run('UPDATE login_flows SET handoff_hash = NULL WHERE state_hash = ? AND handoff_hash = ?', [r.state_hash, hash]);
+    return n === 1 ? { userId: String(r.user_id), orgId: String(r.org_id) } : null;
+  }
+
+  /**
+   * Who a verified Google identity signs in as (spec 01 callback rules). Without a link: the user its `sub` is linked
+   * to, else a new account from an invitation a 1.x import made for that `sub`, else no one (AUTH-R4: no
+   * self-registration, and never a match by email). With a reset link: its user, whose logins this one replaces
+   * (`acceptInvite`). With an invitation: the account the `sub` is linked to gains the membership, or a new account is
+   * made. Google vouches for its address each time (`EmailService.vouch`).
+   */
+  async signInWithGoogle(id: GoogleIdentity, inviteHash: string | null): Promise<{ userId: string; orgId: string } | AuthError> {
+    const login: NewLogin = { provider: 'google', subject: id.sub, name: id.email };
+    const [linked] = await this.sql.all("SELECT user_id FROM user_logins WHERE provider = 'google' AND subject = ?", [id.sub]);
+    let who: { userId: string; orgId: string } | AuthError;
+    if (inviteHash && (await this.isReset(inviteHash))) who = await this.acceptInvite(inviteHash, login);
+    else if (inviteHash) {
+      who = linked
+        ? await this.invitations.accept(inviteHash, String(linked.user_id))
+        : await this.invitations.createAccount(inviteHash, { name: id.name, login, googleEmail: id.email });
+    } else if (linked) {
+      await this.sql.run("UPDATE user_logins SET last_used_at = ? WHERE provider = 'google' AND subject = ?", [this.now(), id.sub]);
+      who = await this.signedInAs(String(linked.user_id));
+    } else {
+      const [imported] = await this.invitations.forGoogle(id.sub);
+      if (!imported) return 'not-linked';
+      who = await this.invitations.createAccount(imported, { name: id.name, login, googleEmail: id.email });
+    }
+    if (typeof who !== 'string') await this.emails.vouch(who.userId, id.email);
+    return who;
+  }
+
+  /** Whether a link's hash is a reset link (an `invites` row) rather than an invitation. */
+  async isReset(inviteHash: string): Promise<boolean> {
+    return (await this.sql.all('SELECT 1 FROM invites WHERE token_hash = ?', [inviteHash])).length > 0;
+  }
+
+  /**
+   * The organisation a user signs in to: the one they last switched to while they are still a member there, else
+   * their first by name (spec 01 switcher, initial pick).
+   */
+  async signedInAs(userId: string): Promise<{ userId: string; orgId: string } | 'not-a-member'> {
+    const [last] = await this.sql.all(
+      `SELECT o.id FROM users u JOIN orgs o ON o.id = u.last_org_id
+       WHERE u.id = ? AND EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = u.id AND m.org_id = o.id)`,
+      [userId],
+    );
+    if (last) return { userId, orgId: String(last.id) };
+    const [first] = await this.sql.all('SELECT o.id FROM memberships m JOIN orgs o ON o.id = m.org_id WHERE m.user_id = ? ORDER BY o.name COLLATE NOCASE, o.id LIMIT 1', [userId]);
+    return first ? { userId, orgId: String(first.id) } : 'not-a-member';
+  }
+
+  /**
+   * Uses a reset link with `login`, a Google account or a new passkey. It replaces every login the user had and
+   * revokes their sessions: whoever held the old passkey or Google account is out. Only setup, "Glömt hur du loggar
+   * in?" (to a confirmed address) and a Superadmin make one, and on a desktop host an Admin for someone whose only
+   * membership is the host's (docs/accounts-and-roles.md). A login already linked to another user is refused (spec 01
+   * E4 says otherwise; docs/assumptions.md). The link is used in the same batch, so it is spent only by a link that
+   * succeeds.
+   */
+  async acceptInvite(inviteHash: string, login: NewLogin): Promise<{ userId: string; orgId: string } | AuthError> {
+    const now = this.now();
+    const [inv] = await this.sql.all(
+      `SELECT i.user_id, i.expires_at, i.used_at FROM invites i JOIN memberships m ON m.user_id = i.user_id AND m.org_id = i.org_id
+       WHERE i.token_hash = ?`,
+      [inviteHash],
+    );
+    if (!inv || inv.used_at !== null) return 'invite-invalid';
+    if (Number(inv.expires_at) <= now) return 'invite-expired';
+    const userId = String(inv.user_id);
+    const [provider, subject, name, publicKey, signCount, transports] = loginValues(login);
+    const [linked] = await this.sql.all('SELECT user_id FROM user_logins WHERE provider = ? AND subject = ?', [provider, subject]);
+    if (linked && String(linked.user_id) !== userId) return 'login-taken';
+    const nonce = newRowId();
+    const used = `(SELECT user_id FROM invites WHERE token_hash = ? AND use_nonce = ?)`;
+    let claimed: number | undefined;
+    try {
+      [claimed] = await this.sql.batch([
+        [`UPDATE invites SET used_at = ?, use_nonce = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`, [now, nonce, inviteHash, now]],
+        [`DELETE FROM user_logins WHERE user_id = ${used}`, [inviteHash, nonce]],
+        [
+          `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at, name, public_key, sign_count, transports)
+           SELECT ?, ?, user_id, ?, ?, ?, ?, ?, ? FROM invites WHERE token_hash = ? AND use_nonce = ?`,
+          [provider, subject, now, now, name, publicKey, signCount, transports, inviteHash, nonce],
+        ],
+        [`UPDATE sessions SET revoked_at = ? WHERE user_id = ${used} AND revoked_at IS NULL`, [now, inviteHash, nonce]],
+      ]);
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e))) return 'login-taken'; // linked to someone else meanwhile; the batch rolled back
+      throw e;
+    }
+    if (claimed !== 1) return 'invite-invalid';
+    return this.signedInAs(userId);
+  }
+}

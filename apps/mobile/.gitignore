@@ -1,0 +1,2 @@
+# The web bundle (build.mjs); ios/.gitignore keeps its copy in the iOS project out
+www/

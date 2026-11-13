@@ -1,0 +1,50 @@
+# The test environment at the church's own address (docs/cloudflare.md, "apptest.gospelpresenter.com"):
+# `wrangler deploy --config wrangler.apptest.toml` after `pnpm build`. Its own D1 and R2, apart from gp-test.
+# Sign-in by passkey only for now: no Google client, no mail. The setup token is a secret
+# (`wrangler secret put SETUP_TOKEN --config wrangler.apptest.toml`), kept across deploys.
+name = "gp-apptest"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+workers_dev = false
+preview_urls = false
+
+# The address: a Workers custom domain, which makes its own DNS record and certificate.
+routes = [{ pattern = "apptest.gospelpresenter.com", custom_domain = true }]
+
+[define]
+GP_TEST_ISSUER = "false"
+
+[vars]
+PASSKEY_RP_ID = "apptest.gospelpresenter.com"
+PASSKEY_ORIGINS = "https://apptest.gospelpresenter.com"
+
+# Workers Logs: what the Worker writes (its JSON events, client errors among them) is kept and searchable in the
+# dashboard, under the Worker's Observability (docs/cloudflare.md, "Logs").
+[observability]
+enabled = true
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# headers of web/public/_headers, and an address with no file gets index.html.
+run_worker_first = ["/api/*"]
+html_handling = "none"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-apptest-global"
+database_id = "e31e60c0-006f-4c00-9144-029d3ec5e2ba"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-apptest-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

@@ -1,0 +1,7 @@
+{
+  "name": "@spike/core",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "drizzle-orm": "0.45.4" }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@gp/architecture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  }
+}

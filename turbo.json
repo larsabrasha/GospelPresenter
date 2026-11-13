@@ -1,0 +1,44 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ],
+      "env": [
+        "GP_COMMIT",
+        "GP_RELEASE"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "^typecheck"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "^typecheck"
+      ],
+      "env": [
+        "GP_LEGACY_PG",
+        "GP_REAL_BIBLE_ZIP",
+        "SYNC_ADAPTERS",
+        "SYNC_REMOTE_URL"
+      ]
+    },
+    "e2e": {
+      "dependsOn": [
+        "build",
+        "^build"
+      ],
+      "cache": false,
+      "passThroughEnv": [
+        "GP_E2E_WORKERS",
+        "GP_E2E_VISIBLE"
+      ]
+    }
+  }
+}

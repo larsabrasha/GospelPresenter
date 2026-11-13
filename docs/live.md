@@ -1,0 +1,270 @@
+# Live: overlays, paired screens, remote control and public outputs
+
+## Overlays
+
+A page of texts, pictures and shapes shown above the live slide (spec 03 §4, spec 04 LIVE-R15), made as a custom
+slide's page is ([custom-slides.md](custom-slides.md)), with no background. An overlay is a synced row in `overlays`
+(title, the page as JSON in `content`, `sort` in the order of creation, `updated_at`), and an item names the one it
+carries in `presentation_items.overlay_id`. Everyone may make, change and delete them (ManageOverlays is every
+role's, as in spec 01), at most 200. Överlägg (`/admin/overlays`) is a library (`ui/Library.tsx`): a grid of the
+overlays, each drawn above an empty slide of the organisation's theme, sorted by last changed, newest or name; a
+tap opens the custom slides' editor with its one page, + names a new one and opens it. Radera, in an overlay's
+menu (held or right-clicked) or for several under Välj, asks first and is permanent (no trash). Deleting one leaves
+no item carrying it. The overlays of before schema 19 (a text and a picture) were dropped (Lars, 2026-11-04).
+
+**During live.** The live pointer carries `overlayId`, so the overlay travels with the slide in the same message
+and every output draws its page above the slide, in the presentation's theme (`SlideView`). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on. The rules are one pure function, `applyLiveChange` in
+`packages/core/src/live.ts`, which the presenting window runs for its own clicks and for a controller's commands:
+
+- An item that carries an overlay switches it on when it goes live and off when it leaves, if it is still the one
+  shown. The overlay shows on every slide of the item (per item, not per slide; decided 2026-10-27).
+- A manual toggle lasts until the item changes: switched off, it stays off on the item's other slides; going back
+  to the item switches it on again. An overlay chosen by hand that is not the left item's own stays when the item
+  is left (Lars's choice, 2026-10-27).
+- "Svart skärm" and stopping switch the overlay off (a change from LIVE-R16, TODO.md 2026-10-27). Back from
+  black on the same item, it stays off, as after a manual off.
+- Switching an overlay on while black ends the black screen, as selecting a slide does (LIVE-R11).
+- The black screen fades in and out over 500 ms on the outputs, the paired screens and the live preview, as
+  `LiveDisplay.razor`: a black cover above the slide and the overlay (`black` on `SlideView`). The old app kept the
+  overlay under the cover; here black switches it off, so the slide and the overlay of the moment before stay
+  under the cover while it fades in, then go. Tested in `e2e/overlays.spec.ts` (the cover's opacity, duration
+  and z-index), not frame by frame.
+
+A controller sends `overlayId` only when it toggles; its slide commands leave the overlay to the presenting
+window. A public output gets the overlay's texts with the slide, top to bottom, centred near the top (spec 04 §6),
+but not its pictures or shapes. The editor has an Overlay choice for the selected item, draws the overlay on the item's tiles, and the
+running order and the live page name the overlay an item carries.
+
+**Files.** Every overlay's pictures are fetched with the presentation's files: ahead on a device that keeps its
+data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
+finns på den här enheten" counts them.
+
+## Where audio and video play
+
+The primary output plays them (Lars, 2026-11-07; `apps/web/src/live/playback.ts`): the first output window opened
+that is still open, on the presenting computer. Its video element carries picture and sound, so they are in step on
+the screen the room sees, and it stays on its page while it plays, so nothing the operator does moves it: no page
+change, no reload of the presenting window. Audio items play there too, so all sound comes from one place. With no
+output window open, the presenting window plays them, in elements of its own off the page, and plays on whichever
+page is open. Paired screens and public outputs never play sound.
+
+The presenting window decides, over the live channel (`Playback`; the output's side `OutputPlayback`). An output
+window says hello when it opens and every second after, and bye when it closes; one not heard from for 4 s has
+closed. When the first output opens, the presenting window stops its player and hands over where the audio and video
+were; the output plays on from there, follows the live pointer itself, reports its player's state on every change,
+and takes play, pause, seek and fade as commands relayed by the presenting window. When the primary closes, the next
+output opened takes over from its last report; with none, the presenting window does after 1.5 s, so an output that
+reloads takes over again without the presenting window playing meanwhile. A presenting window that starts asks which
+outputs are open and waits 0.8 s for their answer: one that reloaded finds the output still playing and leaves it be.
+The playback (`Player`, `apps/web/src/live/player.ts`) is the same in either window: a video item shown plays from
+its start, an audio item shown too, anything else stops them, black pauses them. The handover keeps the position and
+whether it played; a fade in progress is not handed over. The desktop app lets its windows play sound untouched
+(`autoplayPolicy`). A browser that holds the sound back until a tap in that window (Safari, and a browser's popup
+nobody has clicked) gets "Tryck för att starta uppspelningen" over the output; the tap plays it, and lets the element
+buffering the next video play later too.
+
+**A browser that can place screens** (Chrome and Edge, the Window Management API; Lars, 2026-11-07, for an Apple TV
+used as a display through AirPlay, or a projector): Utgångar has "Välj skärm" on the output window's row until the user
+answers Chrome's question, then a row for each screen but the presenting window's, named as the system names it, which
+opens the output over the whole of that screen, as the desktop app's (`browserHost`, `apps/web/src/live/outputWindow.ts`).
+Refused, or in Safari and Firefox, the one output window stays, which the user moves; full screen still takes a click
+in it. The old app used the Presentation API instead (Chrome's picker of displays), whose page showed what the server
+sent; the rewrite's output reads the presenting window's database on the same machine, which a presentation's page,
+in a session of its own, likely cannot (not tried). Tested in `apps/web/test/outputWindow.test.ts`; not tried in a
+Chrome with two screens.
+
+**Ljud** under Utgångar (Lars, 2026-11-07, for AirPlay; `apps/web/src/live/soundOutput.ts`, `pages/live/SoundOutputRow.tsx`)
+sends the sound to a device of the computer's, as an Apple TV used as a display through AirPlay or a projector's HDMI,
+in whichever window plays it (`setSinkId`), kept for the computer. Only where the devices can be named and chosen
+(the desktop app; not Safari, nor a browser that hides their names), with more than one. On an iPad the phone app's
+AirPlay screen is the primary output, and iOS sends its sound with its picture (docs/phone-app.md "AirPlay").
+
+Tested in `apps/web/test/playback.test.ts` (who plays: none, the first output, the next, back to the presenting
+window after the grace, an output that reloads, one gone quiet, a presenting window that reloads; commands to the
+primary; its state moved on), and in the e2e specs below.
+
+## Video on the outputs
+
+A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the primary output plays
+it from its start (`VideoEngine`, `apps/web/src/live/video.ts`), with its sound (above). Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Släck) pauses it, picture and
+sound, and showing the picture again resumes it where it was; a video paused by hand stays paused (Lars,
+2026-10-31). A presenting window that reloads with no output open resumes it where it was, from the state it kept
+beside the pointer in the tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting
+window (`video` messages, relayed like audio commands), which passes them on to the window that plays, and mirrors
+what it reports (`RemoteVideo`). The player (`VideoPlayer`) under the item's slide on
+the live page has play, pause, a seek bar and the time. When the item before
+a video item goes live, a second element buffers the video, and the other output windows buffer it too, so it starts at
+once.
+
+**Other output windows, and the presenting window's live picture,** play the picture, muted, in an element of their
+own over the still (`FollowingVideo`), streamed with its own token: the picture follows the video, under the overlay
+and the black screen as on an output. The presenting window posts on the live channel, beside the
+pointer, which video plays, whether it plays, its position and the moment (`Date.now()`, a clock both windows
+share), on every play, pause, seek, stall and end, and the next video to buffer. Four times a second the output
+works out where the video should be and plays up to 5 % faster or slower to get within 0.04 s, or seeks when it is
+more than 0.3 s off (`follow`). After a seek while playing it waits until its clock moves (at most 3 s), and its
+next seek aims ahead by how far behind the last one came out (`keepInStep`): in Safari on an iPad a seek stands still
+for about half a second, so the output seeked anew at every check and its picture stood still (Lars, 2026-11-06). A
+browser that will not start the video untouched (Safari on an iPad refuses even a muted one, NotAllowedError, in a window
+nobody has tapped; Lars, 2026-11-07) gets "Tryck för att starta uppspelningen" over it: the tap plays it, and it
+follows from there; the live picture has its controls there instead, and shows the still. An earlier build put the
+playing element itself in the live picture: moving it in and out of the page made its sound stutter on an iPad (Lars,
+2026-11-07), which is why the element that plays now stays on the output's page.
+
+**A paired screen** gets the same state in its canvas (`canvas.slide.video`: hash, type, codec, playing, position,
+`at`), streams the video itself, muted, from `/api/screen/{id}/video/{hash}` or `/api/display/{code}/video/{hash}`
+(Range, `no-store`), and follows it the same way. The hub stamps `at` with the server's clock when the report
+arrives, and every canvas event carries the server's time (`now`), so a TV whose clock is wrong still knows where
+to be. Its stream answers only for the video on its canvas, and only if it is the video of an item in the
+presentation the session shows, as for a picture (LIVE-R32). A screen whose browser cannot play the codec
+(`canPlayType`; HEVC in most browsers off Apple and Windows' hardware) shows the still. **A public output**
+(`/watch`) shows the still only, served as a picture of the presentation; it never streams the video.
+
+Tested in `apps/server/test/video.test.ts` (three adapters: the stamped moment, the screen's video route, the still
+to a public output and no video), `apps/web/test/video.test.ts` (`follow`, `expectedPosition`) and
+`apps/desktop/e2e/video.spec.ts` (the output window plays it with its sound, the next video buffers, the live picture
+follows muted, a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still
+there while the output plays it; black pauses and resumes it; a reload of the presenting window and leaving the
+presentation leave the output playing; a controller plays, pauses and moves it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
+the sound and the output's picture stay on a real projector is not measured.
+
+## Paired screens
+
+A TV or a PC in the church opens `/display` at the server, the cloud's or the desktop host's, and shows a
+session (spec 04 §5). It signs in to nothing and is no paired device; on a desktop host `/api/display/` and
+`/api/screen` answer it like `/api/watch/`. Spec 04 has paired screens on the web host only (LIVE-R52); Lars
+chose on 2026-10-27 to have them on the desktop host too, so a TV on the church's LAN works without the
+internet. A screen draws the projector's canvas, as the output window does (`SlideView`, spec 04 §5 "same
+rendering as `/live`"), and like every output never shows an error or reconnection screen (LIVE-R33). Two kinds:
+
+- **A saved screen** is a row in `displays` of kind `screen` (organisation schema 9, no new column; an older
+  app must update first, since it would list it as a public output). An admin adds it under Fasta utgångar
+  ("Lägg till"), and the TV opens its link, `/display?id={code}&name={name}`, as a QR code or text. Its code
+  is in the global index with the public outputs' (`watch_codes`), but each answers at its own path only. It is
+  online while its page has a stream open (`/api/display/{code}/stream`); the live hub sends every socket which
+  outputs are online, so Fasta utgångar shows Online or Offline and Utgångar can switch it on only then (LIVE-A21). A
+  page that closes switches it off (LIVE-R24, LIVE-A20), once it has not come back for 15 s
+  (`SCREEN_GRACE_MS`): a TV whose Wi-Fi blinks reconnects within that and stays on, and Lars chose on
+  2026-10-27 that a blink should not count as a closed page. Unbound, it shows its name.
+- **A temporary screen** is paired for one session. `/display` asks `POST /api/screen` for a code: four digits
+  in [1000, 9998], unique among live codes, good for 10 minutes and single use (LIVE-R28), and asks again every
+  3 s until paired, getting a new code once the old one has run out. Its id is 32 random bytes, kept in the
+  tab (`sessionStorage`), and is its only credential (ADR 0007 decision 5). Since an unpaired screen belongs to
+  no organisation, it lives in the global tables (`screens`, `screen_tokens`, global schema 6), and a stream is
+  found by its id at `/api/screen/{id}/stream`. "Anslut tillfällig utgång" under Utgångar pairs it, by the four
+  digits typed into four boxes (`POST /api/live/screens/claim`; a wrong code counts against the address with
+  the setup token and device pairing codes), or by a QR code of `/display?token={token}`: 32 random bytes,
+  single use, 10 minutes, renewed every 8 minutes while the dialog is open and dropped when it closes. The TV
+  that opens it is paired at once and its address becomes `/display`; the dialog learns which screen used the
+  token by asking every 2 s. Either way the screen is switched on, as "Tillfällig skärm (n)". ✕, or the end of
+  the session, lets it go: the TV gets `unpaired` and shows a new code. A screen nobody pairs is forgotten after
+  a day. Making screens counts against the address too (30 in 15 minutes), so one machine cannot fill the table.
+
+The other QR codes: a public output's (Visa QR-kod, with "Ladda ner som bild": `qr-{code}.png`, 24 pixels per
+module, error correction M), remote control's on the live page, and device pairing's under Enheter (on the
+LAN), whose code rides in the fragment, `/#pair={code}`, so no server sees it; the pairing page fills its form
+from it and takes it out of the address. They are drawn in the page with `uqr` (no service sees a link), and
+built against the host's LAN address on a desktop host.
+
+**What a screen gets.** It has no database, so the owner reports, beside the public slide, the canvas
+(`canvasSchema` in `live-protocol.ts`): the slide as data (a custom slide's with its page), the theme's id, and the
+overlay's page, each page with the hashes of its pictures and cut to 20 KiB of JSON (`CANVAS_PAGE_MAX`, the
+elements drawn last going first), so a report stays under its limit; null is black. The hub sends a screen `canvas` events and a public output `slide` events as before, so `/watch`
+gets nothing new. A screen is bound to the session by an operator, as the projector is, so it gets what the
+projector draws; what that adds to the public slide is the pages (a custom slide's, the overlay's) and "nothing
+selected". Its pictures come through its own path (`/api/screen/{id}/image/{hash}`,
+`/api/display/{code}/image/{hash}`): the slide's under the public output's rule (LIVE-R32), a custom slide's page's
+if its canvas draws it and a custom slide of the presentation has it, and the overlay's only while that overlay is
+the one the session's pointer has on and its page has that picture (LIVE-R34; `live-output-gate.ts`). An owner of
+an older build sends no canvas: its screens draw the public slide on the canvas, without the overlay. A screen that is bound draws black while the
+session is black, rather than waiting with its name, as `Display.razor`. So does a saved screen whose session
+ended (the hub sends it a null canvas, not `idle`): the old app kept the pairing when the presentation stopped.
+It shows its name again once switched off, or when its page is opened anew. The live socket has no version number:
+the field is optional, as every field added before it, and the largest report is now 192 KiB, as it carries the
+slide twice.
+
+Tested in `apps/server/test/screens.test.ts` (three adapters: code, QR token, single use, letting go, a saved
+screen online and off, another organisation; the canvas to a screen and the public slide to `/watch` from the
+same session, an older owner, black, the overlay's picture to a screen and never to `/watch`, and a custom slide's
+picture only if the slide is in the presentation) and
+`apps/desktop/e2e/screens.spec.ts` (LIVE-A17 to A21, a TV played by Playwright's Chromium; the canvas, its theme,
+black, and a picture item's picture); the QR codes in `watch.spec.ts`, `remote.spec.ts` and, through `pair()`,
+`https.spec.ts`.
+
+## Remote control
+
+Every window that presents owns its session and drives its own outputs from its own state; only the
+selection travels (ADR 0004, ADR 0007 decision 4). This holds for a browser as for the desktop app: there is
+no server-side slide and no second kind of session. Each operator window keeps one WebSocket to
+`/api/live/socket` (`apps/web/src/live/remote.ts`), reconnecting after 0, 2, 5, 10 s and then every 30 s
+(LIVE-R51). Over it the owner reports its whole state on connect, on every reconnect and on every change
+(LIVE-R47): presentation, device name, "Tillåt fjärrstyrning" and the pointer. Every member's window gets the
+organisation's sessions as they change. A controller sends an absolute command (item, part, black); the server
+forwards it to the owner's socket only, never queued (LIVE-R48), and refuses it while remote control is off or
+the owner is gone. Whether it is off is the organisation's policy first (`org_settings` row `remoteControl`:
+"Aldrig", "Presentatören väljer", the default, or "Alltid"), and the window's toggle only under "Presentatören
+väljer"; the sessions everyone gets carry that result. The owner applies it if it still makes sense (presenting, item exists, not already showing;
+LIVE-R49), whichever page is open (`apps/web/src/live/owner.ts`), and its next report is what everyone sees.
+A controller's own click shows at once; if the owner has not confirmed it within 2 s, it warns once.
+
+**On the server** (`apps/server/src/live-hub.ts`) the same code runs in process on Node and in the
+organisation's Durable Object. Sessions are rows in a server-only table, `live_sessions`, and which socket owns
+which session is kept on the socket (a hibernatable socket's attachment), so a Durable Object may hibernate
+between messages. Every hub call runs in the organisation's queue, so a live write never lands inside a
+mutation's transaction. Only the user who first reported a session id may report it again. A lost owner
+freezes the session (LIVE-R50): it stays, cannot be driven, and anyone in the organisation may then end it
+("Avsluta presentationen"); after 2 hours without its owner, or 4 hours without a report from it (LIVE-R42),
+it is ended when the sessions are next read. A screen whose session has not changed slide for 4 hours is let go
+(LIVE-R43, `docs/assumptions.md`).
+Starting and controlling need `ManagePresentations` (ADR 0007 decision 5), which every role has, so any
+member may control, as LIVE-R38 says. The hub reads the policy on every command and every sessions list; after
+a push of `setRemoteControl` it sends the sessions to everyone, so a running session follows at once. The poke
+sockets are now tagged `poke` in the Durable Object, so a poke never goes to a live socket.
+
+**In the app.** An admin sets the policy under Församlingen (`/admin/settings`, "Fjärrstyrning av
+presentationer"). On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
+button beside it, grey while off; under "Alltid" a line says everyone may take control in place of the switch,
+and under "Aldrig" the section is gone. The QR code button opens the "Fjärrstyr presentationen" dialog
+(`RemoteControlInfoDialog.razor`): the link, `/presentations/{id}?remote=true&session={id}`, as a QR code, and folded under it the link to copy and how to take
+control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
+host the link has its LAN address. Under Presentationer every other
+window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it
+(LIVE-A27). The controller's live page has the amber banner, the same grid and the black screen,
+no switches for this computer's own outputs, and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
+several candidates it asks which; otherwise it says "Ingen aktiv presentation just nu", "Fjärrstyrning är inte
+aktiverad av presentatören" or that the presenting computer lost contact. Tested in `apps/server/test/live.test.ts`
+(three adapters) and `apps/desktop/e2e/remote.spec.ts` (two desktops).
+
+## Public outputs
+
+An admin makes a public output under Följ med (`/admin/public-outputs`): a synced row in `displays` with a name and
+a 7-character code from `abcdefghjkmnpqrstuvwxyz23456789` (LIVE-R30; at most 50 per organisation). Anyone
+opens `/watch/{code}`, signed in or not, on a phone or a tablet. Since a viewer has nothing but the code, the
+server keeps a global index of codes (`watch_codes`, global schema version 5), which it brings up to date after
+a push that made, renewed or deleted an output (`apps/server/src/watch.ts`). A code another organisation
+already holds is not taken over; with 31^7 codes that is unlikely, and "Ny kod" is the way out.
+
+The presenting window chooses its outputs under Utgångar on the live page (kept for the window, as the
+current app keeps its output configuration) and sends, with its live report, the slide as data: kind, text,
+verses, picture hash, credits and theme id, never HTML (D25). It builds it from its own copy, so viewers see
+what its projector shows; black and nothing selected are the waiting screen (LIVE-R14). One session per
+output (LIVE-R23): taking an output from another presentation asks first ("Ta över"). The live hub keeps the
+binding (`live_bindings`) and the viewers. `GET /api/watch/{code}/stream?v={viewer}` is server-sent events:
+the output's name and the organisation's first, then the newest state and every change, a ping every 15 s
+(LIVE-R35). At most 500 viewers per output; a reconnect under the same viewer id (kept in the tab) replaces its
+old stream and is never refused (LIVE-R36). Viewer counts reach the operators at most every 2 s.
+`GET /api/watch/{code}/image/{hash}` serves a picture only while it is on that output (LIVE-R32), with
+`private, max-age=3600` rather than spec 04's `public` (LIVE-R34), so no shared cache serves it after it left
+the screen. The owner's report alone does not make a picture public: the server also checks that it is a
+picture of an item in the presentation the session shows, so a changed client cannot publish any picture of the
+library through an output. Guessing codes is slowed: an unknown code counts as a failure for the address, and
+after 20 in 15 minutes the address gets 429 for 15 minutes on every `/api/watch/` request (`lookupThrottled`). A
+real code never counts, however many viewers share an address. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
+screen. A new code or a deleted output disconnects its viewers at once, and their page says the code no
+longer exists. On a desktop host, `/api/watch/` answers unpaired devices too (it is the one anonymous API).
+
+The page (`apps/web/src/pages/Watch.tsx`) opens no database. It uses the theme's colours, fonts and
+background, and sizes the text from the viewport, never larger than the theme's size (LIVE-R31):
+`clamp(18px, min(size/1920·160 vw, size/1080·100 vh), size px)`, credits at least 11 px. It is `noindex`, and its
+title is the organisation's name. Tested in `apps/server/test/watch.test.ts` (three adapters) and
+`apps/desktop/e2e/watch.spec.ts` (a phone played by Playwright's Chromium).

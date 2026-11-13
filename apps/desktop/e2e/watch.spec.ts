@@ -1,0 +1,109 @@
+// Public output (spec 04 §6, §7): an admin makes one; anyone opens its link
+// in a browser, with no sign-in, and follows what the host presents.
+import { chromium, expect, test, type Browser } from '@playwright/test';
+import { type Desktop, launch, MUTED } from './apps.ts';
+import { addSongs, createOverlay, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+
+let host: Desktop | undefined;
+let browser: Browser | undefined;
+test.afterEach(async () => {
+  await browser?.close();
+  await host?.app.close();
+  host = undefined;
+  browser = undefined;
+});
+
+test('a public output follows the presentation in a browser without signing in; a new code cuts it off', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+
+  // Följ med: make one and take its link.
+  await openAdmin(page, 'Utgångar');
+  await expect(page.getByRole('list', { name: 'Följ med' }).getByRole('listitem')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Skapa länk' }).click();
+  await page.getByRole('dialog', { name: 'Skapa länk' }).getByLabel('Namn').fill('Kyrkkaffet');
+  await page.getByRole('dialog', { name: 'Skapa länk' }).getByRole('button', { name: 'Skapa' }).click();
+  // The new output's QR code and link open at once (spec 04 §7).
+  const shown = page.getByRole('dialog', { name: 'Kyrkkaffet' });
+  await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', /\/watch\/[a-z2-9]{7}$/);
+  await expect(shown.getByRole('button', { name: 'Ladda ner som bild' })).toBeVisible();
+  // The link is in the dialog, with the QR code; the row has only the count and its buttons (Displays.razor).
+  const linkField = shown.getByLabel('Länk');
+  await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
+  const url = await linkField.inputValue();
+  await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', url);
+  await shown.getByRole('button', { name: 'Stäng' }).click();
+  const row = page.getByRole('listitem', { name: 'Kyrkkaffet' });
+  await expect(row).toContainText('0 enheter');
+  await expect(row.getByRole('textbox')).toHaveCount(0);
+  await expect(row.getByRole('button', { name: 'Ny kod' })).toHaveCount(0);
+
+  // A phone opens it: the waiting screen, with the output's name, in the phone's language.
+  browser = await chromium.launch({ args: MUTED });
+  const phone = await browser.newPage({ locale: 'sv-SE' });
+  await phone.goto(url);
+  await expect(phone.getByTestId('watch-waiting')).toContainText('Kyrkkaffet');
+  await expect(phone.getByTestId('watch-waiting')).toContainText('Väntar på att sändningen ska börja');
+  // Black under the browser's bars and as a web app on an iPhone (PublicWatchPage.razor).
+  await expect(phone.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#000000');
+  await expect(phone.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
+  await expect(phone.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute('content', 'black-translucent');
+  await expect(phone.locator('html')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(phone.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+
+  // The host presents and switches the output on: the phone is counted.
+  await createSong(page, 'Sång A', [
+    ['Verse 1', 'A ett'],
+    ['Chorus', 'A två'],
+  ]);
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  const outputs = page.getByRole('list', { name: 'Utgångar' });
+  await outputs.getByLabel('Kyrkkaffet').check();
+  await expect(outputs.getByText('1 enhet')).toBeVisible({ timeout: 5_000 });
+  // An overlay with nothing selected reaches the phone on its own, as the projector shows it.
+  const overlays = page.getByRole('list', { name: 'Överlägg' });
+  await overlays.getByLabel('Kollekt').check();
+  await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
+  await overlays.getByLabel('Kollekt').uncheck();
+  await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
+
+  // What the host shows, the phone shows; black is the waiting screen (LIVE-R14).
+  await page.getByRole('button', { name: 'Sång A 2' }).click();
+  await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
+  await expect(phone.getByTestId('watch-slide')).toHaveAttribute('data-theme', 'classic');
+  await expect(phone.getByTestId('watch-text')).toHaveCSS('white-space', 'pre-wrap'); // a song keeps its lines; Bible text does not
+  await expect(phone.getByText('Chorus')).toHaveCount(0); // the part label is the operator's
+  await page.getByRole('button', { name: 'Släck' }).click();
+  await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'Sång A 2' }).click();
+  await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
+  // An overlay's text reaches the phone too, above the slide (spec 04 §6).
+  await overlays.getByLabel('Kollekt').check();
+  await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
+  await expect(phone.getByTestId('watch-text')).toHaveText('A två');
+
+  // Följ med says what it sends and to how many.
+  await openAdmin(page, 'Utgångar');
+  await expect(row).toContainText('Sänder från Söndag');
+  await expect(row).toContainText('1 enhet');
+
+  // A new code, from the QR code's dialog: the old link stops working, and the phone is told so.
+  await row.getByRole('button', { name: 'Visa QR-kod' }).click();
+  await expect(shown.getByText('Om koden har spridits dit den inte hör hemma kan du byta ut den mot en ny.')).toBeVisible();
+  await shown.getByRole('button', { name: 'Ny kod' }).click();
+  await page.getByRole('dialog', { name: 'Ny kod' }).getByRole('button', { name: 'Ny kod' }).click();
+  await expect(page.getByRole('status').getByText('Ny kod skapad')).toBeVisible();
+  await expect(shown).toHaveCount(0); // the old code's dialog closes, as Displays.razor's
+  await row.getByRole('button', { name: 'Visa QR-kod' }).click();
+  await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
+  await expect(linkField).not.toHaveValue(url);
+  await expect(phone.getByText('Det finns ingen sändning med den här koden.')).toBeVisible({ timeout: 10_000 });
+  // A phone in English is told in English (the viewer's browser language, decided on 2026-10-31).
+  const english = await browser.newPage({ locale: 'en-US' });
+  await english.goto(url);
+  await expect(english.getByText('There is no broadcast with this code.')).toBeVisible();
+});

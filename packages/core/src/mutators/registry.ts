@@ -1,0 +1,333 @@
+import { z } from 'zod';
+import { MutationError, type MutatorCtx, type Tx } from './base.ts';
+import {
+  createCustomSlideArgs,
+  createCustomSlide,
+  updateCustomSlideArgs,
+  updateCustomSlide,
+  trashCustomSlideArgs,
+  trashCustomSlide,
+  restoreCustomSlideArgs,
+  restoreCustomSlide,
+  purgeCustomSlideArgs,
+  purgeCustomSlide,
+  addCustomSlideToPresentationArgs,
+  addCustomSlideToPresentation,
+  addSlidesArgs,
+  addSlides,
+} from './custom-slides.ts';
+import {
+  createSongArgs,
+  createSong,
+  updateSongArgs,
+  updateSong,
+  trashSongArgs,
+  trashSong,
+  restoreSongArgs,
+  restoreSong,
+  purgeSongArgs,
+  purgeSong,
+  addSongPartArgs,
+  addSongPart,
+  updateSongPartArgs,
+  updateSongPart,
+  removeSongPartArgs,
+  removeSongPart,
+  moveSongPartArgs,
+  moveSongPart,
+  importSongsArgs,
+  importSongs,
+} from './songs.ts';
+import { restoreSongVersionArgs, restoreSongVersion } from './history.ts';
+import {
+  addSongFileArgs,
+  addSongFile,
+  addSongLinkArgs,
+  addSongLink,
+  renameSongMaterialArgs,
+  renameSongMaterial,
+  removeSongMaterialArgs,
+  removeSongMaterial,
+} from './song-materials.ts';
+import { setCcliCollectionArgs, setCcliCollection, recordCcliUseArgs, recordCcliUse, setCcliReportedArgs, setCcliReported } from './ccli.ts';
+import { createLabelArgs, createLabel, updateLabelArgs, updateLabel, deleteLabelArgs, deleteLabel, moveLabelArgs, moveLabel } from './labels.ts';
+import {
+  createArrangementArgs,
+  createArrangement,
+  updateArrangementArgs,
+  updateArrangement,
+  appendArrangementPartArgs,
+  appendArrangementPart,
+  removeArrangementPartArgs,
+  removeArrangementPart,
+  moveArrangementPartArgs,
+  moveArrangementPart,
+  removeArrangementArgs,
+  removeArrangement,
+} from './arrangements.ts';
+import {
+  createPresentationArgs,
+  createPresentation,
+  renamePresentationArgs,
+  renamePresentation,
+  updatePresentationArgs,
+  updatePresentation,
+  addSongToPresentationArgs,
+  addSongToPresentation,
+  addBibleToPresentationArgs,
+  addBibleToPresentation,
+  addHeaderToPresentationArgs,
+  addHeaderToPresentation,
+  renameItemArgs,
+  renameItem,
+  setItemNoteArgs,
+  setItemNote,
+  setItemArrangementArgs,
+  setItemArrangement,
+  setItemOverlayArgs,
+  setItemOverlay,
+  reorderItemsArgs,
+  reorderItems,
+  moveItemArgs,
+  moveItem,
+  removeItemArgs,
+  removeItem,
+  trashPresentationArgs,
+  trashPresentation,
+  restorePresentationArgs,
+  restorePresentation,
+  purgePresentationArgs,
+  purgePresentation,
+} from './presentations.ts';
+import {
+  createTemplateArgs,
+  createTemplate,
+  updateTemplateArgs,
+  updateTemplate,
+  saveAsTemplateArgs,
+  saveAsTemplate,
+  createFromTemplateArgs,
+  createFromTemplate,
+  trashTemplateArgs,
+  trashTemplate,
+  restoreTemplateArgs,
+  restoreTemplate,
+  purgeTemplateArgs,
+  purgeTemplate,
+} from './templates.ts';
+import {
+  addImageArgs,
+  LIBRARY_ARGS,
+  addImage,
+  editImageArgs,
+  editImage,
+  revertImageArgs,
+  revertImage,
+  trashImage,
+  renameImage,
+  restoreImage,
+  purgeImage,
+  addImageToPresentationArgs,
+  addImageToPresentation,
+  addImagesToItemArgs,
+  addImagesToItem,
+  removeItemImageArgs,
+  removeItemImage,
+  moveItemImageArgs,
+  moveItemImage,
+  addAudioArgs,
+  addAudio,
+  renameAudio,
+  trashAudio,
+  restoreAudio,
+  purgeAudio,
+  addAudioToPresentationArgs,
+  addAudioToPresentation,
+  addVideoArgs,
+  addVideo,
+  renameVideo,
+  trashVideo,
+  restoreVideo,
+  purgeVideo,
+  addVideoToPresentationArgs,
+  addVideoToPresentation,
+} from './media.ts';
+import {
+  createOverlayArgs,
+  createOverlay,
+  updateOverlayArgs,
+  updateOverlay,
+  deleteOverlayArgs,
+  deleteOverlay,
+} from './overlays.ts';
+import {
+  importBibleArgs,
+  importBible,
+  deleteBibleArgs,
+  renameBibleArgs,
+  renameBible,
+  deleteBible,
+} from './bibles-and-themes.ts';
+import {
+  setDefaultThemeArgs,
+  setDefaultTheme,
+  createThemeArgs,
+  createTheme,
+  updateThemeArgs,
+  updateTheme,
+  deleteThemeArgs,
+  deleteTheme,
+} from './themes.ts';
+import {
+  setRemoteControlArgs,
+  setRemoteControl,
+} from './org-settings.ts';
+import {
+  createDisplayArgs,
+  createDisplay,
+  newDisplayCodeArgs,
+  newDisplayCode,
+  deleteDisplayArgs,
+  deleteDisplay,
+} from './displays.ts';
+import {
+  purgeExpiredTrashArgs,
+  purgeExpiredTrash,
+  emptyTrashArgs,
+  emptyTrash,
+} from './trash.ts';
+import {
+  probeArgs,
+  probeWriteThenThrow,
+} from './probe.ts';
+
+// ------------------------------------------------------------------ registry
+
+export interface Mutator<S extends z.ZodType = z.ZodType> {
+  /** Current version. */
+  v: number;
+  /** Oldest version the server still accepts. */
+  minV: number;
+  args: S;
+  run: (tx: Tx, args: z.output<S>, ctx: MutatorCtx) => Promise<void>;
+}
+
+const m = <S extends z.ZodType>(args: S, run: Mutator<S>['run']): Mutator<S> => ({ v: 1, minV: 1, args, run });
+
+/** Every mutator. Arguments are validated with `args` on both ends before `run`. */
+export const mutators = {
+  createSong: m(createSongArgs, createSong),
+  updateSong: m(updateSongArgs, updateSong),
+  trashSong: m(trashSongArgs, trashSong),
+  restoreSong: m(restoreSongArgs, restoreSong),
+  purgeSong: m(purgeSongArgs, purgeSong),
+  addSongPart: m(addSongPartArgs, addSongPart),
+  importSongs: m(importSongsArgs, importSongs),
+  restoreSongVersion: m(restoreSongVersionArgs, restoreSongVersion),
+  addSongFile: m(addSongFileArgs, addSongFile),
+  addSongLink: m(addSongLinkArgs, addSongLink),
+  renameSongMaterial: m(renameSongMaterialArgs, renameSongMaterial),
+  removeSongMaterial: m(removeSongMaterialArgs, removeSongMaterial),
+  setCcliCollection: m(setCcliCollectionArgs, setCcliCollection),
+  recordCcliUse: m(recordCcliUseArgs, recordCcliUse),
+  setCcliReported: m(setCcliReportedArgs, setCcliReported),
+  createLabel: m(createLabelArgs, createLabel),
+  updateLabel: m(updateLabelArgs, updateLabel),
+  deleteLabel: m(deleteLabelArgs, deleteLabel),
+  moveLabel: m(moveLabelArgs, moveLabel),
+  updateSongPart: m(updateSongPartArgs, updateSongPart),
+  removeSongPart: m(removeSongPartArgs, removeSongPart),
+  moveSongPart: m(moveSongPartArgs, moveSongPart),
+  createArrangement: m(createArrangementArgs, createArrangement),
+  updateArrangement: m(updateArrangementArgs, updateArrangement),
+  removeArrangement: m(removeArrangementArgs, removeArrangement),
+  appendArrangementPart: m(appendArrangementPartArgs, appendArrangementPart),
+  removeArrangementPart: m(removeArrangementPartArgs, removeArrangementPart),
+  moveArrangementPart: m(moveArrangementPartArgs, moveArrangementPart),
+  createPresentation: m(createPresentationArgs, createPresentation),
+  renamePresentation: m(renamePresentationArgs, renamePresentation),
+  updatePresentation: m(updatePresentationArgs, updatePresentation),
+  addSongToPresentation: m(addSongToPresentationArgs, addSongToPresentation),
+  addBibleToPresentation: m(addBibleToPresentationArgs, addBibleToPresentation),
+  addImageToPresentation: m(addImageToPresentationArgs, addImageToPresentation),
+  addImagesToItem: m(addImagesToItemArgs, addImagesToItem),
+  removeItemImage: m(removeItemImageArgs, removeItemImage),
+  moveItemImage: m(moveItemImageArgs, moveItemImage),
+  addAudioToPresentation: m(addAudioToPresentationArgs, addAudioToPresentation),
+  addVideoToPresentation: m(addVideoToPresentationArgs, addVideoToPresentation),
+  addSlides: m(addSlidesArgs, addSlides),
+  addHeaderToPresentation: m(addHeaderToPresentationArgs, addHeaderToPresentation),
+  renameItem: m(renameItemArgs, renameItem),
+  setItemNote: m(setItemNoteArgs, setItemNote),
+  setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
+  setItemOverlay: m(setItemOverlayArgs, setItemOverlay),
+  reorderItems: m(reorderItemsArgs, reorderItems),
+  moveItem: m(moveItemArgs, moveItem),
+  removeItem: m(removeItemArgs, removeItem),
+  trashPresentation: m(trashPresentationArgs, trashPresentation),
+  restorePresentation: m(restorePresentationArgs, restorePresentation),
+  purgePresentation: m(purgePresentationArgs, purgePresentation),
+  createTemplate: m(createTemplateArgs, createTemplate),
+  updateTemplate: m(updateTemplateArgs, updateTemplate),
+  saveAsTemplate: m(saveAsTemplateArgs, saveAsTemplate),
+  createFromTemplate: m(createFromTemplateArgs, createFromTemplate),
+  trashTemplate: m(trashTemplateArgs, trashTemplate),
+  restoreTemplate: m(restoreTemplateArgs, restoreTemplate),
+  purgeTemplate: m(purgeTemplateArgs, purgeTemplate),
+  purgeExpiredTrash: m(purgeExpiredTrashArgs, purgeExpiredTrash),
+  emptyTrash: m(emptyTrashArgs, emptyTrash),
+  importBible: m(importBibleArgs, importBible),
+  deleteBible: m(deleteBibleArgs, deleteBible),
+  renameBible: m(renameBibleArgs, renameBible),
+  setDefaultTheme: m(setDefaultThemeArgs, setDefaultTheme),
+  createTheme: m(createThemeArgs, createTheme),
+  updateTheme: m(updateThemeArgs, updateTheme),
+  deleteTheme: m(deleteThemeArgs, deleteTheme),
+  setRemoteControl: m(setRemoteControlArgs, setRemoteControl),
+  addImage: m(addImageArgs, addImage),
+  editImage: m(editImageArgs, editImage),
+  revertImage: m(revertImageArgs, revertImage),
+  trashImage: m(LIBRARY_ARGS.trash, trashImage),
+  renameImage: m(LIBRARY_ARGS.rename, renameImage),
+  restoreImage: m(LIBRARY_ARGS.restore, restoreImage),
+  purgeImage: m(LIBRARY_ARGS.purge, purgeImage),
+  addAudio: m(addAudioArgs, addAudio),
+  trashAudio: m(LIBRARY_ARGS.trash, trashAudio),
+  renameAudio: m(LIBRARY_ARGS.rename, renameAudio),
+  restoreAudio: m(LIBRARY_ARGS.restore, restoreAudio),
+  purgeAudio: m(LIBRARY_ARGS.purge, purgeAudio),
+  addVideo: m(addVideoArgs, addVideo),
+  trashVideo: m(LIBRARY_ARGS.trash, trashVideo),
+  renameVideo: m(LIBRARY_ARGS.rename, renameVideo),
+  restoreVideo: m(LIBRARY_ARGS.restore, restoreVideo),
+  purgeVideo: m(LIBRARY_ARGS.purge, purgeVideo),
+  createCustomSlide: m(createCustomSlideArgs, createCustomSlide),
+  updateCustomSlide: m(updateCustomSlideArgs, updateCustomSlide),
+  trashCustomSlide: m(trashCustomSlideArgs, trashCustomSlide),
+  restoreCustomSlide: m(restoreCustomSlideArgs, restoreCustomSlide),
+  purgeCustomSlide: m(purgeCustomSlideArgs, purgeCustomSlide),
+  addCustomSlideToPresentation: m(addCustomSlideToPresentationArgs, addCustomSlideToPresentation),
+  createOverlay: m(createOverlayArgs, createOverlay),
+  updateOverlay: m(updateOverlayArgs, updateOverlay),
+  deleteOverlay: m(deleteOverlayArgs, deleteOverlay),
+  createDisplay: m(createDisplayArgs, createDisplay),
+  newDisplayCode: m(newDisplayCodeArgs, newDisplayCode),
+  deleteDisplay: m(deleteDisplayArgs, deleteDisplay),
+  probeWriteThenThrow: m(probeArgs, probeWriteThenThrow),
+};
+
+export type Mutators = typeof mutators;
+export type MutatorName = keyof Mutators;
+/** What a caller passes: the schema's input, before trimming and defaults. */
+export type MutatorArgs<N extends MutatorName> = z.input<Mutators[N]['args']>;
+
+export function getMutator(mutatorName: string): Mutator | undefined {
+  return Object.hasOwn(mutators, mutatorName) ? (mutators[mutatorName as MutatorName] as unknown as Mutator) : undefined;
+}
+
+/** Validates the arguments and runs the mutator. Invalid arguments are a refusal, not a crash. */
+export async function runMutator(mutator: Mutator, tx: Tx, rawArgs: unknown, ctx: MutatorCtx): Promise<void> {
+  const parsed = mutator.args.safeParse(rawArgs);
+  if (!parsed.success) throw new MutationError('invalid-args', parsed.error.message);
+  await mutator.run(tx, parsed.data, ctx);
+}

@@ -1,0 +1,406 @@
+import { useCallback, useEffect, useState } from 'react';
+import { accountRefusal, can, emailSchema, removeUserRefusal, roleChangeRefusal, ROLES, type AuthState, type LoginMethod, type Me, type MemberRole, type UserRow } from '@gp/core';
+import { api } from '../auth/api.ts';
+import { errorText } from '../auth/errors.ts';
+import { language, t } from '../i18n.ts';
+import { AppButton } from '../ui/AppButton.tsx';
+import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
+import { CopyField } from '../ui/CopyField.tsx';
+import { useConfirm } from '../ui/Dialog.tsx';
+import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
+import { KeyPicture, LinkIcon } from '../ui/icons.tsx';
+import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
+import { navigate } from '../ui/router.ts';
+import { useToast } from '../ui/Toast.tsx';
+import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
+import { acceptHere, inviteUrl, timeLeft } from './Users.tsx';
+import { copyText } from '../ui/copyText.ts';
+
+const ERROR = 'text-sm text-red-500 dark:text-red-400';
+/** Radera beside a login or the invite: red text, no box of its own. */
+const RED_TEXT = 'shrink-0 text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline';
+
+
+const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
+
+type Detail = { user: UserRow | string; logins: LoginMethod[] | string | null } | 'gone';
+
+/** The user and their logins, or why they cannot be shown; no logins where they are not the caller's to see. */
+async function fetchDetail(path: string): Promise<Detail> {
+  try {
+    const [u, l] = await Promise.all([api<UserRow>('GET', path), api<LoginMethod[]>('GET', `${path}/logins`)]);
+    if (u.status === 404) return 'gone';
+    return { user: u.error ? errorText(u) : u.body, logins: l.status === 403 ? null : l.error ? errorText(l) : l.body };
+  } catch {
+    return { user: t('auth.offline'), logins: null };
+  }
+}
+
+/**
+ * One user of the organisation (spec 01 `/admin/users/{id}`, UserDetail.razor):
+ * the role and Radera användare for an Admin. The account is the person's
+ * (docs/accounts-and-roles.md): their name and e-mail, their logins and a link
+ * that replaces them are changed here only in superadminläge (on a desktop
+ * host also by an Admin, for someone only the host has). Online only, as the
+ * list. The server checks every change again; the page only stops offering
+ * what it would refuse. Not here yet: the profile picture (profiles come later).
+ */
+export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; host: boolean; hostServer: boolean }) {
+  const [user, setUser] = useState<UserRow | string | null>(null);
+  const [logins, setLogins] = useState<LoginMethod[] | string | null>(null);
+  /** The new invite's link, shown once (AUTH-R13): only until the page is left. A user just made comes with theirs. */
+  const [link, setLink] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  /** Whether the server can send e-mail (`AuthState.mail`): then an invite can be mailed. */
+  const [mail, setMail] = useState(false);
+  const [mailing, setMailing] = useState(false);
+  const saved = useSavedIndicator();
+  const toast = useToast();
+  const { dialog, ask } = useConfirm();
+  const path = `/api/users/${encodeURIComponent(id)}`;
+
+  const apply = useCallback((d: Detail) => {
+    // Another organisation's user, or one removed meanwhile: back to the list, as the old page.
+    if (d === 'gone') return navigate({ page: 'users' });
+    setUser(d.user);
+    setLogins(d.logins);
+  }, []);
+  const load = useCallback(() => fetchDetail(path).then(apply), [path, apply]);
+  useEffect(() => {
+    void fetchDetail(path).then(apply);
+  }, [path, apply]);
+  useEffect(() => {
+    api<AuthState>('GET', '/api/auth/state').then(
+      (r) => setMail(!r.error && r.body.mail),
+      () => setMail(false),
+    );
+  }, []);
+
+  /** Runs a change and reloads; a refusal is a toast. True when it went through. */
+  const act = async (method: string, url: string): Promise<boolean> => {
+    try {
+      const r = await api(method, url);
+      if (r.error) toast(errorText(r));
+      await load();
+      return !r.error;
+    } catch {
+      toast(t('auth.offline'));
+      return false;
+    }
+  };
+
+  /** Saves name or e-mail; a taken address is answered, anything else refused throws ("Kunde inte spara"). */
+  const patch = async (body: { name?: string; email?: string | null }): Promise<'ok' | 'email-taken'> => {
+    const r = await api('PATCH', path, body);
+    if (r.error === 'email-taken') return 'email-taken';
+    if (r.error) throw new Error(r.error);
+    setUser((u) => (u && typeof u === 'object' ? { ...u, ...body } : u));
+    return 'ok';
+  };
+
+  if (user === null || typeof user === 'string') {
+    return (
+      <PageContainer>
+        <DetailHeader backHref="/admin/users" title="" className="px-5" />
+        <div className={`px-7 ${user ? ERROR : 'loading-line text-stone-400'}`}>{user ?? t('common.loading')}</div>
+      </PageContainer>
+    );
+  }
+
+  const actor = { id: me.userId, role: me.role };
+  const self = user.id === me.userId;
+  /** Name and e-mail: only in superadminläge (your own are under Mina inställningar). */
+  const canEdit = me.role === 'superAdmin';
+  /** Logins and a link that replaces them: yours, or someone's whose account you may change (`accountRefusal`). */
+  const canAccount = self || !accountRefusal(actor, { hostOnly: hostServer && user.onlyHere, superAdmin: user.superAdmin });
+  const manage = can(me.role, 'ManageUsers');
+  // The server knows how many Admins there are, and refuses the last one's demotion itself.
+  const roles = ROLES.filter((r) => r === user.role || !roleChangeRefusal(actor, user, r, 2));
+
+  const changeRole = async (role: MemberRole) => {
+    setRoleError(null);
+    try {
+      const r = await api('PATCH', path, { role });
+      if (r.error) return setRoleError(errorText(r));
+      setUser({ ...user, role });
+      saved.show();
+    } catch {
+      setRoleError(t('auth.offline'));
+    }
+  };
+
+  /** A new invite; `replace` deletes the user's other invites first, so the link that got lost stops working. */
+  const createInvite = async (replace = false) => {
+    try {
+      if (replace) {
+        const d = await api('DELETE', `${path}/invites`);
+        if (d.error) {
+          toast(errorText(d));
+          return;
+        }
+      }
+      const r = await api<{ inviteToken: string }>('POST', `${path}/invites`);
+      if (r.error) toast(errorText(r));
+      else setLink(await inviteUrl(r.body.inviteToken));
+    } catch {
+      toast(t('auth.offline'));
+    }
+    await load();
+  };
+
+  /** A new invite, mailed to the user; its link shows here too, as one made here does. */
+  const mailInvite = async (email: string) => {
+    setMailing(true);
+    try {
+      const r = await api<{ inviteToken: string }>('POST', `${path}/invites/email`, { language: language() });
+      if (r.error) toast(errorText(r));
+      else {
+        setLink(await inviteUrl(r.body.inviteToken));
+        toast(t('userDetail.mailSent', { email }));
+      }
+    } catch {
+      toast(t('auth.offline'));
+    }
+    setMailing(false);
+    await load();
+  };
+
+  const deleteUser = async () => {
+    setDeleteError(null);
+    try {
+      const r = await api('DELETE', path);
+      if (r.error) return setDeleteError(errorText(r));
+      navigate({ page: 'users' });
+    } catch {
+      setDeleteError(t('auth.offline'));
+    }
+  };
+
+  const invite = user.invite;
+  return (
+    <PageContainer>
+      {dialog}
+      <DetailHeader backHref="/admin/users" title={user.name} saved={saved.node} className="px-5" />
+      {/* The fields are boxes of their own, on the page with no card around them (Lars, 2026-11-02: no box in a box). */}
+      <div className="space-y-4">
+        {canEdit ? (
+          <>
+            {/* A blank name is not saved. */}
+            <AutoSaveField label={t('users.name')} maxLength={200} value={user.name} onSave={(v) => (v.trim() ? patch({ name: v.trim() }) : undefined)} onSaved={saved.show} />
+            <div>
+              <AutoSaveField
+                label={t('users.email')}
+                type="email"
+                maxLength={320}
+                hasError={!!emailError}
+                value={user.email ?? ''}
+                onSave={(v) => {
+                  setEmailError(null);
+                  const email = v.trim();
+                  // Checked here first, as UserDetail.razor; the field keeps what was typed, with the error under it.
+                  if (email && !emailSchema.safeParse(email).success) {
+                    setEmailError(t('error.invalid-email'));
+                    return Promise.resolve();
+                  }
+                  return patch({ email: email ? emailSchema.parse(email) : null }).then((r) => (r === 'ok' ? saved.show() : setEmailError(t('error.email-taken'))));
+                }}
+              />
+              {emailError && (
+                <p className={`${ERROR} mt-1`} role="alert">
+                  {emailError}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <FloatingInput label={t('users.name')} value={user.name} disabled readOnly />
+            <FloatingInput label={t('users.email')} type="email" value={user.email ?? ''} disabled readOnly />
+            <div className="text-sm text-stone-500 -mt-2">{self ? t('userDetail.ownAccountHere') : t('userDetail.theirAccount')}</div>
+          </>
+        )}
+        <div>
+          <FloatingSelect label={t('users.role')} value={user.role} disabled={self || !manage} onChange={(e) => void changeRole(e.target.value as MemberRole)}>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {t(`role.${r}`)}
+              </option>
+            ))}
+          </FloatingSelect>
+          {self && <div className="text-sm text-stone-500 mt-1">{t('users.ownRole')}</div>}
+          {roleError && (
+            <div className={`${ERROR} mt-1`} role="alert">
+              {roleError}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Inloggning as a group of rows, as Mina inställningar (ui/Group.tsx): each login a row, Radera in red text. */}
+      {/* The group once its logins are here: an empty group while they come flashes by (Lars, 2026-11-05). */}
+      {logins !== null && (
+        <Group title={t('userDetail.login')}>
+          {typeof logins === 'string' && <div className={`${GROUP_ROW} ${ERROR}`}>{logins}</div>}
+          {Array.isArray(logins) && logins.length > 0 && (
+            <ul aria-label={t('userDetail.login')} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
+              {logins.map((l) => (
+                <li key={`${l.provider}:${l.id}`} className={GROUP_ROW}>
+                  <div className="min-w-0">
+                    <div>{providerName(l)}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
+                  </div>
+                  {canAccount && (
+                    <AppButton
+                      variant="plain"
+                      className={RED_TEXT}
+                      aria-label={`${t('common.delete')} ${providerName(l)}`}
+                      onClick={() =>
+                        void ask({
+                          title: t('userDetail.deleteLogin'),
+                          text: t('userDetail.confirmDeleteLogin', { provider: providerName(l) }),
+                          confirm: t('common.delete'),
+                          busy: t('common.deleting'),
+                          run: () => act('DELETE', `${path}/logins/${encodeURIComponent(l.provider)}/${encodeURIComponent(l.id)}`),
+                        })
+                      }
+                    >
+                      {t('common.delete')}
+                    </AppButton>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {Array.isArray(logins) && logins.length === 0 && (
+            <>
+              {!invite && (
+                <div className="flex flex-col items-center text-center p-4 select-none">
+                  <KeyPicture className="w-32 h-auto mb-3 text-stone-300 dark:text-stone-600" />
+                  <p className="text-sm text-stone-400 dark:text-stone-500 leading-relaxed">
+                    {t('userDetail.noLogins')}
+                    <br />
+                    {t('userDetail.noLoginsText')}
+                  </p>
+                </div>
+              )}
+              {invite && (
+                <div
+                  data-testid="invite"
+                  className={`p-4 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="size-4 text-stone-400" />
+                      <span className="text-sm font-medium">{t('userDetail.inviteLink')}</span>
+                      {invite.expired ? (
+                        <span className="text-sm text-red-600 dark:text-red-400">{t('userDetail.expired')}</span>
+                      ) : (
+                        <span className="text-sm text-stone-500 dark:text-stone-400">
+                          {t('userDetail.active')}
+                        </span>
+                      )}
+                    </div>
+                    {canAccount && (
+                      <AppButton
+                        variant="plain"
+                        className={RED_TEXT}
+                        onClick={() =>
+                          void ask({
+                            title: t('userDetail.deleteInvite'),
+                            text: t('userDetail.confirmDeleteInvite'),
+                            confirm: t('common.delete'),
+                            busy: t('common.deleting'),
+                            run: async () => {
+                              if (await act('DELETE', `${path}/invites`)) setLink(null);
+                            },
+                          })
+                        }
+                      >
+                        {t('common.delete')}
+                      </AppButton>
+                    )}
+                  </div>
+                  {!invite.expired && (
+                    <>
+                      <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
+                      {/* The link exists only in this page, from when it was made (AUTH-R13); on a host it is accepted here (Users.tsx). */}
+                      {link && !host && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteText', { name: user.name })}</p>
+                          <CopyField
+                            value={link}
+                            label={t('userDetail.inviteLink')}
+                            copyLabel={t('userDetail.copy')}
+                            onCopy={() => void copyText(link).then((copied) => copied && toast(t('users.copied')))}
+                          />
+                          {/* Where the system's share sheet exists (phones, Safari): to send it in a message. */}
+                          {'share' in navigator && (
+                            <AppButton variant="secondary" onClick={() => void navigator.share({ title: t('userDetail.inviteLink'), url: link }).catch(() => undefined)}>
+                              {t('userDetail.share')}
+                            </AppButton>
+                          )}
+                        </div>
+                      )}
+                      {link && host && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-stone-600 dark:text-stone-300">{t('users.inviteHost', { name: user.name })}</p>
+                          <AppButton variant="secondary" onClick={() => acceptHere(link.slice(link.indexOf('#') + 1))}>
+                            {t('users.acceptHere', { name: user.name })}
+                          </AppButton>
+                        </div>
+                      )}
+                      {!link && (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-xs text-stone-500 dark:text-stone-400">{t('userDetail.linkShownOnce')}</div>
+                          {canAccount && (
+                            <AppButton variant="secondary" onClick={() => void createInvite(true)}>
+                              {t('userDetail.newLink')}
+                            </AppButton>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {/* The invite's actions as rows in sky, as iOS's actions in a group. */}
+              {(!invite || invite.expired) && canAccount && (
+                <AppButton variant="plain" className={ACTION_ROW} onClick={() => void createInvite()}>
+                  {t('userDetail.createInvite')}
+                </AppButton>
+              )}
+              {mail && user.email && canAccount && (
+                <AppButton variant="plain" className={ACTION_ROW} loading={mailing} onClick={() => void mailInvite(user.email!)}>
+                  {t('userDetail.mailInvite', { email: user.email })}
+                </AppButton>
+              )}
+            </>
+          )}
+        </Group>
+      )}
+
+      {!self && !removeUserRefusal(actor, user, 2) && (
+        <Group footer={deleteError && <span className={ERROR}>{deleteError}</span>}>
+          <AppButton
+            variant="plain"
+            className={DANGER_ROW}
+            onClick={() =>
+              void ask({
+                title: t('users.remove'),
+                text: t('users.removeConfirm', { name: user.name }),
+                bold: user.name,
+                confirm: t('common.delete'),
+                busy: t('common.deleting'),
+                run: deleteUser,
+              })
+            }
+          >
+            {t('users.remove')}
+          </AppButton>
+        </Group>
+      )}
+    </PageContainer>
+  );
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@gp/sync",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client/index.ts",
+    "./server": "./src/server/index.ts",
+    "./wa-sqlite-api": "./src/client/wa-sqlite-api.ts",
+    "./wa-sqlite-node": "./src/client/wa-sqlite-db.ts",
+    "./better-sqlite3": "./src/client/better-sqlite3-db.ts",
+    "./node-sqlite": "./src/client/node-sqlite-db.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@gp/core": "workspace:*",
+    "@journeyapps/wa-sqlite": "2.0.8",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "better-sqlite3": "13.0.3"
+  }
+}

@@ -1,0 +1,315 @@
+// Steps the e2e tests share, written as a user would do them.
+import { expect, type Locator, type Page } from '@playwright/test';
+import type { FakeAccount } from '../../server/test/fake-google.ts';
+import { browserSignIn, type Desktop } from './apps.ts';
+
+/**
+ * Drags `handle` with the mouse until its row is just past `target`'s middle,
+ * above or below it, in small steps as a hand would.
+ */
+export async function dragTo(page: Page, handle: Locator, target: Locator, where: 'above' | 'below') {
+  await handle.evaluate((e) => e.scrollIntoView({ block: 'center' })); // away from the edges, which scroll while dragging
+  const from = (await handle.boundingBox())!;
+  const to = (await target.boundingBox())!;
+  const x = from.x + from.width / 2;
+  await page.mouse.move(x, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, where === 'above' ? to.y + 2 : to.y + to.height - 2, { steps: 12 });
+  await page.mouse.up();
+}
+
+/** Drops files on `target` as a file manager would: a dragover, then the drop. */
+export async function dropFiles(target: Locator, files: { name: string; mimeType: string; buffer: Buffer }[]) {
+  const data = await target.evaluateHandle(
+    (_, list) => {
+      const dt = new DataTransfer();
+      for (const f of list) dt.items.add(new File([Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0))], f.name, { type: f.mimeType }));
+      return dt;
+    },
+    files.map((f) => ({ name: f.name, mimeType: f.mimeType, base64: f.buffer.toString('base64') })),
+  );
+  await target.dispatchEvent('dragover', { dataTransfer: data });
+  await target.dispatchEvent('drop', { dataTransfer: data });
+}
+
+/**
+ * Inställningar's list, opened from the picture's menu in the bar unless Inställningar is open already; in a
+ * presentation, from its bar's cog.
+ */
+export async function adminMenu(page: Page) {
+  const menu = page.getByRole('navigation', { name: 'Administration' });
+  if (await menu.isVisible()) return menu;
+  const bar = page.getByTestId('presentation-bar');
+  if (await bar.isVisible()) {
+    await closeRemoteSheet(page);
+    await bar.getByRole('link', { name: 'Inställningar', exact: true }).click();
+  } else {
+    await page.getByRole('navigation').getByRole('link', { name: 'Inställningar', exact: true }).first().click();
+  }
+  return menu;
+}
+
+/** Opens a page of Inställningar: Sånger, Bilder, Användare and the rest. */
+export async function openAdmin(page: Page, name: string) {
+  await (await adminMenu(page)).getByRole('link', { name, exact: true }).click();
+}
+
+/** Inställningar's dialog, over the page the user was on. */
+export function adminDialog(page: Page) {
+  return page.getByRole('dialog', { name: 'Inställningar' });
+}
+
+/** Closes Inställningar with Stäng, if it is open: back to the page under it. */
+export async function closeAdmin(page: Page) {
+  const dialog = adminDialog(page);
+  if (!(await dialog.isVisible())) return;
+  await dialog.getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** The start page, the presentations: the logo in the bar, or in a presentation the way back; under Inställningar when that is open. */
+export async function openPresentations(page: Page) {
+  await closeAdmin(page);
+  await page.getByRole('link', { name: /^(Gospel Presenter|Tillbaka till presentationerna)$/ }).click();
+  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+}
+
+/** Logga ut, in the menu behind the user's picture in the bar. */
+export async function signOut(page: Page) {
+  await closeAdmin(page);
+  await page.getByTestId('me').click();
+  await page.getByRole('menuitem', { name: 'Logga ut' }).click();
+}
+
+/** Sånger's + (Ny sång), or Skriv in en sång while the list is empty: the song is made at once and opens with its name picked. */
+export async function newSong(page: Page) {
+  await page.getByRole('button', { name: /^(Ny sång|Skriv in en sång)$/ }).click();
+}
+
+/**
+ * Names what + just made: its editor opens with the name focused and picked, to type over (ui/justCreated.ts). An
+ * editor with Format opens it for the name; where it is a popover or a sheet, Escape then closes it, as one would.
+ */
+export async function nameNew(page: Page, name: string) {
+  const field = page.getByRole('textbox', { name: 'Namn', exact: true }).filter({ visible: true }).first();
+  await expect(field).toBeFocused();
+  await field.fill(name);
+  await field.press('Tab');
+  const format = page.getByTestId('format-sheet');
+  if (await format.isVisible()) {
+    await page.keyboard.press('Escape');
+    await expect(format).toHaveCount(0);
+  }
+}
+
+/**
+ * Opens a song's `index`th arrangement: the Arrangemang row on its page pushes the list in, and that arrangement's row
+ * pushes it in, the row making the first one when the song has none (Lars, 2026-11-03).
+ */
+export async function openArrangement(page: Page, index = 0) {
+  await page.getByRole('link', { name: /^Arrangemang/ }).click();
+  await page.getByTestId('arrangement-row').nth(index).click();
+  await expect(page.getByRole('list', { name: 'Delar i arrangemanget' })).toBeVisible();
+}
+
+/** Opens a song's Noter och länkar, pushed in from its row on the song's page. */
+export async function openMaterials(page: Page) {
+  await page.getByRole('link', { name: /^Noter och länkar/ }).click();
+}
+
+/**
+ * Back from a page pushed in from a song's page, through any between, to the song's page: by the address, each step
+ * waited for, since the song's page draws a moment after its address changes.
+ */
+export async function backToSong(page: Page) {
+  const pushed = /\/admin\/songs\/[^/]+\/./;
+  while (pushed.test(new URL(page.url()).pathname)) {
+    const from = page.url();
+    await page.getByRole('link', { name: 'Tillbaka' }).click();
+    await page.waitForURL((url) => url.href !== from);
+  }
+  await expect(page.getByRole('link', { name: 'Historik' })).toBeVisible();
+}
+
+/** Creates a song with labelled parts and stays in its editor. */
+/**
+ * An overlay made under Överlägg (docs/custom-slides.md): made, named in its editor, then a text put on its page in the editor, and
+ * saved. The editor is left open. Its Format panel is a sheet where the editor is narrow.
+ */
+export async function createOverlay(page: Page, title: string, text: string) {
+  await openAdmin(page, 'Överlägg');
+  // + (Skapa), or Nytt överlägg while the list is empty, whose own button stands alone then.
+  await page.getByRole('button', { name: /^(Skapa|Nytt överlägg)$/ }).click();
+  await nameNew(page, title);
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
+  const field = page.getByRole('textbox', { name: 'Text', exact: true });
+  if (!(await field.isVisible())) await page.getByRole('button', { name: 'Format', exact: true }).click();
+  await field.fill(text);
+  await expect(page.getByTestId('slide-canvas')).toContainText(text);
+  await expect(page.getByTestId('saved')).toBeVisible();
+}
+
+export async function createSong(page: Page, name: string, parts: [string, string][]) {
+  await openAdmin(page, 'Sånger');
+  await newSong(page);
+  await nameNew(page, name);
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  // A new song starts with its first part (Verse 1): the first is filled in, the rest added.
+  await expect(page.getByLabel('Delar 1', { exact: true })).toBeVisible();
+  for (const [i, [label, text]] of parts.entries()) {
+    if (i > 0) await page.getByRole('button', { name: 'Lägg till del' }).click();
+    const part = page.getByLabel(`Delar ${i + 1}`, { exact: true });
+    await part.fill(text);
+    await part.blur();
+    const labelPicker = page.getByRole('combobox', { name: 'Etikett' }).nth(i);
+    await labelPicker.click();
+    await page.getByRole('listbox', { name: 'Etikett' }).getByRole('option', { name: label, exact: true }).click();
+    await expect(labelPicker).toHaveText(label);
+  }
+}
+
+/** Creates a presentation and stays in its editor. */
+export async function createPresentation(page: Page, name: string, date?: string) {
+  await openPresentations(page);
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
+  await dialog.getByLabel('Namn').fill(name);
+  if (date) await dialog.getByLabel('Datum').fill(date);
+  await dialog.getByLabel('Namn').press('Enter');
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+}
+
+/** Adds songs through the picker, each found by typing its name, and closes it. */
+export async function addSongs(page: Page, names: string[]) {
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  for (const name of names) {
+    await picker.getByLabel('Sök på titel, författare eller textrad').fill(name);
+    await picker.getByRole('button', { name: `Lägg till ${name}` }).click();
+    await expect(page.getByRole('status').getByText(`"${name}" har lagts till`)).toBeVisible();
+  }
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+}
+
+/**
+ * Selects an item in the running order, where only the selected item's slides are, also
+ * while presenting (Presentation.razor). On a phone the drawer must be open first.
+ */
+export async function pickItem(page: Page, name: string | RegExp) {
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name, exact: true }).click();
+}
+
+/** Google accounts for the people in the tests. */
+export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' };
+
+/**
+ * First run on the host (D19): the host's own window gets the setup token,
+ * so the person only fills in who they are, then signs in with Google in
+ * the system browser (once, with internet). passkeys.spec.ts sets up with a passkey.
+ */
+export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
+  const page = d.page;
+  await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
+  await expect(page.getByLabel('Installationskod')).toHaveCount(0); // the host hands it over
+  await page.getByLabel('Ditt namn').fill(who.name);
+  await page.getByLabel('Organisationens namn').fill(who.org);
+  await page.getByRole('button', { name: 'Kom igång' }).click();
+  // The host offers a passkey and Google; this is the Google way.
+  await page.getByRole('button', { name: 'Logga in med Google' }).click();
+  await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
+  const { link } = await browserSignIn(d, who.google);
+  expect(link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
+  await expect(page.getByTestId('me')).toHaveAccessibleName(`${who.name} · ${who.org}`);
+  await page.getByTestId('status').waitFor();
+}
+
+/**
+ * Turns superadminläge on under Mina inställningar (docs/accounts-and-roles.md): the setup person has the mark, and has
+ * just signed in. The page loads again with it, and the violet line says so.
+ */
+export async function superMode(page: Page) {
+  await openAdmin(page, 'Mina inställningar');
+  await page.getByText('Superadminläge', { exact: true }).click();
+  await expect(page.getByTestId('super-mode')).toContainText('Superadminläge till');
+}
+
+/** "Logga in med Google" in the app, finished in the system browser as `who`. */
+export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
+  await expect(d.page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
+  await d.page.getByRole('button', { name: 'Logga in med Google' }).click();
+  return browserSignIn(d, who);
+}
+
+/**
+ * On the host: a new person, a member of the host's organisation only (docs/accounts-and-roles.md, "The desktop host"),
+ * and a link for them to sign in with at the host; devices are paired instead.
+ */
+export async function createUser(page: Page, name: string, email: string, role: 'Användare' | 'Admin' = 'Användare') {
+  await openAdmin(page, 'Användare');
+  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
+  await dialog.getByLabel('Namn').fill(name);
+  await dialog.getByLabel('E-post').fill(email);
+  await dialog.getByLabel('Roll').selectOption({ label: role });
+  await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
+  // The new person's page, and a link for them, which an Admin at the host may make for someone only the host has.
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
+  await expect(page.getByTestId('invite')).toBeVisible();
+}
+
+/**
+ * Pairs a device with the host (ADR 0007, decision 6): a code made on the
+ * host for the member it signs the device in as, typed on the device.
+ */
+export async function pair(host: Page, device: Page, name: string, as?: string) {
+  await expect(device.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await openAdmin(host, 'Enheter');
+  await host.getByRole('button', { name: 'Anslut enhet' }).click();
+  const choose = host.getByRole('dialog', { name: 'Anslut enhet' });
+  if (as) await choose.getByLabel('Logga in som').selectOption({ label: as });
+  await choose.getByRole('button', { name: 'Visa kod' }).click();
+  const code = (await host.getByTestId('pair-code').textContent())!.trim();
+  // On the LAN the dialog has a QR code too: the code rides in the fragment, and the device's form is filled from it.
+  const qr = host.getByRole('img', { name: 'QR-kod för att ansluta enheten' });
+  const link = (await qr.count()) ? await qr.getAttribute('data-value') : null;
+  await host.getByRole('dialog', { name: 'Anslut enhet' }).getByRole('button', { name: 'Stäng' }).click();
+  if (link) {
+    expect(link).toMatch(new RegExp(`^https?://[^/]+/#pair=${code}$`));
+    await device.goto(`${device.url().split('#')[0]}#pair=${code}`);
+    await device.reload();
+    await expect(device.getByLabel('Kod')).toHaveValue(code);
+    await expect.poll(() => new URL(device.url()).hash).toBe(''); // taken out of the address once read
+  } else await device.getByLabel('Kod').fill(code);
+  await device.getByLabel('Enhetens namn').fill(name);
+  await device.getByRole('button', { name: 'Anslut' }).click();
+}
+
+/** The live page's "Tillåt fjärrstyrning", in the sheet the live column's Fjärrstyrning line opens on a computer. */
+export async function remoteSwitch(page: Page) {
+  const toggle = page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByLabel('Tillåt fjärrstyrning');
+  if (!(await toggle.isVisible())) await page.getByTestId('live-panel').getByTestId('remote-status').click();
+  return toggle;
+}
+
+/** Closes the Fjärrstyrning sheet, if it is open: it covers the page as iOS's form sheet does. */
+async function closeRemoteSheet(page: Page) {
+  const sheet = page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true });
+  if (await sheet.isVisible()) await sheet.getByRole('button', { name: 'Stäng', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+}
+
+/** Avsluta in the live bar, and its question answered: the presentation stops. */
+export async function endPresentation(page: Page) {
+  await closeRemoteSheet(page);
+  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Avsluta presentation' }).click();
+  await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
+}
+
+/** Switches remote control on in the live page's Fjärrstyrning sheet, and closes the sheet. */
+export async function allowRemote(page: Page) {
+  await (await remoteSwitch(page)).check();
+  await closeRemoteSheet(page);
+}

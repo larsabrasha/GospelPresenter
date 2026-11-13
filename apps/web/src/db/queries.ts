@@ -1,0 +1,473 @@
+import {
+  CCLI_COLLECTION_SETTING,
+  DEFAULT_THEME_SETTING,
+  LOAD_BIBLE_TEXT_SQL,
+  parseCustomPage,
+  type CustomPage,
+  REMOTE_CONTROL_SETTING,
+  remoteControlPolicy,
+  resolveTheme,
+  themeOfRow,
+  type Bible,
+  type CcliEntry,
+  type BibleBookText,
+  type Display,
+  type LibraryAudio,
+  type LibraryVideo,
+  type Label,
+  type Overlay,
+  type Presentation,
+  type PresentationItem,
+  type RemoteControlPolicy,
+  type Song,
+  type SongArrangement,
+  type SongMaterial,
+  type SongPart,
+  type SongVersion,
+  type Theme,
+} from '@gp/core';
+import { locale } from '../i18n.ts';
+import { libraryImage } from './images.ts';
+import type { ReadDb } from './share.ts';
+
+// Reads from the local database, mapped to the core row types. The column
+// names are SQLite's (snake_case); the core types are Drizzle's (camelCase).
+
+type Row = Record<string, unknown>;
+
+const song = (r: Row): Song => ({
+  id: String(r.id),
+  name: String(r.name),
+  author: (r.author as string | null) ?? null,
+  publisher: (r.publisher as string | null) ?? null,
+  year: (r.year as number | null) ?? null,
+  ccli: (r.ccli as string | null) ?? null,
+  deletedAt: (r.deleted_at as number | null) ?? null,
+});
+
+const part = (r: Row): SongPart => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  sort: Number(r.sort),
+  labelId: (r.label_id as string | null) ?? null,
+  content: String(r.content),
+});
+
+const presentation = (r: Row): Presentation => ({
+  id: String(r.id),
+  name: String(r.name),
+  eventDate: (r.event_date as string | null) ?? null,
+  deletedAt: (r.deleted_at as number | null) ?? null,
+  themeId: (r.theme_id as string | null) ?? null,
+  isTemplate: Boolean(r.is_template),
+  weekday: (r.weekday as number | null) ?? null,
+  time: (r.time as string | null) ?? null,
+  location: (r.location as string | null) ?? null,
+  description: (r.description as string | null) ?? null,
+  updatedAt: (r.updated_at as number | null) ?? null,
+  lastUsedAt: (r.last_used_at as number | null) ?? null,
+});
+
+const item = (r: Row): PresentationItem => ({
+  id: String(r.id),
+  presentationId: String(r.presentation_id),
+  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'video' || r.type === 'custom' || r.type === 'header' ? r.type : 'song',
+  title: String(r.title),
+  sourceId: String(r.source_id),
+  sort: Number(r.sort),
+  arrangementId: (r.arrangement_id as string | null) ?? null,
+  content: (r.content as string | null) ?? null,
+  overlayId: (r.overlay_id as string | null) ?? null,
+  note: (r.note as string | null) ?? null,
+});
+
+const arrangement = (r: Row): SongArrangement => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  name: (r.name as string | null) ?? null,
+  partIds: String(r.part_ids),
+  sort: Number(r.sort),
+});
+
+const version = (r: Row): SongVersion => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  userId: String(r.user_id),
+  createdAt: Number(r.created_at),
+  name: String(r.name),
+  data: String(r.data),
+});
+const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });
+
+/** `localeCompare(…, locale, { sensitivity: 'base' })` in the page's language, made once: making it per call cost 86 ms to sort 3 000 songs. */
+const byLocale = new Intl.Collator(locale(), { sensitivity: 'base' }).compare;
+
+const byName = (a: Song, b: Song) => byLocale(a.name, b.name);
+
+/** The library, by name, without the trash (spec 02: culture-aware, case-insensitive). */
+export async function listSongs(db: ReadDb): Promise<Song[]> {
+  return (await db.query('SELECT * FROM songs WHERE deleted_at IS NULL')).map(song).toSorted(byName);
+}
+
+/** A song's arrangements, in order: the first is the default (SONG-R19). */
+export async function arrangementsOf(db: ReadDb, songIds: string[]): Promise<SongArrangement[]> {
+  if (!songIds.length) return [];
+  const rows = await db.query(`SELECT * FROM song_arrangements WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
+  return rows.map(arrangement);
+}
+
+/** The sheet music, recordings and links of songs, each song's in its order (spec 02 "Song material"). */
+export async function songMaterialsOf(db: ReadDb, songIds: string[]): Promise<SongMaterial[]> {
+  if (!songIds.length) return [];
+  const rows = await db.query(`SELECT * FROM song_materials WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
+  return rows.map((r) => ({
+    id: String(r.id),
+    songId: String(r.song_id),
+    kind: String(r.kind),
+    title: String(r.title),
+    url: (r.url as string | null) ?? null,
+    hash: (r.hash as string | null) ?? null,
+    contentType: (r.content_type as string | null) ?? null,
+    size: r.size === null || r.size === undefined ? null : Number(r.size),
+    sort: Number(r.sort),
+    createdAt: Number(r.created_at),
+  }));
+}
+
+/** The presentations and templates (not in the trash) that have an item showing the song (D17). */
+export async function presentationsUsing(db: ReadDb, songId: string): Promise<Presentation[]> {
+  const rows = await db.query(
+    `SELECT DISTINCT p.* FROM presentations p JOIN presentation_items i ON i.presentation_id = p.id
+     WHERE i.type = 'song' AND i.source_id = ? AND p.deleted_at IS NULL ORDER BY p.name`,
+    [songId],
+  );
+  return rows.map(presentation);
+}
+
+export async function getSong(db: ReadDb, id: string): Promise<Song | null> {
+  const [r] = await db.query('SELECT * FROM songs WHERE id = ?', [id]);
+  return r ? song(r) : null;
+}
+
+export async function songPartsOf(db: ReadDb, songIds: string[]): Promise<SongPart[]> {
+  if (!songIds.length) return [];
+  const rows = await db.query(`SELECT * FROM song_parts WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
+  return rows.map(part);
+}
+
+/** A song's history, newest first (SONG-R23). */
+export async function songVersionsOf(db: ReadDb, songId: string): Promise<SongVersion[]> {
+  return (await db.query('SELECT * FROM song_versions WHERE song_id = ? ORDER BY created_at DESC, id DESC', [songId])).map(version);
+}
+
+export async function songsById(db: ReadDb, ids: string[]): Promise<Map<string, Song>> {
+  if (!ids.length) return new Map();
+  const rows = await db.query(`SELECT * FROM songs WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+  return new Map(rows.map(song).map((s) => [s.id, s]));
+}
+
+export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
+  return new Map((await db.query('SELECT * FROM labels ORDER BY sort, text')).map(label).map((l) => [l.id, l]));
+}
+
+/** Presentations, newest event first; those without a date last (milestone 1 has no "last changed"). */
+export async function listPresentations(db: ReadDb): Promise<Presentation[]> {
+  const rows = await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 0 ORDER BY event_date IS NULL, event_date DESC, name');
+  return rows.map(presentation);
+}
+
+/** How many items each presentation has, for the start page's rows (docs/layout-2-0.md); one with none is missing. */
+export async function itemCounts(db: ReadDb): Promise<Map<string, number>> {
+  const rows = await db.query<{ id: string; n: number }>('SELECT presentation_id AS id, COUNT(*) AS n FROM presentation_items GROUP BY presentation_id');
+  return new Map(rows.map((r) => [r.id, Number(r.n)]));
+}
+
+/** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
+/** The templates, last changed first (PresentationService.GetAllTemplateSummariesAsync). */
+export async function listTemplates(db: ReadDb): Promise<Presentation[]> {
+  return (await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 1'))
+    .map(presentation)
+    .toSorted((a, b) => byLastChanged(a, b) || byPresentationName(a, b));
+}
+
+/** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then last changed. */
+export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
+  return (await listTemplates(db)).toSorted((a, b) => (b.lastUsedAt ?? -1) - (a.lastUsedAt ?? -1)).slice(0, 10);
+}
+
+/** Latest change first; one never stamped (made before schema 12) after those that were. */
+export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presentation, 'updatedAt'>): number {
+  return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
+}
+
+const byPresentationName = (a: Presentation, b: Presentation) => byLocale(a.name, b.name) || a.id.localeCompare(b.id);
+
+export async function getPresentation(db: ReadDb, id: string): Promise<Presentation | null> {
+  const [r] = await db.query('SELECT * FROM presentations WHERE id = ?', [id]);
+  return r ? presentation(r) : null;
+}
+
+export interface TrashEntry {
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
+  id: string;
+  name: string;
+  /** The event date of a presentation, the author of a song. */
+  detail: string | null;
+  /** A template's, for its weekday, time and place. */
+  template?: Presentation;
+  deletedAt: number;
+}
+
+/** What is in the trash, newest deletion first (spec 03 section 5). */
+export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
+  const songs = (await db.query('SELECT * FROM songs WHERE deleted_at IS NOT NULL')).map(song);
+  const presentations = (await db.query('SELECT * FROM presentations WHERE deleted_at IS NOT NULL')).map(presentation);
+  const trashedImages = (await db.query('SELECT * FROM images WHERE deleted_at IS NOT NULL')).map(libraryImage);
+  const trashedAudios = (await db.query('SELECT * FROM audios WHERE deleted_at IS NOT NULL')).map(libraryAudio);
+  const trashedVideos = (await db.query('SELECT * FROM videos WHERE deleted_at IS NOT NULL')).map(libraryVideo);
+  const trashedSlides = await db.query<{ id: string; name: string; deleted_at: number }>('SELECT id, name, deleted_at FROM custom_slides WHERE deleted_at IS NOT NULL');
+  const entries: TrashEntry[] = [
+    ...trashedSlides.map((s) => ({ kind: 'Slide' as const, id: s.id, name: s.name, detail: null, deletedAt: Number(s.deleted_at) })),
+    ...trashedVideos.map((v) => ({ kind: 'Video' as const, id: v.id, name: v.fileName, detail: null, deletedAt: v.deletedAt! })),
+    ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
+    ...trashedAudios.map((a) => ({ kind: 'Audio' as const, id: a.id, name: a.fileName, detail: null, deletedAt: a.deletedAt! })),
+    ...presentations.map((p) =>
+      p.isTemplate
+        ? { kind: 'Template' as const, id: p.id, name: p.name, detail: null, template: p, deletedAt: p.deletedAt! }
+        : { kind: 'Presentation' as const, id: p.id, name: p.name, detail: p.eventDate, deletedAt: p.deletedAt! },
+    ),
+    ...songs.map((s) => ({ kind: 'Song' as const, id: s.id, name: s.name, detail: s.author, deletedAt: s.deletedAt! })),
+  ];
+  return entries.toSorted((a, b) => b.deletedAt - a.deletedAt || a.id.localeCompare(b.id));
+}
+
+export async function itemsOf(db: ReadDb, presentationId: string): Promise<PresentationItem[]> {
+  return (await db.query('SELECT * FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id', [presentationId])).map(item);
+}
+
+// ------------------------------------------------------------------ Bibles and themes
+
+const bible = (r: Row): Bible => ({
+  id: String(r.id),
+  name: String(r.name),
+  abbreviation: String(r.abbreviation),
+  language: (r.language as string | null) ?? null,
+  verseCount: Number(r.verse_count),
+  contentHash: String(r.content_hash),
+});
+
+export interface InstalledBible extends Bible {
+  /** Its text is on this device, so it can be searched offline. */
+  stored: boolean;
+  /** This device has chosen to keep its text ("Tillgänglig offline"). A desktop host keeps every text regardless. */
+  kept: boolean;
+}
+
+/** The organisation's translations, by name (BIBLE-R8). */
+export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
+  const rows = await db.query(
+    'SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored, EXISTS (SELECT 1 FROM kept_bibles k WHERE k.id = b.id) AS kept FROM bibles b',
+  );
+  return rows.map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) })).toSorted((a, b) => byLocale(a.name, b.name) || a.id.localeCompare(b.id));
+}
+
+/**
+ * Parsed texts, by hash, the last used last: a text never changes, so it is
+ * read and parsed once, but only the last few are held, as each is megabytes.
+ */
+const texts = new Map<string, Promise<BibleBookText[] | null>>();
+const TEXTS_HELD = 3;
+
+/** Drops a text that came to nothing, unless it was let go and asked for again meanwhile. */
+function forget(hash: string, asked: Promise<BibleBookText[] | null>) {
+  if (texts.get(hash) === asked) texts.delete(hash);
+}
+
+/**
+ * A translation's books, or null while this device does not have the text.
+ * `fetch` gets a text the device does not keep from the server, unstored
+ * (`Db.fetchBibleText`); it is then held in this window only.
+ */
+export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => Promise<BibleBookText[] | null>): Promise<BibleBookText[] | null> {
+  let p = texts.get(hash);
+  if (p) {
+    texts.delete(hash);
+    texts.set(hash, p);
+  } else {
+    p = (async () => {
+      const rows = await db.query<{ code: string; chunk: string }>(LOAD_BIBLE_TEXT_SQL, [hash]);
+      if (!rows.length) return fetch ? fetch(hash) : null;
+      return rows.map((r) => ({ code: r.code, verses: JSON.parse(r.chunk) as BibleBookText['verses'] }));
+    })();
+    texts.set(hash, p);
+    for (const old of texts.keys()) {
+      if (texts.size <= TEXTS_HELD) break;
+      texts.delete(old);
+    }
+    // Not there yet: ask again next time rather than remember the absence.
+    const asked = p;
+    void p.then(
+      (books) => books ?? forget(hash, asked),
+      () => forget(hash, asked),
+    );
+  }
+  return p;
+}
+
+export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [DEFAULT_THEME_SETTING]);
+  return r?.value ?? null;
+}
+
+/** The organisation's remote control policy; no row is the presenter's choice. */
+export async function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]);
+  return remoteControlPolicy(r?.value);
+}
+
+/** Whether CCLI collection is on (SONG-R49): only `"true"` is. */
+export async function ccliCollectionOn(db: ReadDb): Promise<boolean> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [CCLI_COLLECTION_SETTING]);
+  return r?.value === 'true';
+}
+
+const ccliEntry = (r: Row): CcliEntry => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  songName: String(r.song_name),
+  ccli: String(r.ccli),
+  presentationId: String(r.presentation_id),
+  presentationName: String(r.presentation_name),
+  date: String(r.date),
+  reportedAt: (r.reported_at as number | null) ?? null,
+});
+
+/** The CCLI entries by date, newest first, then presentation and song name (SONG-R52). */
+export async function listCcliEntries(db: ReadDb): Promise<CcliEntry[]> {
+  return (await db.query('SELECT * FROM ccli_entries ORDER BY date DESC')).map(ccliEntry).toSorted(
+    (a, b) => b.date.localeCompare(a.date) || byLocale(a.presentationName, b.presentationName) || a.presentationId.localeCompare(b.presentationId) || byLocale(a.songName, b.songName),
+  );
+}
+
+/** The organisation's own themes (docs/themes.md), in the order they were made. */
+export async function ownThemes(db: ReadDb): Promise<Theme[]> {
+  return (await db.query('SELECT id, name, definition, sort FROM themes ORDER BY sort, id')).map((r) =>
+    themeOfRow({ id: String(r.id), name: String(r.name), definition: String(r.definition), sort: Number(r.sort) }),
+  );
+}
+
+/** An own theme to edit, with when it was last saved; null where there is none. */
+export async function getOwnTheme(db: ReadDb, id: string): Promise<{ theme: Theme; updatedAt: number } | null> {
+  const [r] = await db.query('SELECT id, name, definition, sort, updated_at FROM themes WHERE id = ?', [id]);
+  if (!r) return null;
+  return { theme: themeOfRow({ id: String(r.id), name: String(r.name), definition: String(r.definition), sort: Number(r.sort) }), updatedAt: Number(r.updated_at) };
+}
+
+/** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). Null: the default. */
+export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
+  return resolveTheme(p?.themeId, await orgDefaultThemeId(db), await ownThemes(db));
+}
+
+/** The organisation's default theme, as a page outside a presentation draws in (THEME-R2). */
+export const defaultTheme = (db: ReadDb): Promise<Theme> => themeOf(db, null);
+
+// ------------------------------------------------------------------ outputs
+
+/** The organisation's outputs, by name (spec 04 §7). */
+/** The outputs in the order they were made, as Skärmar lists them (RemoteDisplayService.cs); those from before schema 12 first, by name. */
+export async function listDisplays(db: ReadDb): Promise<Display[]> {
+  const rows = await db.query<{ id: string; name: string; code: string; kind: string; created_at: number | null }>('SELECT id, name, code, kind, created_at FROM displays');
+  return rows
+    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || byLocale(a.name, b.name) || a.id.localeCompare(b.id))
+    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const), createdAt: r.created_at }));
+}
+
+// ------------------------------------------------------------------ audio
+
+const libraryAudio = (r: Row): LibraryAudio => ({
+  id: String(r.id),
+  fileName: String(r.file_name),
+  contentType: String(r.content_type),
+  hash: String(r.hash),
+  size: Number(r.size),
+  createdAt: Number(r.created_at),
+  deletedAt: (r.deleted_at as number | null) ?? null,
+});
+
+/** The audio files, newest first, without the trash (MEDIA-R7). */
+export async function listAudios(db: ReadDb): Promise<LibraryAudio[]> {
+  return (await db.query('SELECT * FROM audios WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryAudio);
+}
+
+/** An audio file by id, trashed or not: a trashed file still plays where it is used (MEDIA-R8). */
+export async function getAudio(db: ReadDb, id: string): Promise<LibraryAudio | null> {
+  const [r] = await db.query('SELECT * FROM audios WHERE id = ?', [id]);
+  return r ? libraryAudio(r) : null;
+}
+
+// ------------------------------------------------------------------ video
+
+const libraryVideo = (r: Row): LibraryVideo => ({
+  id: String(r.id),
+  fileName: String(r.file_name),
+  contentType: r.content_type === 'video/quicktime' ? 'video/quicktime' : 'video/mp4',
+  codec: r.codec === 'hevc' ? 'hevc' : 'h264',
+  hash: String(r.hash),
+  size: Number(r.size),
+  duration: Number(r.duration),
+  width: Number(r.width),
+  height: Number(r.height),
+  stillHash: String(r.still_hash),
+  thumbHash: String(r.thumb_hash),
+  createdAt: Number(r.created_at),
+  deletedAt: (r.deleted_at as number | null) ?? null,
+});
+
+/** The videos, newest first, without the trash (MEDIA-R7). */
+export async function listVideos(db: ReadDb): Promise<LibraryVideo[]> {
+  return (await db.query('SELECT * FROM videos WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryVideo);
+}
+
+/** A video by id, trashed or not: a trashed video still plays where it is used (MEDIA-R8). */
+export async function getVideo(db: ReadDb, id: string): Promise<LibraryVideo | null> {
+  const [r] = await db.query('SELECT * FROM videos WHERE id = ?', [id]);
+  return r ? libraryVideo(r) : null;
+}
+
+/** Whether this device keeps the presentation's files whatever its date ("Tillgänglig offline"). */
+export async function isPinned(db: ReadDb, presentationId: string): Promise<boolean> {
+  return (await db.query('SELECT 1 FROM pinned_presentations WHERE id = ?', [presentationId])).length > 0;
+}
+
+/** The presentations kept offline on this device. */
+export async function pinnedIds(db: ReadDb): Promise<Set<string>> {
+  return new Set((await db.query<{ id: string }>('SELECT id FROM pinned_presentations')).map((r) => r.id));
+}
+
+// ------------------------------------------------------------------ overlays
+
+const overlay = (r: Row): Overlay => ({
+  id: String(r.id),
+  title: String(r.title),
+  content: (r.content as string | null) ?? null,
+  imageId: null,
+  sort: Number(r.sort),
+  updatedAt: (r.updated_at as number | null) ?? null,
+});
+
+/** The organisation's overlays, in the order they were made (PRES-R18). */
+export async function listOverlays(db: ReadDb): Promise<Overlay[]> {
+  return (await db.query('SELECT * FROM overlays ORDER BY sort, id')).map(overlay);
+}
+
+export async function getOverlay(db: ReadDb, id: string): Promise<Overlay | null> {
+  const [r] = await db.query('SELECT * FROM overlays WHERE id = ?', [id]);
+  return r ? overlay(r) : null;
+}
+
+/** What an overlay shows: its page, its pictures its own (docs/custom-slides.md). */
+export async function shownOverlay(db: ReadDb, id: string | null): Promise<CustomPage | null> {
+  if (!id) return null;
+  const [r] = await db.query<{ content: string | null }>('SELECT content FROM overlays WHERE id = ?', [id]);
+  return r ? parseCustomPage(r.content) : null;
+}

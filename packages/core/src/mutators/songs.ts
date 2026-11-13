@@ -1,0 +1,224 @@
+import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
+import { z } from 'zod';
+import { songArrangements, songMaterials, songParts, songs, songVersions } from '../schema.ts';
+import { keepSongVersion, keepVersionOfPart } from './history.ts';
+import { ensureLabel } from './labels.ts';
+import { renameSongItems } from './presentations.ts';
+import { parsePartIds } from '../slides.ts';
+import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+
+// ------------------------------------------------------------------ songs
+
+export const createSongArgs = z.object({ id, name, author: optionalText(200).optional() });
+export async function createSong(tx: Tx, a: z.output<typeof createSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const [n] = await tx.select({ n: count() }).from(songs).where(isNull(songs.deletedAt));
+  limit((n?.n ?? 0) >= LIMITS.songs, 'songs');
+  await tx
+    .insert(songs)
+    .values({ id: a.id, name: a.name, author: a.author ?? null })
+    .onConflictDoNothing();
+}
+
+export const updateSongArgs = z.object({
+  id,
+  name: name.optional(),
+  author: optionalText(200).optional(),
+  publisher: optionalText(200).optional(),
+  year: z.number().int().min(0).max(9999).nullable().optional(),
+  ccli: optionalText(20).optional(),
+});
+export async function updateSong(tx: Tx, a: z.output<typeof updateSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const { id: songId, ...fields } = a;
+  const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+  if (!Object.keys(set).length) return;
+  await keepSongVersion(tx, songId, ctx);
+  await tx.update(songs).set(set).where(eq(songs.id, songId));
+  if (a.name !== undefined) await renameSongItems(tx, songId, a.name);
+}
+
+export const trashSongArgs = z.object({ id, at: z.number().int() });
+export async function trashSong(tx: Tx, a: z.output<typeof trashSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  await tx.update(songs).set({ deletedAt: a.at }).where(eq(songs.id, a.id));
+}
+
+export const restoreSongArgs = z.object({ id });
+export async function restoreSong(tx: Tx, a: z.output<typeof restoreSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  await tx.update(songs).set({ deletedAt: null }).where(eq(songs.id, a.id));
+}
+
+/** Deletes a song with its parts, arrangements and history. Presentation items that use it stay, and say the song is gone. */
+export async function deleteSongRows(tx: Tx, songId: string) {
+  await tx.delete(songMaterials).where(eq(songMaterials.songId, songId));
+  await tx.delete(songVersions).where(eq(songVersions.songId, songId));
+  await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
+  await tx.delete(songParts).where(eq(songParts.songId, songId));
+  await tx.delete(songs).where(eq(songs.id, songId));
+}
+
+export const purgeSongArgs = z.object({ id });
+/** Permanent delete (SONG-R27, D14): only of a song that is in the trash where this runs. */
+export async function purgeSong(tx: Tx, a: z.output<typeof purgeSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const [s] = await tx.select({ deletedAt: songs.deletedAt }).from(songs).where(eq(songs.id, a.id));
+  if (!s) return; // already gone: nothing to do
+  if (s.deletedAt === null) throw new MutationError('not-in-trash', 'song is not in the trash');
+  await deleteSongRows(tx, a.id);
+}
+
+export async function partIdsInOrder(tx: Tx, songId: string): Promise<string[]> {
+  const rows = await tx
+    .select({ id: songParts.id })
+    .from(songParts)
+    .where(eq(songParts.songId, songId))
+    .orderBy(asc(songParts.sort), asc(songParts.id));
+  return rows.map((r) => r.id);
+}
+
+/** Writes 0..n-1 as the sort of the given part ids, touching only rows that change. */
+async function renumberParts(tx: Tx, order: string[]) {
+  for (const [i, partId] of order.entries()) {
+    await tx
+      .update(songParts)
+      .set({ sort: i })
+      .where(and(eq(songParts.id, partId), ne(songParts.sort, i)));
+  }
+}
+
+const partContent = z.string().max(5000);
+const labelText = z.string().trim().max(50).nullable();
+
+export const addSongPartArgs = z.object({ id, songId: id, labelText, content: partContent });
+/** Appends a part to a song. */
+export async function addSongPart(tx: Tx, a: z.output<typeof addSongPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const [s] = await tx.select({ id: songs.id }).from(songs).where(eq(songs.id, a.songId));
+  if (!s) throw new MutationError('not-found', 'song not found');
+  const [n] = await tx.select({ n: count() }).from(songParts).where(eq(songParts.songId, a.songId));
+  limit((n?.n ?? 0) >= LIMITS.partsPerSong, 'parts');
+  await keepSongVersion(tx, a.songId, ctx);
+  const [top] = await tx.select({ last: max(songParts.sort) }).from(songParts).where(eq(songParts.songId, a.songId));
+  await tx
+    .insert(songParts)
+    .values({
+      id: a.id,
+      songId: a.songId,
+      sort: (top?.last ?? -1) + 1,
+      labelId: await ensureLabel(tx, a.labelText),
+      content: a.content,
+    })
+    .onConflictDoNothing();
+}
+
+export const updateSongPartArgs = z.object({ id, content: partContent.optional(), labelText: labelText.optional() });
+export async function updateSongPart(tx: Tx, a: z.output<typeof updateSongPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const set: { content?: string; labelId?: string | null } = {};
+  if (a.content !== undefined) set.content = a.content;
+  if (a.labelText !== undefined) set.labelId = await ensureLabel(tx, a.labelText);
+  if (!Object.keys(set).length) return;
+  await keepVersionOfPart(tx, a.id, ctx);
+  await tx.update(songParts).set(set).where(eq(songParts.id, a.id));
+}
+
+export const removeSongPartArgs = z.object({ id });
+/**
+ * Deletes exactly the named part, closes the gap, and takes every occurrence
+ * of it out of the song's arrangements (SONG-R14; all of them, 02 Q7). A
+ * no-op if it is already gone.
+ */
+export async function removeSongPart(tx: Tx, a: z.output<typeof removeSongPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const [p] = await tx.select({ songId: songParts.songId }).from(songParts).where(eq(songParts.id, a.id));
+  if (!p) return;
+  await keepSongVersion(tx, p.songId, ctx);
+  await tx.delete(songParts).where(eq(songParts.id, a.id));
+  await renumberParts(tx, await partIdsInOrder(tx, p.songId));
+  const arrangements = await tx
+    .select({ id: songArrangements.id, partIds: songArrangements.partIds })
+    .from(songArrangements)
+    .where(eq(songArrangements.songId, p.songId));
+  for (const arr of arrangements) {
+    const ids = parsePartIds(arr.partIds);
+    if (ids.includes(a.id)) {
+      await tx
+        .update(songArrangements)
+        .set({ partIds: JSON.stringify(ids.filter((x) => x !== a.id)) })
+        .where(eq(songArrangements.id, arr.id));
+    }
+  }
+}
+
+export const moveSongPartArgs = z.object({ id, toIndex: z.number().int().min(0) });
+/** Moves a part to an index among the song's parts as they are where this runs. */
+export async function moveSongPart(tx: Tx, a: z.output<typeof moveSongPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const [p] = await tx.select({ songId: songParts.songId }).from(songParts).where(eq(songParts.id, a.id));
+  if (!p) return;
+  await keepSongVersion(tx, p.songId, ctx);
+  const order = (await partIdsInOrder(tx, p.songId)).filter((x) => x !== a.id);
+  order.splice(Math.min(a.toIndex, order.length), 0, a.id);
+  await renumberParts(tx, order);
+}
+
+// ------------------------------------------------------------------ import
+
+const importedSong = z.object({
+  id,
+  name,
+  author: optionalText(200),
+  publisher: optionalText(200),
+  ccli: optionalText(20),
+  parts: z.array(z.object({ id, labelText, content: partContent })).min(1).max(LIMITS.partsPerSong),
+  arrangements: z
+    .array(z.object({ id, name: optionalText(100), partIds: z.array(id).max(500) }))
+    .max(LIMITS.arrangementsPerSong),
+  /** The library song this one replaces, as the importer chose; null adds it, whatever its name. */
+  replaces: id.nullable(),
+});
+
+export const importSongsArgs = z.object({ songs: z.array(importedSong).min(1).max(500) });
+/**
+ * Songs read from ProPresenter files (spec 02 "Import", SONG-R42–R44 as changed on 2026-10-31), in one
+ * mutation so the import is all or nothing. The importer chose per song: those to skip are not sent, and
+ * one that `replaces` a song keeps that song's id and name and takes the file's author, publisher, CCLI
+ * number (and no year), parts and arrangements in place of its own. A song to replace that is gone or in
+ * the trash where this runs is added instead, so no text is lost; every other song is added, even beside
+ * one of the same name.
+ */
+export async function importSongs(tx: Tx, a: z.output<typeof importSongsArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const library = new Set((await tx.select({ id: songs.id }).from(songs).where(isNull(songs.deletedAt))).map((s) => s.id));
+  let live = library.size;
+  for (const s of a.songs) {
+    let songId = s.replaces && library.has(s.replaces) ? s.replaces : null;
+    if (songId) {
+      await keepSongVersion(tx, songId, ctx, true); // D9: the replaced song can be restored
+      await tx.update(songs).set({ author: s.author, publisher: s.publisher, year: null, ccli: s.ccli }).where(eq(songs.id, songId));
+      await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
+      await tx.delete(songParts).where(eq(songParts.songId, songId));
+    } else {
+      limit(live >= LIMITS.songs, 'songs');
+      songId = s.id;
+      await tx.insert(songs).values({ id: songId, name: s.name, author: s.author, publisher: s.publisher, ccli: s.ccli }).onConflictDoNothing();
+      library.add(songId);
+      live++;
+    }
+    for (const [sort, p] of s.parts.entries()) {
+      await tx
+        .insert(songParts)
+        .values({ id: p.id, songId, sort, labelId: await ensureLabel(tx, p.labelText), content: p.content })
+        .onConflictDoNothing();
+    }
+    const own = new Set(s.parts.map((p) => p.id));
+    for (const [sort, arr] of s.arrangements.entries()) {
+      await tx
+        .insert(songArrangements)
+        .values({ id: arr.id, songId, name: arr.name, partIds: JSON.stringify(arr.partIds.filter((x) => own.has(x))), sort })
+        .onConflictDoNothing();
+    }
+  }
+}

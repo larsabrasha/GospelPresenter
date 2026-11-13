@@ -1,0 +1,21 @@
+{
+  "name": "@gp/mobile",
+  "productName": "Gospel Presenter",
+  "version": "2.0.0-beta.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node build.mjs",
+    "ios": "node build.mjs && cap run ios",
+    "open": "cap open ios",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/keyboard": "8.0.6"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}

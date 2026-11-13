@@ -1,0 +1,97 @@
+import { useEffect, useState } from 'react';
+import type { Me, SignInResponse } from '@gp/core';
+import { t } from '../i18n.ts';
+import { api } from './api.ts';
+import { appSignIn } from './appSignIn.ts';
+import { errorText } from './errors.ts';
+import { startPasskey } from './passkey.ts';
+import { deviceName } from './session.ts';
+
+// Sign-in with Google (spec 01). In a browser the page goes to Google and
+// comes back to `/signed-in`. In the desktop and phone apps Google is never
+// shown in the app's own window: the system browser (iOS's sign-in sheet on a
+// phone) signs in, and the server hands the token back through the app's
+// callback scheme (spec 01 device sign-in, appSignIn.ts).
+
+/** How long the desktop app waits for the system browser (spec 06: 5 minutes). */
+const WAIT_MS = 5 * 60_000;
+
+/**
+ * Starts a sign-in, optionally accepting `invite`. Resolves to an error
+ * text, or null once the browser has been sent on its way (a web page is
+ * then leaving; the desktop app waits for its callback).
+ */
+async function startGoogle(invite?: string): Promise<string | null> {
+  const native = appSignIn();
+  try {
+    let path: string;
+    if (native && !invite) {
+      path = `/api/app-login?${new URLSearchParams({ device: deviceName(), callback_scheme: native.callbackScheme })}`;
+    } else {
+      const app = native ? { deviceName: deviceName(), callbackScheme: native.callbackScheme } : undefined;
+      const r = await api<{ url: string }>('POST', '/api/auth/google/begin', { invite, app });
+      if (r.error) return errorText(r);
+      path = r.body.url;
+    }
+    if (native) return (await native.openSignIn(path)) ? null : t('auth.failed');
+    location.assign(path);
+    return null;
+  } catch {
+    return t('auth.offline');
+  }
+}
+
+/**
+ * A sign-in with Google or a passkey, and in the desktop and phone apps their
+ * side of the system browser: whether it is waiting, and the callback that ends it. A
+ * token from the callback is checked with `GET /auth/me` before it is kept.
+ */
+export function useDesktopSignIn(onSignedIn: (r: SignInResponse) => void) {
+  const [waiting, setWaiting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const app = appSignIn();
+    if (!app) return;
+    const offCallback = app.onSignInCallback(async (token) => {
+      try {
+        const r = await api<Me>('GET', '/api/auth/me', undefined, { token });
+        if (r.error) throw new Error(r.error);
+        onSignedIn({ token, me: r.body });
+      } catch {
+        setWaiting(false);
+        setError(t('auth.failed'));
+      }
+    });
+    // The phone app's sheet, closed without a sign-in: back to the button, with an error only if it failed.
+    const offEnded = app.onSignInEnded?.((failed) => {
+      setWaiting(false);
+      if (failed) setError(t('auth.failed'));
+    });
+    return () => {
+      offCallback();
+      offEnded?.();
+    };
+  }, [onSignedIn]);
+  useEffect(() => {
+    if (!waiting) return;
+    // Abandoned in the browser: back to the button, quietly (spec 06).
+    const timer = setTimeout(() => setWaiting(false), WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+
+  const run = async (starter: () => Promise<string | SignInResponse | null>) => {
+    setError(null);
+    const r = await starter();
+    if (typeof r === 'string') setError(r);
+    else if (r) onSignedIn(r);
+    else if (appSignIn()) setWaiting(true);
+  };
+  return {
+    waiting,
+    error,
+    start: (invite?: string) => run(() => startGoogle(invite)),
+    passkey: (invite?: string, opts?: { mode?: 'signin' | 'register'; personName?: string }) => run(() => startPasskey(invite, opts)),
+    cancel: () => setWaiting(false),
+    setError,
+  };
+}

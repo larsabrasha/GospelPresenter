@@ -1,0 +1,178 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { CustomPage, Song } from '@gp/core';
+import { presentationMediaState } from '@gp/sync/client';
+import type { Db } from './db.ts';
+import type { DbStatus } from './protocol.ts';
+import { blobUrl, holdBlobUrl } from './blobUrls.ts';
+import { listSongs, shownOverlay } from './queries.ts';
+import { needsReload, type ReadDb } from './share.ts';
+import { isHostWindow } from '../hostWindow.ts';
+
+const DbContext = createContext<Db | null>(null);
+const ReadContext = createContext<ReadDb | null>(null);
+
+/** A window that owns the database: it reads, writes and syncs. */
+export function DbProvider({ db, children }: { db: Db; children: ReactNode }) {
+  return (
+    <DbContext value={db}>
+      <ReadContext value={db}>{children}</ReadContext>
+    </DbContext>
+  );
+}
+
+/** A window that only reads, through another window's database (the output). */
+export function ReaderProvider({ reader, children }: { reader: ReadDb; children: ReactNode }) {
+  return <ReadContext value={reader}>{children}</ReadContext>;
+}
+
+export function useDb(): Db {
+  const db = useContext(DbContext);
+  if (!db) throw new Error('useDb outside DbProvider');
+  return db;
+}
+
+function useReader(): ReadDb {
+  const db = useContext(ReadContext);
+  if (!db) throw new Error('useData outside DbProvider or ReaderProvider');
+  return db;
+}
+
+/**
+ * Loads data from the local database and loads it again whenever the database
+ * changes: a local mutation, a pull, or another window's write. `undefined`
+ * until the first load. `deps` are the inputs of `load`.
+ */
+export function useData<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[]): T | undefined {
+  return useDataOf(load, deps);
+}
+
+/**
+ * `useData` that loads again only when a change wrote one of `tables`, every
+ * table `load` reads (or the change does not say what it wrote). For the song
+ * library, which a reload on every change would draw again, and a stored file's
+ * URL; a table missing from `tables` is an update missed.
+ */
+function useDataOf<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[], tables?: readonly string[]): T | undefined {
+  const db = useReader();
+  const [value, setValue] = useState<T>();
+  useEffect(() => {
+    let current = true;
+    let run = 0;
+    const reload = () => {
+      const mine = ++run;
+      void load(db).then((v) => {
+        if (current && mine === run) setValue(v);
+      });
+    };
+    reload();
+    const off = db.onChange((changed) => needsReload(tables, changed) && reload());
+    return () => {
+      current = false;
+      off();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` is a new closure every render; `deps` are its inputs; `tables` is fixed per call.
+  }, [db, ...deps]);
+  return value;
+}
+
+export function useDbStatus(): DbStatus | undefined {
+  const db = useDb();
+  const [status, setStatus] = useState<DbStatus>();
+  useEffect(() => {
+    void db.status().then(setStatus);
+    return db.onStatus(setStatus);
+  }, [db]);
+  return status;
+}
+
+/**
+ * A file of this device, never fetched: its object URL, or null while it is not here (not synced to this device yet, or
+ * no hash). For what every device keeps (thumbnails, a presented presentation's files); a file looked at or played
+ * that a device may lack takes `useFetchedUrl` or `usePictureUrl` (the review, 2026-11-09: a preview waited for ever).
+ */
+export function useLocalUrl(hash: string | null): string | null {
+  // Held while shown, so it is not let go under the picture; let go a while after.
+  useEffect(() => (hash ? holdBlobUrl(hash) : undefined), [hash]);
+  // Loaded again only when a file arrives or goes: on a new device every picture missing would ask again on every change.
+  return useDataOf(async (db) => (hash ? blobUrl(db, hash) : null), [hash], ['media_blobs']) ?? null;
+}
+
+/**
+ * A file, fetched now and kept as cache when this device lacks it: undefined while it comes, null if it cannot be had.
+ * A null hash fetches nothing (yet).
+ */
+export function useFetchedUrl(hash: string | null): string | null | undefined {
+  const db = useDb();
+  // Kept with its hash: another file, or none, never shows the one before, whose URL is let go (the review, 2026-11-09).
+  const [opened, setOpened] = useState<{ hash: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (!hash) return;
+    let live = true;
+    let made: string | null = null;
+    void db.openMedia(hash).then(
+      (m) => {
+        if (!live) return;
+        made = m ? URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: m.contentType })) : null;
+        setOpened({ hash, url: made });
+      },
+      // A call that failed cannot have it: said so, rather than "hämtas" for ever.
+      () => live && setOpened({ hash, url: null }),
+    );
+    return () => {
+      live = false;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [db, hash]);
+  return hash && opened?.hash === hash ? opened.url : undefined;
+}
+
+/**
+ * A library picture at full size: the picture itself, fetched and kept as cache when this device lacks it (a browser
+ * keeps only the ones a presentation needs: docs/media-and-files.md), its thumbnail meanwhile, or if it cannot be had.
+ * A null `full` shows the thumbnail and fetches nothing, as for a picture far from view.
+ */
+export function usePictureUrl(full: string | null, thumb: string): string | null {
+  const opened = useFetchedUrl(full);
+  const small = useLocalUrl(opened ? null : thumb);
+  return opened ?? small;
+}
+
+/** What the overlay `id` shows, or null for none (or one deleted meanwhile). */
+export function useShownOverlay(id: string | null): CustomPage | null {
+  return useData((db) => shownOverlay(db, id), [id]) ?? null;
+}
+
+/**
+ * How many of the files a presentation needs live this device has (docs/media-and-files.md, "Which files
+ * a device keeps"). Reading it fetches nothing: presenting does, and keeping it offline.
+ */
+export function usePresentationMedia(presentationId: string, audio: boolean): { needed: number; present: number } | undefined {
+  const state = useData((r) => presentationMediaState(r, presentationId, audio), [presentationId, audio]);
+  return state && isHostWindow() ? { ...state, present: state.needed } : state;
+}
+
+/**
+ * The song library and a search of it (SONG-R30–R33), run in the database's
+ * worker, so the page never loads the lyrics. `songs` is every song by name
+ * (not the trash). `shown` is the hits, best first, or every song for a blank
+ * query; `shownQuery` is the query `shown` answers, which trails the one typed
+ * until the worker has answered (highlight with it, and pick from `shown`
+ * only once they agree).
+ */
+export function useSongSearch(query: string): { songs: Song[] | undefined; shown: Song[] | undefined; shownQuery: string } {
+  const db = useDb();
+  const songs = useDataOf(listSongs, [], ['songs']);
+  // The worker prepares the library for search at the first search: started here, ahead of the first key.
+  useEffect(() => void db.searchSongs('').catch(() => undefined), [db]);
+  const blank = !query.trim();
+  const hits = useDataOf(async () => (blank ? null : { query, ids: await db.searchSongs(query) }), [query], ['songs', 'song_parts']);
+  // The same array until the songs or the hits change, so a list drawn from it is not drawn again on every key.
+  const found = useMemo(() => {
+    if (!songs || !hits) return undefined;
+    const byId = new Map(songs.map((s) => [s.id, s]));
+    // A song the list has not caught up with yet waits for the next load of both.
+    return hits.ids.flatMap((id) => byId.get(id) ?? []);
+  }, [songs, hits]);
+  if (blank || !hits) return { songs, shown: songs, shownQuery: blank ? query : '' };
+  return { songs, shown: found, shownQuery: hits.query };
+}

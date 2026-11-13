@@ -1,0 +1,195 @@
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { backgroundOf, CANVAS, CLASSIC, slideStyle, textAreaCss, type CustomPage, type Slide, type SlideKind, type Theme } from '@gp/core';
+import { useLocalUrl } from '../db/react.tsx';
+import { creditsCss, mainCss, stageCss } from '../themes.ts';
+import { CustomPageView } from './CustomPageView.tsx';
+import { FittedText } from './FittedText.tsx';
+import { Highlight } from './Highlight.tsx';
+
+const STAGE_WIDTH = CANVAS.width;
+const STAGE_HEIGHT = CANVAS.height;
+
+/** A Bible slide's text: each verse number small and faint, held to its first word (spec 05). */
+function BibleText({ slide }: { slide: Slide }) {
+  return (
+    <>
+      {slide.verses!.map((seg, i) => (
+        <span key={i}>
+          {i > 0 && ' '}
+          {seg.n !== null && (
+            <>
+              <sup className="verse-number">{seg.n}</sup>
+              {' '}
+            </>
+          )}
+          {seg.t}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** Where a picture comes from: this device's blob (nothing until it has it), or, on a page with no database (a paired screen), the URL `media` gives. */
+type Media = ((hash: string) => string) | undefined;
+
+/**
+ * A picture from this device: the full one where it is here (presenting fetched it, or it is kept offline),
+ * else its thumbnail, which every device has, so looking around shows pictures without fetching them.
+ */
+function BlobPicture({ hash, thumb, className, testId }: { hash: string | null; thumb: string | null; className: string; testId?: string }) {
+  const full = useLocalUrl(hash);
+  const small = useLocalUrl(full || !thumb || thumb === hash ? null : thumb);
+  const url = full ?? small;
+  return url ? <img className={className} src={url} alt="" data-testid={testId} draggable={false} /> : null;
+}
+
+function Picture({ hash, thumb = null, media, className, testId }: { hash: string | null; thumb?: string | null; media: Media; className: string; testId?: string }) {
+  if (!media) return <BlobPicture hash={hash} thumb={thumb} className={className} testId={testId} />;
+  return hash ? <img className={className} src={media(hash)} alt="" data-testid={testId} draggable={false} /> : null;
+}
+
+/** A theme's own background picture, under the slide, with its scrim (THEME-R9); a built-in image is the stage's CSS. */
+function ThemePicture({ theme, kind, media }: { theme: Theme; kind: SlideKind; media: Media }) {
+  const bg = backgroundOf(theme, kind);
+  if (bg.image?.kind !== 'picture') return null;
+  return (
+    <>
+      <Picture hash={bg.image.full} thumb={bg.image.thumb} media={media} className={bg.fit === 'cover' ? 'slide-picture object-cover' : 'slide-picture object-contain'} testId="theme-picture" />
+      {bg.scrim > 0 && <div className="slide-picture" style={{ background: `rgba(0, 0, 0, ${bg.scrim / 100})` }} />}
+    </>
+  );
+}
+
+/** An overlay above the slide (LIVE-R15, docs/custom-slides.md): its page, with no background, in the slide's theme. */
+function OverlayLayer({ overlay, theme, media }: { overlay: CustomPage; theme: Theme; media: Media }) {
+  return (
+    <div className="slide-overlay" data-testid="slide-overlay">
+      <CustomPageView page={overlay} theme={theme} media={media} />
+    </div>
+  );
+}
+
+/** How long the black screen takes to fade in or out (LiveDisplay.razor's `duration-500`). */
+const BLACK_FADE_MS = 500;
+
+/**
+ * What a stage draws while `black` fades in: the slide and overlay of the last
+ * render that was not black, for BLACK_FADE_MS, then nothing, so a blacked-out
+ * output holds no slide. Not black, what it is given.
+ */
+function useBlackFade(black: boolean, slide: Slide | null, overlay: CustomPage | null): { slide: Slide | null; overlay: CustomPage | null } {
+  const [last, setLast] = useState({ slide, overlay });
+  const [fading, setFading] = useState(false);
+  const [wasBlack, setWasBlack] = useState(black);
+  if (black !== wasBlack) {
+    setWasBlack(black);
+    setFading(black);
+  }
+  if (!black && (last.slide !== slide || last.overlay !== overlay)) setLast({ slide, overlay });
+  useEffect(() => {
+    if (!fading) return;
+    const timer = setTimeout(() => setFading(false), BLACK_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [fading]);
+  if (!black) return { slide, overlay };
+  return fading ? last : { slide: null, overlay: null };
+}
+
+/**
+ * One slide on a fixed 1920×1080 stage, scaled to fit its container (ADR 0007,
+ * decision 8), and centred in a box that is not 16:9, as the output window
+ * often is (Slide.razor), styled by `theme` (spec 05, THEME-R9). The same component draws
+ * previews, thumbnails and the output, so they always agree. `slide` null
+ * draws an empty stage: black, whatever the theme, as the black screen must
+ * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
+ * `overlay` is drawn above the slide, also when no slide is selected.
+ * `media` gives a picture's URL on a page with no database (a paired screen).
+ * `highlight` marks a search's words in a song's text: the add dialog's preview only, never an output.
+ * `black`, given on outputs and the live preview, is the black screen: a black cover above the slide and the
+ * overlay that fades in and out over 500 ms (LiveDisplay.razor); what was shown stays under it while it fades in.
+ * `video` is what an output plays over a video slide's still (`FollowingVideo`); previews and tiles draw the still.
+ */
+export function SlideView({
+  slide: given,
+  theme = CLASSIC,
+  label = true,
+  credits = true,
+  overlay: givenOverlay = null,
+  media,
+  highlight,
+  black,
+  video,
+}: {
+  slide: Slide | null;
+  theme?: Theme;
+  label?: boolean;
+  credits?: boolean;
+  overlay?: CustomPage | null;
+  media?: (hash: string) => string;
+  highlight?: string;
+  black?: boolean;
+  video?: ReactNode;
+}) {
+  const shown = useBlackFade(!!black, given, givenOverlay);
+  const { slide, overlay } = black === undefined ? { slide: given, overlay: givenOverlay } : shown;
+  const box = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
+  useLayoutEffect(() => {
+    const el = box.current!;
+    const measure = () => {
+      const scale = Math.min(el.clientWidth / STAGE_WIDTH, el.clientHeight / STAGE_HEIGHT);
+      // Whole pixels, so a 16:9 box (every tile and preview) keeps the stage at its corner.
+      setFit({ scale, x: Math.round((el.clientWidth - STAGE_WIDTH * scale) / 2), y: Math.round((el.clientHeight - STAGE_HEIGHT * scale) / 2) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const style = { width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})`, ...(slide ? stageCss(theme, slide.kind) : {}) };
+  return (
+    <div ref={box} className="slide-box">
+      <div className="slide-stage" style={style} data-testid="slide-stage" data-theme={slide ? theme.id : undefined} data-kind={slide?.kind}>
+        {slide && (
+          <>
+            {label && slide.label && (
+              <span className="absolute top-6 right-10 z-[1] rounded-full px-8 py-1 font-sans text-[48px]/[1.5] font-semibold text-white" style={{ background: slide.label.color }}>
+                {slide.label.text}
+              </span>
+            )}
+            {slide.custom ? (
+              <CustomPageView page={slide.custom} theme={theme} media={media} />
+            ) : slide.kind === 'media' ? (
+              <>
+                <ThemePicture theme={theme} kind="media" media={media} />
+                {slide.image && <Picture hash={slide.image} thumb={slide.thumb} media={media} className="slide-image" testId="slide-image" />}
+                {slide.video && video}
+              </>
+            ) : (
+              <>
+                <ThemePicture theme={theme} kind={slide.kind} media={media} />
+                <div className="slide-content" style={textAreaCss(slideStyle(theme, slide.kind).main)}>
+                  {/* Bible text flows as HTML does, with no kept line breaks (BibleTextSlide.razor); a song keeps its lines. */}
+                  <FittedText css={slide.verses ? { ...mainCss(theme, slide.kind), whiteSpace: 'normal' } : mainCss(theme, slide.kind)}>
+                    {slide.verses ? <BibleText slide={slide} /> : highlight ? <Highlight text={slide.text} query={highlight} /> : slide.text}
+                  </FittedText>
+                </div>
+                {credits && slide.credits && (
+                  <div className="slide-credits-box" style={textAreaCss(slideStyle(theme, slide.kind).credits)}>
+                    <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
+                      {slide.credits}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+        {overlay && <OverlayLayer overlay={overlay} theme={theme} media={media} />}
+        {black !== undefined && (
+          <div className={`absolute inset-0 z-60 bg-black transition-opacity duration-500 ease-in-out ${black ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} data-testid="black-cover" />
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,327 @@
+import { slideMarks, slideOrder, type LivePointer, type Overlay, type PresentationItem, type Slide, type SlideMarkKind, type Song, type Theme, type ItemSlides } from '@gp/core';
+import { useRef, useState, type ReactNode } from 'react';
+import { t } from '../../i18n.ts';
+import { AppButton } from '../../ui/AppButton.tsx';
+import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
+import { AudioMark, SlideMark } from '../../ui/SlideTile.tsx';
+import { SlideView } from '../../ui/SlideView.tsx';
+import { useWide } from '../../ui/useWide.ts';
+import { ImageItemEditor, ItemMedia, ItemWarnings } from '../presentation-editor/ItemParts.tsx';
+import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
+import { PILL } from '../songEditorLook.ts';
+import { OverlayChip } from './OverlayChip.tsx';
+import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
+import { useFollowShown } from './followShown.ts';
+
+/** A slide picked before presenting: outlined in blue, shown nowhere. */
+export type SlidePick = { itemId: string; partIndex: number };
+/** A small round button in a section's heading. */
+const HEADING_BUTTON = 'ml-1 h-7 px-2.5 rounded-full flex items-center gap-1 normal-case tracking-normal font-medium cursor-pointer';
+
+/**
+ * A presentation's slides, one list on a computer and a phone, the same before and while it is presented
+ * (docs/layout-2-0.md; Lars, 2026-11-02): the whole running order, each item a section whose heading sticks at the
+ * top until the next pushes it away, with its warnings and its player under it; from `lg` the item's arrangement and
+ * overlay too, and its slides a grid of pictures; on a phone every part a row with its whole text. While presenting
+ * (`onShow`) a click or a tap shows a slide; the list follows the shown one only when it changed some other way, and
+ * only when out of view. An item's … beside its name opens on a computer the same menu as its row at the left
+ * (`menuSource`, ItemContextMenu), and on a phone `onItemMenu`'s sheet.
+ */
+export function SlideList({
+  items,
+  slides,
+  theme,
+  songs,
+  overlays,
+  pointer,
+  toItem,
+  markedId = null,
+  onShow,
+  onItemMenu,
+  menuSource,
+  editingImages: editingShown,
+  onEditingImages,
+  picked: pickedShown,
+  onPick,
+  onAddImages,
+  footer,
+  header,
+  template = false,
+}: {
+  items: PresentationItem[];
+  slides: Map<string, ItemSlides>;
+  theme: Theme;
+  songs: Map<string, Song>;
+  overlays: Overlay[];
+  pointer: LivePointer;
+  /** The item to scroll to: chosen at the left, or just added; a new object each time, the same item again too. */
+  toItem: { id: string } | null;
+  /** An item just added, its heading marked for a moment. */
+  markedId?: string | null;
+  /** While presenting: a slide clicked or tapped is shown. */
+  onShow?: (itemId: string, partIndex: number) => void;
+  /** On a phone: an item's … opens its sheet. */
+  onItemMenu?: (item: PresentationItem) => void;
+  /** On a computer: what an item's menu needs, the same as its row's at the left. */
+  menuSource?: ItemMenuSource;
+  /** On a computer: the picture item edited in place, which its row's menu at the left can start too. */
+  editingImages?: string | null;
+  onEditingImages?: (itemId: string | null) => void;
+  /** On a computer: the slide picked before presenting, which the page's keys move too. */
+  picked?: SlidePick | null;
+  onPick?: (pick: SlidePick) => void;
+  /** "Lägg till bilder" on an image item edited in place: the add dialog's picture tab, adding to it. */
+  onAddImages?: (itemId: string) => void;
+  /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
+  footer?: ReactNode;
+  /** Above the items, scrolling with them: a phone's description while nothing is presented. */
+  header?: ReactNode;
+  /** A template's editor: the empty list says the template is empty. */
+  template?: boolean;
+}) {
+  const wide = useWide();
+  const box = useRef<HTMLDivElement>(null);
+  // Redigera on an image item, on a computer: its pictures to reorder, remove and add to, one item at a time.
+  const [ownEditing, setOwnEditing] = useState<string | null>(null);
+  const editingImages = editingShown === undefined ? ownEditing : editingShown;
+  const setEditingImages = onEditingImages ?? setOwnEditing;
+  const [menu, setMenu] = useState<OpenItemMenu | null>(null);
+  // Before presenting, a slide clicked is only outlined in blue, as in the current app; Starta presentation starts
+  // black all the same (spec 04), and lets go of it. The page's own when it moves it by the keys too (a computer's).
+  const [ownPicked, setOwnPicked] = useState<SlidePick | null>(null);
+  const [wasShowing, setWasShowing] = useState(!!onShow);
+  if (wasShowing !== !!onShow) {
+    setWasShowing(!!onShow);
+    setOwnPicked(null);
+  }
+  const picked = pickedShown === undefined ? ownPicked : pickedShown;
+  // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next.
+  const markTapped = useFollowShown(box, !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
+  const markOf = slideMarks(slideOrder(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 }))), pointer);
+  const show =
+    onShow &&
+    ((itemId: string, partIndex: number) => {
+      markTapped();
+      onShow(itemId, partIndex);
+    });
+  const pick = (p: SlidePick) => {
+    markTapped();
+    (onPick ?? setOwnPicked)(p);
+  };
+
+  // `elevated` on a computer: a step lighter in dark mode, so black slides stand out from the ground (app.css).
+  /** An item's …: on a phone its sheet (`onItemMenu`), on a computer its menu under the button. */
+  const itemMenuButton = (item: PresentationItem) =>
+    onItemMenu ? (
+      <AppButton
+        variant="plain"
+        aria-label={t('live.itemMore', { title: item.title })}
+        onClick={() => onItemMenu(item)}
+        // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
+        className="ml-auto -mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300"
+      >
+        <EllipsisIcon className="size-5" />
+      </AppButton>
+    ) : (
+      menuSource && (
+        <AppButton
+          variant="plain"
+          aria-label={t('presentation.itemOptions', { title: item.title })}
+          title={t('presentation.itemOptions', { title: item.title })}
+          // The menu opens under the button, as a row's … at the left opens it.
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setMenu({ item, at: { x: rect.left, y: rect.bottom + 4 } });
+          }}
+          className="size-7 rounded-full flex items-center justify-center cursor-pointer text-stone-500 hover:bg-stone-200/60 dark:hover:bg-white/[0.06] normal-case tracking-normal font-normal"
+        >
+          <EllipsisIcon className="size-4" />
+        </AppButton>
+      )
+    );
+
+  return (
+    <div
+      ref={box}
+      // A column, so the footer (a phone's offline and Fjärrstyrning lines) stands at the foot of the page when the
+      // items are few, and after them when they are many; never floating over them (Lars, 2026-11-02). On a phone the
+      // room at the foot is more than the floating + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04).
+      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-safe-28 lg:pb-safe-12 max-lg:landscape:pt-3 bg-ground`}
+      data-testid={wide ? 'live-slides' : 'live-order'}
+    >
+      {header}
+      {!items.length && (
+        <div className="h-full flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+          <EmptySlidesPicture className="w-48 h-auto mb-6 text-stone-300 dark:text-stone-600" />
+          <h2 className="text-lg/7 font-semibold text-stone-500 dark:text-stone-400 mb-2">{t(template ? 'templates.emptyTemplate' : 'presentation.empty')}</h2>
+          <p className="text-sm text-stone-400 dark:text-stone-500 max-w-xs leading-relaxed">{withBold(t('presentation.emptyText'), '{add}', t('presentation.add'))}</p>
+        </div>
+      )}
+      {items.map((item) => {
+        const set = slides.get(item.id);
+        const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
+        const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
+        return (
+          <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
+            {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It
+                sticks a pixel above the top, a pixel taller, so no sliver of a row's red frame shows above it where the
+                scroll lands between pixels (Lars, 2026-11-02). Its name starts where the rows' text does, as the start
+                page's captions (Lars, 2026-11-03). */}
+            <h3
+              className={`sticky -top-px z-[2] -mx-4 lg:-mx-6 pl-8 pr-5 lg:pl-10 lg:pr-6 pt-[calc(1.25rem+1px)] lg:pt-[calc(0.875rem+1px)] pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
+            >
+              {/* The item's name, not renamed here: that confused (Lars, 2026-11-02). */}
+              {/* The dot of the item shown stands in the room left of its name, so the name never moves (Lars, 2026-11-03). */}
+              <span className="relative min-w-0 flex">
+                {item.id === pointer.itemId && !pointer.black && <span className="absolute -left-3 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" aria-label={t('live.badge')} />}
+                <span className="min-w-0 truncate">{item.title}</span>
+              </span>
+              <OverlayChip item={item} overlays={overlays} />
+              {editing ? (
+                // While its pictures are edited, Klar ends it at once.
+                <AppButton variant="plain" onClick={() => setEditingImages(null)} className={`${HEADING_BUTTON} ml-auto bg-sky-500 text-white hover:bg-sky-600`}>
+                  {t('presentation.doneEditingImages')}
+                </AppButton>
+              ) : (
+                itemMenuButton(item)
+              )}
+            </h3>
+            <ItemNote item={item} />
+            <ItemWarnings item={item} set={set} songName={song?.name} />
+            {/* Before presenting, a preview of an audio or video item; while presenting its controls are on the live
+                picture once it is shown (MediaControls). */}
+            {!onShow && <ItemMedia item={item} set={set} />}
+            {set && editing ? (
+              <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
+            ) : !set?.slides.length ? null : wide ? (
+              <SlideGrid
+                itemId={item.id}
+                slides={set.slides}
+                label={item.title}
+                theme={theme}
+                overlayId={item.overlayId}
+                shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
+                picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
+              />
+            ) : (
+              // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are
+              // lines of their own from where the text starts, as the sheets' groups draw them (INSET_HAIRLINES), not
+              // borders, which would follow a row's rounding, kept for the shown part's ring.
+              <div className={`rounded-2xl overflow-hidden bg-surface ${PART_HAIRLINES}`}>
+              {set.slides.map((slide, partIndex) => (
+                <PartRow
+                  key={slide.key}
+                  slide={slide}
+                  partIndex={partIndex}
+                  theme={theme}
+                  current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
+                  rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
+                  mark={markOf(item.id, partIndex)}
+                  picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
+                  onShow={show ? () => show(item.id, partIndex) : () => pick({ itemId: item.id, partIndex })}
+                />
+              ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+      {footer && <div className="mt-auto flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
+      {menu && menuSource && <ItemContextMenu menu={menu} source={menuSource} onClose={() => setMenu(null)} />}
+    </div>
+  );
+}
+
+/** An item's comment for those who run it (spec 03 2f), under its name where its text starts; never on a screen. */
+function ItemNote({ item }: { item: PresentationItem }) {
+  if (!item.note) return null;
+  return (
+    <p className="flex gap-1.5 px-4 text-[13px]/[18px] text-stone-500 dark:text-stone-400 whitespace-pre-line" data-testid="item-note">
+      <CommentIcon className="size-3.5 shrink-0 mt-0.5" />
+      <span className="min-w-0">{item.note}</span>
+    </p>
+  );
+}
+
+/** A part on a phone: its name and its whole text (a picture or a video drawn small), VISAS or NÄSTA at its right. */
+function PartRow({
+  slide,
+  partIndex,
+  theme,
+  current,
+  rested,
+  mark,
+  picked,
+  onShow,
+}: {
+  slide: Slide;
+  partIndex: number;
+  theme: Theme;
+  current: boolean;
+  /** After Släck, the part last shown keeps a quiet grey border: where → goes on from. */
+  rested: boolean;
+  mark: SlideMarkKind | null;
+  /** Before presenting, the part tapped: outlined in blue, as a computer's tile. */
+  picked: boolean;
+  onShow: () => void;
+}) {
+  // A picture, a video and a custom slide show small, as their slide; a song or a reading by its words.
+  const pictured = slide.kind === 'media' || !!slide.custom;
+  return (
+    <AppButton
+      variant="plain"
+      data-current={current}
+      data-rested={rested || undefined}
+      aria-current={current || undefined}
+      aria-pressed={picked || undefined}
+      data-picked={picked || undefined}
+      onClick={onShow}
+      // A row of its item's group, shaped as its place in it: the first rounded at the top, the last at the foot, one
+      // alone all round, so the shown part's ring, inside the row, follows the group's edge and no row changes size.
+      data-ringed={current || rested || picked || undefined}
+      className={`w-full flex gap-3 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl text-left cursor-pointer ring-2 ring-inset ${pictured ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised ring-red-500' : rested ? 'ring-stone-300 dark:ring-stone-600' : picked ? 'ring-sky-500' : 'ring-transparent'}`}
+    >
+      {pictured && (
+        <span className="relative w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
+          <SlideView slide={slide} theme={theme} label={false} credits={false} />
+          <AudioMark slide={slide} small />
+        </span>
+      )}
+      <span className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* One height with or without VISAS and NÄSTA, so a row keeps its size as they move (Lars, 2026-11-02). */}
+        <span className="h-5 flex items-center justify-between gap-2">
+          {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one by its number. */}
+          {slide.label ? (
+            <span className={`${PILL} truncate`} style={{ background: slide.label.color }}>
+              {slide.label.text}
+            </span>
+          ) : (
+            !pictured && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
+          )}
+          {mark && <SlideMark kind={mark} />}
+        </span>
+        {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
+        {slide.audio && <span className="text-[17px]/snug truncate text-stone-900 dark:text-stone-100">{slide.audio.name}</span>}
+      </span>
+    </AppButton>
+  );
+}
+
+/**
+ * The hairlines between a group's parts: from the text's start (the rows' 16 px, as the heading's) to the right edge; none at a ringed
+ * part's edges, where the ring is the line.
+ */
+const PART_HAIRLINES =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:top-0 [&>*+*]:before:left-4 [&>*+*]:before:right-0 [&>*+*]:before:h-[0.5px] [&>*+*]:before:bg-separator [&>[data-ringed]]:before:hidden [&>[data-ringed]+*]:before:hidden';
+
+/** `text` with `marker` replaced by `bold` in bold. */
+function withBold(text: string, marker: string, bold: string): ReactNode {
+  const [before, after] = text.split(marker);
+  return (
+    <>
+      {before}
+      <strong>{bold}</strong>
+      {after}
+    </>
+  );
+}
