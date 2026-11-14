@@ -214,7 +214,7 @@ describe.each(adapters)('%s adapter: songs and items', (adapterName) => {
       ['W', 3, 'Song 3', null], // after an item that is gone: appended; an arrangement of another song: dropped
     ]);
     await fx.bob.client.mutate('setItemArrangement', { itemId: 'N', arrangementId: null });
-    await expect(fx.bob.client.mutate('setItemArrangement', { itemId: 'N', arrangementId: 'B1' })).rejects.toThrow('arrangement not found');
+    await expect(fx.bob.client.mutate('setItemArrangement', { itemId: 'N', arrangementId: 'B1' })).rejects.toMatchObject({ code: 'not-found' });
     await fx.syncAll(fx.alice, fx.bob);
     expect((await fx.items(fx.alice)).find((r) => r.id === 'N')!.arrangement_id).toBeNull();
     await fx.expectConverged(fx.alice, fx.bob);

@@ -10,6 +10,7 @@ directories:
 files:
   - dist/main.mjs
   - dist/preload.cjs
+  - dist/gp_core.wasm
   - package.json
 # The web app beside app.asar, where the main process looks for it (`../../web/dist` from dist/).
 extraResources:

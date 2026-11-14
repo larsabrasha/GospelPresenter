@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@gp/core": "workspace:*",
+    "@gp/rust-core": "workspace:*",
     "@gp/server": "workspace:*",
     "@gp/web": "workspace:*",
     "@playwright/test": "1.64.1",

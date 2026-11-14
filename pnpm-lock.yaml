@@ -193,6 +193,9 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gp/rust-core':
+        specifier: workspace:*
+        version: link:../../packages/rust-core
       '@gp/server':
         specifier: workspace:*
         version: link:../server
@@ -252,6 +255,9 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gp/rust-core':
+        specifier: workspace:*
+        version: link:../../packages/rust-core
       '@gp/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -298,6 +304,9 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gp/rust-core':
+        specifier: workspace:*
+        version: link:../../packages/rust-core
       '@gp/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -353,11 +362,24 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
+  packages/rust-core:
+    dependencies:
+      '@gp/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@cloudflare/workers-types@5.20261025.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.15.6)(better-sqlite3@13.0.3)(pg@8.23.1)
+
   packages/sync:
     dependencies:
       '@gp/core':
         specifier: workspace:*
         version: link:../core
+      '@gp/rust-core':
+        specifier: workspace:*
+        version: link:../rust-core
       '@journeyapps/wa-sqlite':
         specifier: 2.0.8
         version: 2.0.8

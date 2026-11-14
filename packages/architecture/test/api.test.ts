@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOT } from './source.ts';
 
 /** The packages others import, with the entry each `exports` field names. */
-const PACKAGES = ['packages/core', 'packages/sync', 'apps/server'];
+const PACKAGES = ['packages/core', 'packages/rust-core', 'packages/sync', 'apps/server'];
 
 const DECLARED = /^export\s+(?:declare\s+)?(?:async\s+)?(function\*?|const|let|class|abstract class|interface|type|enum)\s+(\w+)/gm;
 const LISTED = /^export\s+(type\s+)?\{([^}]*)\}(?:\s+from\s+'([^']+)')?/gm;
@@ -31,10 +31,12 @@ function exportsOf(path: string, seen = new Set<string>()): string[] {
   return out;
 }
 
-/** The entries of a package's `exports`, by the name others import. */
+/** The code entries of a package's `exports`, by the name others import (not a built file such as the Rust core's WASM). */
 function entries(pkg: string): [string, string][] {
   const json = JSON.parse(readFileSync(`${ROOT}/${pkg}/package.json`, 'utf8')) as { name: string; exports: Record<string, string> };
-  return Object.entries(json.exports).map(([key, file]) => [posix.join(json.name, key), posix.join(pkg, file)]);
+  return Object.entries(json.exports)
+    .filter(([, file]) => file.endsWith('.ts'))
+    .map(([key, file]) => [posix.join(json.name, key), posix.join(pkg, file)]);
 }
 
 describe('public API', () => {

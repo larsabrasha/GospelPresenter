@@ -133,9 +133,9 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
 
     await expect(fx.bob.client.mutate('createTemplate', { id: 'T2', name: 'Fredag' })).rejects.toThrow('may not ManageTemplates');
     await expect(fx.bob.client.mutate('saveAsTemplate', { id: 'T3', presentationId: 'P', name: 'Kopia', items: [] })).rejects.toThrow('may not ManageTemplates');
-    await expect(fx.bob.client.mutate('addSongToPresentation', { itemId: 'X', presentationId: 'T', songId: 'S3' })).rejects.toThrow('may not ManageTemplates');
-    await expect(fx.bob.client.mutate('renameItem', { itemId: String(item!.id), title: 'Annat' })).rejects.toThrow('may not ManageTemplates');
-    await expect(fx.bob.client.mutate('removeItem', { itemId: String(item!.id) })).rejects.toThrow('may not ManageTemplates');
+    await expect(fx.bob.client.mutate('addSongToPresentation', { itemId: 'X', presentationId: 'T', songId: 'S3' })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(fx.bob.client.mutate('renameItem', { itemId: String(item!.id), title: 'Annat' })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(fx.bob.client.mutate('removeItem', { itemId: String(item!.id) })).rejects.toMatchObject({ code: 'forbidden' });
     await expect(fx.bob.client.mutate('trashTemplate', { id: 'T', at: 1 })).rejects.toThrow('may not ManageTemplates');
     await fx.bob.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 });
     await fx.syncAll(fx.bob, fx.alice);

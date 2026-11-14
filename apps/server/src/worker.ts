@@ -20,6 +20,9 @@ import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
 import { isAppPage, staticHeaders } from './static.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
+import { RustCore } from '@gp/rust-core';
+// The Rust core's WASM, compiled when the Worker is deployed (a CompiledWasm module): a Worker may not compile one itself.
+import coreWasm from '@gp/rust-core/gp_core.wasm';
 import { appCors } from './cors.ts';
 
 interface Env {
@@ -83,6 +86,8 @@ export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
   return {
     db: drizzle(storage, { schema }) as unknown as Tx,
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],
+    rows: (sql, params) => [...storage.sql.exec(sql, ...params).raw()],
+    core: new RustCore(coreWasm),
     // DO SQLite refuses BEGIN/COMMIT from sql.exec, and transactionSync() cannot
     // wait for an async mutator. The async storage.transaction() can: it runs
     // the closure as an explicit transaction and rolls back if it throws.

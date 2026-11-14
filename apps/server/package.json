@@ -9,11 +9,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
-    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --define:GP_TEST_ISSUER=false --minify-syntax --outfile=dist/worker.js",
+    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --external:*.wasm --define:GP_TEST_ISSUER=false --minify-syntax --outfile=dist/worker.js",
     "dev:worker": "wrangler dev"
   },
   "dependencies": {
     "@gp/core": "workspace:*",
+    "@gp/rust-core": "workspace:*",
     "@gp/sync": "workspace:*",
     "@hono/node-server": "2.1.5",
     "better-sqlite3": "13.0.3",

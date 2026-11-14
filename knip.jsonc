@@ -19,8 +19,9 @@
       // The Electron main process, its preload and the plain-Node server, built by build.mjs.
       "entry": ["src/main.ts", "src/serve.ts", "src/preload.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "e2e/**/*.ts"],
-      // Not imported: listed so turbo builds the web app before the desktop's e2e runs it.
-      "ignoreDependencies": ["@gp/web"]
+      // Not imported: listed so turbo builds the web app before the desktop's e2e runs it; the Rust core's WASM,
+      // which build.mjs copies beside the bundle by its path.
+      "ignoreDependencies": ["@gp/web", "@gp/rust-core"]
     },
     "apps/legacy": {
       "project": ["src/**/*.ts", "test/**/*.ts"]
@@ -30,6 +31,9 @@
     },
     "packages/sync": {
       "project": ["src/**/*.ts"]
+    },
+    "packages/rust-core": {
+      "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "packages/architecture": {
       "project": ["test/**/*.ts"]

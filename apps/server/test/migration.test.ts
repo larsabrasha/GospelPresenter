@@ -15,6 +15,7 @@ const before24 = orgDdl.map((s) =>
 );
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '../src/global/index.ts';
 import { sha256 } from '../src/crypto.ts';
 import { nodeGlobalSql, nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
@@ -232,6 +233,7 @@ describe('client (wa-sqlite)', () => {
     const client = await SyncClient.open(sqlite, {
       transport: { post: async () => ({ status: 503, body: {} }) as never },
       ctx: { userId: 'u', role: 'admin' },
+      core: nodeRustCore(),
     });
 
     await client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
@@ -251,6 +253,7 @@ describe('client (wa-sqlite)', () => {
     const open = SyncClient.open(sqlite, {
       transport: { post: async () => ({ status: 503, body: {} }) as never },
       ctx: { userId: 'u', role: 'admin' },
+      core: nodeRustCore(),
     });
 
     await expect(open).rejects.toThrow(/made before this app's first/);

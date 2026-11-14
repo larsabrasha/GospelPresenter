@@ -1,11 +1,13 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
+import { build, type Plugin } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { SyncClient, httpTransport, socketProtocols, type SyncClientOptions, type Transport } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
+import { nodeRustCore } from '@gp/rust-core/node';
 import type { Dump, MutatorCtx, Role } from '@gp/core';
 import { memoryStorage } from '../src/media.ts';
 import { startNodeServer } from '@gp/server/node';
@@ -46,6 +48,25 @@ export interface AdapterOptions {
   webRoot?: string;
   /** Node only: where the server's log events go (none by default). */
   log?: (event: Record<string, unknown>) => void;
+}
+
+/**
+ * The Rust core's WASM as wrangler bundles it: a module beside the Worker's script, which Miniflare loads compiled
+ * (its rule for `*.wasm`), since a Worker may not compile WASM itself.
+ */
+function besideTheWorker(outfile: string): Plugin {
+  return {
+    name: 'wasm-beside-the-worker',
+    setup(b) {
+      b.onResolve({ filter: /\.wasm$/ }, (args) => {
+        const file = createRequire(join(here, '..', 'package.json')).resolve(args.path);
+        const name = file.slice(file.lastIndexOf('/') + 1);
+        mkdirSync(dirname(outfile), { recursive: true });
+        copyFileSync(file, join(dirname(outfile), name));
+        return { path: `./${name}`, external: true };
+      });
+    },
+  };
 }
 
 export async function startAdapter(name: AdapterName, opts: AdapterOptions = {}): Promise<Harness> {
@@ -95,6 +116,7 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     platform: 'neutral',
     mainFields: ['module', 'main'],
     external: ['cloudflare:workers'],
+    plugins: [besideTheWorker(outfile)],
     outfile,
     logLevel: 'silent',
   });
@@ -105,6 +127,8 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     d1Databases: { DB: 'gp-sync-spike-global' },
     r2Buckets: { MEDIA: 'gp-media' },
     durableObjects: { ORG: { className: 'OrgDurableObject', useSQLite: true } },
+    // The Rust core's WASM beside the script (besideTheWorker), compiled as wrangler hands it over.
+    modulesRules: [{ type: 'CompiledWasm', include: ['**/*.wasm'] }],
     bindings: {
       SPIKE_DEBUG: '1',
       POKE_WINDOW_MS: String(POKE_WINDOW_MS),
@@ -246,7 +270,7 @@ export async function device(
     },
   };
   const ctx: MutatorCtx = { userId: user, role };
-  const client = await SyncClient.open(await openWaSqlite(), { transport, ctx, protocol: extra.protocol, beforePush: extra.beforePush });
+  const client = await SyncClient.open(await openWaSqlite(), { transport, ctx, core: nodeRustCore(), protocol: extra.protocol, beforePush: extra.beforePush });
   return { client, net, user };
 }
 

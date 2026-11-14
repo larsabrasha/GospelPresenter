@@ -463,7 +463,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     await alice.client.sync();
     await bob.client.sync();
     await bob.client.mutate('updatePresentation', { id: 'P', themeId: 'light' });
-    await expect(bob.client.mutate('updatePresentation', { id: 'P', themeId: 'nope' })).rejects.toThrow('Theme not found.');
+    await expect(bob.client.mutate('updatePresentation', { id: 'P', themeId: 'nope' })).rejects.toMatchObject({ code: 'theme-not-found' });
     await expect(bob.client.mutate('setDefaultTheme', { themeId: 'light' })).rejects.toThrow(/may not/);
     await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
     await bob.client.sync();

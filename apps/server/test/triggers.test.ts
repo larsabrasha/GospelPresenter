@@ -10,6 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { clientUndoRestore, tableInfo } from '@gp/core';
 import { queryObjects, SyncClient, type ClientSqlite } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
 
 const upsert = (id: string, value: string) =>
@@ -19,7 +20,7 @@ describe('client undo triggers (wa-sqlite)', () => {
   /** A client database with k = a and no captured rows, and its raw connection. */
   async function client(): Promise<{ sqlite: ClientSqlite; c: SyncClient; rows: () => Promise<unknown[]>; undo: () => Promise<unknown[]> }> {
     const sqlite = await openWaSqlite();
-    const c = await SyncClient.open(sqlite, { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' } });
+    const c = await SyncClient.open(sqlite, { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' }, core: nodeRustCore() });
     await sqlite.query('UPDATE _sync_meta SET capture = 0');
     await sqlite.query("INSERT INTO org_settings (id, value) VALUES ('k', 'a')");
     await sqlite.query('UPDATE _sync_meta SET capture = 1');

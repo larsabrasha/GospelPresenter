@@ -302,7 +302,7 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
   });
 
   it('invalid arguments are refused on the client and on the server', async () => {
-    await expect(fx.alice.client.mutate('createPresentation', { id: 'P', name: '   ' })).rejects.toThrow(/too_small|at least/i);
+    await expect(fx.alice.client.mutate('createPresentation', { id: 'P', name: '   ' })).rejects.toMatchObject({ code: 'invalid-args' });
     expect(await fx.alice.client.pending()).toEqual([]);
     const res = await api<{ results: { id: number; error: string }[] }>(fx.h, 'POST', '/api/sync/push', {
       user: 'alice',
