@@ -237,18 +237,28 @@ async fn set_item_overlay(a: &Obj, ctx: &Ctx) -> R<()> {
 
 /// To the trash (`at`) or back from it; only a presentation, never a template.
 async fn set_deleted(a: &Obj, ctx: &Ctx, trash: bool) -> R<()> {
+    trash_or_restore(a, ctx, trash, false).await
+}
+
+/// `setDeletedAt` behind the arguments of trash and restore: a presentation's (`ManagePresentations`) or a template's.
+pub async fn trash_or_restore(a: &Obj, ctx: &Ctx, trash: bool, template: bool) -> R<()> {
     let pid = id(a, "id")?;
     let at = if trash { json!(safe_int(a, "at")?) } else { Value::Null };
-    require(ctx, "ManagePresentations")?;
-    sql("UPDATE presentations SET deleted_at = ? WHERE id = ? AND is_template = 0", vec![at, json!(pid)]).await;
+    require(ctx, if template { "ManageTemplates" } else { "ManagePresentations" })?;
+    sql("UPDATE presentations SET deleted_at = ? WHERE id = ? AND is_template = ?", vec![at, json!(pid), json!(template as i64)]).await;
     Ok(())
 }
 
 /// Deleted for good, with its items: only from the trash.
 async fn purge_presentation(a: &Obj, ctx: &Ctx) -> R<()> {
+    purge(a, ctx, false).await
+}
+
+/// `purgeRows` behind purge's arguments: a trashed presentation or template and its items.
+pub async fn purge(a: &Obj, ctx: &Ctx, template: bool) -> R<()> {
     let pid = id(a, "id")?;
-    require(ctx, "ManagePresentations")?;
-    let Some(p) = first(sql("SELECT deleted_at FROM presentations WHERE id = ? AND is_template = 0", vec![json!(pid)]).await) else { return Ok(()) };
+    require(ctx, if template { "ManageTemplates" } else { "ManagePresentations" })?;
+    let Some(p) = first(sql("SELECT deleted_at FROM presentations WHERE id = ? AND is_template = ?", vec![json!(pid), json!(template as i64)]).await) else { return Ok(()) };
     if p[0].is_null() { return Err("not-in-trash".into()) }
     sql("DELETE FROM presentation_items WHERE presentation_id = ?", vec![json!(pid)]).await;
     sql("DELETE FROM presentations WHERE id = ?", vec![json!(pid)]).await;

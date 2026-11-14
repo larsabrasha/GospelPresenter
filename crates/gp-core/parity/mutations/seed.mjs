@@ -1,8 +1,8 @@
 // The organisation every check of the mutators starts from: a little of everything, some of it in the trash.
 export const H = (c) => c.repeat(64);
-/** Blobs known where this runs: a–f; g and h are not. */
+/** Blobs known where this runs: a–f; 7 and 8 are not. */
 export const KNOWN = ['a', 'b', 'c', 'd', 'e', 'f'].map(H);
-export const UNKNOWN = ['g', 'h'].map(H);
+export const UNKNOWN = ['7', '8'].map(H);
 
 const images = `{"images":["img1","img2"]}`;
 const bibleContent = JSON.stringify({ translation: 'SFB', slides: [[{ n: 16, t: 'Ty så älskade Gud världen' }]] });

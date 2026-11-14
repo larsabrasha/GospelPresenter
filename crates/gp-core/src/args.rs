@@ -122,3 +122,16 @@ pub fn id_or_null(o: &Obj, k: &str) -> R<Option<String>> {
 
 /** `z.number().int()`: a safe integer. */
 pub fn safe_int(o: &Obj, k: &str) -> R<i64> { int(o, k, -(2i64.pow(53) - 1), 2i64.pow(53) - 1) }
+
+/** `z.string().regex(/^[0-9a-f]{64}$/)`: a blob's SHA-256. */
+pub fn media_hash(o: &Obj, k: &str) -> R<String> {
+    match o.get(k) { Some(Value::String(h)) if h.len() == 64 && h.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) => Ok(h.clone()), _ => bad() }
+}
+
+/** `z.enum([...])`. */
+pub fn one_of(o: &Obj, k: &str, options: &[&str]) -> R<String> {
+    match o.get(k) { Some(Value::String(v)) if options.contains(&v.as_str()) => Ok(v.clone()), _ => bad() }
+}
+
+/** `z.boolean()`. */
+pub fn boolean(o: &Obj, k: &str) -> R<bool> { o.get(k).and_then(Value::as_bool).map_or_else(bad, Ok) }

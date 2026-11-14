@@ -1,7 +1,7 @@
 // Random inputs for presentations.ts's 16 mutators, the edges among them.
 import { TEXTS } from './seed.mjs';
 
-export function presentations({ random, pick, maybe, idsOf, opt, fresh }) {
+export function generator({ random, pick, maybe, idsOf, opt, fresh }) {
   const pres = () => [...idsOf('SELECT id FROM presentations'), 'px'];
   const items = () => [...idsOf('SELECT id FROM presentation_items'), 'ix'];
   const newId = (p) => pick([fresh(p), fresh(p), fresh(p), 'x'.repeat(100), 'x'.repeat(101), '🎵'.repeat(51), '', ...items().slice(0, 2)]);

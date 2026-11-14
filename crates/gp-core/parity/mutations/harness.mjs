@@ -45,9 +45,12 @@ export async function runTs(db, { name, args, ctx }) {
     return 'ok';
   } catch (e) {
     db.exec('ROLLBACK');
-    return e.code ?? `crash: ${e.message}`;
+    return e.code ?? sqlError(e.cause) ?? `crash: ${e.message}`;
   }
 }
+
+/** A statement SQLite refused, as both cores' outcome: the shell aborts the mutation. */
+const sqlError = (e) => (e?.code === 'ERR_SQLITE_ERROR' ? `sql-error: ${e.message}` : undefined);
 
 /** A command through the Rust core, in one transaction: `ok` (or its JSON answer), or the refusal's code. */
 export async function runRust(db, input) {
@@ -63,7 +66,7 @@ export async function runRust(db, input) {
     return output();
   } catch (e) {
     db.exec('ROLLBACK');
-    return `trap: ${e.message}`;
+    return sqlError(e) ?? `trap: ${e.message}`;
   }
 }
 
@@ -93,7 +96,9 @@ export function tools(random, db) {
   const opt = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
   let n = 0;
   const fresh = (p) => `${p}${++n}`;
-  return { random, pick, maybe, idsOf, opt, fresh };
+  /** One of `good` mostly, one of `bad` now and then (an invalid argument, a limit). */
+  const mostly = (good, bad, p = 0.9) => (random() < p ? pick(good) : pick(bad));
+  return { random, pick, maybe, mostly, idsOf, opt, fresh };
 }
 
 const ROLES = ['user', 'user', 'admin', 'admin', 'superAdmin', 'guest'];
@@ -102,11 +107,11 @@ const ROLES = ['user', 'user', 'admin', 'admin', 'superAdmin', 'guest'];
  * `ops` random mutations of each of `seeds` seeds through both cores; `generator(tools, step)` gives a mutator's
  * name and arguments. A step without the server's clock (`now` absent) is a client's. Returns the differences.
  */
-export async function prove(label, { seed = [], generator, ops, seeds }) {
+export async function prove(label, { seed = [], seedFor = () => [], generator, ops, seeds }) {
   const differences = new Map();
   const outcomes = {};
   for (let s = 1; s <= seeds; s++) {
-    const a = openDb(seed), b = openDb(seed);
+    const a = openDb([...seed, ...seedFor(s, seeds)]), b = openDb([...seed, ...seedFor(s, seeds)]);
     const t = tools(rng(s * 7919 + label.length), a);
     for (let step = 1; step <= ops; step++) {
       const { name, args, role, client } = generator(t, step);

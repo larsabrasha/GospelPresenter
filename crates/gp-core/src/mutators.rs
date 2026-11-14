@@ -4,7 +4,18 @@ use crate::args::*;
 use crate::bridge::{now, sql, Rows};
 use serde_json::{json, Value};
 
+mod arrangements;
+mod bibles_and_themes;
+mod custom_slides;
+mod history;
+mod labels;
+mod overlays;
 pub mod presentations;
+mod song_import;
+mod song_materials;
+mod songs;
+mod templates;
+mod themes;
 
 /// `MutatorCtx`: who calls, with which role, and the server's clock when it runs a push (absent on clients).
 pub struct Ctx { pub user_id: String, pub role: String, pub now: Option<f64> }
@@ -93,9 +104,8 @@ pub async fn run(input: Value) -> R<Value> {
     }
     let a = obj(&input["args"])?;
     if let Some(view) = crate::views::run(name, a).await { return view; }
-    let done = match presentations::run(name, a, &ctx).await {
-        Some(r) => r,
-        None => return Err("unknown-mutator".into()),
-    };
-    done.map(|()| Value::Null)
+    // Each file's dispatcher in turn: the first that knows the name runs it.
+    macro_rules! dispatch { ($($file:ident),*) => { $( if let Some(done) = $file::run(name, a, &ctx).await { return done.map(|()| Value::Null) } )* } }
+    dispatch!(presentations, songs, arrangements, labels, song_materials, history, templates, custom_slides, themes, bibles_and_themes, overlays);
+    Err("unknown-mutator".into())
 }

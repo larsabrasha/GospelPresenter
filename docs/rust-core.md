@@ -86,9 +86,12 @@ switched means the app runs the core's.
 | The core in a browser: a Web Worker over wa-sqlite, in memory and on OPFS (`parity/browser-check.mjs`), in Chromium and WebKit (Safari's engine, not Safari or iOS themselves) | proved: 15 000 mutations, the same outcomes and rows; as fast as the TS core, OPFS the cost of both | — |
 | Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | not yet |
 | presentations (16) | proved: 30 000 mutations, every table compared after each (`crates/gp-core/parity/mutations/run.mjs presentations --ops 3000 --seeds 10`) | not yet |
-| media (23), songs (10), custom-slides (7), templates (7), arrangements (6) | not yet | not yet |
-| labels (4), song-materials (4), themes (4), ccli (3), bibles-and-themes (3), overlays (3), displays (3) | not yet | not yet |
-| trash (2), history (1), org-settings (1), probe (1) | not yet | not yet |
+| songs (10), with history.ts's versions and labels.ts's `ensureLabel` they keep and make | proved: 30 000, the song limit (5 000) reached | not yet |
+| arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), overlays (3), themes (4), bibles-and-themes (3) | ported, being proved | not yet |
+| media (23) | not yet | not yet |
+| ccli (3), displays (3) | not yet | not yet |
+| trash (2), org-settings (1) | not yet | not yet |
+| probe (1) | a test helper of the TS core: not ported | — |
 | Views: a presentation's slides, against `readItemSlides` (every kind of item, every problem) | proved | not yet |
 | Views: the presentations, the trash, song search | ported, not proved against a TS view | not yet |
 | Presenting's keys and marks, against `presentingKey` and `slideMarks` | proved | not yet |
