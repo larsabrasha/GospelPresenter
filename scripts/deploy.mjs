@@ -13,8 +13,8 @@ if (!configs[env]) {
 }
 const dryRun = process.argv.includes('--dry-run');
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-// The files the Worker and the web app are built from; other changes (the website, the spec) do not stop a deploy.
-const APP = ['apps', 'packages', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'turbo.json', 'tsconfig.base.json'];
+// The files the Worker and the web app are built from (the Rust core's WASM among them, from crates/); other changes (the website, the spec) do not stop a deploy.
+const APP = ['apps', 'packages', 'crates', 'Cargo.toml', 'Cargo.lock', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'turbo.json', 'tsconfig.base.json'];
 const changed = git('status', '--porcelain', '--', ...APP);
 if (changed && !dryRun) {
   console.error(`Not deployed: the working tree has changes, and the Worker would not be the commit's.\n${changed}`);

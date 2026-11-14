@@ -16,6 +16,9 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'scripts/*.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -55,6 +58,9 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install
         run: pnpm install --frozen-lockfile
+      # The Rust core (crates/gp-core), built to WASM for the mutators the app runs through it (packages/rust-core).
+      - name: Set up Rust
+        run: rustup target add wasm32-unknown-unknown
       # Nothing is deployed that does not pass the checks a commit must (AGENTS.md).
       - name: Check
         run: pnpm typecheck && pnpm lint && pnpm test

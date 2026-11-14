@@ -34,6 +34,7 @@ import { isAppPage, staticHeaders } from './static.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { appCors } from './cors.ts';
 
 export { mailConfigFrom, type MailConfig } from './mail.ts';
@@ -45,6 +46,8 @@ export type NodeDriver = 'better-sqlite3' | 'node:sqlite';
 /** A synchronous SQLite connection, whichever driver opened it. */
 interface SqliteFile {
   query(sql: string, params?: unknown[]): Record<string, unknown>[];
+  /** The same, each row an array in column order. */
+  rows(sql: string, params: unknown[]): unknown[][];
   /** Runs one writing statement and returns the number of rows it changed. */
   run(sql: string, params?: unknown[]): number;
   exec(sql: string): void;
@@ -67,6 +70,12 @@ function openBetterSqlite3(file: string): SqliteFile {
       stmt.run(...params);
       return [];
     },
+    rows(sql, params) {
+      const stmt = db.prepare(sql);
+      if (stmt.reader) return stmt.raw(true).all(...params) as unknown[][];
+      stmt.run(...params);
+      return [];
+    },
     run: (sql, params = []) => db.prepare(sql).run(...params).changes,
     exec: (sql) => void db.exec(sql),
     inTransaction: () => db.inTransaction,
@@ -85,18 +94,22 @@ function openNodeSqlite(file: string): SqliteFile {
   const { DatabaseSync: Db } = require('node:sqlite') as { DatabaseSync: typeof DatabaseSync };
   const db = new Db(file);
   db.exec('PRAGMA foreign_keys = ON'); // better-sqlite3's default; node:sqlite leaves it off
+  const rows = (sql: string, params: unknown[]) => {
+    const stmt = db.prepare(sql);
+    stmt.setReturnArrays(true);
+    return stmt.all(...(params as never[])) as unknown as unknown[][];
+  };
   return {
     query: (sql, params = []) => db.prepare(sql).all(...(params as never[])) as Record<string, unknown>[],
+    rows,
     run: (sql, params = []) => Number(db.prepare(sql).run(...(params as never[])).changes),
     exec: (sql) => db.exec(sql),
     inTransaction: () => db.isTransaction,
     drizzle: () =>
       drizzleProxy(
         async (sql, params, method) => {
-          const stmt = db.prepare(sql);
-          stmt.setReturnArrays(true);
-          const rows = stmt.all(...(params as never[])) as unknown as unknown[][];
-          return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };
+          const all = rows(sql, params);
+          return { rows: method === 'get' ? (all[0] as unknown[]) : all };
         },
         { schema },
       ) as unknown as Tx,
@@ -127,6 +140,8 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
   return {
     db: f.drizzle(),
     query: f.query,
+    rows: f.rows,
+    core: nodeRustCore(),
     // better-sqlite3's own db.transaction() refuses async functions. Instead an
     // explicit BEGIN/COMMIT around the awaited mutator: safe because the
     // caller's SerialQueue lets nothing else touch this connection meanwhile,

@@ -1,6 +1,6 @@
+import { runMutation, type RustCore, type Rows } from '@gp/rust-core';
 import {
   getMutator,
-  runMutator,
   SerialQueue,
   MutationError,
   PROTOCOL_VERSION,
@@ -37,6 +37,10 @@ type Row = Record<string, unknown>;
 export interface OrgStore {
   db: Tx;
   query(sql: string, params?: unknown[]): Row[];
+  /** The same as `query`, each row an array in column order: what the Rust core reads. */
+  rows(sql: string, params: unknown[]): Rows;
+  /** The Rust core's WASM, for the mutators it runs (`RUST_MUTATORS`). */
+  core: RustCore;
   /**
    * Runs `fn` atomically: all of its writes commit, or none do if it throws.
    * `fn` is async (a mutator) but awaits only this store's queries.
@@ -97,7 +101,7 @@ export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequ
       if (!mut) throw new MutationError('unknown-mutator', m.name);
       if (m.v > mut.v) throw new MutationError('unknown-version', `${m.name} v${m.v}`);
       await store.transaction(async () => {
-        await runMutator(mut, store.db, m.args, { ...ctx, now: Date.now() }); // the server's clock (see MutatorCtx)
+        await runMutation(store, m.name, m.args, { ...ctx, now: Date.now() }); // the server's clock (see MutatorCtx)
         setLast(m.id);
       });
     } catch (e) {

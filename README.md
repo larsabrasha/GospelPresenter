@@ -40,6 +40,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 | Package | What it is |
 |---|---|
 | `packages/core` | Schema, mutators with Zod-validated arguments, permissions, slides, song search, live pointer |
+| `packages/rust-core` | The Rust core (`crates/gp-core`) under the app: its WASM, built by turbo's `wasm` task before whatever loads it, runs the mutators it has (`RUST_MUTATORS`) on the client and the server alike; the rest run on `packages/core` |
 | `packages/sync` | The sync engine: client (rebase, pokes) and server (push, pull, change log) |
 | `packages/architecture` | Tests of the code itself, read as text: file length, names, copies, which package may import which |
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |
@@ -71,7 +72,7 @@ export GP_RESEND_API_KEY=… GP_MAIL_FROM='Gospel Presenter <noreply@…>' GP_AP
                                            # e-mail through Resend (see docs/sign-in-and-pairing.md, "E-mail")
 ```
 
-Needs Node 22 or later and pnpm 12. The e2e runs the real app, with its windows hidden: they are made but never
+Needs Node 22 or later, pnpm 12, and Rust with its WASM target (`rustup target add wasm32-unknown-unknown`) for the core's WASM. The e2e runs the real app, with its windows hidden: they are made but never
 shown, there is no Dock icon, and the output never takes a second display, so a run takes no focus from whoever
 is at the computer (`GP_E2E_VISIBLE=1 pnpm e2e` shows them). It plays the system browser and
 Google itself (`apps/server/test/fake-google.ts`), so it needs no internet and no Google client. Its

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "wasm": {
+      "inputs": ["build-wasm.mjs", "$TURBO_ROOT$/crates/gp-core/Cargo.toml", "$TURBO_ROOT$/crates/gp-core/src/**", "$TURBO_ROOT$/Cargo.toml", "$TURBO_ROOT$/Cargo.lock"],
+      "outputs": ["dist/**"]
+    }
+  }
+}

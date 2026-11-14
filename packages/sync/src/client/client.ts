@@ -5,7 +5,6 @@ import {
   clientUndoRestore,
   clientUndoTriggers,
   getMutator,
-  runMutator,
   migrateOrgSchema,
   PROTOCOL_VERSION,
   randomId,
@@ -26,6 +25,7 @@ import {
   type TableInfo,
   type Tx,
 } from '@gp/core';
+import { runMutation, type MutationDb, type RustCore } from '@gp/rust-core';
 import { drizzleOver, queryObjects, type ClientSqlite } from './sqlite.ts';
 import type { Transport } from './transport.ts';
 
@@ -33,6 +33,8 @@ export interface SyncClientOptions {
   transport: Transport;
   /** What this device believes about its user. The server re-checks with its own. */
   ctx: MutatorCtx;
+  /** The Rust core's WASM, for the mutators it runs (`RUST_MUTATORS`), as the server runs them. */
+  core: RustCore;
   clientId?: string;
   /** Overridable so tests can play an old client. */
   protocol?: number;
@@ -78,11 +80,15 @@ export class SyncClient {
   private clientId = '';
   private listeners = new Set<(tables: ReadonlySet<string>) => void>();
 
+  /** Where mutators run: Drizzle for the TS core's, the same connection's statements for the Rust core's. */
+  private on: MutationDb;
+
   private constructor(
     private sqlite: ClientSqlite,
     private opts: SyncClientOptions,
   ) {
     this.db = drizzleOver(sqlite);
+    this.on = { db: this.db, core: opts.core, rows: async (sql, params) => (await sqlite.query(sql, params)).rows };
   }
 
   static async open(sqlite: ClientSqlite, opts: SyncClientOptions): Promise<SyncClient> {
@@ -187,7 +193,7 @@ export class SyncClient {
       const { next_mutation_id: id } = await this.meta();
       await this.exec('UPDATE _sync_meta SET next_mutation_id = ?', [id + 1]);
       await this.exec('INSERT INTO _mutation (id, name, v, args) VALUES (?, ?, ?, ?)', [id, name, mut.v, JSON.stringify(args)]);
-      await runMutator(mut, this.db, args, this.opts.ctx);
+      await runMutation(this.on, name, args, this.opts.ctx);
     });
     this.changed(tables);
   }
@@ -306,11 +312,9 @@ export class SyncClient {
       await this.exec('UPDATE _sync_meta SET cookie = ?, last_mutation_id = ?, capture = 1', [last.cookie, last.lastMutationId]);
 
       for (const m of await this.pending()) {
-        const mut = getMutator(m.name);
         await this.exec('SAVEPOINT replay');
         try {
-          if (!mut) throw new Error(`unknown mutator ${m.name}`);
-          await runMutator(mut, this.db, JSON.parse(m.args), this.opts.ctx);
+          await runMutation(this.on, m.name, JSON.parse(m.args), this.opts.ctx);
           await this.exec('RELEASE replay');
         } catch {
           // It no longer applies locally; it stays queued and the server decides.

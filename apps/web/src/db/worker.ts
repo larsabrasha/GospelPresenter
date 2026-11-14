@@ -31,6 +31,8 @@ import {
 } from '@gp/sync/client';
 import { keepVideos } from './videoFiles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
+import { RustCore } from '@gp/rust-core';
+import coreUrl from '@gp/rust-core/gp_core.wasm?url';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 import { mediaAdds } from './mediaAdds.ts';
@@ -79,6 +81,16 @@ async function openDb(file: string, s: Session): Promise<ClientSqlite> {
     storage = `memory (${e instanceof Error ? e.message : String(e)})`;
     return waSqliteConnection(sqlite3, await sqlite3.open_v2(':memory:'));
   }
+}
+
+/** The Rust core's WASM, compiled once for the worker; each client gets its own instance (packages/rust-core). */
+let compiledCore: Promise<WebAssembly.Module> | undefined;
+async function rustCore(): Promise<RustCore> {
+  compiledCore ??= fetch(coreUrl)
+    .then((r) => r.arrayBuffer())
+    .then((bytes) => WebAssembly.compile(bytes));
+  compiledCore.catch(() => (compiledCore = undefined)); // a failed fetch is tried again by the next open
+  return new RustCore(await compiledCore);
 }
 
 async function status(): Promise<DbStatus> {
@@ -349,6 +361,7 @@ async function handle(call: DbCall): Promise<unknown> {
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: server, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
+        core: await rustCore(),
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
       });
       client = c;

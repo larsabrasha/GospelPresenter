@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type LoginMethod, type Me, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
 import { SyncClient, httpTransport, socketProtocols } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { api, invite, pokeUrl, setRole, startAdapter, type AdapterName, type Harness, type ServerDump } from './harness.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle, type Tamper } from './fake-google.ts';
 
@@ -391,6 +392,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const client = await SyncClient.open(await openWaSqlite(), {
       transport: httpTransport({ baseUrl: h.url, token: io.token }),
       ctx: { userId: io.id, role: 'user' },
+      core: nodeRustCore(),
     });
     await client.mutate('createSong', { id: `S-${io.id}`, name: 'Before' });
     await client.sync();
@@ -413,7 +415,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect((await api(h, 'POST', '/api/sync/pull', { token, body: pull() })).status).toBe(200);
     expect((await api(h, 'POST', '/api/debug/membership', { body: { userId: 'ju', orgId: org, role: null } })).status).toBe(200);
     expect(await api(h, 'POST', '/api/sync/pull', { token, body: pull() })).toEqual({ status: 403, body: { error: 'not-a-member' } });
-    const client = await SyncClient.open(await openWaSqlite(), { transport: httpTransport({ baseUrl: h.url, token }), ctx: { userId: 'ju', role: 'user' } });
+    const client = await SyncClient.open(await openWaSqlite(), { transport: httpTransport({ baseUrl: h.url, token }), ctx: { userId: 'ju', role: 'user' }, core: nodeRustCore() });
     await client.sync();
     expect(client.authError).toBe('not-a-member');
     await client.close();

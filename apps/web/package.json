@@ -11,6 +11,7 @@
   "dependencies": {
     "@capacitor/core": "8.6.0",
     "@gp/core": "workspace:*",
+    "@gp/rust-core": "workspace:*",
     "@gp/sync": "workspace:*",
     "@journeyapps/wa-sqlite": "2.0.8",
     "mediabunny": "1.62.1",
