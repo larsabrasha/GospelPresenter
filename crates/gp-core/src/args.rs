@@ -7,9 +7,11 @@ pub type R<T> = Result<T, String>;
 fn bad<T>() -> R<T> { Err("invalid-args".into()) }
 
 /** String.prototype.trim: its white space is not Rust's (it takes U+FEFF, and leaves U+0085). */
-pub fn js_trim(s: &str) -> &str {
-    let ws = |c: char| matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}');
-    s.trim_matches(ws)
+pub fn js_trim(s: &str) -> &str { s.trim_matches(is_js_space) }
+
+/** JavaScript's white space, as `trim` and `\\s` take it. */
+pub fn is_js_space(c: char) -> bool {
+    matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}')
 }
 
 pub fn obj(v: &Value) -> R<&Obj> { v.as_object().ok_or_else(|| "invalid-args".to_string()) }
@@ -26,12 +28,20 @@ pub fn opt_id(o: &Obj, k: &str) -> R<Option<String>> {
     match o.get(k) { None | Some(Value::Null) => Ok(None), Some(v) => id_value(v).map(Some) }
 }
 
-/** `name`: trimmed, 1–200 characters. */
-pub fn name(o: &Obj, k: &str) -> R<String> {
+/** `z.string().trim().min(min).max(max)`. */
+pub fn trimmed(o: &Obj, k: &str, min: usize, max: usize) -> R<String> {
     match o.get(k) {
-        Some(Value::String(s)) => { let t = js_trim(s); if (1..=200).contains(&t.chars().count()) { Ok(t.to_string()) } else { bad() } }
+        Some(Value::String(s)) => { let t = js_trim(s); if (min..=max).contains(&t.chars().count()) { Ok(t.to_string()) } else { bad() } }
         _ => bad(),
     }
+}
+
+/** `name`: trimmed, 1–200 characters. */
+pub fn name(o: &Obj, k: &str) -> R<String> { trimmed(o, k, 1, 200) }
+
+/** `labelKey` (labels.ts): a label's text as compared, case and spacing aside. */
+pub fn label_key(text: &str) -> String {
+    js_trim(text).to_lowercase().split(is_js_space).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
 /** `optionalText(max).optional()`: trimmed, blank as null. */

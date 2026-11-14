@@ -84,8 +84,8 @@ switched means the app runs the core's.
 | --- | --- | --- |
 | The core in workerd (a SQLite Durable Object, `parity/workerd-check.mjs`) | proved: 15 000 mutations, the same outcomes and rows | — |
 | The core in a browser: a Web Worker over wa-sqlite, in memory and on OPFS (`parity/browser-check.mjs`), in Chromium and WebKit (Safari's engine, not Safari or iOS themselves) | proved: 15 000 mutations, the same outcomes and rows; as fast as the TS core, OPFS the cost of both | — |
-| Schema and migrations | not yet | not yet |
-| presentations (16) | 13: all but renamePresentation, addBibleToPresentation, setItemOverlay | not yet |
+| Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | not yet |
+| presentations (16) | proved: 30 000 mutations, every table compared after each (`crates/gp-core/parity/mutations/run.mjs presentations --ops 3000 --seeds 10`) | not yet |
 | media (23), songs (10), custom-slides (7), templates (7), arrangements (6) | not yet | not yet |
 | labels (4), song-materials (4), themes (4), ccli (3), bibles-and-themes (3), overlays (3), displays (3) | not yet | not yet |
 | trash (2), history (1), org-settings (1), probe (1) | not yet | not yet |

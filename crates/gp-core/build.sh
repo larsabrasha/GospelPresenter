@@ -25,6 +25,10 @@ export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
 case "$1" in
   test)
     node --no-warnings parity/diff.mjs 3000 10
+    # The schema and its migrations, then every ported file of mutators (3 000 each here; the proof of a file is
+    # `node parity/mutations/run.mjs <file> --ops 3000 --seeds 10`, 30 000).
+    node --no-warnings parity/mutations/schema-check.mjs | tail -1
+    node --no-warnings parity/mutations/run.mjs --ops 1000 --seeds 3 | grep -vE "^[a-z-]+: [0-9]+ mutations"
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"
