@@ -7,9 +7,11 @@ pub type R<T> = Result<T, String>;
 fn bad<T>() -> R<T> { Err("invalid-args".into()) }
 
 /** String.prototype.trim: its white space is not Rust's (it takes U+FEFF, and leaves U+0085). */
-pub fn js_trim(s: &str) -> &str {
-    let ws = |c: char| matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}');
-    s.trim_matches(ws)
+pub fn js_trim(s: &str) -> &str { s.trim_matches(is_js_space) }
+
+/** JavaScript's white space, as `trim` and `\\s` take it. */
+pub fn is_js_space(c: char) -> bool {
+    matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}')
 }
 
 pub fn obj(v: &Value) -> R<&Obj> { v.as_object().ok_or_else(|| "invalid-args".to_string()) }
@@ -26,12 +28,20 @@ pub fn opt_id(o: &Obj, k: &str) -> R<Option<String>> {
     match o.get(k) { None | Some(Value::Null) => Ok(None), Some(v) => id_value(v).map(Some) }
 }
 
-/** `name`: trimmed, 1–200 characters. */
-pub fn name(o: &Obj, k: &str) -> R<String> {
+/** `z.string().trim().min(min).max(max)`. */
+pub fn trimmed(o: &Obj, k: &str, min: usize, max: usize) -> R<String> {
     match o.get(k) {
-        Some(Value::String(s)) => { let t = js_trim(s); if (1..=200).contains(&t.chars().count()) { Ok(t.to_string()) } else { bad() } }
+        Some(Value::String(s)) => { let t = js_trim(s); if (min..=max).contains(&t.chars().count()) { Ok(t.to_string()) } else { bad() } }
         _ => bad(),
     }
+}
+
+/** `name`: trimmed, 1–200 characters. */
+pub fn name(o: &Obj, k: &str) -> R<String> { trimmed(o, k, 1, 200) }
+
+/** `labelKey` (labels.ts): a label's text as compared, case and spacing aside. */
+pub fn label_key(text: &str) -> String {
+    js_trim(text).to_lowercase().split(is_js_space).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
 /** `optionalText(max).optional()`: trimmed, blank as null. */
@@ -112,3 +122,16 @@ pub fn id_or_null(o: &Obj, k: &str) -> R<Option<String>> {
 
 /** `z.number().int()`: a safe integer. */
 pub fn safe_int(o: &Obj, k: &str) -> R<i64> { int(o, k, -(2i64.pow(53) - 1), 2i64.pow(53) - 1) }
+
+/** `z.string().regex(/^[0-9a-f]{64}$/)`: a blob's SHA-256. */
+pub fn media_hash(o: &Obj, k: &str) -> R<String> {
+    match o.get(k) { Some(Value::String(h)) if h.len() == 64 && h.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) => Ok(h.clone()), _ => bad() }
+}
+
+/** `z.enum([...])`. */
+pub fn one_of(o: &Obj, k: &str, options: &[&str]) -> R<String> {
+    match o.get(k) { Some(Value::String(v)) if options.contains(&v.as_str()) => Ok(v.clone()), _ => bad() }
+}
+
+/** `z.boolean()`. */
+pub fn boolean(o: &Obj, k: &str) -> R<bool> { o.get(k).and_then(Value::as_bool).map_or_else(bad, Ok) }

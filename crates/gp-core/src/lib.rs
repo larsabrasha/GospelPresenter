@@ -1,7 +1,12 @@
 mod args;
+mod bible;
 mod bridge;
+mod json;
 mod live;
 mod mutators;
+mod pages;
+mod schema;
 mod search;
 mod slides;
+mod theme_def;
 mod views;

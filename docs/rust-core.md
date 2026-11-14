@@ -84,13 +84,17 @@ switched means the app runs the core's.
 | --- | --- | --- |
 | The core in workerd (a SQLite Durable Object, `parity/workerd-check.mjs`) | proved: 15 000 mutations, the same outcomes and rows | — |
 | The core in a browser: a Web Worker over wa-sqlite, in memory and on OPFS (`parity/browser-check.mjs`), in Chromium and WebKit (Safari's engine, not Safari or iOS themselves) | proved: 15 000 mutations, the same outcomes and rows; as fast as the TS core, OPFS the cost of both | — |
-| Schema and migrations | not yet | not yet |
-| presentations (16) | 13: all but renamePresentation, addBibleToPresentation, setItemOverlay | not yet |
-| media (23), songs (10), custom-slides (7), templates (7), arrangements (6) | not yet | not yet |
-| labels (4), song-materials (4), themes (4), ccli (3), bibles-and-themes (3), overlays (3), displays (3) | not yet | not yet |
-| trash (2), history (1), org-settings (1), probe (1) | not yet | not yet |
+| Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | not yet |
+| The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | not yet |
+| probe (1) | a test helper of the TS core: not ported | — |
 | Views: a presentation's slides, against `readItemSlides` (every kind of item, every problem) | proved | not yet |
 | Views: the presentations, the trash, song search | ported, not proved against a TS view | not yet |
 | Presenting's keys and marks, against `presentingKey` and `slideMarks` | proved | not yet |
 | Sync's client logic, the imports | not yet | not yet |
 | The Mac app: the presentations, the running order, presenting | built on the core | — |
+
+Where the core does otherwise than the TS core, on purpose or not yet checked: a database the migration refuses is
+left as it was (the TS one leaves an empty `_schema` table); a song version whose text does not read is refused with
+`invalid-snapshot` (the TS core throws zod's error; versions are only made by the mutators, so the check never makes
+one); and a string with a lone UTF-16 surrogate cannot reach the core, as JSON between the shell and the core is UTF-8
+(the checks send none).
