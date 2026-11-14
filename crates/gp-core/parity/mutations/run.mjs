@@ -4,7 +4,8 @@ import { prove, report } from './harness.mjs';
 import { SEED } from './seed.mjs';
 
 /** The files proved so far, in the order they were ported; each has its generator in gen-<file>.mjs. */
-const FILES = ['presentations', 'songs'];
+const FILES = ['presentations', 'songs', 'arrangements', 'labels', 'song-materials', 'history', 'templates', 'custom-slides', 'themes',
+  'bibles-and-themes', 'overlays', 'displays', 'ccli', 'org-settings', 'trash', 'media'];
 
 const argv = process.argv.slice(2);
 const flag = (name, fallback) => { const i = argv.indexOf(name); return i === -1 ? fallback : Number(argv.splice(i, 2)[1]); };

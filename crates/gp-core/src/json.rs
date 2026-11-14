@@ -24,7 +24,6 @@ pub fn js_number(f: f64) -> String {
 
 impl J {
     pub fn str(s: &str) -> J { J::Str(s.to_string()) }
-    pub fn opt(s: Option<String>) -> J { s.map_or(J::Null, J::Str) }
     pub fn obj(fields: Vec<(&str, J)>) -> J { J::Obj(fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect()) }
 
     pub fn stringify(&self) -> String {

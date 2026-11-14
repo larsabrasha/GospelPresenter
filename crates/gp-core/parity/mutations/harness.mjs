@@ -10,7 +10,7 @@ const out = new URL('../.out/', import.meta.url).pathname;
 let clock = 0;
 Date.now = () => clock;
 
-const { instance } = await WebAssembly.instantiate(readFileSync(`${out}/gp_core.wasm`), { env: { now_ms: () => clock } });
+const { instance } = await WebAssembly.instantiate(readFileSync(process.env.GP_CORE_WASM ?? `${out}/gp_core.wasm`), { env: { now_ms: () => clock } });
 const w = instance.exports;
 const enc = new TextEncoder(), dec = new TextDecoder();
 const pass = (s) => { const b = enc.encode(s); const p = w.gp_alloc(b.length); new Uint8Array(w.memory.buffer, p, b.length).set(b); return [p, b.length]; };
@@ -114,9 +114,13 @@ export async function prove(label, { seed = [], seedFor = () => [], generator, o
     const a = openDb([...seed, ...seedFor(s, seeds)]), b = openDb([...seed, ...seedFor(s, seeds)]);
     const t = tools(rng(s * 7919 + label.length), a);
     for (let step = 1; step <= ops; step++) {
-      const { name, args, role, client } = generator(t, step);
+      const { name, args, role, client, setup, now } = generator(t, step);
+      if (setup) { // what the shell does outside the mutators (a Bible's text stored, say), on both databases alike
+        for (const db of [a, b]) for (const q of setup) db.exec(q);
+        continue;
+      }
       const ctx = { userId: t.pick(['u1', 'u2']), role: role ?? t.pick(ROLES) };
-      if (!(client ?? t.random() < 0.3)) ctx.now = step * 60_000;
+      if (!(client ?? t.random() < 0.3)) ctx.now = now ?? step * 60_000;
       const input = JSON.parse(JSON.stringify({ name, args, ctx }));
       clock = 1_700_000_000_000 + step;
       const ra = await runTs(a, structuredClone(input));

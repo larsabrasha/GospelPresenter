@@ -15,6 +15,6 @@ two drifting apart. The TypeScript core (`packages/core`) is still the app's; ev
 - `build.sh` — builds the WASM, the static library and the Mac app; `test` runs every check, `run` starts the app on
   made-up demo data (no real song texts). Generated files go to `parity/.out/` and `/target/`.
 
-Ported so far: the schema and its migrations, the default labels, every mutator of presentations.ts; the
-presentations, a presentation's slides, the trash, song search, and presenting's keys. `docs/rust-core.md` says
-where each stands.
+Ported so far: the schema and its migrations, the default labels, every mutator of `packages/core/src/mutators` but
+the test helper `probe`; the presentations, a presentation's slides, the trash, song search, and presenting's keys.
+`docs/rust-core.md` says where each stands.
