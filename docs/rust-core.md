@@ -16,6 +16,40 @@ core. No new features in 2.5: behaviour as 2.0's, proved by the differential che
 3. the views in the core, the React pages reading slides and lists from it;
 4. the TS core out of the app; the reference kept at 238d481b for the checks.
 
+### Step 2: sync's client logic
+
+Today `SyncClient` (`packages/sync/src/client/client.ts`): a change runs at once on the device and is queued in
+`_mutation`, in one transaction; `push` sends the queue; `pull` fetches the server's changes page by page from a
+cookie; `rebase`, in one transaction, undoes every change of the device's the server has not confirmed (the undo log
+of `packages/core/src/sync-sql.ts`'s triggers), applies the server's, drops what the server has taken and replays the
+rest on top.
+
+Into the core: what decides what the database holds — the queue, the rebase, the triggers — as commands such as "run
+and queue a change", "the queue to send" and "here are the server's pages: rebase". In the shell: the network, the
+socket that says something is new, when and how often to sync, retries, and sign-in and the server's refusals
+("update required", credentials gone). The server's sync engine (`packages/sync/src/server/engine.ts`) stays
+TypeScript: it already runs the mutators through the core, and the rest of it is the server's own.
+
+Small, and the riskiest step: a wrong rebase loses or doubles a church's changes. Proved by a differential check of
+its own: the same random mix of local changes, server pages and refusals through both clients on two databases,
+the tables and the queue compared after every step; then the server's tests, which run two devices against a server
+on every adapter, and the e2e specs of sync and offline. After it a native app syncs by the web's rules exactly.
+
+### Step 3: the views
+
+What a page shows, worked out: today the web's own SQL (`apps/web/src/db/queries.ts`, 34 queries) and reckonings in
+React components; the slides (`readItemSlides`) are in Rust and proved already. Page by page: the presentation and
+presenting first, then the songs list and the song editor (parts, arrangements, labels, history), then the Bibles,
+pictures, sounds, videos, custom slides, templates, themes, overlays, outputs, the CCLI report, the trash and the
+settings. Each view is a call to the core in the database worker; React gets finished JSON instead of running SQL.
+A page is read again when a table it reads changes, as now: each view names the tables it reads.
+
+Proved view by view: the old TS query and the new Rust view on the same database give identical JSON (as the slides
+are checked), and every e2e spec that reaches the page passes unchanged. Large and harmless: a view cannot spoil data,
+only show it wrongly, which the comparison catches. Long lists (3 000 songs) are measured, so that copying JSON over
+the bridge does not make them slower; search is in the core already. After it the native apps, MCP and the CLI read
+the web's lists, and React holds no SQL. It can run beside step 2: they touch different files.
+
 What comes after 2.5 is written in Rust first. Native UIs on the same core come later: the Mac and iOS app
 (`claude/rust-core-ios-ab7733`, a working prototype over the core) waits until then, not merged.
 
