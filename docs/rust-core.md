@@ -5,6 +5,20 @@ On the branch `claude/rust-core` only. Lars, 2026-11-13: the app is made again o
 CLI come later on the same core. It is done in a loop, function by function and view by view, each proved against
 the TypeScript app as it was before (the reference). How the core is built and checked: `crates/gp-core/README.md`.
 
+## 2.5: the core swapped, nothing else
+
+Lars, 2026-11-14: 2.0 is released on the TypeScript core first, its core frozen from then; 2.5 is the same app, the
+same React UI on the web, in Electron and in Capacitor, with the Rust core as WASM under all of it instead of the TS
+core. No new features in 2.5: behaviour as 2.0's, proved by the differential checks and the whole e2e suite. Done:
+
+1. every mutator switched on the client and the server (`RUST_MUTATORS` in `packages/rust-core`);
+2. sync's client logic in the core;
+3. the views in the core, the React pages reading slides and lists from it;
+4. the TS core out of the app; the reference kept at 238d481b for the checks.
+
+What comes after 2.5 is written in Rust first. Native UIs on the same core come later: the Mac and iOS app
+(`claude/rust-core-ios-ab7733`, a working prototype over the core) waits until then, not merged.
+
 ## The reference
 
 The TypeScript app at commit 238d481b on `claude/replace-csharp-with-rewrite` (Lars, 2026-11-13). It is 50f53f37,
@@ -85,7 +99,7 @@ switched means the app runs the core's.
 | The core in workerd (a SQLite Durable Object, `parity/workerd-check.mjs`) | proved: 15 000 mutations, the same outcomes and rows | — |
 | The core in a browser: a Web Worker over wa-sqlite, in memory and on OPFS (`parity/browser-check.mjs`), in Chromium and WebKit (Safari's engine, not Safari or iOS themselves) | proved: 15 000 mutations, the same outcomes and rows; as fast as the TS core, OPFS the cost of both | — |
 | Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | not yet |
-| The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | not yet |
+| The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | 13 of presentations' on the client and the server (`RUST_MUTATORS` in `packages/rust-core`, one adapter under `packages/sync`'s client and server engine); the rest still the TS core's |
 | probe (1) | a test helper of the TS core: not ported | — |
 | Views: a presentation's slides, against `readItemSlides` (every kind of item, every problem) | proved | not yet |
 | Views: the presentations, the trash, song search | ported, not proved against a TS view | not yet |
