@@ -32,6 +32,7 @@ case "$1" in
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"
+    node --no-warnings parity/views-check.mjs "$OUT/fixtures/demo.sqlite"
     mkdir -p "$OUT/native"
     GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
     node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"

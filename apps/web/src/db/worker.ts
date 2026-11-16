@@ -93,6 +93,12 @@ async function rustCore(): Promise<RustCore> {
   return new RustCore(await compiledCore);
 }
 
+/** The client's core, for its views as for its mutators. */
+let core: RustCore | undefined;
+
+/** A view of the core, read from one state of the database (`SyncClient.read`). */
+const view = (name: string, args: unknown) => client!.read((rows) => core!.view(name, args, rows));
+
 async function status(): Promise<DbStatus> {
   return {
     storage,
@@ -358,10 +364,11 @@ async function handle(call: DbCall): Promise<unknown> {
       server = call.server;
       const s = call.session;
       const sqlite = await openDb(dbFileName(s), s);
+      const theCore = (core = await rustCore());
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: server, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
-        core: await rustCore(),
+        core: theCore,
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
       });
       client = c;
@@ -377,6 +384,7 @@ async function handle(call: DbCall): Promise<unknown> {
           post({ type: 'changed', ...(tables ? { tables } : {}) });
         },
         fetchMediaHere,
+        view,
       );
       notifyChanged = (tables) => {
         const list = tables && [...tables];
@@ -404,6 +412,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return;
     case 'query':
       return client!.query(call.sql, call.params);
+    case 'view':
+      return view(call.name, call.args);
     case 'searchSongs':
       return songSearch!.search(call.query);
     case 'status':

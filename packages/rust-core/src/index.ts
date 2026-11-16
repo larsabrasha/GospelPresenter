@@ -69,26 +69,61 @@ export class RustCore {
     return decoder.decode(new Uint8Array(this.core.memory.buffer, this.core.gp_out_ptr(), this.core.gp_out_len()));
   }
 
+  /** Runs one call of the core to its end, every statement through `sql`: done (what it said) or refused (the code). */
+  private async drive(input: unknown, sql: RunSql): Promise<{ done: boolean; said: string }> {
+    try {
+      let status = this.core.gp_start(...this.pass(json(input)));
+      while (status === WANTS_SQL) {
+        const ask = JSON.parse(this.said()) as { sql: string; params: unknown[] };
+        const rows = await sql(ask.sql, ask.params);
+        status = this.core.gp_resume(...this.pass(json(rows)));
+      }
+      return { done: status === DONE, said: this.said() };
+    } catch (e) {
+      // A trap (a panic in the core) leaves the instance unusable: the next call gets a fresh one.
+      if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
+      throw e;
+    }
+  }
+
   /**
    * Runs the mutator `name` to its end in the caller's transaction, every statement through `sql`. Done, or a
    * refusal thrown as MutationError with the core's code, as runMutator throws one (invalid arguments included).
    */
   mutate(name: string, args: unknown, ctx: MutatorCtx, sql: RunSql): Promise<void> {
     return this.queue.run(async () => {
-      try {
-        let status = this.core.gp_start(...this.pass(json({ name, args, ctx: { role: ctx.role, now: ctx.now } })));
-        while (status === WANTS_SQL) {
-          const ask = JSON.parse(this.said()) as { sql: string; params: unknown[] };
-          const rows = await sql(ask.sql, ask.params);
-          status = this.core.gp_resume(...this.pass(json(rows)));
-        }
-        if (status !== DONE) throw new MutationError(this.said());
-      } catch (e) {
-        // A trap (a panic in the core) leaves the instance unusable: the next call gets a fresh one.
-        if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
-        throw e;
-      }
+      const { done, said } = await this.drive({ name, args, ctx: { role: ctx.role, now: ctx.now } }, sql);
+      if (!done) throw new MutationError(said);
     });
+  }
+
+  /**
+   * What the view `name` shows (docs/rust-core.md, 2.5 step 3), every statement through `sql`: one state of the
+   * database when the caller holds its lock. A refusal is thrown as MutationError with the core's code.
+   */
+  view<T>(name: string, args: unknown, sql: RunSql): Promise<T> {
+    return this.queue.run(async () => {
+      const { done, said } = await this.drive({ name, args, ctx: {} }, sql);
+      if (!done) throw new MutationError(said);
+      return JSON.parse(said || 'null') as T;
+    });
+  }
+
+  /**
+   * A view that reads no database (presenting's keys and marks), at once: a page calls it on its own thread, so a key
+   * reaches the outputs without a round trip to the worker. Throws if the view asks for SQL, or refuses. Only on an
+   * instance of its own: a call of `view` or `mutate` waiting for rows on the same instance would be lost.
+   */
+  pure<T>(name: string, args: unknown): T {
+    try {
+      const status = this.core.gp_start(...this.pass(json({ name, args, ctx: {} })));
+      if (status === WANTS_SQL) throw new Error(`${name} reads the database: call view() instead`);
+      if (status !== DONE) throw new MutationError(this.said());
+      return JSON.parse(this.said() || 'null') as T;
+    } catch (e) {
+      if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
+      throw e;
+    }
   }
 }
 

@@ -2,21 +2,16 @@ import {
   applyLiveChange,
   IDLE,
   newer,
-  readItemSlides,
   type ItemSlides,
   type LivePointer,
   type LivePointerChange,
   type PresentationItem,
-  type SlideSources,
   type LiveVideo,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
 import type { PlaybackBus, PlaybackMessage } from './playback.ts';
-import { getCustomSlide } from '../db/customSlides.ts';
-import { getImage } from '../db/images.ts';
-import { arrangementsOf, getAudio, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 /** `ask`: a presenting window just opened asks what is shown, and every window that knows answers with its pointer. */
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'ask' } | PlaybackMessage;
@@ -176,21 +171,21 @@ export class LiveChannel implements PlaybackBus {
   }
 }
 
-/** The database's reads the core's slides take (`SlideSources`). */
-const sourcesOf = (db: ReadDb): SlideSources => ({
-  songData: async (ids) => ({ songs: await songsById(db, ids), parts: await songPartsOf(db, ids), labels: await listLabels(db), arrangements: await arrangementsOf(db, ids) }),
-  audio: (id) => getAudio(db, id),
-  video: (id) => getVideo(db, id),
-  customSlide: (id) => getCustomSlide(db, id),
-  image: (id) => getImage(db, id),
-});
+/** The item's fields its slides are worked out from, as the core reads them (`itemSlidesView`). */
+const itemOf = ({ id, type, title, sourceId, arrangementId, content }: PresentationItem) => ({ id, type, title, sourceId, arrangementId, content });
 
-/** One item's slides, as the core works them out (`readItemSlides`). */
-export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
-  return (await readItemSlides(sourcesOf(db), [item])).get(item.id)!;
+/**
+ * Every item's slides of a running order, by item id, as the Rust core works them out from one state of the
+ * database (`itemSlidesView`, as `readItemSlides`). Reads songs, song_parts, song_arrangements, labels, audios,
+ * videos, custom_slides and images.
+ */
+export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
+  if (!items.length) return new Map();
+  const byId = await db.view<Record<string, ItemSlides>>('itemSlidesView', { items: items.map(itemOf) });
+  return new Map(items.map((i) => [i.id, byId[i.id]!]));
 }
 
-/** Every item's slides of a running order, by item id, as the core works them out. */
-export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
-  return readItemSlides(sourcesOf(db), items);
+/** One item's slides, as the core works them out. */
+export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
+  return (await slidesOfItems(db, [item])).get(item.id)!;
 }

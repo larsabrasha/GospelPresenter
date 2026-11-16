@@ -16,6 +16,11 @@ export interface ReadDb {
    */
   onChange(fn: (tables?: ReadonlySet<string>) => void): () => void;
   /**
+   * What the Rust core's view `name` shows (docs/rust-core.md, 2.5 step 3), worked out in the database's worker from
+   * one state of the database: finished JSON instead of SQL. A page reads it again when a table it reads changes.
+   */
+  view<T>(name: string, args: unknown): Promise<T>;
+  /**
    * A media blob this database does not hold, from where it is kept instead:
    * the server, for a desktop host's own window; null elsewhere (`blobUrl`).
    */
@@ -30,6 +35,7 @@ export interface MediaBytes {
 export type ShareMessage =
   | { type: 'changed'; tables?: string[] }
   | { type: 'query'; id: string; sql: string; params: unknown[] }
+  | { type: 'view'; id: string; name: string; args: unknown }
   | { type: 'media'; id: string; hash: string }
   | { type: 'result'; id: string; ok: true; rows: Record<string, unknown>[] }
   | { type: 'result'; id: string; ok: false; error: string };
@@ -62,13 +68,19 @@ export function serveReads(
   query: (sql: string, params: unknown[]) => Promise<Record<string, unknown>[]>,
   onOtherChanged: (tables?: string[]) => void,
   media: (hash: string) => Promise<MediaBytes | null> = async () => null,
+  view: (name: string, args: unknown) => Promise<unknown> = async (name) => Promise.reject(new Error(`no view ${name} here`)),
 ): { changed: (tables?: Iterable<string>) => void } {
   channel.addEventListener('message', (e: MessageEvent<ShareMessage>) => {
     const m = e.data;
     if (m.type === 'changed') onOtherChanged(m.tables);
-    else if (m.type === 'query' || m.type === 'media') {
-      // A blob comes back as one row, or none.
-      const answer = m.type === 'query' ? query(m.sql, m.params) : media(m.hash).then((b) => (b ? [{ ...b }] : []));
+    else if (m.type === 'query' || m.type === 'media' || m.type === 'view') {
+      // A blob comes back as one row, or none; a view's JSON as one row.
+      const answer =
+        m.type === 'query'
+          ? query(m.sql, m.params)
+          : m.type === 'view'
+            ? view(m.name, m.args).then((v) => [v as Record<string, unknown>])
+            : media(m.hash).then((b) => (b ? [{ ...b }] : []));
       answer.then(
         (rows) => channel.postMessage({ type: 'result', id: m.id, ok: true, rows } satisfies ShareMessage),
         (err: unknown) =>
@@ -117,12 +129,17 @@ export class SharedReader implements ReadDb {
     return this.ask({ type: 'query', id: `${this.prefix}-${this.next++}`, sql, params });
   }
 
+  async view<T>(name: string, args: unknown): Promise<T> {
+    const [v] = await this.ask<T>({ type: 'view', id: `${this.prefix}-${this.next++}`, name, args });
+    return v as T;
+  }
+
   async fetchMedia(hash: string): Promise<MediaBytes | null> {
     const [b] = await this.ask<MediaBytes>({ type: 'media', id: `${this.prefix}-${this.next++}`, hash });
     return b ?? null;
   }
 
-  private ask<T>(msg: Extract<ShareMessage, { type: 'query' | 'media' }>): Promise<T[]> {
+  private ask<T>(msg: Extract<ShareMessage, { type: 'query' | 'media' | 'view' }>): Promise<T[]> {
     const id = msg.id;
     return new Promise<T[]>((resolve, reject) => {
       const timer = setInterval(() => this.channel.postMessage(msg), this.retryMs);

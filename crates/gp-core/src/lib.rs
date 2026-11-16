@@ -1,10 +1,12 @@
 mod args;
 mod bible;
 mod bridge;
+mod item_views;
 mod json;
 mod live;
 mod mutators;
 mod pages;
+mod presenting;
 mod schema;
 mod search;
 mod slides;

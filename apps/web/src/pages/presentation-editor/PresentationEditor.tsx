@@ -1,9 +1,10 @@
-import { can, presentingKey, slideOrder, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
+import { can, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { slidesOfItems } from '../../live/live.ts';
+import { presentingKey, slideOrderOf } from '../../live/presenting.ts';
 import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
@@ -176,7 +177,7 @@ export function PresentationEditor({
   useWakeLock(!!owner);
 
   /** Every slide of the running order, in order: what → and ← step through while presenting. */
-  const order = useMemo(() => (data ? slideOrder(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
+  const order = useMemo(() => (data ? slideOrderOf(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
   // A key's effect is the core's (presentingKey): what is shown goes to the outputs, the outline here, which takes the
   // selection along.
   const press = (key: PresentingKey) => {

@@ -39,6 +39,7 @@ export type DbCall =
   | { op: 'open'; session: Session; locale: string; server: string }
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
+  | { op: 'view'; name: string; args: unknown }
   /** The ids of the songs that match, best first; all of them in library order for a blank query (SONG-R30–R33). */
   | { op: 'searchSongs'; query: string }
   | { op: 'status' }

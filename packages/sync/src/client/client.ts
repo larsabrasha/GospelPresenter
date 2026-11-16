@@ -142,6 +142,14 @@ export class SyncClient {
     return this.lock.run(() => queryObjects(this.sqlite, sql, params));
   }
 
+  /**
+   * Runs `fn` with the local database's statements, rows as arrays, serialised with every write: a view of the
+   * Rust core (`RustCore.view`) reads one state of the database. For reads only, as `query`.
+   */
+  read<T>(fn: (rows: (sql: string, params: unknown[]) => Promise<unknown[][]>) => Promise<T>): Promise<T> {
+    return this.lock.run(() => fn(async (sql, params) => (await this.sqlite.query(sql, params)).rows));
+  }
+
   private async meta() {
     const [m] = await queryObjects(this.sqlite, 'SELECT cookie, last_mutation_id, next_mutation_id FROM _sync_meta');
     return m as { cookie: string | null; last_mutation_id: number; next_mutation_id: number };

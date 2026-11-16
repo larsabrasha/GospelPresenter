@@ -28,9 +28,3 @@ export async function listImages(db: ReadDb): Promise<LibraryImage[]> {
   return (await db.query('SELECT * FROM images WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryImage);
 }
 
-/** An image by id, trashed or not: a trashed picture still shows in the presentations that use it (MEDIA-R8). */
-export async function getImage(db: ReadDb, id: string): Promise<LibraryImage | null> {
-  const [r] = await db.query('SELECT * FROM images WHERE id = ?', [id]);
-  return r ? libraryImage(r) : null;
-}
-
