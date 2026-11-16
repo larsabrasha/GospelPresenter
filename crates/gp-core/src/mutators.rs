@@ -110,8 +110,14 @@ pub async fn run(input: Value) -> R<Value> {
     }
     let a = obj(&input["args"])?;
     if let Some(view) = crate::views::run(name, a).await { return view; }
+    if let Some(done) = crate::sync::run(name, a, &ctx).await { return done; }
+    mutate(name, a, &ctx).await.map(|()| Value::Null)
+}
+
+/// A mutator by name: done, or its refusal's code.
+pub async fn mutate(name: &str, a: &Obj, ctx: &Ctx) -> R<()> {
     // Each file's dispatcher in turn: the first that knows the name runs it.
-    macro_rules! dispatch { ($($file:ident),*) => { $( if let Some(done) = $file::run(name, a, &ctx).await { return done.map(|()| Value::Null) } )* } }
+    macro_rules! dispatch { ($($file:ident),*) => { $( if let Some(done) = $file::run(name, a, ctx).await { return done } )* } }
     dispatch!(presentations, songs, arrangements, labels, song_materials, history, templates, custom_slides, themes, bibles_and_themes,
         overlays, displays, ccli, org_settings, trash, media);
     Err("unknown-mutator".into())

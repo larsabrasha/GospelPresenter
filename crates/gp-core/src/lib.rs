@@ -8,5 +8,7 @@ mod pages;
 mod schema;
 mod search;
 mod slides;
+mod sync;
+mod sync_sql;
 mod theme_def;
 mod views;
