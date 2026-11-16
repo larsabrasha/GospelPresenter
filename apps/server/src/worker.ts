@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
-import { LIVE_PING, LIVE_PONG, labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -79,15 +79,18 @@ function googleOf(env: Env): GoogleOidc | null {
 
 /** An organisation's data in its Durable Object's own SQLite (evaluation option (a)). */
 export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
-  const run = (sql: string) => storage.sql.exec(sql).toArray() as Record<string, unknown>[];
-  migrateOrgSchemaSync(run, (fn) => storage.transactionSync(fn));
+  const rows = (sql: string, params: unknown[]) => [...storage.sql.exec(sql, ...params).raw()];
+  const core = new RustCore(coreWasm);
+  // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
+  storage.transactionSync(() => core.runSync('migrateOrgSchema', {}, undefined, rows));
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) storage.sql.exec(s).toArray();
   // After the change triggers, so the default labels sync like any change (SONG-R47).
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...labelSeedSql]) run(s);
+  core.runSync('seedLabels', {}, undefined, rows);
   return {
     db: drizzle(storage, { schema }) as unknown as Tx,
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],
-    rows: (sql, params) => [...storage.sql.exec(sql, ...params).raw()],
-    core: new RustCore(coreWasm),
+    rows,
+    core,
     // DO SQLite refuses BEGIN/COMMIT from sql.exec, and transactionSync() cannot
     // wait for an async mutator. The async storage.transaction() can: it runs
     // the closure as an explicit transaction and rolls back if it throws.

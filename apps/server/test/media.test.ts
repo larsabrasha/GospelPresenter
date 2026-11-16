@@ -212,7 +212,7 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
 
     // Not yet in the trash: purge is refused for a live image.
     await alice.client.mutate('restoreImage', { id: 'LIFE' });
-    await expect(alice.client.mutate('purgeImage', { id: 'LIFE' })).rejects.toThrow('not in the trash');
+    await expect(alice.client.mutate('purgeImage', { id: 'LIFE' })).rejects.toMatchObject({ code: 'not-in-trash' });
 
     await alice.client.mutate('trashImage', { id: 'LIFE', at: 1_700_000_200_000 });
     await alice.client.mutate('purgeImage', { id: 'LIFE' });
@@ -496,7 +496,7 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: 'O1' }]);
 
     // An overlay that does not exist, or a page that is not one, is refused; a blank title never saves (PRES-E18).
-    await expect(bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'NOPE' })).rejects.toThrow('overlay not found');
+    await expect(bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'NOPE' })).rejects.toMatchObject({ code: 'not-found' });
     await expect(bob.client.mutate('updateOverlay', { id: 'O1', page: { elements: 'none' }, at: 3 } as never)).rejects.toThrow();
     await expect(bob.client.mutate('updateOverlay', { id: 'O1', title: '  ', at: 3 })).rejects.toThrow();
 
