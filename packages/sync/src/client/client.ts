@@ -5,7 +5,6 @@ import {
   clientUndoRestore,
   clientUndoTriggers,
   getMutator,
-  migrateOrgSchema,
   PROTOCOL_VERSION,
   randomId,
   SCHEMA_VERSION,
@@ -101,19 +100,15 @@ export class SyncClient {
 
   private async init() {
     await this.exec('PRAGMA foreign_keys = ON');
-    await migrateOrgSchema(
-      (sql) => queryObjects(this.sqlite, sql),
-      async (fn) => {
-        await this.exec('BEGIN');
-        try {
-          await fn();
-          await this.exec('COMMIT');
-        } catch (e) {
-          await this.exec('ROLLBACK');
-          throw e;
-        }
-      },
-    );
+    // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
+    await this.exec('BEGIN');
+    try {
+      await this.on.core.run('migrateOrgSchema', {}, undefined, this.on.rows);
+      await this.exec('COMMIT');
+    } catch (e) {
+      await this.exec('ROLLBACK');
+      throw e;
+    }
     for (const s of [...clientSyncDdl, ...clientUndoTriggers(), ...changeTrackingDdl()]) await this.exec(s);
     const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
     await this.exec('INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)', [id]);

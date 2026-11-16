@@ -88,7 +88,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     const file = fileWith(driver, [...milestone1Ddl, ...milestone1Rows]);
 
     const f = openSqlite(file, driver);
-    expect(() => nodeOrgStore(f)).toThrow(/made before this app's first/);
+    expect(() => nodeOrgStore(f)).toThrow(expect.objectContaining({ code: 'schema-too-old' }));
 
     expect(f.query('SELECT id FROM presentation_items')).toEqual([{ id: 'I1' }]);
     f.close();
@@ -98,7 +98,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     const file = fileWith(driver, [...milestone1Ddl, schemaMetaDdl, `INSERT INTO _schema (one, version) VALUES (1, 10)`]);
 
     const f = openSqlite(file, driver);
-    expect(() => nodeOrgStore(f)).toThrow(/schema 10, made before this app's first/);
+    expect(() => nodeOrgStore(f)).toThrow(expect.objectContaining({ code: 'schema-too-old' }));
     f.close();
   });
 
@@ -256,7 +256,7 @@ describe('client (wa-sqlite)', () => {
       core: nodeRustCore(),
     });
 
-    await expect(open).rejects.toThrow(/made before this app's first/);
+    await expect(open).rejects.toMatchObject({ code: 'schema-too-old' });
   });
 });
 

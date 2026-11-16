@@ -47,11 +47,11 @@ describe.each(adapters)('%s adapter: own themes', (adapterName) => {
   });
 
   it('a user may not make a theme', async () => {
-    await expect(bob.client.mutate('createTheme', { id: 'T', name: 'Söndag', definition: blue, at: 1 })).rejects.toThrow(/may not/);
+    await expect(bob.client.mutate('createTheme', { id: 'T', name: 'Söndag', definition: blue, at: 1 })).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('nobody changes a built-in theme', async () => {
-    await expect(alice.client.mutate('updateTheme', { id: 'classic', name: 'Mitt', at: 1 })).rejects.toThrow(/built-in/);
+    await expect(alice.client.mutate('updateTheme', { id: 'classic', name: 'Mitt', at: 1 })).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('a presentation and the default may name an own theme', async () => {

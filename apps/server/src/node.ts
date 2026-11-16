@@ -12,7 +12,7 @@ import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
+import { schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
@@ -125,23 +125,24 @@ export function openSqlite(file: string, driver: NodeDriver): SqliteFile {
 
 /** An organisation's SQLite file as an OrgStore. */
 export function nodeOrgStore(f: SqliteFile): OrgStore {
-  migrateOrgSchemaSync(f.query, (fn) => {
-    f.exec('BEGIN IMMEDIATE');
-    try {
-      fn();
-      f.exec('COMMIT');
-    } catch (e) {
-      if (f.inTransaction()) f.exec('ROLLBACK');
-      throw e;
-    }
-  });
+  const core = nodeRustCore();
+  // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
+  f.exec('BEGIN IMMEDIATE');
+  try {
+    core.runSync('migrateOrgSchema', {}, undefined, f.rows);
+    f.exec('COMMIT');
+  } catch (e) {
+    if (f.inTransaction()) f.exec('ROLLBACK');
+    throw e;
+  }
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
   // After the change triggers, so the default labels sync like any change (SONG-R47).
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...labelSeedSql]) f.exec(s);
+  core.runSync('seedLabels', {}, undefined, f.rows);
   return {
     db: f.drizzle(),
     query: f.query,
     rows: f.rows,
-    core: nodeRustCore(),
+    core,
     // better-sqlite3's own db.transaction() refuses async functions. Instead an
     // explicit BEGIN/COMMIT around the awaited mutator: safe because the
     // caller's SerialQueue lets nothing else touch this connection meanwhile,

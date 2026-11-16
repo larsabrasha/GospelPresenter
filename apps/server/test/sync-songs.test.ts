@@ -103,9 +103,9 @@ describe.each(adapters)('%s adapter: songs and items', (adapterName) => {
   it('SONG-R9: the eleventh arrangement is refused; SONG-R8: so is the 51st part', async () => {
     await fx.seed();
     for (let i = 0; i < 10; i++) await fx.alice.client.mutate('createArrangement', { id: `A${i}`, songId: 'S1', partIds: [] });
-    await expect(fx.alice.client.mutate('createArrangement', { id: 'A10', songId: 'S1', partIds: [] })).rejects.toThrow(/maximum number of arrangements/);
+    await expect(fx.alice.client.mutate('createArrangement', { id: 'A10', songId: 'S1', partIds: [] })).rejects.toMatchObject({ code: 'limit' });
     await seedParts('S2', 50);
-    await expect(fx.alice.client.mutate('addSongPart', { id: 'S2-P50', songId: 'S2', labelText: null, content: '' })).rejects.toThrow(/maximum number of parts/);
+    await expect(fx.alice.client.mutate('addSongPart', { id: 'S2-P50', songId: 'S2', labelText: null, content: '' })).rejects.toMatchObject({ code: 'limit' });
     // The server says the same to a client that did not know (here: Bob, offline, before Alice's parts arrive).
     fx.bob.net.online = false;
     await fx.bob.client.mutate('addSongPart', { id: 'B51', songId: 'S2', labelText: null, content: 'one too many' });
@@ -257,7 +257,7 @@ describe.each(adapters)('%s adapter: songs and items', (adapterName) => {
     await fx.seed();
     await seedParts('S1');
     await fx.alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: ['S1-P0'] });
-    await expect(fx.alice.client.mutate('purgeSong', { id: 'S1' })).rejects.toThrow('not in the trash');
+    await expect(fx.alice.client.mutate('purgeSong', { id: 'S1' })).rejects.toMatchObject({ code: 'not-in-trash' });
     await fx.alice.client.mutate('trashSong', { id: 'S1', at: Date.now() });
     await fx.syncAll(fx.alice, fx.bob);
     await fx.bob.client.mutate('restoreSong', { id: 'S1' });

@@ -198,7 +198,7 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
   it('only an admin makes, renews or deletes an output (LIVE-R30)', async () => {
     const bo = await device(h, org, 'bo', 'user');
     try {
-      await expect(bo.client.mutate('createDisplay', { id: 'D9', name: 'X', code: 'hjkmnpq', kind: 'public' })).rejects.toThrow(/may not ManageRemoteDisplays/);
+      await expect(bo.client.mutate('createDisplay', { id: 'D9', name: 'X', code: 'hjkmnpq', kind: 'public' })).rejects.toMatchObject({ code: 'forbidden' });
     } finally {
       await bo.client.close();
     }

@@ -93,6 +93,6 @@ describe.each(adapters)('%s adapter: editing a picture', (adapterName) => {
     const original = await uploaded(h, org, alice, 'refused');
     await alice.client.mutate('addImage', imageArgs('PIC', original.fullHash, original.thumbHash));
     await alice.client.sync();
-    await expect(alice.client.mutate('editImage', { id: 'PIC', fullHash: 'a'.repeat(64), thumbHash: 'b'.repeat(64), width: 10, height: 10, edit: EDIT })).rejects.toThrow('not been uploaded');
+    await expect(alice.client.mutate('editImage', { id: 'PIC', fullHash: 'a'.repeat(64), thumbHash: 'b'.repeat(64), width: 10, height: 10, edit: EDIT })).rejects.toMatchObject({ code: 'media-missing' });
   });
 });

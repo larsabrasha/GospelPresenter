@@ -16,6 +16,9 @@ ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
 export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
+# The TS SyncClient and the server's engine, for the sync check.
+sed "s|@REPO@|$ROOT|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
+NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-sync.mjs" --log-level=warning
 
 (cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \
   && cp target/wasm32-unknown-unknown/release/gp_core.wasm "$OUT/" \
@@ -29,6 +32,8 @@ case "$1" in
     # `node parity/mutations/run.mjs <file> --ops 3000 --seeds 10`, 30 000).
     node --no-warnings parity/mutations/schema-check.mjs | tail -1
     node --no-warnings parity/mutations/run.mjs --ops 1000 --seeds 3 | grep -vE "^[a-z-]+: [0-9]+ mutations"
+    # Sync's client logic against the TS SyncClient and a real server engine (the proof: --steps 1500 --seeds 10).
+    node --no-warnings parity/sync/check.mjs --steps 1500 --seeds 3 | grep -vE "^seed"
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"

@@ -1,4 +1,4 @@
-// The running order's mutators through the Rust core (packages/rust-core), on the clients and the server alike, on
+// The mutators through the Rust core (packages/rust-core), on the clients and the server alike, on
 // every server adapter: its writes reach the change log and the client's undo as the TS core's do.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RustCore } from '@gp/rust-core';
@@ -11,7 +11,7 @@ describe.each(adapters)('%s adapter: the Rust core', (adapterName) => {
 
   it('runs a running order change on the client and on the server, and it reaches another device', async () => {
     await fx.seed();
-    const ran = vi.spyOn(RustCore.prototype, 'mutate');
+    const ran = vi.spyOn(RustCore.prototype, 'run');
     await fx.alice.client.mutate('addHeaderToPresentation', { itemId: 'H', presentationId: 'P', title: 'Lovsång', afterItemId: 'I1' });
     await fx.alice.client.mutate('renameItem', { itemId: 'I2', title: 'Avslutning' });
     await fx.alice.client.mutate('setItemNote', { itemId: 'I1', note: 'Två verser' });
@@ -27,7 +27,7 @@ describe.each(adapters)('%s adapter: the Rust core', (adapterName) => {
     ]);
     await fx.expectConverged(fx.alice, fx.bob);
     // The server's calls have its clock in ctx (handlePush); a Worker's run in workerd, out of this process's sight.
-    const where = new Set(ran.mock.calls.map(([name, , ctx]) => `${(ctx as MutatorCtx).now === undefined ? 'client' : 'server'} ${name}`));
+    const where = new Set(ran.mock.calls.map(([name, , ctx]) => `${(ctx as MutatorCtx | undefined)?.now === undefined ? 'client' : 'server'} ${name}`));
     expect(where.has('client addHeaderToPresentation')).toBe(true);
     expect(where.has('server addHeaderToPresentation')).toBe(adapterName !== 'workers');
   });

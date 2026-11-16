@@ -131,12 +131,12 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
     await fx.syncAll(fx.alice, fx.bob);
     const [item] = await fx.items(fx.bob, 'T');
 
-    await expect(fx.bob.client.mutate('createTemplate', { id: 'T2', name: 'Fredag' })).rejects.toThrow('may not ManageTemplates');
-    await expect(fx.bob.client.mutate('saveAsTemplate', { id: 'T3', presentationId: 'P', name: 'Kopia', items: [] })).rejects.toThrow('may not ManageTemplates');
+    await expect(fx.bob.client.mutate('createTemplate', { id: 'T2', name: 'Fredag' })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(fx.bob.client.mutate('saveAsTemplate', { id: 'T3', presentationId: 'P', name: 'Kopia', items: [] })).rejects.toMatchObject({ code: 'forbidden' });
     await expect(fx.bob.client.mutate('addSongToPresentation', { itemId: 'X', presentationId: 'T', songId: 'S3' })).rejects.toMatchObject({ code: 'forbidden' });
     await expect(fx.bob.client.mutate('renameItem', { itemId: String(item!.id), title: 'Annat' })).rejects.toMatchObject({ code: 'forbidden' });
     await expect(fx.bob.client.mutate('removeItem', { itemId: String(item!.id) })).rejects.toMatchObject({ code: 'forbidden' });
-    await expect(fx.bob.client.mutate('trashTemplate', { id: 'T', at: 1 })).rejects.toThrow('may not ManageTemplates');
+    await expect(fx.bob.client.mutate('trashTemplate', { id: 'T', at: 1 })).rejects.toMatchObject({ code: 'forbidden' });
     await fx.bob.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 });
     await fx.syncAll(fx.bob, fx.alice);
 
@@ -172,8 +172,8 @@ describe.each(adapters)('%s adapter: presentations and templates', (adapterName)
     await fx.alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
     await fx.alice.client.mutate('trashTemplate', { id: 'T', at: 5 });
 
-    await expect(fx.alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 })).rejects.toThrow('Template not found.');
-    await expect(fx.alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'P', name: 'Söndag', items: [], at: 1 })).rejects.toThrow('Template not found.');
+    await expect(fx.alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 })).rejects.toMatchObject({ code: 'not-found' });
+    await expect(fx.alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'P', name: 'Söndag', items: [], at: 1 })).rejects.toMatchObject({ code: 'not-found' });
   });
 
   it("PRES-R28: a user's purge of expired trash leaves expired templates, which an admin's purges", async () => {
