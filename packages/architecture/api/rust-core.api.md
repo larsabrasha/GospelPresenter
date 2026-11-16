@@ -1,6 +1,5 @@
 ## @gp/rust-core
 MutationDb (type)
-RUST_MUTATORS (const)
 Rows (type)
 RunSql (type)
 RustCore (class)

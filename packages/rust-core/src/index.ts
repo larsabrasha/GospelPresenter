@@ -1,29 +1,24 @@
-// The Rust core (crates/gp-core) under the app: its WASM run for the mutators it has, on the client and on the
-// server alike, so a mutator is never the Rust core's on one end and the TS core's on the other (docs/rust-core.md,
-// "Switch"). The core never opens a database: it asks for each SQL statement and waits for the rows (bridge.rs).
+// The Rust core (crates/gp-core) under the app: its WASM runs every mutator and the organisation schema's migration, on
+// the client and on the server alike, so a mutator is never the Rust core's on one end and the TS core's on the other
+// (docs/rust-core.md, 2.5). The core never opens a database: it asks for each SQL statement and waits for the rows
+// (bridge.rs). The TS core's mutators stay in packages/core, the reference the core's checks compare with.
 import { getMutator, MutationError, runMutator, SerialQueue, type MutatorCtx, type Tx } from '@gp/core';
 
-/** The mutators the app runs through the Rust core: those proved against the TS core, which stays their reference. */
-export const RUST_MUTATORS: ReadonlySet<string> = new Set([
-  'createPresentation',
-  'addSongToPresentation',
-  'addHeaderToPresentation',
-  'moveItem',
-  'reorderItems',
-  'removeItem',
-  'updatePresentation',
-  'renameItem',
-  'setItemNote',
-  'setItemArrangement',
-  'trashPresentation',
-  'restorePresentation',
-  'purgePresentation',
-]);
+/** The mutators that stay on the TS core: the test helper `probe`, which the Rust core does not have. */
+const TS_MUTATORS: ReadonlySet<string> = new Set(['probeWriteThenThrow']);
 
 /** A statement's rows as arrays, in column order. */
 export type Rows = unknown[][];
 /** Runs one statement in the caller's transaction: synchronous on the server's drivers, async on wa-sqlite. */
 export type RunSql = (sql: string, params: unknown[]) => Rows | Promise<Rows>;
+/** The same, synchronous: the server opening a database (a Durable Object's `transactionSync`, node's drivers). */
+type RunSqlSync = (sql: string, params: unknown[]) => Rows;
+
+/** What the core asks the shell to run. */
+interface Ask {
+  sql: string;
+  params: unknown[];
+}
 
 interface CoreExports {
   memory: WebAssembly.Memory;
@@ -50,6 +45,8 @@ const json = (value: unknown) => JSON.stringify(value, (_, v: unknown) => (typeo
 export class RustCore {
   private instance: CoreExports | undefined;
   private queue = new SerialQueue();
+  /** A call is under way, whose statements are being answered. */
+  private busy = false;
 
   constructor(private module: WebAssembly.Module) {}
 
@@ -69,26 +66,50 @@ export class RustCore {
     return decoder.decode(new Uint8Array(this.core.memory.buffer, this.core.gp_out_ptr(), this.core.gp_out_len()));
   }
 
+  /** One call of the core: yields each statement it asks for and takes its rows; ends done, or throws the refusal. */
+  private *call(name: string, args: unknown, ctx: MutatorCtx | undefined): Generator<Ask, void, Rows> {
+    try {
+      const who = ctx && { userId: ctx.userId, role: ctx.role, now: ctx.now };
+      let status = this.core.gp_start(...this.pass(json({ name, args, ctx: who ?? {} })));
+      while (status === WANTS_SQL) {
+        const rows: Rows = yield JSON.parse(this.said()) as Ask;
+        status = this.core.gp_resume(...this.pass(json(rows)));
+      }
+      if (status !== DONE) throw new MutationError(this.said());
+    } catch (e) {
+      // A trap (a panic in the core) leaves the instance unusable: the next call gets a fresh one.
+      if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
+      throw e;
+    }
+  }
+
   /**
-   * Runs the mutator `name` to its end in the caller's transaction, every statement through `sql`. Done, or a
-   * refusal thrown as MutationError with the core's code, as runMutator throws one (invalid arguments included).
+   * Runs the command `name` (a mutator, or the schema's `migrateOrgSchema` and `seedLabels`) to its end in the
+   * caller's transaction, every statement through `sql`. Done, or a refusal thrown as MutationError with the core's
+   * code, as runMutator throws one (invalid arguments included).
    */
-  mutate(name: string, args: unknown, ctx: MutatorCtx, sql: RunSql): Promise<void> {
+  run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<void> {
     return this.queue.run(async () => {
+      this.busy = true;
       try {
-        let status = this.core.gp_start(...this.pass(json({ name, args, ctx: { role: ctx.role, now: ctx.now } })));
-        while (status === WANTS_SQL) {
-          const ask = JSON.parse(this.said()) as { sql: string; params: unknown[] };
-          const rows = await sql(ask.sql, ask.params);
-          status = this.core.gp_resume(...this.pass(json(rows)));
-        }
-        if (status !== DONE) throw new MutationError(this.said());
-      } catch (e) {
-        // A trap (a panic in the core) leaves the instance unusable: the next call gets a fresh one.
-        if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
-        throw e;
+        const steps = this.call(name, args, ctx);
+        for (let step = steps.next(); !step.done; ) step = steps.next(await sql(step.value.sql, step.value.params));
+      } finally {
+        this.busy = false;
       }
     });
+  }
+
+  /** The same, all at once, for statements answered synchronously: where the server opens a database. */
+  runSync(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSqlSync): void {
+    if (this.busy) throw new Error(`the Rust core is in the middle of another call: ${name} must wait`);
+    this.busy = true;
+    try {
+      const steps = this.call(name, args, ctx);
+      for (let step = steps.next(); !step.done; ) step = steps.next(sql(step.value.sql, step.value.params));
+    } finally {
+      this.busy = false;
+    }
   }
 }
 
@@ -100,12 +121,10 @@ export interface MutationDb {
 }
 
 /**
- * Runs a mutator as runMutator does, the Rust core's for those in RUST_MUTATORS and the TS core's for the rest:
- * done, or a MutationError with the refusal's code. A name neither core knows is refused as `unknown-mutator`.
+ * Runs a mutator as runMutator does, on the Rust core (the TS core's only for TS_MUTATORS): done, or a MutationError
+ * with the refusal's code. A name neither core knows is refused as `unknown-mutator`.
  */
 export function runMutation(on: MutationDb, name: string, args: unknown, ctx: MutatorCtx): Promise<void> {
-  if (RUST_MUTATORS.has(name)) return on.core.mutate(name, args, ctx, on.rows);
-  const mutator = getMutator(name);
-  if (!mutator) return Promise.reject(new MutationError('unknown-mutator', name));
-  return runMutator(mutator, on.db, args, ctx);
+  if (!TS_MUTATORS.has(name)) return on.core.run(name, args, ctx, on.rows);
+  return runMutator(getMutator(name)!, on.db, args, ctx);
 }

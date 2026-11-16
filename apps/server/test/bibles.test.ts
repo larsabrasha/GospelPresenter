@@ -281,7 +281,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     await alice.client.sync();
 
     expect((await serverDump(h, org, 'alice')).tables.bibles).toMatchObject([{ id: 'bible:web', name: 'Webbibeln', abbreviation: 'WEB' }]);
-    await expect(bob.client.mutate('renameBible', { id: 'bible:web', name: 'x' })).rejects.toThrow(/may not/);
+    await expect(bob.client.mutate('renameBible', { id: 'bible:web', name: 'x' })).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('re-importing the same abbreviation replaces the text and drops the old one everywhere (BIBLE-R5)', async () => {
@@ -433,13 +433,13 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
   it('only admins import or delete; users read; another organisation finds nothing (D24, BIBLE-A8)', async () => {
     const { hash, json } = await storeBibleText(bob.client, SAMPLE);
     expect((await put(h, org, 'bob', hash, json)).status).toBe(403);
-    await expect(bob.client.mutate('importBible', importArgs(hash))).rejects.toThrow(/may not/);
+    await expect(bob.client.mutate('importBible', importArgs(hash))).rejects.toMatchObject({ code: 'forbidden' });
 
     await upload(h, org, alice, SAMPLE);
     await alice.client.mutate('importBible', importArgs(hash));
     await alice.client.sync();
     await bob.client.sync();
-    await expect(bob.client.mutate('deleteBible', { id: 'bible:web' })).rejects.toThrow(/may not/);
+    await expect(bob.client.mutate('deleteBible', { id: 'bible:web' })).rejects.toMatchObject({ code: 'forbidden' });
     expect(await downloader(h, org, 'bob')(hash)).toBe(json);
 
     const other = `org-${crypto.randomUUID()}`;
@@ -451,7 +451,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
   it('at most ten translations; replacing one does not count (BIBLE-R6)', async () => {
     const hash = await upload(h, org, alice, SAMPLE);
     for (let i = 0; i < BIBLE_LIMITS.bibles; i++) await alice.client.mutate('importBible', importArgs(hash, `B${i}`));
-    await expect(alice.client.mutate('importBible', importArgs(hash, 'B10'))).rejects.toThrow(/maximum number of Bibles/);
+    await expect(alice.client.mutate('importBible', importArgs(hash, 'B10'))).rejects.toMatchObject({ code: 'limit' });
     await alice.client.mutate('importBible', importArgs(hash, 'B3', 'Replaced'));
     await alice.client.sync();
     expect(alice.client.rejected).toEqual([]);
@@ -464,7 +464,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     await bob.client.sync();
     await bob.client.mutate('updatePresentation', { id: 'P', themeId: 'light' });
     await expect(bob.client.mutate('updatePresentation', { id: 'P', themeId: 'nope' })).rejects.toMatchObject({ code: 'theme-not-found' });
-    await expect(bob.client.mutate('setDefaultTheme', { themeId: 'light' })).rejects.toThrow(/may not/);
+    await expect(bob.client.mutate('setDefaultTheme', { themeId: 'light' })).rejects.toMatchObject({ code: 'forbidden' });
     await alice.client.mutate('setDefaultTheme', { themeId: 'light' });
     await bob.client.sync();
     await alice.client.sync();

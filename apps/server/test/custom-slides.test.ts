@@ -44,7 +44,7 @@ describe.each(adapters)('%s adapter: custom slides', (adapterName) => {
 
   it('trashes, restores and purges a slide; purging one not in the trash is refused', async () => {
     await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Kollekt', pages: [blankPage()], at: 1 });
-    await expect(fx.alice.client.mutate('purgeCustomSlide', { id: 'CS' })).rejects.toThrow('not in the trash');
+    await expect(fx.alice.client.mutate('purgeCustomSlide', { id: 'CS' })).rejects.toMatchObject({ code: 'not-in-trash' });
 
     await fx.alice.client.mutate('trashCustomSlide', { id: 'CS', at: 5 });
     const trashed = (await fx.alice.client.dump()).custom_slides[0]?.deleted_at;
