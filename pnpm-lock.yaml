@@ -267,9 +267,6 @@ importers:
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
-      drizzle-orm:
-        specifier: 0.45.4
-        version: 0.45.4(@cloudflare/workers-types@5.20261025.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.15.6)(better-sqlite3@13.0.3)(pg@8.23.1)
       hono:
         specifier: 4.13.14
         version: 4.13.14
@@ -367,10 +364,6 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../core
-    devDependencies:
-      drizzle-orm:
-        specifier: 0.45.4
-        version: 0.45.4(@cloudflare/workers-types@5.20261025.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.15.6)(better-sqlite3@13.0.3)(pg@8.23.1)
 
   packages/sync:
     dependencies:
@@ -383,9 +376,6 @@ importers:
       '@journeyapps/wa-sqlite':
         specifier: 2.0.8
         version: 2.0.8
-      drizzle-orm:
-        specifier: 0.45.4
-        version: 0.45.4(@cloudflare/workers-types@5.20261025.1)(@types/better-sqlite3@9.6.0)(@types/pg@8.15.6)(better-sqlite3@13.0.3)(pg@8.23.1)
     devDependencies:
       '@types/better-sqlite3':
         specifier: 9.6.0

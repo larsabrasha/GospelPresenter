@@ -15,10 +15,9 @@ import {
   type PullResponse,
   type PushRequest,
   type PushResponse,
-  type Tx,
 } from '@gp/core';
 import type { RunSql, RustCore } from '@gp/rust-core';
-import { drizzleOver, queryObjects, type ClientSqlite } from './sqlite.ts';
+import { queryObjects, type ClientSqlite } from './sqlite.ts';
 import type { Transport } from './transport.ts';
 
 export interface SyncClientOptions {
@@ -55,7 +54,6 @@ export interface PendingMutation {
  * around them: the network, pokes, when to sync, and the server's refusals.
  */
 export class SyncClient {
-  readonly db: Tx;
   /** Set when the server answered "update required": the client stops syncing and keeps its queue. */
   updateRequired = false;
   /**
@@ -78,7 +76,6 @@ export class SyncClient {
     private sqlite: ClientSqlite,
     private opts: SyncClientOptions,
   ) {
-    this.db = drizzleOver(sqlite);
     this.rows = async (sql, params) => (await sqlite.query(sql, params)).rows;
   }
 

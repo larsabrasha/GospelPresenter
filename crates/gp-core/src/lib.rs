@@ -1,5 +1,6 @@
 mod args;
 mod bible;
+mod bible_view;
 mod bridge;
 mod item_views;
 mod json;

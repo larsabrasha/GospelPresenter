@@ -15,7 +15,6 @@ import {
   joinBibleText,
   bookChunk,
   makeZip,
-  mutators,
   parseBibleContent,
   parseUsfm,
   parseUsx,
@@ -23,7 +22,6 @@ import {
   planVerseSearch,
   readZip,
   resolveBook,
-  searchVerses,
   serializeBibleText,
   splitBibleSlides,
   swedishBookName,
@@ -33,6 +31,7 @@ import {
   type Verse,
 } from '../src/index.ts';
 import { sampleDblZip, sampleUsfm, sampleUsfmZip, sampleUsx, WEB_SAMPLE } from './bible-fixtures.ts';
+import { searchVerses } from './verse-search.ts';
 
 /** The current app's test translation (VerseSearchTests): Genesis 1:1 and eight verses of Matthew. */
 const books: BibleBookText[] = [
@@ -273,23 +272,6 @@ describe('import (BIBLE-R3–R6)', () => {
   it('XML: entities, CDATA, comments and quoted ">" in attributes', () => {
     const doc = parseXml('<?xml version="1.0"?><!-- a > comment --><a x="1 > 0">&lt;b&gt; &#229;&#xe4;<![CDATA[<raw>]]></a>');
     expect(doc.children).toEqual([{ name: 'a', attrs: { x: '1 > 0' }, children: ['<b> åä', '<raw>'] }]);
-  });
-});
-
-describe('mutator arguments (Bibles and themes)', () => {
-  const verse = { b: 'JHN', c: 3, v: 16, t: 'x' };
-  it('a passage has 1 to 500 verses with valid book codes', () => {
-    const base = { itemId: 'I', presentationId: 'P', bibleId: 'bible:web', translation: 'WEB' };
-    expect(mutators.addBibleToPresentation.args.safeParse({ ...base, verses: [verse] }).success).toBe(true);
-    expect(mutators.addBibleToPresentation.args.safeParse({ ...base, verses: [] }).success).toBe(false);
-    expect(mutators.addBibleToPresentation.args.safeParse({ ...base, verses: Array.from({ length: 501 }, () => verse) }).success).toBe(false);
-    expect(mutators.addBibleToPresentation.args.safeParse({ ...base, verses: [{ ...verse, b: 'jhn' }] }).success).toBe(false);
-  });
-  it('an import names a SHA-256; names and abbreviations are trimmed and limited (BIBLE-R4)', () => {
-    const ok = { name: ' Svenska Folkbibeln ', abbreviation: 'SFB', language: null, contentHash: 'a'.repeat(64) };
-    expect(mutators.importBible.args.parse(ok).name).toBe('Svenska Folkbibeln');
-    expect(mutators.importBible.args.safeParse({ ...ok, contentHash: 'abc' }).success).toBe(false);
-    expect(mutators.importBible.args.safeParse({ ...ok, abbreviation: 'x'.repeat(51) }).success).toBe(false);
   });
 });
 

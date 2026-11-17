@@ -4,7 +4,7 @@
 // groups, their slides' text and the arrangements are read, with a small reader of the wire format
 // rather than a protobuf library. A slide's text is RTF, made plain here.
 
-import { LIMITS } from './mutators/base.ts';
+import { LIMITS } from './mutation.ts';
 import { utf8Decode } from './platform.ts';
 
 /** A song read from a file, before it has ids: arrangements name parts by their index. */

@@ -10,10 +10,11 @@ import songPage from './views/song-page.mjs';
 import media from './views/media.mjs';
 import lists from './views/lists.mjs';
 import settings from './views/settings.mjs';
+import bible from './views/bible.mjs';
 
 const db = new DatabaseSync(process.argv[2]);
 let failed = 0;
-for (const [page, check] of Object.entries({ presentation, presentationPage, live, songs, songPage, media, lists, settings })) {
+for (const [page, check] of Object.entries({ presentation, presentationPage, live, songs, songPage, media, lists, settings, bible })) {
   // Each check is given the database, and its file for a check that adds rows to a copy of it.
   const { compared, differ, notes } = await check(db, process.argv[2]);
   failed += differ.length;

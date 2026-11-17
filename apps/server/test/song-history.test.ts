@@ -1,7 +1,8 @@
 // Song history (spec 02 SONG-R20–R24 as decided in D9 and on 2026-10-31): the mutators run on a
 // server database with a clock the test sets, as the sync engine runs them (`ctx.now`).
 import { describe, expect, it } from 'vitest';
-import { getMutator, parseSongSnapshot, SONG_VERSION_LIMIT, SONG_VERSION_WINDOW_MS, type MutatorName, type Tx } from '@gp/core';
+import { parseSongSnapshot, SONG_VERSION_LIMIT, SONG_VERSION_WINDOW_MS, type MutatorName } from '@gp/core';
+import { runMutation } from '@gp/rust-core';
 import { nodeOrgStore, openSqlite } from '../src/node.ts';
 
 const MIN = 60 * 1000;
@@ -11,7 +12,7 @@ function org() {
   const clock = { now: 1_000_000_000 };
   /** Runs a mutator as `user` would through the sync, at the clock's time; `client` runs it as a device does (no clock). */
   const run = (name: MutatorName, args: unknown, user = 'alice', client = false) =>
-    store.transaction(() => getMutator(name)!.run(store.db as Tx, getMutator(name)!.args.parse(args), { userId: user, role: 'admin', ...(client ? {} : { now: clock.now }) }));
+    store.transaction(() => runMutation(store, name, args, { userId: user, role: 'admin', ...(client ? {} : { now: clock.now }) }));
   const versions = (song = 'S') =>
     store.query('SELECT id, user_id, created_at, name, data FROM song_versions WHERE song_id = ? ORDER BY created_at, id', [song]) as {
       id: string;
@@ -236,7 +237,7 @@ describe('restoring a version', () => {
     const o = await changed();
     await o.run('createSong', { id: 'OTHER', name: 'Annan' });
 
-    await expect(o.run('restoreSongVersion', { songId: 'OTHER', versionId: o.version })).rejects.toThrow('version not found');
+    await expect(o.run('restoreSongVersion', { songId: 'OTHER', versionId: o.version })).rejects.toMatchObject({ code: 'not-found' });
   });
 });
 

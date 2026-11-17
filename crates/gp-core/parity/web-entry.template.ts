@@ -34,6 +34,8 @@ export {
   songVersionsOf,
   themeOf,
 } from '@REF@/apps/web/src/db/queries.ts';
+export { bibleBooks } from '@REF@/apps/web/src/db/queries.ts';
+export { planVerseSearch, searchVerses, storeBibleTextSql, versesInRange } from '@REF@/packages/core/src/bible.ts';
 export { BUILT_IN_THEMES } from '@REF@/packages/core/src/themes.ts';
 export { prepareSong, rankSongs } from '@REF@/packages/core/src/search.ts';
 export { listImages } from '@REF@/apps/web/src/db/images.ts';

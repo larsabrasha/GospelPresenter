@@ -1,6 +1,7 @@
 import { runMutation, type RustCore, type Rows } from '@gp/rust-core';
 import {
-  getMutator,
+  isMutatorName,
+  MUTATOR_VERSIONS,
   SerialQueue,
   MutationError,
   PROTOCOL_VERSION,
@@ -14,7 +15,6 @@ import {
   type PullResponse,
   type PushRequest,
   type PushResponse,
-  type Tx,
   type UpdateRequired,
 } from '@gp/core';
 
@@ -35,11 +35,10 @@ type Row = Record<string, unknown>;
  * drivers (better-sqlite3, DO SQLite) are synchronous, so `query` is too.
  */
 export interface OrgStore {
-  db: Tx;
   query(sql: string, params?: unknown[]): Row[];
   /** The same as `query`, each row an array in column order: what the Rust core reads. */
   rows(sql: string, params: unknown[]): Rows;
-  /** The Rust core's WASM, for the mutators it runs (`RUST_MUTATORS`). */
+  /** The Rust core's WASM, which runs every mutator. */
   core: RustCore;
   /**
    * Runs `fn` atomically: all of its writes commit, or none do if it throws.
@@ -79,9 +78,9 @@ function clientRow(store: OrgStore, clientId: string) {
 export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequest): Promise<SyncResult<PushResponse>> {
   const bad = checkVersion(req.protocol, req.schemaVersion);
   if (bad) return bad;
+  // Every mutator is still at its first version, the oldest taken (MUTATOR_VERSIONS).
   for (const m of req.mutations) {
-    const mut = getMutator(m.name);
-    if (mut && m.v < mut.minV) return updateRequired(`${m.name} v${m.v}`);
+    if (isMutatorName(m.name) && m.v < MUTATOR_VERSIONS[m.name]) return updateRequired(`${m.name} v${m.v}`);
   }
 
   const existing = clientRow(store, req.clientId);
@@ -96,10 +95,9 @@ export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequ
   for (const m of req.mutations) {
     if (m.id <= last) continue; // already applied: a retry after a lost response
     if (m.id > last + 1) return { status: 400, body: { error: 'mutation-gap', expected: last + 1, got: m.id } };
-    const mut = getMutator(m.name);
     try {
-      if (!mut) throw new MutationError('unknown-mutator', m.name);
-      if (m.v > mut.v) throw new MutationError('unknown-version', `${m.name} v${m.v}`);
+      if (!isMutatorName(m.name)) throw new MutationError('unknown-mutator', m.name);
+      if (m.v > MUTATOR_VERSIONS[m.name]) throw new MutationError('unknown-version', `${m.name} v${m.v}`);
       await store.transaction(async () => {
         await runMutation(store, m.name, m.args, { ...ctx, now: Date.now() }); // the server's clock (see MutatorCtx)
         setLast(m.id);

@@ -1,13 +1,12 @@
-// The change and undo triggers (packages/core/src/sync-sql.ts) against every
-// way a statement can insert: plain, upsert (DO UPDATE, DO NOTHING) and
-// INSERT OR IGNORE. SQLite lets the statement that fires a trigger override
-// the trigger's own conflict clause, so the triggers use none. Plus why
-// mutators never replace a row (scripts/check-mutator-sql.mjs).
+// The server's change triggers (packages/core/src/sync-sql.ts) and the client's undo triggers (the Rust core's
+// sync_sql.rs) against every way a statement can insert: plain, upsert (DO UPDATE, DO NOTHING) and INSERT OR IGNORE.
+// SQLite lets the statement that fires a trigger override the trigger's own conflict clause, so the triggers use
+// none. Plus why mutators never replace a row (scripts/check-mutator-sql.mjs).
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { clientUndoRestore, tableInfo } from '@gp/core';
+import { tableInfo } from '@gp/core';
 import { queryObjects, SyncClient, type ClientSqlite } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { nodeRustCore } from '@gp/rust-core/node';
@@ -32,11 +31,10 @@ describe('client undo triggers (wa-sqlite)', () => {
     };
   }
 
+  /** A rebase with nothing from the server: the core puts every captured row back as it was and empties the log. */
   async function restore(sqlite: ClientSqlite) {
-    await sqlite.query('UPDATE _sync_meta SET capture = 0');
-    for (const s of clientUndoRestore()) await sqlite.query(s);
-    await sqlite.query('DELETE FROM _undo');
-    await sqlite.query('UPDATE _sync_meta SET capture = 1');
+    const nothing = { cookie: null, lastMutationId: 0, clear: false, patch: [], more: false, results: [] };
+    await nodeRustCore().run('syncRebase', { pages: [nothing] }, { userId: 'u', role: 'admin' }, async (sql, params) => (await sqlite.query(sql, params)).rows);
   }
 
   it('keep the first pre-image through upserts, DO NOTHING and OR IGNORE, and undo them all', async () => {

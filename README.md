@@ -39,8 +39,8 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 
 | Package | What it is |
 |---|---|
-| `packages/core` | Schema, mutators with Zod-validated arguments, permissions, slides, song search, live pointer |
-| `packages/rust-core` | The Rust core (`crates/gp-core`) under the app: its WASM, built by turbo's `wasm` task before whatever loads it, runs every mutator (but the test probe), the organisation schema's migration and the default labels, on the client and the server alike; `packages/core`'s TS mutators stay as the reference the core is checked against |
+| `packages/core` | What the shells share beside the Rust core: the table types, the mutators' names and argument types, permissions, the wire protocol, the server's sync SQL, accounts, the imports' parsing, slides' drawing data and the live pointer |
+| `packages/rust-core` | The Rust core (`crates/gp-core`) under the app: its WASM, built by turbo's `wasm` task before whatever loads it, runs every mutator, the organisation schema's migration and the default labels, sync's client logic and the pages' views, on the client and the server alike; the TS core it replaced is the reference its checks take from git, at 238d481b |
 | `packages/sync` | The sync engine: client (rebase, pokes) and server (push, pull, change log) |
 | `packages/architecture` | Tests of the code itself, read as text: file length, names, copies, which package may import which |
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |

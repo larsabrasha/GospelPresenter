@@ -1,4 +1,3 @@
-import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from 'vitest';
 import {
   accountRefusal,
@@ -13,24 +12,16 @@ import {
   daysRemaining,
   DEFAULT_LABELS,
   highlight,
-  labelDefaults,
   labelId,
   applyLiveChange,
   followItemOverlay,
-  mutators,
   newer,
-  orgDdl,
-  orgMigrations,
-  orgSchemaPlan,
   parsePartIds,
   parseSlideDeckPages,
-  SCHEMA_BASELINE,
-  SCHEMA_VERSION,
   pdfPages,
   searchSongs,
   songCredits,
   songSlides,
-  syncedTables,
   type Label,
   type LivePointer,
   type LivePointerChange,
@@ -38,39 +29,6 @@ import {
   type SongArrangement,
   type SongPart,
 } from '../src/index.ts';
-
-describe('schema', () => {
-  it('the hand-written DDL has the columns of every Drizzle table, in order', () => {
-    for (const t of syncedTables) {
-      const c = getTableConfig(t);
-      const ddl = orgDdl.find((s) => s.includes(`EXISTS ${c.name} (`));
-      expect(ddl, c.name).toBeDefined();
-      const columns = [...ddl!.matchAll(/(?:\(|,)\s*([a-z_]+) (?:TEXT|INTEGER)/g)].map((m) => m[1]);
-      expect(columns).toEqual(c.columns.map((col) => col.name));
-    }
-  });
-
-  it('a new database gets the current DDL and its version', () => {
-    expect(orgSchemaPlan(null, false)).toEqual([...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-  });
-
-  it('a current database is left as it is', () => {
-    expect(orgSchemaPlan(SCHEMA_VERSION, true)).toEqual([]);
-  });
-
-  it('a database from before the baseline is refused, with or without a version row', () => {
-    expect(() => orgSchemaPlan(null, true)).toThrow(/made before this app's first/);
-    expect(() => orgSchemaPlan(SCHEMA_BASELINE - 1, true)).toThrow(/made before this app's first/);
-  });
-
-  it('a database newer than the app is refused', () => {
-    expect(() => orgSchemaPlan(SCHEMA_VERSION + 1, true)).toThrow(/newer than this app/);
-  });
-
-  it('every version above the baseline has its migration', () => {
-    for (let v = SCHEMA_BASELINE + 1; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();
-  });
-});
 
 describe('permissions (spec 01)', () => {
   it('users manage songs and presentations; only admins manage users and themes', () => {
@@ -154,10 +112,8 @@ describe('labels', () => {
     expect(labelId('  Verse   1 ')).toBe(labelId('verse 1'));
   });
 
-  it('a known label gets its default colour and order; an unknown one the grey default', () => {
+  it('has 25 defaults', () => {
     expect(DEFAULT_LABELS).toHaveLength(25);
-    expect(labelDefaults('chorus')).toEqual({ color: '#c73448', sort: 7 });
-    expect(labelDefaults('Hymn')).toEqual({ color: '#6b7280', sort: 25 });
   });
 });
 
@@ -292,29 +248,6 @@ describe('trash', () => {
   });
 });
 
-describe('mutator arguments', () => {
-  it('names are trimmed and must not be blank; blank optional text becomes null', () => {
-    expect(mutators.createSong.args.parse({ id: 'S', name: '  Hi  ', author: '  ' })).toEqual({ id: 'S', name: 'Hi', author: null });
-    expect(mutators.createSong.args.safeParse({ id: 'S', name: '   ' }).success).toBe(false);
-    expect(mutators.updateSong.args.safeParse({ id: 'S', year: 10000 }).success).toBe(false);
-    expect(mutators.updateSong.args.safeParse({ id: 'S', ccli: 'x'.repeat(21) }).success).toBe(false);
-    expect(mutators.addSongPart.args.safeParse({ id: 'P', songId: 'S', labelText: null, content: 'x'.repeat(5001) }).success).toBe(false);
-  });
-
-  it('arrangement names are trimmed, blank is no name, at most 100 (SONG-R16, R9)', () => {
-    expect(mutators.createArrangement.args.parse({ id: 'A', songId: 'S', name: '  Kort ', partIds: [] }).name).toBe('Kort');
-    expect(mutators.updateArrangement.args.parse({ id: 'A', name: '   ' }).name).toBeNull();
-    expect(mutators.updateArrangement.args.safeParse({ id: 'A', name: 'x'.repeat(101) }).success).toBe(false);
-  });
-
-  it('item titles are trimmed and never blank; dates are ISO dates or null', () => {
-    expect(mutators.renameItem.args.parse({ itemId: 'I', title: ' Psalm ' }).title).toBe('Psalm');
-    expect(mutators.renameItem.args.safeParse({ itemId: 'I', title: '  ' }).success).toBe(false);
-    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: '2026-11-01' }).success).toBe(true);
-    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: null }).success).toBe(true);
-    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: '1 nov' }).success).toBe(false);
-  });
-});
 
 describe("the shown item's overlay changed while it is live", () => {
   const shown = (change: Partial<LivePointer>): LivePointer => ({ presentationId: 'P1', itemId: 'A', partIndex: 0, black: false, overlayId: null, rev: 1, ...change });
@@ -403,13 +336,5 @@ describe('PDFs', () => {
     const pages = [page(1)];
 
     expect([parseSlideDeckPages(JSON.stringify(pages)), parseSlideDeckPages('{"translation":"SFB","slides":[]}'), parseSlideDeckPages('not json'), parseSlideDeckPages(null)]).toEqual([pages, [], [], []]);
-  });
-
-  it('refuses an add of more than 100 pages or of none (PRES-R11)', () => {
-    const args = (n: number) => ({ itemId: 'I', presentationId: 'P', fileName: 'x.pdf', pages: Array.from({ length: n }, () => page(1)) });
-
-    expect(mutators.addSlides.args.safeParse(args(100)).success).toBe(true);
-    expect(mutators.addSlides.args.safeParse(args(101)).success).toBe(false);
-    expect(mutators.addSlides.args.safeParse(args(0)).success).toBe(false);
   });
 });

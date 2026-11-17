@@ -30,6 +30,7 @@ import {
   storageReport,
 } from '@gp/sync/client';
 import { keepVideos } from './videoFiles.ts';
+import { fetchedBibleText } from './fetchedBibles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import { RustCore } from '@gp/rust-core';
 import coreUrl from '@gp/rust-core/gp_core.wasm?url';
@@ -61,13 +62,17 @@ const offlineOr = (e: unknown) => {
   if (!isOffline(e)) post({ type: 'error', message: e instanceof Error ? `${e.name}: ${e.message}` : String(e) });
 };
 
+/** A new database in memory, beside this worker's own (fetchedBibles.ts); there once `openDb` has run. */
+let openMemory: () => Promise<ClientSqlite> = () => Promise.reject(new Error('no database yet'));
+
 async function openDb(file: string, s: Session): Promise<ClientSqlite> {
   const module = await SQLiteESMFactory({ locateFile: () => wasmUrl });
   const sqlite3 = SQLite.Factory(module);
+  openMemory = async () => waSqliteConnection(sqlite3, await sqlite3.open_v2(':memory:'));
   if (s.hostWindow) {
     // The server beside it holds everything: a copy on disk would be the same data twice.
     storage = 'host';
-    return waSqliteConnection(sqlite3, await sqlite3.open_v2(':memory:'));
+    return openMemory();
   }
   try {
     if (s.storage === 'memory') throw new Error('?storage=memory');
@@ -79,7 +84,7 @@ async function openDb(file: string, s: Session): Promise<ClientSqlite> {
     return waSqliteConnection(sqlite3, await sqlite3.open_v2(file));
   } catch (e) {
     storage = `memory (${e instanceof Error ? e.message : String(e)})`;
-    return waSqliteConnection(sqlite3, await sqlite3.open_v2(':memory:'));
+    return openMemory();
   }
 }
 
@@ -93,8 +98,13 @@ async function rustCore(): Promise<RustCore> {
   return new RustCore(await compiledCore);
 }
 
-/** A view of the core, read from one state of the database (`SyncClient.view`). */
-const view = (name: string, args: unknown) => client!.view(name, args);
+/** A view of the core (`SyncClient.view`); a Bible text this device does not keep is read where it is fetched to (fetchedBibles.ts). */
+async function view(name: string, args: unknown): Promise<unknown> {
+  const answer = await client!.view(name, args);
+  if (name !== 'bibleView' || answer !== null) return answer;
+  const rows = await fetchedBibleText((args as { hash: string }).hash, (hash) => fetchBibleText(downloadBibleText, hash), openMemory);
+  return rows && (await rustCore()).view('bibleView', args, rows);
+}
 
 async function status(): Promise<DbStatus> {
   return {
@@ -455,8 +465,6 @@ async function handle(call: DbCall): Promise<unknown> {
       return clearCache();
     case 'keepBible':
       return keepBibleHere(call.bibleId, call.on);
-    case 'fetchBibleText':
-      return fetchBibleText(downloadBibleText, call.hash);
     case 'fetchMedia':
       return fetchMediaHere(call.hash);
     case 'setPinned':

@@ -23,6 +23,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "themeView" => crate::themes::view(a).await,
         "imagesView" => crate::media_views::images().await,
         "biblesView" => crate::settings_views::bibles().await,
+        "bibleView" => crate::bible_view::view(a).await,
         "ownThemesView" => crate::settings_views::own_themes().await,
         "ownThemeView" => crate::settings_views::own_theme(a).await,
         "defaultThemeIdView" => crate::settings_views::default_theme_id().await,
