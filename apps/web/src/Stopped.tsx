@@ -8,14 +8,16 @@ import { AppButton } from './ui/AppButton.tsx';
 // The way out when the app cannot go on: a start that fails or waits on the database, or an error while drawing a
 // page. Without it the page stays blank, with nothing to press (Lars, 2026-11-04).
 
-/** Why the app stopped: it does not start (`slow`, or failed with `error`), or it crashed while drawing. */
+/** Why the app stopped: it waits on the database (`slow`, and goes on by itself once it opens), it failed to start with `error`, or it crashed while drawing. */
 type Why = { kind: 'slow' } | { kind: 'failed' | 'crashed'; error: string };
 
 export function Stopped({ why }: { why: Why }) {
   const crashed = why.kind === 'crashed';
+  const [title, text] =
+    why.kind === 'crashed' ? [t('start.crashed'), t('start.crashedText')] : why.kind === 'failed' ? [t('start.failed'), t('start.failedText')] : [t('start.slow'), t('start.slowText')];
   return (
-    <AuthCard title={crashed ? t('start.crashed') : t('start.slow')} centered>
-      <p className={AUTH_TEXT}>{crashed ? t('start.crashedText') : t('start.slowText')}</p>
+    <AuthCard title={title} centered>
+      <p className={AUTH_TEXT}>{text}</p>
       {why.kind !== 'slow' && <p className="text-xs text-stone-400 text-center break-words select-text">{why.error}</p>}
       <div className="flex justify-center gap-3">
         {crashed ? <AppButton onClick={() => location.assign('/')}>{t('start.home')}</AppButton> : <AppButton onClick={() => location.reload()}>{t('auth.retry')}</AppButton>}
