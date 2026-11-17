@@ -12,7 +12,7 @@ same React UI on the web, in Electron and in Capacitor, with the Rust core as WA
 core. No new features in 2.5: behaviour as 2.0's, proved by the differential checks and the whole e2e suite. Done:
 
 1. every mutator switched on the client and the server (`runMutation` in `packages/rust-core`): done;
-2. sync's client logic in the core;
+2. sync's client logic in the core: done;
 3. the views in the core, the React pages reading slides and lists from it;
 4. the TS core out of the app; the reference kept at 238d481b for the checks.
 
@@ -181,7 +181,7 @@ switched means the app runs the core's.
 | Views: a presentation's slides, against `readItemSlides` (every kind of item, every problem) | proved | not yet |
 | Views: the presentations, the trash, song search | ported, not proved against a TS view | not yet |
 | Presenting's keys and marks, against `presentingKey` and `slideMarks` | proved | not yet |
-| Sync's client logic: the queue, the rebase, the triggers (`crates/gp-core/src/sync.rs`) | proved: 15 000 steps over 10 seeds against the TS client and the server's real engine, a second device changing the same library, lost answers, offline, refusals, a role change, a first pull of two pages, an SQL error; every table, the queue and the undo log compared after each step (`parity/sync/check.mjs`) | not yet |
+| Sync's client logic: the queue, the rebase, the triggers (`crates/gp-core/src/sync.rs`) | proved: 15 000 steps over 10 seeds against the TS client and the server's real engine, a second device changing the same library, lost answers, offline, refusals, a role change, a first pull of two pages, an SQL error; every table, the queue and the undo log compared after each step (`parity/sync/check.mjs`); since the switch, the app's own `SyncClient` against the TS client as it was at 75e7f234, taken from git when the check is built | switched: `SyncClient` runs `syncOpen`, `syncMutate`, `syncPending` and `syncRebase` through the core; the network, pokes, sign-in, the server's refusals, `beforePush` and `localWrite` stay in the shell. A COMMIT refused by a foreign key after a rebase is rolled back as before, but never happened in the checks |
 | The imports | not yet | not yet |
 | The Mac app: the presentations, the running order, presenting | built on the core | — |
 
