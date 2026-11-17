@@ -41,14 +41,41 @@ fn part_ids(text: &str) -> Vec<String> {
     }
 }
 
+/// What song items read (`SongData`), for every song of a running order at once: three statements rather than three
+/// a song, as readItemSlides reads them. Each row without its song's id.
+pub struct Songs { songs: HashMap<String, Vec<Value>>, parts: HashMap<String, Vec<Vec<Value>>>, arrangements: HashMap<String, Vec<Vec<Value>>> }
+
+async fn by_song(table_sql: &str, ids: &[Value], marks: &str) -> HashMap<String, Vec<Vec<Value>>> {
+    let mut out: HashMap<String, Vec<Vec<Value>>> = HashMap::new();
+    for r in sql(&table_sql.replace("{}", marks), ids.to_vec()).await { out.entry(s(&r[0])).or_default().push(r[1..].to_vec()) }
+    out
+}
+
+/// The songs of these ids, their parts and arrangements.
+pub async fn songs_of(ids: &[String]) -> Songs {
+    if ids.is_empty() { return Songs { songs: HashMap::new(), parts: HashMap::new(), arrangements: HashMap::new() } }
+    let params: Vec<Value> = ids.iter().map(|i| json!(i)).collect();
+    let marks = vec!["?"; ids.len()].join(",");
+    let songs = by_song("SELECT id, deleted_at, author, publisher, year FROM songs WHERE id IN ({})", &params, &marks).await
+        .into_iter().filter_map(|(k, mut v)| v.pop().map(|r| (k, r))).collect();
+    let parts = by_song("SELECT song_id, id, sort, label_id, content FROM song_parts WHERE song_id IN ({})", &params, &marks).await;
+    let arrangements = by_song("SELECT song_id, id, part_ids, sort FROM song_arrangements WHERE song_id IN ({})", &params, &marks).await;
+    Songs { songs, parts, arrangements }
+}
+
+/// The labels, by id, as a slide carries one.
+pub async fn labels() -> HashMap<String, Value> {
+    sql("SELECT id, text, color FROM labels", vec![]).await.into_iter().map(|r| (s(&r[0]), json!({ "text": r[1], "color": r[2] }))).collect()
+}
+
 /// `songSlides`: one slide per arranged part (SONG-R18, R19), a repeated part keyed `id#n`.
-async fn song(item: &Item, labels: &HashMap<String, Value>) -> Value {
-    let Some(song) = first(sql("SELECT deleted_at, author, publisher, year FROM songs WHERE id = ?", vec![json!(item.source_id)]).await) else { return none("song-missing") };
+fn song(item: &Item, labels: &HashMap<String, Value>, data: &Songs) -> Value {
+    let Some(song) = data.songs.get(&item.source_id) else { return none("song-missing") };
     if !song[0].is_null() { return none("song-trashed") } // D17: skipped live
     let credits = song_credits(&song[1], &song[2], &song[3]);
-    let mut parts = sql("SELECT id, sort, label_id, content FROM song_parts WHERE song_id = ?", vec![json!(item.source_id)]).await;
+    let mut parts = data.parts.get(&item.source_id).cloned().unwrap_or_default();
     parts.sort_by(|a, b| a[1].as_i64().cmp(&b[1].as_i64()).then(s(&a[0]).cmp(&s(&b[0]))));
-    let mut arrangements = sql("SELECT id, part_ids, sort FROM song_arrangements WHERE song_id = ?", vec![json!(item.source_id)]).await;
+    let mut arrangements = data.arrangements.get(&item.source_id).cloned().unwrap_or_default();
     arrangements.sort_by(|a, b| a[2].as_i64().cmp(&b[2].as_i64()).then(s(&a[0]).cmp(&s(&b[0]))));
     let wanted = item.arrangement_id.clone().or_else(|| arrangements.first().map(|a| s(&a[0])));
     let arranged: Vec<&Vec<Value>> = match wanted.and_then(|w| arrangements.iter().find(|a| s(&a[0]) == w)) {
@@ -180,8 +207,19 @@ async fn custom(item: &Item) -> Value {
     some(slides, None)
 }
 
+/// Every item's slides and why one has none, in the items' order (`readItemSlides`): the songs read together, once.
+pub async fn items_slides(items: &[Item]) -> Vec<Value> {
+    let labels = labels().await;
+    let mut ids: Vec<String> = Vec::new();
+    for i in items.iter().filter(|i| i.kind == "song") { if !ids.contains(&i.source_id) { ids.push(i.source_id.clone()) } }
+    let songs = songs_of(&ids).await;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items { out.push(item_slides(item, &labels, &songs).await) }
+    out
+}
+
 /// An item's slides and why it has none; any other kind is read as a song is, as the TS core does.
-pub async fn item_slides(item: &Item, labels: &HashMap<String, Value>) -> Value {
+async fn item_slides(item: &Item, labels: &HashMap<String, Value>, songs: &Songs) -> Value {
     match item.kind.as_str() {
         "header" => some(vec![], None), // a heading shows nothing: presenting steps over it (spec 03 2f)
         "bible" => bible(item),
@@ -189,6 +227,6 @@ pub async fn item_slides(item: &Item, labels: &HashMap<String, Value>) -> Value 
         "video" => video(item).await,
         "custom" => custom(item).await,
         "image" => image(item).await,
-        _ => song(item, labels).await,
+        _ => song(item, labels, songs),
     }
 }

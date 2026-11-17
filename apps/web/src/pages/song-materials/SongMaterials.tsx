@@ -1,7 +1,7 @@
 import type { SongMaterial } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
-import { getSong, songMaterialsOf } from '../../db/queries.ts';
-import { useData, useDb } from '../../db/react.tsx';
+import { useDataReading, useDb } from '../../db/react.tsx';
+import { getSong, songMaterialsOf } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { linkSource, readSongFile, SONG_FILE_ACCEPT } from '../../media/songFiles.ts';
@@ -107,7 +107,7 @@ function Title({ m }: { m: SongMaterial }) {
 
 /** Noter och länkar on a song's page: one row with how many there are, that pushes their page in. */
 export function SongMaterialsRow({ songId }: { songId: string }) {
-  const count = useData((d) => songMaterialsOf(d, [songId]), [songId])?.length ?? 0;
+  const count = useDataReading((d) => songMaterialsOf(d, [songId]), [songId], ['song_materials'])?.length ?? 0;
   return <OpeningRow label={t('material.title')} value={count ? String(count) : t('material.none')} href={href({ page: 'songMaterials', id: songId })} />;
 }
 
@@ -117,7 +117,7 @@ export function SongMaterialsRow({ songId }: { songId: string }) {
  * is in (PresentationMaterials).
  */
 export function SongMaterials({ id }: { id: string }) {
-  const song = useData((d) => getSong(d, id), [id]);
+  const song = useDataReading((d) => getSong(d, id), [id], ['songs']);
   const missing = useGoneSong(song !== undefined, song);
   return (
     <PageContainer className="pb-8">
@@ -129,7 +129,7 @@ export function SongMaterials({ id }: { id: string }) {
 
 function MaterialsEditor({ songId }: { songId: string }) {
   const db = useDb();
-  const materials = useData((d) => songMaterialsOf(d, [songId]), [songId]) ?? [];
+  const materials = useDataReading((d) => songMaterialsOf(d, [songId]), [songId], ['song_materials']) ?? [];
   const picker = useRef<HTMLInputElement>(null);
   const [linking, setLinking] = useState(false);
   const [failures, setFailures] = useState<string[]>([]);

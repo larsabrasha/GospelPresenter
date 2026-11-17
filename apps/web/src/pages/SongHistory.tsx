@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getSong, songVersionsOf, themeOf } from '../db/queries.ts';
-import { useData, useDb } from '../db/react.tsx';
+import { useDataReading, useDb } from '../db/react.tsx';
+import { songHistory, SONG_HISTORY_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
@@ -24,7 +24,7 @@ export function SongHistory({ id }: { id: string }) {
   const db = useDb();
   const trySave = useTrySave();
   const { dialog, ask } = useConfirm();
-  const data = useData(async (d) => ({ song: await getSong(d, id), versions: await songVersionsOf(d, id), theme: await themeOf(d, null) }), [id]);
+  const data = useDataReading((d) => songHistory(d, id), [id], SONG_HISTORY_READS);
   const [chosen, setChosen] = useState<string | null>(null);
   /** A version opened on its own, where the column is too narrow to show it beside the list. */
   const [viewing, setViewing] = useState(false);

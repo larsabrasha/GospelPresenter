@@ -8,6 +8,7 @@ const noStoredTexts: ReadDb = {
   query: async () => [],
   onChange: () => () => {},
   fetchMedia: async () => null,
+  view: async () => null as never,
 };
 
 function countingFetch() {

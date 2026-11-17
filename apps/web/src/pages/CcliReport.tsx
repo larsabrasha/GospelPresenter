@@ -1,6 +1,6 @@
 import { can, type CcliEntry, type Role } from '@gp/core';
 import { useState } from 'react';
-import { ccliCollectionOn, listCcliEntries } from '../db/queries.ts';
+import { ccliReport } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -33,7 +33,7 @@ const now = () => Date.now();
 export function CcliReport({ role }: { role: Role }) {
   const db = useDb();
   const trySave = useTrySave();
-  const data = useData(async (d) => ({ entries: await listCcliEntries(d), on: await ccliCollectionOn(d) }), []);
+  const data = useData(ccliReport, []);
   const [filter, setFilter] = useState<CcliFilter>('all');
   const [kept, setKept] = useState<Set<string>>(new Set());
   const [shown, setShown] = useState(PAGE);

@@ -1,7 +1,7 @@
 import { liveReconnectDelay, type AudioCommand, type LiveAudio } from '@gp/core';
 import { blobUrl, holdBlobUrl } from '../db/blobUrls.ts';
-import { getAudio } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
+import { itemAudio } from '../db/views.ts';
 import type { LiveLink } from './remote.ts';
 import { usePlayerState } from './usePlayerState.ts';
 import { notAllowed } from './video.ts';
@@ -51,8 +51,7 @@ export type AudioSource = { url: string; release: () => void };
 
 /** The audio item's file, by item: its blob as this device has it, held until the engine lets it go. */
 export async function audioUrlOfItem(db: ReadDb, itemId: string): Promise<AudioSource | null> {
-  const [item] = await db.query<{ source_id: string }>(`SELECT source_id FROM presentation_items WHERE id = ? AND type = 'audio'`, [itemId]);
-  const audio = item ? await getAudio(db, item.source_id) : null;
+  const audio = await itemAudio(db, itemId);
   if (!audio) return null;
   const release = holdBlobUrl(audio.hash);
   const url = await blobUrl(db, audio.hash);

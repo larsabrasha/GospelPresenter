@@ -87,6 +87,10 @@ export class Db implements ReadDb {
     return this.call({ op: 'query', sql, params });
   }
 
+  view<T>(name: string, args: unknown): Promise<T> {
+    return this.call({ op: 'view', name, args });
+  }
+
   /** Song search in the database's worker: the ids of the hits, best first (SONG-R30–R33). */
   searchSongs(query: string): Promise<string[]> {
     return this.call({ op: 'searchSongs', query });

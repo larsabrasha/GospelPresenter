@@ -13,8 +13,10 @@ core. No new features in 2.5: behaviour as 2.0's, proved by the differential che
 
 1. every mutator switched on the client and the server (`runMutation` in `packages/rust-core`): done;
 2. sync's client logic in the core: done;
-3. the views in the core, the React pages reading slides and lists from it;
-4. the TS core out of the app; the reference kept at 238d481b for the checks.
+3. the views in the core, the React pages reading slides and lists from it: done;
+4. the TS core out of the app; the reference kept at 238d481b for the checks; and a Bible's text read through a view
+   of the core, a chapter at a time (Lars, 2026-11-17). The export waits for the imports: it is a format, the core's,
+   while the zip and the files' bytes stay the shell's.
 
 ### Step 2: sync's client logic
 
@@ -178,9 +180,7 @@ switched means the app runs the core's.
 | Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | switched: the client's start, the Node host and the Durable Object open a database through the core |
 | The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | every one, on the client and the server (`runMutation` in `packages/rust-core`, under `packages/sync`'s client and server engine): 2.5's step 1, 2026-11-16; a refusal carries the core's code, not the TS core's English message |
 | probe (1) | a test helper of the TS core: not ported | — |
-| Views: a presentation's slides, against `readItemSlides` (every kind of item, every problem) | proved | not yet |
-| Views: the presentations, the trash, song search | ported, not proved against a TS view | not yet |
-| Presenting's keys and marks, against `presentingKey` and `slideMarks` | proved | not yet |
+| Views: every page's (37 views: the presentation and presenting, the songs and their editor, history and materials, the libraries, the presentations, templates and trash, labels, Bibles, themes, displays, the CCLI report), against the web's own reads at 238d481b | proved: identical JSON on the demo data (`parity/views-check.mjs`, `parity/views/*.mjs`); presenting's keys and marks 314 054 compared; song search against the TS search; 3 000 songs measured, no slower but opening Lägg till by a few ms (the JSON over the bridge) | switched: the pages read through `ReadDb.view`, from the database's worker under the client's lock; the output window asks its owner. Left as SQL in the shell: a Bible's text (step 4), the files' bytes, the video cache, the export (with the imports), and ordering by name in the page's language |
 | Sync's client logic: the queue, the rebase, the triggers (`crates/gp-core/src/sync.rs`) | proved: 15 000 steps over 10 seeds against the TS client and the server's real engine, a second device changing the same library, lost answers, offline, refusals, a role change, a first pull of two pages, an SQL error; every table, the queue and the undo log compared after each step (`parity/sync/check.mjs`); since the switch, the app's own `SyncClient` against the TS client as it was at 75e7f234, taken from git when the check is built | switched: `SyncClient` runs `syncOpen`, `syncMutate`, `syncPending` and `syncRebase` through the core; the network, pokes, sign-in, the server's refusals, `beforePush` and `localWrite` stay in the shell. A COMMIT refused by a foreign key after a rebase is rolled back as before, but never happened in the checks |
 | The imports | not yet | not yet |
 | The Mac app: the presentations, the running order, presenting | built on the core | — |

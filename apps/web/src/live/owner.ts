@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { customPageText, followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
-import { getOverlay, getPresentation, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
+import { listDisplays } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
-import { slidesOf, type LiveChannel } from './live.ts';
+import { itemOverlays, liveSlide, liveTargets } from '../db/views.ts';
+import type { LiveChannel } from './live.ts';
 import type { Playback, PlaybackVideo } from './playback.ts';
 import type { VideoControl } from './video.ts';
 import { remoteAllowed, type LiveLink } from './remote.ts';
@@ -89,6 +90,9 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
   return chosen.filter((id) => elsewhere.has(id) && !takeOver.includes(id));
 }
 
+/** What liveSlideView answers for a pointer. */
+type Shown = Awaited<ReturnType<typeof liveSlide>>;
+
 /**
  * What the outputs show, from the slide this window shows. A public output
  * (spec 04 §6) gets it as data, with its theme; null is the waiting screen:
@@ -96,14 +100,11 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
  * (spec 04 §5) gets the canvas the output window draws, overlay picture
  * included; null is black.
  */
-async function shownOnOutputs(db: ReadDb, p: LivePointer, video: PlaybackVideo): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
+function shownOnOutputs(p: LivePointer, shown: Shown, video: PlaybackVideo): { slide: PublicSlide | null; canvas: Canvas | null } {
   if (!p.presentationId || p.black) return { slide: null, canvas: null };
-  const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
-  const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
-  const overlay = await shownOverlay(db, p.overlayId);
+  const { slide, overlay, theme } = shown;
   const overlayText = (overlay && customPageText(overlay)) || null;
   if (!slide && !overlay?.elements.length) return { slide: null, canvas: null };
-  const theme = await themeOf(db, await getPresentation(db, p.presentationId));
   return {
     // An overlay with nothing selected is shown on its own, as the projector shows it.
     slide: slide || overlayText ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme, overlayText) : null,
@@ -134,13 +135,15 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     const report = async (p: LivePointer) => {
       const mine = ++current;
       if (!p.presentationId) return link.own(null);
-      const presentation = await getPresentation(db, p.presentationId);
-      const { slide, canvas } = chosen.length ? await shownOnOutputs(db, p, video) : { slide: null, canvas: null };
+      // The slide and its overlay only when an output is chosen to show them: the name always (liveSlideView).
+      const outputs = chosen.length > 0;
+      const shown = await liveSlide(db, { presentationId: p.presentationId, itemId: outputs ? p.itemId : null, partIndex: p.partIndex, overlayId: outputs ? p.overlayId : null });
+      const { slide, canvas } = outputs ? shownOnOutputs(p, shown, video) : { slide: null, canvas: null };
       if (mine !== current) return; // a newer pointer is on its way
       link.own({
         sessionId,
         presentationId: p.presentationId,
-        presentationName: presentation?.name ?? '',
+        presentationName: shown.name ?? '',
         deviceName: deviceName(),
         remote: remoteAllowed(),
         pointer: { itemId: p.itemId, partIndex: p.partIndex, black: p.black, overlayId: p.overlayId, rev: p.rev },
@@ -156,10 +159,10 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     let loading = 0;
     const loadOverlays = async (presentationId: string | null) => {
       const mine = ++loading;
-      const items = presentationId ? await itemsOf(db, presentationId) : [];
+      const overlays = presentationId ? await itemOverlays(db, presentationId) : new Map<string, string | null>();
       if (mine !== loading) return;
       const before = live.itemOverlays;
-      live.itemOverlays = new Map(items.map((i) => [i.id, i.overlayId]));
+      live.itemOverlays = overlays;
       // The shown item's own overlay changed (its … or sheet): the outputs follow at once, unless a manual choice stands.
       const p = live.pointer;
       const next = p.itemId ? followItemOverlay(p, before.get(p.itemId), live.itemOverlays.get(p.itemId)) : undefined;
@@ -181,8 +184,8 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     const offCommand = link.onCommand(async (target, change) => {
       const p = live.pointer;
       if (target !== sessionId || !p.presentationId) return;
-      if (change.itemId && !(await itemsOf(db, p.presentationId)).some((i) => i.id === change.itemId)) return;
-      if (change.overlayId && !(await getOverlay(db, change.overlayId))) return; // deleted meanwhile (LIVE-R49)
+      const there = await liveTargets(db, { presentationId: p.presentationId, itemId: change.itemId || null, overlayId: change.overlayId || null });
+      if (!there.item || !there.overlay) return; // gone meanwhile (LIVE-R49)
       const sameOverlay = change.overlayId === undefined || change.overlayId === p.overlayId;
       if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black && sameOverlay) return;
       live.set(change);

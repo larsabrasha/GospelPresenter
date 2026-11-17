@@ -2,21 +2,13 @@ import {
   applyLiveChange,
   IDLE,
   newer,
-  readItemSlides,
-  type ItemSlides,
   type LivePointer,
   type LivePointerChange,
-  type PresentationItem,
-  type SlideSources,
   type LiveVideo,
 } from '@gp/core';
-import type { ReadDb } from '../db/share.ts';
 import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
 import type { PlaybackBus, PlaybackMessage } from './playback.ts';
-import { getCustomSlide } from '../db/customSlides.ts';
-import { getImage } from '../db/images.ts';
-import { arrangementsOf, getAudio, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 /** `ask`: a presenting window just opened asks what is shown, and every window that knows answers with its pointer. */
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'ask' } | PlaybackMessage;
@@ -174,23 +166,4 @@ export class LiveChannel implements PlaybackBus {
   close() {
     this.channel.close();
   }
-}
-
-/** The database's reads the core's slides take (`SlideSources`). */
-const sourcesOf = (db: ReadDb): SlideSources => ({
-  songData: async (ids) => ({ songs: await songsById(db, ids), parts: await songPartsOf(db, ids), labels: await listLabels(db), arrangements: await arrangementsOf(db, ids) }),
-  audio: (id) => getAudio(db, id),
-  video: (id) => getVideo(db, id),
-  customSlide: (id) => getCustomSlide(db, id),
-  image: (id) => getImage(db, id),
-});
-
-/** One item's slides, as the core works them out (`readItemSlides`). */
-export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
-  return (await readItemSlides(sourcesOf(db), [item])).get(item.id)!;
-}
-
-/** Every item's slides of a running order, by item id, as the core works them out. */
-export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
-  return readItemSlides(sourcesOf(db), items);
 }

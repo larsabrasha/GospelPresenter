@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { LivePointer } from '@gp/core';
 import type { Db } from '../db/db.ts';
-import { ccliCollectionOn, getPresentation, getSong, itemsOf } from '../db/queries.ts';
+import { ccliUse } from '../db/views.ts';
 import type { LiveChannel } from './live.ts';
 
 // CCLI counting (spec 02 SONG-R48–R53): the window that presents counts here, so one session is counted
@@ -48,20 +48,10 @@ export const localDate = (at = new Date()) => at.toLocaleDateString('sv-SE');
 /** Records the song the pointer showed, if it is a song with a CCLI number and collection is on; a failure never reaches the presentation (SONG-R53). */
 async function record(db: Db, p: LivePointer) {
   try {
-    if (!p.presentationId || !(await ccliCollectionOn(db))) return;
-    const item = (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId);
-    if (item?.type !== 'song') return;
-    const song = await getSong(db, item.sourceId);
-    if (!song?.ccli?.trim()) return;
-    const presentation = await getPresentation(db, p.presentationId);
-    await db.mutate('recordCcliUse', {
-      songId: song.id,
-      songName: song.name,
-      ccli: song.ccli,
-      presentationId: p.presentationId,
-      presentationName: presentation?.name ?? '',
-      date: localDate(),
-    });
+    if (!p.presentationId) return;
+    // Collection on, a song with a CCLI number (ccliUseView); else nothing is recorded.
+    const use = await ccliUse(db, p.presentationId, p.itemId);
+    if (use) await db.mutate('recordCcliUse', { ...use, date: localDate() });
   } catch (e) {
     console.error('ccli not recorded', e);
   }

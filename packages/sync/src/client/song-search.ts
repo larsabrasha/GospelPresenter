@@ -1,19 +1,13 @@
-// Song search on a device (SONG-R30–R33), run where the database is, so a
-// page never loads every lyric. Each song's texts as search reads them are
-// prepared once and kept in memory; a change to the songs or their parts drops
-// them, and the next search prepares the library again (about 0.1 s for 3 000
-// songs).
-import { prepareSong, rankSongs, type PreparedSong } from '@gp/core';
+import { MutationError } from '@gp/core';
 import type { SyncClient } from './client.ts';
 
-interface Library {
-  /** The ids in library order (by name, as the song lists show them), for the ties. */
-  order: string[];
-  texts: Map<string, PreparedSong>;
-}
-
+// Song search on a device (SONG-R30–R33), run where the database is, so a page never loads every lyric: the Rust
+// core prepares each song's texts once and keeps them (song_views.rs, search.rs); a change to the songs or their parts
+// drops them here, and the next search has the core prepare the library again. The library's order, by name in the
+// page's language, is the shell's: it hands the core the ids in that order, which ties keep.
 export class SongSearch {
-  private library: Promise<Library> | null = null;
+  /** The library prepared in the core, in library order; null until the next search prepares it again. */
+  private library: Promise<void> | null = null;
   /** `localeCompare(…, locale, { sensitivity: 'base' })`, as the song lists sort in the page's language, made once. */
   private collator: Intl.Collator;
 
@@ -33,8 +27,16 @@ export class SongSearch {
    * the trash.
    */
   async search(query: string): Promise<string[]> {
-    const { order, texts } = await (this.library ??= this.load());
-    return rankSongs(order, (id) => texts.get(id)!, query);
+    await (this.library ??= this.load());
+    try {
+      return await this.client.view<string[]>('songSearchView', { query });
+    } catch (e) {
+      // A new instance of the core (after a trap) holds no library: prepared again, once.
+      if (!(e instanceof MutationError) || e.code !== 'not-prepared') throw e;
+      this.forget();
+      await (this.library ??= this.load());
+      return this.client.view<string[]>('songSearchView', { query });
+    }
   }
 
   /** Drops what is held, for a change this client does not report: another window's write to the same file. */
@@ -42,20 +44,10 @@ export class SongSearch {
     this.library = null;
   }
 
-  private async load(): Promise<Library> {
-    const songs = (await this.client.query('SELECT id, name, author FROM songs WHERE deleted_at IS NULL')) as { id: string; name: string; author: string | null }[];
-    const parts = (await this.client.query(
-      'SELECT p.song_id, p.content FROM song_parts p JOIN songs s ON s.id = p.song_id WHERE s.deleted_at IS NULL ORDER BY p.song_id, p.sort, p.id',
-    )) as { song_id: string; content: string }[];
-    const lyrics = new Map<string, string[]>();
-    for (const p of parts) (lyrics.get(p.song_id) ?? lyrics.set(p.song_id, []).get(p.song_id)!).push(p.content);
-    const texts = new Map(
-      songs.map((s) => {
-        const own = lyrics.get(s.id) ?? [];
-        return [s.id, prepareSong({ name: s.name, author: s.author, firstPart: own[0] ?? '', lyrics: own.join('\n') })];
-      }),
-    );
-    // As `listSongs` orders the library: the table's order, then a stable sort by name.
-    return { order: songs.toSorted((a, b) => this.collator.compare(a.name, b.name)).map((s) => s.id), texts };
+  /** The library's ids as `listSongs` orders them, the table's order sorted by name, handed to the core to prepare. */
+  private async load(): Promise<void> {
+    const songs = await this.client.view<{ id: string; name: string }[]>('songsView', {});
+    const order = songs.toSorted((a, b) => this.collator.compare(a.name, b.name)).map((s) => s.id);
+    await this.client.view('songSearchPrepare', { order });
   }
 }

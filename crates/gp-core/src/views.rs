@@ -4,7 +4,6 @@ use crate::args::*;
 use crate::bridge::sql;
 use crate::search;
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 fn s(v: &Value) -> String { v.as_str().unwrap_or("").to_string() }
 
@@ -16,6 +15,48 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "trashView" => Ok(trash().await),
         "liveView" => crate::live::run(a).await,
         "searchSongsView" => Ok(songs(a.get("query").and_then(|q| q.as_str()).unwrap_or("")).await),
+        "itemSlidesView" => crate::item_views::item_slides(a).await,
+        "presentationPageView" => crate::presentation_page::view(a).await,
+        "liveSlideView" => crate::live_views::slide(a).await,
+        "overlayView" => crate::live_views::overlay_view(a).await,
+        "songsView" => crate::song_views::songs().await,
+        "themeView" => crate::themes::view(a).await,
+        "imagesView" => crate::media_views::images().await,
+        "biblesView" => crate::settings_views::bibles().await,
+        "ownThemesView" => crate::settings_views::own_themes().await,
+        "ownThemeView" => crate::settings_views::own_theme(a).await,
+        "defaultThemeIdView" => crate::settings_views::default_theme_id().await,
+        "ccliReportView" => crate::settings_views::ccli_report().await,
+        "presentationListView" => crate::lists::presentations().await,
+        "templatesView" => crate::lists::templates().await,
+        "itemCountsView" => crate::lists::item_counts().await,
+        "itemsView" => crate::lists::items(a).await,
+        "labelsView" => crate::lists::labels().await,
+        "songPartsView" => crate::lists::song_parts(a).await,
+        "pinnedView" => crate::lists::pinned().await,
+        "trashEntriesView" => crate::lists::trash().await,
+        "audiosView" => crate::media_views::audios().await,
+        "videosView" => crate::media_views::videos().await,
+        "customSlidesView" => crate::media_views::custom_slides().await,
+        "customSlideView" => crate::media_views::custom_slide_view(a).await,
+        "overlaysView" => crate::media_views::overlays().await,
+        "overlayRowView" => crate::media_views::overlay_row(a).await,
+        "songView" => crate::song_page::one(a).await,
+        "songPageView" => crate::song_page::page(a).await,
+        "songPresentationsView" => crate::song_page::presentations(a).await,
+        "songHistoryView" => crate::song_page::history(a).await,
+        "songMaterialsView" => crate::song_page::materials(a).await,
+        "songSearchPrepare" => crate::song_views::prepare(a).await,
+        "songSearchView" => crate::song_views::search_view(a),
+        "itemOverlaysView" => crate::live_views::item_overlays(a).await,
+        "liveTargetsView" => crate::live_views::targets(a).await,
+        "livePlaybackView" => crate::live_views::playback(a).await,
+        "itemAudioView" => crate::live_views::item_audio(a).await,
+        "ccliUseView" => crate::live_views::ccli_use(a).await,
+        "displaysView" => crate::live_views::displays().await,
+        "remoteControlView" => crate::live_views::remote_control().await,
+        "presentingKeyView" => crate::presenting::key(a),
+        "slideMarksView" => crate::presenting::marks(a),
         _ => return None,
     })
 }
@@ -48,14 +89,14 @@ pub async fn steps(pid: &str) -> R<Vec<(String, usize)>> {
 pub async fn presentation(pid: &str) -> R<Value> {
     let p = sql("SELECT name, event_date, time, location, description FROM presentations WHERE id = ?", vec![json!(pid)]).await
         .into_iter().next().ok_or("not-found")?;
-    let labels: HashMap<String, Value> = sql("SELECT id, text, color FROM labels", vec![]).await
-        .into_iter().map(|r| (s(&r[0]), json!({ "text": r[1], "color": r[2] }))).collect();
     let rows = sql("SELECT id, type, title, source_id, arrangement_id, content, note FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id", vec![json!(pid)]).await;
-    let mut items = Vec::new();
-    for r in rows {
+    let items: Vec<crate::slides::Item> = rows.iter().map(|r| crate::slides::Item {
+        kind: s(&r[1]), title: s(&r[2]), source_id: s(&r[3]), arrangement_id: r[4].as_str().map(String::from), content: r[5].as_str().map(String::from),
+    }).collect();
+    let slides = crate::slides::items_slides(&items).await;
+    let mut out = Vec::new();
+    for (r, mut shown) in rows.into_iter().zip(slides) {
         let kind = s(&r[1]);
-        let item = crate::slides::Item { kind: kind.clone(), title: s(&r[2]), source_id: s(&r[3]), arrangement_id: r[4].as_str().map(String::from), content: r[5].as_str().map(String::from) };
-        let mut shown = crate::slides::item_slides(&item, &labels).await;
         let arrangements = if kind == "song" {
             sql("SELECT id, name FROM song_arrangements WHERE song_id = ? ORDER BY sort, id", vec![r[3].clone()]).await
                 .into_iter().map(|a| json!({ "id": a[0], "name": a[1] })).collect()
@@ -64,9 +105,9 @@ pub async fn presentation(pid: &str) -> R<Value> {
         for (k, v) in [("id", r[0].clone()), ("type", json!(kind)), ("title", r[2].clone()), ("note", r[6].clone()), ("arrangementId", r[4].clone()), ("arrangements", Value::Array(arrangements))] {
             entry.insert(k.into(), v);
         }
-        items.push(shown);
+        out.push(shown);
     }
-    Ok(json!({ "id": pid, "name": p[0], "eventDate": p[1], "time": p[2], "location": p[3], "description": p[4], "items": items }))
+    Ok(json!({ "id": pid, "name": p[0], "eventDate": p[1], "time": p[2], "location": p[3], "description": p[4], "items": out }))
 }
 
 /// The library's songs for "Lägg till sång", best match first (packages/core/src/search.ts).

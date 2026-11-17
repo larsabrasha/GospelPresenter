@@ -1,9 +1,9 @@
-import { can, presentingKey, slideOrder, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
+import { can, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
-import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
+import { useDataReading, useDb, useShownOverlay } from '../../db/react.tsx';
+import { presentationPage, PRESENTATION_PAGE_READS } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
-import { slidesOfItems } from '../../live/live.ts';
+import { presentingKey, slideOrderOf } from '../../live/presenting.ts';
 import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
@@ -89,24 +89,8 @@ export function PresentationEditor({
   const saveFailed = useSaveFailed();
   // "Kunde inte spara" when a write is refused.
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
-  const data = useData(
-    async (d) => {
-      const items = await itemsOf(d, id);
-      const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
-      const slides = await slidesOfItems(d, items);
-      const presentation = await getPresentation(d, id);
-      return {
-        presentation,
-        theme: await themeOf(d, presentation),
-        items,
-        slides,
-        songs: await songsById(d, songIds),
-        arrangements: await arrangementsOf(d, songIds),
-        overlays: await listOverlays(d),
-      };
-    },
-    [id],
-  );
+  // The page's data from the core (presentationPageView), read again when a table it reads changes.
+  const data = useDataReading((d) => presentationPage(d, id), [id], PRESENTATION_PAGE_READS);
   // This window's live slide: its item is marked in the running order and selected on open.
   const pointer = useLivePointer(live);
   const liveItemId = pointer.presentationId === id ? pointer.itemId : null;
@@ -176,7 +160,7 @@ export function PresentationEditor({
   useWakeLock(!!owner);
 
   /** Every slide of the running order, in order: what → and ← step through while presenting. */
-  const order = useMemo(() => (data ? slideOrder(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
+  const order = useMemo(() => (data ? slideOrderOf(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
   // A key's effect is the core's (presentingKey): what is shown goes to the outputs, the outline here, which takes the
   // selection along.
   const press = (key: PresentingKey) => {

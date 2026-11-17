@@ -93,6 +93,9 @@ async function rustCore(): Promise<RustCore> {
   return new RustCore(await compiledCore);
 }
 
+/** A view of the core, read from one state of the database (`SyncClient.view`). */
+const view = (name: string, args: unknown) => client!.view(name, args);
+
 async function status(): Promise<DbStatus> {
   return {
     storage,
@@ -377,6 +380,7 @@ async function handle(call: DbCall): Promise<unknown> {
           post({ type: 'changed', ...(tables ? { tables } : {}) });
         },
         fetchMediaHere,
+        view,
       );
       notifyChanged = (tables) => {
         const list = tables && [...tables];
@@ -404,6 +408,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return;
     case 'query':
       return client!.query(call.sql, call.params);
+    case 'view':
+      return view(call.name, call.args);
     case 'searchSongs':
       return songSearch!.search(call.query);
     case 'status':

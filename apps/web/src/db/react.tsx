@@ -4,7 +4,8 @@ import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
 import { blobUrl, holdBlobUrl } from './blobUrls.ts';
-import { listSongs, shownOverlay } from './queries.ts';
+import { listSongs } from './queries.ts';
+import { shownOverlay } from './views.ts';
 import { needsReload, type ReadDb } from './share.ts';
 import { isHostWindow } from '../hostWindow.ts';
 
@@ -44,6 +45,11 @@ function useReader(): ReadDb {
  */
 export function useData<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[]): T | undefined {
   return useDataOf(load, deps);
+}
+
+/** `useData` that loads again only when a change wrote one of `tables`: a view of the core, which names what it reads. */
+export function useDataReading<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[], tables: readonly string[]): T | undefined {
+  return useDataOf(load, deps, tables);
 }
 
 /**
@@ -139,7 +145,7 @@ export function usePictureUrl(full: string | null, thumb: string): string | null
 
 /** What the overlay `id` shows, or null for none (or one deleted meanwhile). */
 export function useShownOverlay(id: string | null): CustomPage | null {
-  return useData((db) => shownOverlay(db, id), [id]) ?? null;
+  return useDataOf((db) => shownOverlay(db, id), [id], ['overlays']) ?? null;
 }
 
 /**

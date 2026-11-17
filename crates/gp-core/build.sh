@@ -16,6 +16,13 @@ ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
 export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
+# The web's reads as 2.0 has them (238d481b, docs/rust-core.md "The reference"), with that commit's TS core: what the
+# views are compared with (views-check.mjs), kept whole while the app drops each read the core takes over.
+REF=$OUT/ref-2.0
+rm -rf "$REF" && mkdir -p "$REF" && git -C "$ROOT" archive 238d481b apps/web/src packages/core/src | tar -x -C "$REF"
+sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
+"$ESBUILD" "$OUT/web-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/web-queries.mjs" --log-level=warning \
+  --alias:@gp/core="$REF/packages/core/src/index.ts"
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the
 # server's engine, for the sync check.
 SYNC_REFERENCE=75e7f234
@@ -41,6 +48,7 @@ case "$1" in
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"
+    node --no-warnings parity/views-check.mjs "$OUT/fixtures/demo.sqlite"
     mkdir -p "$OUT/native"
     GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
     node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"

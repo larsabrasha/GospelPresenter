@@ -68,7 +68,8 @@ export class RustCore {
 
   /**
    * One call of the core: yields each statement it asks for and takes its rows, or `{ error }` for one the shell's
-   * SQLite refused; ends with the core's answer (JSON text, empty for none), or throws the refusal.
+   * SQLite refused; ends with the core's answer (JSON text, empty for none: a view's JSON, a sync command's answer),
+   * or throws the refusal.
    */
   private *call(name: string, args: unknown, ctx: MutatorCtx | undefined): Generator<Ask, string, Rows | { error: string }> {
     try {
@@ -94,7 +95,21 @@ export class RustCore {
    * `sql` throws for is told to the core, which runs nothing more and is refused (the error is thrown as it was), or,
    * replaying a sync queue, rolls that change back and goes on.
    */
-  run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<unknown> {
+  async run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<unknown> {
+    const said = await this.drive(name, args, ctx, sql);
+    return said ? (JSON.parse(said) as unknown) : undefined;
+  }
+
+  /**
+   * What the view `name` shows (docs/rust-core.md, 2.5 step 3), every statement through `sql`: one state of the
+   * database when the caller holds its lock. A refusal is thrown as MutationError with the core's code.
+   */
+  async view<T>(name: string, args: unknown, sql: RunSql): Promise<T> {
+    return JSON.parse((await this.drive(name, args, undefined, sql)) || 'null') as T;
+  }
+
+  /** A call to its end, its statements answered by `sql` as they come, one call at a time: what it said. */
+  private drive(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<string> {
     return this.queue.run(async () => {
       this.busy = true;
       let failed: unknown;
@@ -111,13 +126,25 @@ export class RustCore {
           }
           step = steps.next(rows);
         }
-        return step.value ? (JSON.parse(step.value) as unknown) : undefined;
+        return step.value;
       } catch (e) {
         throw failed !== undefined && e instanceof MutationError && e.code.startsWith('sql-error') ? failed : e;
       } finally {
         this.busy = false;
       }
     });
+  }
+
+  /**
+   * A view that reads no database (presenting's keys and marks), at once: a page calls it on its own thread, so a key
+   * reaches the outputs without a round trip to the worker. Throws if the view asks for SQL, or refuses; and while
+   * another call is under way, whose state it would overwrite.
+   */
+  pure<T>(name: string, args: unknown): T {
+    if (this.busy) throw new Error(`the Rust core is in the middle of another call: ${name} must wait`);
+    const step = this.call(name, args, undefined).next();
+    if (!step.done) throw new Error(`${name} reads the database: call view() instead`);
+    return JSON.parse(step.value || 'null') as T;
   }
 
   /** The same, all at once, for statements answered synchronously: where the server opens a database. */

@@ -17,7 +17,7 @@ export interface CcliCard {
 /** The card an entry is on: its day and presentation (02 Q13 as decided on 2026-10-31). */
 export const cardKey = (e: Pick<CcliEntry, 'date' | 'presentationId'>) => `${e.date}|${e.presentationId}`;
 
-/** A card per day and presentation, in the entries' order (listCcliEntries: newest day first, then presentation). */
+/** A card per day and presentation, in the entries' order (ccliReport: newest day first, then presentation). */
 export function ccliCards(entries: CcliEntry[]): CcliCard[] {
   const cards = new Map<string, CcliCard>();
   for (const e of entries) {

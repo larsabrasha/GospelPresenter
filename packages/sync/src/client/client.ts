@@ -134,6 +134,14 @@ export class SyncClient {
     return this.lock.run(() => queryObjects(this.sqlite, sql, params));
   }
 
+  /**
+   * What the Rust core's view `name` shows (`RustCore.view`, docs/rust-core.md 2.5 step 3), read from one state of
+   * the database: serialised with every write. A refusal is thrown as MutationError with the core's code.
+   */
+  view<T>(name: string, args: unknown): Promise<T> {
+    return this.lock.run(() => this.opts.core.view<T>(name, args, async (sql, params) => (await this.sqlite.query(sql, params)).rows));
+  }
+
   private async meta() {
     const [m] = await queryObjects(this.sqlite, 'SELECT cookie, last_mutation_id, next_mutation_id FROM _sync_meta');
     return m as { cookie: string | null; last_mutation_id: number; next_mutation_id: number };

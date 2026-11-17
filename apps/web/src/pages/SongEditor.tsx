@@ -1,7 +1,7 @@
 import { LIMITS, type Label, type SongPart } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
-import { useData, useDb } from '../db/react.tsx';
-import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } from '../db/queries.ts';
+import { useDataReading, useDb } from '../db/react.tsx';
+import { presentationsUsing, songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -48,15 +48,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const saved = useSavedIndicator();
   const saveFailed = useSaveFailed();
   const isNew = useJustCreated(id);
-  const data = useData(
-    async (d) => ({
-      song: await getSong(d, id),
-      parts: await songPartsOf(d, [id]),
-      arrangements: await arrangementsOf(d, [id]),
-      labels: await listLabels(d),
-    }),
-    [id],
-  );
+  const data = useDataReading((d) => songPage(d, id), [id], SONG_PAGE_READS);
   // "Lägg till del" brings the new part into view once it is there (SongEditor.razor's scrollToElement).
   const scrollTo = useRef<string | null>(null);
   useEffect(() => {
