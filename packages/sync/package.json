@@ -16,8 +16,7 @@
   "dependencies": {
     "@gp/core": "workspace:*",
     "@gp/rust-core": "workspace:*",
-    "@journeyapps/wa-sqlite": "2.0.8",
-    "drizzle-orm": "0.45.4"
+    "@journeyapps/wa-sqlite": "2.0.8"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",

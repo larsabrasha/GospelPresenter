@@ -1,7 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
-import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
-import { LIVE_PING, LIVE_PONG, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, serverChangeTriggers, serverSyncDdl, type Poke, type Role } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -87,7 +86,6 @@ export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
   // After the change triggers, so the default labels sync like any change (SONG-R47).
   core.runSync('seedLabels', {}, undefined, rows);
   return {
-    db: drizzle(storage, { schema }) as unknown as Tx,
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],
     rows,
     core,

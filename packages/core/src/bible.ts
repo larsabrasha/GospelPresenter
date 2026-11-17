@@ -75,23 +75,8 @@ export function planVerseSearch(query: string, available: string[]): VerseSearch
   return { codes, from, to };
 }
 
-const atOrAfter = (c: number, v: number, p: Point) => c > p[0] || (c === p[0] && v >= p[1]);
-const atOrBefore = (c: number, v: number, p: Point) => c < p[0] || (c === p[0] && v <= p[1]);
-
-/** The verses of `book` from `from` to `to`, inclusive, in stored order. */
-export function versesInRange(book: BibleBookText, from: Point, to: Point): Verse[] {
-  return book.verses.filter(([c, v]) => atOrAfter(c, v, from) && atOrBefore(c, v, to)).map(([c, v, t]) => ({ b: book.code, c, v, t }));
-}
-
-/** Every verse a query selects among `books`, in the books' order; nothing for an invalid query. */
-export function searchVerses(query: string, books: BibleBookText[]): Verse[] {
-  const plan = planVerseSearch(
-    query,
-    books.map((b) => b.code),
-  );
-  if (!plan) return [];
-  return books.filter((b) => plan.codes.includes(b.code)).flatMap((b) => versesInRange(b, plan.from, plan.to));
-}
+// The verses a plan selects are read by the Rust core's bibleView (crates/gp-core/src/bible_view.rs), a stored book at
+// a time.
 
 // ------------------------------------------------------------------ titles (BIBLE-R13)
 

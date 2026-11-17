@@ -4,18 +4,16 @@ import {
   bibleTitle,
   isOldTestament,
   MAX_VERSES_PER_ITEM,
-  searchVerses,
+  planVerseSearch,
   splitBibleSlides,
   englishBookName,
   swedishBookName,
-  versesInRange,
-  type BibleBookText,
   type Theme,
   type Verse,
 } from '@gp/core';
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useData, useDb } from '../db/react.tsx';
-import { bibleBooks, listBibles } from '../db/queries.ts';
+import { useData, useDataReading, useDb } from '../db/react.tsx';
+import { listBibles } from '../db/queries.ts';
 import { language, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -34,7 +32,8 @@ const PREVIEW_SLIDES = 12;
 type Step = 'book' | 'startChapter' | 'startVerse' | 'endChapter' | 'endVerse';
 
 interface Browse {
-  book: BibleBookText;
+  /** The book's code. */
+  book: string;
   step: Step;
   start: [number, number] | null;
   end: [number, number] | null;
@@ -42,8 +41,20 @@ interface Browse {
   endChapter: number | null;
 }
 
-const chaptersOf = (book: BibleBookText) => [...new Set(book.verses.map(([c]) => c))];
-const versesOf = (book: BibleBookText, chapter: number) => book.verses.filter(([c]) => c === chapter);
+/**
+ * What the core's bibleView reads of a translation, a stored book at a time: its books' codes, a book's chapters, a
+ * chapter's verses (`[chapter, verse, text]`) and a passage's; null when the text cannot be had.
+ */
+interface BibleRead {
+  books: string[];
+  chapters?: number[];
+  verses?: [number, number, string][];
+  passage?: Verse[];
+}
+
+/** What a translation's text is read again after: it arriving, or going. */
+const TEXT_TABLES = ['bible_texts', 'bible_blobs'];
+
 /** A book's name in the page's language (spec 05: Swedish under sv, else English). */
 const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) : englishBookName(code));
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
@@ -57,10 +68,10 @@ const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-ins
  * The book picker, the Old Testament then the New (BIBLE-R10), in canonical order, in a box of its
  * own that scrolls. The arrows run down both columns as one list, Tab stopping once.
  */
-function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: BibleBookText) => void }) {
+function BookPicker({ books, onPick }: { books: string[]; onPick: (code: string) => void }) {
   const groups = [
-    { title: t('bible.oldTestament'), books: books.filter((b) => isOldTestament(b.code)) },
-    { title: t('bible.newTestament'), books: books.filter((b) => !isOldTestament(b.code)) },
+    { title: t('bible.oldTestament'), books: books.filter((code) => isOldTestament(code)) },
+    { title: t('bible.newTestament'), books: books.filter((code) => !isOldTestament(code)) },
   ];
   const list = useRovingList(books.length);
   let index = 0;
@@ -72,9 +83,9 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
             !!g.books.length && (
               <section key={g.title} className="flex flex-col gap-1">
                 <h3 className="text-sm/5 font-semibold text-stone-400 px-3 mb-1 sticky top-0 bg-surface py-2 z-10">{g.title}</h3>
-                {g.books.map((b) => (
-                  <AppButton key={b.code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(b)}>
-                    {bookName(b.code)}
+                {g.books.map((code) => (
+                  <AppButton key={code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(code)}>
+                    {bookName(code)}
                   </AppButton>
                 ))}
               </section>
@@ -123,7 +134,20 @@ function VersePicker({ verses, label, picked, onPick }: { verses: [number, numbe
  * chapter and a verse, then the end chapter and verse. The reference so far stands above, each part
  * a link to pick it again, the part being picked orange, and an orange "_" where the next goes.
  */
-function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; books: BibleBookText[]; setBrowse: (b: Browse) => void; onBack: () => void }) {
+function BrowsePicker({
+  browse,
+  books,
+  read,
+  setBrowse,
+  onBack,
+}: {
+  browse: Browse;
+  books: string[];
+  /** The browsed book's chapters and the chapter's verses, once read; undefined while they are. */
+  read: BibleRead | undefined;
+  setBrowse: (b: Browse) => void;
+  onBack: () => void;
+}) {
   const { book, step, start, end } = browse;
   const crumb = (label: string, target: Step) => (
     <AppButton
@@ -163,7 +187,7 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
     const p: [number, number] = [chapter, v];
     return !before(p, start) && !before(end, p);
   };
-  const verseChapter = step === 'startVerse' ? start![0] : step === 'endVerse' ? browse.endChapter! : null;
+  const verseChapter = verseChapterOf(browse);
   const hasStartVerse = !!start && start[1] > 0;
 
   return (
@@ -179,7 +203,7 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
           <ChevronLeftIcon className="size-5" />
         </AppButton>
         <div className="flex items-center gap-x-0.5 ml-1">
-          {crumb(bookName(book.code), 'book')}
+          {crumb(bookName(book), 'book')}
           {start && (
             <>
               {crumb(String(start[0]), 'startChapter')}
@@ -206,17 +230,29 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
       </div>
       <div className="mt-3 flex-1 min-h-0 flex flex-col">
         {step === 'book' && <BookPicker books={books} onPick={(b) => setBrowse({ book: b, step: 'startChapter', start: null, end: null, endChapter: null })} />}
-        {(step === 'startChapter' || step === 'endChapter') && <ChapterPicker key={step} chapters={chaptersOf(book)} label={prompt} onPick={pickChapter} />}
-        {verseChapter !== null && <VersePicker key={`${step}${verseChapter}`} verses={versesOf(book, verseChapter)} label={prompt} picked={pickedIn(verseChapter)} onPick={pickVerse} />}
+        {(step === 'startChapter' || step === 'endChapter') && read?.chapters && <ChapterPicker key={step} chapters={read.chapters} label={prompt} onPick={pickChapter} />}
+        {verseChapter !== null && read?.verses && <VersePicker key={`${step}${verseChapter}`} verses={read.verses} label={prompt} picked={pickedIn(verseChapter)} onPick={pickVerse} />}
       </div>
     </div>
   );
 }
 
-/** The verses a complete browse selection covers (start to end, or the start verse alone). */
-function browseVerses(b: Browse | null): Verse[] {
-  if (!b?.start || b.start[1] === 0) return [];
-  return versesInRange(b.book, b.start, b.end ?? b.start);
+/** The chapter whose verses a browse shows, if it shows a chapter's verses. */
+const verseChapterOf = (b: Browse) => (b.step === 'startVerse' ? b.start![0] : b.step === 'endVerse' ? b.endChapter : null);
+
+/**
+ * What the tab asks the core's bibleView besides the books: a browsed book's chapters, the chapter's verses and the
+ * passage chosen (start to end, or the start verse alone); else a search's passage, from the reference planned among
+ * the translation's books (BIBLE-R11). Null when it needs nothing more.
+ */
+function bibleAsk(browse: Browse | null, query: string, books: string[] | null | undefined) {
+  if (browse) {
+    const chapter = verseChapterOf(browse);
+    const picked = browse.start && browse.start[1] > 0;
+    return { book: browse.book, ...(chapter !== null && { chapter }), ...(picked && { passage: { books: [browse.book], from: browse.start, to: browse.end ?? browse.start } }) };
+  }
+  const plan = books && query.trim() ? planVerseSearch(query, books) : null;
+  return plan && { passage: { books: plan.codes, from: plan.from, to: plan.to } };
 }
 
 /**
@@ -250,8 +286,19 @@ export function BibleTab({
   useFocusWhenShown(search, active);
 
   const bible = bibles?.find((b) => b.id === bibleId) ?? bibles?.[0] ?? null;
-  // A translation this device does not keep is fetched now, for this window only (docs/bibles-and-themes.md, "Bibles").
-  const books = useData((d) => (bible ? bibleBooks(d, bible.contentHash, (hash) => db.fetchBibleText(hash)) : Promise.resolve(null)), [bible?.contentHash, bible?.stored]);
+  const hash = bible?.contentHash;
+  // The text's books, then what the browse or the search needs of it, each from the stored books it needs; a
+  // translation this device does not keep is fetched by the worker, for this window only (docs/bibles-and-themes.md).
+  const books = useDataReading((d) => (hash ? d.view<BibleRead | null>('bibleView', { hash }).then((r) => r?.books ?? null) : Promise.resolve(null)), [hash, bible?.stored], TEXT_TABLES);
+  const wanted = bibleAsk(browse, query, books);
+  const asked = JSON.stringify([hash, wanted]);
+  const answer = useDataReading(
+    (d) => (hash && wanted ? d.view<BibleRead | null>('bibleView', { hash, ...wanted }) : Promise.resolve(null)).then((read) => ({ asked, read })),
+    [asked, bible?.stored],
+    TEXT_TABLES,
+  );
+  // What was read for what is asked now, undefined while it is read: never the last book's chapters under this one.
+  const read = answer?.asked === asked ? (answer.read ?? undefined) : undefined;
 
   if (!bibles) return null;
   if (!bibles.length || !bible) {
@@ -265,9 +312,10 @@ export function BibleTab({
     );
   }
 
-  const found = books && query.trim() ? searchVerses(query, books) : [];
-  const shown = found.slice(0, MAX_VERSES_PER_ITEM);
-  const chosen = browse ? browseVerses(browse) : shown;
+  // A search's verses (none for a query that names no passage); undefined while they are read.
+  const found = browse || !query.trim() ? [] : wanted ? read?.passage : [];
+  const shown = (found ?? []).slice(0, MAX_VERSES_PER_ITEM);
+  const chosen = browse ? (read?.passage ?? []) : shown;
   const slides = chosen.length ? bibleItemSlides(bibleTitle(chosen), { translation: bible.abbreviation, slides: splitBibleSlides(chosen) }) : [];
 
   const reset = () => {
@@ -287,7 +335,7 @@ export function BibleTab({
     }
   };
   const addChosen = async () => {
-    if (!browse && found.length > shown.length) {
+    if (!browse && found && found.length > shown.length) {
       // D13: say that only the first 500 go in, and ask.
       const ok = await ask({
         title: t('bible.truncatedTitle'),
@@ -357,7 +405,7 @@ export function BibleTab({
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 flex flex-col md:pr-3">
           {books === undefined && <p className="loading-line py-8 text-center text-sm text-stone-400">{t('bible.downloading')}</p>}
           {books === null && <p className="py-8 text-center text-sm text-stone-400">{t('bible.unavailable')}</p>}
-          {books && query.trim() && !found.length && (
+          {books && query.trim() && found && !found.length && (
             <div className="text-center text-stone-400 text-sm py-2">
               <p>{t('bible.noHits')}</p>
               <div className="text-xs mt-6">
@@ -366,7 +414,7 @@ export function BibleTab({
               </div>
             </div>
           )}
-          {books && !!found.length && (
+          {books && !!found?.length && (
             <div className="md:flex-1 md:min-h-0 md:overflow-y-auto">
               <ol className="flex flex-col gap-1.5 text-sm" aria-label={t('bible.results')}>
                 {shown.map((v) => (
@@ -382,7 +430,7 @@ export function BibleTab({
             </div>
           )}
           {books && !query.trim() && !browse && <BookPicker books={books} onPick={(book) => setBrowse({ book, step: 'startChapter', start: null, end: null, endChapter: null })} />}
-          {books && !query.trim() && browse && <BrowsePicker browse={browse} books={books} setBrowse={setBrowse} onBack={() => setBrowse(null)} />}
+          {books && !query.trim() && browse && <BrowsePicker browse={browse} books={books} read={read} setBrowse={setBrowse} onBack={() => setBrowse(null)} />}
         </div>
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3 pt-3 md:pt-0">
           {!slides.length && (

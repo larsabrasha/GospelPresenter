@@ -13,11 +13,11 @@ import {
   bibleTitle,
   bookChunk,
   importBibleZip,
-  searchVerses,
   serializeBibleText,
   splitBibleSlides,
   type ImportedBible,
 } from '../../src/index.ts';
+import { searchVerses } from '../verse-search.ts';
 
 const zipPath = process.env.GP_REAL_BIBLE_ZIP;
 

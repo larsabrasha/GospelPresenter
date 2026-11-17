@@ -1,4 +1,4 @@
-import type { BibleBookText, MutatorArgs, MutatorName, Picture } from '@gp/core';
+import type { MutatorArgs, MutatorName, Picture } from '@gp/core';
 import type { StorageReport } from '@gp/sync/client';
 import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageEditImport, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
@@ -181,11 +181,6 @@ export class Db implements ReadDb {
   /** A host's own window: a media blob from the server, not stored (`ReadDb.fetchMedia`). */
   fetchMedia(hash: string): Promise<MediaBytes | null> {
     return this.call({ op: 'fetchMedia', hash });
-  }
-
-  /** A translation's text this device does not keep, fetched from the server and not stored; null offline. */
-  fetchBibleText(hash: string): Promise<BibleBookText[] | null> {
-    return this.call({ op: 'fetchBibleText', hash });
   }
 
   /** Syncs with the server now (the sync icon's click); answers with the status after it. */

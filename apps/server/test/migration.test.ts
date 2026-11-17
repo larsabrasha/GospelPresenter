@@ -4,8 +4,23 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, orgDdl, orgIndexes, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
+import { SCHEMA_VERSION, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
+
+/** Today's organisation tables, then their indexes, as the Rust core makes them: read back from a new database. */
+const [orgTables, orgIndexes] = (() => {
+  const db = new DatabaseSync(':memory:');
+  nodeRustCore().runSync('migrateOrgSchema', {}, undefined, (sql, params) => {
+    const st = db.prepare(sql);
+    st.setReturnArrays(true);
+    return st.all(...(params as never[])) as unknown as unknown[][];
+  });
+  const of = (type: string) =>
+    (db.prepare("SELECT sql FROM sqlite_master WHERE type = ? AND name <> '_schema' AND sql IS NOT NULL ORDER BY rowid").all(type) as { sql: string }[]).map((r) => r.sql);
+  return [of('table'), of('index')];
+})();
+const orgDdl = [...orgTables, ...orgIndexes];
 
 /** Today's tables as a file before version 24 had them: no comment on an item, and no picture edited (25). */
 const before24 = orgDdl.map((s) =>
@@ -117,7 +132,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
 
     expect(columnsOf(f.query)).toEqual(columnsOf(fresh.query));
     expect(indexesOf(f.query)).toEqual(indexesOf(fresh.query));
-    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length + 2); // and song_versions_by_song, from 15, and song_materials_by_song, from 17
+    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length); // 12's four, song_versions_by_song from 15 and song_materials_by_song from 17
     f.close();
     fresh.close();
   });

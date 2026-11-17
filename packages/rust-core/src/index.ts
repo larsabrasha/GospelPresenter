@@ -1,11 +1,8 @@
 // The Rust core (crates/gp-core) under the app: its WASM runs every mutator and the organisation schema's migration, on
 // the client and on the server alike, so a mutator is never the Rust core's on one end and the TS core's on the other
 // (docs/rust-core.md, 2.5). The core never opens a database: it asks for each SQL statement and waits for the rows
-// (bridge.rs). The TS core's mutators stay in packages/core, the reference the core's checks compare with.
-import { getMutator, MutationError, runMutator, SerialQueue, type MutatorCtx, type Tx } from '@gp/core';
-
-/** The mutators that stay on the TS core: the test helper `probe`, which the Rust core does not have. */
-const TS_MUTATORS: ReadonlySet<string> = new Set(['probeWriteThenThrow']);
+// (bridge.rs). The TS core it replaced is the reference its checks compare with, at 238d481b (docs/rust-core.md).
+import { MutationError, SerialQueue, type MutatorCtx } from '@gp/core';
 
 /** A statement's rows as arrays, in column order. */
 export type Rows = unknown[][];
@@ -160,18 +157,16 @@ export class RustCore {
   }
 }
 
-/** Where a mutator runs: Drizzle for the TS core, statements for the Rust core, both in one transaction. */
+/** Where a mutator runs: the core, and the caller's transaction it reads and writes through. */
 export interface MutationDb {
-  db: Tx;
   core: RustCore;
   rows: RunSql;
 }
 
 /**
- * Runs a mutator as runMutator does, on the Rust core (the TS core's only for TS_MUTATORS): done, or a MutationError
- * with the refusal's code. A name neither core knows is refused as `unknown-mutator`.
+ * Runs a mutator on the Rust core: done, or a MutationError with the refusal's code (invalid arguments are
+ * `invalid-args`, a name the core does not know `unknown-mutator`).
  */
 export function runMutation(on: MutationDb, name: string, args: unknown, ctx: MutatorCtx): Promise<void> {
-  if (!TS_MUTATORS.has(name)) return on.core.run(name, args, ctx, on.rows).then(() => undefined);
-  return runMutator(getMutator(name)!, on.db, args, ctx);
+  return on.core.run(name, args, ctx, on.rows).then(() => undefined);
 }

@@ -8,11 +8,10 @@ import { createServer as createHttpsServer } from 'node:https';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import type BetterSqlite3 from 'better-sqlite3';
-import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
+import { serverChangeTriggers, serverSyncDdl, type Poke } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
@@ -52,16 +51,13 @@ interface SqliteFile {
   run(sql: string, params?: unknown[]): number;
   exec(sql: string): void;
   inTransaction(): boolean;
-  drizzle(): Tx;
   close(): void;
 }
 
 function openBetterSqlite3(file: string): SqliteFile {
-  // Loaded lazily (with Drizzle's driver, which imports it), so a node:sqlite
-  // build never needs the native module.
+  // Loaded lazily, so a node:sqlite build never needs the native module.
   // better-sqlite3 13 is a Node-API addon: the same binary loads in Node 22 and Electron 45.
   const Database = require('better-sqlite3') as typeof BetterSqlite3;
-  const { drizzle } = require('drizzle-orm/better-sqlite3') as typeof import('drizzle-orm/better-sqlite3');
   const db = new Database(file);
   return {
     query(sql, params = []) {
@@ -79,17 +75,11 @@ function openBetterSqlite3(file: string): SqliteFile {
     run: (sql, params = []) => db.prepare(sql).run(...params).changes,
     exec: (sql) => void db.exec(sql),
     inTransaction: () => db.inTransaction,
-    drizzle: () => drizzle(db, { schema }) as unknown as Tx,
     close: () => db.close(),
   };
 }
 
-/**
- * Node's built-in node:sqlite (Electron 45 ships Node 24): an option that
- * needs no native module at all. Drizzle 0.45 has no node:sqlite
- * driver; sqlite-proxy wraps it (an async driver over a sync connection),
- * which the async mutators do not notice.
- */
+/** Node's built-in node:sqlite (Electron 45 ships Node 24): an option that needs no native module at all. */
 function openNodeSqlite(file: string): SqliteFile {
   const { DatabaseSync: Db } = require('node:sqlite') as { DatabaseSync: typeof DatabaseSync };
   const db = new Db(file);
@@ -105,14 +95,6 @@ function openNodeSqlite(file: string): SqliteFile {
     run: (sql, params = []) => Number(db.prepare(sql).run(...(params as never[])).changes),
     exec: (sql) => db.exec(sql),
     inTransaction: () => db.isTransaction,
-    drizzle: () =>
-      drizzleProxy(
-        async (sql, params, method) => {
-          const all = rows(sql, params);
-          return { rows: method === 'get' ? (all[0] as unknown[]) : all };
-        },
-        { schema },
-      ) as unknown as Tx,
     close: () => db.close(),
   };
 }
@@ -139,14 +121,13 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
   // After the change triggers, so the default labels sync like any change (SONG-R47).
   core.runSync('seedLabels', {}, undefined, f.rows);
   return {
-    db: f.drizzle(),
     query: f.query,
     rows: f.rows,
     core,
     // better-sqlite3's own db.transaction() refuses async functions. Instead an
     // explicit BEGIN/COMMIT around the awaited mutator: safe because the
     // caller's SerialQueue lets nothing else touch this connection meanwhile,
-    // and the mutator awaits only this connection's synchronous queries.
+    // and the core awaits only this connection's synchronous queries.
     async transaction(fn) {
       f.exec('BEGIN IMMEDIATE');
       try {

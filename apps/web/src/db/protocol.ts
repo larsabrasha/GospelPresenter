@@ -79,8 +79,6 @@ export type DbCall =
   | { op: 'setPinned'; presentationId: string; on: boolean }
   /** "Gör tillgänglig offline" (true: false if the text could not be downloaded) or "Ta bort den nedladdade kopian". */
   | { op: 'keepBible'; bibleId: string; on: boolean }
-  /** A translation's text from the server, checked and not stored: for one this device does not keep. Null if it cannot be had. */
-  | { op: 'fetchBibleText'; hash: string }
   /** A host's own window only: a picture or audio file from the server, not stored. Null elsewhere, or if the server has none. */
   | { op: 'fetchMedia'; hash: string };
 

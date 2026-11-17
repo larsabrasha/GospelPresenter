@@ -49,7 +49,7 @@ public output (`/watch`) sizes text from the viewport as before (LIVE-R31) and d
 
 A synced table, `themes` (schema 23): `id`, `name`, `definition` (JSON, written whole at each save, so the last of two
 devices' saves wins it), `sort` (when it was made) and `updated_at`. Mutators in
-`packages/core/src/mutators/themes.ts`, all `ManageThemes` (admins): `createTheme` (at most 50, `THEME_LIMITS`),
+the Rust core's `crates/gp-core/src/mutators/themes.rs`, all `ManageThemes` (admins): `createTheme` (at most 50, `THEME_LIMITS`),
 `updateTheme` (its name, its definition, or both), `deleteTheme` (for good, no trash: the presentations and templates
 that named it, and a default that was it, are cleared, so they follow the default, else Mörkt). `setDefaultTheme`
 and `updatePresentation` take an own theme's id as a built-in one's (`requireTheme`). A theme whose picture's blobs

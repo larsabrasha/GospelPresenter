@@ -1,12 +1,12 @@
 // The CCLI report's mutators (spec 02 SONG-R48–R52, SONG-A32–A36, decided on 2026-10-31), run on a server database.
 import { describe, expect, it } from 'vitest';
-import { getMutator, type MutatorName, type Role, type Tx } from '@gp/core';
+import type { MutatorName, Role } from '@gp/core';
+import { runMutation } from '@gp/rust-core';
 import { nodeOrgStore, openSqlite } from '../src/node.ts';
 
 function org() {
   const store = nodeOrgStore(openSqlite(':memory:', 'node:sqlite'));
-  const run = (name: MutatorName, args: unknown, role: Role = 'admin') =>
-    store.transaction(() => getMutator(name)!.run(store.db as Tx, getMutator(name)!.args.parse(args), { userId: 'u', role, now: 1 }));
+  const run = (name: MutatorName, args: unknown, role: Role = 'admin') => store.transaction(() => runMutation(store, name, args, { userId: 'u', role, now: 1 }));
   const entries = () => store.query('SELECT song_name, ccli, presentation_name, date, reported_at FROM ccli_entries ORDER BY id');
   return { run, entries };
 }
@@ -110,7 +110,7 @@ describe('marking entries reported', () => {
   it('SONG-A32: refuses a user marking entries or switching collection', async () => {
     const o = org();
 
-    await expect(o.run('setCcliReported', { ids: ['x'], reported: true, at: 1 }, 'user')).rejects.toThrow('may not');
-    await expect(o.run('setCcliCollection', { on: true }, 'user')).rejects.toThrow('may not');
+    await expect(o.run('setCcliReported', { ids: ['x'], reported: true, at: 1 }, 'user')).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(o.run('setCcliCollection', { on: true }, 'user')).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

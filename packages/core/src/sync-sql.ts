@@ -1,5 +1,5 @@
 import { getTableConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { bibleBlobs, bibleTexts, keptBibles, mediaBlobs, pinnedPresentations, syncedTables, videoFiles } from './schema.ts';
+import { syncedTables } from './schema.ts';
 
 // SQL shared by both ends of the sync protocol, generated from the Drizzle
 // schema so no table can be forgotten.
@@ -72,88 +72,7 @@ export function serverChangeTriggers(): string[] {
 
 // ---------------------------------------------------------------- client
 
-export const clientSyncDdl: string[] = [
-  `CREATE TABLE IF NOT EXISTS _sync_meta (
-     one INTEGER PRIMARY KEY CHECK (one = 1),
-     client_id TEXT NOT NULL, cookie TEXT, last_mutation_id INTEGER NOT NULL DEFAULT 0,
-     next_mutation_id INTEGER NOT NULL DEFAULT 1, capture INTEGER NOT NULL DEFAULT 1)`,
-  `CREATE TABLE IF NOT EXISTS _mutation (
-     id INTEGER PRIMARY KEY, name TEXT NOT NULL, v INTEGER NOT NULL, args TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS _undo (
-     tbl TEXT NOT NULL, pk TEXT NOT NULL, before TEXT, PRIMARY KEY (tbl, pk))`,
-];
+// The client's queue, undo log, triggers and rebase are the Rust core's (crates/gp-core/src/sync.rs, sync_sql.rs).
 
-/**
- * Triggers that keep the first pre-image of every row touched while capture is on.
- * `before` is NULL for a row that did not exist. Pulls switch capture off.
- * They name every column, so they are dropped and made again on every open:
- * a schema migration may have added columns.
- *
- * An upsert works: its insert fires the insert trigger, or, on a conflict,
- * its DO UPDATE fires the update trigger with the row as it was. A REPLACE
- * does not (it deletes the old row without firing the delete trigger), so
- * mutators never use one (`scripts/check-mutator-sql.mjs`).
- */
-export function clientUndoTriggers(): string[] {
-  const on = `WHEN (SELECT capture FROM _sync_meta) = 1`;
-  const keepFirst = (name: string, pk: string, image: string) =>
-    `INSERT INTO _undo (tbl, pk, before) SELECT '${name}', ${pk}, ${image}
-         WHERE NOT EXISTS (SELECT 1 FROM _undo WHERE tbl = '${name}' AND pk = ${pk});`;
-  return tableInfo.flatMap(({ name, columns }) => {
-    const image = `json_object(${columns.map((c) => `'${c}', OLD.${c}`).join(', ')})`;
-    return [
-      ...['ins', 'upd', 'del'].map((op) => `DROP TRIGGER IF EXISTS undo_${name}_${op}`),
-      `CREATE TRIGGER undo_${name}_ins AFTER INSERT ON ${name} ${on} BEGIN
-         ${keepFirst(name, 'NEW.id', 'NULL')} END`,
-      `CREATE TRIGGER undo_${name}_upd BEFORE UPDATE ON ${name} ${on} BEGIN
-         ${keepFirst(name, 'OLD.id', image)} END`,
-      `CREATE TRIGGER undo_${name}_del BEFORE DELETE ON ${name} ${on} BEGIN
-         ${keepFirst(name, 'OLD.id', image)} END`,
-    ];
-  });
-}
-
-/** Statements that put every captured row back to its pre-image (run with capture off). */
-export function clientUndoRestore(): string[] {
-  return tableInfo.flatMap(({ name, columns }) => [
-    `DELETE FROM ${name} WHERE id IN (SELECT pk FROM _undo WHERE tbl = '${name}' AND before IS NULL)`,
-    `INSERT INTO ${name} (${columns.join(', ')})
-       SELECT ${columns.map((c) => `json_extract(before, '$.${c}')`).join(', ')}
-       FROM _undo WHERE tbl = '${name}' AND before IS NOT NULL AND true
-       ON CONFLICT (id) DO UPDATE SET ${columns.map((c) => `${c} = excluded.${c}`).join(', ')}`,
-  ]);
-}
-
-/**
- * An upsert of `rows` rows by their column values, used to apply a pull patch.
- * Rows are applied in order, so a later row of the same id wins.
- */
-export function upsertSql(t: TableInfo, rows = 1): string {
-  const values = `(${t.columns.map(() => '?').join(', ')})`;
-  return `INSERT INTO ${t.name} (${t.columns.join(', ')}) VALUES ${Array.from({ length: rows }, () => values).join(', ')}
-    ON CONFLICT (id) DO UPDATE SET ${t.columns.map((c) => `${c} = excluded.${c}`).join(', ')}`;
-}
-
-/** The tables whose changes a page hears of: the synced ones, and those of the device's own the pages read. */
-export const watchedTables: string[] = [...syncedTables, bibleTexts, bibleBlobs, mediaBlobs, pinnedPresentations, keptBibles, videoFiles].map((t: SQLiteTable) => getTableConfig(t).name);
-
-/** Where a client connection notes the tables a transaction wrote, until it commits (`changeTrackingDdl`). */
+/** Where a client connection notes the tables a transaction wrote, until it commits (the core's change tracking). */
 export const CHANGED_TABLES = 'temp.changed_tables';
-
-/**
- * A client connection's own record of which tables the open transaction
- * wrote, so a change can say what it changed and a page reload only what
- * read it. TEMP: per connection, never in the file; a trigger per table and
- * kind of write (a trigger body names its table unqualified: the temp one). Made on every open.
- */
-export function changeTrackingDdl(): string[] {
-  return [
-    `CREATE TEMP TABLE IF NOT EXISTS changed_tables (tbl TEXT PRIMARY KEY NOT NULL)`,
-    ...watchedTables.flatMap((name) =>
-      (['INSERT', 'UPDATE', 'DELETE'] as const).map(
-        (op) => `CREATE TEMP TRIGGER IF NOT EXISTS changed_${name}_${op.toLowerCase()} AFTER ${op} ON main.${name} BEGIN
-           INSERT INTO changed_tables (tbl) SELECT '${name}' WHERE NOT EXISTS (SELECT 1 FROM changed_tables WHERE tbl = '${name}'); END`,
-      ),
-    ),
-  ];
-}

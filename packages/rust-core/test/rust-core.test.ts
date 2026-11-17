@@ -1,7 +1,8 @@
+// The adapter over the Rust core, and the schema it makes. That the core does what the TS core did is the parity
+// checks' (crates/gp-core/build.sh test, against packages/core at 238d481b, migrations among them in schema-check.mjs).
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LABELS, migrateOrgSchemaSync, mutators, schema, SCHEMA_VERSION, type MutatorCtx, type Tx } from '@gp/core';
-import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import { DEFAULT_LABELS, MUTATOR_VERSIONS, SCHEMA_VERSION, tableInfo, type MutatorCtx } from '@gp/core';
 import { runMutation, type MutationDb, type Rows } from '../src/index.ts';
 import { nodeRustCore } from '../src/node.ts';
 
@@ -21,11 +22,7 @@ function org(async = false): MutationDb & { db0: DatabaseSync } {
   const core = nodeRustCore();
   core.runSync('migrateOrgSchema', {}, undefined, all);
   db0.exec(`INSERT INTO songs (id, name) VALUES ('s1', 'Härlig är jorden')`);
-  const db = drizzle(async (sql, params, method) => {
-    const rows = all(sql, params);
-    return { rows: method === 'get' ? (rows[0] as never) : rows };
-  }, { schema }) as unknown as Tx;
-  return { db0, db, core, rows: async ? async (sql, params) => all(sql, params) : all };
+  return { db0, core, rows: async ? async (sql, params) => all(sql, params) : all };
 }
 
 const rowsOf = (db: DatabaseSync, sql: string) => db.prepare(sql).all();
@@ -50,7 +47,7 @@ describe('runMutation', () => {
     ]);
   });
 
-  it('throws a refusal with the core code, as runMutator does', async () => {
+  it('throws a refusal with the core code', async () => {
     const o = org();
 
     const refused = runMutation(o, 'addHeaderToPresentation', { itemId: 'h1', presentationId: 'gone', title: 'Lovsång' }, admin);
@@ -70,20 +67,20 @@ describe('runMutation', () => {
     await expect(runMutation(o, 'createPresentation', { id: 'p1', name: 'x' }, { userId: 'u', role: 'guest' as never })).rejects.toMatchObject({ code: 'forbidden' });
   });
 
-  it('runs the test probe, which the Rust core does not have, through the TS core', async () => {
+  it('runs the test probe on the core, which writes and then refuses (the caller rolls back)', async () => {
     const o = org();
 
     await expect(runMutation(o, 'probeWriteThenThrow', { songId: 'x' }, admin)).rejects.toMatchObject({ code: 'probe-failure' });
   });
 
-  it('knows every mutator of the TS core but the probe', async () => {
+  it('knows every mutator the shells may call', async () => {
     const o = org();
-    const names = Object.keys(mutators).filter((n) => n !== 'probeWriteThenThrow');
+    const names = Object.keys(MUTATOR_VERSIONS);
 
     const unknown: string[] = [];
     for (const name of names) await runMutation(o, name, {}, admin).catch((e: { code?: string }) => e.code === 'unknown-mutator' && unknown.push(name));
 
-    expect([names.length, unknown]).toEqual([97, []]);
+    expect([names.length, unknown]).toEqual([98, []]);
   });
 
   it('refuses a name no core knows as unknown-mutator', async () => {
@@ -106,15 +103,16 @@ describe('runMutation', () => {
 });
 
 describe('the schema through the Rust core', () => {
-  const tables = (db0: DatabaseSync) => db0.prepare("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY name").all();
+  it('makes every synced table with the columns the shells read and send', () => {
+    const db0 = new DatabaseSync(':memory:');
 
-  it('makes a new database as the TS core does', () => {
-    const [ts, rust] = [new DatabaseSync(':memory:'), new DatabaseSync(':memory:')];
-    migrateOrgSchemaSync((sql) => ts.prepare(sql).all() as never, (fn) => fn());
+    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, rowsOn(db0));
 
-    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, rowsOn(rust));
-
-    expect([tables(rust), rowsOf(rust, 'SELECT version FROM _schema')]).toEqual([tables(ts), [{ version: SCHEMA_VERSION }]]);
+    const columns = (t: string) => (db0.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
+    expect([tableInfo.filter((t) => t.columns.join() !== columns(t.name).join()).map((t) => t.name), rowsOf(db0, 'SELECT version FROM _schema')]).toEqual([
+      [],
+      [{ version: SCHEMA_VERSION }],
+    ]);
   });
 
   it('refuses a database from before the first schema as schema-too-old', () => {
@@ -124,6 +122,15 @@ describe('the schema through the Rust core', () => {
     const migrate = () => nodeRustCore().runSync('migrateOrgSchema', {}, undefined, rowsOn(db0));
 
     expect(migrate).toThrow(expect.objectContaining({ code: 'schema-too-old' }));
+  });
+
+  it('refuses a database newer than the app as schema-too-new', () => {
+    const db0 = new DatabaseSync(':memory:');
+    db0.exec(`CREATE TABLE _schema (one INTEGER PRIMARY KEY, version INTEGER NOT NULL); INSERT INTO _schema VALUES (1, ${SCHEMA_VERSION + 1}); CREATE TABLE songs (id TEXT)`);
+
+    const migrate = () => nodeRustCore().runSync('migrateOrgSchema', {}, undefined, rowsOn(db0));
+
+    expect(migrate).toThrow(expect.objectContaining({ code: 'schema-too-new' }));
   });
 
   it('seeds the default labels once', () => {

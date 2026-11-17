@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { SEED_SQL } from './seed-sql.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
-const [root, fixtures] = process.argv.slice(2);
+// The repository, the fixtures, and the reference (238d481b, unpacked by build.sh) whose schema the DO is set up with.
+const [root, fixtures, ref] = process.argv.slice(2);
+if (!ref) throw new Error('usage: workerd-check.mjs <repo> <fixtures> <reference>');
 const server = createRequire(join(root, 'apps/server/package.json'));
 const { build } = server('esbuild');
 const { Miniflare } = server('miniflare');
@@ -16,7 +18,7 @@ await build({
   entryPoints: [join(here, 'workerd/worker.js')],
   bundle: true, format: 'esm', platform: 'neutral', mainFields: ['module', 'main'], outfile: out, logLevel: 'warning',
   external: ['cloudflare:workers', './gp_core.wasm'],
-  alias: { 'gp-org-schema': join(root, 'packages/core/src/org-schema.ts') },
+  alias: { 'gp-org-schema': join(ref, 'packages/core/src/org-schema.ts') },
 });
 const mf = new Miniflare({
   modules: [

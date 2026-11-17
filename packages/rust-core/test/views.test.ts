@@ -1,21 +1,20 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { migrateOrgSchemaSync } from '@gp/core';
 import type { Rows } from '../src/index.ts';
 import { nodeRustCore } from '../src/node.ts';
 
-/** An organisation's database in memory with a song of two parts, and its statements as the core asks for them. */
+/** An organisation's database in memory, migrated by the core, with a song of two parts, and its statements as the core asks for them. */
 function org() {
   const db = new DatabaseSync(':memory:');
-  migrateOrgSchemaSync((sql) => db.prepare(sql).all() as never, (fn) => fn());
-  db.exec(`INSERT INTO songs (id, name) VALUES ('s1', 'Härlig är jorden')`);
-  db.exec(`INSERT INTO song_parts (id, song_id, sort, content) VALUES ('p1', 's1', 0, 'Första'), ('p2', 's1', 1, 'Andra')`);
-  const rows = async (sql: string, params: unknown[]) => {
+  const all = (sql: string, params: unknown[]) => {
     const st = db.prepare(sql);
     st.setReturnArrays(true);
     return st.all(...(params as never[])) as unknown as Rows;
   };
-  return { rows };
+  nodeRustCore().runSync('migrateOrgSchema', {}, undefined, all);
+  db.exec(`INSERT INTO songs (id, name) VALUES ('s1', 'Härlig är jorden')`);
+  db.exec(`INSERT INTO song_parts (id, song_id, sort, content) VALUES ('p1', 's1', 0, 'Första'), ('p2', 's1', 1, 'Andra')`);
+  return { rows: async (sql: string, params: unknown[]) => all(sql, params) };
 }
 
 const songItem = { id: 'i1', type: 'song', title: 'Härlig är jorden', sourceId: 's1', arrangementId: null, content: null };

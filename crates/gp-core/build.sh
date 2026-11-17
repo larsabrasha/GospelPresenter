@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the Rust core (WASM for the checks in Node, a static library for apps/mac) and the Mac app.
 #   crates/gp-core/build.sh          build
-#   crates/gp-core/build.sh test     build, then every parity check against the TS core (packages/core)
+#   crates/gp-core/build.sh test     build, then every parity check against the TS core (packages/core at 238d481b)
 #   crates/gp-core/build.sh run      build, then start the Mac app on a fresh copy of the demo data
 set -e
 cd "$(dirname "$0")"
@@ -10,16 +10,18 @@ ROOT=$(cd ../.. && pwd)
 OUT=$CRATE/parity/.out
 mkdir -p "$OUT/fixtures"
 
-# The TS core, bundled from packages/core: the reference every check compares with.
-sed "s|@REPO@|$ROOT|g" parity/ts-entry.template.ts > "$OUT/ts-entry.ts"
+# The reference every check compares with: 2.0's TS core and the web's reads as they were at 238d481b
+# (docs/rust-core.md "The reference"), taken from git, never from the app's packages/core, which no longer has them.
+REF=$OUT/ref-2.0
+rm -rf "$REF" && mkdir -p "$REF" && git -C "$ROOT" archive 238d481b apps/web/src packages/core/src packages/sync/src | tar -x -C "$REF"
+[ -f "$REF/packages/core/src/mutators/registry.ts" ] || { echo "the reference at 238d481b has no TS mutators" >&2; exit 1; }
 ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
-export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
+# Its packages (zod, drizzle-orm), from the workspace's.
+export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/server/node_modules:$ROOT/apps/web/node_modules
+sed "s|@REF@|$REF|g" parity/ts-entry.template.ts > "$OUT/ts-entry.ts"
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
-# The web's reads as 2.0 has them (238d481b, docs/rust-core.md "The reference"), with that commit's TS core: what the
-# views are compared with (views-check.mjs), kept whole while the app drops each read the core takes over.
-REF=$OUT/ref-2.0
-rm -rf "$REF" && mkdir -p "$REF" && git -C "$ROOT" archive 238d481b apps/web/src packages/core/src | tar -x -C "$REF"
+# The web's reads, with the reference's TS core: what the views are compared with (views-check.mjs).
 sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
 "$ESBUILD" "$OUT/web-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/web-queries.mjs" --log-level=warning \
   --alias:@gp/core="$REF/packages/core/src/index.ts"
@@ -27,8 +29,9 @@ sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
 # server's engine, for the sync check.
 SYNC_REFERENCE=75e7f234
 git -C "$ROOT" show "$SYNC_REFERENCE:packages/sync/src/client/client.ts" \
-  | sed "s|'./sqlite.ts'|'$ROOT/packages/sync/src/client/sqlite.ts'|; s|'./transport.ts'|'$ROOT/packages/sync/src/client/transport.ts'|" > "$OUT/reference-client.ts"
-sed "s|@REPO@|$ROOT|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
+  | sed "s|'./sqlite.ts'|'$REF/packages/sync/src/client/sqlite.ts'|; s|'./transport.ts'|'$REF/packages/sync/src/client/transport.ts'|; s|from '@gp/core'|from '$REF/packages/core/src/index.ts'|" \
+  > "$OUT/reference-client.ts"
+sed "s|@REPO@|$ROOT|g; s|@REF@|$REF|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
 NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-sync.mjs" --log-level=warning
 
 (cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \
@@ -52,13 +55,13 @@ case "$1" in
     mkdir -p "$OUT/native"
     GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
     node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"
-    node --no-warnings parity/workerd-check.mjs "$ROOT" "$OUT/fixtures"
+    node --no-warnings parity/workerd-check.mjs "$ROOT" "$OUT/fixtures" "$REF"
     # The browser: a Web Worker over wa-sqlite, in memory and on OPFS, in Chromium (a hidden Electron) and WebKit.
     mkdir -p "$OUT/browser"
     NODE_PATH=$ROOT/apps/web/node_modules:$ROOT/packages/sync/node_modules:$ROOT/packages/core/node_modules "$ESBUILD" parity/browser/worker.js \
       --bundle --format=esm --platform=browser --outfile="$OUT/browser/worker.js" --log-level=warning \
-      --alias:gp-wa-sqlite-api="$ROOT/packages/sync/src/client/wa-sqlite-api.ts" --alias:gp-org-schema="$ROOT/packages/core/src/org-schema.ts" \
-      --alias:gp-mutators="$ROOT/packages/core/src/mutators/registry.ts" --alias:gp-schema="$ROOT/packages/core/src/schema.ts"
+      --alias:gp-wa-sqlite-api="$ROOT/packages/sync/src/client/wa-sqlite-api.ts" --alias:gp-org-schema="$REF/packages/core/src/org-schema.ts" \
+      --alias:gp-mutators="$REF/packages/core/src/mutators/registry.ts" --alias:gp-schema="$REF/packages/core/src/schema.ts"
     WA=$(cd "$ROOT/apps/web" && node -p "require('path').join(require('path').dirname(require.resolve('@journeyapps/wa-sqlite')), '..', 'dist', 'wa-sqlite.wasm')")
     cp parity/browser/index.html "$OUT/gp_core.wasm" "$OUT/fixtures/parity.jsonl" "$OUT/fixtures/parity-final.json" "$WA" "$OUT/browser/"
     node --no-warnings parity/browser-check.mjs "$ROOT" chromium | grep -E "core|DIFF|error"

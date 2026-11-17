@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { can, mutators, remoteControlAllowed, remoteControlPolicy } from '@gp/core';
+import { can, remoteControlAllowed, remoteControlPolicy } from '@gp/core';
 
 // TODO.md "Remote control for the whole organisation".
 describe('remote control policy', () => {
@@ -29,9 +29,5 @@ describe('remote control policy', () => {
 
   it('is set only by admins', () => {
     expect([can('user', 'ManageOrganizationSettings'), can('admin', 'ManageOrganizationSettings'), can('superAdmin', 'ManageOrganizationSettings')]).toEqual([false, true, true]);
-  });
-
-  it('takes only the three choices as an argument', () => {
-    expect(mutators.setRemoteControl.args.safeParse({ policy: 'sometimes' }).success).toBe(false);
   });
 });

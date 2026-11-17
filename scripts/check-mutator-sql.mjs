@@ -1,18 +1,18 @@
 // Part of `pnpm lint`: mutators never replace a row. INSERT OR REPLACE (or
 // REPLACE INTO) deletes the row it conflicts with without firing the delete
 // triggers, so the client's undo log keeps no pre-image of it and a rebase
-// would lose the row (packages/core/src/sync-sql.ts). Upserts are fine.
+// would lose the row (the triggers of crates/gp-core's sync.rs). Upserts are fine.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Every .ts file under packages/core/src/mutators/, so a new domain file is checked too.
-const dir = fileURLToPath(new URL('../packages/core/src/mutators/', import.meta.url));
+// Every .rs file under the Rust core's mutators (crates/gp-core/src/mutators/), so a new domain file is checked too.
+const dir = fileURLToPath(new URL('../crates/gp-core/src/mutators/', import.meta.url));
 const files =
   process.argv.length > 2
     ? process.argv.slice(2)
     : readdirSync(dir, { recursive: true })
-        .filter((f) => f.endsWith('.ts'))
+        .filter((f) => f.endsWith('.rs'))
         .map((f) => join(dir, f));
 if (!files.length) {
   console.error(`no mutator files found in ${dir}`);
@@ -33,7 +33,7 @@ for (const file of files) {
   code.split('\n').forEach((line, i) => {
     for (const [re, what] of forbidden) {
       if (re.test(line)) {
-        console.error(`${file}:${i + 1}: ${what} in a mutator: use an upsert (onConflictDoUpdate) or select, then insert or update`);
+        console.error(`${file}:${i + 1}: ${what} in a mutator: use an upsert (ON CONFLICT … DO UPDATE) or select, then insert or update`);
         failed = true;
       }
     }

@@ -1,8 +1,6 @@
 import {
-  LOAD_BIBLE_TEXT_SQL,
   type Bible,
   type CcliEntry,
-  type BibleBookText,
   type Display,
   type LibraryAudio,
   type LibraryVideo,
@@ -20,7 +18,7 @@ import type { ReadDb } from './share.ts';
 
 // The pages' reads: the Rust core's views (docs/rust-core.md, 2.5 step 3), which give the core's row types as the
 // pages use them, and the orders by name in the page's language, which are the shell's (Intl.Collator). A Bible's text
-// is read here, from where this device keeps it, as a picture's bytes are (blobUrls.ts).
+// is read a book or a chapter at a time through the core's bibleView (BibleTab.tsx).
 
 /** `localeCompare(…, locale, { sensitivity: 'base' })` in the page's language, made once: making it per call cost 86 ms to sort 3 000 songs. */
 const byLocale = new Intl.Collator(locale(), { sensitivity: 'base' }).compare;
@@ -97,49 +95,6 @@ export interface InstalledBible extends Bible {
 /** The organisation's translations, by name (BIBLE-R8): the core's rows (biblesView), in the page's order. */
 export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
   return (await db.view<InstalledBible[]>('biblesView', {})).toSorted((a, b) => byLocale(a.name, b.name) || a.id.localeCompare(b.id));
-}
-
-/**
- * Parsed texts, by hash, the last used last: a text never changes, so it is
- * read and parsed once, but only the last few are held, as each is megabytes.
- */
-const texts = new Map<string, Promise<BibleBookText[] | null>>();
-const TEXTS_HELD = 3;
-
-/** Drops a text that came to nothing, unless it was let go and asked for again meanwhile. */
-function forget(hash: string, asked: Promise<BibleBookText[] | null>) {
-  if (texts.get(hash) === asked) texts.delete(hash);
-}
-
-/**
- * A translation's books, or null while this device does not have the text.
- * `fetch` gets a text the device does not keep from the server, unstored
- * (`Db.fetchBibleText`); it is then held in this window only.
- */
-export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => Promise<BibleBookText[] | null>): Promise<BibleBookText[] | null> {
-  let p = texts.get(hash);
-  if (p) {
-    texts.delete(hash);
-    texts.set(hash, p);
-  } else {
-    p = (async () => {
-      const rows = await db.query<{ code: string; chunk: string }>(LOAD_BIBLE_TEXT_SQL, [hash]);
-      if (!rows.length) return fetch ? fetch(hash) : null;
-      return rows.map((r) => ({ code: r.code, verses: JSON.parse(r.chunk) as BibleBookText['verses'] }));
-    })();
-    texts.set(hash, p);
-    for (const old of texts.keys()) {
-      if (texts.size <= TEXTS_HELD) break;
-      texts.delete(old);
-    }
-    // Not there yet: ask again next time rather than remember the absence.
-    const asked = p;
-    void p.then(
-      (books) => books ?? forget(hash, asked),
-      () => forget(hash, asked),
-    );
-  }
-  return p;
 }
 
 export const orgDefaultThemeId = (db: ReadDb): Promise<string | null> => db.view<string | null>('defaultThemeIdView', {});
