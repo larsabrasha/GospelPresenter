@@ -1,5 +1,7 @@
-// What the sync check takes from the TS app: the client as it is, the server's engine, and the SQL they share.
+// What the sync check takes from the TS app: the client on the Rust core as it is, the TS client before it was switched
+// (the reference, frozen by build.sh from git), the server's engine, and the SQL they share.
 export { SyncClient } from '@REPO@/packages/sync/src/client/client.ts';
+export { SyncClient as ReferenceSyncClient } from './reference-client.ts';
 export { openNodeSqliteClient } from '@REPO@/packages/sync/src/client/node-sqlite-db.ts';
 export { handlePush, handlePull } from '@REPO@/packages/sync/src/server/engine.ts';
 export { RustCore } from '@REPO@/packages/rust-core/src/index.ts';

@@ -1,12 +1,12 @@
-// node parity/sync/check.mjs [--steps N] [--seeds N]: sync's client logic, the Rust core's against the TS SyncClient.
-// Device A runs twice, the TS client against a real server engine and the Rust core's commands fed the very pages
-// it got; device B changes the same library meanwhile, conflicting edits among them. Each step one of: a change on A,
+// node parity/sync/check.mjs [--steps N] [--seeds N]: the SyncClient on the Rust core's sync commands against the TS
+// SyncClient as it was before the switch (frozen by build.sh). Device A runs twice, the reference against a real
+// server engine and the client on the core given the very answers the reference got, each of its requests checked
+// against the reference's; device B changes the same library meanwhile, conflicting edits among them. Each step one of: a change on A,
 // a change on B, B syncing, A pushing or pulling through a network that loses answers, goes offline and refuses
 // ("update required", signed out), A's role changing (the server resets A's copy). After every step A's two databases
 // (every table, the queue, `_sync_meta`, `_undo`), the push A would send, the mutations the server rejected and the
-// tables each change reported must be the same.
-import { PROTOCOL_VERSION, SCHEMA_VERSION } from '../.out/ts-sync.mjs';
-import { clock, dumpAll, openRustClient, openServer, openTsClient, schemaOf, transport, tsDump, tsSchema } from './world.mjs';
+// tables each change reported, and whether the client stopped, must be the same.
+import { clock, dumpAll, openClient, openServer, replay, schemaOf, transport } from './world.mjs';
 import { rng, tools } from '../mutations/tools.mjs';
 import { KNOWN, SEED } from '../mutations/seed.mjs';
 
@@ -32,14 +32,13 @@ async function seedRun(s) {
   const ctxA = { userId: 'uA', role: s % 4 === 0 ? 'user' : 'admin' }, ctxB = { userId: 'uB', role: 'admin' };
   let fate = 'through';
   const tA = transport(store, ctxA, () => fate);
-  const A = await openTsClient(tA, ctxA, 'clientA');
-  const R = await openRustClient(ctxA, 'clientA');
-  const B = await openTsClient(transport(store, ctxB), ctxB, 'clientB');
-  await A.client.localWrite(localBlobs);
-  for (const b of localBlobs) R.db.prepare(b.sql).run(...b.params);
-  R.db.exec('DELETE FROM temp.changed_tables'); // as localWrite forgets them
+  let replayed = replay([], differ);
+  const A = await openClient({ reference: true, transport: tA, ctx: ctxA, clientId: 'clientA' });
+  const R = await openClient({ reference: false, transport: { post: (path, body) => replayed.post(path, body) }, ctx: ctxA, clientId: 'clientA' });
+  const B = await openClient({ reference: true, transport: transport(store, ctxB), ctx: ctxB, clientId: 'clientB' });
+  for (const c of [A, R]) await c.client.localWrite(localBlobs);
   const genA = tools(random, R.db), genB = tools(random, serverDb);
-  if (await tsSchema(A.client) !== schemaOf(R.db)) differ('open: different schema', '', '');
+  if (schemaOf(A.db) !== schemaOf(R.db)) differ('open: different schema', '', '');
 
   for (let step = 1; step <= STEPS; step++) {
     clock.now += 1000;
@@ -49,7 +48,7 @@ async function seedRun(s) {
       const input = JSON.parse(JSON.stringify((random() < 0.4 ? generators[0] : genA.pick(generators))(genA, step)));
       if (!input.name) continue; // a step of the shell's own (a Bible text stored): not a change
       kind = 'A change';
-      const [ra, rb] = [await settle(A.client.mutate(input.name, input.args)), await settle(R.mutate(input.name, input.args))];
+      const [ra, rb] = [await settle(A.client.mutate(input.name, input.args)), await settle(R.client.mutate(input.name, input.args))];
       note(`A change ${ra}`);
       if (ra !== rb) differ(`A change ${input.name}: TS ${ra}, Rust ${rb}`, input, '');
     } else if (q < 0.6) {
@@ -62,29 +61,29 @@ async function seedRun(s) {
     } else if (q < 0.99) {
       kind = random() < 0.35 ? 'A push' : 'A pull'; // pulls more often than pushes, so a change waits in the queue
       fate = pickFate(random);
-      const sent = tA.sent.length, seen = tA.seen.length;
-      const done = await settle(kind === 'A push' ? A.client.push() : A.client.pull());
-      const stopped = A.client.stopped;
-      note(`${kind} ${fate}${stopped ? ' (refused)' : ''}${fate === 'through' && done !== 'ok' ? `: ${done}` : ''}`);
-      if (kind === 'A push') await comparePush(R, tA.sent.slice(sent), step);
-      else if (done === 'ok' && !stopped) await R.rebase(tA.seen.slice(seen).map((x) => x.answer.body));
-      A.client.updateRequired = false; // as when the app is updated or signed in again
-      A.client.authError = null;
+      const from = tA.log.length;
+      const call = (c) => settle(kind === 'A push' ? c.client.push() : c.client.pull());
+      const ra = await call(A);
+      replayed = replay(tA.log.slice(from), differ);
+      const rb = await call(R);
+      note(`${kind} ${fate}${A.client.stopped ? ' (refused)' : ''}${fate === 'through' && ra !== 'ok' ? `: ${ra}` : ''}`);
+      if (ra !== rb || !replayed.done || A.client.stopped !== R.client.stopped) differ(`${kind}: TS ${ra}, Rust ${rb}${replayed.done ? '' : ', fewer requests'}`, '', '');
+      for (const c of [A, R]) {
+        c.client.updateRequired = false; // as when the app is updated or signed in again
+        c.client.authError = null;
+      }
       fate = 'through';
     } else {
       kind = 'A role';
       ctxA.role = ctxA.role === 'admin' ? 'user' : 'admin'; // the server resets A's copy at its next pull
     }
-    const [x, y] = [await tsDump(A.client), dumpAll(R.db)];
+    const [x, y] = [dumpAll(A.db), dumpAll(R.db)];
     if (x !== y) { differ(`${kind}: different rows`, '', firstDifference(x, y)); break; }
-    if (canon(A.client.rejected) !== canon(R.rejected)) { differ(`${kind}: different rejections`, JSON.stringify(A.client.rejected.slice(-4)), JSON.stringify(R.rejected.slice(-4))); break; }
+    if (canon(A.client.rejected) !== canon(R.client.rejected)) { differ(`${kind}: different rejections`, JSON.stringify(A.client.rejected.slice(-4)), JSON.stringify(R.client.rejected.slice(-4))); break; }
     if (JSON.stringify(A.changes) !== JSON.stringify(R.changes)) { differ(`${kind}: different tables reported`, JSON.stringify(A.changes.at(-1)), JSON.stringify(R.changes.at(-1))); break; }
   }
-  return { rows: JSON.parse(dumpAll(R.db)).reduce((n, [, r]) => n + r.length, 0), queued: R.db.prepare('SELECT count(*) AS n FROM _mutation').get().n, refused: R.replaysRefused ?? 0 };
+  return { rows: JSON.parse(dumpAll(R.db)).reduce((n, [, r]) => n + r.length, 0), queued: R.db.prepare('SELECT count(*) AS n FROM _mutation').get().n };
 }
-
-/** JSON with every object's keys in order: the rejections compare by content (the core's JSON sorts its keys). */
-const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).toSorted()) : x));
 
 /**
  * B takes away what A's queued changes name (an overlay, an arrangement, a song, a picture, a slideshow), so a change
@@ -101,6 +100,9 @@ function takeAway({ pick, idsOf }) {
   ])();
 }
 
+/** JSON with every object's keys in order: the rejections compare by content (the core's JSON sorts its keys). */
+const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).toSorted()) : x));
+
 function pickFate(random) {
   const r = random();
   return r < 0.75 ? 'through' : r < 0.83 ? 'lost' : r < 0.9 ? 'offline' : r < 0.95 ? 'update' : 'signed-out';
@@ -112,14 +114,6 @@ async function settle(promise) {
     const sqlite = e.cause?.code === 'ERR_SQLITE_ERROR' ? e.cause.message : /^sql-error: (.*)/.exec(e.code ?? '')?.[1];
     return sqlite !== undefined ? `sql-error: ${sqlite}` : e.code ?? `crash: ${e.message}`;
   }
-}
-
-/** What A's TS client sent, if it had anything to send, against the push the Rust A would send. */
-async function comparePush(R, sent, step) {
-  const want = sent.find((x) => x.path.endsWith('/push'))?.req ?? null;
-  const got = await R.pushRequest(PROTOCOL_VERSION, SCHEMA_VERSION);
-  const same = want ? JSON.stringify(want) === JSON.stringify(got) : got.mutations.length === 0;
-  if (!same) differ('A push: a different queue sent', JSON.stringify(want).slice(0, 300), JSON.stringify(got).slice(0, 300) + ` (step ${step})`);
 }
 
 function differ(kind, a, b) {
@@ -140,8 +134,8 @@ function firstDifference(x, y) {
 
 const t0 = performance.now();
 for (let s = 1; s <= SEEDS; s++) {
-  const { rows, queued, refused } = await seedRun(s);
-  console.log(`seed ${s}: ${rows} rows on A, ${queued} queued at the end, ${refused} replays refused`);
+  const { rows, queued } = await seedRun(s);
+  console.log(`seed ${s}: ${rows} rows on A, ${queued} queued at the end`);
 }
 console.log(`sync: ${STEPS * SEEDS} steps over ${SEEDS} seeds in ${((performance.now() - t0) / 1000).toFixed(0)} s; ${Object.entries(tally).toSorted().map(([k, n]) => `${k} ${n}`).join(', ')}`);
 console.log(differences.size ? `  ${differences.size} kinds of difference:` : '  no differences');

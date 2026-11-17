@@ -66,16 +66,20 @@ export class RustCore {
     return decoder.decode(new Uint8Array(this.core.memory.buffer, this.core.gp_out_ptr(), this.core.gp_out_len()));
   }
 
-  /** One call of the core: yields each statement it asks for and takes its rows; ends done, or throws the refusal. */
-  private *call(name: string, args: unknown, ctx: MutatorCtx | undefined): Generator<Ask, void, Rows> {
+  /**
+   * One call of the core: yields each statement it asks for and takes its rows, or `{ error }` for one the shell's
+   * SQLite refused; ends with the core's answer (JSON text, empty for none), or throws the refusal.
+   */
+  private *call(name: string, args: unknown, ctx: MutatorCtx | undefined): Generator<Ask, string, Rows | { error: string }> {
     try {
       const who = ctx && { userId: ctx.userId, role: ctx.role, now: ctx.now };
       let status = this.core.gp_start(...this.pass(json({ name, args, ctx: who ?? {} })));
       while (status === WANTS_SQL) {
-        const rows: Rows = yield JSON.parse(this.said()) as Ask;
+        const rows = yield JSON.parse(this.said()) as Ask;
         status = this.core.gp_resume(...this.pass(json(rows)));
       }
       if (status !== DONE) throw new MutationError(this.said());
+      return this.said();
     } catch (e) {
       // A trap (a panic in the core) leaves the instance unusable: the next call gets a fresh one.
       if (e instanceof WebAssembly.RuntimeError) this.instance = undefined;
@@ -84,16 +88,32 @@ export class RustCore {
   }
 
   /**
-   * Runs the command `name` (a mutator, or the schema's `migrateOrgSchema` and `seedLabels`) to its end in the
-   * caller's transaction, every statement through `sql`. Done, or a refusal thrown as MutationError with the core's
-   * code, as runMutator throws one (invalid arguments included).
+   * Runs the command `name` (a mutator, the schema's `migrateOrgSchema` and `seedLabels`, sync's `sync…`) to its end
+   * in the caller's transaction, every statement through `sql`. Its answer (sync's commands have one), or a refusal
+   * thrown as MutationError with the core's code, as runMutator throws one (invalid arguments included). A statement
+   * `sql` throws for is told to the core, which runs nothing more and is refused (the error is thrown as it was), or,
+   * replaying a sync queue, rolls that change back and goes on.
    */
-  run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<void> {
+  run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<unknown> {
     return this.queue.run(async () => {
       this.busy = true;
+      let failed: unknown;
       try {
         const steps = this.call(name, args, ctx);
-        for (let step = steps.next(); !step.done; ) step = steps.next(await sql(step.value.sql, step.value.params));
+        let step = steps.next();
+        while (!step.done) {
+          let rows: Rows | { error: string };
+          try {
+            rows = await sql(step.value.sql, step.value.params);
+          } catch (e) {
+            failed ??= e;
+            rows = { error: e instanceof Error ? e.message : String(e) };
+          }
+          step = steps.next(rows);
+        }
+        return step.value ? (JSON.parse(step.value) as unknown) : undefined;
+      } catch (e) {
+        throw failed !== undefined && e instanceof MutationError && e.code.startsWith('sql-error') ? failed : e;
       } finally {
         this.busy = false;
       }
@@ -125,6 +145,6 @@ export interface MutationDb {
  * with the refusal's code. A name neither core knows is refused as `unknown-mutator`.
  */
 export function runMutation(on: MutationDb, name: string, args: unknown, ctx: MutatorCtx): Promise<void> {
-  if (!TS_MUTATORS.has(name)) return on.core.run(name, args, ctx, on.rows);
+  if (!TS_MUTATORS.has(name)) return on.core.run(name, args, ctx, on.rows).then(() => undefined);
   return runMutator(getMutator(name)!, on.db, args, ctx);
 }

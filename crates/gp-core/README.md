@@ -12,9 +12,11 @@ two drifting apart. The TypeScript core (`packages/core`) is still the app's; ev
 - `src/sync.rs`, `src/sync_sql.rs` — sync's client logic (SyncClient's): the commands `syncOpen` (outside a transaction),
   `syncMutate` (a change run and queued), `syncPending` (the queue to send) and `syncRebase` (the server's pages), each
   of the others in one transaction of the shell's. A statement the shell's SQLite refuses is answered `{"error": …}`.
-- `parity/sync/check.mjs` — sync against the TS SyncClient: device A as the TS client against a real server engine and
-  as the Rust core fed the same pages, device B changing the same library, a network that loses answers and refuses;
-  every table, the queue, the push and the rejections compared after every step.
+- `parity/sync/check.mjs` — the app's SyncClient, now on the core's sync, against the TS SyncClient as it was before
+  (frozen by `build.sh` from commit 75e7f234): device A as the reference against a real server engine and as the app's
+  client given the same answers, its requests checked against the reference's; device B changing the same library; a
+  network that loses answers and refuses. Every table, the queue, the rejections and the tables reported compared
+  after every step.
 - `parity/` — the checks against the TS core: random mutations through both cores on two SQLite files (`diff.mjs`),
   slides against `songSlides` and `bibleItemSlides` (`demo-seed.mjs`), presenting against the web's (`live-check.mjs`),
   and the native library's outcomes and rows (`export.mjs`, `compare-final.mjs`, with `apps/mac`'s `parity`).

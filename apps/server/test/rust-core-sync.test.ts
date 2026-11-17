@@ -26,8 +26,10 @@ describe.each(adapters)('%s adapter: the Rust core', (adapterName) => {
       ['H', 'Lovsång', null],
     ]);
     await fx.expectConverged(fx.alice, fx.bob);
-    // The server's calls have its clock in ctx (handlePush); a Worker's run in workerd, out of this process's sight.
-    const where = new Set(ran.mock.calls.map(([name, , ctx]) => `${(ctx as MutatorCtx | undefined)?.now === undefined ? 'client' : 'server'} ${name}`));
+    // The server's calls have its clock in ctx (handlePush); a Worker's run in workerd, out of this process's sight. A
+    // client runs a change through the core's sync queue (`syncMutate`), the mutator named in its arguments.
+    const mutator = (name: string, args: unknown) => (name === 'syncMutate' ? (args as { mutator: string }).mutator : name);
+    const where = new Set(ran.mock.calls.map(([name, args, ctx]) => `${(ctx as MutatorCtx | undefined)?.now === undefined ? 'client' : 'server'} ${mutator(name, args)}`));
     expect(where.has('client addHeaderToPresentation')).toBe(true);
     expect(where.has('server addHeaderToPresentation')).toBe(adapterName !== 'workers');
   });

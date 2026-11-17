@@ -16,6 +16,7 @@ mod media_items;
 mod org_settings;
 mod overlays;
 pub mod presentations;
+mod probe;
 mod song_import;
 mod song_materials;
 mod songs;
@@ -119,6 +120,6 @@ pub async fn mutate(name: &str, a: &Obj, ctx: &Ctx) -> R<()> {
     // Each file's dispatcher in turn: the first that knows the name runs it.
     macro_rules! dispatch { ($($file:ident),*) => { $( if let Some(done) = $file::run(name, a, ctx).await { return done } )* } }
     dispatch!(presentations, songs, arrangements, labels, song_materials, history, templates, custom_slides, themes, bibles_and_themes,
-        overlays, displays, ccli, org_settings, trash, media);
+        overlays, displays, ccli, org_settings, trash, media, probe);
     Err("unknown-mutator".into())
 }

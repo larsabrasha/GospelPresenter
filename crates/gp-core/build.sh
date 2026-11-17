@@ -16,7 +16,11 @@ ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
 export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
-# The TS SyncClient and the server's engine, for the sync check.
+# The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the
+# server's engine, for the sync check.
+SYNC_REFERENCE=75e7f234
+git -C "$ROOT" show "$SYNC_REFERENCE:packages/sync/src/client/client.ts" \
+  | sed "s|'./sqlite.ts'|'$ROOT/packages/sync/src/client/sqlite.ts'|; s|'./transport.ts'|'$ROOT/packages/sync/src/client/transport.ts'|" > "$OUT/reference-client.ts"
 sed "s|@REPO@|$ROOT|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
 NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-sync.mjs" --log-level=warning
 
