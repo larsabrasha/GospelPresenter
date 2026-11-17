@@ -13,6 +13,7 @@ mod rows;
 mod schema;
 mod search;
 mod slides;
+mod song_views;
 mod sync;
 mod sync_sql;
 mod theme_def;

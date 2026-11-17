@@ -93,11 +93,8 @@ async function rustCore(): Promise<RustCore> {
   return new RustCore(await compiledCore);
 }
 
-/** The client's core, for its views as for its mutators. */
-let core: RustCore | undefined;
-
-/** A view of the core, read from one state of the database (`SyncClient.read`). */
-const view = (name: string, args: unknown) => client!.read((rows) => core!.view(name, args, rows));
+/** A view of the core, read from one state of the database (`SyncClient.view`). */
+const view = (name: string, args: unknown) => client!.view(name, args);
 
 async function status(): Promise<DbStatus> {
   return {
@@ -364,11 +361,10 @@ async function handle(call: DbCall): Promise<unknown> {
       server = call.server;
       const s = call.session;
       const sqlite = await openDb(dbFileName(s), s);
-      const theCore = (core = await rustCore());
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: server, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
-        core: theCore,
+        core: await rustCore(),
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
       });
       client = c;

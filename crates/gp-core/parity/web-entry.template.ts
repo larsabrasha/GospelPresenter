@@ -11,9 +11,11 @@ export {
   itemsOf,
   listDisplays,
   listOverlays,
+  listSongs,
   orgRemoteControl,
   shownOverlay,
   songsById,
   themeOf,
 } from '@REF@/apps/web/src/db/queries.ts';
 export { BUILT_IN_THEMES } from '@REF@/packages/core/src/themes.ts';
+export { prepareSong, rankSongs } from '@REF@/packages/core/src/search.ts';

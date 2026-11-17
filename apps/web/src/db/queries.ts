@@ -100,9 +100,12 @@ const byLocale = new Intl.Collator(locale(), { sensitivity: 'base' }).compare;
 
 const byName = (a: Song, b: Song) => byLocale(a.name, b.name);
 
-/** The library, by name, without the trash (spec 02: culture-aware, case-insensitive). */
+/**
+ * The library, by name, without the trash (spec 02: culture-aware, case-insensitive): the core's rows (songsView), in
+ * the table's order, sorted by name in the page's language, as the shell's to choose.
+ */
 export async function listSongs(db: ReadDb): Promise<Song[]> {
-  return (await db.query('SELECT * FROM songs WHERE deleted_at IS NULL')).map(song).toSorted(byName);
+  return (await db.view<Song[]>('songsView', {})).toSorted(byName);
 }
 
 /** A song's arrangements, in order: the first is the default (SONG-R19). */

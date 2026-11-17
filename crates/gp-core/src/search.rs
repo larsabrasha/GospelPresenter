@@ -1,4 +1,5 @@
 // packages/core/src/search.ts (spec 02, SONG-R30–R33): every term starts a word; accents are a fallback; ranked.
+use crate::args::{is_js_space, js_trim};
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::UnicodeNormalization;
 
@@ -12,27 +13,36 @@ fn fold(s: &str) -> String {
     s.chars().map(|c| { let mut b = c.nfd().filter(|d| !is_combining_mark(*d)); match (b.next(), b.next()) { (Some(x), None) => x, _ => c } }).collect()
 }
 
+/// Every run of JavaScript's white space (`\s`) as one space.
 fn spaced(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_space = false;
     for c in s.chars() {
-        if c.is_whitespace() { if !in_space { out.push(' ') } in_space = true } else { out.push(c); in_space = false }
+        if is_js_space(c) { if !in_space { out.push(' ') } in_space = true } else { out.push(c); in_space = false }
     }
     out
+}
+
+/// `/[\p{L}\p{N}]/` on the UTF-16 unit before a match, as the web tests it: a letter or a digit of the BMP. A character
+/// past the BMP is two units, of which the second is no letter. Letters are the Alphabetic property without what
+/// Other_Alphabetic adds to it: marks (U+0345, the vowel signs of Indic scripts) and the circled letters.
+fn word_char(c: char) -> bool {
+    if c as u32 > 0xFFFF { return false }
+    c.is_numeric() || (c.is_alphabetic() && !is_combining_mark(c) && !('\u{24B6}'..='\u{24E9}').contains(&c))
 }
 
 fn first_prefix(text: &str, term: &str) -> Option<usize> {
     let mut from = 0;
     while let Some(off) = text[from..].find(term) {
         let i = from + off;
-        if i == 0 || !text[..i].chars().next_back().unwrap().is_alphanumeric() { return Some(i) }
+        if i == 0 || !word_char(text[..i].chars().next_back().unwrap()) { return Some(i) }
         from = i + text[i..].chars().next().unwrap().len_utf8();
     }
     None
 }
 
 pub fn prepare(name: &str, author: &str, first_part: &str, lyrics: &str) -> Prepared {
-    let title = spaced(lower(name).trim());
+    let title = spaced(js_trim(&lower(name)));
     let first = spaced(&lower(first_part));
     let all = spaced(&lower(&[name, author, lyrics].join("\n")));
     Prepared { title_f: fold(&title), first_f: fold(&first), all_f: fold(&all), title, first, all }
@@ -66,7 +76,8 @@ fn bonus(p: &Prepared, ts: &[String]) -> f64 {
 
 /// The indices of the songs that match every term, best first; all of them, in order, for a blank query.
 pub fn rank(songs: &[Prepared], query: &str) -> Vec<usize> {
-    let ts: Vec<String> = lower(query).split_whitespace().map(String::from).collect();
+    // `terms`: lowered, trimmed and split on white space as JavaScript reads it.
+    let ts: Vec<String> = js_trim(&lower(query)).split(is_js_space).filter(|t| !t.is_empty()).map(String::from).collect();
     if ts.is_empty() { return (0..songs.len()).collect() }
     let folded: Vec<String> = ts.iter().map(|t| fold(t)).collect();
     let mut hits: Vec<(usize, f64)> = Vec::new();

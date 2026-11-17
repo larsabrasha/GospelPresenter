@@ -138,11 +138,11 @@ export class SyncClient {
   }
 
   /**
-   * Runs `fn` with the local database's statements, rows as arrays, serialised with every write: a view of the
-   * Rust core (`RustCore.view`) reads one state of the database. For reads only, as `query`.
+   * What the Rust core's view `name` shows (`RustCore.view`, docs/rust-core.md 2.5 step 3), read from one state of
+   * the database: serialised with every write. A refusal is thrown as MutationError with the core's code.
    */
-  read<T>(fn: (rows: (sql: string, params: unknown[]) => Promise<unknown[][]>) => Promise<T>): Promise<T> {
-    return this.lock.run(() => fn(async (sql, params) => (await this.sqlite.query(sql, params)).rows));
+  view<T>(name: string, args: unknown): Promise<T> {
+    return this.lock.run(() => this.opts.core.view<T>(name, args, async (sql, params) => (await this.sqlite.query(sql, params)).rows));
   }
 
   private async meta() {
