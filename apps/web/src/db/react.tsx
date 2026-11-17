@@ -46,6 +46,11 @@ export function useData<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unkn
   return useDataOf(load, deps);
 }
 
+/** `useData` that loads again only when a change wrote one of `tables`: a view of the core, which names what it reads. */
+export function useDataReading<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[], tables: readonly string[]): T | undefined {
+  return useDataOf(load, deps, tables);
+}
+
 /**
  * `useData` that loads again only when a change wrote one of `tables`, every
  * table `load` reads (or the change does not say what it wrote). For the song

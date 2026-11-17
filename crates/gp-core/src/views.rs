@@ -16,6 +16,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "liveView" => crate::live::run(a).await,
         "searchSongsView" => Ok(songs(a.get("query").and_then(|q| q.as_str()).unwrap_or("")).await),
         "itemSlidesView" => crate::item_views::item_slides(a).await,
+        "presentationPageView" => crate::presentation_page::view(a).await,
         "presentingKeyView" => crate::presenting::key(a),
         "slideMarksView" => crate::presenting::marks(a),
         _ => return None,

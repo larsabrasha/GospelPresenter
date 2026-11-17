@@ -179,7 +179,7 @@ const itemOf = ({ id, type, title, sourceId, arrangementId, content }: Presentat
  * database (`itemSlidesView`, as `readItemSlides`). Reads songs, song_parts, song_arrangements, labels, audios,
  * videos, custom_slides and images.
  */
-export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
+async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
   if (!items.length) return new Map();
   const byId = await db.view<Record<string, ItemSlides>>('itemSlidesView', { items: items.map(itemOf) });
   return new Map(items.map((i) => [i.id, byId[i.id]!]));

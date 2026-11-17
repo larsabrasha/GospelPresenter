@@ -16,6 +16,13 @@ ESBUILD=$ROOT/apps/desktop/node_modules/.bin/esbuild
 export NODE_PATH=$ROOT/packages/core/node_modules:$ROOT/apps/web/node_modules
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-core.mjs" --log-level=warning
 "$ESBUILD" "$OUT/ts-entry.ts" --bundle --format=esm --platform=browser --minify --outfile="$OUT/ts-core.min.mjs" --log-level=warning
+# The web's reads as 2.0 has them (238d481b, docs/rust-core.md "The reference"), with that commit's TS core: what the
+# views are compared with (views-check.mjs), kept whole while the app drops each read the core takes over.
+REF=$OUT/ref-2.0
+rm -rf "$REF" && mkdir -p "$REF" && git -C "$ROOT" archive 238d481b apps/web/src packages/core/src | tar -x -C "$REF"
+sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
+"$ESBUILD" "$OUT/web-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/web-queries.mjs" --log-level=warning \
+  --alias:@gp/core="$REF/packages/core/src/index.ts"
 # The TS SyncClient and the server's engine, for the sync check.
 sed "s|@REPO@|$ROOT|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
 NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-sync.mjs" --log-level=warning

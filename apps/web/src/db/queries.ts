@@ -160,12 +160,6 @@ export async function songVersionsOf(db: ReadDb, songId: string): Promise<SongVe
   return (await db.query('SELECT * FROM song_versions WHERE song_id = ? ORDER BY created_at DESC, id DESC', [songId])).map(version);
 }
 
-export async function songsById(db: ReadDb, ids: string[]): Promise<Map<string, Song>> {
-  if (!ids.length) return new Map();
-  const rows = await db.query(`SELECT * FROM songs WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
-  return new Map(rows.map(song).map((s) => [s.id, s]));
-}
-
 export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
   return new Map((await db.query('SELECT * FROM labels ORDER BY sort, text')).map(label).map((l) => [l.id, l]));
 }

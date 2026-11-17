@@ -3,11 +3,13 @@
 //   node parity/views-check.mjs <demo.sqlite>
 import { DatabaseSync } from 'node:sqlite';
 import presentation from './views/presentation.mjs';
+import presentationPage from './views/presentation-page.mjs';
 
 const db = new DatabaseSync(process.argv[2]);
 let failed = 0;
-for (const [page, check] of Object.entries({ presentation })) {
-  const { compared, differ, notes } = await check(db);
+for (const [page, check] of Object.entries({ presentation, presentationPage })) {
+  // Each check is given the database, and its file for a check that adds rows to a copy of it.
+  const { compared, differ, notes } = await check(db, process.argv[2]);
   failed += differ.length;
   console.log(`views ${page}: ${notes.join(', ')}; ${compared} compared, ${differ.length} different`);
   for (const d of differ.slice(0, 3)) console.log(`  DIFF ${d}`);
