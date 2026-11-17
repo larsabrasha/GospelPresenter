@@ -2,7 +2,6 @@ import {
   CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
-  resolveTheme,
   themeOfRow,
   type Bible,
   type CcliEntry,
@@ -17,9 +16,7 @@ import {
   type RemoteControlPolicy,
   type Song,
   type SongArrangement,
-  type SongMaterial,
   type SongPart,
-  type SongVersion,
   type Theme,
 } from '@gp/core';
 import { locale } from '../i18n.ts';
@@ -85,14 +82,6 @@ const arrangement = (r: Row): SongArrangement => ({
   sort: Number(r.sort),
 });
 
-const version = (r: Row): SongVersion => ({
-  id: String(r.id),
-  songId: String(r.song_id),
-  userId: String(r.user_id),
-  createdAt: Number(r.created_at),
-  name: String(r.name),
-  data: String(r.data),
-});
 const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });
 
 /** `localeCompare(…, locale, { sensitivity: 'base' })` in the page's language, made once: making it per call cost 86 ms to sort 3 000 songs. */
@@ -115,34 +104,6 @@ export async function arrangementsOf(db: ReadDb, songIds: string[]): Promise<Son
   return rows.map(arrangement);
 }
 
-/** The sheet music, recordings and links of songs, each song's in its order (spec 02 "Song material"). */
-export async function songMaterialsOf(db: ReadDb, songIds: string[]): Promise<SongMaterial[]> {
-  if (!songIds.length) return [];
-  const rows = await db.query(`SELECT * FROM song_materials WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
-  return rows.map((r) => ({
-    id: String(r.id),
-    songId: String(r.song_id),
-    kind: String(r.kind),
-    title: String(r.title),
-    url: (r.url as string | null) ?? null,
-    hash: (r.hash as string | null) ?? null,
-    contentType: (r.content_type as string | null) ?? null,
-    size: r.size === null || r.size === undefined ? null : Number(r.size),
-    sort: Number(r.sort),
-    createdAt: Number(r.created_at),
-  }));
-}
-
-/** The presentations and templates (not in the trash) that have an item showing the song (D17). */
-export async function presentationsUsing(db: ReadDb, songId: string): Promise<Presentation[]> {
-  const rows = await db.query(
-    `SELECT DISTINCT p.* FROM presentations p JOIN presentation_items i ON i.presentation_id = p.id
-     WHERE i.type = 'song' AND i.source_id = ? AND p.deleted_at IS NULL ORDER BY p.name`,
-    [songId],
-  );
-  return rows.map(presentation);
-}
-
 export async function getSong(db: ReadDb, id: string): Promise<Song | null> {
   const [r] = await db.query('SELECT * FROM songs WHERE id = ?', [id]);
   return r ? song(r) : null;
@@ -152,11 +113,6 @@ export async function songPartsOf(db: ReadDb, songIds: string[]): Promise<SongPa
   if (!songIds.length) return [];
   const rows = await db.query(`SELECT * FROM song_parts WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
   return rows.map(part);
-}
-
-/** A song's history, newest first (SONG-R23). */
-export async function songVersionsOf(db: ReadDb, songId: string): Promise<SongVersion[]> {
-  return (await db.query('SELECT * FROM song_versions WHERE song_id = ? ORDER BY created_at DESC, id DESC', [songId])).map(version);
 }
 
 export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
@@ -350,13 +306,8 @@ export async function getOwnTheme(db: ReadDb, id: string): Promise<{ theme: Them
   return { theme: themeOfRow({ id: String(r.id), name: String(r.name), definition: String(r.definition), sort: Number(r.sort) }), updatedAt: Number(r.updated_at) };
 }
 
-/** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). Null: the default. */
-export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
-  return resolveTheme(p?.themeId, await orgDefaultThemeId(db), await ownThemes(db));
-}
-
 /** The organisation's default theme, as a page outside a presentation draws in (THEME-R2). */
-export const defaultTheme = (db: ReadDb): Promise<Theme> => themeOf(db, null);
+export const defaultTheme = (db: ReadDb): Promise<Theme> => db.view<Theme>('themeView', { id: null });
 
 // ------------------------------------------------------------------ outputs
 

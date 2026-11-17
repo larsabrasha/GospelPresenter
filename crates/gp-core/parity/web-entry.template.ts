@@ -10,11 +10,16 @@ export {
   getVideo,
   itemsOf,
   listDisplays,
+  listLabels,
   listOverlays,
   listSongs,
   orgRemoteControl,
+  presentationsUsing,
   shownOverlay,
+  songMaterialsOf,
+  songPartsOf,
   songsById,
+  songVersionsOf,
   themeOf,
 } from '@REF@/apps/web/src/db/queries.ts';
 export { BUILT_IN_THEMES } from '@REF@/packages/core/src/themes.ts';

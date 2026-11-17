@@ -64,6 +64,9 @@ fn definition(text: &str) -> Option<Value> {
     serde_json::from_str(&def.stringify()).ok()
 }
 
+/// `themeView` {id}: the theme `id` (null: the organisation's default), as `themeOf` resolves it.
+pub async fn view(a: &crate::args::Obj) -> crate::args::R<Value> { Ok(theme_of(crate::args::opt_id(a, "id")?).await) }
+
 /// `themeOf`: the theme of a presentation whose theme is `theme_id` (None: the organisation's default).
 pub async fn theme_of(theme_id: Option<String>) -> Value {
     let default = sql("SELECT value FROM org_settings WHERE id = ?", vec![json!("defaultThemeId")]).await

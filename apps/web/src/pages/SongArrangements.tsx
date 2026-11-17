@@ -1,6 +1,6 @@
 import { LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
-import { arrangementsOf, getSong, listLabels, songPartsOf } from '../db/queries.ts';
-import { useData, useDb } from '../db/react.tsx';
+import { useDataReading, useDb } from '../db/react.tsx';
+import { songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -26,10 +26,7 @@ export function arrangementSummary(arrangements: SongArrangement[], parts: SongP
 
 /** A song's arrangements and labels, for the pages pushed in from its page. */
 export function useArrangementData(id: string) {
-  return useData(
-    async (d) => ({ song: await getSong(d, id), parts: await songPartsOf(d, [id]), arrangements: await arrangementsOf(d, [id]), labels: await listLabels(d) }),
-    [id],
-  );
+  return useDataReading((d) => songPage(d, id), [id], SONG_PAGE_READS);
 }
 
 /**

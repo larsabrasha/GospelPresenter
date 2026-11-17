@@ -34,5 +34,11 @@ export default async function check(_, file) {
       if (w !== g) differ.push(`${id} ${k}: TS ${w.slice(0, 300)} Rust ${g.slice(0, 300)}`);
     }
   }
+  // A theme by id, and the default (themeView), as themeOf resolves one.
+  for (const themeId of [null, 'light', 'classic', 'own-1', 'own-bad', 'gone']) {
+    compared++;
+    const [w, g] = [canon(await themeOf(d, themeId ? { themeId } : null)), canon(await viewRust(db, 'themeView', { id: themeId }))];
+    if (w !== g) differ.push(`themeView ${themeId}: TS ${w.slice(0, 200)} Rust ${g.slice(0, 200)}`);
+  }
   return { compared, differ, notes: [`${ids.length} presentations' pages, own and missing themes, overlays`] };
 }

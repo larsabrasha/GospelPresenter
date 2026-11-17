@@ -3,9 +3,10 @@
 use crate::json::js_number;
 use serde_json::{json, Map, Value};
 
-/// How a field is read: `String(x)`, `Number(x)`, `Boolean(x)`, or `x ?? null` (kept as it is).
+/// How a field is read: `String(x)`, `Number(x)`, `Boolean(x)`, `x ?? null` (kept as it is), or null kept and
+/// anything else `Number(x)`.
 #[derive(Clone, Copy)]
-pub enum K { Str, Num, Bool, Opt }
+pub enum K { Str, Num, Bool, Opt, OptNum }
 
 /// `String(x)`: a text as it is, a number as JavaScript prints it, null as "null".
 pub fn js_string(v: &Value) -> Value {
@@ -43,7 +44,10 @@ fn js_bool(v: &Value) -> bool {
 pub fn map(row: &[Value], fields: &[(&str, K)]) -> Value {
     let mut out = Map::new();
     for ((key, kind), v) in fields.iter().zip(row) {
-        let value = match kind { K::Str => js_string(v), K::Num => js_num(v), K::Bool => json!(js_bool(v)), K::Opt => v.clone() };
+        let value = match kind {
+            K::Str => js_string(v), K::Num => js_num(v), K::Bool => json!(js_bool(v)), K::Opt => v.clone(),
+            K::OptNum => if v.is_null() { Value::Null } else { js_num(v) },
+        };
         out.insert((*key).into(), value);
     }
     Value::Object(out)
@@ -65,6 +69,16 @@ pub const ITEM: &[(&str, K)] = &[("id", K::Str), ("presentationId", K::Str), ("t
     ("arrangementId", K::Opt), ("content", K::Opt), ("overlayId", K::Opt), ("note", K::Opt)];
 /// `SongArrangement`.
 pub const ARRANGEMENT: &[(&str, K)] = &[("id", K::Str), ("songId", K::Str), ("name", K::Opt), ("partIds", K::Str), ("sort", K::Num)];
+
+/// `SongPart`.
+pub const PART: &[(&str, K)] = &[("id", K::Str), ("songId", K::Str), ("sort", K::Num), ("labelId", K::Opt), ("content", K::Str)];
+/// `Label`.
+pub const LABEL: &[(&str, K)] = &[("id", K::Str), ("text", K::Str), ("color", K::Str), ("sort", K::Num)];
+/// `SongVersion`.
+pub const VERSION: &[(&str, K)] = &[("id", K::Str), ("songId", K::Str), ("userId", K::Str), ("createdAt", K::Num), ("name", K::Str), ("data", K::Str)];
+/// `SongMaterial`.
+pub const MATERIAL: &[(&str, K)] = &[("id", K::Str), ("songId", K::Str), ("kind", K::Str), ("title", K::Str), ("url", K::Opt), ("hash", K::Opt),
+    ("contentType", K::Opt), ("size", K::OptNum), ("sort", K::Num), ("createdAt", K::Num)];
 
 /// `Overlay`, but its `imageId`, always null.
 pub const OVERLAY: &[(&str, K)] = &[("id", K::Str), ("title", K::Str), ("content", K::Opt), ("sort", K::Num), ("updatedAt", K::Opt)];

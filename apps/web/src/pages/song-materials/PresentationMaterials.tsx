@@ -1,6 +1,6 @@
 import type { PresentationItem } from '@gp/core';
-import { songMaterialsOf } from '../../db/queries.ts';
-import { useData } from '../../db/react.tsx';
+import { useDataReading } from '../../db/react.tsx';
+import { songMaterialsOf } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { PageDialog } from '../../ui/Dialog.tsx';
 import { MaterialList } from './SongMaterials.tsx';
@@ -12,7 +12,7 @@ import { MaterialList } from './SongMaterials.tsx';
 export function PresentationMaterials({ items, onClose }: { items: PresentationItem[]; onClose: () => void }) {
   const songs = items.filter((i) => i.type === 'song');
   const songIds = [...new Set(songs.map((i) => i.sourceId))];
-  const materials = useData((d) => songMaterialsOf(d, songIds), [songIds.join()]) ?? [];
+  const materials = useDataReading((d) => songMaterialsOf(d, songIds), [songIds.join()], ['song_materials']) ?? [];
   // A song twice in the order is listed once, where it first comes.
   const firsts = songs.filter((s, i) => songs.findIndex((x) => x.sourceId === s.sourceId) === i);
   const withMaterial = firsts.filter((s) => materials.some((m) => m.songId === s.sourceId));

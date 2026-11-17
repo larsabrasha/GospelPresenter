@@ -1,6 +1,22 @@
 // The pages' data as the Rust core's views give it (docs/rust-core.md, 2.5 step 3): finished JSON from the database's
 // worker instead of SQL here. Each view names the tables it reads, so its page reads it again when one changes.
-import type { CustomPage, ItemSlides, LibraryAudio, LibraryVideo, Overlay, Presentation, PresentationItem, Slide, Song, SongArrangement, Theme } from '@gp/core';
+import type {
+  CustomPage,
+  ItemSlides,
+  Label,
+  LibraryAudio,
+  LibraryVideo,
+  Overlay,
+  Presentation,
+  PresentationItem,
+  Slide,
+  Song,
+  SongArrangement,
+  SongMaterial,
+  SongPart,
+  SongVersion,
+  Theme,
+} from '@gp/core';
 import type { ReadDb } from './share.ts';
 
 /** What a running order's slides read (itemSlidesView): the library the items show. */
@@ -61,3 +77,29 @@ export const itemAudio = (db: ReadDb, itemId: string) => db.view<LibraryAudio | 
 /** What CCLI records for a slide shown long enough (ccliUseView, SONG-R48–R53), or null when nothing is to be. */
 export const ccliUse = (db: ReadDb, presentationId: string, itemId: string | null) =>
   db.view<{ songId: string; songName: string; ccli: string; presentationId: string; presentationName: string } | null>('ccliUseView', { presentationId, itemId });
+
+// ------------------------------------------------------------------ a song's pages
+
+/** The tables songPageView reads. */
+export const SONG_PAGE_READS = ['songs', 'song_parts', 'song_arrangements', 'labels'];
+
+/** A song's page and the pages pushed in from it (songPageView): the song (null when gone), parts, arrangements, labels by id. */
+export async function songPage(db: ReadDb, id: string) {
+  const v = await db.view<{ song: Song | null; parts: SongPart[]; arrangements: SongArrangement[]; labels: Label[] }>('songPageView', { id });
+  return { ...v, labels: new Map(v.labels.map((l) => [l.id, l])) };
+}
+
+/** A song by id, trashed or not (songView); null when there is none. */
+export const getSong = (db: ReadDb, id: string) => db.view<Song | null>('songView', { id });
+
+/** The presentations and templates, not in the trash, that show the song (songPresentationsView, D17). */
+export const presentationsUsing = (db: ReadDb, songId: string) => db.view<Presentation[]>('songPresentationsView', { songId });
+
+/** The tables songHistoryView reads. */
+export const SONG_HISTORY_READS = ['songs', 'song_versions', 'themes', 'org_settings'];
+
+/** A song's history (songHistoryView): the song, its versions newest first (SONG-R23), the default theme to show them in. */
+export const songHistory = (db: ReadDb, id: string) => db.view<{ song: Song | null; versions: SongVersion[]; theme: Theme }>('songHistoryView', { id });
+
+/** The sheet music, recordings and links of songs, each song's in its order (songMaterialsView). */
+export const songMaterialsOf = (db: ReadDb, songIds: string[]) => db.view<SongMaterial[]>('songMaterialsView', { songIds });

@@ -1,6 +1,6 @@
 // The demo data with what it lacks for every view to be read every way: own themes (one broken) and an organisation
-// default, overlays (one that does not read) on items, outputs, the remote control policy, CCLI collection on and
-// songs with CCLI numbers. Made once, as a copy beside demo.sqlite.
+// default, overlays (one that does not read) on items, outputs, the remote control policy, CCLI collection on,
+// songs with CCLI numbers, a song's history and materials, and a song in the trash. Made once, as a copy beside demo.sqlite.
 import { copyFileSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { BUILT_IN_THEMES } from '../.out/web-queries.mjs';
@@ -26,5 +26,9 @@ export function fixture(file) {
   run("UPDATE presentation_items SET overlay_id = 'ov-2' WHERE rowid % 3 = 0");
   run("UPDATE presentation_items SET overlay_id = 'ov-gone' WHERE rowid % 7 = 0");
   run("UPDATE songs SET ccli = CASE WHEN rowid % 3 = 0 THEN '  ' ELSE '12' || rowid END WHERE rowid % 2 = 0");
+  // A song's history (two versions at one time, so the id decides) and its materials: a PDF with its size, a link without.
+  run("INSERT INTO song_versions (id, song_id, user_id, created_at, name, data) VALUES ('v1', 'song-0', 'u1', 10, 'Före', '{}'), ('v2', 'song-0', 'u2', 20, 'Efter', '{}'), ('v3', 'song-0', 'u1', 20, 'Samtidigt', '{}')");
+  run("INSERT INTO song_materials (id, song_id, kind, title, url, hash, content_type, size, sort, created_at) VALUES ('m1', 'song-0', 'pdf', 'Noter', NULL, 'h1', 'application/pdf', 1234, 1, 5), ('m2', 'song-0', 'link', 'Inspelning', 'https://example.org', NULL, NULL, NULL, 0, 6), ('m3', 'song-1', 'link', 'Annan', 'https://example.org/2', NULL, NULL, NULL, 0, 7)");
+  run("UPDATE songs SET deleted_at = 99 WHERE id = 'song-10'");
   return (made = db);
 }
