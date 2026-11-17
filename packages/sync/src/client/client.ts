@@ -1,17 +1,11 @@
 import {
   CHANGED_TABLES,
-  changeTrackingDdl,
-  clientSyncDdl,
-  clientUndoRestore,
-  clientUndoTriggers,
-  getMutator,
   PROTOCOL_VERSION,
   randomId,
   SCHEMA_VERSION,
   SerialQueue,
   tableByName,
   tableInfo,
-  upsertSql,
   type Dump,
   type MutationResult,
   type MutatorArgs,
@@ -21,10 +15,9 @@ import {
   type PullResponse,
   type PushRequest,
   type PushResponse,
-  type TableInfo,
   type Tx,
 } from '@gp/core';
-import { runMutation, type MutationDb, type RustCore } from '@gp/rust-core';
+import type { RunSql, RustCore } from '@gp/rust-core';
 import { drizzleOver, queryObjects, type ClientSqlite } from './sqlite.ts';
 import type { Transport } from './transport.ts';
 
@@ -32,7 +25,7 @@ export interface SyncClientOptions {
   transport: Transport;
   /** What this device believes about its user. The server re-checks with its own. */
   ctx: MutatorCtx;
-  /** The Rust core's WASM, for the mutators it runs (`RUST_MUTATORS`), as the server runs them. */
+  /** The Rust core's WASM: every change runs on it, and it keeps the queue and rebases it (crates/gp-core's sync.rs). */
   core: RustCore;
   clientId?: string;
   /** Overridable so tests can play an old client. */
@@ -46,9 +39,6 @@ export interface SyncClientOptions {
   beforePush?: (pending: PendingMutation[], client: SyncClient) => Promise<number | undefined>;
 }
 
-/** Most values bound in one statement of a pull: well under SQLite's limit (32 766), and its parsing stays cheap. */
-const MAX_PARAMS = 5000;
-
 /** A queued mutation as stored: its arguments are JSON. */
 export interface PendingMutation {
   id: number;
@@ -60,7 +50,9 @@ export interface PendingMutation {
 /**
  * A device's view of one organisation: a local SQLite with the synced tables,
  * a pending-mutation queue (`_mutation`), and pre-images of the rows those
- * mutations touched (`_undo`) so a pull can rebase them.
+ * mutations touched (`_undo`) so a pull can rebase them. The queue, the rebase
+ * and the triggers are the Rust core's (`sync…` commands); this is the shell
+ * around them: the network, pokes, when to sync, and the server's refusals.
  */
 export class SyncClient {
   readonly db: Tx;
@@ -79,15 +71,15 @@ export class SyncClient {
   private clientId = '';
   private listeners = new Set<(tables: ReadonlySet<string>) => void>();
 
-  /** Where mutators run: Drizzle for the TS core's, the same connection's statements for the Rust core's. */
-  private on: MutationDb;
+  /** The connection's statements, as the Rust core asks for them. */
+  private rows: RunSql;
 
   private constructor(
     private sqlite: ClientSqlite,
     private opts: SyncClientOptions,
   ) {
     this.db = drizzleOver(sqlite);
-    this.on = { db: this.db, core: opts.core, rows: async (sql, params) => (await sqlite.query(sql, params)).rows };
+    this.rows = async (sql, params) => (await sqlite.query(sql, params)).rows;
   }
 
   static async open(sqlite: ClientSqlite, opts: SyncClientOptions): Promise<SyncClient> {
@@ -103,16 +95,21 @@ export class SyncClient {
     // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
     await this.exec('BEGIN');
     try {
-      await this.on.core.run('migrateOrgSchema', {}, undefined, this.on.rows);
+      await this.opts.core.run('migrateOrgSchema', {}, undefined, this.rows);
       await this.exec('COMMIT');
     } catch (e) {
       await this.exec('ROLLBACK');
       throw e;
     }
-    for (const s of [...clientSyncDdl, ...clientUndoTriggers(), ...changeTrackingDdl()]) await this.exec(s);
+    // The queue's tables, the triggers and the record of changed tables; outside a transaction, as PRAGMAs need.
     const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
-    await this.exec('INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)', [id]);
-    this.clientId = String((await this.exec('SELECT client_id FROM _sync_meta')).rows[0]![0]);
+    const opened = (await this.core('syncOpen', { clientId: id })) as { clientId: string };
+    this.clientId = String(opened.clientId);
+  }
+
+  /** A sync command of the Rust core, on this connection, as this device's user. */
+  private core(name: string, args: unknown): Promise<unknown> {
+    return this.opts.core.run(name, args, this.opts.ctx, this.rows);
   }
 
   get id() {
@@ -154,23 +151,22 @@ export class SyncClient {
     }
     await this.transaction(async () => {
       for (const s of statements) await this.exec(s.sql, s.params ?? []);
+      await this.exec(`DELETE FROM ${CHANGED_TABLES}`); // not a change pages hear of
     });
   }
 
   /**
    * Runs `fn` in one SQLite transaction on the client connection, serialised
-   * with every other write. Also gives the tables the transaction wrote
-   * (`changeTrackingDdl`), read and forgotten before it commits.
+   * with every other write; rolled back when it throws, or when the commit fails
+   * (a foreign key a rebase left broken).
    */
-  private transaction<T>(fn: () => Promise<T>): Promise<{ result: T; tables: ReadonlySet<string> }> {
+  private transaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.lock.run(async () => {
       await this.exec('BEGIN');
       try {
         const result = await fn();
-        const tables = new Set((await this.exec(`SELECT tbl FROM ${CHANGED_TABLES}`)).rows.map((r) => String(r[0])));
-        if (tables.size) await this.exec(`DELETE FROM ${CHANGED_TABLES}`);
         await this.exec('COMMIT');
-        return { result, tables };
+        return result;
       } catch (e) {
         await this.exec('ROLLBACK');
         throw e;
@@ -183,18 +179,12 @@ export class SyncClient {
    * mutator throws here, nothing is written and nothing is queued.
    */
   async mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {
-    const mut = getMutator(name)!;
-    const { tables } = await this.transaction(async () => {
-      const { next_mutation_id: id } = await this.meta();
-      await this.exec('UPDATE _sync_meta SET next_mutation_id = ?', [id + 1]);
-      await this.exec('INSERT INTO _mutation (id, name, v, args) VALUES (?, ?, ?, ?)', [id, name, mut.v, JSON.stringify(args)]);
-      await runMutation(this.on, name, args, this.opts.ctx);
-    });
-    this.changed(tables);
+    const { tables } = (await this.transaction(() => this.core('syncMutate', { mutator: name, args: JSON.stringify(args) }))) as { tables: string[] };
+    this.changed(new Set(tables));
   }
 
   async pending(): Promise<PendingMutation[]> {
-    return (await queryObjects(this.sqlite, 'SELECT id, name, v, args FROM _mutation ORDER BY id')) as never;
+    return (await this.core('syncPending', {})) as PendingMutation[];
   }
 
   /**
@@ -271,54 +261,12 @@ export class SyncClient {
    * mutations the server has consumed, and replay the rest. One transaction.
    */
   private async rebase(pages: PullResponse[]) {
-    const last = pages[pages.length - 1]!;
-    const { tables } = await this.transaction(async () => {
-      await this.exec('PRAGMA defer_foreign_keys = ON');
-      await this.exec('UPDATE _sync_meta SET capture = 0');
-      for (const s of clientUndoRestore()) await this.exec(s);
-      await this.exec('DELETE FROM _undo');
-
-      if (pages[0]!.clear) for (const t of tableInfo.toReversed()) await this.exec(`DELETE FROM ${t.name}`);
-      // Puts in a row to one table go in one statement: a statement per row made a first pull of a library take a second.
-      let run = null as { t: TableInfo; params: unknown[]; rows: number } | null;
-      const flush = async () => {
-        if (run) await this.exec(upsertSql(run.t, run.rows), run.params);
-        run = null;
-      };
-      for (const page of pages) {
-        for (const op of page.patch) {
-          const t = tableByName.get(op.tbl);
-          if (!t) continue; // a table this client does not know yet
-          if (op.op === 'del') {
-            await flush();
-            await this.exec(`DELETE FROM ${t.name} WHERE id = ?`, [op.pk]);
-            continue;
-          }
-          if (run?.t !== t || (run.rows + 1) * t.columns.length > MAX_PARAMS) await flush();
-          run ??= { t, params: [], rows: 0 };
-          for (const c of t.columns) run.params.push(op.row[c] ?? null);
-          run.rows++;
-        }
-        this.rejected.push(...page.results);
-      }
-      await flush();
-
-      await this.exec('DELETE FROM _mutation WHERE id <= ?', [last.lastMutationId]);
-      await this.exec('UPDATE _sync_meta SET cookie = ?, last_mutation_id = ?, capture = 1', [last.cookie, last.lastMutationId]);
-
-      for (const m of await this.pending()) {
-        await this.exec('SAVEPOINT replay');
-        try {
-          await runMutation(this.on, m.name, JSON.parse(m.args), this.opts.ctx);
-          await this.exec('RELEASE replay');
-        } catch {
-          // It no longer applies locally; it stays queued and the server decides.
-          await this.exec('ROLLBACK TO replay');
-          await this.exec('RELEASE replay');
-        }
-      }
+    const answer = await this.transaction(async () => {
+      const a = (await this.core('syncRebase', { pages })) as { tables: string[]; results: MutationResult[]; changed: boolean };
+      this.rejected.push(...a.results);
+      return a;
     });
-    if (pages.some((p) => p.clear || p.patch.length || p.results.length)) this.changed(tables);
+    if (answer.changed) this.changed(new Set(answer.tables));
   }
 
   /** Every synced table, sorted by id: the same shape as the server's debug dump. */

@@ -40,7 +40,7 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     });
 
     it('client: a mutator that throws writes nothing and queues nothing', async () => {
-      await expect(fx.alice.client.mutate('probeWriteThenThrow', { songId: 'GHOST' })).rejects.toThrow('thrown after writing');
+      await expect(fx.alice.client.mutate('probeWriteThenThrow', { songId: 'GHOST' })).rejects.toMatchObject({ code: 'probe-failure' });
       expect((await fx.alice.client.dump()).songs).toEqual([]);
       expect(await fx.alice.client.pending()).toEqual([]);
     });
