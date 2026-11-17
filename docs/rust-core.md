@@ -50,7 +50,7 @@ only show it wrongly, which the comparison catches. Long lists (3 000 songs) are
 the bridge does not make them slower; search is in the core already. After it the native apps, MCP and the CLI read
 the web's lists, and React holds no SQL. It can run beside step 2: they touch different files.
 
-What comes after 2.5 is written in Rust first. Native UIs on the same core come later: the Mac and iOS app
+What comes after 2.5 is written in Rust first, planning among it (`docs/planning.md`). Native UIs on the same core come later: the Mac and iOS app
 (`claude/rust-core-ios-ab7733`, a working prototype over the core) waits until then, not merged.
 
 ### After 2.5
