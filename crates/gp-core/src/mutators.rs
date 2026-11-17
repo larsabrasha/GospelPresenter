@@ -43,6 +43,21 @@ pub fn can(role: &str, permission: &str) -> bool {
     }
 }
 
+/// `rulesView`: what each role may do, and the limits the mutators hold to, for the shells to show only what will
+/// be taken (a button hidden, a field's length): the core's own, so no shell keeps a copy that could drift.
+pub fn rules() -> Value {
+    let of = |role: &str| -> Vec<&str> { EVERYONE.iter().chain(ADMIN.iter()).chain(["ManageOrganizations"].iter()).copied().filter(|p| can(role, p)).collect() };
+    json!({
+        "permissions": { "user": of("user"), "admin": of("admin"), "superAdmin": of("superAdmin") },
+        "limits": {
+            "songs": songs::SONGS, "partsPerSong": songs::PARTS_PER_SONG, "arrangementsPerSong": songs::ARRANGEMENTS_PER_SONG,
+            "itemsPerPresentation": presentations::ITEMS_PER_PRESENTATION, "versesPerItem": crate::bible::VERSES_PER_ITEM,
+            "customSlides": custom_slides::SLIDES, "customElements": crate::pages::ELEMENTS, "customPages": crate::pages::PAGES,
+            "customText": crate::pages::TEXT, "fileName": media::FILE_NAME,
+        },
+    })
+}
+
 /// `requirePermission`.
 pub fn require(ctx: &Ctx, permission: &str) -> R<()> { if can(&ctx.role, permission) { Ok(()) } else { Err("forbidden".into()) } }
 

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { can, MEDIA_LIMITS, type LibraryVideo, type Role } from '@gp/core';
+import type { LibraryVideo, Role } from '@gp/core';
+import { can, limits } from '../db/pageCore.ts';
 import { useLocalUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -78,7 +79,7 @@ export function Videos({ role }: { role: Role }) {
           return res?.ok ? { name: v.fileName, data: new Uint8Array(await res.arrayBuffer()), type: v.contentType } : null;
         },
       }}
-      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (v, fileName) => db.mutate('renameVideo', { id: v.id, fileName }) }}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: limits().fileName, run: (v, fileName) => db.mutate('renameVideo', { id: v.id, fileName }) }}
       remove={{ ...trashTexts('videos.trashed'), run: (v) => db.mutate('trashVideo', { id: v.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress} failures={imports.failures} failed={t('videos.failed', { n: imports.failures.length })} testId="video" />}

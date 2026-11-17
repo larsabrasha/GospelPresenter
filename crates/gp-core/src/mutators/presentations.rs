@@ -3,7 +3,7 @@ use super::*;
 use crate::bridge::sql;
 use serde_json::{json, Value};
 
-const ITEMS_PER_PRESENTATION: i64 = 100;
+pub const ITEMS_PER_PRESENTATION: i64 = 100;
 
 pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {
     Some(match name {

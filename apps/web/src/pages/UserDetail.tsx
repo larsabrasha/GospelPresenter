@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { accountRefusal, can, emailSchema, removeUserRefusal, roleChangeRefusal, ROLES, type AuthState, type LoginMethod, type Me, type MemberRole, type UserRow } from '@gp/core';
+import { can } from '../db/pageCore.ts';
+import { accountRefusal, emailSchema, removeUserRefusal, roleChangeRefusal, ROLES, type AuthState, type LoginMethod, type Me, type MemberRole, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';

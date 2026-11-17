@@ -4,7 +4,7 @@ use super::*;
 use super::presentations::{change_presentation, insert_item, Item};
 use crate::pages::{pages, pdf_pages};
 
-const SLIDES: i64 = 1000;
+pub const SLIDES: i64 = 1000;
 const FILE_NAME: usize = 200;
 
 pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {

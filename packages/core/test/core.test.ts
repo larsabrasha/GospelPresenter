@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   accountRefusal,
-  arrangedParts,
   can,
   emailSchema,
   inviteRequest,
@@ -20,14 +19,8 @@ import {
   parseSlideDeckPages,
   pdfPages,
   searchSongs,
-  songCredits,
-  songSlides,
-  type Label,
   type LivePointer,
   type LivePointerChange,
-  type Song,
-  type SongArrangement,
-  type SongPart,
 } from '../src/index.ts';
 
 describe('permissions (spec 01)', () => {
@@ -117,53 +110,8 @@ describe('labels', () => {
   });
 });
 
-describe('slides', () => {
-  const song: Song = { id: 'S', name: 'Song', author: 'A. Author', publisher: 'Pub', year: 1999, ccli: null, deletedAt: null };
-  const part = (id: string, sort: number, label: string | null, content = id): SongPart => ({ id, songId: 'S', sort, labelId: label, content });
-
-  it('credits drop missing pieces and are null when there are none', () => {
-    expect(songCredits(song)).toBe('A. Author · © Pub · 1999');
-    expect(songCredits({ author: null, publisher: 'Pub', year: null })).toBe('© Pub');
-    expect(songCredits({ author: ' ', publisher: null, year: 0 })).toBeNull();
-  });
-
-  it('one slide per part, in part order, with the label', () => {
-    const verse: Label = { id: 'label:verse', text: 'Verse', color: '#3478c7', sort: 0 };
-    const slides = songSlides(song, [part('b', 1, null), part('a', 0, 'label:verse'), { ...part('x', 0, null), songId: 'other' }], new Map([[verse.id, verse]]));
-    expect(slides.map((s) => [s.key, s.label?.text ?? null])).toEqual([
-      ['a', 'Verse'],
-      ['b', null],
-    ]);
-    expect(slides[0]!.credits).toBe('A. Author · © Pub · 1999');
-  });
-});
-
+// A song's slides, credits and arrangements are the Rust core's, tested in packages/rust-core/test/song-slides.test.ts.
 describe('arrangements (SONG-R18, R19)', () => {
-  const song: Song = { id: 'S', name: 'Song', author: null, publisher: null, year: null, ccli: null, deletedAt: null };
-  const parts: SongPart[] = ['V1', 'C', 'V2'].map((id, sort) => ({ id, songId: 'S', sort, labelId: null, content: id }));
-  const arr = (id: string, sort: number, ids: string[], songId = 'S'): SongArrangement => ({ id, songId, name: null, partIds: JSON.stringify(ids), sort });
-  const order = (a: SongArrangement[], item: string | null = null) => arrangedParts(song, parts, a, item).map((p) => p.id);
-
-  it('no arrangement: all parts in part order', () => {
-    expect(order([])).toEqual(['V1', 'C', 'V2']);
-  });
-
-  it("the item's arrangement wins, else the song's first (by sort), with repeats kept and deleted parts skipped", () => {
-    const arrangements = [arr('B', 1, ['V2']), arr('A', 0, ['V1', 'C', 'V2', 'C', 'GONE']), arr('X', 0, ['V1'], 'other')];
-    expect(order(arrangements)).toEqual(['V1', 'C', 'V2', 'C']);
-    expect(order(arrangements, 'B')).toEqual(['V2']);
-  });
-
-  it("an arrangement id that is not one of the song's shows all parts", () => {
-    expect(order([arr('A', 0, ['C'])], 'DELETED')).toEqual(['V1', 'C', 'V2']);
-    expect(order([arr('X', 0, ['V1'], 'other')], 'X')).toEqual(['V1', 'C', 'V2']);
-  });
-
-  it('a repeated part gets a slide key of its own', () => {
-    const slides = songSlides(song, parts, new Map(), [arr('A', 0, ['C', 'V1', 'C'])]);
-    expect(slides.map((s) => s.key)).toEqual(['C', 'V1', 'C#1']);
-  });
-
   it('part ids that are not a JSON list of strings read as empty', () => {
     expect(parsePartIds('nonsense')).toEqual([]);
     expect(parsePartIds('{"a":1}')).toEqual([]);

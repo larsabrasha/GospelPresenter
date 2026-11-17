@@ -56,10 +56,11 @@ To check a real translation, point `GP_REAL_BIBLE_ZIP` at its zip (anywhere outs
 never commit one):
 
 ```sh
-GP_REAL_BIBLE_ZIP=/path/to/bible.zip pnpm --filter @gp/core test real-bible
+GP_REAL_BIBLE_ZIP=/path/to/bible.zip pnpm --filter @gp/rust-core test real-bible
 ```
 
-`packages/core/test/node/real-bible.test.ts` imports it as the app does and checks its shape only: the 66
+`packages/rust-core/test/real-bible.test.ts` imports it as the app does, reads references and slides through the core,
+and checks its shape only: the 66
 books of the Protestant canon, 29 000 to 60 000 verses, no empty verse, no markup or control
 characters left, no space before punctuation, within the server's limits, five known references
 (`1 Mos 1:1-5`, `Ps 23`, `Joh 3:16`, `Rom 8:28-30`, `Upp 22:21`) found and split into slides, and every

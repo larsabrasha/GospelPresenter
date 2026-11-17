@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { can, isBuiltInTheme, listThemes, resolveTheme, type Role, type Slide, type Theme } from '@gp/core';
+import { isBuiltInTheme, listThemes, resolveTheme, type Role, type Slide, type Theme } from '@gp/core';
+import { can } from '../db/pageCore.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { orgDefaultThemeId, ownThemes } from '../db/queries.ts';
 import { t } from '../i18n.ts';

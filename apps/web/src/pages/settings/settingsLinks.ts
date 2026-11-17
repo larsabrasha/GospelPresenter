@@ -1,6 +1,7 @@
 // Inställningar's list (docs/layout-2-0.md): its groups and rows, apart from the page so they can be tested.
 import type { ReactNode } from 'react';
-import { can, type Me } from '@gp/core';
+import type { Me } from '@gp/core';
+import { can } from '../../db/pageCore.ts';
 import type { TextKey } from '../../i18n.ts';
 import {
   AdjustmentsIcon,

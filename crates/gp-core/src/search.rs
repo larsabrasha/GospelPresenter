@@ -74,10 +74,36 @@ fn bonus(p: &Prepared, ts: &[String]) -> f64 {
     b
 }
 
+/// `terms`: lowered, trimmed and split on white space as JavaScript reads it.
+fn terms(query: &str) -> Vec<String> { js_trim(&lower(query)).split(is_js_space).filter(|t| !t.is_empty()).map(String::from).collect() }
+
+/// `highlight` (SONG-A20): `text`, as NFC, cut into pieces, with the word prefixes that match a query term marked, as
+/// typed or without accents. `lower` and `fold` keep a character for a character, so a place in either is the text's.
+pub fn highlight(text: &str, query: &str) -> serde_json::Value {
+    let nfc: Vec<char> = text.nfc().collect();
+    let l: Vec<char> = lower(text).chars().collect();
+    let lf: Vec<char> = fold(&l.iter().collect::<String>()).chars().collect();
+    let mut marked = vec![false; nfc.len()];
+    for term in terms(query) {
+        for (hay, needle) in [(&l, term.chars().collect::<Vec<_>>()), (&lf, fold(&term).chars().collect())] {
+            if needle.is_empty() || needle.len() > hay.len() { continue }
+            for i in 0..=hay.len() - needle.len() {
+                if hay[i..i + needle.len()] == needle[..] && (i == 0 || !word_char(hay[i - 1])) {
+                    for m in &mut marked[i..(i + needle.len()).min(nfc.len())] { *m = true }
+                }
+            }
+        }
+    }
+    let mut pieces: Vec<(String, bool)> = vec![];
+    for (c, hit) in nfc.into_iter().zip(marked) {
+        match pieces.last_mut() { Some((t, h)) if *h == hit => t.push(c), _ => pieces.push((c.to_string(), hit)) }
+    }
+    serde_json::Value::Array(pieces.into_iter().map(|(text, hit)| serde_json::json!({ "text": text, "hit": hit })).collect())
+}
+
 /// The indices of the songs that match every term, best first; all of them, in order, for a blank query.
 pub fn rank(songs: &[Prepared], query: &str) -> Vec<usize> {
-    // `terms`: lowered, trimmed and split on white space as JavaScript reads it.
-    let ts: Vec<String> = js_trim(&lower(query)).split(is_js_space).filter(|t| !t.is_empty()).map(String::from).collect();
+    let ts = terms(query);
     if ts.is_empty() { return (0..songs.len()).collect() }
     let folded: Vec<String> = ts.iter().map(|t| fold(t)).collect();
     let mut hits: Vec<(usize, f64)> = Vec::new();

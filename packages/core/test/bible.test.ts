@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   BibleImportError,
-  bibleCredits,
   bibleId,
-  bibleItemSlides,
-  bibleLabel,
-  bibleSlideText,
   bibleTextHash,
   bibleTextSchema,
-  bibleTitle,
   compareBooks,
   importBibleZip,
-  isOldTestament,
   joinBibleText,
   bookChunk,
   makeZip,
@@ -19,19 +13,13 @@ import {
   parseUsfm,
   parseUsx,
   parseXml,
-  planVerseSearch,
   readZip,
-  resolveBook,
   serializeBibleText,
-  splitBibleSlides,
-  swedishBookName,
   utf8Decode,
   utf8Encode,
   type BibleBookText,
-  type Verse,
 } from '../src/index.ts';
 import { sampleDblZip, sampleUsfm, sampleUsfmZip, sampleUsx, WEB_SAMPLE } from './bible-fixtures.ts';
-import { searchVerses } from './verse-search.ts';
 
 /** The current app's test translation (VerseSearchTests): Genesis 1:1 and eight verses of Matthew. */
 const books: BibleBookText[] = [
@@ -50,146 +38,19 @@ const books: BibleBookText[] = [
     ],
   },
 ];
-const refs = (q: string) => searchVerses(q, books).map((v) => `${v.b} ${v.c}:${v.v}`);
+// Book names, references, titles and slides are the Rust core's, tested in packages/rust-core/test/bible.test.ts.
 
-describe('book names (BIBLE-R9–R11, D12)', () => {
-  it('resolves Swedish names, abbreviations and ordinal variants, case-insensitively', () => {
-    for (const q of ['1 mos', '1:a mos', 'första mos', 'första moseboken', '1 Mosebok', 'genesis', 'gen', 'GE']) expect(resolveBook(q), q).toBe('GEN');
-    for (const q of ['mat', 'matt', 'matteus', 'matteusevangeliet', 'MATT']) expect(resolveBook(q), q).toBe('MAT');
-    expect(resolveBook('ps')).toBe('PSA');
-    expect(resolveBook('apg')).toBe('ACT');
-    expect(resolveBook('upb')).toBe('REV');
-  });
-
-  it('an ambiguous prefix takes the longest alias (spec 05 edge cases)', () => {
-    expect(resolveBook('jo')).toBe('JHN'); // johannesevangeliet
-    expect(resolveBook('ma')).toBe('MAT');
-    expect(resolveBook('mar')).toBe('MRK');
-    expect(resolveBook('1 jo')).toBe('1JN');
-  });
-
-  it('English names resolve too (D12), so the English examples find something', () => {
-    expect(resolveBook('John')).toBe('JHN');
-    expect(resolveBook('Psalm')).toBe('PSA');
-    expect(resolveBook('1 John')).toBe('1JN');
-    expect(resolveBook('Revelation')).toBe('REV');
-    expect(resolveBook('nonsense')).toBeNull();
-    expect(resolveBook('  ')).toBeNull();
-  });
-
-  it('canonical order, unknown codes last; the 39 Old Testament books, everything else New (BIBLE-R9, R10)', () => {
+describe('book order (BIBLE-R9)', () => {
+  it('canonical order, unknown codes last', () => {
     expect(['REV', 'TOB', 'GEN', 'MAT', 'MAL'].toSorted(compareBooks)).toEqual(['GEN', 'MAL', 'MAT', 'REV', 'TOB']);
-    expect(isOldTestament('MAL')).toBe(true);
-    expect(isOldTestament('MAT')).toBe(false);
-    expect(isOldTestament('TOB')).toBe(false);
-    expect(swedishBookName('JHN')).toBe('Johannes');
-    expect(swedishBookName('TOB')).toBe('TOB');
   });
 });
 
-describe('verse references (BIBLE-R11, BIBLE-A9)', () => {
-  it('the current app’s test queries', () => {
-    expect(refs('MAT 3')).toHaveLength(4);
-    expect(refs('MAT 3:15')).toEqual(['MAT 3:15']);
-    expect(refs('MAT 3:15-17')).toHaveLength(3);
-    expect(refs('MAT 3:15-4')).toEqual(['MAT 3:15', 'MAT 3:16', 'MAT 3:17', 'MAT 4:1', 'MAT 4:2', 'MAT 4:3']);
-    expect(refs('MAT 3-4')).toHaveLength(7);
-    expect(refs('MAT 3:16-4:2')).toEqual(['MAT 3:16', 'MAT 3:17', 'MAT 4:1', 'MAT 4:2']);
-    for (const q of ['mat 3:15', 'matt 3:15', 'matteus 3:15', 'matteusevangeliet 3:15', 'MATT 3:15']) expect(refs(q), q).toEqual(['MAT 3:15']);
-    for (const q of ['GE 1:1', '1 mos 1:1', '1:a mos 1:1', 'första mos 1:1', 'första moseboken 1:1', 'genesis 1:1', 'gen 1:1']) expect(refs(q), q).toEqual(['GEN 1:1']);
-    for (const q of ['MAT  3:15', 'MAT 3 :15', 'MAT 3: 15', 'MAT 3 : 15', '  MAT   3:15  ']) expect(refs(q), q).toEqual(['MAT 3:15']);
-    expect(refs('MAT 3 : 15 - 17')).toHaveLength(3);
-    expect(refs('')).toEqual([]);
-    expect(refs('MAT abc')).toEqual([]);
-    expect(refs('MAT')).toHaveLength(8);
-  });
+describe('a Bible item’s content', () => {
+  it('reads as data, never markup; one that does not read is none', () => {
+    const content = { translation: 'X', slides: [[{ n: 1, t: '<script>alert(1)</script>' }]] };
 
-  it('trailing colon or dash, and a bare second number that is a chapter (spec 05 edge cases)', () => {
-    expect(refs('MAT 3:')).toHaveLength(4);
-    expect(refs('MAT 3-')).toHaveLength(4);
-    expect(refs('MAT 3:16-')).toEqual(['MAT 3:16', 'MAT 3:17']);
-    expect(refs('Matt 3:15-16')).toEqual(['MAT 3:15', 'MAT 3:16']); // verses of chapter 3
-    expect(refs('Matt 3:17-4')).toEqual(['MAT 3:17', 'MAT 4:1', 'MAT 4:2', 'MAT 4:3']); // through chapter 4
-  });
-
-  it('"Joh 3 16" is not a reference; a book the translation lacks finds nothing; an unknown book matches codes by prefix', () => {
-    expect(refs('Mat 3 15')).toEqual([]);
-    expect(refs('Joh 3:16')).toEqual([]);
-    expect(planVerseSearch('MA 3', ['MAT'])?.codes).toEqual(['MAT']);
-    expect(planVerseSearch('M 3', ['MAT', 'MRK'])?.codes).toEqual(['MAT']); // "m" resolves to Matteus (longest alias)
-    expect(planVerseSearch('MR 1', ['MRK'])?.codes).toEqual(['MRK']);
-    expect(planVerseSearch('XY 1', ['XYZ'])?.codes).toEqual(['XYZ']);
-    expect(planVerseSearch('XY', ['XYZ'])).toBeNull(); // a book on its own must resolve
-  });
-});
-
-describe('titles (BIBLE-R13)', () => {
-  const v = (b: string, c: number, n: number): Verse => ({ b, c, v: n, t: '' });
-  it('one verse, one chapter, one book, two books', () => {
-    expect(bibleTitle([v('JHN', 3, 16)])).toBe('Johannes 3:16');
-    expect(bibleTitle([v('JHN', 3, 16), v('JHN', 3, 18)])).toBe('Johannes 3:16-18');
-    expect(bibleTitle([v('JHN', 3, 16), v('JHN', 4, 2)])).toBe('Johannes 3:16-4:2');
-    expect(bibleTitle([v('JHN', 21, 25), v('ACT', 1, 2)])).toBe('Johannes 21:25 - Apostlagärningarna 1:2');
-    expect(bibleTitle([])).toBe('');
-  });
-  it('the add button puts spaces around a dash between chapters', () => {
-    expect(bibleLabel([v('ROM', 8, 28), v('ROM', 8, 30)])).toBe('Romarbrevet 8:28-30');
-    expect(bibleLabel([v('JHN', 3, 16), v('JHN', 4, 2)])).toBe('Johannes 3:16 - 4:2');
-  });
-  it('credits name the passage and the translation (D12)', () => {
-    expect(bibleCredits('Johannes 3:16', 'SFB')).toBe('Johannes 3:16 · SFB');
-  });
-});
-
-describe('slides (BIBLE-R12)', () => {
-  const words = (n: number, word = 'ord') => Array.from({ length: n }, () => word).join(' ');
-
-  it('a short passage is one slide, verse numbers at the start of each verse', () => {
-    const slides = splitBibleSlides([
-      { v: 16, t: 'Ty så älskade Gud världen' },
-      { v: 17, t: 'Gud sände inte' },
-    ]);
-    expect(slides).toEqual([
-      [
-        { n: 16, t: 'Ty så älskade Gud världen' },
-        { n: 17, t: 'Gud sände inte' },
-      ],
-    ]);
-    expect(bibleSlideText(slides[0]!)).toBe('16 Ty så älskade Gud världen 17 Gud sände inte');
-  });
-
-  it('BIBLE-A13: ~600 characters become 3 balanced slides; no word is lost or doubled, each verse number once', () => {
-    // 6 verses of 24 four-letter words: 6 × (2+1 + 24×4 + 23) = 6 × 122 = 732 characters plus 5 spaces.
-    const verses = Array.from({ length: 6 }, (_, i) => ({ v: i + 1, t: Array.from({ length: 24 }, (_word, k) => `w${i}${String(k).padStart(2, '0')}`).join(' ') }));
-    const slides = splitBibleSlides(verses);
-    expect(slides).toHaveLength(3);
-    const lengths = slides.map((s) => bibleSlideText(s).length);
-    for (const l of lengths) expect(l).toBeLessThanOrEqual(250);
-    expect(Math.max(...lengths) - Math.min(...lengths)).toBeLessThan(40);
-    const all = slides.flatMap((s) => bibleSlideText(s).split(' '));
-    expect(all.filter((w) => /^\d+$/.test(w))).toEqual(['1', '2', '3', '4', '5', '6']);
-    expect(all.filter((w) => !/^\d+$/.test(w))).toEqual(verses.flatMap((v) => v.t.split(' ')));
-  });
-
-  it('a verse split across slides carries its number only on the first', () => {
-    const slides = splitBibleSlides([{ v: 1, t: words(100) }]);
-    expect(slides.length).toBe(2);
-    expect(slides[0]![0]!.n).toBe(1);
-    expect(slides[1]![0]!.n).toBeNull();
-  });
-
-  it('an empty verse still shows its number; no verses, no slides', () => {
-    expect(splitBibleSlides([{ v: 5, t: '' }])).toEqual([[{ n: 5, t: '' }]]);
-    expect(bibleSlideText([{ n: 5, t: '' }])).toBe('5');
-    expect(splitBibleSlides([])).toEqual([]);
-  });
-
-  it('BIBLE-A14: text is data, so "<script>" stays text', () => {
-    const content = { translation: 'X', slides: splitBibleSlides([{ v: 1, t: '<script>alert(1)</script>' }]) };
-    const back = parseBibleContent(JSON.stringify(content))!;
-    expect(bibleItemSlides('Johannes 3:16', back)[0]).toMatchObject({ kind: 'bible', text: '1 <script>alert(1)</script>', credits: 'Johannes 3:16 · X' });
-    expect(parseBibleContent('{"slides":"<b>"}')).toBeNull();
-    expect(parseBibleContent('not json')).toBeNull();
+    expect([parseBibleContent(JSON.stringify(content)), parseBibleContent('{"slides":"<b>"}'), parseBibleContent('not json')]).toEqual([content, null, null]);
   });
 });
 

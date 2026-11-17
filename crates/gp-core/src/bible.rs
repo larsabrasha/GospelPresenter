@@ -9,6 +9,9 @@ use serde_json::Value;
 
 pub struct Verse { pub b: String, pub c: i64, pub v: i64, pub t: String }
 
+/// `MAX_VERSES_PER_ITEM`: the verses one item may hold (BIBLE-R14).
+pub const VERSES_PER_ITEM: usize = 500;
+
 /// `bibleTitle`: `Johannes 3:16`, `Johannes 3:16-18`, `Johannes 3:16-4:2`, `Johannes 21:25 - Apostlagärningarna 1:2`.
 fn title(verses: &[Verse]) -> String {
     let (Some(f), Some(l)) = (verses.first(), verses.last()) else { return String::new() };
@@ -84,7 +87,7 @@ pub async fn add_bible(a: &Obj, ctx: &Ctx) -> R<()> {
     let (item_id, pid, bible_id) = (id(a, "itemId")?, id(a, "presentationId")?, id(a, "bibleId")?);
     let translation = trimmed(a, "translation", 1, 50)?;
     let verses: Vec<Verse> = match a.get("verses") {
-        Some(Value::Array(xs)) if (1..=500).contains(&xs.len()) => xs.iter().map(verse).collect::<R<_>>()?,
+        Some(Value::Array(xs)) if (1..=VERSES_PER_ITEM).contains(&xs.len()) => xs.iter().map(verse).collect::<R<_>>()?,
         _ => return Err("invalid-args".into()),
     };
     let after = opt_id(a, "afterItemId")?;

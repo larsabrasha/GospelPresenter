@@ -1,4 +1,5 @@
-import { can, type PresentationItem, type PresentingKey, type Role } from '@gp/core';
+import type { PresentationItem, PresentingKey, Role } from '@gp/core';
+import { can } from '../../db/pageCore.ts';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useDataReading, useDb, useShownOverlay } from '../../db/react.tsx';
 import { presentationPage, PRESENTATION_PAGE_READS } from '../../db/views.ts';

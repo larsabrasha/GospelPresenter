@@ -1,4 +1,5 @@
-import { can, daysRemaining, TRASH_RETENTION_MS, type Role } from '@gp/core';
+import { daysRemaining, TRASH_RETENTION_MS, type Role } from '@gp/core';
+import { can } from '../db/pageCore.ts';
 import { useEffect, useRef, useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { listTrash, type TrashEntry } from '../db/queries.ts';

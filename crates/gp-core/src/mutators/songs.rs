@@ -4,9 +4,9 @@ use super::history::{keep_song_version, keep_version_of_part};
 use super::labels::ensure_label;
 use crate::json::string_list;
 
-const SONGS: i64 = 5000;
-const PARTS_PER_SONG: i64 = 50;
-const ARRANGEMENTS_PER_SONG: usize = 10;
+pub const SONGS: i64 = 5000;
+pub const PARTS_PER_SONG: i64 = 50;
+pub const ARRANGEMENTS_PER_SONG: usize = 10;
 
 pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {
     Some(match name {

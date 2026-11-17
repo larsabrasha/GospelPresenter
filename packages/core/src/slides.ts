@@ -1,9 +1,9 @@
 import type { CustomPage } from './custom-slides.ts';
 import { z } from 'zod';
-import { bibleCredits, bibleSlideText, type BibleItemContent, type BibleSlide } from './bible.ts';
+import type { BibleSlide } from './bible.ts';
 import { MEDIA_HASH } from './media.ts';
 import type { VideoCodec, VideoType } from './video.ts';
-import type { Label, Song, SongArrangement, SongPart } from './schema.ts';
+import type { SongArrangement } from './schema.ts';
 
 /** A video slide's video: what a device needs to stream it and to know whether it can play it. */
 export interface SlideVideo {
@@ -42,12 +42,8 @@ export interface Slide {
   custom?: CustomPage;
 }
 
-/** "Author · © Publisher · Year", dropping missing pieces; null if there are none (spec 04). */
-export function songCredits(song: Pick<Song, 'author' | 'publisher' | 'year'>): string | null {
-  const pieces = [song.author, song.publisher ? `© ${song.publisher}` : null, song.year ? String(song.year) : null];
-  const kept = pieces.filter((p): p is string => !!p?.trim());
-  return kept.length ? kept.join(' · ') : null;
-}
+// A song's and a Bible passage's slides are the Rust core's (crates/gp-core/src/slides.rs, itemSlidesView and
+// bibleSlidesView): what an output shows is worked out in one place for every app.
 
 /** An arrangement's part ids. A value that is not a list of strings reads as empty. */
 export function parsePartIds(json: string): string[] {
@@ -62,45 +58,6 @@ export function parsePartIds(json: string): string[] {
 /** A song's arrangements in their order; the first is the default (SONG-R19). */
 export function sortedArrangements(arrangements: SongArrangement[], songId: string): SongArrangement[] {
   return arrangements.filter((a) => a.songId === songId).toSorted((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
-}
-
-/**
- * The parts in the order they are shown (SONG-R18, R19): the item's
- * arrangement, else the song's first arrangement, else all parts in part
- * order. An arrangement id that is not one of the song's shows all parts; ids
- * of deleted parts are skipped; repeats are kept.
- */
-export function arrangedParts(song: Song, parts: SongPart[], arrangements: SongArrangement[], itemArrangementId: string | null = null): SongPart[] {
-  const own = parts.filter((p) => p.songId === song.id).toSorted((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
-  const arrangementId = itemArrangementId ?? sortedArrangements(arrangements, song.id)[0]?.id ?? null;
-  const arrangement = arrangementId ? arrangements.find((a) => a.id === arrangementId && a.songId === song.id) : undefined;
-  if (!arrangement) return own;
-  const byId = new Map(own.map((p) => [p.id, p]));
-  return parsePartIds(arrangement.partIds).flatMap((id) => byId.get(id) ?? []);
-}
-
-/** One slide per arranged part (spec 02: one part is one slide). */
-export function songSlides(
-  song: Song,
-  parts: SongPart[],
-  labels: Map<string, Label>,
-  arrangements: SongArrangement[] = [],
-  itemArrangementId: string | null = null,
-): Slide[] {
-  const credits = songCredits(song);
-  const seen = new Map<string, number>();
-  return arrangedParts(song, parts, arrangements, itemArrangementId).map((p) => {
-    const n = seen.get(p.id) ?? 0;
-    seen.set(p.id, n + 1);
-    const l = p.labelId ? labels.get(p.labelId) : undefined;
-    return { key: n ? `${p.id}#${n}` : p.id, kind: 'song', text: p.content, verses: null, image: null, label: l ? { text: l.text, color: l.color } : null, credits };
-  });
-}
-
-/** A Bible item's slides, as frozen when it was added; the credits name the passage and its translation (D12). */
-export function bibleItemSlides(title: string, content: BibleItemContent): Slide[] {
-  const credits = bibleCredits(title, content.translation);
-  return content.slides.map((verses, i) => ({ key: `b${i}`, kind: 'bible', text: bibleSlideText(verses), verses, image: null, label: null, credits }));
 }
 
 /** A slide of an image item: one picture, over the theme's media background (spec 05). */

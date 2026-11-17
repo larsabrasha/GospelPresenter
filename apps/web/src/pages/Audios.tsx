@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { can, MEDIA_LIMITS, type Role } from '@gp/core';
+import type { Role } from '@gp/core';
+import { can, limits } from '../db/pageCore.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -44,7 +45,7 @@ export function Audios({ role }: { role: Role }) {
           return m && { name: a.fileName, data: m.bytes, type: m.contentType };
         },
       }}
-      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: limits().fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
       remove={{ ...trashTexts('audios.trashed'), run: (a) => db.mutate('trashAudio', { id: a.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('audios.failed', { n: failures.length })} testId="audio" />}

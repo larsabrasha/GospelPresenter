@@ -1,4 +1,5 @@
-import { LIMITS, type Label, type SongPart } from '@gp/core';
+import type { Label, SongPart } from '@gp/core';
+import { limits } from '../db/pageCore.ts';
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { presentationsUsing, songPage, SONG_PAGE_READS } from '../db/views.ts';
@@ -255,7 +256,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <AppButton
           variant="plain"
           className={`${TEXT_ACTION} -mt-2`}
-          disabled={parts.length >= LIMITS.partsPerSong}
+          disabled={parts.length >= limits().partsPerSong}
           onClick={() => {
             const partId = newId();
             scrollTo.current = partId;

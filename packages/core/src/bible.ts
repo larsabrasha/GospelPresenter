@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import { compareBooks, resolveBook, swedishBookName } from './bible-books.ts';
+import { compareBooks } from './bible-books.ts';
 import { sha256Hex } from './platform.ts';
 
-// Bible text (spec 05 "Bibles"): references, the verses they select, and how
-// a passage becomes slides and a title. Pure functions, used by the add-item
-// picker, the mutators and the tests.
+// Bible text (spec 05 "Bibles"): a translation's text as stored, sent and imported, and what an item keeps.
 
 /** One verse: book code (USX), chapter, verse and text. */
 export interface Verse {
@@ -20,95 +18,9 @@ export interface BibleBookText {
   verses: [number, number, string][];
 }
 
-// ------------------------------------------------------------------ references (BIBLE-R11)
-
-type Point = [chapter: number, verse: number];
-
-export interface VerseSearchPlan {
-  /** The books to look in, among the translation's. */
-  codes: string[];
-  from: Point;
-  to: Point;
-}
-
-const REFERENCE = /^(.+)\s+(\d+)(?::(\d+))?(?:-(\d+)(?::(\d+))?)?[-:]?$/;
-const BOOK_ONLY = /^[a-zA-ZåäöÅÄÖ0-9: ]+$/;
-const END = Number.MAX_SAFE_INTEGER;
-
-/** Trim, one space between words, and no spaces around ":" and "-" (BIBLE-R11 step 1). */
-export function normaliseReference(query: string): string {
-  return query.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/\s*([:-])\s*/g, '$1');
-}
-
-/**
- * What a reference query selects in a translation with the books `available`
- * (BIBLE-R11), or null when it selects nothing. A book that resolves but is
- * not in the translation selects nothing; a reference whose book does not
- * resolve looks in every book whose code starts with it.
- */
-export function planVerseSearch(query: string, available: string[]): VerseSearchPlan | null {
-  const q = normaliseReference(query);
-  const m = REFERENCE.exec(q);
-  if (!m) {
-    if (!BOOK_ONLY.test(q)) return null;
-    const code = resolveBook(q);
-    return code && available.includes(code) ? { codes: [code], from: [0, 0], to: [END, END] } : null;
-  }
-  const book = m[1]!.trim();
-  const fromChapter = Number(m[2]);
-  const fromVerse = m[3] === undefined ? null : Number(m[3]);
-  const toNum = m[4] === undefined ? null : Number(m[4]);
-  const toVerse = m[5] === undefined ? null : Number(m[5]);
-
-  const code = resolveBook(book);
-  const codes = code ? available.filter((c) => c === code) : available.filter((c) => c.toUpperCase().startsWith(book.toUpperCase()));
-  if (!codes.length) return null;
-
-  const from: Point = [fromChapter, fromVerse ?? 0];
-  let to: Point;
-  if (toNum === null) {
-    // "B C:V-" runs to the end of the chapter; "B C", "B C:" and "B C-" are the whole chapter.
-    to = fromVerse !== null && !q.endsWith('-') ? [fromChapter, fromVerse] : [fromChapter, END];
-  } else if (toVerse !== null) to = [toNum, toVerse];
-  else if (fromVerse !== null && toNum >= fromVerse) to = [fromChapter, toNum]; // "3:15-17": verses of chapter 3
-  else to = [toNum, END]; // "3:15-4" and "3-4": through the whole of chapter 4
-  return { codes, from, to };
-}
-
-// The verses a plan selects are read by the Rust core's bibleView (crates/gp-core/src/bible_view.rs), a stored book at
-// a time.
-
-// ------------------------------------------------------------------ titles (BIBLE-R13)
-
-/**
- * The item title, with Swedish book names: `Johannes 3:16`, `Johannes 3:16-18`,
- * `Johannes 3:16-4:2`, `Johannes 21:25 - Apostlagärningarna 1:2`.
- */
-export function bibleTitle(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
-  const first = verses[0];
-  const last = verses.at(-1);
-  if (!first || !last) return '';
-  const name = swedishBookName(first.b);
-  if (first.b !== last.b) return `${name} ${first.c}:${first.v} - ${swedishBookName(last.b)} ${last.c}:${last.v}`;
-  if (first.c !== last.c) return `${name} ${first.c}:${first.v}-${last.c}:${last.v}`;
-  if (first.v !== last.v) return `${name} ${first.c}:${first.v}-${last.v}`;
-  return `${name} ${first.c}:${first.v}`;
-}
-
-/** The add button's label (spec 05 "Bibeltexter"): like the title, with spaces around a dash between chapters. */
-export function bibleLabel(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
-  const first = verses[0];
-  const last = verses.at(-1);
-  if (first && last && first.b === last.b && first.c !== last.c) return `${swedishBookName(first.b)} ${first.c}:${first.v} - ${last.c}:${last.v}`;
-  return bibleTitle(verses);
-}
-
-/** What a Bible slide shows at the bottom: the passage and its translation (spec 04 credits, D12). */
-export function bibleCredits(title: string, translation: string): string {
-  return translation ? `${title} · ${translation}` : title;
-}
-
-// ------------------------------------------------------------------ slides (BIBLE-R12)
+// A reference read as verses (BIBLE-R11), a passage's title and label (BIBLE-R13) and its slides (BIBLE-R12) are the
+// Rust core's (crates/gp-core/src/bible_books.rs and bible.rs: verseSearchPlanView, bibleSlidesView,
+// addBibleToPresentation), one place for every app.
 
 /** A run of words on a slide; `n` is the verse number when the run starts that verse. */
 export interface BibleSegment {
@@ -116,64 +28,6 @@ export interface BibleSegment {
   t: string;
 }
 export type BibleSlide = BibleSegment[];
-
-/** About this many characters fit one slide at the themes' 75px (ADR 0001 (8)). */
-export const BIBLE_CHARS_PER_SLIDE = 250;
-
-interface Word {
-  n: number | null;
-  t: string;
-}
-
-const plainLength = (w: Word) => w.t.length + (w.n === null ? 0 : String(w.n).length + 1);
-
-/**
- * Splits a passage into balanced slides, once, when it is added (BIBLE-R12):
- * as many slides as `total / 250` rounds up to, each filled with whole words
- * up to `total / slides`, the last taking the rest. Lengths are of the plain
- * text, verse numbers included. An empty verse still shows its number.
- */
-export function splitBibleSlides(verses: Pick<Verse, 'v' | 't'>[], maxChars = BIBLE_CHARS_PER_SLIDE): BibleSlide[] {
-  const words: Word[] = verses.flatMap((verse) => {
-    const parts = verse.t.split(' ').filter(Boolean);
-    return parts.length ? parts.map((t, i) => ({ n: i === 0 ? verse.v : null, t })) : [{ n: verse.v, t: '' }];
-  });
-  if (!words.length) return [];
-  const total = words.reduce((sum, w) => sum + plainLength(w), 0) + words.length - 1;
-  const slideCount = Math.max(1, Math.ceil(total / maxChars));
-  const target = Math.ceil(total / slideCount);
-
-  const slides: Word[][] = [];
-  let current: Word[] = [];
-  let length = 0;
-  for (const w of words) {
-    const candidate = current.length ? length + 1 + plainLength(w) : plainLength(w);
-    if (candidate > target && current.length && slides.length < slideCount - 1) {
-      slides.push(current);
-      current = [w];
-      length = plainLength(w);
-    } else {
-      current.push(w);
-      length = candidate;
-    }
-  }
-  if (current.length) slides.push(current);
-
-  return slides.map((slide) => {
-    const segments: BibleSegment[] = [];
-    for (const w of slide) {
-      const last = segments.at(-1);
-      if (w.n === null && last) last.t = last.t ? `${last.t} ${w.t}` : w.t;
-      else segments.push({ n: w.n, t: w.t });
-    }
-    return segments;
-  });
-}
-
-/** A slide as plain text: "16 For God so loved…" (for search, labels and tests). */
-export function bibleSlideText(slide: BibleSlide): string {
-  return slide.map((s) => (s.n === null ? s.t : s.t ? `${s.n} ${s.t}` : String(s.n))).join(' ');
-}
 
 // ------------------------------------------------------------------ stored on an item
 

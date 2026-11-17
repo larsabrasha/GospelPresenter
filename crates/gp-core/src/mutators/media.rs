@@ -4,7 +4,7 @@ use super::*;
 use crate::json::J;
 use crate::pages::num;
 
-const FILE_NAME: usize = 200;
+pub const FILE_NAME: usize = 200;
 const IMAGES: i64 = 1000;
 const AUDIOS: i64 = 500;
 const VIDEOS: i64 = 500;

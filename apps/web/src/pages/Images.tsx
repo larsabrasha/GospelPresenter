@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { can, MEDIA_LIMITS, type LibraryImage, type Role } from '@gp/core';
+import type { LibraryImage, Role } from '@gp/core';
+import { can, limits } from '../db/pageCore.ts';
 import { useLocalUrl, useData, useDb, usePictureUrl } from '../db/react.tsx';
 import { listImages } from '../db/images.ts';
 import { t, type TextKey } from '../i18n.ts';
@@ -169,7 +170,7 @@ export function Images({ role }: { role: Role }) {
           return m && { name: nameFor(image.fileName, m.contentType), data: m.bytes, type: m.contentType };
         },
       }}
-      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: limits().fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
       remove={{ ...trashTexts('images.trashed'), run: (image) => db.mutate('trashImage', { id: image.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('images.failed', { n: failures.length })} testId="image" />}

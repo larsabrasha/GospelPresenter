@@ -5,9 +5,9 @@ use crate::json::J;
 use serde_json::Value;
 
 const CANVAS: (f64, f64) = (1920.0, 1080.0);
-const ELEMENTS: usize = 100;
-const PAGES: usize = 100;
-const TEXT: usize = 2000;
+pub const ELEMENTS: usize = 100;
+pub const PAGES: usize = 100;
+pub const TEXT: usize = 2000;
 
 fn bad<T>() -> R<T> { Err("invalid-args".into()) }
 

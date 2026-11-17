@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
-import { can, emailSchema, ROLES, type InvitationResponse, type InvitationRow, type MemberRole, type UserRow } from '@gp/core';
+import { can } from '../db/pageCore.ts';
+import { emailSchema, ROLES, type InvitationResponse, type InvitationRow, type MemberRole, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';

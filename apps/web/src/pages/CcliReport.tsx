@@ -1,4 +1,5 @@
-import { can, type CcliEntry, type Role } from '@gp/core';
+import type { CcliEntry, Role } from '@gp/core';
+import { can } from '../db/pageCore.ts';
 import { useState } from 'react';
 import { ccliReport } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
