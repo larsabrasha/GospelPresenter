@@ -240,6 +240,22 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     expect((await serverDump(h, org, 'alice')).tables.images[0]?.file_name).toBe('Ny bild');
   });
 
+  it('a renamed picture renames the items that are it alone; an item of several pictures keeps its own name', async () => {
+    const p = await uploaded(h, org, alice, 'items');
+    await alice.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash, 'gammal.jpg'));
+    await alice.client.mutate('addImage', imageArgs('IMG2', p.fullHash, p.thumbHash, 'andra.jpg'));
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
+    await alice.client.mutate('addImageToPresentation', { itemId: 'I1', presentationId: 'P', imageId: 'IMG' });
+    await alice.client.mutate('addImageToPresentation', { itemId: 'I2', presentationId: 'P', imageIds: ['IMG', 'IMG2'], title: 'Bilder från lägret' });
+
+    await alice.client.mutate('renameImage', { id: 'IMG', fileName: 'Ny bild' });
+    await alice.client.sync();
+    await bob.client.sync();
+
+    const items = (await serverDump(h, org, 'alice')).tables.presentation_items.map((i) => [i.id, i.title]);
+    expect(items).toEqual([['I1', 'Ny bild'], ['I2', 'Bilder från lägret']]);
+  });
+
   it('a blob shared by two images is kept until both are gone', async () => {
     const p = await uploaded(h, org, alice, 'shared');
     await alice.client.mutate('addImage', imageArgs('A', p.fullHash, p.thumbHash, 'a.jpg'));

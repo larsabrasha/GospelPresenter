@@ -47,9 +47,11 @@ async fn update(a: &Obj, ctx: &Ctx) -> R<()> {
     require(ctx, "ManagePresentations")?;
     if pages.is_some() { require_blobs(&blobs).await? }
     let mut set: Vec<(&str, Value)> = vec![];
-    if let Some(n) = name { set.push(("name", json!(n))) }
+    if let Some(n) = &name { set.push(("name", json!(n))) }
     if let Some(p) = pages { set.push(("pages", json!(p.stringify()))) }
-    update_fields("custom_slides", &sid, set, at).await
+    update_fields("custom_slides", &sid, set, at).await?;
+    if let Some(n) = name { rename_items("custom_slides", "custom", &sid, &n).await }
+    Ok(())
 }
 
 async fn set_deleted(a: &Obj, ctx: &Ctx, trash: bool) -> R<()> {

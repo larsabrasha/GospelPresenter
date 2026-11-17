@@ -7,7 +7,7 @@ import {
   SyncClient, ReferenceSyncClient, handlePush, handlePull, RustCore, serverSyncDdl, serverChangeTriggers, migrateOrgSchemaSync, labelSeedSql,
   schema, drizzleProxy,
 } from '../.out/ts-sync.mjs';
-import { fieldTimeMigration } from '../field-times.mjs';
+import { fieldTimeMigration } from '../beyond-reference.mjs';
 
 const out = new URL('../.out/', import.meta.url).pathname;
 /** The core the reference client and the server run their mutators on: always the core as built, never a planted fault. */
@@ -26,7 +26,7 @@ export function openServer(seed) {
   const query = (sql, params = []) => db.prepare(sql).all(...params);
   const rows = (sql, params = []) => { const st = db.prepare(sql); st.setReturnArrays(true); return st.all(...params); };
   migrateOrgSchemaSync(query, (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); });
-  // The reference's tables, then schema 27's field times, as the server's core makes them (field-times.mjs).
+  // The reference's tables, then schema 27's field times, as the server's core makes them (beyond-reference.mjs).
   for (const s of [...fieldTimeMigration(), ...serverSyncDdl, ...serverChangeTriggers(), ...seed, ...labelSeedSql]) db.exec(s);
   const store = {
     db: drizzleProxy(async (sql, params, method) => { const all = rows(sql, params); return { rows: method === 'get' ? all[0] : all }; }, { schema }),

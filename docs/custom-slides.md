@@ -40,10 +40,14 @@ Limits, so a page stays small enough to sync and draw: 100 elements a page, 100 
 
 - `packages/core/src/custom-slides.ts`: the page's schema (zod), its limits, and the text of a page for a public
   output (its texts, top to bottom).
-- `custom_slides` (synced): `id`, `name`, `pages` (JSON, the pages), `created_at`, `updated_at`, `deleted_at`. In
-  the trash as a song is. A save writes all its pages, so the last save of two devices wins the slide.
+- `custom_slides` (synced): `id`, `name`, `pages` (JSON, the pages), `created_at`, `updated_at`, `deleted_at`, and
+  `name_at` and `pages_at` (schema 27). In the trash as a song is. A save writes all its pages; of two devices' saves
+  of the pages the newer by its device's clock wins, and a rename and new pages from two devices both land (SYNC-R23,
+  [assumptions.md](assumptions.md)).
 - A presentation item of type `custom` names the slide by `source_id`; its slides are drawn from the slide as it is
-  now, one per page (`apps/web/src/live/live.ts`).
+  now, one per page (`apps/web/src/live/live.ts`). Its title is the slide's name: a renamed slide's items, in
+  presentations and templates, take the new name, as a renamed song's do (Lars, 2026-11-17; and a picture's, a
+  sound's and a video's, [assumptions.md](assumptions.md)).
 - `overlays` keeps its table and ids, so items, the live pointer and the outputs keep naming overlays as now; its
   `content` holds the page (JSON), and `image_id` is no longer used.
 - Until schema 22 a page's pictures were pictures of Bilder by id (`imageId`, `backgroundImageId`); the migration

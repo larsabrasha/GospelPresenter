@@ -4,7 +4,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { migrateOrgSchema, orgDdl, orgMigrations, orgIndexes, schemaMetaDdl, labelSeedSql } from '../.out/ts-core.mjs';
 import { dumpAll, runRust, schemaOf } from './harness.mjs';
-import { fieldTimeMigration } from '../field-times.mjs';
+import { fieldTimeMigration } from '../beyond-reference.mjs';
 
 /** Today's DDL as version 11 made it: none of the tables and columns 12 to 25 added. */
 const v11 = orgDdl
@@ -68,7 +68,7 @@ const cases = [
   ['version 28, newer than the core', () => { const db = atVersion(26); db.exec('UPDATE _schema SET version = 28'); return db; }],
 ];
 
-/** The reference's migration, to 26, then schema 27's field times as the core's migration adds them (field-times.mjs). */
+/** The reference's migration, to 26, then schema 27's field times as the core's migration adds them (beyond-reference.mjs). */
 async function migrateTs(db) {
   const version = () => (db.prepare("SELECT 1 FROM sqlite_master WHERE name = '_schema'").get() ? db.prepare('SELECT version FROM _schema').get()?.version : undefined);
   try {

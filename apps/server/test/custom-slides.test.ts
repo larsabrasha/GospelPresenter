@@ -90,6 +90,17 @@ describe.each(adapters)('%s adapter: custom slides', (adapterName) => {
     ]);
   });
 
+  it('renames a slide’s items when the slide is renamed, on every device', async () => {
+    await fx.seed();
+    await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Nytt bildspel', pages: [blankPage()], at: 1 });
+    await fx.alice.client.mutate('addCustomSlideToPresentation', { itemId: 'I9', presentationId: 'P', slideId: 'CS', afterItemId: 'I1' });
+
+    await fx.alice.client.mutate('updateCustomSlide', { id: 'CS', name: 'Mitt bildspel', at: 2 });
+    await fx.syncAll(fx.alice, fx.bob);
+
+    expect((await fx.items(fx.bob)).map((i) => [i.id, i.title])).toEqual([['I1', 'Song 1'], ['I9', 'Mitt bildspel'], ['I2', 'Song 2']]);
+  });
+
   it('trashes, restores and purges a slide; purging one not in the trash is refused', async () => {
     await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Kollekt', pages: [blankPage()], at: 1 });
     await expect(fx.alice.client.mutate('purgeCustomSlide', { id: 'CS' })).rejects.toMatchObject({ code: 'not-in-trash' });

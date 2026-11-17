@@ -202,7 +202,8 @@ one); and a string with a lone UTF-16 surrogate cannot reach the core, as JSON b
 (the checks send none).
 
 Written in the core after the reference (Lars, 2026-11-17): schema 27, a time per field of custom slides, overlays and
-own themes, and the newest change of each field winning (SYNC-R23, docs/assumptions.md). The reference stops at 26,
-so the checks bring its databases to 27 as the core's migration does and add the rule to the reference's mutators as
-triggers (`parity/field-times.mjs`); the sync check's reference client takes today's tables and schema version. A
+own themes, and the newest change of each field winning (SYNC-R23, docs/assumptions.md); and a renamed slideshow,
+picture, sound or video renaming its items, as a song does (docs/assumptions.md). The reference stops at 26, so the checks bring its
+databases to 27 as the core's migration does and add these rules to the reference's mutators as triggers
+(`parity/beyond-reference.mjs`); the sync check's reference client takes today's tables and schema version. A
 feature written in the core first is proved so: its rule beside the reference, the rest unchanged.

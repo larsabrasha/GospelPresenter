@@ -43,6 +43,10 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
   Linear and the offline-first apps merge, field by field; it rests on the devices' clocks, so one far ahead wins
   against others; a logical clock (HLC) in the same columns would end that. Presentations' fields and songs' parts
   follow the server's order still. No change is refused for its age alone.
+- **An item is named after what it shows** (Lars, 2026-11-17): a renamed song, slideshow, picture, sound or video
+  renames its items in every presentation and template (`renameSongItems`, `rename_items` in the core's mutators),
+  a name given to the item itself included. An item of several pictures keeps the name it was given; a Bible
+  passage is named by its place, and a header by its own text.
 - **Limits on the server**: 5 000 songs, 50 parts per song, 10 arrangements per song, 100 items per
   presentation (spec 02, 03), and 500 chips per arrangement (the spec limits the JSON to 5 000
   characters instead).

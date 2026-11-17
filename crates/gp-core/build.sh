@@ -27,7 +27,7 @@ sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
   --alias:@gp/core="$REF/packages/core/src/index.ts"
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the
 # server's engine, for the sync check. Its TS core is the reference's with today's tables and schema version (schema
-# 27's field times, parity/field-times.mjs), so its sync SQL carries every column the server and the core do.
+# 27's field times, parity/beyond-reference.mjs), so its sync SQL carries every column the server and the core do.
 SYNC_REFERENCE=75e7f234
 REF_SYNC=$OUT/ref-sync
 rm -rf "$REF_SYNC" && mkdir -p "$REF_SYNC/packages" && cp -R "$REF/packages/core" "$REF/packages/sync" "$REF_SYNC/packages/"

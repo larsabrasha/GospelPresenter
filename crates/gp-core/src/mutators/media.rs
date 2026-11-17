@@ -114,6 +114,8 @@ async fn rename(a: &Obj, ctx: &Ctx, (table, permission): (&str, &str)) -> R<()> 
     let (fid, name) = (id(a, "id")?, file_name(a)?);
     require(ctx, permission)?;
     sql(&format!("UPDATE {table} SET file_name = ? WHERE id = ?"), vec![json!(name), json!(fid)]).await;
+    let kind = match table { "images" => "image", "audios" => "audio", _ => "video" };
+    rename_items(table, kind, &fid, &name).await;
     Ok(())
 }
 

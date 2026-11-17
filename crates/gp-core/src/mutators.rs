@@ -71,6 +71,14 @@ pub async fn update_set(table: &str, set: Vec<(&str, Value)>, row: &str) {
     sql(&format!("UPDATE {table} SET {} WHERE id = ?", cols.join(", ")), params).await;
 }
 
+/// A renamed thing of the library (a slideshow, a picture, a sound, a video): the items of `kind` it is, in presentations
+/// and templates, take its new name, as a renamed song's do (Lars, 2026-11-17). An item of several pictures has a name
+/// of its own (its pictures in `content`) and keeps it; a thing gone renames nothing.
+pub async fn rename_items(table: &str, kind: &str, source_id: &str, name: &str) {
+    if !found(&format!("SELECT id FROM {table} WHERE id = ?"), vec![json!(source_id)]).await { return }
+    sql("UPDATE presentation_items SET title = ? WHERE type = ? AND source_id = ? AND content IS NULL AND title <> ?", vec![json!(name), json!(kind), json!(source_id), json!(name)]).await;
+}
+
 /// A change of a row whose every field keeps its own time (`{field}_at`, schema 27): the newest change of a field wins,
 /// by the clocks of the devices that made them, not the last to reach the server (SYNC-R23, docs/assumptions.md).
 /// Refused as `newer-change` when a field it changes was changed after `at`, so an edit made offline yesterday does not

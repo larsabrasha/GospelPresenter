@@ -3,7 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } from '../.out/ts-core.mjs';
-import { fieldTimeMigration, fieldTimeRefusal, fieldTimeRule } from '../field-times.mjs';
+import { coreRules, fieldTimeMigration, fieldTimeRefusal } from '../beyond-reference.mjs';
 
 const out = new URL('../.out/', import.meta.url).pathname;
 
@@ -27,14 +27,15 @@ export async function query(db, sql, params) {
 
 /**
  * An organisation database of today's schema, with `seed` in it: the reference's migration, then schema 27's field
- * times (field-times.mjs); with `rule`, for the reference's TS mutators to write, the newest-field rule as triggers.
+ * times (beyond-reference.mjs); with `rules`, for the reference's TS mutators to write, the core's rules beyond the
+ * reference as triggers.
  */
-export function openDb(seed = [], rule = false) {
+export function openDb(seed = [], rules = false) {
   const db = new DatabaseSync(':memory:');
   migrateOrgSchemaSync((sql) => db.prepare(sql).all(), (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); });
   for (const s of fieldTimeMigration()) db.exec(s);
   for (const s of seed) db.exec(s);
-  if (rule) for (const s of fieldTimeRule()) db.exec(s);
+  if (rules) for (const s of coreRules()) db.exec(s);
   return db;
 }
 
