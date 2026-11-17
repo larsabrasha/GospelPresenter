@@ -1,8 +1,8 @@
 // packages/sync/src/client/client.ts's SyncClient, what of it decides what the device's database holds: a change run
 // at once and queued (`_mutation`), the queue to send, and the rebase of the queue onto the server's pages. The
 // network, the socket, when to sync, retries, sign-in and the server's refusals stay in the shell. The shell runs
-// `syncOpen` outside a transaction (after `migrateOrgSchema`), and each of the others in one transaction of its own,
-// rolled back when the core refuses.
+// `syncOpen` in the transaction of `migrateOrgSchema`, after it, and each of the others in one transaction of its
+// own, rolled back when the core refuses.
 use crate::args::*;
 use crate::bridge::{sql, take_failure};
 use crate::mutators::{first, int_of, mutate, s, Ctx};
@@ -25,9 +25,9 @@ pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<Value>> {
 }
 
 /// The client's sync tables, its triggers and its record of changed tables; this device's id, kept from the first open.
+/// In the shell's transaction, so the shell turns foreign keys on before it (SQLite ignores the PRAGMA inside one).
 async fn open(a: &Obj) -> R<Value> {
     let client_id = a.get("clientId").and_then(Value::as_str).ok_or("invalid-args")?;
-    sql("PRAGMA foreign_keys = ON", vec![]).await;
     let ddl = CLIENT_SYNC_DDL.iter().map(|s| s.to_string()).chain(undo_triggers()).chain(change_tracking_ddl());
     for s in ddl { sql(&s, vec![]).await; }
     sql("INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)", vec![json!(client_id)]).await;

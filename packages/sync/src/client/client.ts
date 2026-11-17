@@ -88,20 +88,22 @@ export class SyncClient {
   private exec = (sql: string, params: unknown[] = []) => this.sqlite.query(sql, params);
 
   private async init() {
+    // Before the transaction: SQLite ignores this PRAGMA inside one.
     await this.exec('PRAGMA foreign_keys = ON');
-    // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
+    // The schema's migration, then the queue's tables, the triggers and the record of changed tables, on the Rust
+    // core, in one transaction: a refused database is left as it was, and the ~190 statements that remake the
+    // triggers on every open are one write to the file, not one each (one each took seconds on OPFS under load).
+    const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
     await this.exec('BEGIN');
     try {
       await this.opts.core.run('migrateOrgSchema', {}, undefined, this.rows);
+      const opened = (await this.core('syncOpen', { clientId: id })) as { clientId: string };
       await this.exec('COMMIT');
+      this.clientId = String(opened.clientId);
     } catch (e) {
       await this.exec('ROLLBACK');
       throw e;
     }
-    // The queue's tables, the triggers and the record of changed tables; outside a transaction, as PRAGMAs need.
-    const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
-    const opened = (await this.core('syncOpen', { clientId: id })) as { clientId: string };
-    this.clientId = String(opened.clientId);
   }
 
   /** A sync command of the Rust core, on this connection, as this device's user. */

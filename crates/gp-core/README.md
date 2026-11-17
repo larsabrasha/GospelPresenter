@@ -9,9 +9,9 @@ two drifting apart. The TypeScript core (`packages/core`) is still the app's; ev
 - `parity/mutations/` — the schema and the mutators against the TS core, file by file of `packages/core/src/mutators`:
   `schema-check.mjs` migrates a database of every version through both; `run.mjs [file] --ops N --seeds N` sends the
   same random mutations through both, every table compared after each step (a file is proved at 30 000).
-- `src/sync.rs`, `src/sync_sql.rs` — sync's client logic (SyncClient's): the commands `syncOpen` (outside a transaction),
-  `syncMutate` (a change run and queued), `syncPending` (the queue to send) and `syncRebase` (the server's pages), each
-  of the others in one transaction of the shell's. A statement the shell's SQLite refuses is answered `{"error": …}`.
+- `src/sync.rs`, `src/sync_sql.rs` — sync's client logic (SyncClient's): the commands `syncOpen` (in the transaction of
+  `migrateOrgSchema`), `syncMutate` (a change run and queued), `syncPending` (the queue to send) and `syncRebase` (the
+  server's pages), each of the others in one transaction of the shell's. A statement the shell's SQLite refuses is answered `{"error": …}`.
 - `parity/sync/check.mjs` — the app's SyncClient, now on the core's sync, against the TS SyncClient as it was before
   (frozen by `build.sh` from commit 75e7f234): device A as the reference against a real server engine and as the app's
   client given the same answers, its requests checked against the reference's; device B changing the same library; a
