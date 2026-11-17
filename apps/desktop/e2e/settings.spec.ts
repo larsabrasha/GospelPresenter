@@ -138,6 +138,7 @@ test('Om Gospel Presenter, at the foot of the list for everyone, tells the versi
 
   await expect(page).toHaveURL(/\/admin\/about$/);
   await expect(page.getByTestId('about-version')).toHaveText('okänd'); // the e2e build is given no commit
+  await expect(page.getByTestId('about-core')).toHaveText(/^Rust, gp-core \d+\.\d+\.\d+$/); // as the running core answers
   const links = page.getByRole('navigation', { name: 'Länkar' });
   await expect(links.getByRole('link', { name: 'Webbplats' })).toHaveAttribute('href', 'https://www.gospelpresenter.com');
   await expect(links.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/larsabrasha/GospelPresenter');

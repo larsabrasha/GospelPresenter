@@ -58,9 +58,13 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "remoteControlView" => crate::live_views::remote_control().await,
         "presentingKeyView" => crate::presenting::key(a),
         "slideMarksView" => crate::presenting::marks(a),
+        "coreInfoView" => Ok(core_info()),
         _ => return None,
     })
 }
+
+/// What the running core is, for Om Gospel Presenter: the crate's name and version, as built.
+fn core_info() -> Value { json!({ "name": env!("CARGO_PKG_NAME"), "version": env!("CARGO_PKG_VERSION") }) }
 
 /// The presentations, last changed first, with how many items each has.
 async fn presentations() -> Value {
