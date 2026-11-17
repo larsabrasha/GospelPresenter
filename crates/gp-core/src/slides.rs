@@ -116,7 +116,7 @@ fn bible_content(content: &Option<String>) -> Option<(String, Vec<Vec<(Option<i6
 }
 
 /// `bibleItemSlides`: the frozen slides, each run with its verse number if it starts a verse.
-fn bible(item: &Item) -> Value {
+pub fn bible(item: &Item) -> Value {
     let Some((translation, slides)) = bible_content(&item.content) else { return some(vec![], Some("no-parts")) };
     let credits = if translation.is_empty() { item.title.clone() } else { format!("{} · {}", item.title, translation) };
     let out = slides.into_iter().enumerate().map(|(i, runs)| {

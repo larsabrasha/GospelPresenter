@@ -1,17 +1,6 @@
-import {
-  bibleItemSlides,
-  bibleLabel,
-  bibleTitle,
-  isOldTestament,
-  MAX_VERSES_PER_ITEM,
-  planVerseSearch,
-  splitBibleSlides,
-  englishBookName,
-  swedishBookName,
-  type Theme,
-  type Verse,
-} from '@gp/core';
+import { MAX_VERSES_PER_ITEM, type Theme, type Verse } from '@gp/core';
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { bibleSlides, bookInfo, verseSearchPlan } from '../db/pageCore.ts';
 import { useData, useDataReading, useDb } from '../db/react.tsx';
 import { listBibles } from '../db/queries.ts';
 import { language, t } from '../i18n.ts';
@@ -56,7 +45,7 @@ interface BibleRead {
 const TEXT_TABLES = ['bible_texts', 'bible_blobs'];
 
 /** A book's name in the page's language (spec 05: Swedish under sv, else English). */
-const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) : englishBookName(code));
+const bookName = (code: string) => (language() === 'sv' ? bookInfo(code).sv : bookInfo(code).en);
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 /** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
@@ -70,8 +59,8 @@ const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-ins
  */
 function BookPicker({ books, onPick }: { books: string[]; onPick: (code: string) => void }) {
   const groups = [
-    { title: t('bible.oldTestament'), books: books.filter((code) => isOldTestament(code)) },
-    { title: t('bible.newTestament'), books: books.filter((code) => !isOldTestament(code)) },
+    { title: t('bible.oldTestament'), books: books.filter((code) => bookInfo(code).oldTestament) },
+    { title: t('bible.newTestament'), books: books.filter((code) => !bookInfo(code).oldTestament) },
   ];
   const list = useRovingList(books.length);
   let index = 0;
@@ -251,7 +240,7 @@ function bibleAsk(browse: Browse | null, query: string, books: string[] | null |
     const picked = browse.start && browse.start[1] > 0;
     return { book: browse.book, ...(chapter !== null && { chapter }), ...(picked && { passage: { books: [browse.book], from: browse.start, to: browse.end ?? browse.start } }) };
   }
-  const plan = books && query.trim() ? planVerseSearch(query, books) : null;
+  const plan = books && query.trim() ? verseSearchPlan(query, books) : null;
   return plan && { passage: { books: plan.codes, from: plan.from, to: plan.to } };
 }
 
@@ -316,7 +305,10 @@ export function BibleTab({
   const found = browse || !query.trim() ? [] : wanted ? read?.passage : [];
   const shown = (found ?? []).slice(0, MAX_VERSES_PER_ITEM);
   const chosen = browse ? (read?.passage ?? []) : shown;
-  const slides = chosen.length ? bibleItemSlides(bibleTitle(chosen), { translation: bible.abbreviation, slides: splitBibleSlides(chosen) }) : [];
+  // The output's own slides and the item's title (`bibleSlidesView`), as adding them freezes them.
+  const preview = chosen.length ? bibleSlides(bible.abbreviation, chosen) : null;
+  const slides = preview?.slides ?? [];
+  const title = preview?.title ?? '';
 
   const reset = () => {
     setQuery('');
@@ -356,7 +348,7 @@ export function BibleTab({
       }),
     );
     if (!added) return;
-    toast(t('presentation.added', { name: bibleTitle(chosen) }));
+    toast(t('presentation.added', { name: title }));
     onAdded(itemId);
     reset();
   };
@@ -441,10 +433,10 @@ export function BibleTab({
           )}
           {!!slides.length && (
             <>
-              <h3 className="mb-4 px-1 font-semibold text-sm/5">{bibleTitle(chosen)}</h3>
-              <ol className="flex flex-col gap-2" aria-label={bibleTitle(chosen)}>
+              <h3 className="mb-4 px-1 font-semibold text-sm/5">{title}</h3>
+              <ol className="flex flex-col gap-2" aria-label={title}>
                 {slides.slice(0, PREVIEW_SLIDES).map((s, i) => (
-                  <li key={s.key} className={tileClass({ interactive: false })} aria-label={`${bibleTitle(chosen)} ${i + 1}`}>
+                  <li key={s.key} className={tileClass({ interactive: false })} aria-label={`${title} ${i + 1}`}>
                     <SlideView slide={s} theme={theme} />
                   </li>
                 ))}
@@ -455,8 +447,8 @@ export function BibleTab({
         </div>
       </div>
       <AddFooter
-        name={chosen.length ? bibleLabel(chosen) : undefined}
-        label={chosen.length ? t('presentation.addSong', { name: bibleLabel(chosen) }) : undefined}
+        name={preview?.label}
+        label={preview ? t('presentation.addSong', { name: preview.label }) : undefined}
         onAdd={chosen.length ? () => void add() : undefined}
       />
     </div>

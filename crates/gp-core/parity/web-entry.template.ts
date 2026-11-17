@@ -35,7 +35,10 @@ export {
   themeOf,
 } from '@REF@/apps/web/src/db/queries.ts';
 export { bibleBooks } from '@REF@/apps/web/src/db/queries.ts';
-export { planVerseSearch, searchVerses, storeBibleTextSql, versesInRange } from '@REF@/packages/core/src/bible.ts';
+export { bibleTitle, planVerseSearch, searchVerses, splitBibleSlides, storeBibleTextSql, versesInRange } from '@REF@/packages/core/src/bible.ts';
+export { bibleItemSlides } from '@REF@/packages/core/src/slides.ts';
+export { bibleLabel } from '@REF@/packages/core/src/bible.ts';
+export { englishBookName, isOldTestament, swedishBookName } from '@REF@/packages/core/src/bible-books.ts';
 export { BUILT_IN_THEMES } from '@REF@/packages/core/src/themes.ts';
 export { prepareSong, rankSongs } from '@REF@/packages/core/src/search.ts';
 export { listImages } from '@REF@/apps/web/src/db/images.ts';

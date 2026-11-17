@@ -2,22 +2,7 @@
 // as packages/core's presentingKey and slideMarks: pure, so the page calls the core on its own thread, synchronously,
 // and a key reaches the outputs without a round trip to the database's worker (docs/rust-core.md, 2.5 step 3).
 import type { Presenting, PresentingKey, SlideAt, SlideMarkKind } from '@gp/core';
-import { RustCore } from '@gp/rust-core';
-import coreUrl from '@gp/rust-core/gp_core.wasm?url';
-
-let core: RustCore | undefined;
-
-/** This page's own instance of the core: the signed-in app waits for it as it waits for its database (main.tsx). */
-export async function loadPresentingCore(): Promise<void> {
-  if (core) return;
-  const bytes = await (await fetch(coreUrl)).arrayBuffer();
-  core = new RustCore(await WebAssembly.compile(bytes));
-}
-
-function theCore(): RustCore {
-  if (!core) throw new Error('presenting: the core is not loaded (loadPresentingCore)');
-  return core;
-}
+import { pageCore as theCore } from '../db/pageCore.ts';
 
 /** The running order as the core takes it: each item's id and how many slides it has; a heading has none. */
 export type SlideOrder = readonly (readonly [itemId: string, parts: number])[];

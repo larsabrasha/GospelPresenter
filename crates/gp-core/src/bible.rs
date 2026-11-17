@@ -4,27 +4,8 @@ use crate::args::*;
 use crate::json::J;
 use crate::mutators::{require, Ctx};
 use crate::mutators::presentations::{change_presentation, insert_item, Item};
+use crate::bible_books::swedish_name as swedish;
 use serde_json::Value;
-
-const BOOKS: [(&str, &str); 66] = [
-    ("GEN", "1 Moseboken"), ("EXO", "2 Moseboken"), ("LEV", "3 Moseboken"), ("NUM", "4 Moseboken"), ("DEU", "5 Moseboken"), ("JOS", "Josua"),
-    ("JDG", "Domarboken"), ("RUT", "Rut"), ("1SA", "1 Samuel"), ("2SA", "2 Samuel"), ("1KI", "1 Kungaboken"), ("2KI", "2 Kungaboken"),
-    ("1CH", "1 Krönikeboken"), ("2CH", "2 Krönikeboken"), ("EZR", "Esra"), ("NEH", "Nehemja"), ("EST", "Ester"), ("JOB", "Job"),
-    ("PSA", "Psaltaren"), ("PRO", "Ordspråksboken"), ("ECC", "Predikaren"), ("SNG", "Höga visan"), ("ISA", "Jesaja"), ("JER", "Jeremia"),
-    ("LAM", "Klagovisorna"), ("EZK", "Hesekiel"), ("DAN", "Daniel"), ("HOS", "Hosea"), ("JOL", "Joel"), ("AMO", "Amos"), ("OBA", "Obadja"),
-    ("JON", "Jona"), ("MIC", "Mika"), ("NAM", "Nahum"), ("HAB", "Habackuk"), ("ZEP", "Sefanja"), ("HAG", "Haggaj"), ("ZEC", "Sakarja"),
-    ("MAL", "Malaki"), ("MAT", "Matteus"), ("MRK", "Markus"), ("LUK", "Lukas"), ("JHN", "Johannes"), ("ACT", "Apostlagärningarna"),
-    ("ROM", "Romarbrevet"), ("1CO", "1 Korintierbrevet"), ("2CO", "2 Korintierbrevet"), ("GAL", "Galaterbrevet"), ("EPH", "Efesierbrevet"),
-    ("PHP", "Filipperbrevet"), ("COL", "Kolosserbrevet"), ("1TH", "1 Thessalonikerbrevet"), ("2TH", "2 Thessalonikerbrevet"),
-    ("1TI", "1 Timoteusbrevet"), ("2TI", "2 Timoteusbrevet"), ("TIT", "Titus"), ("PHM", "Filemon"), ("HEB", "Hebreerbrevet"),
-    ("JAS", "Jakobsbrevet"), ("1PE", "1 Petrusbrevet"), ("2PE", "2 Petrusbrevet"), ("1JN", "1 Johannesbrevet"), ("2JN", "2 Johannesbrevet"),
-    ("3JN", "3 Johannesbrevet"), ("JUD", "Judasbrevet"), ("REV", "Uppenbarelseboken"),
-];
-
-/// `swedishBookName`: a code we do not know shows as itself.
-fn swedish(code: &str) -> String {
-    BOOKS.iter().find(|(c, _)| *c == code.to_uppercase()).map_or(code.to_string(), |(_, n)| n.to_string())
-}
 
 pub struct Verse { pub b: String, pub c: i64, pub v: i64, pub t: String }
 
@@ -36,6 +17,14 @@ fn title(verses: &[Verse]) -> String {
     if f.c != l.c { return format!("{name} {}:{}-{}:{}", f.c, f.v, l.c, l.v) }
     if f.v != l.v { return format!("{name} {}:{}-{}", f.c, f.v, l.v) }
     format!("{name} {}:{}", f.c, f.v)
+}
+
+/// `bibleLabel`, the add button's (spec 05 "Bibeltexter"): the title, with spaces around a dash between chapters.
+fn label(verses: &[Verse]) -> String {
+    match (verses.first(), verses.last()) {
+        (Some(f), Some(l)) if f.b == l.b && f.c != l.c => format!("{} {}:{} - {}:{}", swedish(&f.b), f.c, f.v, l.c, l.v),
+        _ => title(verses),
+    }
 }
 
 /// JavaScript's `length`: UTF-16 code units.
@@ -102,12 +91,30 @@ pub async fn add_bible(a: &Obj, ctx: &Ctx) -> R<()> {
     require(ctx, "ManagePresentations")?;
     require(ctx, "ViewBibles")?;
     change_presentation(&pid, ctx).await?;
-    let slides = split(&verses).into_iter()
-        .map(|s| J::Arr(s.into_iter().map(|(n, t)| J::obj(vec![("n", n.map_or(J::Null, |n| J::Num(n as f64))), ("t", J::Str(t))])).collect()))
-        .collect();
-    let content = J::obj(vec![("translation", J::Str(translation)), ("slides", J::Arr(slides))]).stringify();
-    let title = String::from_utf16_lossy(&title(&verses).encode_utf16().take(200).collect::<Vec<_>>());
+    let (title, content) = frozen(&translation, &verses);
     let item = Item { id: item_id, presentation_id: pid, kind: "bible", title, source_id: bible_id, arrangement_id: None, content: Some(content) };
     insert_item(after, item, None).await?;
     Ok(())
+}
+
+/// A passage's item title (at most 200 UTF-16 units) and its content: the translation and the slides, frozen.
+fn frozen(translation: &str, verses: &[Verse]) -> (String, String) {
+    let slides = split(verses).into_iter()
+        .map(|s| J::Arr(s.into_iter().map(|(n, t)| J::obj(vec![("n", n.map_or(J::Null, |n| J::Num(n as f64))), ("t", J::Str(t))])).collect()))
+        .collect();
+    let content = J::obj(vec![("translation", J::Str(translation.to_string())), ("slides", J::Arr(slides))]).stringify();
+    (String::from_utf16_lossy(&title(verses).encode_utf16().take(200).collect::<Vec<_>>()), content)
+}
+
+/// `bibleSlidesView` {translation, verses}: what an item of these verses would show, as `addBibleToPresentation` freezes
+/// it, for the Bible tab's preview: its title and slides, the output's own. Reads no database.
+pub fn slides_view(a: &Obj) -> R<Value> {
+    let translation = a.get("translation").and_then(Value::as_str).unwrap_or_default();
+    let verses: Vec<Verse> = match a.get("verses") { Some(Value::Array(xs)) => xs.iter().map(verse).collect::<R<_>>()?, _ => return Err("invalid-args".into()) };
+    let (title, content) = frozen(translation, &verses);
+    let item = crate::slides::Item { kind: "bible".into(), title: title.clone(), source_id: String::new(), arrangement_id: None, content: Some(content) };
+    let mut shown = crate::slides::bible(&item);
+    shown["title"] = Value::String(title);
+    shown["label"] = Value::String(label(&verses));
+    Ok(shown)
 }

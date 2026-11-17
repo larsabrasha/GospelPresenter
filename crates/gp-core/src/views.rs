@@ -59,6 +59,9 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "presentingKeyView" => crate::presenting::key(a),
         "slideMarksView" => crate::presenting::marks(a),
         "coreInfoView" => Ok(core_info()),
+        "bibleSlidesView" => crate::bible::slides_view(a),
+        "verseSearchPlanView" => crate::bible_books::plan_view(a),
+        "bibleBookNamesView" => crate::bible_books::names_view(a),
         _ => return None,
     })
 }

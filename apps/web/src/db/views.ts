@@ -22,6 +22,15 @@ import type { ReadDb } from './share.ts';
 /** What a running order's slides read (itemSlidesView): the library the items show. */
 const SLIDE_READS = ['songs', 'song_parts', 'song_arrangements', 'labels', 'audios', 'videos', 'custom_slides', 'images'];
 
+/**
+ * The slides a song would show as an item of `arrangementId` (`itemSlidesView` of an item not saved): the song tab's
+ * preview, worked out as the outputs work out an item's.
+ */
+export async function songPreviewSlides(db: ReadDb, songId: string, arrangementId: string | null): Promise<Slide[]> {
+  const item = { id: 'preview', type: 'song', title: '', sourceId: songId, arrangementId, content: null };
+  return (await db.view<Record<string, ItemSlides>>('itemSlidesView', { items: [item] })).preview?.slides ?? [];
+}
+
 /** The tables presentationPageView reads. */
 export const PRESENTATION_PAGE_READS = [...SLIDE_READS, 'presentations', 'presentation_items', 'themes', 'org_settings', 'overlays'];
 

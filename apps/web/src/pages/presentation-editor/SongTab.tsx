@@ -1,7 +1,7 @@
-import { songSlides, sortedArrangements, type Song } from '@gp/core';
+import { sortedArrangements, type Song } from '@gp/core';
 import { memo, useCallback, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useData, useDb, useSongSearch } from '../../db/react.tsx';
-import { songPage } from '../../db/views.ts';
+import { songPage, songPreviewSlides } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -110,6 +110,9 @@ export function SongTab({
   );
   const shownPreview = preview?.song.id === effectiveId ? preview : null;
   const chosen = arrangementId ?? shownPreview?.arrangements[0]?.id ?? null;
+  // The preview's slides from the core, as the outputs will show the song in that arrangement.
+  const previewId = shownPreview?.song.id ?? null;
+  const previewSlides = useData(async (d) => (previewId ? songPreviewSlides(d, previewId, chosen) : []), [previewId, chosen]) ?? [];
 
   // A new search, or a cleared one, starts both lists at the top and selects the first hit.
   const searchFor = (v: string) => {
@@ -250,7 +253,7 @@ export function SongTab({
                 column
                 theme={theme}
                 label={shownPreview.song.name}
-                slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
+                slides={previewSlides}
                 highlight={query}
               />
             </>
@@ -299,7 +302,7 @@ export function SongTab({
             column
             theme={theme}
             label={shownPreview.song.name}
-            slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
+            slides={previewSlides}
           />
         </div>
         <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-separator">

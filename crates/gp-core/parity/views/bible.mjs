@@ -2,7 +2,7 @@
 // verses (BibleTab.tsx's `chaptersOf`, `versesOf`), a browsed passage (`versesInRange`) and a searched one
 // (`searchVerses`, its reference planned by `planVerseSearch`), on a made-up text of three books stored as the app
 // stores one (`storeBibleTextSql`), and a text this database does not have.
-import { bibleBooks, planVerseSearch, searchVerses, storeBibleTextSql, versesInRange } from '../.out/web-queries.mjs';
+import { bibleBooks, bibleItemSlides, bibleLabel, bibleTitle, planVerseSearch, searchVerses, splitBibleSlides, storeBibleTextSql, versesInRange } from '../.out/web-queries.mjs';
 import { viewRust } from '../diff.mjs';
 import { canon } from '../sources.mjs';
 import { fixture } from './fixture.mjs';
@@ -33,6 +33,13 @@ export default async function check(_, file) {
   };
   await same({ hash: HASH }, ref.map((b) => b.code), (r) => r.books);
   await same({ hash: 'e'.repeat(64) }, await bibleBooks(readDb(db), 'e'.repeat(64)), (r) => r);
+  // The tab's preview of a passage (`bibleSlidesView`, pure): the title and slides 2.0 worked out on the page.
+  const preview = async (verses) => {
+    compared++;
+    const want = { title: bibleTitle(verses), label: bibleLabel(verses), slides: bibleItemSlides(bibleTitle(verses), { translation: 'SFB', slides: splitBibleSlides(verses) }) };
+    const got = await viewRust(db, 'bibleSlidesView', { translation: 'SFB', verses });
+    if (canon(want) !== canon({ title: got.title, label: got.label, slides: got.slides })) differ.push(`bibleSlidesView ${verses.length} verses: TS ${canon(want).slice(0, 300)} Rust ${canon(got).slice(0, 300)}`);
+  };
   for (const b of ref) {
     const chapters = [...new Set(b.verses.map(([c]) => c))];
     await same({ hash: HASH, book: b.code }, chapters, (r) => r.chapters);
@@ -42,6 +49,7 @@ export default async function check(_, file) {
     for (const from of points) {
       for (const to of points.filter(([c, v]) => c > from[0] || (c === from[0] && v >= from[1])).slice(0, 6)) {
         await same({ hash: HASH, book: b.code, passage: { books: [b.code], from, to } }, versesInRange(b, from, to), (r) => r.passage);
+        await preview(versesInRange(b, from, to));
       }
     }
   }
@@ -51,5 +59,5 @@ export default async function check(_, file) {
     if (plan) await same({ hash: HASH, passage: { books: plan.codes, from: plan.from, to: plan.to } }, searchVerses(q, ref), (r) => r.passage);
     else if (searchVerses(q, ref).length) differ.push(`${q}: no plan, but TS finds verses`);
   }
-  return { compared, differ, notes: ['a text\'s books, chapters, verses, every browse and searches, and a text not here'] };
+  return { compared, differ, notes: ['a text\'s books, chapters, verses, every browse and searches, and a text not here; each browse\'s preview'] };
 }
