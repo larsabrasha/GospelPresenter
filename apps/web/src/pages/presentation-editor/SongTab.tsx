@@ -1,7 +1,7 @@
 import { songSlides, sortedArrangements, type Song } from '@gp/core';
 import { memo, useCallback, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useData, useDb, useSongSearch } from '../../db/react.tsx';
-import { arrangementsOf, getSong, listLabels, songPartsOf } from '../../db/queries.ts';
+import { songPage } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -102,10 +102,9 @@ export function SongTab({
   const preview = useData(
     async (d) => {
       if (!effectiveId) return null;
-      const song = await getSong(d, effectiveId);
+      const { song, arrangements, parts, labels } = await songPage(d, effectiveId);
       if (!song) return null;
-      const arrangements = sortedArrangements(await arrangementsOf(d, [song.id]), song.id);
-      return { song, arrangements, parts: await songPartsOf(d, [song.id]), labels: await listLabels(d) };
+      return { song, arrangements: sortedArrangements(arrangements, song.id), parts, labels };
     },
     [effectiveId],
   );

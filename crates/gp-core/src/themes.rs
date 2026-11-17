@@ -74,13 +74,14 @@ pub async fn theme_of(theme_id: Option<String>) -> Value {
     let id = theme_id.or(default).unwrap_or_else(|| "classic".into());
     if let Some(t) = built_in(&id) { return t }
     let own = sql("SELECT id, name, definition, sort FROM themes WHERE id = ?", vec![json!(id)]).await.into_iter().next();
-    match own {
-        // `themeOfRow`: a definition that does not read looks as Classic, the name kept.
-        Some(r) => json!({
-            "id": js_string(&r[0]), "sort": r[3].as_f64().map_or(json!(0), |f| if f.fract() == 0.0 { json!(f as i64) } else { json!(f) }),
-            "name": js_string(&r[1]), "description": "",
-            "definition": r[2].as_str().and_then(definition).unwrap_or_else(|| built_in("classic").unwrap()["definition"].clone()),
-        }),
-        None => built_in("classic").unwrap(),
-    }
+    own.map_or_else(|| built_in("classic").unwrap(), |r| own_row(&r))
+}
+
+/// `themeOfRow` {id, name, definition, sort}: a definition that does not read looks as Classic, the name kept.
+pub fn own_row(r: &[Value]) -> Value {
+    json!({
+        "id": js_string(&r[0]), "sort": r[3].as_f64().map_or(json!(0), |f| if f.fract() == 0.0 { json!(f as i64) } else { json!(f) }),
+        "name": js_string(&r[1]), "description": "",
+        "definition": r[2].as_str().and_then(definition).unwrap_or_else(|| built_in("classic").unwrap()["definition"].clone()),
+    })
 }

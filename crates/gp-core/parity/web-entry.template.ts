@@ -4,16 +4,28 @@ export {
   arrangementsOf,
   ccliCollectionOn,
   getAudio,
+  getOwnTheme,
   getOverlay,
   getPresentation,
   getSong,
   getVideo,
+  itemCounts,
   itemsOf,
+  listAudios,
+  listBibles,
+  listCcliEntries,
   listDisplays,
   listLabels,
   listOverlays,
+  listPresentations,
   listSongs,
+  listTemplates,
+  listTrash,
+  listVideos,
+  orgDefaultThemeId,
   orgRemoteControl,
+  ownThemes,
+  pinnedIds,
   presentationsUsing,
   shownOverlay,
   songMaterialsOf,
@@ -24,3 +36,5 @@ export {
 } from '@REF@/apps/web/src/db/queries.ts';
 export { BUILT_IN_THEMES } from '@REF@/packages/core/src/themes.ts';
 export { prepareSong, rankSongs } from '@REF@/packages/core/src/search.ts';
+export { listImages } from '@REF@/apps/web/src/db/images.ts';
+export { getCustomSlide, listCustomSlides } from '@REF@/apps/web/src/db/customSlides.ts';

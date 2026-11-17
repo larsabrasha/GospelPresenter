@@ -76,19 +76,22 @@ pub async fn targets(a: &Obj) -> R<Value> {
 }
 
 /// `LibraryVideo`, its content type and codec read as the web reads them.
-const VIDEO: &[(&str, K)] = &[("id", K::Str), ("fileName", K::Str), ("contentType", K::Opt), ("codec", K::Opt), ("hash", K::Str), ("size", K::Num),
+pub const VIDEO: &[(&str, K)] = &[("id", K::Str), ("fileName", K::Str), ("contentType", K::Opt), ("codec", K::Opt), ("hash", K::Str), ("size", K::Num),
     ("duration", K::Num), ("width", K::Num), ("height", K::Num), ("stillHash", K::Str), ("thumbHash", K::Str), ("createdAt", K::Num), ("deletedAt", K::Opt)];
 /// `LibraryAudio`.
 pub const AUDIO: &[(&str, K)] = &[("id", K::Str), ("fileName", K::Str), ("contentType", K::Str), ("hash", K::Str), ("size", K::Num), ("createdAt", K::Num), ("deletedAt", K::Opt)];
 
+/// `libraryVideo`.
+pub fn video_row(r: &[Value]) -> Value {
+    let mut v = map(r, VIDEO);
+    v["contentType"] = json!(if v["contentType"] == "video/quicktime" { "video/quicktime" } else { "video/mp4" });
+    v["codec"] = json!(if v["codec"] == "hevc" { "hevc" } else { "h264" });
+    v
+}
+
 /// `getVideo`: a video by id, trashed or not (MEDIA-R8).
 pub async fn video(id: &str) -> Value {
-    first(sql(&format!("SELECT {} FROM videos WHERE id = ?", columns(VIDEO)), vec![json!(id)]).await).map_or(Value::Null, |r| {
-        let mut v = map(&r, VIDEO);
-        v["contentType"] = json!(if v["contentType"] == "video/quicktime" { "video/quicktime" } else { "video/mp4" });
-        v["codec"] = json!(if v["codec"] == "hevc" { "hevc" } else { "h264" });
-        v
-    })
+    first(sql(&format!("SELECT {} FROM videos WHERE id = ?", columns(VIDEO)), vec![json!(id)]).await).map_or(Value::Null, |r| video_row(&r))
 }
 
 /// `livePlaybackView` {presentationId, itemId}: the item shown, its video and the next item's, which buffers.
