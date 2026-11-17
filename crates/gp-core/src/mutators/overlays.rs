@@ -29,8 +29,8 @@ async fn create(a: &Obj, ctx: &Ctx) -> R<()> {
     if let Some((_, blobs)) = &page { require_blobs(blobs).await? }
     let sort = if n[1].is_null() { 0 } else { int_of(&n[1]) + 1 };
     let content = page.map_or(BLANK_PAGE.to_string(), |(p, _)| p);
-    sql("INSERT INTO overlays (id, title, content, image_id, sort, updated_at) VALUES (?, ?, ?, NULL, ?, ?)",
-        vec![json!(oid), json!(title), json!(content), json!(sort), json!(at)]).await;
+    sql("INSERT INTO overlays (id, title, content, image_id, sort, updated_at, title_at, content_at) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)",
+        vec![json!(oid), json!(title), json!(content), json!(sort), json!(at), json!(at), json!(at)]).await;
     Ok(())
 }
 
@@ -41,10 +41,10 @@ async fn update(a: &Obj, ctx: &Ctx) -> R<()> {
     let at = safe_int(a, "at")?;
     require(ctx, "ManageOverlays")?;
     if let Some((_, blobs)) = &page { require_blobs(blobs).await? }
-    let mut set: Vec<(&str, Value)> = vec![("updated_at", json!(at))];
+    let mut set: Vec<(&str, Value)> = vec![];
     if let Some(t) = title { set.push(("title", json!(t))) }
     if let Some((p, _)) = page { set.push(("content", json!(p))) }
-    update_set("overlays", set, &oid).await;
+    update_fields("overlays", &oid, set, at).await?;
     Ok(())
 }
 

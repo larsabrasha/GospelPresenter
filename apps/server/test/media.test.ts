@@ -490,8 +490,9 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
     expect(bob.client.rejected).toEqual([]);
     let s = await serverDump(h, org, 'bob');
     expect(s.tables.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as CustomPage }))).toEqual([
-      { id: 'O1', title: 'Kollekt', content: { ...page, background: null, backgroundPicture: null }, image_id: null, sort: 0, updated_at: 2 },
-      { id: 'O2', title: 'Välkommen', content: blankPage(), image_id: null, sort: 1, updated_at: 1 },
+      // Each field's time (SYNC-R23): O1's title from its making, its page from the change.
+      { id: 'O1', title: 'Kollekt', content: { ...page, background: null, backgroundPicture: null }, image_id: null, sort: 0, updated_at: 2, title_at: 1, content_at: 2 },
+      { id: 'O2', title: 'Välkommen', content: blankPage(), image_id: null, sort: 1, updated_at: 1, title_at: 1, content_at: 1 },
     ]);
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: 'O1' }]);
 
@@ -560,7 +561,7 @@ describe.each(adapters)('%s adapter: PDFs as slideshows (PRES-R11, D29, docs/cus
     expect(alice.client.rejected).toEqual([]);
     const s = await serverDump(h, org, 'alice');
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', type: 'custom', title: 'Predikan.pdf', source_id: 'D1', content: null }]);
-    expect(s.tables.custom_slides).toEqual([{ id: 'D1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages(deck)), created_at: 5, updated_at: 5, deleted_at: null }]);
+    expect(s.tables.custom_slides).toEqual([{ id: 'D1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages(deck)), created_at: 5, updated_at: 5, deleted_at: null, name_at: 5, pages_at: 5 }]);
   });
 
   it('shows a new PDF of a slideshow in every presentation that names it', async () => {

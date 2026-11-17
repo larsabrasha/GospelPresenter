@@ -32,7 +32,8 @@ describe('a 1.x export of format 5', () => {
 });
 
 const page = { full: 'a'.repeat(64), thumb: 'b'.repeat(64) };
-const slideshow = { id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages([page])), created_at: 0, updated_at: 0, deleted_at: null };
+// With schema 27's field times, from the row's last change (SYNC-R23).
+const slideshow = { id: 'I1', name: 'Predikan.pdf', pages: JSON.stringify(pdfPages([page])), created_at: 0, updated_at: 0, deleted_at: null, name_at: 0, pages_at: 0 };
 const deckItem = (content: string | null) => ({ id: 'I1', presentation_id: 'P', type: 'slides', title: 'Predikan.pdf', source_id: 'I1', sort: 0, arrangement_id: null, content, overlay_id: null });
 /** The rows of a zip before format 4, with these items and decks. */
 const older = (items: LegacyRows['presentation_items'], decks?: LegacyRows['custom_slides']) => {

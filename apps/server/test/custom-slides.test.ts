@@ -21,6 +21,54 @@ describe.each(adapters)('%s adapter: custom slides', (adapterName) => {
     expect([row?.name, row?.updated_at, (JSON.parse(String(row?.pages)) as CustomPage[]).map((p) => p.elements.length)]).toEqual(['Välkommen', 2, [1, 0]]);
   });
 
+  it('SYNC-R23: a change made offline before one made online is refused when it arrives, and its device is told', async () => {
+    await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Välkommen', pages: [blankPage()], at: 1 });
+    await fx.syncAll(fx.alice, fx.bob);
+    fx.bob.net.online = false;
+    await fx.bob.client.mutate('updateCustomSlide', { id: 'CS', pages: [withText('Från iPad offline')], at: 10 });
+    await fx.alice.client.mutate('updateCustomSlide', { id: 'CS', pages: [withText('Från webben')], at: 20 });
+    await fx.alice.client.sync();
+
+    fx.bob.net.online = true;
+    await fx.syncAll(fx.bob, fx.alice);
+
+    const pages = JSON.parse(String((await fx.server()).tables.custom_slides[0]?.pages)) as CustomPage[];
+    expect([pages[0]?.elements.map((e) => ('text' in e ? e.text : null)), fx.bob.client.rejected.map((r) => r.error)]).toEqual([['Från webben'], ['newer-change']]);
+    await fx.expectConverged(fx.alice, fx.bob);
+  });
+
+  it('SYNC-R23: a rename made offline and new pages made online later both land, each field its own', async () => {
+    await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Välkommen', pages: [blankPage()], at: 1 });
+    await fx.syncAll(fx.alice, fx.bob);
+    fx.bob.net.online = false;
+    await fx.bob.client.mutate('updateCustomSlide', { id: 'CS', name: 'Välkommen hit', at: 10 });
+    await fx.alice.client.mutate('updateCustomSlide', { id: 'CS', pages: [withText('Från webben')], at: 20 });
+    await fx.alice.client.sync();
+
+    fx.bob.net.online = true;
+    await fx.syncAll(fx.bob, fx.alice);
+
+    const [row] = (await fx.server()).tables.custom_slides;
+    const pages = JSON.parse(String(row?.pages)) as CustomPage[];
+    expect([row?.name, pages[0]?.elements.length, row?.name_at, row?.pages_at, row?.updated_at, fx.bob.client.rejected]).toEqual(['Välkommen hit', 1, 10, 20, 20, []]);
+    await fx.expectConverged(fx.alice, fx.bob);
+  });
+
+  it('SYNC-R23: a change made offline after the last one online is kept', async () => {
+    await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Välkommen', pages: [blankPage()], at: 1 });
+    await fx.syncAll(fx.alice, fx.bob);
+    await fx.alice.client.mutate('updateCustomSlide', { id: 'CS', pages: [withText('Från webben')], at: 10 });
+    await fx.alice.client.sync();
+    fx.bob.net.online = false;
+    await fx.bob.client.mutate('updateCustomSlide', { id: 'CS', pages: [withText('Från iPad offline')], at: 20 });
+
+    fx.bob.net.online = true;
+    await fx.syncAll(fx.bob, fx.alice);
+
+    expect([(await fx.server()).tables.custom_slides[0]?.updated_at, fx.bob.client.rejected]).toEqual([20, []]);
+    await fx.expectConverged(fx.alice, fx.bob);
+  });
+
   it('refuses pages that are not a slide’s, and changes nothing', async () => {
     await fx.alice.client.mutate('createCustomSlide', { id: 'CS', name: 'Välkommen', pages: [blankPage()], at: 1 });
 

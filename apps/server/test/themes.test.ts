@@ -79,7 +79,9 @@ describe.each(adapters)('%s adapter: own themes', (adapterName) => {
     expect([s.tables.themes, s.tables.presentations[0]?.theme_id, s.tables.org_settings]).toEqual([[], null, []]);
   });
 
-  it('the last of two devices’ saves wins the definition', async () => {
+  // SYNC-R23 (docs/assumptions.md): each field keeps its own time, so a rename and a new look from two devices both
+  // land, whichever was made first; of two changes of one field the newer stands, and the older's device is told.
+  it('two devices’ changes of different fields both land, the older reaching the server last', async () => {
     await setRole(h, 'dave', org, 'admin');
     const dave = await device(h, org, 'dave', 'admin');
     devices.push(dave);
@@ -93,7 +95,24 @@ describe.each(adapters)('%s adapter: own themes', (adapterName) => {
     await alice.client.sync();
 
     const [row] = (await serverDump(h, org, 'alice')).tables.themes;
-    expect([row?.name, JSON.parse(String(row?.definition)).song.background.color]).toEqual(['Kväll', '#123456']);
+    expect([row?.name, JSON.parse(String(row?.definition)).song.background.color, row?.updated_at, alice.client.rejected]).toEqual(['Kväll', '#123456', 3, []]);
+  });
+
+  it('of two devices’ changes of one field the newer stands, the older reaching the server last; its device is told', async () => {
+    await setRole(h, 'dave', org, 'admin');
+    const dave = await device(h, org, 'dave', 'admin');
+    devices.push(dave);
+    await alice.client.mutate('createTheme', { id: 'T', name: 'Söndag', definition: CLASSIC.definition, at: 1 });
+    await alice.client.sync();
+    await dave.client.sync();
+
+    await dave.client.mutate('updateTheme', { id: 'T', name: 'Morgon', at: 3 });
+    await alice.client.mutate('updateTheme', { id: 'T', name: 'Kväll', at: 2 });
+    await dave.client.sync();
+    await alice.client.sync();
+
+    const [row] = (await serverDump(h, org, 'alice')).tables.themes;
+    expect([row?.name, alice.client.rejected.map((r) => r.error)]).toEqual(['Morgon', ['newer-change']]);
   });
 
   it('refuses a theme whose picture was not uploaded (media-missing)', async () => {

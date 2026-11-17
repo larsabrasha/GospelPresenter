@@ -19,10 +19,10 @@ pub const TABLES: [(&str, &[&str]); 18] = [
         "original_thumb_hash", "original_width", "original_height", "edit"]),
     ("displays", &["id", "name", "code", "kind", "created_at"]),
     ("audios", &["id", "file_name", "content_type", "hash", "size", "created_at", "deleted_at"]),
-    ("overlays", &["id", "title", "content", "image_id", "sort", "updated_at"]),
+    ("overlays", &["id", "title", "content", "image_id", "sort", "updated_at", "title_at", "content_at"]),
     ("videos", &["id", "file_name", "content_type", "codec", "hash", "size", "duration", "width", "height", "still_hash", "thumb_hash", "created_at", "deleted_at"]),
-    ("custom_slides", &["id", "name", "pages", "created_at", "updated_at", "deleted_at"]),
-    ("themes", &["id", "name", "definition", "sort", "updated_at"]),
+    ("custom_slides", &["id", "name", "pages", "created_at", "updated_at", "deleted_at", "name_at", "pages_at"]),
+    ("themes", &["id", "name", "definition", "sort", "updated_at", "name_at", "definition_at"]),
 ];
 
 /// The tables of the device's own whose changes a page hears of too (`watchedTables` beyond the synced ones).

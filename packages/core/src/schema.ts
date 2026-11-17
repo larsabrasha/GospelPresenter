@@ -271,6 +271,9 @@ export const customSlides = sqliteTable('custom_slides', {
   updatedAt: integer('updated_at').notNull(),
   /** Set while the slide is in the trash. */
   deletedAt: integer('deleted_at'),
+  /** When `name` and `pages` were last changed, each by its device's clock: the newest change of each wins (schema 27, SYNC-R23). */
+  nameAt: integer('name_at'),
+  pagesAt: integer('pages_at'),
 });
 
 /**
@@ -286,6 +289,9 @@ export const overlays = sqliteTable('overlays', {
   imageId: text('image_id'),
   sort: integer('sort').notNull(),
   updatedAt: integer('updated_at'),
+  /** When `title` and `content` were last changed, each by its device's clock (schema 27, SYNC-R23). */
+  titleAt: integer('title_at'),
+  contentAt: integer('content_at'),
 });
 
 /**
@@ -315,6 +321,9 @@ export const themes = sqliteTable('themes', {
   definition: text('definition').notNull(),
   sort: integer('sort').notNull(),
   updatedAt: integer('updated_at').notNull(),
+  /** When `name` and `definition` were last changed, each by its device's clock (schema 27, SYNC-R23). */
+  nameAt: integer('name_at'),
+  definitionAt: integer('definition_at'),
 });
 
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */

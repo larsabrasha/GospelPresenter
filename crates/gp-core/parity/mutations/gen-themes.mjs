@@ -20,7 +20,7 @@ export function generator(t, step) {
   const style = () => shuffle({ background: background(), main: text(), credits: text() });
   const definition = () => (random() < 0.99 ? shuffle({ song: style(), bible: style(), media: background() }) : pick([null, {}, { song: style() }]));
   const themes = () => [...idsOf('SELECT id FROM themes'), 'classic', 'light', 'thx'];
-  const at = () => sometimes([1000 + step], [1.5, undefined]);
+  const at = () => sometimes([1000 + step, 1000 + step, 5], [1.5, undefined]); // 5: a change made before the row's last (SYNC-R23)
   const q = random();
   if (q < 0.3) return { name: 'createTheme', args: opt({ id: random() < 0.85 ? fresh('th') : pick(themes()), name: sometimes(['Ljust', ' Mitt tema ', 'x'.repeat(100)], ['', 'x'.repeat(101)]), definition: definition(), at: at() }) };
   if (q < 0.6) return { name: 'updateTheme', args: opt({ id: pick(themes()), name: maybe(0.4, () => sometimes(['Nytt'], ['', null])), definition: maybe(0.6, definition), at: at() }) };

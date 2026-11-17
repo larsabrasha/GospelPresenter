@@ -177,7 +177,17 @@ type OlderRows = Omit<LegacyRows, 'custom_slides' | (typeof TABLES_SINCE_8)[numb
  * leftover goes (`withoutRtfLeftovers`).
  */
 export function upgradeLegacyRows(format: number, rows: OlderRows): LegacyRows {
-  return withoutRtfLeftovers(upgradeFormat(format, rows));
+  return withFieldTimes(withoutRtfLeftovers(upgradeFormat(format, rows)));
+}
+
+/** The fields that keep a time each (schema 27, SYNC-R23), as the core's FIELD_TIMES. */
+const FIELD_TIMES = { custom_slides: ['name', 'pages'], overlays: ['title', 'content'], themes: ['name', 'definition'] } as const;
+
+/** Rows of an export made before schema 27 take each field's time from the row's last change, as the migration does. */
+function withFieldTimes(rows: LegacyRows): LegacyRows {
+  const timed = (table: keyof typeof FIELD_TIMES) =>
+    rows[table].map((r) => ({ ...r, ...Object.fromEntries(FIELD_TIMES[table].map((f) => [`${f}_at`, r[`${f}_at`] ?? r.updated_at ?? null])) }));
+  return { ...rows, custom_slides: timed('custom_slides'), overlays: timed('overlays'), themes: timed('themes') };
 }
 
 /**

@@ -31,7 +31,8 @@ async fn create(a: &Obj, ctx: &Ctx) -> R<()> {
     if found("SELECT id FROM themes WHERE id = ?", vec![json!(tid)]).await { return Ok(()) }
     limit(int_of(&first(sql("SELECT count(*) FROM themes", vec![]).await).unwrap()[0]) >= THEMES)?;
     require_blobs(&blobs).await?;
-    sql("INSERT INTO themes (id, name, definition, sort, updated_at) VALUES (?, ?, ?, ?, ?)", vec![json!(tid), json!(name), json!(def.stringify()), json!(at), json!(at)]).await;
+    sql("INSERT INTO themes (id, name, definition, sort, updated_at, name_at, definition_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        vec![json!(tid), json!(name), json!(def.stringify()), json!(at), json!(at), json!(at), json!(at)]).await;
     Ok(())
 }
 
@@ -43,10 +44,10 @@ async fn update(a: &Obj, ctx: &Ctx) -> R<()> {
     require(ctx, "ManageThemes")?;
     require_own(&tid)?;
     if let Some((_, blobs)) = &def { require_blobs(blobs).await? }
-    let mut set: Vec<(&str, Value)> = vec![("updated_at", json!(at))];
+    let mut set: Vec<(&str, Value)> = vec![];
     if let Some(n) = name { set.push(("name", json!(n))) }
     if let Some((d, _)) = def { set.push(("definition", json!(d.stringify()))) }
-    update_set("themes", set, &tid).await;
+    update_fields("themes", &tid, set, at).await?;
     Ok(())
 }
 

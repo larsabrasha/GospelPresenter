@@ -71,6 +71,29 @@ pub async fn update_set(table: &str, set: Vec<(&str, Value)>, row: &str) {
     sql(&format!("UPDATE {table} SET {} WHERE id = ?", cols.join(", ")), params).await;
 }
 
+/// A change of a row whose every field keeps its own time (`{field}_at`, schema 27): the newest change of a field wins,
+/// by the clocks of the devices that made them, not the last to reach the server (SYNC-R23, docs/assumptions.md).
+/// Refused as `newer-change` when a field it changes was changed after `at`, so an edit made offline yesterday does not
+/// undo one made online this morning, and its device is told; fields it does not change are another's to change.
+/// Else each field is written with `at` as its time, and `updated_at` only moves forward. A row gone changes nothing.
+pub async fn update_fields(table: &str, row: &str, fields: Vec<(&str, Value)>, at: i64) -> R<()> {
+    if !fields.is_empty() {
+        let times = fields.iter().map(|(f, _)| format!("{f}_at")).collect::<Vec<_>>().join(", ");
+        let newer = first(sql(&format!("SELECT {times} FROM {table} WHERE id = ?"), vec![json!(row)]).await)
+            .is_some_and(|r| r.iter().any(|t| t.as_f64().is_some_and(|t| t > at as f64)));
+        if newer { return Err("newer-change".into()) }
+    }
+    let mut cols = vec!["updated_at = CASE WHEN updated_at > ? THEN updated_at ELSE ? END".to_string()];
+    let mut params = vec![json!(at), json!(at)];
+    for (f, v) in fields {
+        cols.push(format!("{f} = ?, {f}_at = ?"));
+        params.extend([v, json!(at)]);
+    }
+    params.push(json!(row));
+    sql(&format!("UPDATE {table} SET {} WHERE id = ?", cols.join(", ")), params).await;
+    Ok(())
+}
+
 /// `z.number().int().min(0)`: an index.
 pub fn index(o: &Obj, k: &str) -> R<usize> { int(o, k, 0, 2i64.pow(53) - 1).map(|i| i as usize) }
 

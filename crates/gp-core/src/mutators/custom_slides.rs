@@ -26,8 +26,8 @@ async fn insert_slide(sid: &str, name: &str, pages: &str, blobs: &[String], at: 
     let n = int_of(&first(sql("SELECT count(*) FROM custom_slides WHERE deleted_at IS NULL", vec![]).await).unwrap()[0]);
     limit(n >= SLIDES)?;
     require_blobs(blobs).await?;
-    sql("INSERT INTO custom_slides (id, name, pages, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, NULL)",
-        vec![json!(sid), json!(name), json!(pages), json!(at), json!(at)]).await;
+    sql("INSERT INTO custom_slides (id, name, pages, created_at, updated_at, deleted_at, name_at, pages_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)",
+        vec![json!(sid), json!(name), json!(pages), json!(at), json!(at), json!(at), json!(at)]).await;
     Ok(())
 }
 
@@ -46,11 +46,10 @@ async fn update(a: &Obj, ctx: &Ctx) -> R<()> {
     let at = safe_int(a, "at")?;
     require(ctx, "ManagePresentations")?;
     if pages.is_some() { require_blobs(&blobs).await? }
-    let mut set: Vec<(&str, Value)> = vec![("updated_at", json!(at))];
+    let mut set: Vec<(&str, Value)> = vec![];
     if let Some(n) = name { set.push(("name", json!(n))) }
     if let Some(p) = pages { set.push(("pages", json!(p.stringify()))) }
-    update_set("custom_slides", set, &sid).await;
-    Ok(())
+    update_fields("custom_slides", &sid, set, at).await
 }
 
 async fn set_deleted(a: &Obj, ctx: &Ctx, trash: bool) -> R<()> {

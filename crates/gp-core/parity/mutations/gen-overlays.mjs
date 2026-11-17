@@ -6,7 +6,7 @@ export function generator(t, step) {
   const { random, pick, maybe, mostly, idsOf, opt, fresh } = t;
   const { page } = pageMaker(t);
   const overlays = () => [...idsOf('SELECT id FROM overlays'), 'ox'];
-  const at = () => mostly([1000 + step], [1.5, undefined]);
+  const at = () => mostly([1000 + step, 1000 + step, 5], [1.5, undefined]); // 5: a change made before the row's last (SYNC-R23)
   const q = random();
   if (q < 0.35) return { name: 'createOverlay', args: opt({ id: random() < 0.9 ? fresh('o') : pick([...overlays(), '']), title: mostly(['Kollekt', ' Välkommen '], TEXTS), page: maybe(0.7, () => mostly([page()], [null])), at: at() }) };
   if (q < 0.7) return { name: 'updateOverlay', args: opt({ id: pick(overlays()), title: maybe(0.4, () => mostly(['Nytt'], TEXTS)), page: maybe(0.6, page), at: at() }) };

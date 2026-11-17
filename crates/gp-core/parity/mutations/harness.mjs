@@ -3,6 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } from '../.out/ts-core.mjs';
+import { fieldTimeMigration, fieldTimeRefusal, fieldTimeRule } from '../field-times.mjs';
 
 const out = new URL('../.out/', import.meta.url).pathname;
 
@@ -24,11 +25,16 @@ export async function query(db, sql, params) {
   return st.all(...params);
 }
 
-/** An organisation database of today's schema, with `seed` in it. */
-export function openDb(seed = []) {
+/**
+ * An organisation database of today's schema, with `seed` in it: the reference's migration, then schema 27's field
+ * times (field-times.mjs); with `rule`, for the reference's TS mutators to write, the newest-field rule as triggers.
+ */
+export function openDb(seed = [], rule = false) {
   const db = new DatabaseSync(':memory:');
   migrateOrgSchemaSync((sql) => db.prepare(sql).all(), (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); });
+  for (const s of fieldTimeMigration()) db.exec(s);
   for (const s of seed) db.exec(s);
+  if (rule) for (const s of fieldTimeRule()) db.exec(s);
   return db;
 }
 
@@ -45,7 +51,7 @@ export async function runTs(db, { name, args, ctx }) {
     return 'ok';
   } catch (e) {
     db.exec('ROLLBACK');
-    return e.code ?? sqlError(e.cause) ?? `crash: ${e.message}`;
+    return e.code ?? fieldTimeRefusal(e) ?? sqlError(e.cause) ?? `crash: ${e.message}`;
   }
 }
 
@@ -97,7 +103,7 @@ export async function prove(label, { seed = [], seedFor = () => [], generator, o
   const differences = new Map();
   const outcomes = {};
   for (let s = 1; s <= seeds; s++) {
-    const a = openDb([...seed, ...seedFor(s, seeds)]), b = openDb([...seed, ...seedFor(s, seeds)]);
+    const a = openDb([...seed, ...seedFor(s, seeds)], true), b = openDb([...seed, ...seedFor(s, seeds)]);
     const t = tools(rng(s * 7919 + label.length), a);
     for (let step = 1; step <= ops; step++) {
       const { name, args, role, client, setup, now } = generator(t, step);

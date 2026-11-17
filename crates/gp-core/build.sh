@@ -26,12 +26,18 @@ sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
 "$ESBUILD" "$OUT/web-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/web-queries.mjs" --log-level=warning \
   --alias:@gp/core="$REF/packages/core/src/index.ts"
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the
-# server's engine, for the sync check.
+# server's engine, for the sync check. Its TS core is the reference's with today's tables and schema version (schema
+# 27's field times, parity/field-times.mjs), so its sync SQL carries every column the server and the core do.
 SYNC_REFERENCE=75e7f234
+REF_SYNC=$OUT/ref-sync
+rm -rf "$REF_SYNC" && mkdir -p "$REF_SYNC/packages" && cp -R "$REF/packages/core" "$REF/packages/sync" "$REF_SYNC/packages/"
+cp "$ROOT/packages/core/src/schema.ts" "$REF_SYNC/packages/core/src/schema.ts"
+sed "s|^export const SCHEMA_VERSION = .*|$(grep '^export const SCHEMA_VERSION' "$ROOT/packages/core/src/org-schema.ts")|" "$REF/packages/core/src/org-schema.ts" \
+  > "$REF_SYNC/packages/core/src/org-schema.ts"
 git -C "$ROOT" show "$SYNC_REFERENCE:packages/sync/src/client/client.ts" \
-  | sed "s|'./sqlite.ts'|'$REF/packages/sync/src/client/sqlite.ts'|; s|'./transport.ts'|'$REF/packages/sync/src/client/transport.ts'|; s|from '@gp/core'|from '$REF/packages/core/src/index.ts'|" \
+  | sed "s|'./sqlite.ts'|'$REF_SYNC/packages/sync/src/client/sqlite.ts'|; s|'./transport.ts'|'$REF_SYNC/packages/sync/src/client/transport.ts'|; s|from '@gp/core'|from '$REF_SYNC/packages/core/src/index.ts'|" \
   > "$OUT/reference-client.ts"
-sed "s|@REPO@|$ROOT|g; s|@REF@|$REF|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
+sed "s|@REPO@|$ROOT|g; s|@REF@|$REF_SYNC|g" parity/sync/ts-sync-entry.template.ts > "$OUT/ts-sync-entry.ts"
 NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/ts-sync.mjs" --log-level=warning
 
 (cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \

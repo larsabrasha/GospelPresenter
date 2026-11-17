@@ -33,6 +33,16 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **Chip edits and item moves are relative**: they name the part (or item) and a place, and apply to
   the list as it is where they run, so quick edits in a row and edits from two devices compose. A
   whole-list `updateArrangement` (no UI uses it) is last writer wins.
+- **A custom slide, an overlay or an own theme keeps the newest change of each field** (SYNC-R23; Lars,
+  2026-11-17): the slide's name and pages, the overlay's title and page, the theme's name and look each keep the time
+  of their last change (`{field}_at`, schema 27), by the clock of the device that made it. A change is refused
+  (`newer-change`, `update_fields` in the core's mutators) when a field it changes was changed later, not the last to
+  reach the server kept: an edit made offline yesterday does not undo one made online this morning, and the device
+  that made it is told ("En ändring du gjorde sparades inte, eftersom någon ändrat samma sak senare på en annan
+  enhet."). Changes of different fields both land, whichever came first. `updated_at` only moves forward. As Figma,
+  Linear and the offline-first apps merge, field by field; it rests on the devices' clocks, so one far ahead wins
+  against others; a logical clock (HLC) in the same columns would end that. Presentations' fields and songs' parts
+  follow the server's order still. No change is refused for its age alone.
 - **Limits on the server**: 5 000 songs, 50 parts per song, 10 arrangements per song, 100 items per
   presentation (spec 02, 03), and 500 chips per arrangement (the spec limits the JSON to 5 000
   characters instead).

@@ -87,12 +87,15 @@ let rejectionsToasted = 0;
  */
 export function RejectedChanges() {
   const toast = useToast();
-  const rejected = useDbStatus()?.rejected.length ?? 0;
+  const list = useDbStatus()?.rejected;
+  const rejected = list?.length ?? 0;
+  // A change refused because another device changed the same thing later (SYNC-R23) says so: it is not a fault.
+  const newer = !!list?.slice(rejectionsToasted).some((r) => r.error === 'newer-change');
   useEffect(() => {
     if (rejected <= rejectionsToasted) return;
     rejectionsToasted = rejected;
-    toast(t('status.rejected'), 'warning');
-  }, [rejected, toast]);
+    toast(newer ? t('status.newerChange') : t('status.rejected'), 'warning');
+  }, [rejected, newer, toast]);
   return null;
 }
 

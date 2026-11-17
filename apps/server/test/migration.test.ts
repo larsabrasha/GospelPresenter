@@ -22,8 +22,11 @@ const [orgTables, orgIndexes] = (() => {
 })();
 const orgDdl = [...orgTables, ...orgIndexes];
 
+/** Today's tables as a file before version 27 had them: no field times (SYNC-R23). */
+const before27 = orgDdl.map((s) => s.replace(/, (name|pages|title|content|definition)_at INTEGER/g, ''));
+
 /** Today's tables as a file before version 24 had them: no comment on an item, and no picture edited (25). */
-const before24 = orgDdl.map((s) =>
+const before24 = before27.map((s) =>
   s
     .replace(', overlay_id TEXT, note TEXT)', ', overlay_id TEXT)')
     .replace(/, original_full_hash TEXT, original_thumb_hash TEXT,\s+original_width INTEGER, original_height INTEGER, edit TEXT\)/, ')'),
@@ -206,7 +209,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   it("a version 25 file loses the song parts 1.x kept of an empty ProPresenter slide's RTF header, and its arrangements name them no more", () => {
     const part = (id: string, sort: number, content: string) => `INSERT INTO song_parts (id, song_id, sort, content) VALUES ('${id}', 'S', ${sort}, '${content}')`;
     const file = fileWith(driver, [
-      ...orgDdl,
+      ...before27,
       schemaMetaDdl,
       'INSERT INTO _schema (one, version) VALUES (1, 25)',
       `INSERT INTO songs (id, name) VALUES ('S', 'Blomma och sten')`,

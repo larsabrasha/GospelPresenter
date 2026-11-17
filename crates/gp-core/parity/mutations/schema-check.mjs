@@ -4,6 +4,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { migrateOrgSchema, orgDdl, orgMigrations, orgIndexes, schemaMetaDdl, labelSeedSql } from '../.out/ts-core.mjs';
 import { dumpAll, runRust, schemaOf } from './harness.mjs';
+import { fieldTimeMigration } from '../field-times.mjs';
 
 /** Today's DDL as version 11 made it: none of the tables and columns 12 to 25 added. */
 const v11 = orgDdl
@@ -39,6 +40,7 @@ const rows = [
     `INSERT OR IGNORE INTO presentation_items (id, presentation_id, type, title, source_id, sort, content, overlay_id) VALUES ('${id}', 'P', '${type}', '${title}', '${source}', ${i}, ${content === null ? 'NULL' : `'${content}'`}, ${overlay === null ? 'NULL' : `'${overlay}'`})`),
   `INSERT OR IGNORE INTO custom_slides (id, name, pages, created_at, updated_at) VALUES ('C1', 'Egen', '[${page({})},${page({ backgroundImageId: null })}]', 0, 0), ('C2', 'Trasig', 'inte json', 0, 0)`,
   `INSERT OR IGNORE INTO displays (id, name, code, kind) VALUES ('D1', 'Kyrksal', 'abcdefg', 'screen')`,
+  `INSERT OR IGNORE INTO themes (id, name, definition, sort, updated_at) VALUES ('T1', 'Eget', '{}', 0, 42)`,
 ];
 
 function tryAll(db, statements) {
@@ -60,14 +62,22 @@ function atVersion(version) {
 const cases = [
   ['a new database', () => new DatabaseSync(':memory:')],
   ...Array.from({ length: 16 }, (_, i) => [`version ${11 + i}`, () => atVersion(11 + i)]),
+  ['version 27', () => { const db = atVersion(26); for (const s of fieldTimeMigration()) db.exec(s); return db; }],
   ['tables but no version (milestone 1)', () => { const db = new DatabaseSync(':memory:'); for (const s of v11) db.exec(s); return db; }],
   ['version 10', () => { const db = atVersion(11); db.exec('UPDATE _schema SET version = 10'); return db; }],
-  ['version 27, newer than the core', () => { const db = atVersion(26); db.exec('UPDATE _schema SET version = 27'); return db; }],
+  ['version 28, newer than the core', () => { const db = atVersion(26); db.exec('UPDATE _schema SET version = 28'); return db; }],
 ];
 
+/** The reference's migration, to 26, then schema 27's field times as the core's migration adds them (field-times.mjs). */
 async function migrateTs(db) {
+  const version = () => (db.prepare("SELECT 1 FROM sqlite_master WHERE name = '_schema'").get() ? db.prepare('SELECT version FROM _schema').get()?.version : undefined);
   try {
+    if (version() === 27) return 'ok';
+    if (version() > 27) throw new Error('newer than this app');
     await migrateOrgSchema(async (sql) => { await Promise.resolve(); return db.prepare(sql).all(); }, async (fn) => { db.exec('BEGIN'); await fn(); db.exec('COMMIT'); });
+    db.exec('BEGIN');
+    for (const s of fieldTimeMigration()) db.exec(s);
+    db.exec('COMMIT');
     return 'ok';
   } catch (e) {
     return /made before/.test(e.message) ? 'schema-too-old' : /newer than/.test(e.message) ? 'schema-too-new' : `crash: ${e.message}`;

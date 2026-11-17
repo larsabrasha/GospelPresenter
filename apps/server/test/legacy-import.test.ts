@@ -109,7 +109,8 @@ describe.each(adapters)('%s adapter: the import from 1.x', (adapterName) => {
   });
 
   it("takes an own theme, a song's link and a video's row of 2.0's export, a theme's picture refused unless uploaded", async () => {
-    const theme = { id: 'theme-own', name: 'Egen', definition: JSON.stringify(CLASSIC.definition), sort: 0, updated_at: 1 };
+    // With schema 27's field times, as the web's upgrade gives every row (upgradeLegacyRows).
+    const theme = { id: 'theme-own', name: 'Egen', definition: JSON.stringify(CLASSIC.definition), sort: 0, updated_at: 1, name_at: 1, definition_at: 1 };
     const link = { id: 'mat-1', song_id: 'song-1', kind: 'link', title: 'Noter', url: 'https://example.com/noter', hash: null, content_type: null, size: null, sort: 0, created_at: 1 };
     const pictured = { ...CLASSIC.definition, media: { ...CLASSIC.definition.media, image: { kind: 'picture' as const, full: 'c'.repeat(64), thumb: 'd'.repeat(64) } } };
 

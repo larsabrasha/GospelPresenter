@@ -5,7 +5,7 @@ use crate::bridge::sql;
 use serde_json::Value;
 
 /// Bumped whenever a synced table changes shape.
-pub const SCHEMA_VERSION: i64 = 26;
+pub const SCHEMA_VERSION: i64 = 27;
 /// The first version `org_ddl` makes; a database from before it is refused.
 pub const SCHEMA_BASELINE: i64 = 11;
 
@@ -179,8 +179,20 @@ fn migration(v: i64) -> Vec<String> {
             ),
             format!("DELETE FROM song_parts WHERE {}", rtf_leftover_sql("content")),
         ],
+        // A time per field of the rows written whole (SYNC-R23, `update_fields`), from the row's last change.
+        27 => FIELD_TIMES.iter().flat_map(|(table, fields)| {
+            let set = fields.iter().map(|f| format!("{f}_at = updated_at")).collect::<Vec<_>>().join(", ");
+            field_time_columns(table, fields).into_iter().chain([format!("UPDATE {table} SET {set}")])
+        }).collect(),
         _ => vec![],
     }
+}
+
+/// The tables whose fields keep a time each (schema 27), and those fields: the newest change of each wins.
+pub const FIELD_TIMES: [(&str, [&str; 2]); 3] = [("custom_slides", ["name", "pages"]), ("overlays", ["title", "content"]), ("themes", ["name", "definition"])];
+
+fn field_time_columns(table: &str, fields: &[&str]) -> Vec<String> {
+    fields.iter().map(|f| format!("ALTER TABLE {table} ADD COLUMN {f}_at INTEGER")).collect()
 }
 
 const SCHEMA_META_DDL: &str = "CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)";
@@ -191,7 +203,10 @@ fn version_row() -> String { format!("INSERT OR REPLACE INTO _schema (one, versi
 /// baseline (`schema-too-old`) or newer than this core (`schema-too-new`).
 fn plan(version: Option<i64>, has_tables: bool) -> R<Vec<String>> {
     match version {
-        None if !has_tables => Ok(org_ddl().into_iter().chain([version_row()]).collect()),
+        // The field times added after the tables, as a migrated database has them, column for column.
+        None if !has_tables => Ok(org_ddl().into_iter()
+            .chain(FIELD_TIMES.iter().flat_map(|(t, f)| field_time_columns(t, f)))
+            .chain([version_row()]).collect()),
         None => Err("schema-too-old".into()),
         Some(v) if v < SCHEMA_BASELINE => Err("schema-too-old".into()),
         Some(v) if v > SCHEMA_VERSION => Err("schema-too-new".into()),
