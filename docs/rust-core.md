@@ -1,15 +1,18 @@
 # The Rust core
 
-On the branch `claude/rust-core` only. Lars, 2026-11-13: the app is made again on one core in Rust, under the web
-(the React UI kept, the core as WASM), the server (WASM in the Worker and in Node) and a native Mac app; MCP and a
-CLI come later on the same core. It is done in a loop, function by function and view by view, each proved against
-the TypeScript app as it was before (the reference). How the core is built and checked: `crates/gp-core/README.md`.
+2.0 runs on it (Lars, 2026-11-17: 2.0 was not released yet, so the Rust core became 2.0's rather than waiting for a
+2.5). Lars, 2026-11-13: the app is made again on one core in Rust, under the web (the React UI kept, the core as
+WASM), the server (WASM in the Worker and in Node) and later native apps; MCP and a CLI come later on the same core.
+It was done in a loop, function by function and view by view, each proved against the TypeScript app as it was
+before (the reference). How the core is built and checked: `crates/gp-core/README.md`. What 2.0 gains from here is
+written in the core first.
 
-## 2.5: the core swapped, nothing else
+## The core swapped, nothing else
 
-Lars, 2026-11-14: 2.0 is released on the TypeScript core first, its core frozen from then; 2.5 is the same app, the
-same React UI on the web, in Electron and in Capacitor, with the Rust core as WASM under all of it instead of the TS
-core. No new features in 2.5: behaviour as 2.0's, proved by the differential checks and the whole e2e suite. Done:
+Lars, 2026-11-14, planned as a 2.5 after a 2.0 on the TypeScript core: the same app, the same React UI on the web, in
+Electron and in Capacitor, with the Rust core as WASM under all of it instead of the TS core; no new features in the
+swap, behaviour as before, proved by the differential checks and the whole e2e suite. Made on `claude/rust-core` and
+taken into 2.0's branch on 2026-11-17. Done:
 
 1. every mutator switched on the client and the server (`runMutation` in `packages/rust-core`): done;
 2. sync's client logic in the core: done;
@@ -56,15 +59,16 @@ only show it wrongly, which the comparison catches. Long lists (3 000 songs) are
 the bridge does not make them slower; search is in the core already. After it the native apps, MCP and the CLI read
 the web's lists, and React holds no SQL. It can run beside step 2: they touch different files.
 
-What comes after 2.5 is written in Rust first, planning among it (`docs/planning.md`). Native UIs on the same core come later: the Mac and iOS app
-(`claude/rust-core-ios-ab7733`, a working prototype over the core) waits until then, not merged.
+What comes next is written in Rust first, planning among it (`docs/planning.md`). Native UIs on the same core come
+later: the Mac and iOS app (`claude/rust-core-ios-ab7733`, a working prototype over the core) waits until then, not
+merged.
 
-### After 2.5
+### Before 2.0 goes out, and after
 
 Weighed with Lars, 2026-11-16, in order of risk:
 
 1. **Where churches run it.** The e2e specs in WebKit as well as Chromium, real Safari, iOS through Capacitor and a
-   packaged app; then one or two churches on a beta for a few Sundays before 2.5 goes out widely. The rebase is proved
+   packaged app; then one or two churches on a beta for a few Sundays before 2.0 goes out widely. The rebase is proved
    against the TS client, not yet against real networks and real people: the largest risk left.
 2. **The web's storage.** The web is held back by OPFS, not by the core. WAL with `locking_mode=EXCLUSIVE` measured 8
    times faster in Chromium (98 against 801 µs a mutation) and almost 3 in WebKit (59 against 165); TRUNCATE and
@@ -184,7 +188,7 @@ switched means the app runs the core's.
 | Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | switched: the client's start, the Node host and the Durable Object open a database through the core |
 | The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | every one, on the client and the server (`runMutation` in `packages/rust-core`, under `packages/sync`'s client and server engine): 2.5's step 1, 2026-11-16; a refusal carries the core's code, not the TS core's English message |
 | probe (1) | a test helper: ported, so every mutator, the sync tests' included, runs on the core | switched |
-| The TS core out of the app (2.5's step 4) | the checks take the reference from git (238d481b), not from the app | done: the mutators, the schema's DDL and migrations, the label seed, the client's sync SQL, `readItemSlides`, presenting's reducer and the verse lookups gone from `packages/core`; Drizzle gone from the server and sync |
+| The TS core out of the app (the swap's step 4) | the checks take the reference from git (238d481b), not from the app | done: the mutators, the schema's DDL and migrations, the label seed, the client's sync SQL, `readItemSlides`, presenting's reducer and the verse lookups gone from `packages/core`; Drizzle gone from the server and sync |
 | A Bible's text (`bibleView`) | proved: 230 compared against 2.0's reads (books, chapters, verses, every page turned, 14 searches, a text missing) | switched: a book and a chapter read through the core, only what is needed; a translation the device does not keep is fetched into a database of its own in the worker (the last three). The first open is faster (13–16 against 23–25 ms), a book and a chapter slower (9–10 against 5–6, 7 against 5 ms: a round trip to the worker each) |
 | Views: every page's (37 views: the presentation and presenting, the songs and their editor, history and materials, the libraries, the presentations, templates and trash, labels, Bibles, themes, displays, the CCLI report), against the web's own reads at 238d481b | proved: identical JSON on the demo data (`parity/views-check.mjs`, `parity/views/*.mjs`); presenting's keys and marks 314 054 compared; song search against the TS search; 3 000 songs measured, no slower but opening Lägg till by a few ms (the JSON over the bridge) | switched: the pages read through `ReadDb.view`, from the database's worker under the client's lock; the output window asks its owner. Left as SQL in the shell: the files' bytes, the video cache, the export (with the imports), and ordering by name in the page's language |
 | Sync's client logic: the queue, the rebase, the triggers (`crates/gp-core/src/sync.rs`) | proved: 15 000 steps over 10 seeds against the TS client and the server's real engine, a second device changing the same library, lost answers, offline, refusals, a role change, a first pull of two pages, an SQL error; every table, the queue and the undo log compared after each step (`parity/sync/check.mjs`); since the switch, the app's own `SyncClient` against the TS client as it was at 75e7f234, taken from git when the check is built | switched: `SyncClient` runs `syncOpen`, `syncMutate`, `syncPending` and `syncRebase` through the core; the network, pokes, sign-in, the server's refusals, `beforePush` and `localWrite` stay in the shell. A COMMIT refused by a foreign key after a rebase is rolled back as before, but never happened in the checks |

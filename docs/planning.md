@@ -1,6 +1,6 @@
 # Planning: who does what at each gathering
 
-Not built. A future feature, after 2.5, so written in the Rust core first (`docs/rust-core.md`). Lars, 2026-11-17:
+Not built. A future feature, written in the Rust core first (`docs/rust-core.md`). Lars, 2026-11-17:
 the church plans every gathering in a shared Google spreadsheet, and the app should take its place. It is not an app of
 its own ("Gospel Planner" was weighed): the people who plan are the people who make the running orders, and accounts,
 roles, sync and offline are already here; a second app would be a second thing to install and keep in step. It is

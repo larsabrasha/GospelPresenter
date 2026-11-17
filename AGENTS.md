@@ -1,7 +1,9 @@
 # Agent guide: the rewrite
 
 The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web`, `apps/server`, `apps/desktop`,
-`packages/core`, `packages/sync`). Read `README.md` here first (packages, commands, and the table of
+`packages/core`, `packages/sync`), on a core in Rust (`crates/gp-core`, run as WASM through `packages/rust-core`):
+the mutators, the schema, sync's queue and rebase and every page's view are the core's, and new behaviour is written
+there first (`docs/rust-core.md`). Read `README.md` here first (packages, commands, and the table of
 `docs/`, one file per topic); then only the `docs/` file your task touches, and `docs/look.md` and
 `docs/assumptions.md` for UI or behaviour work. The decision is
 `adr/0007-rewrite-on-typescript-local-first.md`; the behaviour spec is `spec/`.
