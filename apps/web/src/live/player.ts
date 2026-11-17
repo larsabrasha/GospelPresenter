@@ -1,6 +1,6 @@
 import type { LivePointer } from '@gp/core';
-import { getVideo, itemsOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
+import { livePlayback } from '../db/views.ts';
 import { AudioEngine, audioUrlOfItem } from './audio.ts';
 import type { Played, PlayerCommand, Plays } from './playback.ts';
 import { followSoundOutput } from './soundOutput.ts';
@@ -40,12 +40,8 @@ export class Player implements Plays {
       await this.audio.show(null);
       return;
     }
-    const items = await itemsOf(this.db, p.presentationId);
-    const at = items.findIndex((i) => i.id === p.itemId);
-    const item = at >= 0 ? items[at] : undefined;
-    const videoOf = async (i: (typeof items)[number] | undefined) => (i?.type === 'video' ? await getVideo(this.db, i.sourceId) : null);
-    const shownVideo = await videoOf(item);
-    const nextVideo = at >= 0 ? await videoOf(items[at + 1]) : null;
+    // The item shown, its video, and the next item's, which buffers (livePlaybackView).
+    const { item, video: shownVideo, nextVideo } = await livePlayback(this.db, p.presentationId, p.itemId);
     if (mine !== this.turn) return;
     // Handed over, or a reloaded window: the video or audio shown goes on where it was, if it is the same.
     const v = from?.video && shownVideo && from.video.hash === shownVideo.hash ? from.video : null;

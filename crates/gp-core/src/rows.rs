@@ -69,11 +69,15 @@ pub const ARRANGEMENT: &[(&str, K)] = &[("id", K::Str), ("songId", K::Str), ("na
 /// `Overlay`, but its `imageId`, always null.
 pub const OVERLAY: &[(&str, K)] = &[("id", K::Str), ("title", K::Str), ("content", K::Opt), ("sort", K::Num), ("updatedAt", K::Opt)];
 
-/// A presentation item: an unknown type reads as a song.
+/// An item's type as the web reads it: an unknown one reads as a song.
+pub fn item_kind(v: &Value) -> Value {
+    let known = ["bible", "image", "audio", "video", "custom", "header"];
+    json!(v.as_str().filter(|t| known.contains(t)).unwrap_or("song"))
+}
+
+/// A presentation item.
 pub fn item(row: &[Value]) -> Value {
     let mut v = map(row, ITEM);
-    let known = ["bible", "image", "audio", "video", "custom", "header"];
-    let kind = v["type"].as_str().filter(|t| known.contains(t)).unwrap_or("song").to_string();
-    v["type"] = json!(kind);
+    v["type"] = item_kind(&v["type"]);
     v
 }

@@ -2,10 +2,6 @@ import {
   CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
-  parseCustomPage,
-  type CustomPage,
-  REMOTE_CONTROL_SETTING,
-  remoteControlPolicy,
   resolveTheme,
   themeOfRow,
   type Bible,
@@ -196,11 +192,6 @@ export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presen
 
 const byPresentationName = (a: Presentation, b: Presentation) => byLocale(a.name, b.name) || a.id.localeCompare(b.id);
 
-export async function getPresentation(db: ReadDb, id: string): Promise<Presentation | null> {
-  const [r] = await db.query('SELECT * FROM presentations WHERE id = ?', [id]);
-  return r ? presentation(r) : null;
-}
-
 export interface TrashEntry {
   kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
   id: string;
@@ -314,9 +305,8 @@ export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
 }
 
 /** The organisation's remote control policy; no row is the presenter's choice. */
-export async function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
-  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]);
-  return remoteControlPolicy(r?.value);
+export function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
+  return db.view<RemoteControlPolicy>('remoteControlView', {});
 }
 
 /** Whether CCLI collection is on (SONG-R49): only `"true"` is. */
@@ -369,11 +359,10 @@ export const defaultTheme = (db: ReadDb): Promise<Theme> => themeOf(db, null);
 
 /** The organisation's outputs, by name (spec 04 §7). */
 /** The outputs in the order they were made, as Skärmar lists them (RemoteDisplayService.cs); those from before schema 12 first, by name. */
+/** The rows are the core's (displaysView); the order is this page's language's, as the shell's to choose. */
 export async function listDisplays(db: ReadDb): Promise<Display[]> {
-  const rows = await db.query<{ id: string; name: string; code: string; kind: string; created_at: number | null }>('SELECT id, name, code, kind, created_at FROM displays');
-  return rows
-    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || byLocale(a.name, b.name) || a.id.localeCompare(b.id))
-    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const), createdAt: r.created_at }));
+  const rows = await db.view<Display[]>('displaysView', {});
+  return rows.toSorted((a, b) => (a.createdAt ?? -1) - (b.createdAt ?? -1) || byLocale(a.name, b.name) || a.id.localeCompare(b.id));
 }
 
 // ------------------------------------------------------------------ audio
@@ -391,12 +380,6 @@ const libraryAudio = (r: Row): LibraryAudio => ({
 /** The audio files, newest first, without the trash (MEDIA-R7). */
 export async function listAudios(db: ReadDb): Promise<LibraryAudio[]> {
   return (await db.query('SELECT * FROM audios WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryAudio);
-}
-
-/** An audio file by id, trashed or not: a trashed file still plays where it is used (MEDIA-R8). */
-export async function getAudio(db: ReadDb, id: string): Promise<LibraryAudio | null> {
-  const [r] = await db.query('SELECT * FROM audios WHERE id = ?', [id]);
-  return r ? libraryAudio(r) : null;
 }
 
 // ------------------------------------------------------------------ video
@@ -420,12 +403,6 @@ const libraryVideo = (r: Row): LibraryVideo => ({
 /** The videos, newest first, without the trash (MEDIA-R7). */
 export async function listVideos(db: ReadDb): Promise<LibraryVideo[]> {
   return (await db.query('SELECT * FROM videos WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryVideo);
-}
-
-/** A video by id, trashed or not: a trashed video still plays where it is used (MEDIA-R8). */
-export async function getVideo(db: ReadDb, id: string): Promise<LibraryVideo | null> {
-  const [r] = await db.query('SELECT * FROM videos WHERE id = ?', [id]);
-  return r ? libraryVideo(r) : null;
 }
 
 /** Whether this device keeps the presentation's files whatever its date ("Tillgänglig offline"). */
@@ -459,9 +436,3 @@ export async function getOverlay(db: ReadDb, id: string): Promise<Overlay | null
   return r ? overlay(r) : null;
 }
 
-/** What an overlay shows: its page, its pictures its own (docs/custom-slides.md). */
-export async function shownOverlay(db: ReadDb, id: string | null): Promise<CustomPage | null> {
-  if (!id) return null;
-  const [r] = await db.query<{ content: string | null }>('SELECT content FROM overlays WHERE id = ?', [id]);
-  return r ? parseCustomPage(r.content) : null;
-}

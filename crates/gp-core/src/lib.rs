@@ -4,6 +4,7 @@ mod bridge;
 mod item_views;
 mod json;
 mod live;
+mod live_views;
 mod mutators;
 mod pages;
 mod presentation_page;

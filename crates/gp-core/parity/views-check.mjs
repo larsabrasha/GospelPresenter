@@ -4,10 +4,11 @@
 import { DatabaseSync } from 'node:sqlite';
 import presentation from './views/presentation.mjs';
 import presentationPage from './views/presentation-page.mjs';
+import live from './views/live.mjs';
 
 const db = new DatabaseSync(process.argv[2]);
 let failed = 0;
-for (const [page, check] of Object.entries({ presentation, presentationPage })) {
+for (const [page, check] of Object.entries({ presentation, presentationPage, live })) {
   // Each check is given the database, and its file for a check that adds rows to a copy of it.
   const { compared, differ, notes } = await check(db, process.argv[2]);
   failed += differ.length;

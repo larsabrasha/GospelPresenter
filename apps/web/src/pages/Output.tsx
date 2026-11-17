@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { useData, useShownOverlay } from '../db/react.tsx';
-import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
-import { slidesOf, type LiveChannel } from '../live/live.ts';
+import { useDataReading, useShownOverlay } from '../db/react.tsx';
+import { liveSlide, LIVE_SLIDE_READS } from '../db/views.ts';
+import type { LiveChannel } from '../live/live.ts';
 import { useLivePointer } from '../live/useLive.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { askFullScreen } from '../ui/fullScreen.ts';
@@ -59,17 +59,14 @@ export function Output({ live, playback, player }: { live: LiveChannel; playback
   const pointer = useLivePointer(live);
   // The first output window opened plays the audio and video, picture and sound together (playback.ts).
   const primary = useSyncExternalStore(playback.subscribe, playback.isPrimary);
-  const shown = useData(
-    async (db) => {
-      if (!pointer.presentationId || !pointer.itemId) return null;
-      const item = (await itemsOf(db, pointer.presentationId)).find((i) => i.id === pointer.itemId);
-      if (!item) return null;
-      const slide = (await slidesOf(db, item)).slides[pointer.partIndex] ?? null;
-      // The theme is read with the slide, so a changed theme or default shows at once (THEME-R6).
-      return slide && { slide, theme: await themeOf(db, await getPresentation(db, pointer.presentationId)) };
-    },
+  // The slide with its theme, read together, so a changed theme or default shows at once (THEME-R6); and the
+  // presentation's name.
+  const read = useDataReading(
+    async (db) => (pointer.presentationId ? liveSlide(db, { presentationId: pointer.presentationId, itemId: pointer.itemId, partIndex: pointer.partIndex, overlayId: null }) : null),
     [pointer.presentationId, pointer.itemId, pointer.partIndex],
+    LIVE_SLIDE_READS,
   );
+  const shown = read?.slide && pointer.itemId ? { slide: read.slide, theme: read.theme } : null;
   const overlay = useShownOverlay(pointer.overlayId);
   // Any other output window plays a video slide muted, following the primary's.
   const followed = useOutputVideo(live);
@@ -78,7 +75,7 @@ export function Output({ live, playback, player }: { live: LiveChannel; playback
   const following = followed.video && followed.video.hash === shownVideo?.hash ? followed.video : null;
   const nextSrc = useVideoSrc(!primary && followed.next && followed.next.hash !== shownVideo?.hash ? followed.next : null);
   // The window is named after the presentation, as the current app's `?title` (Live.razor).
-  const name = useData(async (db) => (pointer.presentationId ? ((await getPresentation(db, pointer.presentationId))?.name ?? null) : null), [pointer.presentationId]);
+  const name = pointer.presentationId ? (read?.name ?? null) : null;
   useEffect(() => {
     if (name) document.title = name;
   }, [name]);

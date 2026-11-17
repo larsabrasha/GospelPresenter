@@ -2,13 +2,10 @@ import {
   applyLiveChange,
   IDLE,
   newer,
-  type ItemSlides,
   type LivePointer,
   type LivePointerChange,
-  type PresentationItem,
   type LiveVideo,
 } from '@gp/core';
-import type { ReadDb } from '../db/share.ts';
 import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
 import type { PlaybackBus, PlaybackMessage } from './playback.ts';
@@ -169,23 +166,4 @@ export class LiveChannel implements PlaybackBus {
   close() {
     this.channel.close();
   }
-}
-
-/** The item's fields its slides are worked out from, as the core reads them (`itemSlidesView`). */
-const itemOf = ({ id, type, title, sourceId, arrangementId, content }: PresentationItem) => ({ id, type, title, sourceId, arrangementId, content });
-
-/**
- * Every item's slides of a running order, by item id, as the Rust core works them out from one state of the
- * database (`itemSlidesView`, as `readItemSlides`). Reads songs, song_parts, song_arrangements, labels, audios,
- * videos, custom_slides and images.
- */
-async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
-  if (!items.length) return new Map();
-  const byId = await db.view<Record<string, ItemSlides>>('itemSlidesView', { items: items.map(itemOf) });
-  return new Map(items.map((i) => [i.id, byId[i.id]!]));
-}
-
-/** One item's slides, as the core works them out. */
-export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
-  return (await slidesOfItems(db, [item])).get(item.id)!;
 }

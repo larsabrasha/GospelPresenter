@@ -1,30 +1,14 @@
 // The presentation page's reads (presentationPageView) against the page's own (PresentationEditor.tsx's useData):
 // the presentation, its theme, its items, the songs and arrangements they use and the overlays; the slides are
-// readItemSlides's (sources.mjs). On a copy of the demo data with own themes, a default theme and overlays added.
-import { copyFileSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
-import { arrangementsOf, BUILT_IN_THEMES, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../.out/web-queries.mjs';
+// readItemSlides's (sources.mjs). On the demo data with themes and overlays added (fixture.mjs).
+import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../.out/web-queries.mjs';
 import { viewRust } from '../diff.mjs';
 import { canon, tsSlides } from '../sources.mjs';
+import { fixture } from './fixture.mjs';
 import { readDb } from './web-db.mjs';
 
-/** The demo data with what it lacks for a theme and an overlay to be read: each way a presentation gets its theme. */
-function withThemes(file) {
-  const copy = file.replace(/\.sqlite$/, '-page.sqlite');
-  copyFileSync(file, copy);
-  const db = new DatabaseSync(copy);
-  const own = JSON.stringify({ ...BUILT_IN_THEMES[1].definition, extra: 1 });
-  db.prepare('INSERT INTO themes (id, name, definition, sort, updated_at) VALUES (?, ?, ?, ?, 0)').run('own-1', 'Vår', own, 0);
-  db.prepare('INSERT INTO themes (id, name, definition, sort, updated_at) VALUES (?, ?, ?, ?, 0)').run('own-bad', 'Trasig', '{"song": 1}', 1);
-  db.prepare("INSERT INTO org_settings (id, value) VALUES ('defaultThemeId', 'own-1')").run();
-  db.prepare("INSERT INTO overlays (id, title, content, sort, updated_at) VALUES ('ov-2', 'Logga', NULL, 2, 5), ('ov-1', 'Text', '{}', 1, NULL)").run();
-  const ids = db.prepare('SELECT id FROM presentations ORDER BY id').all().map((r) => r.id);
-  ['light', 'own-bad', 'gone', 'own-1', 'classic'].forEach((theme, k) => ids[k] && db.prepare('UPDATE presentations SET theme_id = ? WHERE id = ?').run(theme, ids[k]));
-  return db;
-}
-
 export default async function check(_, file) {
-  const db = withThemes(file);
+  const db = fixture(file);
   const d = readDb(db);
   const differ = [];
   let compared = 0;
