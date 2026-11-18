@@ -41,7 +41,7 @@ final class AppScheme: NSObject, WKURLSchemeHandler {
     }
 
     /// Where this device keeps pictures by their hash.
-    static let mediaDir: URL = URL(filePath: Model.home).appending(path: "media")
+    static let mediaDir: URL = URL(filePath: AppState.home).appending(path: "media")
 
     static func webView() -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -116,19 +116,34 @@ final class SlideRenderer {
         }
     }
 
-    /// The tiles drawn as one sheet, `size` points each, and cut out of one snapshot; nil for a tile not drawn.
-    func sheet(_ tiles: [TileRequest], size: CGSize) async -> [CGImage?] {
+    /// The tiles drawn as one sheet, each `pixels` big in the picture, and cut out of one snapshot; nil for a tile not
+    /// drawn.
+    func sheet(_ tiles: [TileRequest], pixels: CGSize) async -> [CGImage?] {
         while let running = busy { await running.value }
-        let task = Task { @MainActor in await self.draw(tiles, size: size) }
+        let task = Task { @MainActor in await self.draw(tiles, pixels: pixels) }
         busy = Task { _ = await task.value }
         defer { busy = nil }
         return await task.value
     }
 
-    private func draw(_ tiles: [TileRequest], size: CGSize) async -> [CGImage?] {
+    /// The density the web view draws in, which the snapshot's pixels follow: its own trait collection's on iOS (a
+    /// display of another density, a window moved, the iPhone Duo's two screens), its window's on a Mac.
+    private var displayScale: CGFloat {
+        #if os(iOS)
+        web.traitCollection.displayScale
+        #else
+        web.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        #endif
+    }
+
+    private func draw(_ tiles: [TileRequest], pixels: CGSize) async -> [CGImage?] {
         var out: [CGImage?] = Array(repeating: nil, count: tiles.count)
         guard !tiles.isEmpty else { return out }
         await waitLoaded()
+        // Read when it draws, in its window: a density it had before no longer holds after a move.
+        let density = displayScale
+        guard density > 0 else { return out }
+        let size = CGSize(width: pixels.width / density, height: pixels.height / density)
         let columns = min(tiles.count, 5), rows = (tiles.count + columns - 1) / columns
         let frame = CGSize(width: size.width * CGFloat(columns), height: size.height * CGFloat(rows))
         web.frame.size = frame

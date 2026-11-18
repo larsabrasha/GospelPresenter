@@ -104,7 +104,7 @@ describe('itemActionsView', () => {
   it("opens a song's page and offers its arrangements, the first chosen when the item names none", () => {
     const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: song, song: { deletedAt: null }, arrangements: two, overlays: [], shownId: null });
 
-    expect(ids(menu)).toEqual([['open', ['edit', 'note']], ['show', ['arrangement']], ['list', ['addAfter', 'headerAbove', 'tick']], ['remove', ['delete']]]);
+    expect(ids(menu)).toEqual([['open', ['edit', 'note']], ['show', ['arrangement']], ['list', ['addAfter', 'tick']], ['remove', ['delete']]]);
     expect(menu.groups[1]!.actions[0]!.choices).toEqual([{ id: 'a1', name: null, n: 1 }, { id: 'a2', name: 'Kort', n: 2 }]);
     expect(menu.groups[1]!.actions[0]!.chosen).toBe('a1');
   });
@@ -112,7 +112,7 @@ describe('itemActionsView', () => {
   it('offers neither the page nor the arrangements of a song in the trash', () => {
     const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: song, song: { deletedAt: 5 }, arrangements: two, overlays: [], shownId: null });
 
-    expect(ids(menu).slice(0, 2)).toEqual([['open', ['note']], ['list', ['addAfter', 'headerAbove', 'tick']]]);
+    expect(ids(menu).slice(0, 2)).toEqual([['open', ['note']], ['list', ['addAfter', 'tick']]]);
   });
 
   it("renames a programme item, and offers it no overlay, which it would not show", () => {
@@ -132,6 +132,30 @@ describe('itemActionsView', () => {
     const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: song, song: { deletedAt: null }, arrangements: [], overlays: [], shownId: 'i1' });
 
     expect(menu.groups.at(-1)!.actions[0]).toMatchObject({ id: 'delete', text: 'live.shownCannotRemove', enabled: false });
+  });
+});
+
+describe('detailsDialogView', () => {
+  const dialog = (isNew: boolean) =>
+    nodeRustCore().pure<{ title: string; groups: string[][]; actions: { id: string; text: string; role: string; busyText: string | null }[] }>('detailsDialogView', { isNew });
+
+  it('titles a new presentation Skapa presentation, with Avbryt and Skapa', () => {
+    const d = dialog(true);
+
+    expect([d.title, d.actions.map((a) => [a.id, a.text, a.role])]).toEqual(['presentations.createTitle', [['cancel', 'common.cancel', 'cancel'], ['save', 'common.create', 'confirm']]]);
+  });
+
+  it('titles one there Redigera detaljer, with Avbryt and Spara', () => {
+    const d = dialog(false);
+
+    expect([d.title, d.actions.map((a) => a.text)]).toEqual(['presentation.editDetails', ['common.cancel', 'common.save']]);
+  });
+
+  it('offers the theme only for one there, between when and the description', () => {
+    expect([dialog(true).groups, dialog(false).groups]).toEqual([
+      [['name', 'location'], ['date', 'time'], ['description']],
+      [['name', 'location'], ['date', 'time'], ['theme'], ['description']],
+    ]);
   });
 });
 

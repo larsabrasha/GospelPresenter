@@ -43,9 +43,10 @@ extension View {
         modifier(TextPromptAlert(prompt: prompt))
     }
 
-    /// A sheet's bar: its title, Avbryt, and the confirming button, which closes the sheet when `confirm` answers true.
-    func sheetBar(_ title: String, confirm label: String = t("common.save"), disabled: Bool = false, _ confirm: @escaping () -> Bool) -> some View {
-        modifier(SheetBar(title: title, label: label, disabled: disabled, confirm: confirm))
+    /// A sheet's bar: its title, Avbryt (`cancel`), and the confirming button (`label`), which closes the sheet when
+    /// `confirm` answers true.
+    func sheetBar(_ title: String, cancel: String = t("common.cancel"), confirm label: String = t("common.save"), disabled: Bool = false, _ confirm: @escaping () -> Bool) -> some View {
+        modifier(SheetBar(title: title, cancel: cancel, label: label, disabled: disabled, confirm: confirm))
     }
 }
 
@@ -69,7 +70,7 @@ private struct TextPromptAlert: ViewModifier {
 
 private struct SheetBar: ViewModifier {
     @Environment(\.dismiss) private var dismiss
-    let title: String, label: String, disabled: Bool
+    let title: String, cancel: String, label: String, disabled: Bool
     let confirm: () -> Bool
 
     func body(content: Content) -> some View {
@@ -86,20 +87,30 @@ private struct SheetBar: ViewModifier {
         }
     }
 
+    // On iOS 26 the system's round × and ✓ of the cancel and confirm roles, named by the texts given; on a Mac, buttons
+    // with the texts on them, as a Mac's sheet has (the roles alone draw the system's own "Cancel" and "Done").
     @ViewBuilder private var cancelButton: some View {
-        if #available(iOS 26, macOS 26, *) {
-            Button(role: .cancel) { dismiss() }.accessibilityLabel(t("common.cancel"))
+        #if os(iOS)
+        if #available(iOS 26, *) {
+            Button(role: .cancel) { dismiss() }.accessibilityLabel(cancel)
         } else {
-            Button(t("common.cancel"), role: .cancel) { dismiss() }
+            Button(cancel, role: .cancel) { dismiss() }
         }
+        #else
+        Button(cancel, role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+        #endif
     }
 
     @ViewBuilder private var confirmButton: some View {
-        if #available(iOS 26, macOS 26, *) {
+        #if os(iOS)
+        if #available(iOS 26, *) {
             Button(role: .confirm, action: done).accessibilityLabel(label).keyboardShortcut(.defaultAction)
         } else {
             Button(label, action: done).keyboardShortcut(.defaultAction)
         }
+        #else
+        Button(label, action: done).keyboardShortcut(.defaultAction)
+        #endif
     }
 
     private func done() { if confirm() { dismiss() } }
@@ -127,27 +138,44 @@ struct DetailsSheet: View {
     /// As the core stores them: `YYYY-MM-DD` and `HH:MM`.
     private static let day = formatter("yyyy-MM-dd"), clock = formatter("HH:mm")
 
+    /// `detailsDialogView`: the title, the fields in their groups, the buttons and their texts, as every shell has them.
+    private struct View_: Decodable {
+        struct Action: Decodable { let id: String, text: String, role: String }
+        let title: String, groups: [[String]], actions: [Action]
+    }
+
     var body: some View {
+        let view = model.view("detailsDialogView", ["isNew": presentationId == nil], as: View_.self)
+        let text = { (role: String, fallback: String) in t(view?.actions.first { $0.role == role }?.text ?? fallback) }
         Form {
-            Section { TextField(t("presentation.name"), text: $name).limited($name, to: model.rule("presentationName").max) }
-            Section {
-                Toggle(t("presentation.date"), isOn: $hasDate.animation())
-                if hasDate { DatePicker(t("presentation.date"), selection: $date, displayedComponents: .date).labelsHidden() }
-                Toggle(t("presentation.time"), isOn: $hasTime.animation())
-                if hasTime { DatePicker(t("presentation.time"), selection: $time, displayedComponents: .hourAndMinute).labelsHidden() }
-            }
-            .environment(\.locale, Texts.locale)
-            Section {
-                TextField(t("presentation.location"), text: $location).limited($location, to: model.rule("location").max)
-                TextField(t("presentation.description"), text: $description, axis: .vertical).lineLimit(4...8)
-                    .limited($description, to: model.rule("description").max)
+            // The core's groups in its order; the theme is not chosen in this app yet, so its group is left out.
+            ForEach(view?.groups.filter { $0 != ["theme"] } ?? [], id: \.self) { group in
+                Section { ForEach(group, id: \.self) { field($0) } }
             }
         }
         .formStyle(.grouped)
-        .sheetBar(t(presentationId == nil ? "presentations.createTitle" : "presentation.editDetails"), confirm: t(presentationId == nil ? "common.create" : "common.save"),
+        .sheetBar(t(view?.title ?? "presentation.editDetails"), cancel: text("cancel", "common.cancel"), confirm: text("confirm", "common.save"),
                   disabled: model.rule("presentationName").blocks(name), save)
         .macWidth(440)
         .onAppear(perform: fill)
+    }
+
+    /// A field of the core's groups, by its name.
+    @ViewBuilder private func field(_ name: String) -> some View {
+        switch name {
+        case "name": TextField(t("presentation.name"), text: $name).limited($name, to: model.rule("presentationName").max)
+        case "location": TextField(t("presentation.location"), text: $location).limited($location, to: model.rule("location").max)
+        case "date":
+            Toggle(t("presentation.date"), isOn: $hasDate.animation())
+            if hasDate { DatePicker(t("presentation.date"), selection: $date, displayedComponents: .date).labelsHidden().environment(\.locale, Texts.locale) }
+        case "time":
+            Toggle(t("presentation.time"), isOn: $hasTime.animation())
+            if hasTime { DatePicker(t("presentation.time"), selection: $time, displayedComponents: .hourAndMinute).labelsHidden().environment(\.locale, Texts.locale) }
+        case "description":
+            TextField(t("presentation.description"), text: $description, axis: .vertical).lineLimit(4...8)
+                .limited($description, to: model.rule("description").max)
+        default: EmptyView()
+        }
     }
 
     private func fill() {

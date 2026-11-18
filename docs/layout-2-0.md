@@ -69,6 +69,14 @@ tapped shows nothing, and ▶ starts it.
   black and lets go of it. Its item is the one selected, on a phone too (Lars, 2026-11-18: a phone had no selection),
   so + adds after it. The selection, the slide made ready and what each key does are the page's state in the core,
   the same on every shell (docs/view-models.md).
+- **A presentation has one window** on an iPad and a Mac (Lars, 2026-11-18, as a Keynote document has): opened from
+  another window, the window that has it comes forward, and the one it was opened from stays where it was. Different
+  presentations in different windows: preparing next Sunday beside today's. A browser cannot be kept from a second tab
+  of it; there each tab is a window of its own, as below.
+- **Each window its own selection** (Lars, 2026-11-18): the arrows, a row chosen and a slide made ready stay in the
+  window they were made in. What is shown is the same in every window (its marks, the live picture); a step into
+  another item moves the selection of the window that stepped, and the others keep theirs, a remote control's step
+  too.
 - **One presentation presented at a time** (Lars, 2026-11-18): while one is, another's ▶ is not offered, in any window
   of the device; the core refuses a start (`liveChangeView`).
 - **While presenting**, ↵ shows the next slide, unless one is made ready, outlined in blue: the arrows make one ready
@@ -141,8 +149,8 @@ overlay.
   right click or the row's … gives the item's menu, the same as its heading's … in the middle (Lars, 2026-11-03: the two
   differed), grouped as Apple groups a menu (Lars, 2026-11-03): Redigera (a song's page, or a picture item's
   pictures; a programme point's Byt namn) and Kommentar; Arrangemang › and Överlägg ›, each with the chosen one in grey and its choices in a submenu beside it,
-  opened by a pointer resting on the row or a tap; Lägg till efter… (the kinds and Programpunkt, beside it), Ny
-  programpunkt ovanför and Markera; and Radera last, in red. A phone's sheet of an item's … has the same groups in the
+  opened by a pointer resting on the row or a tap; Lägg till efter… (the kinds and Programpunkt, beside it)
+  and Markera, nothing added above, as Keynote's Ny bild adds after (Lars, 2026-11-18); and Radera last, in red. A phone's sheet of an item's … has the same groups in the
   same order (Lars, 2026-11-05: it had the list's first). No Flytta
   upp or ned: a row is dragged, or moved with Alt+↑/↓, as Apple's lists have it. In
   Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle

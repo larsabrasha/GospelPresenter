@@ -27,8 +27,7 @@ extension Color {
     /// The running order's column beside the page, a step darker.
     static let sidebar = Color(light: 0xeeedec, dark: 0x090807)
     /// Secondary text: stone-500 light, stone-400 dark.
-    static let quiet = Color(light: 0x78716c, dark: 0xa8a29e)
-}
+    static let quiet = Color(light: 0x78716c, dark: 0xa8a29e)}
 
 enum Size {
     /// A list's row (docs/layout-2-0.md, "One rule across the app").

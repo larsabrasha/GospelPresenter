@@ -1,7 +1,7 @@
 // An item's menu and Lägg till's, the same on its row at the left, on its heading's … and on a phone (the web's
 // pages/live/ItemContextMenu.tsx and AddChoices.tsx). What it offers, in which groups and which entries can be chosen,
 // is the core's (`itemActionsView`, docs/view-models.md); this file only draws each entry as Apple draws a menu's.
-// Not here yet, so left out: Redigera (the song's page), Redigera bilder, Överlägg ›, Markera.
+// Not here yet, so left out: Redigera (the song's page), Redigera bilder, Markera.
 import SwiftUI
 
 struct ItemMenu: View {
@@ -9,7 +9,7 @@ struct ItemMenu: View {
     let item: ItemView
 
     /// The entries this app draws; the core's others wait for their pages.
-    private static let drawn: Set = ["rename", "note", "arrangement", "addAfter", "headerAbove", "delete"]
+    private static let drawn: Set = ["rename", "note", "arrangement", "overlay", "addAfter", "delete"]
 
     var body: some View {
         ForEach(model.itemActions(item), id: \.id) { group in
@@ -40,14 +40,18 @@ struct ItemMenu: View {
                 }
                 .pickerStyle(.inline)
             }
+        case "overlay":
+            // Ingen (the empty id, a text key) and the organisation's overlays by name; the item's own ticked.
+            Menu(t(a.text), systemImage: "square.on.square") {
+                Picker(t(a.text), selection: Binding(get: { a.chosen ?? "" }, set: { id in
+                    model.run("setItemOverlay", ["itemId": item.id, "overlayId": id.isEmpty ? NSNull() : id as Any])
+                })) {
+                    ForEach(a.choices ?? [], id: \.id) { c in Text(c.name ?? c.text.map { t($0) } ?? "").tag(c.id) }
+                }
+                .pickerStyle(.inline)
+            }
         case "addAfter":
             Menu(t(a.text), systemImage: "plus") { AddChoices(chosen: item.id) }
-        case "headerAbove":
-            Button(t(a.text), systemImage: "text.insert") {
-                model.prompt = TextPrompt(title: t("header.new"), label: t("header.name"), text: "", rule: model.rule("itemTitle")) { title in
-                    model.run("addHeaderToPresentation", ["itemId": model.newId(), "presentationId": model.selectedPresentation ?? "", "title": title, "beforeItemId": item.id])
-                }
-            }
         case "delete":
             Button(t(a.text), systemImage: "trash", role: a.destructive ? .destructive : nil) { model.removing = item }
                 .disabled(!a.enabled)

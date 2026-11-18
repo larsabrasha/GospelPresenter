@@ -24,7 +24,6 @@ const TEXTS: Record<string, string[]> = {
   arrangement: [t('song.arrangements')],
   overlay: [t('overlays.itemOverlay')],
   addAfter: [t('live.addAfter')],
-  headerAbove: [t('header.above')],
   tick: [t('presentation.tick')],
   delete: [t('common.delete'), t('live.shownCannotRemove')],
 };
@@ -91,7 +90,6 @@ describe.each(answers.states)('the $state state of the sunday scenario', ({ stat
       editHref: () => '#song',
       onEditImages: () => {},
       onAddAfter: () => {},
-      onHeaderAbove: () => {},
       onRename: () => {},
       onNote: () => {},
       onTick: () => {},
@@ -108,7 +106,7 @@ describe.each(answers.states)('the $state state of the sunday scenario', ({ stat
   });
 
   it("draws each item's sheet on a phone as the core offers it", async () => {
-    const on = { onRename: () => {}, onNote: () => {}, onHeaderAbove: () => {}, onEditImages: () => {}, onAddAfter: () => {}, onTick: () => {}, onRemove: () => {} };
+    const on = { onRename: () => {}, onNote: () => {}, onEditImages: () => {}, onAddAfter: () => {}, onTick: () => {}, onRemove: () => {} };
     const wrong: string[] = [];
 
     for (const item of items()) {

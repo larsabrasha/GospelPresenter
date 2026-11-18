@@ -55,7 +55,7 @@ pub fn presentation_actions(a: &Obj) -> R<Value> {
 /// same on its row, its heading's … and a phone's sheet: opening it (Byt namn for a programme item; Redigera for a song
 /// not in the trash or a custom slide, the pictures for a picture item) and Kommentar; Arrangemang › with two or more,
 /// for a song not in the trash, and Överlägg › while there are overlays, for anything but a programme item; Lägg till
-/// efter ›, Ny programpunkt ovanför and Markera; and Radera, not for the item on the outputs. `song` is the item's song
+/// efter › and Markera (no "Ny programpunkt ovanför": Lars, 2026-11-18, spec 03 2d); and Radera, not for the item on the outputs. `song` is the item's song
 /// (or null), `arrangements` its arrangements in their order, `overlays` the organisation's, `shownId` the item on the
 /// outputs while presenting, black or not: removed after Släck, the next → would find it gone and start the running
 /// order over from its first slide (Lars, 2026-11-18; packages/rust-core/test/scenarios).
@@ -91,13 +91,34 @@ pub fn item_actions(a: &Obj) -> R<Value> {
             show.push(ov);
         }
     }
-    let listing = vec![action("addAfter", "live.addAfter"), action("headerAbove", "header.above"), action("tick", "presentation.tick")];
+    let listing = vec![action("addAfter", "live.addAfter"), action("tick", "presentation.tick")];
     let can = removable(id, given(a, "shownId"));
     let mut delete = action("delete", if can { "common.delete" } else { "live.shownCannotRemove" });
     delete["enabled"] = json!(can);
     delete["destructive"] = json!(true);
     let groups: Vec<Value> = [group("open", open), group("show", show), group("list", listing), group("remove", vec![delete])].into_iter().flatten().collect();
     Ok(json!({ "groups": groups }))
+}
+
+/// `detailsDialogView` {isNew}: a presentation's details dialog, as every shell draws it (the web's
+/// PresentationDetailsDialog, the native DetailsSheet): its title ("Skapa presentation", or "Redigera detaljer" for
+/// one there), its fields in their groups in order (the theme only for one there, chosen when it is edited), and its
+/// buttons in order, each with its text's key and its role: Avbryt, then the confirming one, Skapa (Skapar… while it
+/// works) for a new one, Spara for one there. Whether the confirming one may be pressed is the name's rule
+/// (`rulesView`'s fields).
+pub fn details_dialog(a: &Obj) -> R<Value> {
+    let new = a.get("isNew").and_then(Value::as_bool).ok_or("invalid-args")?;
+    let mut groups = vec![json!(["name", "location"]), json!(["date", "time"])];
+    if !new { groups.push(json!(["theme"])) }
+    groups.push(json!(["description"]));
+    Ok(json!({
+        "title": if new { "presentations.createTitle" } else { "presentation.editDetails" },
+        "groups": groups,
+        "actions": [
+            { "id": "cancel", "text": "common.cancel", "role": "cancel" },
+            { "id": "save", "text": if new { "common.create" } else { "common.save" }, "busyText": if new { json!("common.creating") } else { Value::Null }, "role": "confirm" },
+        ],
+    }))
 }
 
 /// Whether an item may be removed: not the one on the outputs (`shown`, black or not), whose removal would send the

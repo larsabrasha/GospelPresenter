@@ -33,8 +33,9 @@ impl Page<'_> {
     fn typed(&self) -> String { self.get("typed").unwrap_or_default() }
 
     /// What follows from the context before any event: presenting started or ended lets go of the last thing added and
-    /// the slide made ready; another item shown while presenting is the one selected, and lets go of the slide made
-    /// ready (a slide stepped into the next item takes the selection along).
+    /// the slide made ready. Another item shown, by another window (or a remote control), is only noted: this window's
+    /// selection and slide made ready stay its own (Lars, 2026-11-18), its marks showing what is shown; this window's
+    /// own step into another item takes its selection along (`follow`).
     fn sync(&mut self) {
         if self.st.get("presenting").and_then(Value::as_bool).unwrap_or(false) != self.presenting {
             self.set("presenting", json!(self.presenting));
@@ -44,9 +45,17 @@ impl Page<'_> {
         if self.presenting && self.get("followed") != self.live_item {
             let item = self.live_item.clone();
             self.set("followed", opt(&item));
-            if item.is_some() { self.set("selectedId", opt(&item)) }
-            self.set("picked", Value::Null);
         }
+    }
+
+    /// This window's own change of what is shown: another item shown is the one selected, and lets go of the slide made
+    /// ready (a slide stepped into the next item takes the selection along).
+    fn follow(&mut self, change: &Option<Value>) {
+        let Some(item) = change.as_ref().and_then(|c| s_of(c.get("itemId"))) else { return };
+        if !self.presenting || self.get("followed").as_deref() == Some(item.as_str()) { return }
+        self.set("followed", json!(item));
+        self.set("selectedId", json!(item));
+        self.set("picked", Value::Null);
     }
 
     /// A key of presenting as `presentingKeyView` answers it: what is shown changes the app's live state, the slide
@@ -204,6 +213,7 @@ pub fn event(a: &Obj) -> R<Value> {
         }
         _ => return Err("invalid-args".into()),
     }
+    p.follow(&live);
     Ok(json!({ "state": p.st, "live": live.unwrap_or(Value::Null), "command": command, "handled": handled }))
 }
 

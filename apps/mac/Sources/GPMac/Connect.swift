@@ -124,6 +124,10 @@ struct AccountMenu: View {
                     if model.syncProblem != nil { Circle().fill(.orange).frame(width: 9, height: 9).offset(x: 2, y: -2) }
                 }
         }
+        // On a Mac the picture itself, not the toolbar's grey menu button with a faint letter in it.
+        #if os(macOS)
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        #endif
         .accessibilityLabel(model.userName)
     }
 }

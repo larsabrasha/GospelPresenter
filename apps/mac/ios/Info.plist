@@ -19,5 +19,11 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Gospel Presenter synkar med kyrkans dator i det lokala nätverket.</string>
+	<!-- Several windows on an iPad, each with its own page, selection and slide made ready (Model, one per window). -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

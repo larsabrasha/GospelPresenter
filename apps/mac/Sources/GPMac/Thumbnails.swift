@@ -94,9 +94,7 @@ final class Thumbnails {
                 var batch: [(TileRequest, String)] = []
                 while batch.count < Self.perSheet, !urgent.isEmpty { batch.append(urgent.removeFirst()) }
                 while batch.count < Self.perSheet, !ahead.isEmpty { batch.append(ahead.removeFirst()) }
-                let scale = Self.screenScale
-                let size = CGSize(width: Self.pixels.width / scale, height: Self.pixels.height / scale)
-                let images = AppScheme.files != nil ? await SlideRenderer.shared.sheet(batch.map(\.0), size: size) : Array(repeating: nil, count: batch.count)
+                let images = AppScheme.files != nil ? await SlideRenderer.shared.sheet(batch.map(\.0), pixels: Self.pixels) : Array(repeating: nil, count: batch.count)
                 for ((_, key), image) in zip(batch, images) {
                     if let image { remember(image, key); write(image, key) }
                     for c in waiting.removeValue(forKey: key) ?? [] { c.resume(returning: image) }
@@ -104,14 +102,6 @@ final class Thumbnails {
             }
             pumping = false
         }
-    }
-
-    private static var screenScale: CGFloat {
-        #if os(iOS)
-        UIScreen.main.scale
-        #else
-        NSScreen.main?.backingScaleFactor ?? 2
-        #endif
     }
 
     private func remember(_ image: CGImage, _ key: String) {
@@ -230,7 +220,7 @@ struct LivePicture: View {
     @Environment(Model.self) private var model
 
     var body: some View {
-        LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: nil, label: false))
+        LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(model.live.slide == nil ? 0 : 0.8), lineWidth: 2))

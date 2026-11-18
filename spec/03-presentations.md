@@ -269,8 +269,9 @@ alone, titled "Lägg till sång" and so on, without the row of tabs, on a comput
 2026-11-05); **a** still opens it on songs; in Bild, Ljud, Video and Bildspel **Importera** (its symbol and its word) is at the search's
 right, Bildspel's **Skapa** beside it, and in Sång **Importera** for ProPresenter files beside its search too;
 files dragged in frame the dialog, with no "eller släpp filerna här", and a library page takes them anywhere on it,
-its heading and the room under a short list too (Lars, 2026-11-05); from an item's ⋯ under **Lägg till efter…** (the same choices) and
-**Ny programpunkt ovanför**, which puts it right before that item. A small dialog asks for its name, its field showing
+its heading and the room under a short list too (Lars, 2026-11-05); and from an item's ⋯ under **Lägg till efter…** (the same
+choices). There is no "Ny programpunkt ovanför": an item's menu adds after it, whatever the kind, as Keynote's Ny bild
+adds after the slide, and what should stand first is moved there (Lars, 2026-11-18). A small dialog asks for its name, its field showing
 "Till exempel Kollekt eller Bön"; **Byt namn** in its ⋯ renames it (an item's name is still not edited in the list).
 It has no arrangement and no overlay.
 
@@ -481,7 +482,8 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-R41 List navigation never wraps; first ↓ from nothing lands on the first item, first ↑ on the
   last; Home/End jump; any modifier disables movement (`S/Utils/ListNavigation.cs:28-94`).
 - PRES-R42 A programme point (`header`, section 2f) has no slides: stepping while presenting passes it, and the screen
-  does not change for it. It is inserted after an item, last, or right before an item (`beforeItemId`).
+  does not change for it. It is inserted after an item, last, or right before an item (`beforeItemId`, the mutator's;
+  the app's menus add after an item only).
 - PRES-R43 An item's comment (`note`, one line of ≤ 200 characters, blank stored as null) is shown in the running order only,
   never on an output; it is copied with the item into a template and out of one.
 
@@ -631,7 +633,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-A37 Given a caller of org A, when they call any presentation/item write with org A's id and an id
   belonging to org B, then nothing in org B changes (API/sync-level test).
 - PRES-A38 Given a running order, when the user chooses + → Programpunkt and names it, then the point is in the list;
-  when they choose Ny programpunkt ovanför on the second item, then a point stands right before it; presenting, the
+  when they choose Lägg till efter › Programpunkt on the first item, then a point stands right after it; presenting, the
   arrows step from the item before a point to the one after it.
 - PRES-A39 Given an item, when the user writes a comment under Kommentar in its ⋯, then the comment shows under the
   item's name, and not on the output.

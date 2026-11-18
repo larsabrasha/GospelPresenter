@@ -1,7 +1,7 @@
 import { sortedArrangements, type Overlay, type PresentationItem, type Song, type SongArrangement } from '@gp/core';
 import { itemActions } from '../../../db/pageCore.ts';
 import { t } from '../../../i18n.ts';
-import { CheckSquareIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { CheckSquareIcon, CommentIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { navigate } from '../../../ui/router.ts';
 import { Sheet } from '../../../ui/Sheet.tsx';
 import { ItemSettings } from '../../presentation-editor/ItemParts.tsx';
@@ -12,7 +12,6 @@ import { MenuGroup, MenuRow } from './MenuRows.tsx';
 export interface ItemSheetActions {
   onRename: (item: PresentationItem) => void;
   onNote: (item: PresentationItem) => void;
-  onHeaderAbove: (item: PresentationItem) => void;
   onEditImages: (item: PresentationItem) => void;
   onAddAfter: (item: PresentationItem) => void;
   onTick: (item: PresentationItem) => void;
@@ -69,11 +68,6 @@ export function ItemSheet({ item, songs, arrangements, overlays, shownId, on, on
           {offered.has('addAfter') && (
             <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (onClose(), on.onAddAfter(item))}>
               {t('live.addAfter')}
-            </MenuRow>
-          )}
-          {offered.has('headerAbove') && (
-            <MenuRow icon={<PointIcon className="size-5" />} onClick={() => (onClose(), on.onHeaderAbove(item))}>
-              {t('header.above')}
             </MenuRow>
           )}
           {offered.has('tick') && (

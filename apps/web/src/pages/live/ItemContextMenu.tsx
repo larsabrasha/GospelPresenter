@@ -10,7 +10,7 @@ import { CONTEXT_ROW, ContextMenu } from '../../ui/ContextMenu.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
-import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
+import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
 
 /** What an item's menu needs from the page it is on, the same wherever it opens. */
 export interface ItemMenuSource {
@@ -25,8 +25,6 @@ export interface ItemMenuSource {
   onEditImages?: (item: PresentationItem) => void;
   /** Lägg till efter: a kind from the dialog, or a heading, after this item. */
   onAddAfter: (item: PresentationItem, choice: AddChoice) => void;
-  /** Ny rubrik ovanför: a heading right before this item, which starts its section. */
-  onHeaderAbove: (item: PresentationItem) => void;
   /** Byt namn, a heading's: an item's name is not edited in the list. */
   onRename: (item: PresentationItem) => void;
   /** Kommentar: the item's comment for those who run it. */
@@ -120,7 +118,7 @@ function Choices({ choices, chosen, onChoose }: { choices: { id: string; title: 
  * An item's menu, one and the same from its row at the left and its heading's … (Lars, 2026-11-03), grouped as Apple
  * groups one: opening the item (Redigera: a song's page, or a picture item's pictures; a heading's Byt namn; and
  * Kommentar); how it shows, its arrangement and its overlay as rows with the chosen one in grey whose choices open
- * beside them; the list around it, Lägg till efter (the kinds and Rubrik), Ny rubrik ovanför and Markera; and Radera last, in red, which the shown item cannot. No Flytta upp or ned: a row is dragged, or
+ * beside them; the list around it, Lägg till efter (the kinds and Programpunkt; nothing is added above, Lars 2026-11-18) and Markera; and Radera last, in red, which the shown item cannot. No Flytta upp or ned: a row is dragged, or
  * moved with Alt+↑ and ↓ (Lars, 2026-11-03: as Apple's lists have it). An empty group leaves no line.
  */
 export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu; source: ItemMenuSource; onClose: () => void }) {
@@ -191,12 +189,6 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
         <SubmenuRow icon={<PlusIcon className="size-4" />} label={t('live.addAfter')} value="" open={sub === 'add'} onOpen={() => setSub('add')}>
           <AddChoices onChoose={(choice) => source.onAddAfter(item, choice)} />
         </SubmenuRow>
-      )}
-      {offered.has('headerAbove') && (
-        <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onHeaderAbove(item)}>
-          <PointIcon className="size-4" />
-          {t('header.above')}
-        </AppButton>
       )}
       {offered.has('tick') && (
         <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onTick(item)}>

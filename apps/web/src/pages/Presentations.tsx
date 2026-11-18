@@ -32,7 +32,7 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
   const trySave = useTrySave();
   return (
     <PresentationDetailsDialog
-      title={t('presentations.createTitle')}
+      isNew
       initial={{
         name: template?.name ?? t('presentations.defaultName'),
         date: template ? nextDate(template) : '',
@@ -41,8 +41,6 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
         description: '',
         themeId: '',
       }}
-      saveText={t('common.create')}
-      savingText={t('common.creating')}
       onSave={async (d) => {
         const id = newId();
         const fields = detailsArgs(d);

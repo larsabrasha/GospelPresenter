@@ -68,7 +68,8 @@ export function usePageState(o: {
 }) {
   const [held, setHeld] = useState<PageState>(() => ({ selectedId: null, picked: null, lastAddedId: null, typed: '', presenting: o.presenting, followed: null, ...o.initial() }));
   const context = { presentationId: o.presentationId, isTemplate: o.isTemplate, presenting: o.presenting, live: o.pointer };
-  // What the context changed (presenting started, another item shown) is the core's too; kept at once, as React keeps
+  // What the context changed (presenting started; another item shown by another window, which leaves this window's
+  // selection as it is) is the core's too; kept at once, as React keeps
   // state derived during render.
   const model = pageCore().pure<{ state: PageState; canStart: boolean; cue: PageCue | null }>('pageModelView', { state: held, context, order: o.order });
   if (JSON.stringify(model.state) !== JSON.stringify(held)) setHeld(model.state);

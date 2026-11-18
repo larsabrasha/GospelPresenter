@@ -1,6 +1,6 @@
 // Programme points and comments in the running order (spec 03 2f, PRES-A38, A39): + is a menu with Programpunkt under
-// the kinds, an item's menu puts a point right before it, presenting steps over a point, and a comment never reaches a
-// screen.
+// the kinds, an item's Lägg till efter › Programpunkt puts a point right after it, presenting steps over a point, and a
+// comment never reaches a screen.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, pickItem, setUpHost } from './flows.ts';
@@ -11,7 +11,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('a programme point from + and one above an item stand in the running order, and presenting steps over them (PRES-A38)', async () => {
+test("a programme point from + and one from an item's Lägg till efter stand in the running order, and presenting steps over them (PRES-A38)", async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -26,8 +26,9 @@ test('a programme point from + and one above an item stand in the running order,
   const named = page.getByRole('dialog', { name: 'Ny programpunkt' });
   await named.getByLabel('Till exempel Kollekt eller Bön').fill('Kollekt');
   await named.getByRole('button', { name: 'Lägg till' }).click();
-  await rows.nth(1).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Ny programpunkt ovanför' }).click();
+  await rows.nth(0).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Lägg till efter…' }).click();
+  await page.getByRole('menu', { name: 'Lägg till efter…' }).getByRole('menuitem', { name: 'Programpunkt' }).click();
   await named.getByLabel('Till exempel Kollekt eller Bön').fill('Predikan');
   await named.getByRole('button', { name: 'Lägg till' }).click();
 

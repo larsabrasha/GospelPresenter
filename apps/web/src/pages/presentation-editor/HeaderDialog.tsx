@@ -9,8 +9,8 @@ import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
 import { FloatingInput } from '../../ui/Floating.tsx';
 
-/** Where a new heading goes: after an item (or last), or right before one ("Ny rubrik ovanför"). */
-export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: string };
+/** Where a new heading goes: after an item, or last (an item's menu adds after it only, Lars 2026-11-18). */
+type HeaderPlace = { afterItemId: string | null };
 
 /**
  * One text of an item asked for in a small dialog, as iOS asks for a new list's name: an item's texts are not edited
@@ -107,7 +107,6 @@ export function useItemTexts(presentationId: string, onAdded: (itemId: string) =
   return {
     addHeader: (place: HeaderPlace) => setHeading({ place }),
     menu: {
-      onHeaderAbove: (item: PresentationItem) => setHeading({ place: { beforeItemId: item.id } }),
       onRename: (item: PresentationItem) => setHeading({ item }),
       onNote: setNoting,
     },

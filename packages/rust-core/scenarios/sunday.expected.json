@@ -52,12 +52,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -123,12 +117,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,
@@ -221,12 +209,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -286,12 +268,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,
@@ -525,12 +501,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -596,12 +566,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,
@@ -694,12 +658,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -759,12 +717,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,
@@ -989,12 +941,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -1060,12 +1006,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,
@@ -1158,12 +1098,6 @@
               {
                 "destructive": false,
                 "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -1223,12 +1157,6 @@
                 "enabled": true,
                 "id": "addAfter",
                 "text": "live.addAfter"
-              },
-              {
-                "destructive": false,
-                "enabled": true,
-                "id": "headerAbove",
-                "text": "header.above"
               },
               {
                 "destructive": false,

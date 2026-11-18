@@ -16,6 +16,28 @@ extension ImageRenderer {
 extension Color {
     static let window = Color(nsColor: .windowBackgroundColor)
 }
+
+typealias PlatformWindow = NSWindow
+
+extension View {
+    /// The window keeps its name, but its toolbar does not show it, where the page says it itself (from macOS 15).
+    @ViewBuilder func titleOnlyInWindow() -> some View {
+        if #available(macOS 15, *) { toolbar(removing: .title) } else { self }
+    }
+}
+
+/// The system's window a view is drawn in, handed to `found` once it is in one (to bring it forward, Model.window).
+struct WindowReader: NSViewRepresentable {
+    let found: (NSWindow) -> Void
+    func makeNSView(context: Context) -> NSView { Probe(found: found) }
+    func updateNSView(_ view: NSView, context: Context) {}
+    final class Probe: NSView {
+        let found: (NSWindow) -> Void
+        init(found: @escaping (NSWindow) -> Void) { self.found = found; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { nil }
+        override func viewDidMoveToWindow() { if let window { found(window) } }
+    }
+}
 #else
 import UIKit
 
@@ -31,6 +53,21 @@ extension ImageRenderer {
 
 extension Color {
     static let window = Color(uiColor: .secondarySystemBackground)
+}
+
+typealias PlatformWindow = UIWindow
+
+/// The system's window a view is drawn in, handed to `found` once it is in one (to bring it forward, Model.window).
+struct WindowReader: UIViewRepresentable {
+    let found: (UIWindow) -> Void
+    func makeUIView(context: Context) -> UIView { Probe(found: found) }
+    func updateUIView(_ view: UIView, context: Context) {}
+    final class Probe: UIView {
+        let found: (UIWindow) -> Void
+        init(found: @escaping (UIWindow) -> Void) { self.found = found; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { nil }
+        override func didMoveToWindow() { if let window { found(window) } }
+    }
 }
 #endif
 

@@ -177,12 +177,16 @@ private struct SlideColumn: View {
         let key = slideKey(item.id, n)
         let live = model.isLive
         let mark: SlideMark? = live && model.live.shownKey == key ? .shown : live && model.live.nextKey == key ? .next : nil
-        return SlideTile(slide: slide, theme: p.theme, overlay: item.overlay, number: n + 1, mark: mark,
-                         picked: model.pageState.picked == SlideAt(itemId: item.id, partIndex: n), width: grid.width)
+        let picked = model.pageState.picked == SlideAt(itemId: item.id, partIndex: n)
+        return SlideTile(slide: slide, theme: p.theme, overlay: item.overlay, number: n + 1, mark: mark, picked: picked, width: grid.width)
             .onTapGesture {
                 model.send(["type": "show", "itemId": item.id, "partIndex": n])
                 focused = true
             }
+            // A tile is a button to VoiceOver and the UI tests, made ready said as selected, named by its place.
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+            .accessibilityIdentifier("part-\(key)")
     }
 }
 

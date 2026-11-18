@@ -75,6 +75,16 @@ export const limits = () => theRules().limits;
 /** The fields' rules, the core's (docs/view-models.md): whether Spara waits for a word, and a field's length. */
 export const fields = () => theRules().fields;
 
+/** A presentation's details dialog as every shell draws it (`detailsDialogView`): its title, field groups and buttons. */
+export interface DetailsDialogView {
+  title: 'presentations.createTitle' | 'presentation.editDetails';
+  groups: ('name' | 'location' | 'date' | 'time' | 'theme' | 'description')[][];
+  actions: { id: 'cancel' | 'save'; text: 'common.cancel' | 'common.create' | 'common.save'; busyText: 'common.creating' | null; role: 'cancel' | 'confirm' }[];
+}
+
+/** The details dialog of a new presentation, or of one there (`detailsDialogView`). */
+export const detailsDialog = (isNew: boolean) => pageCore().pure<DetailsDialogView>('detailsDialogView', { isNew });
+
 /** An action a menu offers, as the core works it out for every shell (docs/view-models.md). */
 export interface Action {
   id: string;

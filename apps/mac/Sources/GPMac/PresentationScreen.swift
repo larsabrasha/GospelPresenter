@@ -77,18 +77,26 @@ struct PresentationScreen: View {
             Button(role: .destructive) { ending = true } label: {
                 Label(t("live.end"), systemImage: "stop.fill").labelStyle(Wide(wide: wide))
             }
-            .buttonStyle(.borderedProminent).tint(.red)
+            .prominentGlass().tint(.red)
             .keyboardShortcut(".", modifiers: .command)
         } else {
             Button { model.send(["type": "start"]) } label: {
                 Label(t("presentation.start"), systemImage: "play.fill").labelStyle(Wide(wide: wide))
             }
-            .buttonStyle(.borderedProminent).tint(.green)
+            .prominentGlass().tint(.green)
             // The core's: not while another presentation is presented (`pageModelView`); and, this app's own, not with
             // nothing to show.
             .disabled(!model.canStart || (model.current?.items.allSatisfy(\.slides.isEmpty) ?? true))
             .accessibilityIdentifier("start")
         }
+    }
+}
+
+private extension View {
+    /// ▶ and ■: Liquid Glass in their colour where there is one (iOS 26, macOS 26), as the floating +; before, filled.
+    @ViewBuilder
+    func prominentGlass() -> some View {
+        if #available(iOS 26, macOS 26, *) { buttonStyle(.glassProminent) } else { buttonStyle(.borderedProminent) }
     }
 }
 

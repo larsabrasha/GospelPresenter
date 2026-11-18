@@ -158,10 +158,16 @@ describe('what follows from presenting', () => {
     expect(answer.state).toMatchObject({ presenting: true, lastAddedId: null, picked: null });
   });
 
-  it('selects the item a step into another item shows', () => {
-    const answer = sent({ type: 'sync' }, { followed: 'a', selectedId: 'a' }, presented('b'));
+  it("selects the item this window's own step shows, letting go of the slide made ready", () => {
+    const answer = sent({ type: 'step', delta: 1 }, { followed: 'a', selectedId: 'a', picked: { itemId: 'b', partIndex: 1 } }, presented('a', 2));
 
-    expect(answer.state).toMatchObject({ followed: 'b', selectedId: 'b' });
+    expect(answer.state).toMatchObject({ followed: 'b', selectedId: 'b', picked: null });
+  });
+
+  it('keeps its own selection and slide made ready when another window shows another item (Lars, 2026-11-18)', () => {
+    const answer = sent({ type: 'sync' }, { followed: 'a', selectedId: 'h', picked: { itemId: 'b', partIndex: 1 } }, presented('b'));
+
+    expect(answer.state).toMatchObject({ followed: 'b', selectedId: 'h', picked: { itemId: 'b', partIndex: 1 } });
   });
 
   it('selects what is added, and keeps it as the last thing added', () => {

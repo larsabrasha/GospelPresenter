@@ -16,17 +16,16 @@ enum Measure {
         }
         let hundred = Array(slides.prefix(100)).map { TileRequest(slide: $0.0.raw, theme: $0.1, overlay: nil) }
         guard hundred.count >= 20 else { return }
-        let scale = UIScreen.main.scale
-        let size = CGSize(width: Thumbnails.pixels.width / scale, height: Thumbnails.pixels.height / scale)
+        let size = Thumbnails.pixels
         let renderer = SlideRenderer.shared
-        _ = await renderer.sheet([hundred[0]], size: size) // the page loaded, the fonts too
+        _ = await renderer.sheet([hundred[0]], pixels: size) // the page loaded, the fonts too
         func ms(_ act: () async -> Void) async -> Double {
             let t = Date()
             await act()
             return Date().timeIntervalSince(t) * 1000
         }
-        let one = await ms { _ = await renderer.sheet([hundred[1]], size: size) }
-        let sheet = await ms { _ = await renderer.sheet(Array(hundred[0..<20]), size: size) }
+        let one = await ms { _ = await renderer.sheet([hundred[1]], pixels: size) }
+        let sheet = await ms { _ = await renderer.sheet(Array(hundred[0..<20]), pixels: size) }
         Thumbnails.shared.forget()
         let cold = await ms { await withTaskGroup(of: Void.self) { g in for tile in hundred { g.addTask { _ = await Thumbnails.shared.image(tile) } } } }
         Thumbnails.shared.forgetMemory()
@@ -34,7 +33,7 @@ enum Measure {
         let memory = await ms { await withTaskGroup(of: Void.self) { g in for tile in hundred { g.addTask { _ = await Thumbnails.shared.image(tile) } } } }
         // An overlay alone: its corner, outside its texts, should be clear.
         let overlay: JSONValue = .object(["version": .number(1), "elements": .array([])])
-        let clear = await renderer.sheet([TileRequest(slide: nil, theme: hundred[0].theme, overlay: overlay, label: false)], size: size).first ?? nil
+        let clear = await renderer.sheet([TileRequest(slide: nil, theme: hundred[0].theme, overlay: overlay, label: false)], pixels: size).first ?? nil
         let alpha = clear.map(cornerAlpha) ?? -1
         let report = String(format: "one snapshot %.0f ms; a sheet of 20 %.0f ms; 100 slides cold %.0f ms, from disk %.0f ms, from memory %.1f ms; an overlay's clear corner alpha %d (0 is clear)", one, sheet, cold, disk, memory, alpha)
         NSLog("GP measure: %@", report)

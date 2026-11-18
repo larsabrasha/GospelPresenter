@@ -13,8 +13,77 @@ struct StartPage: View {
     @State private var wide = false
 
     var body: some View {
+        #if os(macOS)
+        mac(today: localToday())
+            // The window keeps its name (Window menu, Mission Control); the page's heading row says it on the page.
+            .navigationTitle(t("nav.presentations"))
+            .titleOnlyInWindow()
+            // At the toolbar's far end, as the web's bar has it; without the title, a flexible space keeps it there.
+            .toolbar { ToolbarItemGroup { Spacer(); AccountMenu() } }
+            .sheet(isPresented: $creating) { DetailsSheet(presentationId: nil) }
+            // GP_MAC_CREATE: Skapa presentation open at the start, for pictures of it (GP_MAC_SNAPSHOT).
+            .onAppear { if ProcessInfo.processInfo.environment["GP_MAC_CREATE"] != nil { creating = true } }
+        #else
+        list
+        #endif
+    }
+
+    #if os(macOS)
+    /// On a Mac the web's start page in the Mac's own parts (Lars, 2026-11-18: a Mac app should feel like one): the
+    /// system's grouped list, as System Settings has it, its rows two lines and › from the system, in a column of the
+    /// web's page width in the middle; over it, as on the web, the heading and + at its end, a Mac's own round
+    /// prominent button. What the page holds and in what order is the web's (apps/web/src/pages/Presentations.tsx).
+    private func mac(today: String) -> some View {
+        Form {
+            Section {} header: {
+                HStack {
+                    Text(t("nav.presentations")).font(.largeTitle.bold()).foregroundStyle(Color.primary)
+                    Spacer()
+                    Button { creating = true } label: { Image(systemName: "plus").font(.title3.weight(.semibold)) }
+                        .buttonStyle(.borderedProminent).buttonBorderShape(.circle).controlSize(.large).tint(.sky)
+                        .accessibilityLabel(t("presentations.new")).help(t("presentations.new"))
+                }
+                .padding(.bottom, 4)
+            }
+            if let id = model.live.id, let p = model.presentations.first(where: { $0.id == id }) {
+                Section { NavigationLink(value: p.id) { NowShowing(p: p) } }
+            }
+            ForEach(model.lists) { list in
+                let rows = list.id == "recent" ? Array(list.rows.prefix(restShown)) : list.rows
+                if !rows.isEmpty {
+                    Section(t(list.title)) {
+                        ForEach(rows) { p in
+                            NavigationLink(value: p.id) {
+                                PresentationListRow(p: p, subtitle: p.subtitle(today: today, showDate: list.showDate, withYear: list.withYear), live: p.id == model.live.id)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        if rows.count < list.rows.count { Button(t("common.showMore")) { restShown += 20 }.buttonStyle(.link) }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .readableWidth($wide)
+        .overlay { if model.presentations.isEmpty { empty } }
+    }
+    #endif
+
+    /// No presentation yet: what the page is for, and Skapa presentation.
+    private var empty: some View {
+        ContentUnavailableView {
+            Label(t("presentations.emptyTitle"), systemImage: "rectangle.stack")
+        } description: {
+            Text(t("presentations.emptyText"))
+        } actions: {
+            Button(t("presentations.emptyNew")) { creating = true }.buttonStyle(.borderedProminent)
+        }
+    }
+
+    /// On iOS the system's inset grouped list, in a readable column on a wide screen.
+    private var list: some View {
         let today = localToday()
-        List {
+        return List {
             // Wide, the page's heading row stands over its column, + at its end, as the web's PageHeader: the system's
             // large title would stay at the screen's edge, away from the list.
             if wide {
@@ -49,17 +118,7 @@ struct StartPage: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(wide ? .inline : .large)
         #endif
-        .overlay {
-            if model.presentations.isEmpty {
-                ContentUnavailableView {
-                    Label(t("presentations.emptyTitle"), systemImage: "rectangle.stack")
-                } description: {
-                    Text(t("presentations.emptyText"))
-                } actions: {
-                    Button(t("presentations.emptyNew")) { creating = true }.buttonStyle(.borderedProminent)
-                }
-            }
-        }
+        .overlay { if model.presentations.isEmpty { empty } }
         .toolbar {
             // Wide, the user's picture at the bar's right as the web's; narrow, + there and the picture at the left.
             if wide {

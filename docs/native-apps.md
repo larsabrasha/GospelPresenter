@@ -88,6 +88,14 @@ role change, an organisation with thousands of songs.
 The structure is the web's (Lars, 2026-11-17): `docs/layout-2-0.md` describes it, and where the file and the running
 web app differ, the web app wins. Built with SwiftUI's own components shaped to it, not a copy of the web's CSS:
 
+- **Windows** (`AppState.swift`, `Model.swift`): the app holds its data, sync, start page lists and live state once
+  (`AppState`); each window, an iPad's or a Mac's, has its own `Model` over it (`InWindow` in `GPMacApp.swift`): its
+  way through the pages and its page's own state, so two windows select and make ready on their own and see the same
+  presentation presented. A change of the data made in one is read again in all; a step into another item moves only
+  the selection of the window that stepped (docs/layout-2-0.md). A presentation has one window: opening one another
+  window has open brings that window forward (`Model.path`, `bringForward`), and the Mac's output window sends its
+  keys there.
+
 - **The start page** (`apps/mac/Sources/GPMac/StartPage.swift`) is a list of its own at every width: what this device
   presents at the top ("Visas just nu"), then Idag, Kommande and Senast ändrade (20 at a time, Visa fler), each row
   two lines with its number of items; the round blue + in the bar makes a presentation ("Skapa presentation", then it
@@ -99,10 +107,16 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   13-inch iPad upright) the running order at the left with the description card at its top, the slides of every item
   in the middle (sections with sticky headings, tiles 384 shrinking to 340 pt), and while presenting the live column
   at the right (the picture, Släck, the next slide); each side folds away. Narrower (`PhoneLayout.swift`), one column:
-  while presenting the picture small at the left with Släck at its right, then every part a row with its whole text,
-  VISAS and NÄSTA on them, + floating at the bottom right.
+  while presenting the picture small at the left with Släck at its right and under Släck, as the web's, Beskrivning
+  (a sheet with the description and Redigera detaljer) and Visning (a sheet with a switch for each overlay; no outputs
+  on iOS yet), then every part a row with its whole text, VISAS and NÄSTA on them, + floating at the bottom right. The
+  overlay turned on lies over the live picture and the Mac's output window, none while black (`Live.overlay`). The slide shown and the one made ready are marked as each
+  platform marks a choice (Lars, 2026-11-18): a row by its ground, faint red or faint blue, with no lines to its
+  neighbours, as a list's selection is on iOS; a tile by a ring inside its edge. The marking is the app's own, not
+  `List(selection:)`: a list's selection is one kind in the system's colour, does not answer a tap on the row already
+  chosen (after Släck that tap shows it again) and moves itself with the arrows, which are the core's.
 - **An item's menu** (`ItemMenus.swift`), the same on its row and its heading's …: Byt namn for a programme item,
-  Kommentar; Arrangemang ›; Lägg till efter ›, Ny programpunkt ovanför; Radera last, in red, asked first, and
+  Kommentar; Arrangemang ›, Överlägg › (Ingen or one of the organisation's, `setItemOverlay`); Lägg till efter ›; Radera last, in red, asked first, and
   disabled for the item on the outputs, black or not. **+** offers Sång, then under a line Programpunkt.
   `apps/mac/apple.sh uitest` checks these menus against the core's answers for a scenario (docs/view-models.md).
 - **Colours and sizes** (`Look.swift`): the warm grey `stone` by role (ground, surface, raised, sidebar), sky-500 as

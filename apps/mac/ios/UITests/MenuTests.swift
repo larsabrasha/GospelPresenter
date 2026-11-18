@@ -6,7 +6,7 @@ import XCTest
 
 final class MenuTests: XCTestCase {
     /// The entries the app draws (ItemMenu's `drawn`); the core's others wait for their pages.
-    private static let drawn: Set<String> = ["rename", "note", "arrangement", "addAfter", "headerAbove", "delete"]
+    private static let drawn: Set<String> = ["rename", "note", "arrangement", "overlay", "addAfter", "delete"]
 
     private struct Action: Decodable { let id: String, text: String, enabled: Bool }
     private struct Group: Decodable { let id: String, actions: [Action] }
@@ -59,8 +59,8 @@ final class MenuTests: XCTestCase {
 
     /// The texts each drawn entry may have, to look for one the core did not offer.
     private static let keys: [String: [String]] = [
-        "rename": ["header.rename"], "note": ["note.title"], "arrangement": ["song.arrangements"],
-        "addAfter": ["live.addAfter"], "headerAbove": ["header.above"], "delete": ["common.delete", "live.shownCannotRemove"],
+        "rename": ["header.rename"], "note": ["note.title"], "arrangement": ["song.arrangements"], "overlay": ["overlays.itemOverlay"],
+        "addAfter": ["live.addAfter"], "delete": ["common.delete", "live.shownCannotRemove"],
     ]
 
     /// The scenario's state reached as someone would reach it; its keys in sunday.json say the same: presenting started,
@@ -69,7 +69,8 @@ final class MenuTests: XCTestCase {
         switch state {
         case "shown":
             app.buttons["start"].tap()
-            let part = app.staticTexts["Härlig är jorden, härlig är Guds himmel"].firstMatch
+            // The song's first part, a phone's row or a computer's tile alike, by its place.
+            let part = app.buttons["part-i1/0"].firstMatch
             XCTAssertTrue(part.waitForExistence(timeout: 5))
             part.tap()
         case "black":

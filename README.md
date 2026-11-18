@@ -111,6 +111,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [rust-core.md](docs/rust-core.md) | The Rust core 2.0 runs on: why, the reference it is proved against, where it runs, its interface, the loop function by function and view by view, and where it stands |
 | [view-models.md](docs/view-models.md) | What a page offers (menus, enabled actions, where + adds, a field's rule) worked out in the core for every shell: what is built, how it is proved, what is next |
 | [native-apps.md](docs/native-apps.md) | The iOS and Mac app in SwiftUI over the Rust core: its UniFFI interface, building, running and installing, pairing and sync as the web's, the pages built and those not |
+| [native-slide-rendering.md](docs/native-slide-rendering.md) | A proposal, not decided: slides drawn without a browser (an Apple TV app), the core laying them out and each platform painting them, and what would prove it |
 
 ### Next steps
 

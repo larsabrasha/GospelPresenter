@@ -71,7 +71,9 @@ case "$1" in
     # when the app's Swift changes, not in every check. TEST_RUNNER_ hands the repository's path to the test.
     DEVICE=${2:-iPhone 17 Pro}
     # A name is found among the installed simulators (the first of its name), as several iOS versions may have one.
-    UDID=$(xcrun simctl list devices available | grep -m1 -E "^ +$DEVICE \(" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+    # As written, not a pattern: "iPad Pro 13-inch (M5)" has brackets. A booted one of that name first.
+    LINES=$(xcrun simctl list devices available | grep -F " $DEVICE (" || true)
+    UDID=$(printf '%s\n' "$LINES" | awk '/\(Booted\)/ { b = $0 } NR == 1 { f = $0 } END { print (b ? b : f) }' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
     TEST_RUNNER_GP_REPO="$ROOT" xcodebuild -project ios/GPiOS.xcodeproj -scheme GPiOS -configuration Debug \
       -derivedDataPath "$BUILD/derived" -destination "platform=iOS Simulator,id=${UDID:-$DEVICE}" test 2>&1 \
       | grep -E "error|Test Case|XCTAssert|failed|passed|TEST (SUCCEEDED|FAILED)" | grep -v "appintentsmetadataprocessor"

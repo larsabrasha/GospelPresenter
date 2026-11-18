@@ -1,6 +1,6 @@
 import { listThemes } from '@gp/core';
 import { useState } from 'react';
-import { fields } from '../../db/pageCore.ts';
+import { detailsDialog, fields } from '../../db/pageCore.ts';
 import { ownThemes } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -31,6 +31,16 @@ export function detailsArgs(d: PresentationDetails) {
   };
 }
 
+/** The texts the core's dialog names by key (`detailsDialogView`), each written out for the texts' check. */
+const TEXTS = {
+  'presentations.createTitle': () => t('presentations.createTitle'),
+  'presentation.editDetails': () => t('presentation.editDetails'),
+  'common.cancel': () => t('common.cancel'),
+  'common.create': () => t('common.create'),
+  'common.creating': () => t('common.creating'),
+  'common.save': () => t('common.save'),
+};
+
 /** The sheet's round ✕ and ✓. */
 const ROUND = 'size-11 rounded-full flex items-center justify-center cursor-pointer';
 /** A field in a card's row, without a box of its own: the card is its box, as Calendar's fields. */
@@ -46,22 +56,25 @@ const PILL = 'h-9 px-3 rounded-lg bg-raised dark:bg-raised-2 tabular-nums outlin
  * dialog may close, with `savingText` on the button until then.
  */
 export function PresentationDetailsDialog({
-  title,
+  isNew,
   initial,
-  withTheme,
-  saveText,
-  savingText,
   onSave,
   onClose,
 }: {
-  title: string;
+  /** Skapa presentation, or Redigera detaljer of one there: the core says what each has (`detailsDialogView`). */
+  isNew: boolean;
   initial: PresentationDetails;
-  withTheme?: boolean;
-  saveText: string;
-  savingText?: string;
   onSave: (d: PresentationDetails) => Promise<void> | void;
   onClose: () => void;
 }) {
+  // The title, the buttons' texts and whether the theme is asked for are the core's, the same in every shell.
+  const view = detailsDialog(isNew);
+  const title = TEXTS[view.title]();
+  const confirm = view.actions.find((a) => a.role === 'confirm')!;
+  const saveText = TEXTS[confirm.text]();
+  const savingText = confirm.busyText ? TEXTS[confirm.busyText]() : undefined;
+  const cancelText = TEXTS[view.actions.find((a) => a.role === 'cancel')!.text]();
+  const withTheme = view.groups.some((g) => g.includes('theme'));
   const [d, setD] = useState(initial);
   const [saving, setSaving] = useState(false);
   const own = useData(ownThemes, []);
@@ -82,7 +95,7 @@ export function PresentationDetailsDialog({
       <div className="-m-3 flex flex-col">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center h-16 px-4">
           {/* ✕ and ✓, round, as iOS 27's sheets have them (Lars, 2026-11-05: no words); the words are their names. */}
-          <AppButton variant="plain" aria-label={t('common.cancel')} title={t('common.cancel')} className={`justify-self-start ${ROUND} bg-raised dark:bg-raised-2 hover:bg-stone-200 dark:hover:bg-white/15`} onClick={onClose}>
+          <AppButton variant="plain" aria-label={cancelText} title={cancelText} className={`justify-self-start ${ROUND} bg-raised dark:bg-raised-2 hover:bg-stone-200 dark:hover:bg-white/15`} onClick={onClose}>
             <CloseIcon className="size-5" />
           </AppButton>
           <p aria-hidden="true" className="font-semibold text-[17px] truncate">

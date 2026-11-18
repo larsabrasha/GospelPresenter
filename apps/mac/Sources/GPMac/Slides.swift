@@ -11,14 +11,24 @@ struct OutputView: View {
     var body: some View {
         ZStack {
             Color.black
-            LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: nil, label: false))
+            LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
         }
         .ignoresSafeArea()
         .focusable().focusEffectDisabled()
         // The output's keys step what is shown and black it, as the page's do (`Model.send`).
-        .onKeyPress(keys: [.rightArrow, .space, .return]) { _ in model.send(["type": "step", "delta": 1]); return .handled }
-        .onKeyPress(.leftArrow) { model.send(["type": "step", "delta": -1]); return .handled }
-        .onKeyPress("b") { model.send(["type": "black"]); return .handled }
+        .onKeyPress(keys: [.rightArrow, .space, .return]) { _ in key(["type": "step", "delta": 1]) }
+        .onKeyPress(.leftArrow) { key(["type": "step", "delta": -1]) }
+        .onKeyPress("b") { key(["type": "black"]) }
+    }
+
+    /// A key, to the window that has the presentation presented open (a presentation has one window), else to this
+    /// window's own page of it, opened here.
+    private func key(_ event: [String: Any]) -> KeyPress.Result {
+        guard let id = model.live.id else { return .ignored }
+        if let window = model.app.window(showing: id, except: model) { window.send(event); return .handled }
+        if model.path.last != id { model.path = [id] }
+        model.send(event)
+        return .handled
     }
 }
 
