@@ -14,7 +14,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "presentationView" => match id(a, "id") { Ok(pid) => presentation(&pid).await, Err(e) => Err(e) },
         "trashView" => Ok(trash().await),
         "liveView" => crate::live::run(a).await,
-        "searchSongsView" => Ok(songs(a.get("query").and_then(|q| q.as_str()).unwrap_or("")).await),
+        "searchSongsView" => Ok(songs(a.get("query").and_then(|q| q.as_str()).unwrap_or(""), crate::collation::lang(a)).await),
         "itemSlidesView" => crate::item_views::item_slides(a).await,
         "presentationPageView" => crate::presentation_page::view(a).await,
         "liveSlideView" => crate::live_views::slide(a).await,
@@ -138,15 +138,18 @@ pub async fn presentation(pid: &str) -> R<Value> {
     Ok(json!({ "id": pid, "name": p[0], "eventDate": p[1], "time": p[2], "location": p[3], "description": p[4], "items": out }))
 }
 
-/// The library's songs for "Lägg till sång", best match first (packages/core/src/search.ts).
-async fn songs(query: &str) -> Value {
+/// `searchSongsView` {query, locale}: the library's songs for "Lägg till sång", best match first (search.rs), ties and
+/// a blank query in the library's order: by name in the page's language, as `songsView` and the web's SongSearch have
+/// it (the native app's add sheet; the web searches through `songSearchView`).
+async fn songs(query: &str, lang: crate::collation::Lang) -> Value {
     let rows = sql("SELECT s.id, s.name, s.author, p.content FROM songs s LEFT JOIN song_parts p ON p.song_id = s.id
-                    WHERE s.deleted_at IS NULL ORDER BY s.name, s.id, p.sort, p.id", vec![]).await;
+                    WHERE s.deleted_at IS NULL ORDER BY s.rowid, p.sort, p.id", vec![]).await;
     let mut library: Vec<(String, String, String, Vec<String>)> = Vec::new();
     for r in rows {
         if library.last().map(|l| l.0 != s(&r[0])).unwrap_or(true) { library.push((s(&r[0]), s(&r[1]), s(&r[2]), vec![])) }
         if let Some(text) = r[3].as_str() { library.last_mut().unwrap().3.push(text.to_string()) }
     }
+    library.sort_by(|a, b| crate::collation::names(lang, &a.1, &b.1));
     let prepared: Vec<search::Prepared> = library.iter()
         .map(|(_, name, author, parts)| search::prepare(name, author, parts.first().map_or("", |p| p.as_str()), &parts.join("\n")))
         .collect();

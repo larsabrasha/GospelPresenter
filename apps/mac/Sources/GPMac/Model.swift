@@ -157,7 +157,8 @@ final class Model {
     }
 
     func searchSongs(_ query: String) -> [SongHit] {
-        let hits = view("searchSongsView", ["query": query], as: [SongHit].self) ?? []
+        // In the app's language, as the web orders its library (the core's collation.rs).
+        let hits = view("searchSongsView", ["query": query, "locale": Texts.language], as: [SongHit].self) ?? []
         app.note("searchSongsView")
         return hits
     }

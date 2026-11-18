@@ -73,5 +73,18 @@ export default async function check(_, file) {
     const [w, g] = [search(query), await viewRust(db, 'songSearchView', { query })];
     if (canon(w) !== canon(g)) differ.push(`search ${JSON.stringify(query)}: TS ${w.length} ${canon(w.slice(0, 8))} Rust ${g.length} ${canon(g.slice?.(0, 8))}`);
   }
-  return { compared, differ, notes: ['the library as rows', `${queries.length} queries over 400 made-up songs`] };
+  // The native app's add sheet (searchSongsView): the web's search over the library in the page's language's order,
+  // its first 50, the order the core's own (collation.rs), the web's Intl.Collator here.
+  const native = queries.filter((query, k) => k % 10 === 0);
+  for (const locale of ['sv', 'en']) {
+    const named = new Intl.Collator(locale, { sensitivity: 'base' });
+    const inOrder = db.prepare('SELECT id, name FROM songs WHERE deleted_at IS NULL').all().toSorted((a, b) => named.compare(a.name, b.name)).map((s) => s.id);
+    const web = reference(db, inOrder);
+    for (const query of native) {
+      compared++;
+      const [w, g] = [web(query).slice(0, 50), (await viewRust(db, 'searchSongsView', { query, locale })).map((s) => s.id)];
+      if (canon(w) !== canon(g)) differ.push(`searchSongsView ${locale} ${JSON.stringify(query)}: TS ${canon(w.slice(0, 8))} Rust ${canon(g.slice(0, 8))}`);
+    }
+  }
+  return { compared, differ, notes: ['the library as rows', `${queries.length} queries over 400 made-up songs`, `${native.length} of them in the native add sheet, in Swedish and English`] };
 }
