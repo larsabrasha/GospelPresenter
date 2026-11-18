@@ -1,12 +1,10 @@
-import { utf8Encode } from '../src/index.ts';
-
 // A small protobuf writer, enough to build `.pro` files of rv.data.Presentation (as in
 // GospelPresenter.Shared/Proto/propresenter.proto) for the core's tests and the e2e's. A field is
 // [number, value]: a string or bytes (length-delimited), a number (varint), or a nested message.
 type Value = string | number | Uint8Array | Field[];
 type Field = [number, Value];
 
-const enc = { encode: utf8Encode };
+const enc = new TextEncoder();
 
 function varint(n: number): number[] {
   const out: number[] = [];
@@ -34,7 +32,7 @@ function message(fields: Field[]): Uint8Array {
 const uuid = (id: string): Field[] => [[1, id]];
 
 /** Cocoa's RTF around a slide's lines, each ending in a backslash as ProPresenter writes them. */
-export function rtf(lines: string[]): string {
+function rtf(lines: string[]): string {
   return [
     '{\\rtf1\\ansi\\ansicpg1252\\cocoartf2511',
     '\\cocoatextscaling0\\cocoaplatform0{\\fonttbl\\f0\\fswiss\\fcharset0 Helvetica;}',

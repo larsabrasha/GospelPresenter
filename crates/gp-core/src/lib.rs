@@ -16,6 +16,7 @@ mod page_state;
 mod pages;
 mod presentation_page;
 mod presenting;
+mod propresenter;
 mod rows;
 mod schema;
 mod search;

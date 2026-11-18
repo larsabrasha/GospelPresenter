@@ -1,4 +1,5 @@
-import { songNameKey, type ImportedSong, type MutatorArgs } from '@gp/core';
+import type { MutatorArgs } from '@gp/core';
+import type { ImportedSong } from '../db/pageCore.ts';
 import { t } from '../i18n.ts';
 
 // What the ProPresenter import on Sånger sends and says (spec 02 "Import card", SONG-R42 as changed on
@@ -14,6 +15,12 @@ export const IMPORT_BATCH = 500;
 
 /** A file larger than this is not read (spec 02: 25 MB per file). */
 export const MAX_PRO_BYTES = 25 * 1024 * 1024;
+
+/** Whether a file name is one the import considers (SONG-R35); the file itself is read by the core. */
+export const isProPresenterFile = (fileName: string) => fileName.toLowerCase().endsWith('.pro');
+
+/** How two song names compare for duplicates: case- and composition-insensitive (SONG-R42). */
+const songNameKey = (name: string) => name.trim().normalize('NFC').toLowerCase();
 
 /** A library song whose name an imported song has, with its parts' text in order. */
 export interface LibrarySong {

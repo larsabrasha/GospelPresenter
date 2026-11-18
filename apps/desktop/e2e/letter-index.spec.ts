@@ -1,7 +1,7 @@
 // The index along Sånger's edge on a touch screen (Lars, 2026-11-05: drag and swipe on it, as Contacts' on an iPhone):
 // a finger kept on it and moved jumps the list to the letter under it, shown big beside the finger until it lets go.
 import { expect, test } from '@playwright/test';
-import { pro } from '../../../packages/core/test/pro-fixture.ts';
+import { pro } from '../../../packages/rust-core/test/pro-fixture.ts';
 import { launch, type Desktop } from './apps.ts';
 import { openAdmin, setUpHost } from './flows.ts';
 

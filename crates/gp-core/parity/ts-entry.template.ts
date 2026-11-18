@@ -10,3 +10,4 @@ export { presentingKey, slideMarks, slideOrder } from '@REF@/packages/core/src/p
 export { applyLiveChange, followItemOverlay } from '@REF@/packages/core/src/live.ts';
 export { readItemSlides } from '@REF@/packages/core/src/item-slides.ts';
 export { parseCustomPages } from '@REF@/packages/core/src/custom-slides.ts';
+export { parseProPresenter } from '@REF@/packages/core/src/propresenter.ts';

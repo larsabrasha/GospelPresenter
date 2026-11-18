@@ -1,21 +1,22 @@
-// Real ProPresenter files, opt in: set GP_REAL_PRO_DIR to a folder of `.pro` files to read them as
-// the import does and check what comes out. Real songs are under copyright, so none is in the
-// repository and this test asserts only counts and shape, never the text itself. Skipped when the
-// variable is not set.
+// Real ProPresenter files, opt in: set GP_REAL_PRO_DIR to a folder of `.pro` files to read them as the import does
+// (`proPresenterSongView`) and check what comes out. Real songs are under copyright, so none is in the repository and
+// this test asserts only counts and shape, never the text itself. Skipped when the variable is not set.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { isProPresenterFile, parseProPresenter, type ImportedSong } from '../../src/index.ts';
+import { nodeRustCore } from '../src/node.ts';
 
 const dir = process.env.GP_REAL_PRO_DIR;
+
+interface Song { name: string; parts: { content: string }[] }
 
 describe.skipIf(!dir)('real ProPresenter files (GP_REAL_PRO_DIR)', () => {
   const read = () =>
     readdirSync(dir!)
-      .filter(isProPresenterFile)
-      .map((f) => ({ file: f, song: parseProPresenter(readFileSync(join(dir!, f)), f.replace(/\.pro$/i, '')) }));
-  const songs = () => read().flatMap((r) => (r.song ? [r.song] : []));
-  const texts = (all: ImportedSong[]) => all.flatMap((s) => s.parts.map((p) => p.content));
+      .filter((f) => f.toLowerCase().endsWith('.pro'))
+      .map((f) => nodeRustCore().pure<Song | null>('proPresenterSongView', { data: readFileSync(join(dir!, f)).toString('base64'), fileName: f.replace(/\.pro$/i, '') }));
+  const songs = () => read().filter((s): s is Song => !!s);
+  const texts = (all: Song[]) => all.flatMap((s) => s.parts.map((p) => p.content));
 
   it('reads nearly every file as a song', () => {
     const all = read();

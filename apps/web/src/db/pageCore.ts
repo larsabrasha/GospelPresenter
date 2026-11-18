@@ -118,6 +118,27 @@ export function itemActions(args: { item: unknown; song: unknown; arrangements: 
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */
 export const highlight = (text: string, query: string) => pageCore().pure<{ text: string; hit: boolean }[]>('highlightView', { text, query });
 
+/** A song read from a ProPresenter file, before it has ids: arrangements name parts by their index. */
+export interface ImportedSong {
+  name: string;
+  author: string | null;
+  publisher: string | null;
+  ccli: string | null;
+  parts: { labelText: string | null; content: string }[];
+  arrangements: { name: string | null; partIndexes: number[] }[];
+}
+
+/** The bytes as base64, a slice at a time, as JSON carries them to the core. */
+function base64(bytes: Uint8Array): string {
+  let text = '';
+  for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+  return btoa(text);
+}
+
+/** A `.pro` file as a song, or null when it has no slide text or cannot be read (`proPresenterSongView`, SONG-R35–R43). */
+export const proPresenterSong = (data: Uint8Array, fileName: string | null) =>
+  pageCore().pure<ImportedSong | null>('proPresenterSongView', { data: base64(data), fileName });
+
 interface BookNames { sv: string; en: string; oldTestament: boolean }
 const books = new Map<string, BookNames>();
 

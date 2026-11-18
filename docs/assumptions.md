@@ -111,8 +111,9 @@ Idle limits on live sessions and screens (LIVE-R42, R43, R50; built 2026-10-31):
 
 The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31):
 
-- **The files are read in the page** (`packages/core/src/propresenter.ts`), with a small reader of protobuf's
-  wire format rather than a library, and written in one `importSongs` mutation: there is no
+- **The files are read in the page** by the Rust core (`crates/gp-core/src/propresenter.rs`, `proPresenterSongView`,
+  since 2026-11-18; before, 2.0's TS, which it is proved against), with a small reader of protobuf's wire format
+  rather than a library, and written in one `importSongs` mutation: there is no
   `/api/upload/import-songs`, and the import is all or nothing as SONG-R44 has it. An import of more than 500
   songs goes in several mutations of 500. A file over 25 MB is not read, on every device.
 - **Duplicates are chosen per song, with both texts to compare** (SONG-R42 as changed with Lars on 2026-10-31;
@@ -129,7 +130,7 @@ The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31
   device added meanwhile is not skipped; nothing is lost, but two songs may then share a name. The texts are
   shown whole, without marking the words that differ.
 - **The text is read as the current app does, but better in four ways**, checked on 882 real `.pro` files
-  (GP_REAL_PRO_DIR, `packages/core/test/node/real-propresenter.test.ts`): the RTF's header groups (fonts,
+  (GP_REAL_PRO_DIR, now `packages/rust-core/test/real-propresenter.test.ts`): the RTF's header groups (fonts,
   colours, `{\*…}`) go first, so a slide with empty text boxes is no longer read as `;;` and `\*;;` (ten of
   those files were songs of only that; now they count as files without song text); one blank line between
   lines is kept, at most (Lars: one or two breaks in a row), where the current app kept none; spaces at a

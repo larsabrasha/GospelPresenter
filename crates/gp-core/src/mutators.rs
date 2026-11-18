@@ -19,7 +19,7 @@ pub mod presentations;
 mod probe;
 mod song_import;
 mod song_materials;
-mod songs;
+pub mod songs;
 mod templates;
 mod themes;
 mod trash;

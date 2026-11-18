@@ -73,6 +73,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "bibleSlidesView" => crate::bible::slides_view(a),
         "verseSearchPlanView" => crate::bible_books::plan_view(a),
         "bibleBookNamesView" => crate::bible_books::names_view(a),
+        "proPresenterSongView" => crate::propresenter::view(a),
         _ => return None,
     })
 }

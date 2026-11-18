@@ -1,5 +1,6 @@
-import { isProPresenterFile, parseProPresenter, type Song } from '@gp/core';
+import type { Song } from '@gp/core';
 import { useRef, useState } from 'react';
+import { proPresenterSong } from '../db/pageCore.ts';
 import { songPartsOf } from '../db/queries.ts';
 import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -15,6 +16,7 @@ import {
   IMPORT_BATCH,
   importResult,
   importResultText,
+  isProPresenterFile,
   MAX_PRO_BYTES,
   namesakes,
   planImport,
@@ -67,7 +69,7 @@ export function useSongImport(library: Song[] | undefined) {
     let failed = 0;
     for (const [i, f] of pro.entries()) {
       setReadCount({ done: i, total: pro.length });
-      const song = f.size > MAX_PRO_BYTES ? null : parseProPresenter(new Uint8Array(await f.arrayBuffer()), f.name.replace(/\.pro$/i, ''));
+      const song = f.size > MAX_PRO_BYTES ? null : proPresenterSong(new Uint8Array(await f.arrayBuffer()), f.name.replace(/\.pro$/i, ''));
       if (song) read.push(song);
       else failed++;
     }

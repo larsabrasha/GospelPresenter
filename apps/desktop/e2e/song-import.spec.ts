@@ -1,8 +1,8 @@
 // The ProPresenter import on Sånger (spec 02 "Import card", SONG-R35–R44): `.pro` files chosen or
 // dropped become songs with their parts and labels; a file with no text is counted, a duplicate asked
-// about. The files are built here (packages/core/test/pro-fixture.ts), as real songs are under copyright.
+// about. The files are built here (packages/rust-core/test/pro-fixture.ts), as real songs are under copyright.
 import { expect, test } from '@playwright/test';
-import { pro } from '../../../packages/core/test/pro-fixture.ts';
+import { pro } from '../../../packages/rust-core/test/pro-fixture.ts';
 import { launch, type Desktop } from './apps.ts';
 import { dropFiles, openAdmin, setUpHost } from './flows.ts';
 
