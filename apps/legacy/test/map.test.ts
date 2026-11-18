@@ -1,4 +1,6 @@
-import { labelId, legacyOverlayPage, parseSongSnapshot, pdfPages } from '@gp/core';
+import { labelId, parseSongSnapshot, pdfPages } from '@gp/core';
+import { legacyOverlayPage } from '@gp/rust-core';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { describe, expect, it } from 'vitest';
 import { bibleSlideFromHtml } from '../src/bible-html.ts';
 import { booksOf, mapOrg, mapUsers } from '../src/map.ts';
@@ -284,7 +286,7 @@ describe('the rest', () => {
     const { rows } = await mapOrg(data, media, 1000);
 
     expect(rows.overlays.map((o) => ({ ...o, content: JSON.parse(String(o.content)) as unknown }))).toEqual([
-      { id: 'ov', title: 'Kollekt', content: legacyOverlayPage(null, { full: 'f', thumb: 't' }), image_id: null, sort: 0, updated_at: 1000 },
+      { id: 'ov', title: 'Kollekt', content: legacyOverlayPage(nodeRustCore(), null, { full: 'f', thumb: 't' }), image_id: null, sort: 0, updated_at: 1000 },
     ]);
     expect(rows.images).toEqual([]);
   });

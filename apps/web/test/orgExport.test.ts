@@ -7,7 +7,7 @@ import { zipBlob } from '../src/media/zipBlob.ts';
 const synced: DbStatus = { storage: 'opfs', connected: true, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
 
 /** A device's database as the export reads it: no rows, and the sync's status after a sync now. */
-const deviceWith = (status: DbStatus) => ({ query: async () => [], syncNow: async () => status });
+const deviceWith = (status: DbStatus) => ({ view: async <T,>() => '{}' as T, syncNow: async () => status });
 
 describe('the export of an organisation', () => {
   it.each([

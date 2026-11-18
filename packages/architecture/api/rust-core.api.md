@@ -4,7 +4,11 @@ Rows (type)
 RunSql (type)
 RustCore (class)
 base64 (function)
+legacyBlobs (re-export)
+legacyOverlayPage (re-export)
+legacyRowsProblem (re-export)
 runMutation (function)
+upgradeLegacyRows (re-export)
 
 ## @gp/rust-core/node
 nodeRustCore (function)

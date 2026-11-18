@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportedSong } from '../src/db/pageCore.ts';
-import { choicesFor, defaultChoice, importResult, importResultText, namesakes, planImport, sameText, songsToSend } from '../src/pages/songImport.ts';
+import { choicesFor, defaultChoice, importResult, importResultText, namesakes, planImport, songsToSend } from '../src/pages/songImport.ts';
 
 const song = (name: string, verse = 'Ett'): ImportedSong => ({
   name,
@@ -55,11 +55,15 @@ describe('planning a ProPresenter import', () => {
 
 describe('comparing song text', () => {
   it('does not count spaces, line breaks or blank lines', () => {
-    expect(sameText('Ett  två\n\n\ntre ', 'Ett två\ntre')).toBe(true);
+    const plan = planImport([song('A', 'Ett  två\n\n\ntre ')], [{ id: 'S', name: 'A', text: 'Ett två\ntre\n\nTvå' }], counter());
+
+    expect(plan.duplicates[0]!.same).toBe(true);
   });
 
   it('counts a changed word', () => {
-    expect(sameText('Ett två', 'Ett tre')).toBe(false);
+    const plan = planImport([song('A', 'Ett tre')], [{ id: 'S', name: 'A', text: 'Ett två\n\nTvå' }], counter());
+
+    expect(plan.duplicates[0]!.same).toBe(false);
   });
 });
 

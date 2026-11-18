@@ -11,8 +11,8 @@ const MAY_USE: Record<string, string[]> = {
   'apps/server': ['@gp/core', '@gp/rust-core', '@gp/sync'],
   'apps/web': ['@gp/core', '@gp/rust-core', '@gp/sync'],
   'apps/desktop': ['@gp/core', '@gp/rust-core', '@gp/sync', '@gp/server'],
-  // The export from 1.x, a command run beside the old app's database.
-  'apps/legacy': ['@gp/core'],
+  // The export from 1.x, a command run beside the old app's database; its check and 1.x's overlays are the core's.
+  'apps/legacy': ['@gp/core', '@gp/rust-core'],
 };
 
 const imports = (pkg: string) => FILES.filter((f) => f.pkg === pkg && f.kind === 'source').flatMap((f) => importsOf(f).map((i) => ({ ...i, file: f.path })));

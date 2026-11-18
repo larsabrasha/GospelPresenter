@@ -25,6 +25,15 @@ sed "s|@REF@|$REF|g" parity/ts-entry.template.ts > "$OUT/ts-entry.ts"
 sed "s|@REF@|$REF|g" parity/web-entry.template.ts > "$OUT/web-entry.ts"
 "$ESBUILD" "$OUT/web-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/web-queries.mjs" --log-level=warning \
   --alias:@gp/core="$REF/packages/core/src/index.ts"
+# The export zip's rows (parity/views/legacy.mjs) against the TS as it was when it moved to the core, at fb03e798: the
+# reference at 238d481b has neither schema 27's field times nor their columns.
+LEGACY_REFERENCE=fb03e798
+REF_LEGACY=$OUT/ref-legacy
+rm -rf "$REF_LEGACY" && mkdir -p "$REF_LEGACY" && git -C "$ROOT" archive "$LEGACY_REFERENCE" packages/core/src apps/web/src | tar -x -C "$REF_LEGACY"
+printf "export { upgradeLegacyRows, legacyBlobs, legacyRowsProblem, legacyOverlayPage, LEGACY_TABLES } from '%s/packages/core/src/legacy.ts';\nexport { tableByName } from '%s/packages/core/src/sync-sql.ts';\nexport { CLASSIC } from '%s/packages/core/src/themes.ts';\n" "$REF_LEGACY" "$REF_LEGACY" "$REF_LEGACY" > "$OUT/legacy-entry.ts"
+"$ESBUILD" "$OUT/legacy-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/legacy-core.mjs" --log-level=warning
+# The ProPresenter import's duplicates (parity/views/song-import.mjs) against the web's songImport.ts there too.
+"$ESBUILD" "$REF_LEGACY/apps/web/src/pages/songImport.ts" --bundle --format=esm --platform=node --outfile="$OUT/song-import.mjs" --log-level=warning
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the
 # server's engine, for the sync check. Its TS core is the reference's with today's tables and schema version (schema
 # 27's field times, parity/beyond-reference.mjs), so its sync SQL carries every column the server and the core do.

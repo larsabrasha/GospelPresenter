@@ -47,6 +47,11 @@ export class RustCore {
 
   constructor(private module: WebAssembly.Module) {}
 
+  /** Another instance of the same core, for a view that must not wait on this one's call under way. */
+  spare(): RustCore {
+    return new RustCore(this.module);
+  }
+
   private get core(): CoreExports {
     this.instance ??= new WebAssembly.Instance(this.module, { env: { now_ms: () => Date.now() } }).exports as unknown as CoreExports;
     return this.instance;
@@ -170,6 +175,8 @@ export interface MutationDb {
 export function runMutation(on: MutationDb, name: string, args: unknown, ctx: MutatorCtx): Promise<void> {
   return on.core.run(name, args, ctx, on.rows).then(() => undefined);
 }
+
+export { legacyBlobs, legacyOverlayPage, legacyRowsProblem, upgradeLegacyRows } from './legacy.ts';
 
 /** A file's bytes as base64, a slice at a time, as JSON carries them to a view that reads a file (crates/gp-core/src/files.rs). */
 export function base64(bytes: Uint8Array): string {

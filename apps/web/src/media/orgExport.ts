@@ -2,16 +2,15 @@ import {
   LEGACY_ENTRIES,
   LEGACY_FORMAT,
   LEGACY_TABLES,
-  legacyBlobs,
-  legacyRowsProblem,
-  tableByName,
   utf8Encode,
   type LegacyManifest,
   type LegacyRows,
   type LegacyUser,
   type UserRow,
 } from '@gp/core';
+import { legacyBlobs, legacyRowsProblem } from '@gp/rust-core';
 import { api, authHeaders } from '../auth/api.ts';
+import { pageCore } from '../db/pageCore.ts';
 import type { DbStatus } from '../db/protocol.ts';
 import type { ReadDb } from '../db/share.ts';
 import { serverUrl } from '../server.ts';
@@ -49,14 +48,11 @@ async function download(path: string, row: string): Promise<Blob> {
 }
 
 /** What the export reads a device's database through: its rows, and a sync now. */
-type ExportDb = Pick<ReadDb, 'query'> & { syncNow(): Promise<DbStatus> };
+type ExportDb = Pick<ReadDb, 'view'> & { syncNow(): Promise<DbStatus> };
 
-/** Every row of the tables the import writes, with exactly their columns. */
-async function readRows(db: Pick<ReadDb, 'query'>): Promise<LegacyRows> {
-  const entries = await Promise.all(
-    LEGACY_TABLES.map(async (t) => [t, await db.query<LegacyRows[typeof t][number]>(`SELECT ${tableByName.get(t)!.columns.join(', ')} FROM ${t} ORDER BY id`)] as const),
-  );
-  return Object.fromEntries(entries) as LegacyRows;
+/** Every row of the tables the import writes, with exactly their columns, in their order (the core's `exportRowsView`). */
+async function readRows(db: Pick<ReadDb, 'view'>): Promise<LegacyRows> {
+  return JSON.parse(await db.view<string>('exportRowsView', {})) as LegacyRows;
 }
 
 /** The members with an address, as the import invites them; the Google subjects are the server's, never sent. */
@@ -83,11 +79,11 @@ export async function exportOrg(db: ExportDb, orgName: string, progress: (p: Org
   const status = await db.syncNow();
   if (status.pending > 0 || status.updateRequired || status.authError) throw new OrgExportError('not-synced');
   const rows = await readRows(db);
-  const problem = legacyRowsProblem(rows);
+  const problem = legacyRowsProblem(pageCore(), rows);
   if (problem) throw new OrgExportError('rows', problem);
   const users = await readUsers();
 
-  const blobs = new Map(legacyBlobs(rows).named.map(([hash, row]) => [hash, row]));
+  const blobs = new Map(legacyBlobs(pageCore(), rows).named.map(([hash, row]) => [hash, row]));
   const texts = new Map(rows.bibles.map((b) => [String(b.content_hash), `bibles ${String(b.id)}`]));
   const wanted = [
     ...[...blobs].map(([hash, row]) => ({ name: LEGACY_ENTRIES.blob(hash), path: `/api/media/${hash}`, row })),

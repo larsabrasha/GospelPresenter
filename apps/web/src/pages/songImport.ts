@@ -1,11 +1,12 @@
 import type { MutatorArgs } from '@gp/core';
-import type { ImportedSong } from '../db/pageCore.ts';
+import { pageCore, type ImportedSong } from '../db/pageCore.ts';
 import { t } from '../i18n.ts';
 
 // What the ProPresenter import on Sånger sends and says (spec 02 "Import card", SONG-R42 as changed on
 // 2026-10-31): the songs read from the files with ids of their own, which of them share a name with a
 // song in the library or earlier in the import, whether their text is the same, what the importer chose
-// for each, and the result line once they are written.
+// for each, and the result line once they are written. Which share a name, whether their text is the same and what
+// may be chosen are the core's (`songNamesakesView`, `songImportDuplicatesView`, crates/gp-core/src/song_import.rs).
 
 type ImportArgs = MutatorArgs<'importSongs'>;
 type PlannedSong = Omit<ImportArgs['songs'][number], 'replaces'>;
@@ -18,9 +19,6 @@ export const MAX_PRO_BYTES = 25 * 1024 * 1024;
 
 /** Whether a file name is one the import considers (SONG-R35); the file itself is read by the core. */
 export const isProPresenterFile = (fileName: string) => fileName.toLowerCase().endsWith('.pro');
-
-/** How two song names compare for duplicates: case- and composition-insensitive (SONG-R42). */
-const songNameKey = (name: string) => name.trim().normalize('NFC').toLowerCase();
 
 /** A library song whose name an imported song has, with its parts' text in order. */
 export interface LibrarySong {
@@ -39,8 +37,12 @@ export interface Duplicate {
   text: string;
   /** The song it shares its name with: in the library (an id), or earlier in this import (no id, so it can only be skipped or kept). */
   other: { id: string | null; text: string };
-  /** Whether the text is the same, as `sameText` has it. */
+  /** Whether the text is the same: the same words in the same order, spaces and line breaks aside. */
   same: boolean;
+  /** What may be chosen: replacing only a library song. */
+  choices: DuplicateChoice[];
+  /** What the dialog starts with: a same text skipped, another kept beside the other, so no text is lost. */
+  choice: DuplicateChoice;
 }
 
 export interface ImportPlan {
@@ -52,31 +54,23 @@ export interface ImportPlan {
 /** A song's text as compared and shown: its parts, a blank line between. */
 export const songText = (parts: { content: string }[]) => parts.map((p) => p.content).join('\n\n');
 
-/** The same words in the same order: spaces, line breaks and blank lines do not count. */
-export const sameText = (a: string, b: string) => a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
-
 /** The library songs to compare with: those whose name one of the read songs has (case and composition aside). */
 export function namesakes<S extends { name: string }>(read: ImportedSong[], library: S[]): S[] {
-  const keys = new Set(read.map((s) => songNameKey(s.name)));
-  return library.filter((s) => keys.has(songNameKey(s.name)));
+  const at = pageCore().pure<number[]>('songNamesakesView', { names: read.map((s) => s.name), library: library.map((s) => s.name) });
+  return at.map((i) => library[i]!);
 }
 
 /**
  * The songs with ids for the song, its parts and its arrangements (an arrangement's part indexes become
- * part ids), and which of them share a name with a library song or an earlier song of the import. Of
+ * part ids), and which of them share a name with a library song or an earlier song of the import (the core's). Of
  * several library songs with the name, the one with the same text is compared with, else the first.
  */
 export function planImport(read: ImportedSong[], library: LibrarySong[], newId: () => string): ImportPlan {
-  const seen = new Map<string, { id: string | null; text: string }[]>();
-  for (const s of library) seen.set(songNameKey(s.name), [...(seen.get(songNameKey(s.name)) ?? []), { id: s.id, text: s.text }]);
-  const duplicates: Duplicate[] = [];
-  const songs = read.map((s, index) => {
-    const key = songNameKey(s.name);
-    const text = songText(s.parts);
-    const others = seen.get(key) ?? [];
-    const other = others.find((o) => sameText(o.text, text)) ?? others[0];
-    if (other) duplicates.push({ index, name: s.name, text, other, same: sameText(other.text, text) });
-    seen.set(key, [...others, { id: null, text }]);
+  const texts = read.map((s) => songText(s.parts));
+  type Found = Omit<Duplicate, 'name' | 'text'>;
+  const found = pageCore().pure<Found[]>('songImportDuplicatesView', { songs: read.map((s, i) => ({ name: s.name, text: texts[i] })), library });
+  const duplicates = found.map((d): Duplicate => ({ ...d, name: read[d.index]!.name, text: texts[d.index]! }));
+  const songs = read.map((s) => {
     const partIds = s.parts.map(() => newId());
     return {
       id: newId(),
@@ -92,10 +86,10 @@ export function planImport(read: ImportedSong[], library: LibrarySong[], newId: 
 }
 
 /** What the dialog starts with: a song with the same text is skipped, one with other text kept beside the other, so no text is lost. */
-export const defaultChoice = (d: Duplicate): DuplicateChoice => (d.same ? 'skip' : 'keep');
+export const defaultChoice = (d: Duplicate): DuplicateChoice => d.choice;
 
 /** The choices a duplicate offers: replacing only a library song. */
-export const choicesFor = (d: Duplicate): DuplicateChoice[] => (d.other.id ? ['skip', 'replace', 'keep'] : ['skip', 'keep']);
+export const choicesFor = (d: Duplicate): DuplicateChoice[] => d.choices;
 
 /** The songs to send, by the choice for each duplicate (aligned with `plan.duplicates`). */
 export function songsToSend(plan: ImportPlan, choices: DuplicateChoice[]): ImportArgs['songs'] {

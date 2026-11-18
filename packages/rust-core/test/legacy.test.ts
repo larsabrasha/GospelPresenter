@@ -1,5 +1,12 @@
+// The export zip's rows through the core (legacy.rs): the tests of 2.0's TS legacy.ts, moved here with it.
 import { describe, expect, it } from 'vitest';
-import { LEGACY_FORMAT, LEGACY_TABLES, legacyBlobs, legacyRowsProblem, pdfPages, TABLES_SINCE_8, upgradeLegacyRows, type CustomPage, type LegacyRows } from '@gp/core';
+import { LEGACY_FORMAT, LEGACY_TABLES, pdfPages, TABLES_SINCE_8, type CustomPage, type LegacyRows } from '@gp/core';
+import { legacyBlobs as blobsOf, legacyRowsProblem as problemOf, upgradeLegacyRows as upgrade } from '../src/index.ts';
+import { nodeRustCore } from '../src/node.ts';
+
+const upgradeLegacyRows = (format: number, rows: unknown) => upgrade(nodeRustCore(), format, rows);
+const legacyRowsProblem = (rows: LegacyRows) => problemOf(nodeRustCore(), rows);
+const legacyBlobs = (rows: LegacyRows) => blobsOf(nodeRustCore(), rows);
 
 const rowsWith = (overlays: LegacyRows['overlays']) => ({ ...(Object.fromEntries(LEGACY_TABLES.map((t) => [t, []])) as unknown as LegacyRows), overlays });
 
@@ -89,7 +96,7 @@ describe('a 1.x export of any format', () => {
 
 describe('an export of format 7', () => {
   it("gets format 8's tables empty: themes, videos and song materials", () => {
-    const seven = Object.fromEntries(Object.entries(rowsWith([])).filter(([t]) => !(TABLES_SINCE_8 as readonly string[]).includes(t))) as Parameters<typeof upgradeLegacyRows>[1];
+    const seven = Object.fromEntries(Object.entries(rowsWith([])).filter(([t]) => !(TABLES_SINCE_8 as readonly string[]).includes(t)));
 
     const upgraded = upgradeLegacyRows(7, seven);
 
@@ -104,7 +111,7 @@ describe("the blobs an export's rows name", () => {
     const link = { id: 'm1', hash: null };
     const pdf = { id: 'm2', hash: 'p' };
 
-    const { named, videos } = legacyBlobs({ ...rowsWith([]), images: [image], videos: [video], song_materials: [link, pdf] });
+    const { named, videos } = legacyBlobs({ ...rowsWith([]), images: [image], videos: [video], song_materials: [link, pdf] } as unknown as LegacyRows);
 
     expect([named, [...videos]]).toEqual([
       [

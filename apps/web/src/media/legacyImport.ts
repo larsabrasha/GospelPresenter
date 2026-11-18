@@ -3,15 +3,15 @@ import {
   LEGACY_ENTRIES,
   LEGACY_FORMATS_READ,
   LEGACY_TABLES,
-  legacyBlobs,
   legacyManifestSchema,
   TABLES_SINCE_8,
   legacyUsersSchema,
-  upgradeLegacyRows,
   utf8Decode,
   type LegacyManifest,
 } from '@gp/core';
+import { legacyBlobs, upgradeLegacyRows } from '@gp/rust-core';
 import { api, authHeaders } from '../auth/api.ts';
+import { pageCore } from '../db/pageCore.ts';
 import { serverUrl } from '../server.ts';
 import { inParallel } from './inParallel.ts';
 import { uploadVideo } from './video.ts';
@@ -139,8 +139,9 @@ export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => 
   const since8 = new Set<string>(TABLES_SINCE_8);
   const own = manifest.format >= 8 ? [...LEGACY_TABLES] : LEGACY_TABLES.filter((t) => !since8.has(t));
   const tables = manifest.format >= 5 ? own : [...own.filter((t) => t !== 'custom_slides'), ...(manifest.format === 3 ? ['slide_decks'] : [])];
-  const read = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))]))) as Parameters<typeof upgradeLegacyRows>[1];
-  const rows = upgradeLegacyRows(manifest.format, read);
+  const read = Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await json(entries.get(LEGACY_ENTRIES.rows(t)))])));
+  // Through the core (legacyUpgradeView): rows that do not read as rows are refused as the server would refuse them.
+  const rows = upgradeLegacyRows(pageCore(), manifest.format, read);
   const users = legacyUsersSchema.safeParse(await json(entries.get(LEGACY_ENTRIES.users)));
   if (!users.success) throw new LegacyImportError('not-export');
 
@@ -149,7 +150,7 @@ export async function importLegacy(file: Blob, progress: (p: LegacyProgress) => 
   if (added.error) throw new LegacyImportError('refused', said(added));
 
   const files = [...entries.values()].filter((e) => e.name.startsWith('blobs/') || e.name.startsWith('bibles/'));
-  const videos = legacyBlobs(rows).videos;
+  const videos = legacyBlobs(pageCore(), rows).videos;
   progress({ step: 'files', done: 0, total: files.length });
   await inParallel(
     files,

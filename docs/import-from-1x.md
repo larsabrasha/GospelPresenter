@@ -53,6 +53,8 @@ by e-mail, and all history.
    one fails), and sends the rows last to `POST /api/import/legacy`, which writes all of them or none. A refused
    import says which row and why (`detail`), and the page shows it.
 
+   The upgrade of an older format's rows, the blobs they name and this check are the Rust core's
+   (`crates/gp-core/src/legacy.rs`, since 2026-11-18), so the web, the server and 1.x's export run the same code.
    The server (`apps/server/src/legacy-routes.ts`) checks the rows as the export did (`legacyRowsProblem`: every
    row names exactly its table's columns, an output's code and kind are 2.0's, Bible and slide deck items read),
    and that every blob and Bible text the rows name was uploaded; then it writes the new rows in one transaction,

@@ -75,6 +75,13 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "bibleBookNamesView" => crate::bible_books::names_view(a),
         "proPresenterSongView" => crate::propresenter::view(a),
         "bibleImportView" => crate::bible_import::view(a),
+        "legacyUpgradeView" => crate::legacy::upgrade_view(a),
+        "legacyBlobsView" => crate::legacy::blobs_view(a),
+        "legacyRowsProblemView" => crate::legacy::problem_view(a),
+        "legacyOverlayPageView" => crate::legacy::overlay_page_view(a),
+        "exportRowsView" => crate::legacy::export_rows().await,
+        "songNamesakesView" => crate::song_import::namesakes(a),
+        "songImportDuplicatesView" => crate::song_import::duplicates(a),
         _ => return None,
     })
 }

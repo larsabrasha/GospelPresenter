@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@gp/core": "workspace:*",
+    "@gp/rust-core": "workspace:*",
     "aws4fetch": "1.0.20",
     "pg": "8.23.1",
     "sharp": "0.34.5"

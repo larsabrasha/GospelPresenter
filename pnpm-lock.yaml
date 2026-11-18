@@ -220,6 +220,9 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gp/rust-core':
+        specifier: workspace:*
+        version: link:../../packages/rust-core
       aws4fetch:
         specifier: 1.0.20
         version: 1.0.20
