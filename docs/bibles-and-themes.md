@@ -8,7 +8,7 @@ immutable document, `{"v":1,"books":[{"code":"GEN","verses":[[1,1,"…"],…]},�
 SHA-256 of exactly that JSON. It is kept one row per book in `bible_texts`, plus a row in
 `bible_blobs` that says the text is complete, on the server (in the organisation's database or
 Durable Object) and on each device that keeps it (below). Import reads the zip on the device (USX from a DBL zip, or
-USFM; `packages/core/src/bible-import.ts`), stores the text there and runs the `importBible`
+USFM; the Rust core's `bibleImportView`, `crates/gp-core/src/bible_import.rs`, in the database's worker), stores the text there and runs the `importBible`
 mutation, online or not. Before that mutation is pushed, the device uploads the text once
 (`PUT /api/bibles/{hash}`, Admin; `BibleTextUploads` in `packages/sync/src/client/bibles.ts`, as the
 sync client's `beforePush`), and the server refuses the import unless it has the text. So a
@@ -50,7 +50,7 @@ To use a real translation: as an admin, open Biblar and choose a zip (or drop it
 Digital Bible Library or bible.com export (`metadata.xml` with `USX_1/` or `USX_2/`), or an eBible.org
 USFM zip (`…_usfm.zip`), works. Many translations are under copyright: import only one the church
 may use. The repository has none; the tests use a few public-domain verses of the World English
-Bible (`packages/core/test/bible-fixtures.ts`) and generated text.
+Bible (`packages/rust-core/test/bible-fixtures.ts`) and generated text.
 
 To check a real translation, point `GP_REAL_BIBLE_ZIP` at its zip (anywhere outside the repository;
 never commit one):

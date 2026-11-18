@@ -1,7 +1,7 @@
 // Whole journeys through the app, as a church uses it (docs/scenarios.md): each feature has its own spec, and
 // these check that the steps work together, in the order a Sunday takes them. No detail is checked twice here.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
+import { sampleDblZip } from '../../../packages/rust-core/test/bible-fixtures.ts';
 import { type Desktop, launch, MUTED, testPort } from './apps.ts';
 import { addSongs, closeAdmin, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';

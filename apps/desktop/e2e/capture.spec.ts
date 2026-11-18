@@ -5,7 +5,7 @@
 // GP_CAPTURE_ONLY=setup,login,… takes only the named pictures.
 import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
+import { sampleDblZip } from '../../../packages/rust-core/test/bible-fixtures.ts';
 import { type Desktop, launch, MUTED } from './apps.ts';
 import { addSongs, backToSong, createOverlay, createPresentation, createSong, endPresentation, newSong, openAdmin, openArrangement, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';

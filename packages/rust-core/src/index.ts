@@ -170,3 +170,10 @@ export interface MutationDb {
 export function runMutation(on: MutationDb, name: string, args: unknown, ctx: MutatorCtx): Promise<void> {
   return on.core.run(name, args, ctx, on.rows).then(() => undefined);
 }
+
+/** A file's bytes as base64, a slice at a time, as JSON carries them to a view that reads a file (crates/gp-core/src/files.rs). */
+export function base64(bytes: Uint8Array): string {
+  let text = '';
+  for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+  return btoa(text);
+}

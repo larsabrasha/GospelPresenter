@@ -2,7 +2,7 @@
 // out on the page's thread, synchronously (`RustCore.pure`). Presenting's keys and marks (live/presenting.ts), so a key
 // reaches the outputs without a round trip to the worker; and the Bible tab's preview, the output's own slides.
 import type { Permission, Role, Slide } from '@gp/core';
-import { RustCore } from '@gp/rust-core';
+import { base64, RustCore } from '@gp/rust-core';
 import coreUrl from '@gp/rust-core/gp_core.wasm?url';
 
 let core: RustCore | undefined;
@@ -126,13 +126,6 @@ export interface ImportedSong {
   ccli: string | null;
   parts: { labelText: string | null; content: string }[];
   arrangements: { name: string | null; partIndexes: number[] }[];
-}
-
-/** The bytes as base64, a slice at a time, as JSON carries them to the core. */
-function base64(bytes: Uint8Array): string {
-  let text = '';
-  for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
-  return btoa(text);
 }
 
 /** A `.pro` file as a song, or null when it has no slide text or cannot be read (`proPresenterSongView`, SONG-R35–R43). */

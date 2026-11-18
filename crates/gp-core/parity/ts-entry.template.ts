@@ -11,3 +11,4 @@ export { applyLiveChange, followItemOverlay } from '@REF@/packages/core/src/live
 export { readItemSlides } from '@REF@/packages/core/src/item-slides.ts';
 export { parseCustomPages } from '@REF@/packages/core/src/custom-slides.ts';
 export { parseProPresenter } from '@REF@/packages/core/src/propresenter.ts';
+export { importBibleZip } from '@REF@/packages/core/src/bible-import.ts';

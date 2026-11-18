@@ -21,6 +21,24 @@ easier (docs/layout-2-0.md); it draws a slide only for the live picture and a pi
 A renderer is needed only for an Apple TV app that is an output of its own, taking the live state itself, and for
 anything else without a browser later.
 
+## A Raspberry Pi as a screen (Lars, 2026-11-18)
+
+A Pi behind a TV in the entrance or by the stage, showing the songs' texts: a screen, not a host. It is a paired
+screen as any TV is today (docs/live.md, LIVE-R28): it opens `/display` of the desktop host or the cloud, shows a
+four-digit code, an operator pairs it, and it follows what is presented. A paired screen never plays sound.
+
+- **Today, with no code**: an image of Raspberry Pi OS Lite with a minimal compositor (cage) and Chromium in kiosk
+  mode on `/display`; the network and the host's address set in Raspberry Pi Imager before the card is written. A Pi 4
+  or 5 runs it well; a Pi Zero 2 W (512 MB) only just, slow to start.
+- **With way 3**: a small Rust program in place of the browser, pairing by the same code, taking the live state and
+  painting the core's display list straight to HDMI (DRM/KMS, no X, Wayland or browser). It starts in seconds, in some
+  tens of MB, and makes a Pi Zero a cheap screen. Such a screen plays no video: where a video is shown it shows the
+  video's still, as the previews do, or the theme's ground. That is a new rule for an output (an output that says it
+  plays no video, and what it shows then), to be decided before it is built.
+
+The host stays the desktop host or the cloud, whose server is TypeScript around the core and runs on both; a Pi as a
+host would need Node, which a Pi 4 or 5 runs, but that is not what the screen needs.
+
 ## What a slide is to draw
 
 A 1920×1080 stage, scaled to its box. A song's or a Bible text's lines in the theme's typeface, size, line height,

@@ -1,8 +1,10 @@
 mod args;
 mod bible;
 mod bible_books;
+mod bible_import;
 mod bible_view;
 mod bridge;
+mod files;
 mod item_views;
 mod json;
 mod live;

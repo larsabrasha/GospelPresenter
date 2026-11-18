@@ -5,6 +5,7 @@
 // is worked on as UTF-16 units, as the web's strings are, so lengths, cuts and `\uN` escapes come out the same; a unit
 // that pairs with none becomes U+FFFD at the end, as JSON from the core cannot carry it.
 use crate::args::{is_js_space, Obj, R};
+use crate::files::{base64, cut, utf8};
 use crate::mutators::songs::{ARRANGEMENTS_PER_SONG, PARTS_LIMIT};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -91,11 +92,6 @@ fn uuid_of(fs: Option<&[Field]>, no: u128) -> P<Option<String>> {
     Ok(string_of(message_of(fs, no)?.as_deref(), 1))
 }
 
-/// UTF-8 as the web's TextDecoder reads it: a byte order mark dropped, a byte that is no character U+FFFD.
-fn utf8(b: &[u8]) -> String {
-    String::from_utf8_lossy(b.strip_prefix(&[0xef, 0xbb, 0xbf][..]).unwrap_or(b)).into_owned()
-}
-
 // ------------------------------------------------------------------ text
 
 type U16 = Vec<u16>;
@@ -107,12 +103,6 @@ fn is_space(u: u16) -> bool { char::from_u32(u32::from(u)).is_some_and(is_js_spa
 fn clean(value: Option<&str>) -> Option<String> {
     let v = crate::args::js_trim(value?);
     if v.is_empty() { None } else { Some(v.nfc().collect()) }
-}
-
-/// At most `max` UTF-16 units, as `slice` cuts.
-fn cut(s: String, max: usize) -> String {
-    let u = units(&s);
-    if u.len() > max { text(&u[..max]) } else { s }
 }
 
 /// ProPresenter's default name, with the copy suffix it adds (SONG-R36): `/^untitled([ _-]*\d+)?$/i`.
@@ -386,20 +376,3 @@ fn song(data: &[u8], file_name: Option<&str>) -> P<Option<Value>> {
     })))
 }
 
-/// Standard base64, with or without its padding: the bytes the shell hands over in JSON.
-fn base64(s: &str) -> Option<Vec<u8>> {
-    let value = |c: u8| -> Option<u32> {
-        Some(match c { b'A'..=b'Z' => c - b'A', b'a'..=b'z' => c - b'a' + 26, b'0'..=b'9' => c - b'0' + 52, b'+' => 62, b'/' => 63, _ => return None } as u32)
-    };
-    let b = s.trim_end_matches('=').as_bytes();
-    let mut out = Vec::with_capacity(b.len() * 3 / 4);
-    for chunk in b.chunks(4) {
-        if chunk.len() == 1 { return None }
-        let mut n = 0u32;
-        for (k, &c) in chunk.iter().enumerate() { n |= value(c)? << (18 - 6 * k) }
-        out.push((n >> 16) as u8);
-        if chunk.len() > 2 { out.push((n >> 8) as u8) }
-        if chunk.len() > 3 { out.push(n as u8) }
-    }
-    Some(out)
-}

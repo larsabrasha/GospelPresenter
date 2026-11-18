@@ -96,7 +96,7 @@ export class Db implements ReadDb {
     return this.call({ op: 'searchSongs', query });
   }
 
-  /** Imports a Bible zip; rejects with a `BibleImportReason` as the message if it cannot. */
+  /** Imports a Bible zip; rejects with the core's reason as the message if it cannot (`bibleImportView`). */
   importBible(data: Uint8Array): Promise<BibleImportResult> {
     return this.call({ op: 'importBible', data });
   }

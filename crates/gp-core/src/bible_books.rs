@@ -75,6 +75,9 @@ fn aliases() -> Vec<(String, &'static str)> {
     all
 }
 
+/// A code's place in the 66 books' canonical order (BIBLE-R9), any case; None for a book outside them.
+pub fn canon_index(code: &str) -> Option<usize> { book(code).map(|(i, _)| i) }
+
 fn book(code: &str) -> Option<(usize, &'static Book)> { let c = code.to_uppercase(); BOOKS.iter().enumerate().find(|(_, b)| b.code == c) }
 
 /// `swedishBookName`: a code we do not know shows as itself (spec 05 edge cases).

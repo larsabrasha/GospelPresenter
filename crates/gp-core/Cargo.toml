@@ -9,5 +9,6 @@ name = "gp_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 unicode-normalization = "0.1"

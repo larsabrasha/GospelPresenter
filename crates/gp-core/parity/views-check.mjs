@@ -16,10 +16,14 @@ import highlight from './views/highlight.mjs';
 import pageModels from './views/page-models.mjs';
 import liveState from './views/live-state.mjs';
 import proPresenter from './views/propresenter.mjs';
+import bibleImport from './views/bible-import.mjs';
 
 const db = new DatabaseSync(process.argv[2]);
 let failed = 0;
-for (const [page, check] of Object.entries({ presentation, presentationPage, live, songs, songPage, media, lists, settings, bible, bibleRefs, highlight, pageModels, liveState, proPresenter })) {
+// GP_VIEWS=bibleImport,proPresenter runs only those checks, while one is being written.
+const only = process.env.GP_VIEWS?.split(',');
+const checks = { presentation, presentationPage, live, songs, songPage, media, lists, settings, bible, bibleRefs, highlight, pageModels, liveState, proPresenter, bibleImport };
+for (const [page, check] of Object.entries(checks).filter(([name]) => !only || only.includes(name))) {
   // Each check is given the database, and its file for a check that adds rows to a copy of it.
   const { compared, differ, notes } = await check(db, process.argv[2]);
   failed += differ.length;

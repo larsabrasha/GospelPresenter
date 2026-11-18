@@ -2,7 +2,11 @@ import { z } from 'zod';
 import { compareBooks } from './bible-books.ts';
 import { sha256Hex } from './platform.ts';
 
-// Bible text (spec 05 "Bibles"): a translation's text as stored, sent and imported, and what an item keeps.
+// Bible text (spec 05 "Bibles"): a translation's text as stored, sent and imported, and what an item keeps. A
+// translation's zip is read by the Rust core (`bibleImportView`, crates/gp-core/src/bible_import.rs).
+
+/** 50 MiB, as the current app (BIBLE-R2): a larger zip is not sent to the core. */
+export const BIBLE_ZIP_MAX_BYTES = 52_428_800;
 
 /** One verse: book code (USX), chapter, verse and text. */
 export interface Verse {

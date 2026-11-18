@@ -4,7 +4,7 @@
 // only counts, lengths and shape, never the text itself. Skipped when the variable is not set.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BIBLE_LIMITS, bibleTextHash, bibleTextSchema, bookChunk, importBibleZip, serializeBibleText, type BibleBookText, type ImportedBible, type Verse } from '@gp/core';
+import { BIBLE_LIMITS, bibleTextHash, bibleTextSchema, bookChunk, serializeBibleText, type BibleBookText, type Verse } from '@gp/core';
 import { nodeRustCore } from '../src/node.ts';
 
 const zipPath = process.env.GP_REAL_BIBLE_ZIP;
@@ -23,11 +23,11 @@ function searchVerses(query: string, books: BibleBookText[]): Verse[] {
 const shown = (verses: Verse[]) => core.pure<{ title: string; slides: { text: string; verses: { n: number | null }[] }[] }>('bibleSlidesView', { translation: '', verses });
 
 describe.skipIf(!zipPath)('a real Bible (GP_REAL_BIBLE_ZIP)', () => {
-  let bible: ImportedBible;
+  let bible: { name: string; abbreviation: string; language: string | null; books: BibleBookText[] };
   const all = () => bible.books.flatMap((b) => b.verses.map(([c, v, t]) => ({ ref: `${b.code} ${c}:${v}`, t })));
 
   it('imports, with the whole canon and a sane number of verses', async () => {
-    bible = await importBibleZip(new Uint8Array(readFileSync(zipPath!)));
+    bible = core.pure('bibleImportView', { data: readFileSync(zipPath!).toString('base64') });
     const codes = bible.books.map((b) => b.code);
 
     expect(CANON.filter((c) => !codes.includes(c))).toEqual([]);

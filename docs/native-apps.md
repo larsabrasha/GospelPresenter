@@ -128,8 +128,8 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
 
 What each page shows comes from the core's views, and what it offers from the core's view models
 (`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
-Swift only draws them; an action the app has not built yet (Material, Spara som mall, Redigera, Överlägg ›, Markera)
-is left out where the menu is drawn.
+Swift only draws them; an action the app has not built yet (Material, Spara som mall, Redigera, Markera) is left out
+where the menu is drawn.
 
 | Page | Views | State |
 | --- | --- | --- |
@@ -138,9 +138,25 @@ is left out where the menu is drawn.
 | Presenting: Starta (not while another presentation is presented), a slide tapped (before presenting, made ready and its item selected, on a phone too), the web's keys where a keyboard is (in columns: arrows, PageUp PageDown, ↵, Space, Esc, b, a, Delete, digits, ⌘ and ⌥ with the arrows) and Släck, VISAS and NÄSTA | `liveChangeView` (the app's live state, `Live`), `pageEventView` and `pageModelView` (the page's state, `Model.send`), `slideMarksView` | built; ↑ ↓ step as → ← (the grid does not yet say which slide stands above another); on the Mac an output window, on iOS no output yet (AirPlay and an external display come later) |
 | Inställningar and its pages, Sånger, the song editor, Bibles, pictures, sounds, videos, custom slides, templates, themes, the trash | the rest of the 37 | not built; the bar has no cog yet |
 
-Not built in a presentation: Redigera (a song's page), Överlägg ›, Markera, Utgångar, Fjärrstyrning, the kinds but
+Not built in a presentation: Redigera (a song's page), Markera, Utgångar, Fjärrstyrning, the kinds but
 Sång and Programpunkt, Noter och länkar, Spara som mall, a phone lying down in two columns, a template's page, and
 moving an item on a phone. Media bytes are not synced to the device yet, so a picture's slide draws its theme alone.
+
+**Wanted, not built: App Intents and Shortcuts** (Lars, 2026-11-18). Presenting reached without the app in front:
+Siri ("Nästa vers i Gospel Presenter", "Släck i Gospel Presenter"), Genvägar/Shortcuts on the iPhone, iPad and Mac,
+the Action button, a control in Control Center, and an Apple Watch or a HomePod through the iPhone. The intents are
+the page's events, sent to the core as a key or a tap is (`pageEventView`, `liveChangeView`): next and previous
+slide, Släck, start and end presenting, show an item by its name, open a presentation; so a shortcut follows the same
+rules as the keys (one presentation presented at a time, the item on the outputs not removed). The presentations and
+the songs as entities a shortcut can name and Spotlight can find. Each phrase in Swedish and English, from
+`i18n.ts` as the app's other texts.
+
+Beyond presenting: planning ("Skapa söndagens presentation från mallen", "Lägg till Härlig är jorden på söndag"),
+each a mutation through the core as a button's is, and one that changes something asks first; and questions ("Vilka
+sånger är det på söndag?"), answered from the core's views as a list Siri reads or shows. With them people build their
+own automations in Genvägar (arriving at the church on a Sunday opens the presentation; at 10.55 the songs go to the
+musicians in Meddelanden), and on a Mac `shortcuts run` reaches them from a terminal. A phrase with a parameter takes
+only a few fixed choices, so a free song title is asked for after the phrase.
 
 ## Slides: the web's SlideView in a web view
 

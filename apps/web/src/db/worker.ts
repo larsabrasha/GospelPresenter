@@ -6,7 +6,7 @@ import SQLiteESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
 import { OPFSCoopSyncVFS } from '@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js';
-import { bibleId, importBibleZip, recordMediaBlobSql, sha256HexBytes, sniffMedia, verseCount, type MutatorName } from '@gp/core';
+import { bibleId, recordMediaBlobSql, sha256HexBytes, sniffMedia, verseCount, type MutatorName } from '@gp/core';
 import {
   authHeaders,
   BibleTextUploads,
@@ -33,6 +33,7 @@ import { keepVideos } from './videoFiles.ts';
 import { fetchedBibleText } from './fetchedBibles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import { RustCore } from '@gp/rust-core';
+import { readBibleZip } from './bibleZip.ts';
 import coreUrl from '@gp/rust-core/gp_core.wasm?url';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
@@ -350,7 +351,7 @@ function keepBibleHere(id: string, on: boolean): Promise<boolean> {
  */
 function importBible(data: Uint8Array): Promise<BibleImportResult> {
   return serialStore(async () => {
-    const bible = await importBibleZip(data, () => new Promise((r) => setTimeout(r, 0)));
+    const bible = readBibleZip(await rustCore(), data);
     const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
     const replaced = (await client!.query('SELECT 1 FROM bibles WHERE id = ?', [id])).length > 0;

@@ -3,6 +3,7 @@ MutationDb (type)
 Rows (type)
 RunSql (type)
 RustCore (class)
+base64 (function)
 runMutation (function)
 
 ## @gp/rust-core/node

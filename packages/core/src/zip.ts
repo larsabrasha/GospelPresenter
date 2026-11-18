@@ -1,4 +1,4 @@
-import { utf8Encode } from './platform.ts';
+import { inflateRaw, utf8Decode, utf8Encode } from './platform.ts';
 
 // A zip's parts, stored entries only (no compression, no ZIP64), shared by every zip the app writes: `makeZip` here,
 // the web app's export of Blobs (apps/web/src/media/zipBlob.ts) and 1.x's export to a file (apps/legacy). Each writes
@@ -77,4 +77,50 @@ export function makeZip(files: { name: string; data: Uint8Array }[]): Uint8Array
     o += c.length;
   }
   return out;
+}
+
+export interface ZipEntry {
+  name: string;
+  size: number;
+  read(): Promise<Uint8Array>;
+}
+
+const u16 = (d: Uint8Array, o: number) => d[o]! | (d[o + 1]! << 8);
+const u32 = (d: Uint8Array, o: number) => (d[o]! | (d[o + 1]! << 8) | (d[o + 2]! << 16) | (d[o + 3]! << 24)) >>> 0;
+
+/**
+ * The entries of a zip in memory, from its central directory; stored and DEFLATE entries can be read. For the tests and
+ * tools that check a zip the app wrote: a translation's zip is read by the Rust core (`bibleImportView`).
+ */
+export function readZip(data: Uint8Array): ZipEntry[] {
+  let end = -1;
+  for (let i = data.length - 22; i >= Math.max(0, data.length - 22 - 65_535); i--) {
+    if (u32(data, i) === 0x06054b50) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) throw new Error('not-zip');
+  const count = u16(data, end + 10);
+  let p = u32(data, end + 16);
+  const entries: ZipEntry[] = [];
+  for (let i = 0; i < count; i++) {
+    if (p + 46 > data.length || u32(data, p) !== 0x02014b50) throw new Error('not-zip');
+    const method = u16(data, p + 10);
+    const compressed = u32(data, p + 20);
+    const nameLength = u16(data, p + 28);
+    const local = u32(data, p + 42);
+    const name = utf8Decode(data.subarray(p + 46, p + 46 + nameLength));
+    entries.push({
+      name,
+      size: u32(data, p + 24),
+      async read() {
+        const start = local + 30 + u16(data, local + 26) + u16(data, local + 28);
+        const raw = data.subarray(start, start + compressed);
+        return method === 8 ? inflateRaw(raw) : raw;
+      },
+    });
+    p += 46 + nameLength + u16(data, p + 30) + u16(data, p + 32);
+  }
+  return entries;
 }
