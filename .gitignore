@@ -29,6 +29,8 @@ Thumbs.db
 
 # The Rust core's builds and generated checks (crates/gp-core/build.sh), and the Mac and iOS apps'
 /target/
+# The collation data's generator, outside the workspace, builds beside itself.
+/crates/gp-core-collation/target/
 crates/gp-core/parity/.out/
 apps/mac/.build/
 apps/mac/run/

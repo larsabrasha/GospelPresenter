@@ -3,6 +3,7 @@
 // them (queries.ts). An order by name in the page's language stays the shell's (Intl.Collator): those come as rows.
 use crate::args::*;
 use crate::bridge::sql;
+use crate::collation::{lang, sort, Key};
 use crate::live_views::{video_row, AUDIO, VIDEO};
 use crate::media_views::{image_row, IMAGE};
 use crate::rows::{self, columns, map, LABEL, PART, PRESENTATION, SONG};
@@ -16,9 +17,12 @@ pub async fn presentations() -> R<Value> {
     Ok(Value::Array(sql(&q, vec![]).await.iter().map(|r| map(r, PRESENTATION)).collect()))
 }
 
-/// `templatesView`: the templates as rows in the table's order; the page orders them (`listTemplates`).
-pub async fn templates() -> R<Value> {
-    Ok(Value::Array(sql(&rows_of(PRESENTATION, "presentations WHERE deleted_at IS NULL AND is_template = 1"), vec![]).await.iter().map(|r| map(r, PRESENTATION)).collect()))
+/// `templatesView` {locale}: the templates, last changed first, then by name in the page's language and by id
+/// (`listTemplates`).
+pub async fn templates(a: &Obj) -> R<Value> {
+    let mut rows: Vec<Value> = sql(&rows_of(PRESENTATION, "presentations WHERE deleted_at IS NULL AND is_template = 1"), vec![]).await.iter().map(|r| map(r, PRESENTATION)).collect();
+    sort(lang(a), &mut rows, &[Key::Last("updatedAt"), Key::Name("name"), Key::Id("id")]);
+    Ok(Value::Array(rows))
 }
 
 /// `itemCountsView`: how many items each presentation has, [[id, n]...]; one with none is missing (`itemCounts`).

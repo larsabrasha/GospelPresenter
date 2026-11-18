@@ -9,6 +9,14 @@ name = "gp_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# Ordering by name in the page's language (collation.rs), with the data of src/collation_data only.
+icu_collator = { version = "2.4", default-features = false }
+icu_collections = "2.4"
+icu_locale_core = "2.4"
+icu_locale_fallback = { version = "2.4", features = ["compiled_data"] }
+icu_normalizer = { version = "2.4", default-features = false }
+icu_provider = { version = "2.4", features = ["baked"] }
+zerovec = "0.11"
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 unicode-normalization = "0.1"

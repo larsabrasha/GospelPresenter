@@ -22,10 +22,11 @@ export default async function check(_, file) {
     const got = order(await viewRust(db, view, args));
     if (canon(want) !== canon(got)) differ.push(`${view} ${JSON.stringify(args)}: TS ${canon(want).slice(0, 300)} Rust ${canon(got).slice(0, 300)}`);
   };
-  await same('biblesView', {}, await listBibles(d), bibleOrder);
+  // Ordered by the core since 2026-11-18 (collation.rs): its order is compared, not put in the page's first.
+  await same('biblesView', {}, bibleOrder(await listBibles(d)));
   await same('ownThemesView', {}, await ownThemes(d));
   await same('defaultThemeIdView', {}, await orgDefaultThemeId(d));
   for (const id of ['own-1', 'own-bad', 'light', 'no-such']) await same('ownThemeView', { id }, await getOwnTheme(d, id));
-  await same('ccliReportView', {}, { entries: await listCcliEntries(d), on: await ccliCollectionOn(d) }, (v) => ({ ...v, entries: ccliOrder(v.entries) }));
+  await same('ccliReportView', {}, { entries: ccliOrder(await listCcliEntries(d)), on: await ccliCollectionOn(d) });
   return { compared, differ, notes: ['the Bibles, own themes and the default, each own theme, the CCLI report'] };
 }

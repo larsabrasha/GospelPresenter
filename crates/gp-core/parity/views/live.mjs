@@ -51,12 +51,14 @@ export default async function check(_, file) {
       }
     }
   }
-  // The outputs as rows: the page orders them by its language, as listDisplays did.
-  const byId = (xs) => xs.toSorted((a, b) => a.id.localeCompare(b.id));
-  for (const [view, want] of [['displaysView', byId(await listDisplays(d))], ['remoteControlView', await orgRemoteControl(d)]]) {
+  // The outputs, ordered by the core since 2026-11-18 (collation.rs) as listDisplays ordered them: oldest first, then
+  // by name in the page's language, then id.
+  const byName = new Intl.Collator('sv', { sensitivity: 'base' }).compare;
+  const displayOrder = (xs) => xs.toSorted((a, b) => (a.createdAt ?? -1) - (b.createdAt ?? -1) || byName(a.name, b.name) || a.id.localeCompare(b.id));
+  for (const [view, want] of [['displaysView', displayOrder(await listDisplays(d))], ['remoteControlView', await orgRemoteControl(d)]]) {
     compared++;
     const got = await viewRust(db, view, {});
-    if (canon(want) !== canon(Array.isArray(got) ? byId(got) : got)) differ.push(`${view}: TS ${canon(want)} Rust ${canon(got)}`);
+    if (canon(want) !== canon(got)) differ.push(`${view}: TS ${canon(want)} Rust ${canon(got)}`);
   }
   return { compared, differ, notes: ['every item, a slide past the last, with and without an overlay; the outputs, the remote control policy'] };
 }

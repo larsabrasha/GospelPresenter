@@ -1,0 +1,16 @@
+# Writes the Rust core's collation data (crates/gp-core/src/collation_data): Swedish and English only, without the Han
+# tailorings ICU4X's own datagen always adds. Run by hand when ICU4X or CLDR moves on; not part of the workspace, so its
+# sources and network fetch never slow the core's build.
+#   cargo run --release --manifest-path crates/gp-core-collation/Cargo.toml -- crates/gp-core/src/collation_data
+[package]
+name = "gp-core-collation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+icu_collator = { version = "2.4", features = ["datagen"] }
+icu_normalizer = { version = "2.4", features = ["datagen"] }
+icu_provider = { version = "2.4", features = ["export"] }
+icu_provider_export = { version = "2.4", features = ["baked_exporter"] }
+icu_provider_source = { version = "2.4", features = ["networking"] }

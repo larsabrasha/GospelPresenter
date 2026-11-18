@@ -4,6 +4,7 @@
 // language (Intl.Collator), which it hands the core with the library to prepare.
 use crate::args::*;
 use crate::bridge::sql;
+use crate::collation::{lang, sort, Key};
 use crate::rows::{columns, map, SONG};
 use crate::search;
 use serde_json::{json, Value};
@@ -15,11 +16,12 @@ thread_local! {
     static LIBRARY: RefCell<Option<(Vec<String>, Vec<search::Prepared>)>> = const { RefCell::new(None) };
 }
 
-/// `songsView`: the library without the trash, as rows in the table's order (`listSongs` before its stable sort by
-/// name, so songs of one name keep that order).
-pub async fn songs() -> R<Value> {
-    Ok(Value::Array(sql(&format!("SELECT {} FROM songs WHERE deleted_at IS NULL", columns(SONG)), vec![]).await
-        .iter().map(|r| map(r, SONG)).collect()))
+/// `songsView` {locale}: the library without the trash, by name in the page's language; songs of one name in the
+/// table's order (`listSongs`).
+pub async fn songs(a: &Obj) -> R<Value> {
+    let mut rows: Vec<Value> = sql(&format!("SELECT {} FROM songs WHERE deleted_at IS NULL", columns(SONG)), vec![]).await.iter().map(|r| map(r, SONG)).collect();
+    sort(lang(a), &mut rows, &[Key::Name("name")]);
+    Ok(Value::Array(rows))
 }
 
 /// `songSearchPrepare` {order}: reads the library and prepares it for search, in `order` (the songs' ids as the shell

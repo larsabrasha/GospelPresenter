@@ -50,6 +50,7 @@ export default async function check(_, file) {
   const demo = fixture(file);
   const byId = (xs) => xs.toSorted((a, b) => a.id.localeCompare(b.id));
   compared++;
+  // Ordered by name by the core since 2026-11-18 (collation.rs); the rows compared by id here, the order in collation.mjs.
   const [want, got] = [canon(byId(await listSongs(readDb(demo)))), canon(byId(await viewRust(demo, 'songsView', {})))];
   if (want !== got) differ.push(`songsView: TS ${want.slice(0, 300)} Rust ${got.slice(0, 300)}`);
   // The search, on a library of 400 made-up songs, in an order of the shell's.

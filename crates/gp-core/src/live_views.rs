@@ -130,11 +130,14 @@ pub async fn ccli_use(a: &Obj) -> R<Value> {
     Ok(json!({ "songId": song["id"], "songName": song["name"], "ccli": song["ccli"], "presentationId": pid, "presentationName": name }))
 }
 
-/// `displaysView`: the organisation's outputs as rows; the page orders them by its language (`listDisplays`).
-pub async fn displays() -> R<Value> {
-    Ok(Value::Array(sql("SELECT id, name, code, kind, created_at FROM displays ORDER BY id", vec![]).await.into_iter().map(|r| json!({
+/// `displaysView` {locale}: the organisation's outputs, oldest first, then by name in the page's language and id
+/// (`listDisplays`).
+pub async fn displays(a: &Obj) -> R<Value> {
+    let mut rows: Vec<Value> = sql("SELECT id, name, code, kind, created_at FROM displays ORDER BY id", vec![]).await.into_iter().map(|r| json!({
         "id": r[0], "name": r[1], "code": r[2], "kind": if r[3] == "screen" { "screen" } else { "public" }, "createdAt": r[4],
-    })).collect()))
+    })).collect();
+    crate::collation::sort(crate::collation::lang(a), &mut rows, &[crate::collation::Key::Asc("createdAt"), crate::collation::Key::Name("name"), crate::collation::Key::Id("id")]);
+    Ok(Value::Array(rows))
 }
 
 /// `remoteControlView`: the organisation's remote control policy (`remoteControlPolicy`): no row, or a value not known,

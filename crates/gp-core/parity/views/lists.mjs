@@ -24,7 +24,8 @@ export default async function check(_, file) {
     if (canon(want) !== canon(got)) differ.push(`${view} ${JSON.stringify(args)}: TS ${canon(want).slice(0, 300)} Rust ${canon(got).slice(0, 300)}`);
   };
   await same('presentationListView', {}, await listPresentations(d));
-  await same('templatesView', {}, await listTemplates(d, 'sv'), templateOrder);
+  // Ordered by the core since 2026-11-18 (collation.rs): its order is compared, not put in the page's first.
+  await same('templatesView', {}, templateOrder(await listTemplates(d, 'sv')));
   await same('itemCountsView', {}, [...(await itemCounts(d)).entries()], (xs) => xs.map(([id, n]) => [id, Number(n)]));
   await same('labelsView', {}, [...(await listLabels(d)).values()]);
   await same('pinnedView', {}, [...(await pinnedIds(d))]);

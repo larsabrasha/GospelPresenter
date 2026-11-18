@@ -17,21 +17,11 @@ import { locale } from '../i18n.ts';
 import type { ReadDb } from './share.ts';
 
 // The pages' reads: the Rust core's views (docs/rust-core.md, 2.5 step 3), which give the core's row types as the
-// pages use them, and the orders by name in the page's language, which are the shell's (Intl.Collator). A Bible's text
-// is read a book or a chapter at a time through the core's bibleView (BibleTab.tsx).
+// pages use them, ordered by name in the page's language by the core too (`locale`, crates/gp-core/src/collation.rs,
+// since 2026-11-18). A Bible's text is read a book or a chapter at a time through the core's bibleView (BibleTab.tsx).
 
-/** `localeCompare(…, locale, { sensitivity: 'base' })` in the page's language, made once: making it per call cost 86 ms to sort 3 000 songs. */
-const byLocale = new Intl.Collator(locale(), { sensitivity: 'base' }).compare;
-
-const byName = (a: Song, b: Song) => byLocale(a.name, b.name);
-
-/**
- * The library, by name, without the trash (spec 02: culture-aware, case-insensitive): the core's rows (songsView), in
- * the table's order, sorted by name in the page's language, as the shell's to choose.
- */
-export async function listSongs(db: ReadDb): Promise<Song[]> {
-  return (await db.view<Song[]>('songsView', {})).toSorted(byName);
-}
+/** The library, by name in the page's language, without the trash (spec 02: culture-aware, case-insensitive; songsView). */
+export const listSongs = (db: ReadDb): Promise<Song[]> => db.view<Song[]>('songsView', { locale: locale() });
 
 export const songPartsOf = (db: ReadDb, songIds: string[]): Promise<SongPart[]> => db.view<SongPart[]>('songPartsView', { songIds });
 
@@ -42,23 +32,16 @@ export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
 /** Presentations, newest event first; those without a date last (milestone 1 has no "last changed"). */
 export const listPresentations = (db: ReadDb): Promise<Presentation[]> => db.view<Presentation[]>('presentationListView', {});
 
-/** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
-/** The templates, last changed first (PresentationService.GetAllTemplateSummariesAsync). */
-export async function listTemplates(db: ReadDb): Promise<Presentation[]> {
-  return (await db.view<Presentation[]>('templatesView', {})).toSorted((a, b) => byLastChanged(a, b) || byPresentationName(a, b));
-}
+/**
+ * The templates, last changed first, one never stamped (made before schema 12) after those that were, then by name in
+ * the page's language (PresentationService.GetAllTemplateSummariesAsync; templatesView).
+ */
+export const listTemplates = (db: ReadDb): Promise<Presentation[]> => db.view<Presentation[]>('templatesView', { locale: locale() });
 
 /** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then last changed. */
 export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
   return (await listTemplates(db)).toSorted((a, b) => (b.lastUsedAt ?? -1) - (a.lastUsedAt ?? -1)).slice(0, 10);
 }
-
-/** Latest change first; one never stamped (made before schema 12) after those that were. */
-function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presentation, 'updatedAt'>): number {
-  return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
-}
-
-const byPresentationName = (a: Presentation, b: Presentation) => byLocale(a.name, b.name) || a.id.localeCompare(b.id);
 
 export interface TrashEntry {
   kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
@@ -87,9 +70,9 @@ export interface InstalledBible extends Bible {
   kept: boolean;
 }
 
-/** The organisation's translations, by name (BIBLE-R8): the core's rows (biblesView), in the page's order. */
+/** The organisation's translations, by name in the page's language (BIBLE-R8; biblesView). */
 export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
-  return (await db.view<InstalledBible[]>('biblesView', {})).toSorted((a, b) => byLocale(a.name, b.name) || a.id.localeCompare(b.id));
+  return db.view<InstalledBible[]>('biblesView', { locale: locale() });
 }
 
 export const orgDefaultThemeId = (db: ReadDb): Promise<string | null> => db.view<string | null>('defaultThemeIdView', {});
@@ -103,13 +86,7 @@ export function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
  * The CCLI report (ccliReportView): the entries by date, newest first, then presentation and song name in the page's
  * language (SONG-R52), and whether collection is on (SONG-R49).
  */
-export async function ccliReport(db: ReadDb): Promise<{ entries: CcliEntry[]; on: boolean }> {
-  const { entries, on } = await db.view<{ entries: CcliEntry[]; on: boolean }>('ccliReportView', {});
-  const ordered = entries.toSorted(
-    (a, b) => b.date.localeCompare(a.date) || byLocale(a.presentationName, b.presentationName) || a.presentationId.localeCompare(b.presentationId) || byLocale(a.songName, b.songName),
-  );
-  return { entries: ordered, on };
-}
+export const ccliReport = (db: ReadDb): Promise<{ entries: CcliEntry[]; on: boolean }> => db.view('ccliReportView', { locale: locale() });
 
 /** The organisation's own themes (docs/themes.md), in the order they were made (ownThemesView). */
 export const ownThemes = (db: ReadDb): Promise<Theme[]> => db.view<Theme[]>('ownThemesView', {});
@@ -122,13 +99,11 @@ export const defaultTheme = (db: ReadDb): Promise<Theme> => db.view<Theme>('them
 
 // ------------------------------------------------------------------ outputs
 
-/** The organisation's outputs, by name (spec 04 §7). */
-/** The outputs in the order they were made, as Skärmar lists them (RemoteDisplayService.cs); those from before schema 12 first, by name. */
-/** The rows are the core's (displaysView); the order is this page's language's, as the shell's to choose. */
-export async function listDisplays(db: ReadDb): Promise<Display[]> {
-  const rows = await db.view<Display[]>('displaysView', {});
-  return rows.toSorted((a, b) => (a.createdAt ?? -1) - (b.createdAt ?? -1) || byLocale(a.name, b.name) || a.id.localeCompare(b.id));
-}
+/**
+ * The outputs in the order they were made, as Skärmar lists them (spec 04 §7, RemoteDisplayService.cs); those from
+ * before schema 12 first, by name in the page's language (displaysView).
+ */
+export const listDisplays = (db: ReadDb): Promise<Display[]> => db.view<Display[]>('displaysView', { locale: locale() });
 
 // ------------------------------------------------------------------ audio
 
