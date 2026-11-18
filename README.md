@@ -109,6 +109,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [assumptions.md](docs/assumptions.md) | Where the spec and ADR 0007 leave a choice open, the choice made, per milestone |
 | [planning.md](docs/planning.md) | Not built: planning who does what at each gathering, in place of a shared spreadsheet; what the church's sheet shows, the design, what is left out |
 | [rust-core.md](docs/rust-core.md) | The Rust core 2.0 runs on: why, the reference it is proved against, where it runs, its interface, the loop function by function and view by view, and where it stands |
+| [view-models.md](docs/view-models.md) | A proposal, not decided: what a page offers (menus, enabled actions, a field's rule) worked out in the core, and checked the same for every shell |
 | [native-apps.md](docs/native-apps.md) | The iOS and Mac app in SwiftUI over the Rust core: its UniFFI interface, building, running and installing, pairing and sync as the web's, the pages built and those not |
 
 ### Next steps
