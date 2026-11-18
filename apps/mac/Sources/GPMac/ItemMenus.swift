@@ -16,7 +16,7 @@ struct ItemMenu: View {
                 }
             }
             Button(t("note.title"), systemImage: "text.bubble") {
-                model.prompt = TextPrompt(title: t("note.title"), label: t("note.title"), text: item.note ?? "") { model.run("setItemNote", ["itemId": item.id, "note": $0]) }
+                model.prompt = TextPrompt(title: t("note.title"), label: t("note.title"), text: item.note ?? "", allowsEmpty: true) { model.run("setItemNote", ["itemId": item.id, "note": $0]) }
             }
         }
         if item.type == "song" && item.arrangements.count > 1 {

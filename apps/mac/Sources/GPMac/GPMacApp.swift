@@ -30,9 +30,13 @@ struct GPMacApp: App {
 struct GPiOSApp: App {
     @State private var model = Model()
 
+    /// The app's colour on its windows, as an app's accent colour is set: the system then draws its own controls in it,
+    /// an alert's preferred action filled with white words. SwiftUI's `.tint` coloured those words too, blue on blue.
+    init() { UIWindow.appearance().tintColor = UIColor(Color.sky) }
+
     var body: some Scene {
         WindowGroup {
-            RootView().environment(model).tint(.sky)
+            RootView().environment(model)
         }
     }
 }

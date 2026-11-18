@@ -9,11 +9,27 @@ struct StartPage: View {
     @State private var creating = false
     /// Senast ändrade shows 20 at a time, with Visa fler (Dashboard.razor's PageSize).
     @State private var restShown = 20
+    /// The list stands in a readable column (`readableWidth`).
+    @State private var wide = false
 
     var body: some View {
         let today = localToday()
         let groups = model.groups
         List {
+            // Wide, the page's heading row stands over its column, + at its end, as the web's PageHeader: the system's
+            // large title would stay at the screen's edge, away from the list.
+            if wide {
+                Section {} header: {
+                    HStack {
+                        // Color.primary, not the hierarchical .primary, which a section's heading tones down.
+                        Text(t("nav.presentations")).font(.largeTitle.bold()).foregroundStyle(Color.primary)
+                        Spacer()
+                        AddButton(label: t("presentations.new")) { creating = true }.controlSize(.large)
+                    }
+                    .textCase(nil)
+                    .padding(.horizontal, -20)
+                }
+            }
             if let id = model.live.id, let p = model.presentations.first(where: { $0.id == id }) {
                 Section { NavigationLink(value: p.id) { NowShowing(p: p) } }
             }
@@ -26,8 +42,12 @@ struct StartPage: View {
             }
         }
         .page()
+        .readableWidth($wide)
         .environment(\.defaultMinListRowHeight, Size.row)
-        .navigationTitle(t("nav.presentations"))
+        .navigationTitle(wide ? "" : t("nav.presentations"))
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(wide ? .inline : .large)
+        #endif
         .overlay {
             if model.presentations.isEmpty {
                 ContentUnavailableView {
@@ -40,8 +60,13 @@ struct StartPage: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .navigation) { AccountMenu() }
-            ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true } }
+            // Wide, the user's picture at the bar's right as the web's; narrow, + there and the picture at the left.
+            if wide {
+                ToolbarItem(placement: .primaryAction) { AccountMenu() }
+            } else {
+                ToolbarItem(placement: .navigation) { AccountMenu() }
+                ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true } }
+            }
         }
         .sheet(isPresented: $creating) { DetailsSheet(presentationId: nil) }
     }
@@ -125,5 +150,22 @@ extension View {
         #else
         self.scrollContentBackground(.hidden).background(Color.ground)
         #endif
+    }
+
+    /// On a wide screen the page's list in a readable column in the middle, as the web's pages and Apple's Settings
+    /// keep theirs; the whole width still scrolls it. A phone keeps the system's margins. `wide` says which it is.
+    func readableWidth(_ wide: Binding<Bool>) -> some View { modifier(ReadableWidth(wide: wide)) }
+}
+
+private struct ReadableWidth: ViewModifier {
+    @Binding var wide: Bool
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        let side = (width - Size.page) / 2
+        Group {
+            if side > 20 { content.contentMargins(.horizontal, side, for: .scrollContent) } else { content }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0; wide = (width - Size.page) / 2 > 20 }
     }
 }

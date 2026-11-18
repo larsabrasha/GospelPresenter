@@ -7,6 +7,8 @@ struct TextPrompt: Identifiable {
     let id = UUID()
     let title: String, label: String
     var text: String
+    /// An empty answer is one too (a comment taken away); else Spara waits for a word, as Apple's "Ny mapp" does.
+    var allowsEmpty = false
     let done: (String) -> Void
 }
 
@@ -31,7 +33,10 @@ private struct TextPromptAlert: ViewModifier {
             .alert(prompt?.title ?? "", isPresented: Binding(get: { prompt != nil }, set: { if !$0 { prompt = nil } }), presenting: prompt) { p in
                 TextField(p.label, text: $text)
                 Button(t("common.cancel"), role: .cancel) {}
+                // The alert's preferred action: drawn filled in the app's colour on iOS 26, Return presses it.
                 Button(t("common.save")) { p.done(text) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!p.allowsEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .onChange(of: prompt?.id) { _, _ in text = prompt?.text ?? "" }
     }

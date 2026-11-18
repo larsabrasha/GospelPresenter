@@ -35,4 +35,6 @@ enum Size {
     static let row: CGFloat = 52
     /// From this width the app has columns; narrower, one column with sheets ("The layout follows the width").
     static let columns: CGFloat = 1000
+    /// A page's readable column on a wide screen, as the web's PageContainer (`sm:w-180`, 720 px), centred.
+    static let page: CGFloat = 720
 }
