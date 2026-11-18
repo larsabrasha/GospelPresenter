@@ -42,7 +42,7 @@ struct PhoneLayout: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            Menu { AddChoices(after: model.addAfter) } label: {
+            Menu { AddChoices(chosen: nil) } label: {
                 Image(systemName: "plus").font(.title2.weight(.semibold)).frame(width: 56, height: 56)
                     .foregroundStyle(.white).background(Color.sky, in: Circle()).shadow(radius: 4, y: 2)
             }

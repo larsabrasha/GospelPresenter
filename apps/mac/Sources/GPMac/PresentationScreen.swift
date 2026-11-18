@@ -16,6 +16,7 @@ struct PresentationScreen: View {
                 Group {
                     if geo.size.width >= Size.columns { WideLayout(p: p) } else { PhoneLayout(p: p) }
                 }
+                .environment(\.wideLayout, geo.size.width >= Size.columns)
                 .navigationTitle(p.name)
                 .modifier(Subtitle(text: when(p)))
                 #if os(iOS)
@@ -52,13 +53,21 @@ struct PresentationScreen: View {
         return model.isLive ? ([t("live.badge")] + (line.isEmpty ? [] : [line])).joined(separator: " · ") : line
     }
 
-    /// The presentation's menu, from a tap on its title: Redigera detaljer…, and to the trash when not presented.
+    /// The presentation's menu, from a tap on its title: what it offers is the core's (`presentationActionsView`), the
+    /// trash only when not presented. Not here yet, so left out: Material, Spara som mall.
     @ViewBuilder
     private func titleMenu(_ p: PresentationView) -> some View {
-        Button(t("presentation.editDetailsMenu"), systemImage: "pencil") { editing = true }
-        if !model.isLive {
-            Divider()
-            Button(t("presentation.trash"), systemImage: "trash", role: .destructive) { trashing = true }
+        let groups = model.view("presentationActionsView", ["isTemplate": false, "presenting": model.isLive, "role": model.role], as: MenuGroups.self)?.groups ?? []
+        ForEach(groups, id: \.id) { group in
+            Section {
+                ForEach(group.actions, id: \.id) { a in
+                    switch a.id {
+                    case "editDetails": Button(t(a.text), systemImage: "pencil") { editing = true }
+                    case "trash": Button(t(a.text), systemImage: "trash", role: .destructive) { trashing = true }
+                    default: EmptyView()
+                    }
+                }
+            }
         }
     }
 

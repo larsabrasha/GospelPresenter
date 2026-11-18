@@ -1,5 +1,6 @@
 import { sortedArrangements, type Overlay, type PresentationItem, type Song, type SongArrangement } from '@gp/core';
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { itemActionGroups } from '../../db/pageCore.ts';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -127,20 +128,23 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const [sub, setSub] = useState<'arrangement' | 'overlay' | 'add' | null>(null);
   const { item, at } = menu;
-  const songHref = source.editHref(item);
-  const song = item.type === 'song' ? source.songs.get(item.sourceId) : undefined;
-  const arrangements = song && song.deletedAt === null ? sortedArrangements(source.arrangements, song.id) : [];
-  const arrangementChoices = arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }));
-  const arrangementId = item.arrangementId ?? arrangements[0]?.id ?? '';
-  const overlayChoices = [{ id: '', title: t('overlays.itemNone') }, ...source.overlays.map((o) => ({ id: o.id, title: o.title }))];
-  const overlayId = item.overlayId ?? '';
-  const editImages = item.type === 'image' && source.onEditImages;
-  const removable = item.id !== source.shownId;
+  // What the menu offers is the core's, the same for every shell (`itemActionsView`, docs/view-models.md); this draws it.
+  const song = item.type === 'song' ? (source.songs.get(item.sourceId) ?? null) : null;
+  const groups = itemActionGroups({ item, song, arrangements: sortedArrangements(source.arrangements, item.sourceId), overlays: source.overlays, shownId: source.shownId });
+  const offered = new Map(groups.flatMap((g) => g.actions.map((a) => [a.id, a] as const)));
+  const songHref = offered.has('edit') ? source.editHref(item) : undefined;
+  const arrangement = offered.get('arrangement');
+  const arrangementChoices = (arrangement?.choices ?? []).map((c) => ({ id: c.id, title: c.name ?? `${t('song.arrangement')} ${c.n}` }));
+  const arrangementId = arrangement?.chosen ?? '';
+  const overlay = offered.get('overlay');
+  const overlayChoices = (overlay?.choices ?? []).map((c) => ({ id: c.id, title: c.id === '' ? t('overlays.itemNone') : (c.name ?? '') }));
+  const overlayId = overlay?.chosen ?? '';
+  const editImages = offered.has('editImages') && source.onEditImages;
+  const removable = offered.get('delete')?.enabled ?? true;
 
-  const header = item.type === 'header';
   const opening = (
     <>
-      {header && (
+      {offered.has('rename') && (
         <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onRename(item)}>
           <PencilIcon className="size-4" />
           {t('header.rename')}
@@ -164,15 +168,15 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
       </AppButton>
     </>
   );
-  // A heading shows nothing, so it has no overlay to switch on.
-  const showing = !header && (arrangements.length > 1 || !!source.overlays.length) && (
+  // A heading shows nothing, so it has no overlay to switch on: the core leaves the group out.
+  const showing = (arrangement || overlay) && (
     <>
-      {arrangements.length > 1 && (
+      {arrangement && (
         <SubmenuRow icon={<QueueListIcon className="size-4" />} label={t('song.arrangements')} value={arrangementChoices.find((c) => c.id === arrangementId)?.title ?? ''} open={sub === 'arrangement'} onOpen={() => setSub('arrangement')}>
           <Choices choices={arrangementChoices} chosen={arrangementId} onChoose={(id) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId: id }))} />
         </SubmenuRow>
       )}
-      {!!source.overlays.length && (
+      {overlay && (
         <SubmenuRow icon={<SquaresOverlapOutlineIcon className="size-4" />} label={t('overlays.itemOverlay')} value={overlayChoices.find((c) => c.id === overlayId)?.title ?? ''} open={sub === 'overlay'} onOpen={() => setSub('overlay')}>
           <Choices choices={overlayChoices} chosen={overlayId} onChoose={(id) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: id || null }))} />
         </SubmenuRow>

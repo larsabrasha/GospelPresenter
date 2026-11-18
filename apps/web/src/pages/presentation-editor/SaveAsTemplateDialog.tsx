@@ -1,5 +1,6 @@
 import type { Presentation, PresentationItem } from '@gp/core';
 import { useState } from 'react';
+import { fields } from '../../db/pageCore.ts';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -37,7 +38,7 @@ export function SaveAsTemplateDialog({ presentation, items, onClose }: { present
           onClose();
         }}
       >
-        <FloatingInput label={t('presentation.name')} hideLabel autoFocus maxLength={200} value={name} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('presentation.name')} hideLabel autoFocus maxLength={fields().presentationName.max} value={name} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

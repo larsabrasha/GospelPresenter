@@ -9,13 +9,13 @@ const SEPARATOR = 'border-t-[0.5px] border-stone-200 dark:border-stone-600';
 
 /**
  * A presentation's menu (Alternativ), the same behind the name in the bar on a computer (PresentationBar), in groups:
- * Redigera detaljer… and Noter och länkar; Spara som mall… when `onSaveAsTemplate` is given; and to the trash unless it
- * is being presented. "…" only where a dialog asks first. Spara offline is not here: the line at the foot of the left
- * column (OfflineStatus) and the start page's cloud have it.
+ * Redigera detaljer… and Noter och länkar; Spara som mall…; and to the trash. Which of them it has is the core's
+ * (`presentationActionsView`, docs/view-models.md): the page gives a handler only for those, and this draws what it is
+ * given. "…" only where a dialog asks first. Spara offline is not here: the line at the foot of the left column
+ * (OfflineStatus) and the start page's cloud have it.
  */
 export function PresentationMenu({
   presentation,
-  presenting,
   onEditDetails,
   onSaveAsTemplate,
   onMaterials,
@@ -26,12 +26,11 @@ export function PresentationMenu({
   menuClassName,
 }: {
   presentation: Presentation;
-  presenting: boolean;
   onEditDetails: () => void;
   onSaveAsTemplate?: () => void;
   /** Noter och länkar: the songs' sheet music, recordings and links, for the band. */
   onMaterials?: () => void;
-  onTrash: () => void;
+  onTrash?: () => void;
   button: ButtonHTMLAttributes<HTMLButtonElement>;
   trigger: ReactNode;
   className?: string;
@@ -58,7 +57,7 @@ export function PresentationMenu({
           </AppButton>
         </>
       )}
-      {!presenting && (
+      {onTrash && (
         <>
           <div className={SEPARATOR} />
           <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={onTrash}>

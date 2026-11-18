@@ -14,7 +14,6 @@ struct StartPage: View {
 
     var body: some View {
         let today = localToday()
-        let groups = model.groups
         List {
             // Wide, the page's heading row stands over its column, + at its end, as the web's PageHeader: the system's
             // large title would stay at the screen's edge, away from the list.
@@ -33,12 +32,14 @@ struct StartPage: View {
             if let id = model.live.id, let p = model.presentations.first(where: { $0.id == id }) {
                 Section { NavigationLink(value: p.id) { NowShowing(p: p) } }
             }
-            section("presentations.today", groups.today, today: today, showDate: false, withYear: false)
-            section("presentations.upcoming", groups.upcoming, today: today, showDate: true, withYear: false)
-            section("presentations.recent", Array(groups.rest.prefix(restShown)), today: today, showDate: true, withYear: true)
-            if groups.rest.count > restShown {
-                Section { Button(t("common.showMore")) { restShown += 20 }.frame(maxWidth: .infinity) }
-                    .listRowBackground(Color.clear)
+            // The core's lists as they come (`startPageView`); Senast ändrade 20 at a time, the page's own paging.
+            ForEach(model.lists) { list in
+                let rows = list.id == "recent" ? Array(list.rows.prefix(restShown)) : list.rows
+                section(list.title, rows, today: today, showDate: list.showDate, withYear: list.withYear)
+                if rows.count < list.rows.count {
+                    Section { Button(t("common.showMore")) { restShown += 20 }.frame(maxWidth: .infinity) }
+                        .listRowBackground(Color.clear)
+                }
             }
         }
         .page()
@@ -101,7 +102,8 @@ struct PresentationListRow: View {
             }
             Spacer(minLength: 8)
             if live { Circle().fill(.red).frame(width: 8, height: 8).accessibilityLabel(t("presentations.live")) }
-            Text(p.itemCount == 1 ? t("presentations.item") : t("presentations.items", ["n": p.itemCount]))
+            let n = p.itemCount ?? 0
+            Text(n == 1 ? t("presentations.item") : t("presentations.items", ["n": n]))
                 .font(.footnote).foregroundStyle(Color.quiet)
         }
     }

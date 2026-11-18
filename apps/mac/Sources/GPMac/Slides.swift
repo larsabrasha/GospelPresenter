@@ -73,8 +73,11 @@ struct AddSongSheet: View {
 
     private func add() -> Bool {
         guard let songId = chosen, let pid = model.selectedPresentation else { return false }
-        var args: [String: Any] = ["itemId": model.newId(), "presentationId": pid, "songId": songId]
+        let itemId = model.newId()
+        var args: [String: Any] = ["itemId": itemId, "presentationId": pid, "songId": songId]
         if let after = at.after { args["afterItemId"] = after }
-        return model.run("addSongToPresentation", args) == "ok"
+        guard model.run("addSongToPresentation", args) == "ok" else { return false }
+        model.added(itemId)
+        return true
     }
 }

@@ -1,29 +1,21 @@
 // The running order while presenting (docs/layout-2-0.md): where an addition goes, and when the list follows the
 // shown part.
+import { pageCore } from '../db/pageCore.ts';
 
 /**
- * The item something added while presenting goes after: the one chosen in an item's … menu ("Lägg till efter");
- * else the last thing added, while it is still ahead of the shown item, so several additions keep the order they
- * were added in; else the shown item. With nothing shown, the selected item, as the editor adds.
+ * The item something added while presenting goes after, as the core works it out for every shell (`addPositionView`,
+ * docs/view-models.md): the one chosen in an item's … menu ("Lägg till efter"); else the last thing added, while it is
+ * still ahead of the shown item, so several additions keep the order they were added in; else the shown item. With
+ * nothing shown, the selected item, as the editor adds.
  */
-export function addAfter({
-  order,
-  shownId,
-  lastAddedId,
-  chosenId,
-  selectedId = null,
-}: {
+export function addAfter(place: {
   order: readonly string[];
   shownId: string | null;
   lastAddedId: string | null;
   chosenId: string | null;
   selectedId?: string | null;
 }): string | null {
-  if (chosenId && order.includes(chosenId)) return chosenId;
-  const shown = shownId ? order.indexOf(shownId) : -1;
-  const last = lastAddedId ? order.indexOf(lastAddedId) : -1;
-  if (last !== -1 && last > shown) return lastAddedId;
-  return shown !== -1 ? shownId : selectedId;
+  return pageCore().pure<string | null>('addPositionView', place);
 }
 
 /**

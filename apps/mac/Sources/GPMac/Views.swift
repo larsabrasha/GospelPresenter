@@ -1,51 +1,26 @@
-// The core's views as the web's pages read them (crates/gp-core/src/views.rs), decoded: the presentations page
-// (`presentationListView`, `itemCountsView`, `trashEntriesView`), a presentation's page (`presentationPageView`), and
-// presenting's keys and marks (`presentingKeyView`, `slideMarksView`). Only the fields this app shows are decoded.
+// The core's views as the web's pages read them (crates/gp-core/src/views.rs), decoded: the start page
+// (`startPageView`), a presentation's page (`presentationPageView`), presenting's keys and marks (`presentingKeyView`,
+// `slideMarksView`), and what a page offers (docs/view-models.md). Only the fields this app shows are decoded.
 import Foundation
 
-/// `Presentation`, a row of `presentationListView`.
+/// A presentation as a list shows it (`Presentation`), with its number of items where the view gives it.
 struct PresentationRow: Decodable, Identifiable, Hashable {
     let id: String, name: String, eventDate: String?, time: String?, location: String?, description: String?, updatedAt: Double?
-    /// From `itemCountsView`; none when the presentation has no items.
-    var itemCount = 0
-
-    private enum CodingKeys: String, CodingKey { case id, name, eventDate, time, location, description, updatedAt }
+    var itemCount: Int? = nil
 }
 
-/// The start page's three lists (spec 03 screen 1, apps/web/src/pages/dashboard.ts's `groupPresentations`): today by
-/// time (no time last), upcoming soonest first, and the rest, past and undated alike, last changed first.
-struct PresentationGroups {
-    var today: [PresentationRow] = [], upcoming: [PresentationRow] = [], rest: [PresentationRow] = []
-
-    init() {}
-
-    init(_ all: [PresentationRow], today day: String) {
-        func byTime(_ a: PresentationRow, _ b: PresentationRow) -> Int { compare(a.time ?? "99:99", b.time ?? "99:99") }
-        func byLastChanged(_ a: PresentationRow, _ b: PresentationRow) -> Int { compare(b.updatedAt ?? -1, a.updatedAt ?? -1) }
-        func byId(_ a: PresentationRow, _ b: PresentationRow) -> Int { compare(a.id, b.id) }
-        func sorted(_ rows: [PresentationRow], _ by: [(PresentationRow, PresentationRow) -> Int]) -> [PresentationRow] {
-            rows.sorted { a, b in by.lazy.map { $0(a, b) }.first { $0 != 0 }.map { $0 < 0 } ?? false }
-        }
-        today = sorted(all.filter { $0.eventDate == day }, [byTime, byLastChanged, byId])
-        upcoming = sorted(all.filter { ($0.eventDate ?? "") > day }, [{ compare($0.eventDate ?? "", $1.eventDate ?? "") }, byTime, byId])
-        rest = sorted(all.filter { $0.eventDate.map { $0 < day } ?? true }, [byLastChanged, byId])
-    }
-
-    var all: [PresentationRow] { today + upcoming + rest }
+/// One of the start page's lists as the core groups them for every shell (`startPageView`, docs/view-models.md):
+/// Idag, Kommande or Senast ändrade, in their order, an empty one left out, and whether its rows show their date and
+/// its year.
+struct StartList: Decodable, Identifiable, Hashable {
+    let id: String, title: String, showDate: Bool, withYear: Bool, rows: [PresentationRow]
 }
-
-/// -1, 0 or 1, as JavaScript's comparators answer (strings by UTF-16 code units, as `localeCompare` does not but `<` does:
-/// dates and times are ASCII, where the two agree).
-private func compare<T: Comparable>(_ a: T, _ b: T) -> Int { a < b ? -1 : a > b ? 1 : 0 }
 
 /// Today's date on this device, `YYYY-MM-DD`, as event dates are stored (`localToday`).
 func localToday(_ now: Date = Date()) -> String {
     let c = Calendar.current.dateComponents([.year, .month, .day], from: now)
     return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
 }
-
-/// An entry of `trashEntriesView`; this app shows the presentations among them.
-struct TrashRow: Decodable, Identifiable, Hashable { let kind: String, id: String, name: String, deletedAt: Double? }
 
 /// Any JSON, kept as the core gave it: a slide, a theme and an overlay go on to the web's `SlideView` unchanged.
 enum JSONValue: Codable, Hashable {
@@ -75,6 +50,18 @@ enum JSONValue: Codable, Hashable {
 
     subscript(_ key: String) -> JSONValue? { if case let .object(o) = self { o[key] } else { nil } }
     var string: String? { if case let .string(s) = self { s } else { nil } }
+
+    /// As JSONSerialization takes it: the value handed back to the core in a view's arguments.
+    var any: Any {
+        switch self {
+        case .null: NSNull()
+        case let .bool(b): b
+        case let .number(n): n
+        case let .string(s): s
+        case let .array(a): a.map(\.any)
+        case let .object(o): o.mapValues(\.any)
+        }
+    }
 
     /// Its JSON text, keys sorted, so the same value is the same text (a cache key).
     var text: String {
@@ -117,10 +104,28 @@ struct PresentationPage: Decodable {
     let theme: JSONValue?
     let items: [Item]
     let slides: [String: Slides]
+    let songs: [JSONValue]
     let arrangements: [Arrangement]
+    let overlays: [JSONValue]
 }
 
 struct Arrangement: Identifiable, Hashable { let id: String, name: String? }
+
+/// An entry a menu offers, as the core works it out for every shell (`itemActionsView`, `presentationActionsView`;
+/// docs/view-models.md): its id, its text's key, whether it can be chosen, and a submenu's choices.
+struct MenuAction: Decodable, Hashable {
+    /// An arrangement's (`name` nil: "Arrangemang {n}"), or an overlay's (`text`, a key, for Ingen).
+    struct Choice: Decodable, Hashable { let id: String, name: String?, n: Int?, text: String? }
+    let id: String, text: String, enabled: Bool, destructive: Bool
+    let choices: [Choice]?
+    let chosen: String?
+}
+
+/// A menu's sections, each a group of the core's.
+struct MenuGroups: Decodable {
+    struct Group: Decodable, Hashable { let id: String, actions: [MenuAction] }
+    let groups: [Group]
+}
 
 /// An item of the running order with its slides, as the columns show it.
 struct ItemView: Identifiable, Hashable {
@@ -130,6 +135,8 @@ struct ItemView: Identifiable, Hashable {
     /// The overlay its slides are shown with, as `overlayView` reads it (Model.load fills it in).
     var overlay: JSONValue? = nil
     let overlayId: String?
+    /// A song item's song as the page read it (nil when it is gone), for its menu (`itemActionsView`).
+    let song: JSONValue?
 }
 
 /// A presentation's page, as the columns show it.
@@ -138,15 +145,18 @@ struct PresentationView {
     var items: [ItemView]
     /// The presentation's theme as the core resolves it (its own, or the organisation's default).
     let theme: JSONValue?
+    /// The organisation's overlays, for an item's Överlägg ›.
+    let overlays: [JSONValue]
 
     init?(_ page: PresentationPage) {
         guard let p = page.presentation else { return nil }
-        (id, name, eventDate, time, location, description, theme) = (p.id, p.name, p.eventDate, p.time, p.location, p.description, page.theme)
+        (id, name, eventDate, time, location, description, theme, overlays) = (p.id, p.name, p.eventDate, p.time, p.location, p.description, page.theme, page.overlays)
         items = page.items.map { i in
             let shown = page.slides[i.id]
+            let song = i.type == "song" ? page.songs.first { $0["id"]?.string == i.sourceId } : nil
             let arrangements = i.type == "song" ? page.arrangements.filter { $0.songId == i.sourceId }.map { Arrangement(id: $0.id, name: $0.name) } : []
             return ItemView(id: i.id, type: i.type ?? "song", title: i.title, note: i.note, slides: shown?.slides ?? [],
-                            arrangementId: i.arrangementId, arrangements: arrangements, problem: shown?.problem, overlayId: i.overlayId)
+                            arrangementId: i.arrangementId, arrangements: arrangements, problem: shown?.problem, overlayId: i.overlayId, song: song)
         }
     }
 }
@@ -166,15 +176,6 @@ struct Shown: Codable, Hashable {
         try c.encode(itemId, forKey: .itemId)
         try c.encode(partIndex, forKey: .partIndex)
         try c.encode(black, forKey: .black)
-    }
-}
-
-/// A cell of `itemCountsView`'s pairs, [id, n].
-enum CountCell: Decodable {
-    case id(String), n(Int)
-    init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if let s = try? c.decode(String.self) { self = .id(s) } else { self = .n(try c.decode(Int.self)) }
     }
 }
 

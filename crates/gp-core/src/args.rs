@@ -36,8 +36,11 @@ pub fn trimmed(o: &Obj, k: &str, min: usize, max: usize) -> R<String> {
     }
 }
 
+/** The most characters a name has (`name`): a presentation's, a programme item's, a template's. */
+pub const NAME: usize = 200;
+
 /** `name`: trimmed, 1–200 characters. */
-pub fn name(o: &Obj, k: &str) -> R<String> { trimmed(o, k, 1, 200) }
+pub fn name(o: &Obj, k: &str) -> R<String> { trimmed(o, k, 1, NAME) }
 
 /** `labelKey` (labels.ts): a label's text as compared, case and spacing aside. */
 pub fn label_key(text: &str) -> String {

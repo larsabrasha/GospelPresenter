@@ -52,7 +52,8 @@ export function PresentationBar({
   onDetails: () => void;
   onSaveAsTemplate?: () => void;
   onMaterials?: () => void;
-  onTrash: () => void;
+  /** To the trash; none while the core offers it not (presented). */
+  onTrash?: () => void;
 }) {
   const { dialog, ask } = useConfirm();
   const wide = useWide();
@@ -107,7 +108,6 @@ export function PresentationBar({
       {/* The name opens the presentation's menu, as a title menu on iPadOS and macOS. */}
       <PresentationMenu
         presentation={presentation}
-        presenting={presenting}
         onEditDetails={onDetails}
         onSaveAsTemplate={onSaveAsTemplate}
         onMaterials={onMaterials}

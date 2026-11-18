@@ -86,7 +86,7 @@ export function PhoneLive({
   /** The line under the running order while it is kept offline opens the dialog; not for a template, nor in the host's window. */
   onKeepOffline?: () => void;
   onMaterials?: () => void;
-  onTrash: () => void;
+  onTrash?: () => void;
 }) {
   const db = useDb();
   const { dialog, ask } = useConfirm();

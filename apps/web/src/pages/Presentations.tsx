@@ -1,7 +1,8 @@
 import type { Presentation } from '@gp/core';
 import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { itemCounts, itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
+import { itemsOf, recentTemplates } from '../db/queries.ts';
+import { startPage, type StartList } from '../db/views.ts';
 import { locale, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
@@ -18,7 +19,7 @@ import { useRovingList } from '../ui/listNav.ts';
 import { usePageKeys } from '../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
-import { dateLabel, fullDate, groupPresentations, localToday } from './dashboard.ts';
+import { dateLabel, fullDate, localToday } from './dashboard.ts';
 import { nextDate, templateDetails } from './templates.ts';
 import { detailsArgs, PresentationDetailsDialog } from './presentation-editor/PresentationDetailsDialog.tsx';
 
@@ -224,26 +225,32 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
+/** The start page's lists' headings, by the id the core gives each (`startPageView`). */
+const LIST_TITLES: Record<StartList['id'], () => string> = {
+  today: () => t('presentations.today'),
+  upcoming: () => t('presentations.upcoming'),
+  recent: () => t('presentations.recent'),
+};
+
 export function Presentations({ link, ownSessionId, manageTemplates }: { link: LiveLink; ownSessionId: string; manageTemplates: boolean }) {
-  const presentations = useData(listPresentations, []);
+  const today = localToday();
+  // Idag, Kommande and Senast ändrade as the core groups them for every shell (docs/view-models.md).
+  const lists = useData((db) => startPage(db, today), [today]);
   const templates = useData(recentTemplates, []);
-  const counts = useData(itemCounts, []);
   const { sessions } = useLiveSessions(link);
   const [picking, setPicking] = useState(false);
   // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
   const [creating, setCreating] = useState<{ template: Presentation | null } | null>(null);
   // The rest shows 20 at a time, with "Visa fler" (Dashboard.razor's PageSize).
   const [restShown, setRestShown] = useState(PAGE_SIZE);
-  const today = localToday();
-  const groups = presentations && groupPresentations(presentations, today);
-  const rest = groups?.rest.slice(0, restShown) ?? [];
+  const shown = lists?.map((l) => (l.id === 'recent' ? { ...l, rows: l.rows.slice(0, restShown) } : l));
   // ↑ ↓ Home End run through Idag, Kommande and the rest as one list, Tab stopping once.
-  const navCount = (groups?.today.length ?? 0) + (groups?.upcoming.length ?? 0) + rest.length;
+  const navCount = shown?.reduce((n, l) => n + l.rows.length, 0) ?? 0;
   const list = useRovingList(navCount);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
-  const ownLive = presentations?.find((p) => p.id === livePresentation);
-  const row = (p: Presentation, index: number, showDate: boolean, withYear: boolean) => (
-    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} items={counts?.get(p.id) ?? 0} nav={list.item(index)} />
+  const ownLive = lists?.flatMap((l) => l.rows).find((p) => p.id === livePresentation);
+  const row = (p: StartList['rows'][number], index: number, showDate: boolean, withYear: boolean) => (
+    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} items={p.itemCount} nav={list.item(index)} />
   );
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);
@@ -253,8 +260,8 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
       startCreating();
     }
   });
-  const todayCount = groups?.today.length ?? 0;
-  const restStart = todayCount + (groups?.upcoming.length ?? 0);
+  // Each list's first row's place in the one roving list.
+  const starts = shown?.map((_, i) => shown.slice(0, i).reduce((n, l) => n + l.rows.length, 0)) ?? [];
 
   return (
     <PageContainer>
@@ -276,24 +283,22 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
         />
       )}
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
-      {!presentations && (
+      {!lists && (
         <div className={CARD}>
           <div className="loading-line px-4 py-3 text-stone-400">{t('common.loading')}</div>
         </div>
       )}
-      {presentations && !presentations.length && (
+      {lists && !lists.length && (
         <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} text={t('presentations.emptyText')}>
           <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
         </EmptyPicture>
       )}
-      {groups && (
+      {lists && shown && (
         <div className="space-y-5" onKeyDown={list.onKeyDown}>
-          {groups.today.length > 0 && <ListSection title={t('presentations.today')}>{groups.today.map((p, i) => row(p, i, false, false))}</ListSection>}
-          {groups.upcoming.length > 0 && <ListSection title={t('presentations.upcoming')}>{groups.upcoming.map((p, i) => row(p, todayCount + i, true, false))}</ListSection>}
-          {rest.length > 0 && (
-            <div className="space-y-2">
-              <ListSection title={t('presentations.recent')}>{rest.map((p, i) => row(p, restStart + i, true, true))}</ListSection>
-              {rest.length < groups.rest.length && (
+          {shown.map((l, li) => (
+            <div key={l.id} className="space-y-2">
+              <ListSection title={LIST_TITLES[l.id]()}>{l.rows.map((p, i) => row(p, starts[li]! + i, l.showDate, l.withYear))}</ListSection>
+              {l.rows.length < lists[li]!.rows.length && (
                 <div className="flex justify-center pt-2">
                   <AppButton variant="cancel" onClick={() => setRestShown((n) => n + PAGE_SIZE)}>
                     {t('common.showMore')}
@@ -301,7 +306,7 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
                 </div>
               )}
             </div>
-          )}
+          ))}
         </div>
       )}
     </PageContainer>

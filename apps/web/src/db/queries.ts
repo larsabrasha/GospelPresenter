@@ -42,11 +42,6 @@ export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
 /** Presentations, newest event first; those without a date last (milestone 1 has no "last changed"). */
 export const listPresentations = (db: ReadDb): Promise<Presentation[]> => db.view<Presentation[]>('presentationListView', {});
 
-/** How many items each presentation has, for the start page's rows (docs/layout-2-0.md); one with none is missing. */
-export async function itemCounts(db: ReadDb): Promise<Map<string, number>> {
-  return new Map((await db.view<[string, number][]>('itemCountsView', {})).map(([id, n]) => [id, Number(n)]));
-}
-
 /** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
 /** The templates, last changed first (PresentationService.GetAllTemplateSummariesAsync). */
 export async function listTemplates(db: ReadDb): Promise<Presentation[]> {
@@ -59,7 +54,7 @@ export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
 }
 
 /** Latest change first; one never stamped (made before schema 12) after those that were. */
-export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presentation, 'updatedAt'>): number {
+function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presentation, 'updatedAt'>): number {
   return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
 }
 

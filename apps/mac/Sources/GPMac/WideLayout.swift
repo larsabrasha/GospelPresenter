@@ -69,7 +69,7 @@ private struct RunningOrderColumn: View {
                     }
                 }
                 Section {
-                    Menu { AddChoices(after: model.addAfter) } label: {
+                    Menu { AddChoices(chosen: nil) } label: {
                         Label(t("live.add"), systemImage: "plus").frame(maxWidth: .infinity).padding(.vertical, 6)
                     }
                     .buttonStyle(.bordered).tint(.sky)

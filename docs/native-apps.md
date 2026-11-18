@@ -102,8 +102,9 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   while presenting the picture small at the left with Släck at its right, then every part a row with its whole text,
   VISAS and NÄSTA on them, + floating at the bottom right.
 - **An item's menu** (`ItemMenus.swift`), the same on its row and its heading's …: Byt namn for a programme item,
-  Kommentar; Arrangemang ›; Lägg till efter ›, Ny programpunkt ovanför; Radera last, in red, asked first. **+** offers
-  Sång, then under a line Programpunkt.
+  Kommentar; Arrangemang ›; Lägg till efter ›, Ny programpunkt ovanför; Radera last, in red, asked first, and
+  disabled for the item shown (in columns not after Släck, as the web's computer page). **+** offers Sång, then under
+  a line Programpunkt.
 - **Colours and sizes** (`Look.swift`): the warm grey `stone` by role (ground, surface, raised, sidebar), sky-500 as
   the app's tint, rows at least 52 pt.
 - **Texts** are the web's own, Swedish and English: `apps/mac/texts.mjs` writes `apps/web/src/i18n.ts`'s table into a
@@ -111,14 +112,15 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   (Swedish when it is neither). The few the web has no use for (the host's address and certificate, the demo) are in
   `Texts.swift`, as i18n.ts may hold only keys the web's code uses.
 
-What each page shows comes from the core's views, never from Swift logic of its own, with one exception kept small:
-the start page's three lists are the web's `groupPresentations` (`apps/web/src/pages/dashboard.ts`) again in Swift, a
-candidate for the core.
+What each page shows comes from the core's views, and what it offers from the core's view models
+(`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
+Swift only draws them; an action the app has not built yet (Material, Spara som mall, Redigera, Överlägg ›, Markera)
+is left out where the menu is drawn.
 
 | Page | Views | State |
 | --- | --- | --- |
-| The start page | `presentationListView`, `itemCountsView` | built |
-| A presentation: the running order, its slides, details, items added and removed, a comment, an arrangement, moved by dragging (columns) | `presentationPageView`, `overlayView`, `searchSongsView` | built |
+| The start page | `startPageView` | built |
+| A presentation: the running order, its slides, details, items added and removed, a comment, an arrangement, moved by dragging (columns) | `presentationPageView`, `overlayView`, `searchSongsView`, `presentationActionsView`, `itemActionsView`, `addPositionView`, `rulesView` | built |
 | Presenting: Starta, a slide tapped, the keys (→ ← ↵ Space B Esc) and Släck, VISAS and NÄSTA | `presentingKeyView`, `slideMarksView` | built; on the Mac an output window, on iOS no output yet (AirPlay and an external display come later) |
 | Inställningar and its pages, Sånger, the song editor, Bibles, pictures, sounds, videos, custom slides, templates, themes, the trash | the rest of the 37 | not built; the bar has no cog yet |
 

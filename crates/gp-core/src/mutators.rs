@@ -55,6 +55,15 @@ pub fn rules() -> Value {
             "customSlides": custom_slides::SLIDES, "customElements": crate::pages::ELEMENTS, "customPages": crate::pages::PAGES,
             "customText": crate::pages::TEXT, "fileName": media::FILE_NAME,
         },
+        // A field's rule as the mutators check it (docs/view-models.md): whether it may be left empty, and its most
+        // characters, so a shell's Spara and its field's length are the core's, not a copy.
+        "fields": {
+            "presentationName": { "required": true, "max": crate::args::NAME },
+            "itemTitle": { "required": true, "max": crate::args::NAME },
+            "itemNote": { "required": false, "max": presentations::NOTE },
+            "location": { "required": false, "max": presentations::LOCATION },
+            "description": { "required": false, "max": presentations::DESCRIPTION },
+        },
     })
 }
 

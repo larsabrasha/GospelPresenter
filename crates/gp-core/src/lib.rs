@@ -10,6 +10,7 @@ mod lists;
 mod live_views;
 mod media_views;
 mod mutators;
+mod page_models;
 mod pages;
 mod presentation_page;
 mod presenting;

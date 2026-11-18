@@ -4,6 +4,10 @@ use crate::bridge::sql;
 use serde_json::{json, Value};
 
 pub const ITEMS_PER_PRESENTATION: i64 = 100;
+/// The most characters of a presentation's place, its description and an item's comment (`rulesView`'s fields).
+pub const LOCATION: usize = 100;
+pub const DESCRIPTION: usize = 5000;
+pub const NOTE: usize = 200;
 
 pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {
     Some(match name {
@@ -30,7 +34,7 @@ pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {
 async fn create_presentation(a: &Obj, ctx: &Ctx) -> R<()> {
     let (id, name) = (id(a, "id")?, name(a, "name")?);
     let (date, time) = (opt_date(a, "eventDate")?, opt_time(a, "time")?);
-    let (location, description) = (opt_text(a, "location", 100)?, opt_text(a, "description", 5000)?);
+    let (location, description) = (opt_text(a, "location", LOCATION)?, opt_text(a, "description", DESCRIPTION)?);
     require(ctx, "ManagePresentations")?;
     sql("INSERT INTO presentations (id, name, event_date, time, location, description, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
         vec![json!(id), json!(name), json!(date), json!(time), json!(location), json!(description), changed_at(ctx)]).await;
@@ -157,8 +161,8 @@ async fn update_presentation(a: &Obj, ctx: &Ctx) -> R<()> {
     let name = opt_name(a, "name")?;
     let date = field(a, "eventDate", opt_date)?;
     let time = field(a, "time", opt_time)?;
-    let location = field(a, "location", |o, k| opt_text(o, k, 100))?;
-    let description = field(a, "description", |o, k| opt_text(o, k, 5000))?;
+    let location = field(a, "location", |o, k| opt_text(o, k, LOCATION))?;
+    let description = field(a, "description", |o, k| opt_text(o, k, DESCRIPTION))?;
     let theme = field(a, "themeId", opt_id)?;
     require(ctx, "ManagePresentations")?;
     if let Some(theme) = &theme {
@@ -199,7 +203,7 @@ async fn rename_item(a: &Obj, ctx: &Ctx) -> R<()> {
 }
 
 async fn set_item_note(a: &Obj, ctx: &Ctx) -> R<()> {
-    let (item_id, note) = (id(a, "itemId")?, text_given(a, "note", 200)?);
+    let (item_id, note) = (id(a, "itemId")?, text_given(a, "note", NOTE)?);
     require(ctx, "ManagePresentations")?;
     if !require_item(&item_id, ctx).await? { return Ok(()) }
     sql("UPDATE presentation_items SET note = ? WHERE id = ?", vec![json!(note), json!(item_id)]).await;

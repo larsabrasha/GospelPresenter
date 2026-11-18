@@ -53,6 +53,13 @@ interface Rules {
     customText: number;
     fileName: number;
   };
+  fields: Record<'presentationName' | 'itemTitle' | 'itemNote' | 'location' | 'description', FieldRule>;
+}
+
+/** A field's rule as the core's mutators check it: whether it may be left empty, and its most characters. */
+export interface FieldRule {
+  required: boolean;
+  max: number;
 }
 let rules: Rules | undefined;
 const theRules = () => (rules ??= pageCore().pure<Rules>('rulesView', {}));
@@ -64,6 +71,35 @@ export function can(role: Role, permission: Permission): boolean {
 
 /** The limits of the organisation's data, the core's: a field's length, a button hidden at the limit. */
 export const limits = () => theRules().limits;
+
+/** The fields' rules, the core's (docs/view-models.md): whether Spara waits for a word, and a field's length. */
+export const fields = () => theRules().fields;
+
+/** An action a menu offers, as the core works it out for every shell (docs/view-models.md). */
+interface Action {
+  id: string;
+  /** Its text's key; the web writes each key out where it draws the action, so the texts' check sees them used. */
+  text: string;
+  enabled: boolean;
+  destructive: boolean;
+  /** A submenu's choices: an arrangement's (`name` null: "Arrangemang {n}"), an overlay's (`text` for Ingen). */
+  choices?: { id: string; name?: string | null; n?: number; text?: string }[];
+  chosen?: string;
+}
+interface ActionGroups {
+  groups: { id: string; actions: Action[] }[];
+}
+
+/** The ids of what the presentation's menu offers (`presentationActionsView`): its entries, the same for every shell. */
+export function presentationActionIds(isTemplate: boolean, presenting: boolean, role: Role): Set<string> {
+  const { groups } = pageCore().pure<ActionGroups>('presentationActionsView', { isTemplate, presenting, role });
+  return new Set(groups.flatMap((g) => g.actions.map((a) => a.id)));
+}
+
+/** An item's menu (`itemActionsView`), in its groups, as every shell offers it. */
+export function itemActionGroups(args: { item: unknown; song: unknown; arrangements: unknown[]; overlays: unknown[]; shownId: string | null }): ActionGroups['groups'] {
+  return pageCore().pure<ActionGroups>('itemActionsView', args).groups;
+}
 
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */
 export const highlight = (text: string, query: string) => pageCore().pure<{ text: string; hit: boolean }[]>('highlightView', { text, query });

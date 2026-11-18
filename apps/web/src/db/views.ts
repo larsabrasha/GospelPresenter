@@ -31,6 +31,20 @@ export async function songPreviewSlides(db: ReadDb, songId: string, arrangementI
   return (await db.view<Record<string, ItemSlides>>('itemSlidesView', { items: [item] })).preview?.slides ?? [];
 }
 
+/**
+ * One of the start page's lists (`startPageView`, docs/view-models.md): Idag, Kommande or Senast ändrade, in their
+ * order, each row with its number of items, and whether the rows show their date and its year.
+ */
+export interface StartList {
+  id: 'today' | 'upcoming' | 'recent';
+  showDate: boolean;
+  withYear: boolean;
+  rows: (Presentation & { itemCount: number })[];
+}
+
+/** The start page's lists on `today` (the device's date, `YYYY-MM-DD`), as the core groups them for every shell. */
+export const startPage = (db: ReadDb, today: string) => db.view<StartList[]>('startPageView', { today });
+
 /** The tables presentationPageView reads. */
 export const PRESENTATION_PAGE_READS = [...SLIDE_READS, 'presentations', 'presentation_items', 'themes', 'org_settings', 'overlays'];
 

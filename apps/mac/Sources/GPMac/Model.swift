@@ -21,9 +21,9 @@ final class Model {
     private(set) var store: Store?
     /// The sync's state for the account menu: nil while all is well (the web says it only when there is a problem).
     var syncProblem: String?
-    /// The start page's lists: Idag, Kommande, Senast ändrade.
-    var groups = PresentationGroups()
-    var presentations: [PresentationRow] { groups.all }
+    /// The start page's lists, as the core groups them (`startPageView`).
+    var lists: [StartList] = []
+    var presentations: [PresentationRow] { lists.flatMap(\.rows) }
     /// The pages over the start page: the presentation opened, by its id.
     var path: [String] = [] {
         didSet { if oldValue.last != path.last { selectedItem = nil; load() } }
@@ -45,6 +45,9 @@ final class Model {
     var addingSong: AddAt?
     /// An item whose removal asks first.
     var removing: ItemView?
+    /// The item added last, which the next addition follows while presenting (`addPositionView`); forgotten when
+    /// presenting starts or ends, as the web forgets it.
+    var lastAddedId: String?
 
     /// The app's own folder: the organisations' databases and the demo's (GP_MAC_DATA on the Mac, for build.sh run).
     static let home: String = {
@@ -112,7 +115,7 @@ final class Model {
         store = nil
         path = []
         live = Live()
-        groups = PresentationGroups()
+        lists = []
     }
 
     var session: Session? { if case let .synced(c) = store { c.session } else { nil } }
@@ -164,15 +167,9 @@ final class Model {
         live.reload(self)
     }
 
-    /// The start page, as the web's reads it: the presentations and their item counts, grouped by today's date.
+    /// The start page on the device's today: the core's lists, as the web reads them.
     func refresh() {
-        var rows = view("presentationListView", as: [PresentationRow].self) ?? []
-        let counts = Dictionary((view("itemCountsView", as: [[CountCell]].self) ?? []).compactMap { pair -> (String, Int)? in
-            guard pair.count == 2, case let .id(id) = pair[0], case let .n(n) = pair[1] else { return nil }
-            return (id, n)
-        }, uniquingKeysWith: { a, _ in a })
-        for i in rows.indices { rows[i].itemCount = counts[rows[i].id] ?? 0 }
-        groups = PresentationGroups(rows, today: localToday())
+        lists = view("startPageView", ["today": localToday()], as: [StartList].self) ?? []
     }
 
     /// A presentation's page as `presentationPageView` reads it.

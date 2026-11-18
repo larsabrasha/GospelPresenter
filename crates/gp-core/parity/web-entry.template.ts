@@ -35,6 +35,9 @@ export {
   themeOf,
 } from '@REF@/apps/web/src/db/queries.ts';
 export { bibleBooks } from '@REF@/apps/web/src/db/queries.ts';
+// What a page offers, as the web worked it out (docs/view-models.md): views/page-models.mjs.
+export { addAfter } from '@REF@/apps/web/src/live/liveList.ts';
+export { groupPresentations } from '@REF@/apps/web/src/pages/dashboard.ts';
 export { bibleTitle, planVerseSearch, searchVerses, splitBibleSlides, storeBibleTextSql, versesInRange } from '@REF@/packages/core/src/bible.ts';
 export { bibleItemSlides } from '@REF@/packages/core/src/slides.ts';
 export { bibleLabel } from '@REF@/packages/core/src/bible.ts';

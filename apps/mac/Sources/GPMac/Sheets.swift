@@ -7,12 +7,37 @@ struct TextPrompt: Identifiable {
     let id = UUID()
     let title: String, label: String
     var text: String
-    /// An empty answer is one too (a comment taken away); else Spara waits for a word, as Apple's "Ny mapp" does.
-    var allowsEmpty = false
+    /// The field's rule, the core's: when it is required Spara waits for a word, as Apple's "Ny mapp" does; else an
+    /// empty answer is one too (a comment taken away).
+    let rule: FieldRule
     let done: (String) -> Void
 }
 
+/// A field's rule as the core's mutators check it (`rulesView`'s fields, docs/view-models.md): whether it may be left
+/// empty, and its most characters.
+struct FieldRule: Decodable {
+    let required: Bool, max: Int
+    /// Whether Spara waits: a required field with only spaces in it.
+    func blocks(_ text: String) -> Bool { required && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+}
+
+extension Model {
+    /// The rule of a field (presentationName, itemTitle, itemNote, location, description), the core's.
+    func rule(_ field: String) -> FieldRule {
+        struct Rules: Decodable { let fields: [String: FieldRule] }
+        // Without a store no field is shown; the core checks what is sent in any case.
+        return view("rulesView", as: Rules.self)?.fields[field] ?? FieldRule(required: false, max: .max)
+    }
+}
+
 extension View {
+    /// A field cut at `max` characters, as the web's `maxLength` cuts it; counted as the core counts them, in Unicode
+    /// scalars, so what is typed is what the core takes.
+    func limited(_ text: Binding<String>, to max: Int) -> some View {
+        onChange(of: text.wrappedValue) { _, new in
+            if new.unicodeScalars.count > max { text.wrappedValue = String(String.UnicodeScalarView(new.unicodeScalars.prefix(max))) }
+        }
+    }
     /// A one-line question as the system asks one: an alert with a text field, Avbryt and Spara.
     func textPrompt(_ prompt: Binding<TextPrompt?>) -> some View {
         modifier(TextPromptAlert(prompt: prompt))
@@ -31,12 +56,12 @@ private struct TextPromptAlert: ViewModifier {
     func body(content: Content) -> some View {
         content
             .alert(prompt?.title ?? "", isPresented: Binding(get: { prompt != nil }, set: { if !$0 { prompt = nil } }), presenting: prompt) { p in
-                TextField(p.label, text: $text)
+                TextField(p.label, text: $text).limited($text, to: p.rule.max)
                 Button(t("common.cancel"), role: .cancel) {}
                 // The alert's preferred action: drawn filled in the app's colour on iOS 26, Return presses it.
                 Button(t("common.save")) { p.done(text) }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!p.allowsEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(p.rule.blocks(text))
             }
             .onChange(of: prompt?.id) { _, _ in text = prompt?.text ?? "" }
     }
@@ -104,7 +129,7 @@ struct DetailsSheet: View {
 
     var body: some View {
         Form {
-            Section { TextField(t("presentation.name"), text: $name) }
+            Section { TextField(t("presentation.name"), text: $name).limited($name, to: model.rule("presentationName").max) }
             Section {
                 Toggle(t("presentation.date"), isOn: $hasDate.animation())
                 if hasDate { DatePicker(t("presentation.date"), selection: $date, displayedComponents: .date).labelsHidden() }
@@ -113,13 +138,14 @@ struct DetailsSheet: View {
             }
             .environment(\.locale, Texts.locale)
             Section {
-                TextField(t("presentation.location"), text: $location)
+                TextField(t("presentation.location"), text: $location).limited($location, to: model.rule("location").max)
                 TextField(t("presentation.description"), text: $description, axis: .vertical).lineLimit(4...8)
+                    .limited($description, to: model.rule("description").max)
             }
         }
         .formStyle(.grouped)
         .sheetBar(t(presentationId == nil ? "presentations.createTitle" : "presentation.editDetails"), confirm: t(presentationId == nil ? "common.create" : "common.save"),
-                  disabled: name.trimmingCharacters(in: .whitespaces).isEmpty, save)
+                  disabled: model.rule("presentationName").blocks(name), save)
         .macWidth(440)
         .onAppear(perform: fill)
     }

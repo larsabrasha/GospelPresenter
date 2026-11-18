@@ -1,5 +1,6 @@
 import type { PresentationItem } from '@gp/core';
 import { useState, type ReactNode } from 'react';
+import { fields, type FieldRule } from '../../db/pageCore.ts';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -15,12 +16,12 @@ export type HeaderPlace = { afterItemId: string | null } | { beforeItemId: strin
  * One text of an item asked for in a small dialog, as iOS asks for a new list's name: an item's texts are not edited
  * in the list (that confused, Lars 2026-11-02). The title says what it is, so the field has its name only as its
  * placeholder (Lars, 2026-11-05: a label over one field adds nothing), or none at all, the title naming it (`label` left out). Saved by `save`, which says whether it went through; blank is allowed
- * only where it removes the text (`optional`).
+ * only where it removes the text: the field's `rule`, the core's (`rulesView`'s fields), with its length.
  */
-function TextDialog({ title, label, initial, optional, submit, save, onClose }: { title: string; label?: string; initial: string; optional?: boolean; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
+function TextDialog({ title, label, initial, rule, submit, save, onClose }: { title: string; label?: string; initial: string; rule: FieldRule; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
   const [text, setText] = useState(initial);
   const [saving, setSaving] = useState(false);
-  const blocked = (!optional && !text.trim()) || saving;
+  const blocked = (rule.required && !text.trim()) || saving;
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-md">
       <form
@@ -34,7 +35,7 @@ function TextDialog({ title, label, initial, optional, submit, save, onClose }: 
           if (saved) onClose();
         }}
       >
-        <FloatingInput label={label ?? title} placeholder={label ? undefined : ''} hideLabel autoFocus maxLength={200} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
+        <FloatingInput label={label ?? title} placeholder={label ? undefined : ''} hideLabel autoFocus maxLength={rule.max} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}
@@ -57,6 +58,7 @@ function HeaderDialog({ presentationId, place, item, onAdded, onClose }: { prese
       title={t(item ? 'header.rename' : 'header.new')}
       label={t('header.name')}
       initial={item?.title ?? ''}
+      rule={fields().itemTitle}
       submit={t(item ? 'common.save' : 'presentation.addTitle')}
       save={async (title) => {
         if (item) return trySave(db.mutate('renameItem', { itemId: item.id, title }));
@@ -81,7 +83,7 @@ function NoteDialog({ item, onClose }: { item: PresentationItem; onClose: () => 
     <TextDialog
       title={t('note.title')}
       initial={item.note ?? ''}
-      optional
+      rule={fields().itemNote}
       submit={t('common.save')}
       save={(note) => trySave(db.mutate('setItemNote', { itemId: item.id, note }))}
       onClose={onClose}

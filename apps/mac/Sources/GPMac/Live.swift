@@ -49,10 +49,12 @@ final class Live {
         case "start":
             id = open
             page = m.current
+            m.lastAddedId = nil
             next = Presenting(presenting: true, shown: Shown(itemId: nil, partIndex: 0, black: false), picked: nil)
         case "stop":
             id = nil
             page = nil
+            m.lastAddedId = nil
             next = .off
         case "show":
             let at = SlideAt(itemId: action["itemId"] as? String ?? "", partIndex: action["partIndex"] as? Int ?? 0)
