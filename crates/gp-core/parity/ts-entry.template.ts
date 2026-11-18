@@ -7,5 +7,6 @@ export { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 export { labelSeedSql } from '@REF@/packages/core/src/labels.ts';
 export { songSlides, bibleItemSlides } from '@REF@/packages/core/src/slides.ts';
 export { presentingKey, slideMarks, slideOrder } from '@REF@/packages/core/src/presenting.ts';
+export { applyLiveChange, followItemOverlay } from '@REF@/packages/core/src/live.ts';
 export { readItemSlides } from '@REF@/packages/core/src/item-slides.ts';
 export { parseCustomPages } from '@REF@/packages/core/src/custom-slides.ts';

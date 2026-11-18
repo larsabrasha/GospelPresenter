@@ -26,13 +26,22 @@ final class Model {
     var presentations: [PresentationRow] { lists.flatMap(\.rows) }
     /// The pages over the start page: the presentation opened, by its id.
     var path: [String] = [] {
-        didSet { if oldValue.last != path.last { selectedItem = nil; load() } }
+        didSet { if oldValue.last != path.last { opened() } }
     }
     var selectedPresentation: String? { path.last }
     /// The presentation open, as `presentationPageView` reads it.
     var current: PresentationView?
-    /// The item chosen in the running order (its row at the left, the slides scrolled to it).
-    var selectedItem: String?
+    /// The open page's own state, the core's (`send`, `pageEventView`): the item selected, the slide made ready, the
+    /// last thing added. One for the app's window: a second iPad window would need its own (not yet).
+    private(set) var pageState = PageState()
+    /// The item chosen in the running order (its row at the left, the slides scrolled to it); choosing one is the
+    /// page's `select` event.
+    var selectedItem: String? {
+        get { pageState.selectedId }
+        set { if let newValue, newValue != pageState.selectedId { send(["type": "select", "itemId": newValue]) } }
+    }
+    /// The item added last, which the next addition follows (`addPositionView`); let go when presenting starts or ends.
+    var lastAddedId: String? { pageState.lastAddedId }
     var refusal: String?
     /// The role the demo's changes run with; a signed-in device has its member's.
     var role = "admin"
@@ -45,9 +54,6 @@ final class Model {
     var addingSong: AddAt?
     /// An item whose removal asks first.
     var removing: ItemView?
-    /// The item added last, which the next addition follows while presenting (`addPositionView`); forgotten when
-    /// presenting starts or ends, as the web forgets it.
-    var lastAddedId: String?
 
     /// The app's own folder: the organisations' databases and the demo's (GP_MAC_DATA on the Mac, for build.sh run).
     static let home: String = {
@@ -70,10 +76,10 @@ final class Model {
         if let session = Keychain.session, !args.bool(forKey: "gp.demo") { open(session) }
         else if let file = args.string(forKey: "gp.fixture") { openFixture(file) }
         else if ProcessInfo.processInfo.environment["GP_MAC_DATA"] != nil || args.bool(forKey: "gp.demo") { openDemo() }
-        if let id = args.string(forKey: "gp.open") { path = [id] }
+        if let id = args.string(forKey: "gp.open") { path = [id]; opened() }
         if let at = args.string(forKey: "gp.show")?.split(separator: "/"), at.count == 2, let n = Int(at[1]) {
-            live.press(self, ["type": "start"])
-            live.press(self, ["type": "show", "itemId": String(at[0]), "partIndex": n])
+            send(["type": "start"])
+            send(["type": "show", "itemId": String(at[0]), "partIndex": n])
         }
         #if os(iOS)
         if args.bool(forKey: "gp.measure") { Task { try? await Task.sleep(for: .seconds(2)); await Measure.run(self) } }
@@ -209,7 +215,50 @@ final class Model {
     func load() {
         current = selectedPresentation.flatMap(page)
         note("presentationPageView")
-        live.opened(self)
+    }
+
+    /// Another presentation opened: its page's state starts afresh, the item shown selected if it is the one presented.
+    func opened() {
+        let shown = live.id == selectedPresentation ? live.state.itemId : nil
+        pageState = PageState(selectedId: shown, presenting: live.on && live.id == selectedPresentation, followed: shown)
+        load()
+    }
+
+    /// An event of the open page (a key, a tap, a row chosen, an addition), as the core answers it (`pageEventView`):
+    /// its state kept, its change to the live state made, and then what that change leaves the page in (`sync`).
+    @discardableResult
+    func send(_ event: [String: Any]) -> PageAnswer? {
+        guard let open = selectedPresentation, let items = current?.items else { return nil }
+        let context: [String: Any] = ["presentationId": open, "isTemplate": false, "presenting": isLive, "live": jsonObject(live.state)]
+        guard let answer = view("pageEventView", ["state": jsonObject(pageState), "context": context, "order": Live.order(items), "event": event], as: PageAnswer.self) else { return nil }
+        if pageState != answer.state { pageState = answer.state }
+        if let change = answer.live?.any as? [String: Any], live.set(self, change) { send(["type": "sync"]) }
+        return answer
+    }
+
+    /// What the core's answer to a key asks of the page: a move, a removal (asked first), Lägg till. A scroll follows
+    /// the selection by itself; Avsluta is the bar's, which asks first.
+    func perform(_ command: JSONValue) {
+        let item = command["itemId"]?.string.flatMap { id in current?.items.first { $0.id == id } }
+        switch command["type"]?.string {
+        case "move": if let item, case let .number(by) = command["by"] { run("moveItem", ["itemId": item.id, "by": Int(by)]) }
+        case "remove": removing = item
+        case "add": addingSong = AddAt(after: afterFor(nil))
+        default: break
+        }
+    }
+
+    /// Avsluta: nothing presented, and the page as that leaves it.
+    func endPresenting() {
+        live.end(self)
+        send(["type": "sync"])
+    }
+
+    /// Whether ▶ may start: not while another presentation is presented (`pageModelView`).
+    var canStart: Bool {
+        guard let open = selectedPresentation, let items = current?.items else { return false }
+        let context: [String: Any] = ["presentationId": open, "isTemplate": false, "presenting": isLive, "live": jsonObject(live.state)]
+        return view("pageModelView", ["state": jsonObject(pageState), "context": context, "order": Live.order(items)], as: PageModel.self)?.canStart ?? false
     }
 
     func searchSongs(_ query: String) -> [SongHit] {

@@ -66,7 +66,11 @@ tapped shows nothing, and ▶ starts it.
 - **Before presenting**, a slide clicked (a computer's tile, a phone's part row) is outlined in blue and nothing else,
   to click around and point one out to someone (Lars, 2026-11-03, as the current app), and moved by the keys that
   step while presenting (→ ← ↑ ↓ PageDown PageUp, and ⌘↓ ⌘↑ to an item's first slide); Starta presentation still starts
-  black and lets go of it.
+  black and lets go of it. Its item is the one selected, on a phone too (Lars, 2026-11-18: a phone had no selection),
+  so + adds after it. The selection, the slide made ready and what each key does are the page's state in the core,
+  the same on every shell (docs/view-models.md).
+- **One presentation presented at a time** (Lars, 2026-11-18): while one is, another's ▶ is not offered, in any window
+  of the device; the core refuses a start (`liveChangeView`).
 - **While presenting**, ↵ shows the next slide, unless one is made ready, outlined in blue: the arrows make one ready
   and move it through the slides as they stand (← → a slide, ↑ ↓ a row), ⌘↑ ⌘↓ the item before or after, a number
   that slide; it is said over the live picture with its item's name, ↵ shows it and the outline goes, Esc lets it

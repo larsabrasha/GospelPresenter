@@ -1,7 +1,7 @@
-// Presenting's keys and marks from the Rust core (`presentingKeyView`, `slideMarksView`, crates/gp-core/src/presenting.rs),
-// as packages/core's presentingKey and slideMarks: pure, so the page calls the core on its own thread, synchronously,
-// and a key reaches the outputs without a round trip to the database's worker (docs/rust-core.md, 2.5 step 3).
-import type { Presenting, PresentingKey, SlideAt, SlideMarkKind } from '@gp/core';
+// Presenting's marks from the Rust core (`slideMarksView`, crates/gp-core/src/presenting.rs), as packages/core's
+// slideMarks: pure, so the page calls the core on its own thread, synchronously (docs/rust-core.md, 2.5 step 3). Its
+// keys are the page's state's (live/pageState.ts, `pageEventView`).
+import type { Presenting, SlideAt, SlideMarkKind } from '@gp/core';
 import { pageCore as theCore } from '../db/pageCore.ts';
 
 /** The running order as the core takes it: each item's id and how many slides it has; a heading has none. */
@@ -12,17 +12,6 @@ export const slideOrderOf = (items: readonly { itemId: string; parts: number }[]
 
 const sameAt = (a: { itemId: string | null; partIndex: number } | null, b: { itemId: string | null; partIndex: number } | null) =>
   a === b || (!!a && !!b && a.itemId === b.itemId && a.partIndex === b.partIndex);
-
-/**
- * What presenting holds after `key` (`presentingKey`). A part whose value does not change keeps its object, so the page
- * tells by identity what to send on: a new `shown` to the outputs, a new `picked` to the outline.
- */
-export function presentingKey(order: SlideOrder, state: Presenting, key: PresentingKey): Presenting {
-  const next = theCore().pure<Presenting>('presentingKeyView', { order, state, key });
-  const shown = sameAt(next.shown, state.shown) && next.shown.black === state.shown.black ? state.shown : next.shown;
-  const picked = sameAt(next.picked, state.picked) ? state.picked : next.picked;
-  return shown === state.shown && picked === state.picked && next.presenting === state.presenting ? state : { presenting: next.presenting, shown, picked };
-}
 
 /**
  * How each slide is marked while presenting (`slideMarks`): VISAS on the slide shown, NÄSTA on the one → shows next,

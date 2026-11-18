@@ -121,7 +121,7 @@ is left out where the menu is drawn.
 | --- | --- | --- |
 | The start page | `startPageView` | built |
 | A presentation: the running order, its slides, details, items added and removed, a comment, an arrangement, moved by dragging (columns) | `presentationPageView`, `overlayView`, `searchSongsView`, `presentationActionsView`, `itemActionsView`, `addPositionView`, `rulesView` | built |
-| Presenting: Starta, a slide tapped, the keys (→ ← ↵ Space B Esc) and Släck, VISAS and NÄSTA | `presentingKeyView`, `slideMarksView` | built; on the Mac an output window, on iOS no output yet (AirPlay and an external display come later) |
+| Presenting: Starta (not while another presentation is presented), a slide tapped (before presenting, made ready and its item selected, on a phone too), the web's keys where a keyboard is (in columns: arrows, PageUp PageDown, ↵, Space, Esc, b, a, Delete, digits, ⌘ and ⌥ with the arrows) and Släck, VISAS and NÄSTA | `liveChangeView` (the app's live state, `Live`), `pageEventView` and `pageModelView` (the page's state, `Model.send`), `slideMarksView` | built; ↑ ↓ step as → ← (the grid does not yet say which slide stands above another); on the Mac an output window, on iOS no output yet (AirPlay and an external display come later) |
 | Inställningar and its pages, Sånger, the song editor, Bibles, pictures, sounds, videos, custom slides, templates, themes, the trash | the rest of the 37 | not built; the bar has no cog yet |
 
 Not built in a presentation: Redigera (a song's page), Överlägg ›, Markera, Utgångar, Fjärrstyrning, the kinds but

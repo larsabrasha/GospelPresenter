@@ -12,15 +12,11 @@ import {
   DEFAULT_LABELS,
   highlight,
   labelId,
-  applyLiveChange,
-  followItemOverlay,
   newer,
   parsePartIds,
   parseSlideDeckPages,
   pdfPages,
   searchSongs,
-  type LivePointer,
-  type LivePointerChange,
 } from '../src/index.ts';
 
 describe('permissions (spec 01)', () => {
@@ -197,69 +193,8 @@ describe('trash', () => {
 });
 
 
-describe("the shown item's overlay changed while it is live", () => {
-  const shown = (change: Partial<LivePointer>): LivePointer => ({ presentationId: 'P1', itemId: 'A', partIndex: 0, black: false, overlayId: null, rev: 1, ...change });
-
-  it("switches to the item's new overlay when its old one was showing", () => {
-    expect(followItemOverlay(shown({ overlayId: 'O' }), 'O', 'P')).toBe('P');
-  });
-
-  it('switches it on when the item had none and none was showing', () => {
-    expect(followItemOverlay(shown({}), null, 'O')).toBe('O');
-  });
-
-  it('switches it off when the item no longer carries one', () => {
-    expect(followItemOverlay(shown({ overlayId: 'O' }), 'O', null)).toBeNull();
-  });
-
-  it('leaves a manual choice that is not the item\'s own', () => {
-    expect(followItemOverlay(shown({ overlayId: 'M' }), 'O', 'P')).toBeUndefined();
-  });
-
-  it('changes nothing while the screen is black, or when the item was not known before', () => {
-    expect(followItemOverlay(shown({ black: true }), null, 'O')).toBeUndefined();
-    expect(followItemOverlay(shown({}), undefined, 'O')).toBeUndefined();
-  });
-});
-
+// The pointer's overlay rules and one presentation at a time are the Rust core's (packages/rust-core/test/live-state.test.ts).
 describe('live pointer', () => {
-  // TODO.md "Overlays": A carries overlay O, B carries none, C carries O too. P is another overlay.
-  const carried: Record<string, string | null> = { A: 'O', B: null, C: 'O' };
-  const overlayOf = (itemId: string) => carried[itemId] ?? null;
-  const at = (change: Partial<LivePointer>): LivePointer => ({ presentationId: 'P1', itemId: null, partIndex: 0, black: false, overlayId: null, rev: 1, ...change });
-  const apply = (p: LivePointer, change: LivePointerChange) => applyLiveChange(p, change, overlayOf).overlayId;
-
-  it("an item's overlay switches on when it goes live and off when it leaves", () => {
-    expect(apply(at({}), { itemId: 'A', partIndex: 0 })).toBe('O');
-    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { partIndex: 1 })).toBe('O');
-    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { itemId: 'B', partIndex: 0 })).toBeNull();
-    // Two items with the same overlay: it stays on.
-    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { itemId: 'C', partIndex: 0 })).toBe('O');
-  });
-
-  it('a manual off lasts until the item changes; back on the item, its overlay comes on again', () => {
-    const off = applyLiveChange(at({ itemId: 'A', overlayId: 'O' }), { overlayId: null }, overlayOf);
-    expect(off.overlayId).toBeNull();
-    expect(apply({ ...off, rev: 2 }, { partIndex: 1 })).toBeNull();
-    expect(apply(at({ itemId: 'B' }), { itemId: 'A', partIndex: 0 })).toBe('O');
-  });
-
-  it('a manual overlay stays when the item that carried another one is left, and the new item overrides it', () => {
-    expect(apply(at({ itemId: 'A', overlayId: 'P' }), { itemId: 'B', partIndex: 0 })).toBe('P');
-    expect(apply(at({ itemId: 'B', overlayId: 'P' }), { itemId: 'C', partIndex: 0 })).toBe('O');
-  });
-
-  it('Rensa and stopping switch the overlay off; showing one ends the black screen', () => {
-    expect(applyLiveChange(at({ itemId: 'A', overlayId: 'O' }), { black: true }, overlayOf)).toMatchObject({ black: true, overlayId: null });
-    // Back from black on the same item: its own overlay comes back, as on entering it (Lars, 2026-11-02).
-    expect(apply(at({ itemId: 'A', black: true }), { partIndex: 1, black: false })).toBe('O');
-    // On an item with none, there is none.
-    expect(apply(at({ itemId: 'B', black: true }), { partIndex: 0, black: false })).toBeNull();
-    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { presentationId: null, itemId: null })).toBeNull();
-    expect(applyLiveChange(at({ itemId: 'B', black: true }), { overlayId: 'P' }, overlayOf)).toMatchObject({ black: false, overlayId: 'P' });
-  });
-
-
   it('the higher revision wins, whatever order the messages arrive in', () => {
     const a = { presentationId: 'P', itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 1 };
     const b = { ...a, partIndex: 1, rev: 2 };

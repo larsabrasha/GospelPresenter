@@ -27,11 +27,23 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 - **Texts by key.** Views never return words, only `i18n.ts`'s keys; `apps/web/src/i18n.ts` stays the one table, which
   the native app reads already (`apps/mac/texts.mjs`). The web still writes each key out where it draws an action, as
   `packages/architecture` wants every key written out, and takes from the core which actions there are and their state.
+- **State in three places, each changed only by the core** (Lars, 2026-11-18). The data is the database's, changed
+  by the mutators. The app's live state, one for every window of a device (which presentation is presented, its
+  slide, black, the overlay), is changed only by `liveChangeView` (`crates/gp-core/src/live_state.rs`): one
+  presentation presented at a time, and the overlays' rules; the web's windows keep copies alike over their channel
+  (`live/live.ts`, the newer by `rev`), the native app has one. A page's own state, one per window (the item selected,
+  the slide made ready, the last thing added, a number typed), is changed only by `pageEventView`
+  (`crates/gp-core/src/page_state.rs`), a reducer: the shell holds the state, sends an event (a key, a tap, a row
+  chosen, an addition) and gets back the new state, a change to the live state, and a command to carry out (a scroll,
+  a dialog, a mutation). The organisation's live sessions on the server, for remote control, are a fourth thing,
+  the server's.
 - **What stays a shell's**: layout and sizes, widgets and their platform's patterns (an alert on iOS, a dialog on the
   web), icons, animation, scrolling and when the list follows the shown slide, the navigation stack's mechanics,
-  keyboard shortcuts' keys, and drawing slides (already one renderer, `SlideView`).
+  which physical key is which event, which slide stands above another in a grid (↑ ↓; the shell sends the slide),
+  where the focus is (whether ↵ is the page's), how long a typed number waits, and drawing slides (already one
+  renderer, `SlideView`).
 
-## Built (`crates/gp-core/src/page_models.rs`)
+## Built (`crates/gp-core/src/page_models.rs`, `live_state.rs`, `page_state.rs`)
 
 | View | What it decides | Proved by | Read by |
 | --- | --- | --- | --- |
@@ -39,6 +51,8 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 | `startPageView` {today} | the start page's lists: Idag by time, Kommande soonest first, the rest last changed first; which show a date and a year; each row's number of items; an empty list left out | 32 days against the TS `groupPresentations` and `itemCounts` at 238d481b; `packages/rust-core/test/page-models.test.ts` | web (`Presentations.tsx`), iOS (`Model.refresh`) |
 | `presentationActionsView` {isTemplate, presenting, role} | the title menu: Redigera detaljer, Material (not for a template), Spara som mall (who may manage templates), the trash (not while presented) | unit tests (`page-models.test.ts`); the web's e2e specs of the menu | web (`PresentationEditor.tsx`), iOS (`PresentationScreen.titleMenu`) |
 | `itemActionsView` {item, song, arrangements, overlays, shownId} | an item's menu: Byt namn (a programme item), Redigera (a song not in the trash, a custom slide), Redigera bilder, Kommentar; Arrangemang › (two or more, a song not in the trash) and Överlägg › (while there are overlays), not for a programme item; Lägg till efter ›, Ny programpunkt ovanför, Markera; Radera, disabled for the item on the outputs, black or not | unit tests; the scenario; the web's e2e specs of the menu; iOS's UI test | web (`ItemContextMenu.tsx`, a phone's `ItemSheet.tsx`), iOS (`ItemMenu`) |
+| `liveChangeView` {pointer, change, overlays}, `followItemOverlayView` | the app's live state: a change numbered after the last, the overlays' rules, a start refused while another presentation is presented | 6 000 random changes and 3 000 overlays changed against 2.0's `applyLiveChange` and `followItemOverlay` (`parity/views/live-state.mjs`), every start over another refused; `packages/rust-core/test/live-state.test.ts` (the TS tests moved there) | web (`live/live.ts`, `live/owner.ts`), iOS (`Live.set`) |
+| `pageEventView` {state, context, order, event}, `pageModelView` | a page's own state and what each key, tap and row does to it: ← → ↑ ↓ PageUp PageDown Space ↵ Escape b . a Delete digits ⌘↑ ⌘↓ ⌥↑ ⌥↓ F5 ⌘., a slide tapped, a row chosen, an addition; ▶ offered; the cue over the live picture | `packages/rust-core/test/page-state.test.ts` (22 tests); the scenario's keys in each state; the web's e2e specs of the keys (keyboard, live-order, phone, journeys) | web (`live/pageState.ts`, `useEditorKeys.ts`, the computer's page and the phone's), iOS (`Model.send`) |
 | `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/rust-core/test/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
 
 `addPositionView` and `startPageView` had a TS function to port, so they are proved against it; the menus were JSX
@@ -53,18 +67,22 @@ after Släck either, on both, as the scenario showed that → would then start t
 1. **The core**, in `pnpm test` and `build.sh test`: the parity checks against the old TS core where it had the rule,
    unit tests of each rule, and scenarios (`packages/rust-core/scenarios`): a small organisation made by the mutators
    (`sunday.json`), presenting moved by its keys, and in each state (before, a slide shown, after Släck) what the core
-   offers: the slide shown and marked, each item's menu, where + adds. The answers are `sunday.expected.json`, a file
+   offers: the slide shown and marked, each item's menu, where + adds, whether ▶ may start there and in another
+   presentation (one at a time), and the page's state after a run of keys. The answers are `sunday.expected.json`, a file
    snapshot: a rule changed changes that file (`vitest -u`), read in the diff. They prove the core against what 2.0 is
    meant to do and outlive the reference (`docs/rust-core.md`, "Before 2.0 goes out", point 3).
 2. **Each shell against the same answers.** iOS: `apps/mac/apple.sh uitest` (XCUITest, `apps/mac/ios/UITests`, about
    two minutes on a simulator) makes the scenario's organisation in the app (`-gp.fixture`), reaches each state as
    someone would (▶, a part tapped, Släck), opens each item's … and checks that the entries the app draws are those the
-   core offers, enabled as it says, and that none it does not offer is there; found by their Swedish texts. Run when
+   core offers, enabled as it says, and that none it does not offer is there, found by their Swedish texts; then, the
+   Sunday still presented, that the evening meeting's ▶ is offered as the core says (not). Run when
    the app's Swift changes, not in every check. Made to fail once on purpose (Radera always enabled): it failed for the
    shown item, shown and black. The web: `apps/web/test/ItemMenus.test.tsx`, in `pnpm test` (under a second), draws
    the computer's … and a phone's sheet for each item in each state, in a DOM (happy-dom, Lars 2026-11-18), from the
    same organisation (`@gp/rust-core/scenarios` makes it), and checks the same three things. Made to fail on purpose
-   twice (a phone's Radera always enabled; Byt namn drawn for every item): it failed where it should.
+   twice (a phone's Radera always enabled; Byt namn drawn for every item): it failed where it should. The keys are
+   checked in the web by its e2e specs (keyboard, live-order), not yet against the scenario's answers in a shell test;
+   iOS sends the same events, from its own keys, unchecked by a test.
 3. **The shells against each other** (not built, and not planned): the same scenario's accessibility snapshots
    compared between the web and iOS. Point 2 against one answer file catches nearly the same, more simply. Pictures are
    compared only within one shell, before and after a change (`docs/look.md`), never across shells, whose components

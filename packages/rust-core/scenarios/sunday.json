@@ -1,5 +1,5 @@
 {
-  "about": "A small Sunday: a heading, a song of one part, a song with two arrangements, a song in the trash and an overlay. Played before presenting, with a slide shown and after Släck; the core's answers are sunday.expected.json, which every shell's menus are checked against (docs/view-models.md).",
+  "about": "A small Sunday: a heading, a song of one part, a song with two arrangements, a song in the trash and an overlay, and an evening meeting beside it. Played before presenting, with a slide shown and after Släck; in each state the keys of `keys` from the state as it is, and whether ▶ may start here and in the other presentation (one at a time). The core's answers are sunday.expected.json, which every shell is checked against (docs/view-models.md).",
   "presentation": "p1",
   "setup": [
     ["createSong", { "id": "s1", "name": "Härlig är jorden" }],
@@ -17,7 +17,18 @@
     ["addSongToPresentation", { "itemId": "i0", "presentationId": "p1", "songId": "s3", "arrangementId": null }],
     ["addSongToPresentation", { "itemId": "i1", "presentationId": "p1", "songId": "s1", "arrangementId": null }],
     ["addSongToPresentation", { "itemId": "i2", "presentationId": "p1", "songId": "s2", "arrangementId": null }],
-    ["trashSong", { "id": "s2", "at": 1000 }]
+    ["trashSong", { "id": "s2", "at": 1000 }],
+    ["createPresentation", { "id": "p2", "name": "Kvällsmöte" }],
+    ["addSongToPresentation", { "itemId": "k1", "presentationId": "p2", "songId": "s3", "arrangementId": null }]
+  ],
+  "other": "p2",
+  "keys": [
+    { "type": "item", "delta": 1 },
+    { "type": "item", "delta": 1 },
+    { "type": "pick", "delta": 1 },
+    { "type": "pick", "delta": 1 },
+    { "type": "delete" },
+    { "type": "add" }
   ],
   "states": [
     { "name": "before", "presenting": false, "keys": [] },

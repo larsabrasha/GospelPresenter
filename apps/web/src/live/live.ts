@@ -1,11 +1,11 @@
 import {
-  applyLiveChange,
   IDLE,
   newer,
   type LivePointer,
   type LivePointerChange,
   type LiveVideo,
 } from '@gp/core';
+import { pageCore } from '../db/pageCore.ts';
 import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
 import type { PlaybackBus, PlaybackMessage } from './playback.ts';
@@ -108,9 +108,14 @@ export class LiveChannel implements PlaybackBus {
     for (const fn of this.listeners) fn(next);
   }
 
-  /** Operator only: changes what the outputs show, with the overlay rules of `applyLiveChange`. */
-  set(change: LivePointerChange) {
-    const pointer = { ...applyLiveChange(this.current, change, (itemId) => this.itemOverlays.get(itemId) ?? null), rev: this.current.rev + 1 };
+  /**
+   * Operator only: changes what the outputs show, as the core changes the pointer (`liveChangeView`: the overlay rules,
+   * one presentation presented at a time). False when the core refused it: another presentation is presented.
+   */
+  set(change: LivePointerChange): boolean {
+    const done = pageCore().pure<{ pointer?: LivePointer; refused?: string }>('liveChangeView', { pointer: this.current, change, overlays: Object.fromEntries(this.itemOverlays) });
+    const pointer = done.pointer;
+    if (!pointer) return false;
     this.receive(pointer, true);
     this.channel.postMessage({ type: 'pointer', pointer } satisfies LiveMessage);
     try {
@@ -118,6 +123,7 @@ export class LiveChannel implements PlaybackBus {
     } catch {
       // no storage: a reload stops presenting
     }
+    return true;
   }
 
   subscribe(fn: (p: LivePointer) => void): () => void {

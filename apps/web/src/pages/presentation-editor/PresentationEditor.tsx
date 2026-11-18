@@ -1,18 +1,19 @@
-import type { PresentationItem, PresentingKey, Role } from '@gp/core';
+import type { PresentationItem, Role } from '@gp/core';
 import { presentationActionIds } from '../../db/pageCore.ts';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useDataReading, useDb, useShownOverlay } from '../../db/react.tsx';
 import { presentationPage, PRESENTATION_PAGE_READS } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
-import { presentingKey, slideOrderOf } from '../../live/presenting.ts';
+import { slideOrderOf } from '../../live/presenting.ts';
 import { addAfter } from '../../live/liveList.ts';
+import { usePageState, type PageCommand } from '../../live/pageState.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../../ui/Dialog.tsx';
 import { backToTemplates, href, navigate } from '../../ui/router.ts';
 import { songPage } from '../live/songPage.ts';
 import { newId } from '../../ids.ts';
-import { useAppCommand } from '../../ui/appKeys.ts';
+import { runCommand, useAppCommand } from '../../ui/appKeys.ts';
 import { useShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import { KEYS, LiveKeys, PaletteTarget } from './EditorKeys.tsx';
 import type { AudioControl } from '../../live/audio.ts';
@@ -28,7 +29,7 @@ import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
 import type { ItemMenuSource } from '../live/ItemContextMenu.tsx';
 import { useAutoOutputs } from '../live/useAutoOutputs.ts';
-import { SlideList, type SlidePick } from '../live/SlideList.tsx';
+import { SlideList } from '../live/SlideList.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
@@ -95,12 +96,24 @@ export function PresentationEditor({
   // This window's live slide: its item is marked in the running order and selected on open.
   const pointer = useLivePointer(live);
   const liveItemId = pointer.presentationId === id ? pointer.itemId : null;
-  // On open, the item shown live, else the one selected when this presentation was last open (Presentation.razor).
-  const [selectedId, setSelectedIdState] = useState<string | null>(() => liveItemId ?? lastSelected.get(id) ?? null);
-  const setSelectedId = (itemId: string | null) => {
-    setSelectedIdState(itemId);
-    if (itemId) lastSelected.set(id, itemId);
-  };
+  /** Every slide of the running order, in order: what → and ← step through while presenting. */
+  const order = useMemo(() => (data ? slideOrderOf(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
+  // The page's own state, the core's (live/pageState.ts): the item selected, the slide made ready, the last thing
+  // added, a number typed. On open, the item shown live is selected, else the one selected when this presentation was
+  // last open (Presentation.razor).
+  const page = usePageState({
+    presentationId: id,
+    isTemplate: template,
+    presenting: !!presenting,
+    pointer,
+    order,
+    setLive: (change) => live.set(change),
+    initial: () => ({ selectedId: liveItemId ?? lastSelected.get(id) ?? null, followed: liveItemId }),
+  });
+  const { selectedId, picked, lastAddedId } = page.state;
+  useEffect(() => {
+    if (selectedId) lastSelected.set(id, selectedId);
+  }, [id, selectedId]);
   // Select mode ("Markera"): items are ticked, then removed together (Sidebar.razor).
   const [ticking, setTicking] = useState(false);
   // The row Markera was chosen on from a heading's …, ticked first; and the picture item edited in place.
@@ -112,24 +125,9 @@ export function PresentationEditor({
   // selected image item (Lägg till bilder). The last item added is the one the next
   // addition follows while presenting (liveList.ts).
   const [adding, setAdding] = useState<{ after: string | null; kind: AddKind; images?: boolean } | null>(null);
-  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  const added = (itemId: string) => {
-    setSelectedId(itemId);
-    setLastAddedId(itemId);
-  };
+  const added = (itemId: string) => page.send({ type: 'added', itemId });
   // Headings and comments (spec 03 2f): a new heading is selected, as an addition is.
   const texts = useItemTexts(id, added);
-  // Before presenting, the slide picked: outlined in blue and shown nowhere, moved by the keys that step while
-  // presenting (Lars, 2026-11-03: to click and step around and point one out).
-  const [picked, setPicked] = useState<SlidePick | null>(null);
-  // What was added before presenting does not decide where an addition goes while presenting; Starta presentation
-  // lets go of the slide picked too.
-  const [wasPresenting, setWasPresenting] = useState(!!presenting);
-  if (wasPresenting !== !!presenting) {
-    setWasPresenting(!!presenting);
-    setLastAddedId(null);
-    setPicked(null);
-  }
   const [details, setDetails] = useState(false);
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   // Spara offline…: its dialog, from the menu or the line at the foot of the left column.
@@ -138,7 +136,6 @@ export function PresentationEditor({
   const [showingMaterials, setShowingMaterials] = useState(false);
 
   const items = data?.items ?? [];
-  const selected = items.find((i) => i.id === selectedId) ?? null;
 
   // Presenting: this window's own session, or none while controlling one elsewhere.
   const owner = presenting?.owner ?? null;
@@ -146,33 +143,11 @@ export function PresentationEditor({
   // An item chosen at the left on a computer scrolls the slides to it, each choice anew.
   const [reveal, setReveal] = useState<{ id: string; n: number } | null>(null);
   const overlay = useShownOverlay(pointer.overlayId);
-  // The item shown live is the one selected, as a slide stepped into the next item takes the selection along, and
-  // lets go of a slide outlined to show next (useEditorKeys.ts).
-  const [followed, setFollowed] = useState(liveItemId);
-  if (presenting && liveItemId !== followed) {
-    setFollowed(liveItemId);
-    if (liveItemId) setSelectedId(liveItemId);
-    setPicked(null);
-  }
   useAutoOutputs(!!owner);
   // An output closed because the app's window was moved onto its display says so, so a dark projector is no surprise.
   useEffect(() => window.gpDesktop?.onOutputClosedHere((name) => toast(t('live.outputClosedHere', { name }))), [toast]);
   // The screen stays awake while this computer presents (Presentation.razor's wake lock).
   useWakeLock(!!owner);
-
-  /** Every slide of the running order, in order: what → and ← step through while presenting. */
-  const order = useMemo(() => (data ? slideOrderOf(data.items.map((item) => ({ itemId: item.id, parts: data.slides.get(item.id)?.slides.length ?? 0 }))) : []), [data]);
-  // A key's effect is the core's (presentingKey): what is shown goes to the outputs, the outline here, which takes the
-  // selection along.
-  const press = (key: PresentingKey) => {
-    const now = { presenting: !!presenting, shown: { itemId: pointer.itemId, partIndex: pointer.partIndex, black: pointer.black }, picked };
-    const next = presentingKey(order, now, key);
-    if (next.shown !== now.shown) live.set(next.shown);
-    if (next.picked !== now.picked) {
-      setPicked(next.picked);
-      if (next.picked) setSelectedId(next.picked.itemId);
-    }
-  };
 
   // "Presentationen har uppdaterats" when another session changed it: its time of change moved while this window wrote nothing.
   const updatedAt = data?.presentation ? data.presentation.updatedAt : undefined;
@@ -191,35 +166,36 @@ export function PresentationEditor({
     if (ok) failing(db.mutate('removeItem', { itemId: item.id }));
   };
 
-  // Page shortcuts (useEditorKeys.ts). Starta presentation stays on the page, which turns to presenting
-  // (Presentation.razor's StartPresentation).
-  const startable = !template && pointer.presentationId === null;
-  // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
-  const start = () => {
-    panels.show('right');
-    live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
+  // What the core's answer to a key, a tap or a row asks of the page (live/pageState.ts).
+  const reveal1 = (itemId: string) => setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
+  const onCommand = (c: PageCommand) => {
+    const item = 'itemId' in c ? items.find((i) => i.id === c.itemId) : undefined;
+    if (c.type === 'reveal') reveal1(c.itemId);
+    else if (c.type === 'item') {
+      if (c.reveal) reveal1(c.itemId);
+      // The focus with the mark, so ↵ is not a slide's clicked before.
+      if (c.focus) document.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(c.itemId)}"] [aria-pressed]`)?.focus({ preventScroll: true });
+    } else if (c.type === 'move' && item) failing(db.mutate('moveItem', { itemId: item.id, by: c.by }));
+    else if (c.type === 'remove' && item) void removeItem(item);
+    else if (c.type === 'add') setAdding({ after: null, kind: 'songs' });
+    // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
+    else if (c.type === 'start') panels.show('right');
+    else if (c.type === 'end') runCommand('end');
   };
+  const send = (event: Parameters<typeof page.send>[0]) => {
+    const { command } = page.send(event);
+    if (command) onCommand(command);
+  };
+  // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation); only
+  // while nothing else is presented, and never a template (the core's `canStart`).
+  const startable = page.canStart;
+  const start = () => send({ type: 'start' });
   useShortcutGroup(KEYS);
-  // Starta presentation by the desktop app's menu bar, as by F5 and ⌥⌘P below.
-  useAppCommand('start', () => startable && start());
-  const { cueText } = useEditorKeys({
-    ticking,
-    presenting: !!presenting,
-    liveItemId,
-    items,
-    slides: data?.slides,
-    selected,
-    setSelectedId,
-    picked,
-    shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null,
-    setPicked,
-    press,
-    start: startable ? start : null,
-    onAdd: () => setAdding({ after: null, kind: 'songs' }),
-    onRemove: (item) => void removeItem(item),
-    onMove: (item, by) => failing(db.mutate('moveItem', { itemId: item.id, by })),
-    onReveal: (itemId) => setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 })),
-  });
+  // Starta presentation by the desktop app's menu bar, as by F5 and ⌥⌘P.
+  useAppCommand('start', start);
+  useEditorKeys({ ticking, page, shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null, onCommand });
+  // Said over the live picture once the keys moved the outline: the slide ↵ shows, or that the number typed has none.
+  const cueText = page.cue && t(page.cue.text, { n: page.cue.n, item: items.find((i) => i.id === page.cue!.itemId)?.title ?? '' });
 
   if (!data) return null;
   const { presentation, slides, songs, theme, overlays } = data;
@@ -247,13 +223,9 @@ export function PresentationEditor({
       }),
     );
 
-  // A row chosen in the running order; on a computer the slides scroll to it, each choice anew.
-  const select = (itemId: string) => {
-    setSelectedId(itemId);
-    setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
-    // While presenting, its first slide is outlined for ↵, as ↓ does; what is shown is not.
-    if (presenting) setPicked(itemId !== liveItemId && slides.get(itemId)?.slides.length ? { itemId, partIndex: 0 } : null);
-  };
+  // A row chosen in the running order; on a computer the slides scroll to it, each choice anew. While presenting, its
+  // first slide is outlined for ↵, as ⌘↓ does; what is shown is not (the core's `select`).
+  const select = (itemId: string) => send({ type: 'select', itemId });
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   // A phone or an iPad held upright: one column with sheets, before and while presenting (docs/layout-2-0.md).
   const phone = !wide;
@@ -281,8 +253,8 @@ export function PresentationEditor({
     // The item on the outputs, black or not: removed after Släck, the next → would start the order over (Lars, 2026-11-18).
     shownId: liveItemId,
     editHref: (item) => {
-      const page = songPage(item, songs);
-      return page && href(page);
+      const route = songPage(item, songs);
+      return route && href(route);
     },
     onEditImages: (item) => setEditingImages(item.id),
     onAddAfter: (item, choice) => choose(item.id, choice),
@@ -326,15 +298,15 @@ export function PresentationEditor({
             // Picked and scrolled to, and while presenting shown at once (ui/CommandPalette.tsx).
             added(itemId);
             select(itemId);
-            if (presenting) live.set({ itemId, partIndex: 0, black: false });
+            if (presenting) send({ type: 'show', itemId, partIndex: 0 });
             return true;
           }}
           live={!!presenting}
           ends={!!presenting && !!owner}
           canStart={startable}
           onStart={start}
-          onStep={(delta) => press({ type: 'step', delta })}
-          onBlack={() => live.set({ black: true })}
+          onStep={(delta) => send({ type: 'step', delta })}
+          onBlack={() => send({ type: 'black' })}
           shown={presenting && current && pointer.itemId ? { slide: current, itemId: pointer.itemId } : null}
           players={presenting}
           onChoose={(choice) => choose(null, choice)}
@@ -356,6 +328,7 @@ export function PresentationEditor({
             live={live}
             pointer={pointer}
             presenting={presenting}
+            page={page}
             canStart={startable}
             onStart={start}
             onDetails={() => setDetails(true)}
@@ -393,26 +366,16 @@ export function PresentationEditor({
               overlays={overlays}
               pointer={pointer}
               toItem={reveal}
-              onShow={
-                presenting
-                  ? (itemId, partIndex) => {
-                      setPicked(null);
-                      live.set({ itemId, partIndex, black: false });
-                    }
-                  : undefined
-              }
+              onShow={presenting ? (itemId, partIndex) => send({ type: 'show', itemId, partIndex }) : undefined}
               onAddImages={(itemId) => {
-                setSelectedId(itemId);
+                page.send({ type: 'select', itemId });
                 setAdding({ after: null, kind: 'images', images: true });
               }}
               menuSource={menuSource}
               editingImages={editingImages}
               onEditingImages={setEditingImages}
               picked={picked}
-              onPick={(p) => {
-                setPicked(p);
-                setSelectedId(p.itemId);
-              }}
+              onPick={(p) => send({ type: 'show', ...p })}
             />
           </>
         )}

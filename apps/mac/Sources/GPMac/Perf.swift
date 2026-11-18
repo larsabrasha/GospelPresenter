@@ -22,10 +22,10 @@ enum Perf {
             ms.sort()
             return (ms[ms.count / 2], ms.last!)
         }
-        model.live.press(model, ["type": "start"])
+        model.send(["type": "start"])
         settle(window)
-        let pick = timed(60) { i in model.live.press(model, ["type": "pick", "delta": i % 20 < 10 ? 1 : -1]) }
-        let step = timed(60) { i in model.live.press(model, ["type": "step", "delta": i % 20 < 10 ? 1 : -1]) }
+        let pick = timed(60) { i in model.send(["type": "pick", "delta": i % 20 < 10 ? 1 : -1]) }
+        let step = timed(60) { i in model.send(["type": "step", "delta": i % 20 < 10 ? 1 : -1]) }
         let items = model.current?.items.map(\.id) ?? []
         let jump = timed(30) { i in model.selectedItem = items[(i * 7) % items.count] }
         let reload = timed(20) { _ in model.load() }

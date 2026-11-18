@@ -16,7 +16,6 @@ struct PresentationScreen: View {
                 Group {
                     if geo.size.width >= Size.columns { WideLayout(p: p) } else { PhoneLayout(p: p) }
                 }
-                .environment(\.wideLayout, geo.size.width >= Size.columns)
                 .navigationTitle(p.name)
                 .modifier(Subtitle(text: when(p)))
                 #if os(iOS)
@@ -31,7 +30,7 @@ struct PresentationScreen: View {
                 .textPrompt(Bindable(model).prompt)
                 .alert(t("live.end"), isPresented: $ending) {
                     Button(t("common.cancel"), role: .cancel) {}
-                    Button(t("live.end"), role: .destructive) { model.live.press(model, ["type": "stop"]) }
+                    Button(t("live.end"), role: .destructive) { model.endPresenting() }
                 } message: { Text(t("live.endText")) }
                 .confirmationDialog(t("presentation.trash"), isPresented: $trashing, titleVisibility: .visible) {
                     Button(t("presentation.trash"), role: .destructive) {
@@ -81,11 +80,13 @@ struct PresentationScreen: View {
             .buttonStyle(.borderedProminent).tint(.red)
             .keyboardShortcut(".", modifiers: .command)
         } else {
-            Button { model.live.press(model, ["type": "start"]) } label: {
+            Button { model.send(["type": "start"]) } label: {
                 Label(t("presentation.start"), systemImage: "play.fill").labelStyle(Wide(wide: wide))
             }
             .buttonStyle(.borderedProminent).tint(.green)
-            .disabled(model.current?.items.allSatisfy(\.slides.isEmpty) ?? true)
+            // The core's: not while another presentation is presented (`pageModelView`); and, this app's own, not with
+            // nothing to show.
+            .disabled(!model.canStart || (model.current?.items.allSatisfy(\.slides.isEmpty) ?? true))
             .accessibilityIdentifier("start")
         }
     }

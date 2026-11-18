@@ -15,9 +15,10 @@ struct OutputView: View {
         }
         .ignoresSafeArea()
         .focusable().focusEffectDisabled()
-        .onKeyPress(keys: [.rightArrow, .space, .return]) { _ in model.live.press(model, ["type": "step", "delta": 1]); return .handled }
-        .onKeyPress(.leftArrow) { model.live.press(model, ["type": "step", "delta": -1]); return .handled }
-        .onKeyPress("b") { model.live.press(model, ["type": "black"]); return .handled }
+        // The output's keys step what is shown and black it, as the page's do (`Model.send`).
+        .onKeyPress(keys: [.rightArrow, .space, .return]) { _ in model.send(["type": "step", "delta": 1]); return .handled }
+        .onKeyPress(.leftArrow) { model.send(["type": "step", "delta": -1]); return .handled }
+        .onKeyPress("b") { model.send(["type": "black"]); return .handled }
     }
 }
 

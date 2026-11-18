@@ -4,6 +4,7 @@ import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { addAfter } from '../../../live/liveList.ts';
+import type { PageControl } from '../../../live/pageState.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';
@@ -57,6 +58,7 @@ export function PhoneLive({
   live,
   pointer,
   presenting,
+  page,
   canStart,
   onStart,
   onDetails,
@@ -78,6 +80,8 @@ export function PhoneLive({
   pointer: LivePointer;
   /** While presenting; before, the list only edits. */
   presenting?: Presenting;
+  /** The page's own state, the same as a computer's (live/pageState.ts). */
+  page: PageControl;
   /** ▶: not in a template, nor while another presentation is shown. */
   canStart: boolean;
   onStart: () => void;
@@ -96,18 +100,12 @@ export function PhoneLive({
   // (`kind`), as on a computer (Lars, 2026-11-05), and the dialog shows that one only.
   const [adding, setAdding] = useState<{ chosenId: string | null; images?: string; kind?: AddKind } | null>(null);
   const choosingKind = !!adding && !adding.images && !adding.kind;
-  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  // What was added before presenting does not decide where an addition goes while presenting (liveList.ts).
-  const [wasPresenting, setWasPresenting] = useState(!!presenting);
-  if (wasPresenting !== !!presenting) {
-    setWasPresenting(!!presenting);
-    setLastAddedId(null);
-  }
   // An item just added: scrolled to (a new object each time) and its heading marked for a moment.
   const [toAdded, setToAdded] = useState<{ id: string } | null>(null);
-  // Headings and comments (spec 03 2f): a new heading is scrolled to, as an addition is.
+  // Headings and comments (spec 03 2f): a new heading is scrolled to, as an addition is; the page's state keeps it as
+  // the last thing added (the core's, live/pageState.ts).
   const texts = useItemTexts(id, (itemId) => {
-    setLastAddedId(itemId);
+    page.send({ type: 'added', itemId });
     setToAdded({ id: itemId });
   });
   const [addedId, setAddedId] = useState<string | null>(null);
@@ -120,7 +118,9 @@ export function PhoneLive({
 
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
 
-  const afterFor = (chosenId: string | null) => addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId, chosenId });
+  // Where an addition goes, the core's one rule: as on a computer, the item selected here is the one a tap made ready.
+  const afterFor = (chosenId: string | null) =>
+    addAfter({ order: items.map((i) => i.id), shownId: presenting ? pointer.itemId : null, lastAddedId: page.state.lastAddedId, chosenId, selectedId: page.state.selectedId });
   // A choice of + or of "Lägg till efter": a heading is named at once, a kind opens the dialog on it.
   const choose = (chosenId: string | null, choice: AddChoice) => {
     if (choice !== 'header') return setAdding({ chosenId, kind: choice });
@@ -207,8 +207,8 @@ export function PhoneLive({
             overlays,
             shownId: presenting ? pointer.itemId : null,
             editHref: (item) => {
-              const page = songPage(item, songs);
-              return page && href(page);
+              const route = songPage(item, songs);
+              return route && href(route);
             },
             onEditImages: (item) => setOpen({ images: item }),
             onAddAfter: (item, choice) => choose(item.id, choice),
@@ -231,7 +231,11 @@ export function PhoneLive({
           pointer={pointer}
           toItem={toAdded}
           markedId={addedId}
-          onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
+          // A part tapped: shown while presenting; before, made ready and its item selected, as on a computer (the
+          // page's state, Lars 2026-11-18), so + adds after it.
+          onShow={presenting ? (itemId, partIndex) => page.send({ type: 'show', itemId, partIndex }) : undefined}
+          picked={page.state.picked}
+          onPick={(p) => page.send({ type: 'show', ...p })}
           onItemMenu={(item) => setOpen({ item })}
           // Before presenting, the description at the top of the list, as a computer has it atop its left column; while
           // presenting, behind the button left of Släck (Lars, 2026-11-03).
@@ -304,7 +308,7 @@ export function PhoneLive({
           theme={theme}
           toItemId={adding.images}
           onAdded={(itemId) => {
-            setLastAddedId(itemId);
+            page.send({ type: 'added', itemId });
             setToAdded({ id: itemId });
             setAddedId(itemId);
             setTimeout(() => setAddedId((now) => (now === itemId ? null : now)), MARKED_MS);

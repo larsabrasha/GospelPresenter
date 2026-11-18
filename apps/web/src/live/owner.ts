@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { customPageText, followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { customPageText, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
+import { pageCore } from '../db/pageCore.ts';
 import { listDisplays } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { itemOverlays, liveSlide, liveTargets } from '../db/views.ts';
@@ -165,8 +166,10 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       live.itemOverlays = overlays;
       // The shown item's own overlay changed (its … or sheet): the outputs follow at once, unless a manual choice stands.
       const p = live.pointer;
-      const next = p.itemId ? followItemOverlay(p, before.get(p.itemId), live.itemOverlays.get(p.itemId)) : undefined;
-      if (next !== undefined) live.set({ overlayId: next });
+      // `before` and `after` left out where the map has no entry: the item's overlay was not known (`followItemOverlayView`).
+      const known = (m: Map<string, string | null>, itemId: string) => (m.has(itemId) ? m.get(itemId)! : undefined);
+      const next = p.itemId ? pageCore().pure<{ change: boolean; overlayId?: string | null }>('followItemOverlayView', { pointer: p, before: known(before, p.itemId), after: known(live.itemOverlays, p.itemId) }) : null;
+      if (next?.change) live.set({ overlayId: next.overlayId ?? null });
     };
     let presenting: string | null = null;
     const off = live.subscribe((p) => {

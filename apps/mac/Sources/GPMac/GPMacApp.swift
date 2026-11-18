@@ -83,10 +83,10 @@ struct MacDemo: ViewModifier {
         model.path = ["pres-main"]
         // Presenting from Tusen skäl's second slide, the next one made ready, a comment on the item.
         model.run("setItemNote", ["itemId": "pres-main-i1", "note": "Börja med refrängen"])
-        model.live.press(model, ["type": "start"])
-        model.live.press(model, ["type": "show", "itemId": "pres-main-i1", "partIndex": 1])
-        model.live.press(model, ["type": "pick", "delta": 1])
-        model.live.press(model, ["type": "pick", "delta": 1])
+        model.send(["type": "start"])
+        model.send(["type": "show", "itemId": "pres-main-i1", "partIndex": 1])
+        model.send(["type": "pick", "delta": 1])
+        model.send(["type": "pick", "delta": 1])
         openWindow(id: "output")
         guard let out = env["GP_MAC_SNAPSHOT"] else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

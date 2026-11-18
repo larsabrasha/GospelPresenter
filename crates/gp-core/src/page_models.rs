@@ -92,13 +92,17 @@ pub fn item_actions(a: &Obj) -> R<Value> {
         }
     }
     let listing = vec![action("addAfter", "live.addAfter"), action("headerAbove", "header.above"), action("tick", "presentation.tick")];
-    let shown = given(a, "shownId") == Some(id);
-    let mut delete = action("delete", if shown { "live.shownCannotRemove" } else { "common.delete" });
-    delete["enabled"] = json!(!shown);
+    let can = removable(id, given(a, "shownId"));
+    let mut delete = action("delete", if can { "common.delete" } else { "live.shownCannotRemove" });
+    delete["enabled"] = json!(can);
     delete["destructive"] = json!(true);
     let groups: Vec<Value> = [group("open", open), group("show", show), group("list", listing), group("remove", vec![delete])].into_iter().flatten().collect();
     Ok(json!({ "groups": groups }))
 }
+
+/// Whether an item may be removed: not the one on the outputs (`shown`, black or not), whose removal would send the
+/// next → back to the first slide. An item's menu (Radera) and the page's Delete key ask the same.
+pub fn removable(item: &str, shown: Option<&str>) -> bool { shown != Some(item) }
 
 /// Strings as JavaScript's `<` orders them: by UTF-16 code units.
 fn js_cmp(a: &str, b: &str) -> Ordering { a.encode_utf16().cmp(b.encode_utf16()) }

@@ -61,14 +61,13 @@ struct ItemMenu: View {
 /// named, none for +.
 struct AddChoices: View {
     @Environment(Model.self) private var model
-    @Environment(\.wideLayout) private var wide
     let chosen: String?
 
     var body: some View {
-        Button(t("add.song"), systemImage: "music.note") { model.addingSong = AddAt(after: model.afterFor(chosen, wide: wide)) }
+        Button(t("add.song"), systemImage: "music.note") { model.addingSong = AddAt(after: model.afterFor(chosen)) }
         Divider()
         Button(t("header.kind"), systemImage: "text.alignleft") {
-            let after = model.afterFor(chosen, wide: wide)
+            let after = model.afterFor(chosen)
             model.prompt = TextPrompt(title: t("header.new"), label: t("header.name"), text: "", rule: model.rule("itemTitle")) { title in
                 let itemId = model.newId()
                 var args: [String: Any] = ["itemId": itemId, "presentationId": model.selectedPresentation ?? "", "title": title]
@@ -80,14 +79,14 @@ struct AddChoices: View {
 }
 
 extension Model {
-    /// The item an addition goes after, the core's one rule (`addPositionView`): in columns with the selected item, in
-    /// one column without, as a phone has no selection.
-    func afterFor(_ chosen: String?, wide: Bool) -> String? {
+    /// The item an addition goes after, the core's one rule (`addPositionView`), in columns and in one column alike:
+    /// the selection is the page's state's, which a part tapped sets on a phone too.
+    func afterFor(_ chosen: String?) -> String? {
         let args: [String: Any] = [
             "order": current?.items.map(\.id) ?? [],
-            "shownId": isLive ? (live.pointer?.itemId ?? NSNull()) : NSNull(),
+            "shownId": isLive ? (live.state.itemId ?? NSNull()) : NSNull(),
             "lastAddedId": lastAddedId ?? NSNull(), "chosenId": chosen ?? NSNull(),
-            "selectedId": wide ? (selectedItem ?? NSNull()) : NSNull(),
+            "selectedId": selectedItem ?? NSNull(),
         ]
         return view("addPositionView", args, as: String?.self) ?? nil
     }
@@ -95,7 +94,7 @@ extension Model {
     /// An item's menu, the core's (`itemActionsView`): the item, its song, the song's arrangements, the overlays, and
     /// the item on the outputs, black or not, which cannot be removed.
     func itemActions(_ item: ItemView) -> [MenuGroups.Group] {
-        let shown: Any = (isLive ? live.pointer?.itemId : nil) ?? NSNull()
+        let shown: Any = (isLive ? live.state.itemId : nil) ?? NSNull()
         let itemArgs: [String: Any] = ["id": item.id, "type": item.type, "arrangementId": item.arrangementId ?? NSNull(), "overlayId": item.overlayId ?? NSNull()]
         let args: [String: Any] = [
             "item": itemArgs,
@@ -108,19 +107,7 @@ extension Model {
     }
 
     /// An item just added: the next addition follows it while it is ahead of the shown one, and it is selected.
-    func added(_ itemId: String) {
-        lastAddedId = itemId
-        selectedItem = itemId
-    }
-}
-
-private struct WideLayoutKey: EnvironmentKey { static let defaultValue = false }
-extension EnvironmentValues {
-    /// The presentation is in columns (≥ 1 000 pt), not one column.
-    var wideLayout: Bool {
-        get { self[WideLayoutKey.self] }
-        set { self[WideLayoutKey.self] = newValue }
-    }
+    func added(_ itemId: String) { send(["type": "added", "itemId": itemId]) }
 }
 
 extension View {

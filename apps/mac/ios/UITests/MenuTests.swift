@@ -10,7 +10,7 @@ final class MenuTests: XCTestCase {
 
     private struct Action: Decodable { let id: String, text: String, enabled: Bool }
     private struct Group: Decodable { let id: String, actions: [Action] }
-    private struct State: Decodable { let state: String, menus: [String: [Group]] }
+    private struct State: Decodable { let state: String, menus: [String: [Group]], canStart: [String: Bool] }
     private struct Expected: Decodable { let items: [Item], states: [State]; struct Item: Decodable { let id: String, title: String } }
 
     func testEachItemMenuOffersWhatTheCoreOffersInEveryState() throws {
@@ -45,6 +45,16 @@ final class MenuTests: XCTestCase {
                 XCTAssertTrue(app.buttons[sv["note.title"]!].waitForNonExistence(timeout: 3), "\(state.state), \(item.title): the menu stayed")
             }
         }
+
+        // One presentation presented at a time: the evening meeting's ▶ as the core says, the Sunday still presented.
+        let last = try XCTUnwrap(expected.states.last)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let other = app.staticTexts["Kvällsmöte"]
+        XCTAssertTrue(other.waitForExistence(timeout: 5))
+        other.tap()
+        let start = app.buttons["start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertEqual(start.isEnabled, last.canStart["p2"], "\(last.state): ▶ of the other presentation")
     }
 
     /// The texts each drawn entry may have, to look for one the core did not offer.

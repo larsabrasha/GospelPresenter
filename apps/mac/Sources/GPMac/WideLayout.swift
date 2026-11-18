@@ -146,18 +146,30 @@ private struct SlideColumn: View {
         .background(Color.ground)
         .focusable().focused($focused).focusEffectDisabled()
         .onAppear { focused = true }
-        // The keys of spec 04, as the web's useEditorKeys: → ← make a slide ready, ↵ shows it, Space steps, B Släck.
-        .onKeyPress(keys: [.rightArrow, .leftArrow, .downArrow, .upArrow, .return, .space, .escape, "b", "."]) { press in
-            let live = model.live
-            switch press.key {
-            case .rightArrow, .downArrow: live.press(model, ["type": "pick", "delta": 1])
-            case .leftArrow, .upArrow: live.press(model, ["type": "pick", "delta": -1])
-            case .return: live.press(model, ["type": "enter"])
-            case .space: live.press(model, ["type": model.isLive ? "step" : "pick", "delta": 1])
-            case .escape: live.press(model, ["type": "escape"])
-            default: live.press(model, ["type": "black"])
+        // The keys of spec 03 and 04, the web's: each key is its event, and what it does is the core's (`Model.send`,
+        // `pageEventView`). ↑ ↓ step as → ←: this grid does not yet say which slide stands above another.
+        .onKeyPress(phases: .down) { press in
+            let command = press.modifiers.contains(.command)
+            let event: [String: Any]? = switch press.key {
+            case .rightArrow where command, .downArrow where command: ["type": "item", "delta": 1]
+            case .leftArrow where command, .upArrow where command: ["type": "item", "delta": -1]
+            case .upArrow where press.modifiers.contains(.option): ["type": "move", "delta": -1]
+            case .downArrow where press.modifiers.contains(.option): ["type": "move", "delta": 1]
+            case .rightArrow, .downArrow: ["type": "pick", "delta": 1]
+            case .leftArrow, .upArrow: ["type": "pick", "delta": -1]
+            case .pageDown: ["type": "clicker", "delta": 1]
+            case .pageUp: ["type": "clicker", "delta": -1]
+            case .return: ["type": "enter", "onPage": true]
+            case .space: ["type": "step", "delta": 1]
+            case .escape: ["type": "escape"]
+            case .delete, .deleteForward: ["type": "delete"]
+            case "b", "B", ".": ["type": "black"]
+            case "a": ["type": "add"]
+            default: press.characters.count == 1 && press.characters.first!.isWholeNumber ? ["type": "digit", "digit": Int(press.characters)!] : nil
             }
-            return .handled
+            guard let event, let answer = model.send(event) else { return .ignored }
+            if let command = answer.command { model.perform(command) }
+            return answer.handled ? .handled : .ignored
         }
     }
 
@@ -166,10 +178,9 @@ private struct SlideColumn: View {
         let live = model.isLive
         let mark: SlideMark? = live && model.live.shownKey == key ? .shown : live && model.live.nextKey == key ? .next : nil
         return SlideTile(slide: slide, theme: p.theme, overlay: item.overlay, number: n + 1, mark: mark,
-                         picked: model.live.picked == SlideAt(itemId: item.id, partIndex: n), width: grid.width)
+                         picked: model.pageState.picked == SlideAt(itemId: item.id, partIndex: n), width: grid.width)
             .onTapGesture {
-                model.live.press(model, ["type": "show", "itemId": item.id, "partIndex": n])
-                model.selectedItem = item.id
+                model.send(["type": "show", "itemId": item.id, "partIndex": n])
                 focused = true
             }
     }

@@ -10,8 +10,12 @@ import { nodeRustCore } from './node.ts';
 /** A scenario as its file has it: the organisation's mutations, presenting's states by their keys, the additions asked. */
 export interface Scenario {
   presentation: string;
+  /** Another presentation, which may not start while the first is presented. */
+  other: string;
   setup: [string, object][];
   states: { name: string; presenting: boolean; keys: object[] }[];
+  /** The page's events played from each state (`pageEventView`). */
+  keys: object[];
   adds: object[];
 }
 
@@ -60,6 +64,6 @@ export async function madeScenario(s: Scenario) {
   core.runSync('migrateOrgSchema', {}, undefined, all);
   const mutate = (name: string, args: object) => runMutation({ core, rows: all }, name, args, { userId: 'u', role: 'admin', now: 1000 });
   for (const [name, args] of s.setup) await mutate(name, args);
-  const page = () => core.view<ScenarioPage>('presentationPageView', { id: s.presentation }, async (sql, params) => all(sql, params));
+  const page = (id = s.presentation) => core.view<ScenarioPage>('presentationPageView', { id }, async (sql, params) => all(sql, params));
   return { core, mutate, page };
 }

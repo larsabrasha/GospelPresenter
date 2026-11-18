@@ -346,6 +346,136 @@
           "selectedId": "h1",
           "after": "i2"
         }
+      ],
+      "canStart": {
+        "p1": true,
+        "p2": true
+      },
+      "keys": [
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": false,
+            "itemId": "h1",
+            "reveal": true,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": null,
+            "presenting": false,
+            "selectedId": "h1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": false,
+            "itemId": "i0",
+            "reveal": false,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": {
+              "itemId": "i0",
+              "partIndex": 0
+            },
+            "presenting": false,
+            "selectedId": "i0",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 0
+            },
+            "presenting": false,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": false,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "delete"
+          },
+          "command": {
+            "itemId": "i1",
+            "type": "remove"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": false,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "add"
+          },
+          "command": {
+            "type": "add"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": null,
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": false,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        }
       ]
     },
     {
@@ -689,6 +819,130 @@
           "selectedId": "h1",
           "after": "i2"
         }
+      ],
+      "canStart": {
+        "p1": false,
+        "p2": false
+      },
+      "keys": [
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": true,
+            "itemId": "i2",
+            "reveal": true,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": null,
+            "presenting": true,
+            "selectedId": "i2",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": true,
+            "itemId": "i2",
+            "reveal": true,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": null,
+            "presenting": true,
+            "selectedId": "i2",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "delete"
+          },
+          "command": null,
+          "handled": false,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "add"
+          },
+          "command": {
+            "type": "add"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        }
       ]
     },
     {
@@ -1028,6 +1282,130 @@
           "chosenId": "i2",
           "selectedId": "h1",
           "after": "i2"
+        }
+      ],
+      "canStart": {
+        "p1": false,
+        "p2": false
+      },
+      "keys": [
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": true,
+            "itemId": "i2",
+            "reveal": true,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": null,
+            "presenting": true,
+            "selectedId": "i2",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "item",
+            "delta": 1
+          },
+          "command": {
+            "focus": true,
+            "itemId": "i2",
+            "reveal": true,
+            "type": "item"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": null,
+            "presenting": true,
+            "selectedId": "i2",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "pick",
+            "delta": 1
+          },
+          "command": null,
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "delete"
+          },
+          "command": null,
+          "handled": false,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
+        },
+        {
+          "event": {
+            "type": "add"
+          },
+          "command": {
+            "type": "add"
+          },
+          "handled": true,
+          "live": null,
+          "state": {
+            "followed": "i1",
+            "picked": {
+              "itemId": "i1",
+              "partIndex": 1
+            },
+            "presenting": true,
+            "selectedId": "i1",
+            "typed": ""
+          }
         }
       ]
     }

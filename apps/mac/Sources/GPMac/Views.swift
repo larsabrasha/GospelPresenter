@@ -166,24 +166,60 @@ struct SongHit: Decodable, Identifiable, Hashable { let id: String, name: String
 /// A slide: its item, and its place among the item's slides.
 struct SlideAt: Codable, Hashable { let itemId: String, partIndex: Int }
 
-/// What the outputs show (`LivePointer`'s slide): no item before the first slide is shown; black is Släck.
-struct Shown: Codable, Hashable {
-    let itemId: String?, partIndex: Int, black: Bool
+/// A value as JSONSerialization takes it, for the core's arguments.
+func jsonObject<T: Encodable>(_ v: T) -> Any {
+    (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(v), options: .fragmentsAllowed)) ?? NSNull()
+}
 
-    /// `itemId` written as null when there is none, as the core reads it (the synthesized one leaves it out).
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(itemId, forKey: .itemId)
-        try c.encode(partIndex, forKey: .partIndex)
-        try c.encode(black, forKey: .black)
+/// The app's live state, the same for every window of the device (`liveChangeView`, docs/view-models.md): the
+/// presentation presented, its slide (no item before the first is shown), black (Släck), the overlay, numbered.
+struct LivePointer: Codable, Hashable {
+    var presentationId: String?
+    var itemId: String?
+    var partIndex: Int
+    var black: Bool
+    var overlayId: String?
+    var rev: Int
+    static let idle = LivePointer(presentationId: nil, itemId: nil, partIndex: 0, black: false, overlayId: nil, rev: 0)
+}
+
+/// A presentation page's own state (`pageEventView`): the item selected, the slide made ready (↵ shows it), the last
+/// thing added, a number typed; `presenting` and `followed` are what the core last saw of the live state.
+struct PageState: Codable, Hashable {
+    var selectedId: String?
+    var picked: SlideAt?
+    var lastAddedId: String?
+    var typed = ""
+    var presenting = false
+    var followed: String?
+
+    init(selectedId: String? = nil, presenting: Bool = false, followed: String? = nil) {
+        (self.selectedId, self.presenting, self.followed) = (selectedId, presenting, followed)
+    }
+
+    /// As the core keeps it: a field it has not set yet is left out, and reads as its default.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        selectedId = try c.decodeIfPresent(String.self, forKey: .selectedId)
+        picked = try c.decodeIfPresent(SlideAt.self, forKey: .picked)
+        lastAddedId = try c.decodeIfPresent(String.self, forKey: .lastAddedId)
+        typed = try c.decodeIfPresent(String.self, forKey: .typed) ?? ""
+        presenting = try c.decodeIfPresent(Bool.self, forKey: .presenting) ?? false
+        followed = try c.decodeIfPresent(String.self, forKey: .followed)
     }
 }
 
-/// What presenting holds (`Presenting`): whether it is on, what is shown, and the slide made ready for ↵.
-struct Presenting: Codable, Hashable {
-    var presenting: Bool, shown: Shown, picked: SlideAt?
-    static let off = Presenting(presenting: false, shown: Shown(itemId: nil, partIndex: 0, black: false), picked: nil)
+/// The core's answer to a page's event: its state, a change to the live state, what the page does, and whether the
+/// event was the page's.
+struct PageAnswer: Decodable {
+    let state: PageState
+    let live: JSONValue?
+    let command: JSONValue?
+    let handled: Bool
 }
+
+/// What the page shows of its state (`pageModelView`): the state the live state leaves it in, and whether ▶ may start.
+struct PageModel: Decodable { let state: PageState, canStart: Bool }
 
 /// `slideMarksView`: the slide marked VISAS and the one marked NÄSTA (VISAS's item is null before a slide is shown).
 struct SlideMarks: Decodable {

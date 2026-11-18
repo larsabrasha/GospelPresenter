@@ -89,10 +89,11 @@ private struct PartRow: View {
         let live = model.isLive
         let shown = live && model.live.shownKey == key
         let next = live && model.live.nextKey == key
-        let picked = model.live.picked == SlideAt(itemId: item.id, partIndex: n)
+        let picked = model.pageState.picked == SlideAt(itemId: item.id, partIndex: n)
         Button {
             tapped()
-            model.live.press(model, ["type": "show", "itemId": item.id, "partIndex": n])
+            // Shown while presenting; before, made ready and its item selected, so + adds after it (the page's state).
+            model.send(["type": "show", "itemId": item.id, "partIndex": n])
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -160,7 +161,7 @@ struct BlackButton: View {
     @Environment(Model.self) private var model
 
     var body: some View {
-        Button { model.live.press(model, ["type": "black"]) } label: {
+        Button { model.send(["type": "black"]) } label: {
             Label(t("live.clear"), systemImage: "display").frame(maxWidth: .infinity).padding(.vertical, 8)
         }
         .buttonStyle(.bordered).buttonBorderShape(.capsule)

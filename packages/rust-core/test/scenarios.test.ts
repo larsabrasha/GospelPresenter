@@ -25,21 +25,37 @@ function menuOf(core: ReturnType<typeof nodeRustCore>, p: Page, item: Item, show
   return core.pure<{ groups: unknown[] }>('itemActionsView', { item, song, arrangements, overlays: p.overlays, shownId }).groups;
 }
 
-/** What the scenario's presentation offers in each state: the slide shown and marked, each item's menu, where + adds. */
+/**
+ * What the scenario's presentation offers in each state: the slide shown and marked, each item's menu, where + adds,
+ * whether ▶ may start here and in the other presentation, and the page's state after each of `keys`, played from the
+ * page as it stands (the item shown selected).
+ */
 async function played(name: string) {
   const s = scenario(name);
   const { core, page } = await made(s);
   const p = await page();
+  const other = await page(s.other);
   const order = p.items.map((i) => i.id);
   const states = s.states.map(({ name: state, presenting, keys }) => {
     const now = presentingAfter(core, p, presenting, keys);
     const shownId = presenting ? now.shown.itemId : null;
+    const live = { presentationId: presenting ? s.presentation : null, ...now.shown };
+    const context = (presentationId: string) => ({ presentationId, isTemplate: false, presenting: live.presentationId === presentationId, live });
+    const canStart = (id: string, pg: Page) => core.pure<{ canStart: boolean }>('pageModelView', { state: {}, context: context(id), order: slideOrder(pg) }).canStart;
+    let pageState: object = { presenting, selectedId: shownId, followed: shownId };
+    const pressed = s.keys.map((event) => {
+      const answer = core.pure<{ state: object; live: unknown; command: unknown; handled: boolean }>('pageEventView', { state: pageState, context: context(s.presentation), order: slideOrder(p), event });
+      pageState = answer.state;
+      return { event, ...answer };
+    });
     return {
       state,
       shown: presenting ? now.shown : null,
       marks: presenting ? core.pure('slideMarksView', { order: slideOrder(p), shown: now.shown }) : null,
       menus: Object.fromEntries(p.items.map((i) => [i.id, menuOf(core, p, i, shownId)])),
       adds: s.adds.map((add) => ({ ...add, after: core.pure('addPositionView', { order, shownId, ...add }) })),
+      canStart: { [s.presentation]: canStart(s.presentation, p), [s.other]: canStart(s.other, other) },
+      keys: pressed,
     };
   });
   // The items' titles too, by which a shell's test finds an item's … (its accessibility label names it).
