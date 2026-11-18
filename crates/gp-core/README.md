@@ -5,7 +5,8 @@ two drifting apart. The TypeScript core (`packages/core`) is still the app's; ev
 
 - `src/` — the schema (`schema.rs`), the mutators (`mutators.rs`, one module a file of them in `mutators/`, argument checks in `args.rs`, JSON as JavaScript writes it in `json.rs`), what the shells show (`views.rs`, `search.rs`), and
   presenting as a reducer (`live.rs`). The core never opens a database: it asks its shell for every SQL query and
-  waits for the rows (`bridge.rs`), so the same code runs as WASM under Node and as a static library under Swift.
+  waits for the rows (`bridge.rs`), so the same code runs as WASM under Node and as a static library under Swift;
+  Swift reaches it through `crates/gp-core-ffi` (UniFFI, `docs/native-apps.md`), the web through `bridge.rs`'s C functions.
 - `parity/mutations/` — the schema and the mutators against the TS core, file by file of `packages/core/src/mutators`:
   `schema-check.mjs` migrates a database of every version through both; `run.mjs [file] --ops N --seeds N` sends the
   same random mutations through both, every table compared after each step (a file is proved at 30 000).

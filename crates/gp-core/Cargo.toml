@@ -5,7 +5,8 @@ edition = "2021"
 
 [lib]
 name = "gp_core"
-crate-type = ["cdylib"]
+# cdylib: the WASM; rlib: under crates/gp-core-ffi, the native shells' library.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }

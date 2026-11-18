@@ -1,5 +1,6 @@
+// The C side of the core's UniFFI bindings (crates/gp-core-ffi): the header bindings.sh generates, and the library.
 module GPCoreFFI {
-    header "gp_core.h"
-    link "gp_core"
+    header "gp_core_ffi.h"
+    link "gp_core_ffi"
     export *
 }

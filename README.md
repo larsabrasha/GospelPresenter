@@ -47,6 +47,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
 | `apps/desktop` | Electron: the embedded server, the main window and the output window |
 | `apps/mobile` | Capacitor: the web app in an iOS shell, with its sign-in sheet (docs/phone-app.md) |
+| `apps/mac` | SwiftUI for iOS and the Mac over the Rust core, through `crates/gp-core-ffi` (UniFFI), synced as the web (docs/native-apps.md) |
 | `apps/legacy` | The export from the current app: one organisation from its PostgreSQL and Garage to a zip the new app imports (docs/import-from-1x.md) |
 
 ```sh
@@ -108,6 +109,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [assumptions.md](docs/assumptions.md) | Where the spec and ADR 0007 leave a choice open, the choice made, per milestone |
 | [planning.md](docs/planning.md) | Not built: planning who does what at each gathering, in place of a shared spreadsheet; what the church's sheet shows, the design, what is left out |
 | [rust-core.md](docs/rust-core.md) | The Rust core 2.0 runs on: why, the reference it is proved against, where it runs, its interface, the loop function by function and view by view, and where it stands |
+| [native-apps.md](docs/native-apps.md) | The iOS and Mac app in SwiftUI over the Rust core: its UniFFI interface, building, running and installing, pairing and sync as the web's, the pages built and those not |
 
 ### Next steps
 

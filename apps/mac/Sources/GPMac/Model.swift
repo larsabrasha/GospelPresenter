@@ -1,167 +1,260 @@
-// What the windows show, as the Rust core answers it, and the mutations the buttons send it.
+// What the pages show, as the Rust core answers it, and the changes the buttons send it. Where to go is the web's
+// (docs/layout-2-0.md): the start page, and a presentation opened from it on a stack; presenting is in Live.swift.
 import Foundation
 import Observation
 import Shell
 import SwiftUI
 
-struct PresentationRow: Decodable, Identifiable, Hashable {
-    let id: String, name: String, eventDate: String?, time: String?, location: String?, itemCount: Int
-}
-struct SlideLabel: Decodable, Hashable { let text: String, color: String }
-struct Slide: Decodable, Hashable, Identifiable {
-    let key: String, kind: String, text: String, label: SlideLabel?
-    var id: String { key }
-}
-struct Arrangement: Decodable, Identifiable, Hashable { let id: String, name: String? }
-struct ItemView: Decodable, Identifiable, Hashable {
-    let id: String, type: String, title: String, note: String?, slides: [Slide], arrangementId: String?, arrangements: [Arrangement]
-    /** Why the item has no slides, if it has none: a song in the trash, a file gone. */
-    let problem: String?
-}
-struct TrashRow: Decodable, Identifiable, Hashable { let id: String, name: String, deletedAt: Int }
-struct PresentationView: Decodable {
-    let id: String, name: String, eventDate: String?, time: String?, location: String?, description: String?, items: [ItemView]
-}
-struct SongHit: Decodable, Identifiable, Hashable { let id: String, name: String }
-
-/// A slide: its item, and its place among the item's slides.
-struct SlideAt: Codable, Hashable { let itemId: String, partIndex: Int }
-/// What the outputs show; black is Släck.
-struct Pointer: Codable, Hashable { let itemId: String, partIndex: Int, black: Bool }
-/// The core's answer to a key or a click while presenting (live.rs).
-struct LiveState: Decodable {
-    let presenting: Bool, pointer: Pointer?, picked: SlideAt?, shown: String?, next: String?
+/// Where the app's data is.
+enum Store {
+    /// The demo data, on this device alone, through the core with no sync.
+    case demo(Core)
+    /// An organisation's database, synced with its server.
+    case synced(SyncClient)
 }
 
 @MainActor
 @Observable
 final class Model {
-    let core: Core
-    var presentations: [PresentationRow] = []
-    var selectedPresentation: String? {
-        didSet { if oldValue != selectedPresentation { selectedItem = nil; presenting = false; pointer = nil; picked = nil; load() } }
+    /// Where the data is: an organisation's database synced with its server, or the demo data on this device alone.
+    /// Nil until the person connects or picks the demo.
+    private(set) var store: Store?
+    /// The sync's state for the account menu: nil while all is well (the web says it only when there is a problem).
+    var syncProblem: String?
+    /// The start page's lists: Idag, Kommande, Senast ändrade.
+    var groups = PresentationGroups()
+    var presentations: [PresentationRow] { groups.all }
+    /// The pages over the start page: the presentation opened, by its id.
+    var path: [String] = [] {
+        didSet { if oldValue.last != path.last { selectedItem = nil; load() } }
     }
+    var selectedPresentation: String? { path.last }
+    /// The presentation open, as `presentationPageView` reads it.
     var current: PresentationView?
+    /// The item chosen in the running order (its row at the left, the slides scrolled to it).
     var selectedItem: String?
-    var trash: [TrashRow] = []
-    /// Presenting: what is shown, the slide made ready, and the marks, all as the core answered.
-    var presenting = false
-    var pointer: Pointer?
-    var picked: SlideAt?
-    var shownKey: String?
-    var nextKey: String?
     var refusal: String?
-    var role = "user"
-    var status = "Rust-kärna redo"
+    /// The role the demo's changes run with; a signed-in device has its member's.
+    var role = "admin"
+    /// The core's last call: its SQL statements and time, for measuring on the Mac.
+    var status = ""
+    /// What is presented, by this window; it goes on while another page is open (Live.swift).
+    var live = Live()
+    /// A one-line question open (a programme item's name, a comment), and Lägg till sång open, after which item.
+    var prompt: TextPrompt?
+    var addingSong: AddAt?
+    /// An item whose removal asks first.
+    var removing: ItemView?
+
+    /// The app's own folder: the organisations' databases and the demo's (GP_MAC_DATA on the Mac, for build.sh run).
+    static let home: String = {
+        let files = FileManager.default
+        #if os(iOS)
+        let home = files.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].path
+        #else
+        let home = files.currentDirectoryPath
+        #endif
+        let dir = ProcessInfo.processInfo.environment["GP_MAC_DATA"] ?? home
+        try? files.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        return dir
+    }()
 
     init() {
-        let dir = ProcessInfo.processInfo.environment["GP_MAC_DATA"] ?? FileManager.default.currentDirectoryPath
-        let path = "\(dir)/app.sqlite"
-        if !FileManager.default.fileExists(atPath: path) { try! FileManager.default.copyItem(atPath: "\(dir)/demo.sqlite", toPath: path) }
-        let db = try! Database(path: path)
-        db.exec("PRAGMA journal_mode = WAL")
-        core = Core(db: db)
-        refresh()
-        selectedPresentation = presentations.first?.id
+        // For pictures and checks: `-gp.demo YES` opens the demo, `-gp.open <id>` a presentation in it, and
+        // `-gp.show <itemId>/<n>` presents that slide (launch arguments, read as the app's settings).
+        let args = UserDefaults.standard
+        if let session = Keychain.session, !args.bool(forKey: "gp.demo") { open(session) }
+        else if ProcessInfo.processInfo.environment["GP_MAC_DATA"] != nil || args.bool(forKey: "gp.demo") { openDemo() }
+        if let id = args.string(forKey: "gp.open") { path = [id] }
+        if let at = args.string(forKey: "gp.show")?.split(separator: "/"), at.count == 2, let n = Int(at[1]) {
+            live.press(self, ["type": "start"])
+            live.press(self, ["type": "show", "itemId": String(at[0]), "partIndex": n])
+        }
+        #if os(iOS)
+        if args.bool(forKey: "gp.measure") { Task { try? await Task.sleep(for: .seconds(2)); await Measure.run(self) } }
+        #endif
+    }
+
+    /// An organisation's database, synced: one file per organisation, as the web keeps one per organisation.
+    func open(_ session: Session) {
+        do {
+            let client = try SyncClient(path: "\(Self.home)/org-\(session.me.orgId).sqlite", session: session)
+            client.onChange = { [weak self] _ in self?.reload() }
+            client.onStatus = { [weak self] in self?.noteSync() }
+            store = .synced(client)
+            Keychain.session = session
+            client.start()
+            reload()
+            noteSync()
+        } catch {
+            refusal = "\(error)"
+        }
+    }
+
+    /// The demo data on this device alone: app.sqlite, copied from demo.sqlite (GP_MAC_DATA's, or the app's own).
+    func openDemo() {
+        let files = FileManager.default
+        let path = "\(Self.home)/app.sqlite", demo = "\(Self.home)/demo.sqlite"
+        if !files.fileExists(atPath: path) { try? files.copyItem(atPath: files.fileExists(atPath: demo) ? demo : Bundle.main.path(forResource: "demo", ofType: "sqlite")!, toPath: path) }
+        guard let db = try? Database(path: path) else { return }
+        try? db.exec("PRAGMA journal_mode = WAL")
+        let core = Core(db: db)
+        // The demo data as today's schema has it (it may be made by an older core).
+        _ = core.command("migrateOrgSchema", json: "{}", caller: nil)
+        store = .demo(core)
+        reload()
+    }
+
+    /// Back to the start: the session forgotten (the organisation's database stays for the next sign-in).
+    func signOut() {
+        if case let .synced(client) = store { client.close() }
+        Keychain.session = nil
+        store = nil
+        path = []
+        live = Live()
+        groups = PresentationGroups()
+    }
+
+    var session: Session? { if case let .synced(c) = store { c.session } else { nil } }
+
+    /// The user as the account menu names them.
+    var userName: String { session?.me.name ?? "Demo" }
+
+    private var core: Core? {
+        switch store {
+        case let .demo(core): core
+        case let .synced(client): client.core
+        case nil: nil
+        }
     }
 
     private func note(_ what: String) {
+        guard let core else { return }
         status = "\(what) · \(core.lastSqlCalls) SQL · \(Int(core.lastMicros)) µs"
     }
 
-    func refresh() {
-        presentations = core.view("presentationsView", as: [PresentationRow].self) ?? []
-        trash = core.view("trashView", as: [TrashRow].self) ?? []
+    /// The web's status line (`status.*`), only when there is a problem.
+    private func noteSync() {
+        guard case let .synced(c) = store else { syncProblem = nil; return }
+        let waiting = c.pendingCount
+        syncProblem = switch c.stopped {
+        case .updateRequired: t("status.updateRequired")
+        case .signedOut: t("status.authNeeded")
+        case nil where !c.connected && !c.busy: waiting > 0 ? "\(t("status.offline")) · \(waiting == 1 ? t("status.pendingOne") : t("status.pending", ["n": waiting]))" : t("status.offline")
+        case nil where waiting > 0 && !c.busy: waiting == 1 ? t("status.pendingOne") : t("status.pending", ["n": waiting])
+        case nil: nil
+        }
     }
 
+    func syncNow() { if case let .synced(c) = store { c.requestSync() } }
+
+    /// A view of the core, as the store's user.
+    func view<T: Decodable>(_ name: String, _ args: [String: Any] = [:], as type: T.Type) -> T? {
+        switch store {
+        case let .demo(core): core.view(name, args, caller: Caller(userId: "demo", role: role, now: nil), as: type)
+        case let .synced(client): client.view(name, args, as: type)
+        case nil: nil
+        }
+    }
+
+    /// Everything read again: after a change here, and after a pull that changed rows.
+    func reload() {
+        refresh()
+        load()
+        live.reload(self)
+    }
+
+    /// The start page, as the web's reads it: the presentations and their item counts, grouped by today's date.
+    func refresh() {
+        var rows = view("presentationListView", as: [PresentationRow].self) ?? []
+        let counts = Dictionary((view("itemCountsView", as: [[CountCell]].self) ?? []).compactMap { pair -> (String, Int)? in
+            guard pair.count == 2, case let .id(id) = pair[0], case let .n(n) = pair[1] else { return nil }
+            return (id, n)
+        }, uniquingKeysWith: { a, _ in a })
+        for i in rows.indices { rows[i].itemCount = counts[rows[i].id] ?? 0 }
+        groups = PresentationGroups(rows, today: localToday())
+    }
+
+    /// A presentation's page as `presentationPageView` reads it.
+    func page(_ id: String) -> PresentationView? {
+        guard var page = view("presentationPageView", ["id": id], as: PresentationPage.self).flatMap(PresentationView.init) else { return nil }
+        // Each item's overlay, as the web's tiles read it (`useShownOverlay`): the core's `overlayView`, once an overlay.
+        var overlays: [String: JSONValue?] = [:]
+        for i in page.items.indices {
+            guard let oid = page.items[i].overlayId else { continue }
+            if overlays[oid] == nil { overlays[oid] = view("overlayView", ["id": oid], as: JSONValue.self) }
+            page.items[i].overlay = overlays[oid] ?? nil
+        }
+        return page
+    }
+
+    /// The open presentation's page; before presenting, a slide made ready elsewhere is let go.
     func load() {
-        current = selectedPresentation.flatMap { core.view("presentationView", ["id": $0], as: PresentationView.self) }
-        note("presentationView")
-        live(["type": "none"])
+        current = selectedPresentation.flatMap(page)
+        note("presentationPageView")
+        live.opened(self)
     }
 
     func searchSongs(_ query: String) -> [SongHit] {
-        let hits = core.view("searchSongsView", ["query": query], as: [SongHit].self) ?? []
+        let hits = view("searchSongsView", ["query": query], as: [SongHit].self) ?? []
         note("searchSongsView")
         return hits
     }
 
-    /// Sends a mutation to the core, then reads again what it changed.
+    /// Sends a change to the core (queued for the server when synced), then reads again what it changed.
     @discardableResult
     func run(_ name: String, _ args: [String: Any]) -> String {
-        let outcome = core.mutate(["name": name, "args": args, "ctx": ["userId": "mac", "role": role]])
+        let outcome: String
+        switch store {
+        case let .demo(core): outcome = core.mutate(["name": name, "args": args, "ctx": ["userId": "demo", "role": role]])
+        case let .synced(client): outcome = client.mutate(name, args)?.code ?? "ok"
+        case nil: outcome = "not-found"
+        }
         note("\(name): \(outcome)")
         if outcome != "ok" { refusal = refusalText(outcome) }
-        refresh()
-        load()
+        reload()
         return outcome
     }
 
     func newId() -> String { UUID().uuidString.lowercased() }
 
-    // ------------------------------------------------------------ live
-
-    /// Sends a key or a click to the core's presenting reducer, with what is held now, and keeps what it answers.
-    func live(_ action: [String: Any]) {
-        guard let pid = selectedPresentation else { return }
-        func encoded<T: Encodable>(_ v: T?) -> Any { v.flatMap { try? JSONSerialization.jsonObject(with: JSONEncoder().encode($0)) } ?? NSNull() }
-        let order: [[Any]] = (current?.items ?? []).map { [$0.id, $0.slides.count] }
-        let args: [String: Any] = ["presentationId": pid, "order": order, "presenting": presenting, "pointer": encoded(pointer), "picked": encoded(picked), "action": action]
-        guard let state = core.view("liveView", args, as: LiveState.self) else { return }
-        // Set only what changed: each is observed on its own.
-        if presenting != state.presenting { presenting = state.presenting }
-        if pointer != state.pointer { pointer = state.pointer }
-        if picked != state.picked { picked = state.picked }
-        if shownKey != state.shown { shownKey = state.shown }
-        if nextKey != state.next { nextKey = state.next }
-        if let at = state.picked ?? (action["type"] as? String == "step" ? state.pointer.map { SlideAt(itemId: $0.itemId, partIndex: $0.partIndex) } : nil) {
-            if selectedItem != at.itemId { selectedItem = at.itemId }
-        }
-    }
-
-    func key(_ item: ItemView, _ n: Int) -> String { "\(item.id)/\(n)" }
-
-    /// What the outputs show: nothing before presenting and after Släck.
-    var liveSlide: Slide? {
-        guard presenting, let p = pointer, !p.black, let item = current?.items.first(where: { $0.id == p.itemId }), item.slides.indices.contains(p.partIndex) else { return nil }
-        return item.slides[p.partIndex]
-    }
+    /// The open presentation is the one presented.
+    var isLive: Bool { live.on && live.id == selectedPresentation }
 }
 
-/// What a refusal says to someone using the app.
+/// What a refusal says to someone using the app: the web's `error.<code>` where it has one, else the code.
 func refusalText(_ code: String) -> String {
-    switch code {
-    case "forbidden": "Din roll får inte göra det här."
-    case "not-found": "Det finns inte längre."
-    case "invalid-args": "Något av fälten är inte giltigt."
-    case "limit": "En presentation kan ha högst 100 inslag."
-    case "not-in-trash": "Bara det som ligger i papperskorgen kan raderas för gott."
-    case "theme-not-found": "Temat finns inte."
-    case "not-a-song": "Bara en sång har arrangemang."
-    default: "Det gick inte (\(code))."
-    }
+    let said = t("error.\(code)")
+    return said == "error.\(code)" ? code : said
 }
 
 extension PresentationRow {
-    /// "sön 8 november 2026 · 11:00 · Kyrksalen", leaving out what is not set.
-    var subtitle: String { eventLine(eventDate, time, location) }
+    /// The row's second line, as the web's start page: "Idag", "Imorgon" or the date (with the year where asked), the
+    /// time and the place, leaving out what is not set.
+    func subtitle(today: String, showDate: Bool, withYear: Bool) -> String {
+        let date = showDate ? eventDate : nil
+        let when = [date.map { dateLabel($0, today: today, withYear: withYear) }, time].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        return [when, location ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
 }
 
-func eventLine(_ date: String?, _ time: String?, _ location: String?) -> String {
+/// `dateLabel` of apps/web/src/pages/dashboard.ts: "Idag", "Imorgon", or "mån 4 maj" (and the year when asked).
+func dateLabel(_ iso: String, today: String, withYear: Bool) -> String {
+    if iso == today { return t("presentations.today") }
     let parse = DateFormatter()
     parse.dateFormat = "yyyy-MM-dd"
     parse.locale = Locale(identifier: "en_US_POSIX")
+    guard let day = parse.date(from: iso) else { return iso }
+    if let next = Calendar.current.date(byAdding: .day, value: 1, to: parse.date(from: today) ?? Date()), parse.string(from: next) == iso { return t("presentations.tomorrow") }
     let show = DateFormatter()
-    show.locale = Locale(identifier: "sv_SE")
-    show.dateFormat = "EEE d MMMM yyyy"
-    let day = date.flatMap { parse.date(from: $0) }.map { show.string(from: $0) }
-    return [day, time, location].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    show.locale = Texts.locale
+    show.dateFormat = withYear ? "EEE d MMMM yyyy" : "EEE d MMMM"
+    return show.string(from: day).replacingOccurrences(of: ".", with: "")
 }
 
 extension Color {
-    /// "#c73434".
+    /// "#c73434", as the core gives a label's colour.
     init(hex: String) {
-        let v = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0
-        self.init(red: Double((v >> 16) & 0xff) / 255, green: Double((v >> 8) & 0xff) / 255, blue: Double(v & 0xff) / 255)
+        self.init(hex: UInt32(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0)
     }
 }

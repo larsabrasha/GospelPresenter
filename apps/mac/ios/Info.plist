@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- What the generated Info.plist cannot say: plain http to a desktop host on the LAN (GP_LAN=1 without GP_TLS) is
+     allowed, as on the web, and only there (NSAllowsLocalNetworking: local addresses and .local names). -->
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- The app's texts are Swedish and English (apps/web/src/i18n.ts): the system's own words follow the device in them. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>sv</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>sv</string>
+		<string>en</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Gospel Presenter synkar med kyrkans dator i det lokala nätverket.</string>
+</dict>
+</plist>

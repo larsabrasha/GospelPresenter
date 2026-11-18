@@ -1,0 +1,7 @@
+# The Swift bindings go into apps/mac's Shell module; their C side is the module GPCoreFFI, whose module map apps/mac
+# keeps (Sources/GPCoreFFI/module.modulemap: the header, and the library to link).
+[bindings.swift]
+module_name = "Shell"
+ffi_module_name = "GPCoreFFI"
+ffi_module_filename = "gp_core_ffi"
+generate_module_map = false

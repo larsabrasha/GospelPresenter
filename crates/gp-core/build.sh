@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the Rust core (WASM for the checks in Node, a static library for apps/mac) and the Mac app.
+# Builds the Rust core (WASM for the checks in Node, crates/gp-core-ffi's static library for apps/mac) and the Mac app.
 #   crates/gp-core/build.sh          build
 #   crates/gp-core/build.sh test     build, then every parity check against the TS core (packages/core at 238d481b)
 #   crates/gp-core/build.sh run      build, then start the Mac app on a fresh copy of the demo data
@@ -42,11 +42,16 @@ NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-e
 
 (cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \
   && cp target/wasm32-unknown-unknown/release/gp_core.wasm "$OUT/" \
-  && cargo rustc -p gp-core --release --lib --crate-type staticlib --quiet)
+  && cargo build -p gp-core-ffi --release --lib --quiet)
+# The Mac app over the core's UniFFI interface (crates/gp-core-ffi), its Swift bindings generated first.
+"$ROOT/crates/gp-core-ffi/bindings.sh"
+node "$ROOT/apps/mac/texts.mjs"
 (cd "$ROOT/apps/mac" && swift build -c release 2>&1 | grep -E "error|warning: |Build complete")
 
 case "$1" in
   test)
+    # The native interface's own tests: how a step and SQLite's values cross over to Swift.
+    (cd "$ROOT" && cargo test -p gp-core-ffi --quiet 2>&1 | grep -E "^test result|FAILED|panicked")
     node --no-warnings parity/diff.mjs 3000 10
     # The schema and its migrations, then every ported file of mutators (3 000 each here; the proof of a file is
     # `node parity/mutations/run.mjs <file> --ops 3000 --seeds 10`, 30 000).
@@ -78,6 +83,8 @@ case "$1" in
     [ -f "$OUT/fixtures/demo.sqlite" ] || node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     mkdir -p "$RUN" && rm -f "$RUN/app.sqlite" "$RUN/app.sqlite-wal" "$RUN/app.sqlite-shm"
     cp "$OUT/fixtures/demo.sqlite" "$RUN/"
-    GP_MAC_DATA="$RUN" exec "$ROOT/apps/mac/.build/release/GPMac"
+    # The slides drawn by the web's SlideView, from the repository's build of it (docs/native-apps.md).
+    (cd "$ROOT/apps/web" && pnpm exec vite build -c vite.slides.config.ts --logLevel warn)
+    GP_MAC_DATA="$RUN" GP_SLIDES="$ROOT/apps/web/dist-slides" exec "$ROOT/apps/mac/.build/release/GPMac"
     ;;
 esac

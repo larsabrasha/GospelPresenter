@@ -1,6 +1,6 @@
 # The Rust core (crates/gp-core), built to WASM for the web and the checks, and to a static library for apps/mac.
 [workspace]
-members = ["crates/gp-core"]
+members = ["crates/gp-core", "crates/gp-core-ffi"]
 resolver = "2"
 
 [profile.release]

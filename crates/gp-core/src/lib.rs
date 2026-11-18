@@ -25,3 +25,6 @@ mod sync_sql;
 mod theme_def;
 mod themes;
 mod views;
+
+/// What a native shell calls (crates/gp-core-ffi): a command or a view started, and each statement's rows given back.
+pub use bridge::{resume, start, Rows, Step};

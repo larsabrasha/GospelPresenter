@@ -1,14 +1,15 @@
 // GP_MAC_PERF=<file>: times what a person does in the slides view, each step until the window has laid out and drawn
 // again, and writes the medians to <file>, then quits.
+#if os(macOS)
 import AppKit
 import SwiftUI
 
 @MainActor
 enum Perf {
     static func run(_ model: Model, out: String) {
-        guard let window = NSApp.windows.first(where: { $0.title != "Utgång" && $0.isVisible }) else { return }
+        guard let window = NSApp.windows.first(where: { $0.title != t("live.outputWindow") && $0.isVisible }) else { return }
         window.setContentSize(NSSize(width: 1500, height: 940))
-        model.selectedPresentation = "pres-main"
+        model.path = ["pres-main"]
         settle(window)
         func timed(_ n: Int, _ act: (Int) -> Void) -> (median: Double, worst: Double) {
             var ms: [Double] = []
@@ -21,10 +22,10 @@ enum Perf {
             ms.sort()
             return (ms[ms.count / 2], ms.last!)
         }
-        model.live(["type": "start"])
+        model.live.press(model, ["type": "start"])
         settle(window)
-        let pick = timed(60) { i in model.live(["type": "pick", "delta": i % 20 < 10 ? 1 : -1]) }
-        let step = timed(60) { i in model.live(["type": "step", "delta": i % 20 < 10 ? 1 : -1]) }
+        let pick = timed(60) { i in model.live.press(model, ["type": "pick", "delta": i % 20 < 10 ? 1 : -1]) }
+        let step = timed(60) { i in model.live.press(model, ["type": "step", "delta": i % 20 < 10 ? 1 : -1]) }
         let items = model.current?.items.map(\.id) ?? []
         let jump = timed(30) { i in model.selectedItem = items[(i * 7) % items.count] }
         let reload = timed(20) { _ in model.load() }
@@ -85,3 +86,4 @@ enum Perf {
         window.displayIfNeeded()
     }
 }
+#endif

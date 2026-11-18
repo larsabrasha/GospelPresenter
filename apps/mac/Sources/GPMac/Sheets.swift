@@ -1,4 +1,6 @@
-// "Redigera detaljer", and a one-line question (a heading, a new name, a comment).
+// "Redigera detaljer", a one-line question (a heading, a new name, a comment), and what every sheet shares: the
+// system's own layout, a title in the bar, Avbryt at the leading edge and Spara at the trailing one (on iOS 26 and
+// macOS 26 the system's × and ✓ of the cancel and confirm roles).
 import SwiftUI
 
 struct TextPrompt: Identifiable {
@@ -9,82 +11,136 @@ struct TextPrompt: Identifiable {
 }
 
 extension View {
+    /// A one-line question as the system asks one: an alert with a text field, Avbryt and Spara.
     func textPrompt(_ prompt: Binding<TextPrompt?>) -> some View {
-        sheet(item: prompt) { p in TextPromptSheet(prompt: p) }
+        modifier(TextPromptAlert(prompt: prompt))
+    }
+
+    /// A sheet's bar: its title, Avbryt, and the confirming button, which closes the sheet when `confirm` answers true.
+    func sheetBar(_ title: String, confirm label: String = t("common.save"), disabled: Bool = false, _ confirm: @escaping () -> Bool) -> some View {
+        modifier(SheetBar(title: title, label: label, disabled: disabled, confirm: confirm))
     }
 }
 
-struct TextPromptSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State var prompt: TextPrompt
+private struct TextPromptAlert: ViewModifier {
+    @Binding var prompt: TextPrompt?
+    @State private var text = ""
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(prompt.title).font(.title3.bold())
-            TextField(prompt.label, text: $prompt.text).textFieldStyle(.roundedBorder).frame(width: 340)
-            HStack {
-                Spacer()
-                Button("Avbryt", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Spara") { prompt.done(prompt.text); dismiss() }.keyboardShortcut(.defaultAction)
+    func body(content: Content) -> some View {
+        content
+            .alert(prompt?.title ?? "", isPresented: Binding(get: { prompt != nil }, set: { if !$0 { prompt = nil } }), presenting: prompt) { p in
+                TextField(p.label, text: $text)
+                Button(t("common.cancel"), role: .cancel) {}
+                Button(t("common.save")) { p.done(text) }
             }
-        }
-        .padding(20)
+            .onChange(of: prompt?.id) { _, _ in text = prompt?.text ?? "" }
     }
 }
 
-/// The details of a presentation (spec 03, "Redigera detaljer"): every field sent, the core checks them.
+private struct SheetBar: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    let title: String, label: String, disabled: Bool
+    let confirm: () -> Bool
+
+    func body(content: Content) -> some View {
+        NavigationStack {
+            content
+                .navigationTitle(title)
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { cancelButton }
+                    ToolbarItem(placement: .confirmationAction) { confirmButton.disabled(disabled) }
+                }
+        }
+    }
+
+    @ViewBuilder private var cancelButton: some View {
+        if #available(iOS 26, macOS 26, *) {
+            Button(role: .cancel) { dismiss() }.accessibilityLabel(t("common.cancel"))
+        } else {
+            Button(t("common.cancel"), role: .cancel) { dismiss() }
+        }
+    }
+
+    @ViewBuilder private var confirmButton: some View {
+        if #available(iOS 26, macOS 26, *) {
+            Button(role: .confirm, action: done).accessibilityLabel(label).keyboardShortcut(.defaultAction)
+        } else {
+            Button(label, action: done).keyboardShortcut(.defaultAction)
+        }
+    }
+
+    private func done() { if confirm() { dismiss() } }
+}
+
+/// The details of a presentation (spec 03): "Redigera detaljer", or with no id "Skapa presentation", which makes it and
+/// opens it (as the web's CreatePresentationDialog). Every field sent; the core checks them.
 struct DetailsSheet: View {
     @Environment(Model.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    let presentationId: String
-    @State private var name = ""
+    let presentationId: String?
+    @State private var name = t("presentations.defaultName")
     @State private var hasDate = false
     @State private var date = Date()
-    @State private var time = ""
+    @State private var hasTime = false
+    @State private var time = Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: Date())!
     @State private var location = ""
     @State private var description = ""
 
-    private static let day: DateFormatter = {
+    private static func formatter(_ format: String) -> DateFormatter {
         let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
+        f.dateFormat = format
         f.locale = Locale(identifier: "en_US_POSIX")
         return f
-    }()
+    }
+    /// As the core stores them: `YYYY-MM-DD` and `HH:MM`.
+    private static let day = formatter("yyyy-MM-dd"), clock = formatter("HH:mm")
 
     var body: some View {
         Form {
-            TextField("Namn", text: $name)
-            Toggle("Datum", isOn: $hasDate)
-            if hasDate { DatePicker("Dag", selection: $date, displayedComponents: .date).environment(\.locale, Locale(identifier: "sv_SE")) }
-            TextField("Tid (HH:MM)", text: $time)
-            TextField("Plats", text: $location)
-            TextField("Beskrivning", text: $description, axis: .vertical).lineLimit(4...8)
-            HStack {
-                Spacer()
-                Button("Avbryt", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Spara", action: save).keyboardShortcut(.defaultAction)
+            Section { TextField(t("presentation.name"), text: $name) }
+            Section {
+                Toggle(t("presentation.date"), isOn: $hasDate.animation())
+                if hasDate { DatePicker(t("presentation.date"), selection: $date, displayedComponents: .date).labelsHidden() }
+                Toggle(t("presentation.time"), isOn: $hasTime.animation())
+                if hasTime { DatePicker(t("presentation.time"), selection: $time, displayedComponents: .hourAndMinute).labelsHidden() }
+            }
+            .environment(\.locale, Texts.locale)
+            Section {
+                TextField(t("presentation.location"), text: $location)
+                TextField(t("presentation.description"), text: $description, axis: .vertical).lineLimit(4...8)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .sheetBar(t(presentationId == nil ? "presentations.createTitle" : "presentation.editDetails"), confirm: t(presentationId == nil ? "common.create" : "common.save"),
+                  disabled: name.trimmingCharacters(in: .whitespaces).isEmpty, save)
+        .macWidth(440)
         .onAppear(perform: fill)
     }
 
     private func fill() {
-        guard let p = model.core.view("presentationView", ["id": presentationId], as: PresentationView.self) else { return }
+        guard let presentationId, let p = model.view("presentationPageView", ["id": presentationId], as: PresentationPage.self)?.presentation else { return }
         name = p.name
         if let d = p.eventDate.flatMap(Self.day.date(from:)) { hasDate = true; date = d }
-        time = p.time ?? ""
+        if let t = p.time.flatMap(Self.clock.date(from:)) {
+            hasTime = true
+            let c = Calendar.current.dateComponents([.hour, .minute], from: t)
+            time = Calendar.current.date(bySettingHour: c.hour ?? 0, minute: c.minute ?? 0, second: 0, of: Date()) ?? time
+        }
         location = p.location ?? ""
         description = p.description ?? ""
     }
 
-    private func save() {
+    private func save() -> Bool {
+        let id = presentationId ?? model.newId()
         let args: [String: Any] = [
-            "id": presentationId, "name": name,
+            "id": id, "name": name,
             "eventDate": hasDate ? Self.day.string(from: date) : NSNull(),
-            "time": time.isEmpty ? NSNull() : time, "location": location, "description": description,
+            "time": hasTime ? Self.clock.string(from: time) : NSNull(), "location": location, "description": description,
         ]
-        if model.run("updatePresentation", args) == "ok" { dismiss() }
+        guard model.run(presentationId == nil ? "createPresentation" : "updatePresentation", args) == "ok" else { return false }
+        if presentationId == nil { model.path = [id] }
+        return true
     }
 }

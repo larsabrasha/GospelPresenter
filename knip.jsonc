@@ -8,8 +8,9 @@
       "project": ["scripts/*.mjs"]
     },
     "apps/web": {
-      // The service worker is built by a Vite plugin of our own (vite.config.ts), which knip cannot see.
-      "entry": ["sw/sw.ts"],
+      // The service worker is built by a Vite plugin of our own (vite.config.ts), which knip cannot see; the native apps'
+      // slide renderer by vite.slides.config.ts, whose page (slides.html) knip does not read.
+      "entry": ["sw/sw.ts", "src/slides/main.tsx"],
       "project": ["src/**/*.{ts,tsx,css}", "sw/**/*.ts", "test/**/*.ts"]
     },
     "apps/server": {
