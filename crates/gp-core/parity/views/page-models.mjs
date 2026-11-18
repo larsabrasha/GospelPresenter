@@ -47,6 +47,11 @@ export default async function check(db, file) {
     const one = () => pick([...order, ...order, 'gone', '', null, undefined]);
     const place = { order, shownId: one(), lastAddedId: one(), chosenId: one(), selectedId: one() };
     for (const k of Object.keys(place)) if (place[k] === undefined) delete place[k];
+    // Where Lars changed the rule (2026-11-18) the TS is no yardstick: with nothing shown and something selected, the
+    // selection now goes before the last thing added, and a selection gone counts as none
+    // (packages/rust-core/test/page-models.test.ts holds the new rule).
+    const inOrder = (id) => typeof id === 'string' && order.includes(id);
+    if (!inOrder(place.chosenId) && !inOrder(place.shownId) && place.selectedId != null) continue;
     compared++;
     // The TS function takes null where a key is missing, as its callers pass it.
     const want = addAfter({ shownId: null, lastAddedId: null, chosenId: null, ...place }) ?? null;
@@ -54,5 +59,5 @@ export default async function check(db, file) {
     if (canon(want) !== canon(got)) differ.push(`addPositionView ${JSON.stringify(place)}: TS ${canon(want)} Rust ${canon(got)}`);
   }
   const start = await startPage(file);
-  return { compared: compared + start.compared, differ: [...differ, ...start.differ], notes: ['4 000 running orders with an addition placed', `the start page on ${start.compared} days`] };
+  return { compared: compared + start.compared, differ: [...differ, ...start.differ], notes: [`${compared} running orders with an addition placed, where the rule is 2.0's`, `the start page on ${start.compared} days`] };
 }

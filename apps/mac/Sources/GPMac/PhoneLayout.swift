@@ -166,6 +166,7 @@ struct BlackButton: View {
         .buttonStyle(.bordered).buttonBorderShape(.capsule)
         .disabled(model.live.pointer?.black ?? true)
         .keyboardShortcut("b", modifiers: [])
+        .accessibilityIdentifier("black")
     }
 }
 

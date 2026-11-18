@@ -1,0 +1,34 @@
+{
+  "about": "A small Sunday: a heading, a song of one part, a song with two arrangements, a song in the trash and an overlay. Played before presenting, with a slide shown and after Släck; the core's answers are sunday.expected.json, which every shell's menus are checked against (docs/view-models.md).",
+  "presentation": "p1",
+  "setup": [
+    ["createSong", { "id": "s1", "name": "Härlig är jorden" }],
+    ["addSongPart", { "id": "s1-v", "songId": "s1", "labelText": "Vers 1", "content": "Härlig är jorden, härlig är Guds himmel" }],
+    ["addSongPart", { "id": "s1-r", "songId": "s1", "labelText": "Refräng", "content": "Pilgrimsfärd" }],
+    ["createArrangement", { "id": "s1-a1", "songId": "s1", "name": null, "partIds": ["s1-v", "s1-r"] }],
+    ["createArrangement", { "id": "s1-a2", "songId": "s1", "name": "Kort", "partIds": ["s1-r"] }],
+    ["createSong", { "id": "s2", "name": "Gammal sång" }],
+    ["addSongPart", { "id": "s2-v", "songId": "s2", "labelText": null, "content": "En gång" }],
+    ["createSong", { "id": "s3", "name": "Tack min Gud" }],
+    ["addSongPart", { "id": "s3-v", "songId": "s3", "labelText": null, "content": "Tack min Gud" }],
+    ["createOverlay", { "id": "o1", "title": "Kollekt", "at": 1000 }],
+    ["createPresentation", { "id": "p1", "name": "Söndag" }],
+    ["addHeaderToPresentation", { "itemId": "h1", "presentationId": "p1", "title": "Välkomna", "afterItemId": null }],
+    ["addSongToPresentation", { "itemId": "i0", "presentationId": "p1", "songId": "s3", "arrangementId": null }],
+    ["addSongToPresentation", { "itemId": "i1", "presentationId": "p1", "songId": "s1", "arrangementId": null }],
+    ["addSongToPresentation", { "itemId": "i2", "presentationId": "p1", "songId": "s2", "arrangementId": null }],
+    ["trashSong", { "id": "s2", "at": 1000 }]
+  ],
+  "states": [
+    { "name": "before", "presenting": false, "keys": [] },
+    { "name": "shown", "presenting": true, "keys": [{ "type": "step", "delta": 1 }, { "type": "step", "delta": 1 }] },
+    { "name": "black", "presenting": true, "keys": [{ "type": "step", "delta": 1 }, { "type": "step", "delta": 1 }, { "type": "black" }] }
+  ],
+  "adds": [
+    { "lastAddedId": null, "chosenId": null, "selectedId": null },
+    { "lastAddedId": null, "chosenId": null, "selectedId": "h1" },
+    { "lastAddedId": "i2", "chosenId": null, "selectedId": "h1" },
+    { "lastAddedId": "i2", "chosenId": null, "selectedId": null },
+    { "lastAddedId": null, "chosenId": "i2", "selectedId": "h1" }
+  ]
+}

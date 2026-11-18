@@ -86,6 +86,7 @@ struct PresentationScreen: View {
             }
             .buttonStyle(.borderedProminent).tint(.green)
             .disabled(model.current?.items.allSatisfy(\.slides.isEmpty) ?? true)
+            .accessibilityIdentifier("start")
         }
     }
 }

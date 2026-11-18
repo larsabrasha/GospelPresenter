@@ -144,6 +144,38 @@ describe('addPositionView', () => {
     expect(after).toBe('added');
   });
 
+  it('adds after the selected item before presenting, though something was added since', () => {
+    const place = { order: ['welcome', 'song', 'added'], shownId: null, lastAddedId: 'added', chosenId: null, selectedId: 'welcome' };
+
+    const after = nodeRustCore().pure('addPositionView', place);
+
+    expect(after).toBe('welcome');
+  });
+
+  it('adds after the last thing added before presenting when nothing is selected, as on a phone', () => {
+    const place = { order: ['welcome', 'added', 'song'], shownId: null, lastAddedId: 'added', chosenId: null };
+
+    const after = nodeRustCore().pure('addPositionView', place);
+
+    expect(after).toBe('added');
+  });
+
+  it('takes a selected item that is gone as no selection', () => {
+    const place = { order: ['welcome', 'added'], shownId: null, lastAddedId: 'added', chosenId: null, selectedId: 'removed' };
+
+    const after = nodeRustCore().pure('addPositionView', place);
+
+    expect(after).toBe('added');
+  });
+
+  it('adds after the shown item while presenting, though another is selected', () => {
+    const place = { order: ['welcome', 'song', 'reading'], shownId: 'song', lastAddedId: null, chosenId: null, selectedId: 'reading' };
+
+    const after = nodeRustCore().pure('addPositionView', place);
+
+    expect(after).toBe('song');
+  });
+
   it('adds at the end when nothing is shown, chosen, added or selected', () => {
     const place = { order: ['welcome', 'song'], shownId: null, lastAddedId: null, chosenId: null };
 

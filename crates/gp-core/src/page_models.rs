@@ -8,21 +8,22 @@ use std::cmp::Ordering;
 /// A string argument that JavaScript would take as given: empty and missing alike are "none" (`x ? … : …`).
 fn given<'a>(a: &'a Obj, k: &str) -> Option<&'a str> { a.get(k).and_then(Value::as_str).filter(|s| !s.is_empty()) }
 
-/// `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId}: the item something added goes after
-/// (liveList.ts's `addAfter`): the one chosen in an item's menu ("Lägg till efter"); else the last thing added while it
-/// is still ahead of the shown item, so several additions keep their order; else the shown item; with nothing shown,
-/// the selected one. Null: at the end.
+/// `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId}: the item something added goes after, one rule
+/// for every layout (Lars, 2026-11-18). The one chosen in an item's menu ("Lägg till efter"). While presenting (the
+/// item on the outputs, black or not): the last thing added while it is still ahead of the shown item, so several additions
+/// keep their order, else the shown item (liveList.ts's `addAfter`). With nothing shown: the selected item, as Keynote
+/// adds after the selected slide, else the last thing added; a phone has no selection, so it adds after the last thing
+/// added. Null: at the end. An id not in `order` (an item gone) counts as none.
 pub fn add_position(a: &Obj) -> R<Value> {
     let order: Vec<&str> = a.get("order").and_then(Value::as_array).ok_or("invalid-args")?
         .iter().map(|v| v.as_str().ok_or_else(|| "invalid-args".to_string())).collect::<R<_>>()?;
-    let at = |id: Option<&str>| id.and_then(|id| order.iter().position(|o| *o == id));
-    if let Some(chosen) = given(a, "chosenId") { if order.contains(&chosen) { return Ok(json!(chosen)) } }
-    let shown = at(given(a, "shownId"));
-    let last = at(given(a, "lastAddedId"));
-    if let Some(l) = last { if shown.is_none_or(|s| l > s) { return Ok(json!(given(a, "lastAddedId"))) } }
-    Ok(match shown {
-        Some(_) => json!(given(a, "shownId")),
-        None => a.get("selectedId").filter(|v| v.is_string()).cloned().unwrap_or(Value::Null),
+    let here = |k: &str| given(a, k).filter(|id| order.contains(id));
+    let at = |id: &str| order.iter().position(|o| *o == id);
+    if let Some(chosen) = here("chosenId") { return Ok(json!(chosen)) }
+    let last = here("lastAddedId");
+    Ok(match here("shownId") {
+        Some(shown) => json!(last.filter(|l| at(l) > at(shown)).unwrap_or(shown)),
+        None => here("selectedId").or(last).map_or(Value::Null, |id| json!(id)),
     })
 }
 
@@ -54,9 +55,10 @@ pub fn presentation_actions(a: &Obj) -> R<Value> {
 /// same on its row, its heading's … and a phone's sheet: opening it (Byt namn for a programme item; Redigera for a song
 /// not in the trash or a custom slide, the pictures for a picture item) and Kommentar; Arrangemang › with two or more,
 /// for a song not in the trash, and Överlägg › while there are overlays, for anything but a programme item; Lägg till
-/// efter ›, Ny programpunkt ovanför and Markera; and Radera, not for the item shown. `song` is the item's song (or null),
-/// `arrangements` its arrangements in their order, `overlays` the organisation's, `shownId` the item on the outputs
-/// (none after Släck).
+/// efter ›, Ny programpunkt ovanför and Markera; and Radera, not for the item on the outputs. `song` is the item's song
+/// (or null), `arrangements` its arrangements in their order, `overlays` the organisation's, `shownId` the item on the
+/// outputs while presenting, black or not: removed after Släck, the next → would find it gone and start the running
+/// order over from its first slide (Lars, 2026-11-18; packages/rust-core/test/scenarios).
 pub fn item_actions(a: &Obj) -> R<Value> {
     let item = obj(a.get("item").ok_or("invalid-args")?)?;
     let kind = item.get("type").and_then(Value::as_str).unwrap_or("song");

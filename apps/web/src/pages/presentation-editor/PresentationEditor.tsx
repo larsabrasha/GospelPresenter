@@ -266,9 +266,9 @@ export function PresentationEditor({
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
   // An item's menu, the same from its row at the left and its heading's … (ItemContextMenu).
-  // While presenting, after what is shown or the last addition still ahead, unless "Lägg till efter" named the place.
+  // Where an addition goes, the core's one rule for every layout (`addAfter`).
   const afterFor = (chosen: string | null) =>
-    presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosen, selectedId }) : (chosen ?? selectedId);
+    addAfter({ order: items.map((i) => i.id), shownId: presenting ? liveItemId : null, lastAddedId, chosenId: chosen, selectedId });
   // A choice of +, or of "Lägg till efter": a heading is named at once; a kind opens the dialog of it.
   const choose = (afterId: string | null, choice: AddChoice) => {
     if (choice === 'header') return texts.addHeader({ afterItemId: afterFor(afterId) });
@@ -278,7 +278,8 @@ export function PresentationEditor({
     songs,
     arrangements: data.arrangements,
     overlays,
-    shownId: pointer.black ? null : liveItemId,
+    // The item on the outputs, black or not: removed after Släck, the next → would start the order over (Lars, 2026-11-18).
+    shownId: liveItemId,
     editHref: (item) => {
       const page = songPage(item, songs);
       return page && href(page);

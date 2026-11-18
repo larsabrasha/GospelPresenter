@@ -37,7 +37,8 @@ describe('package boundaries', () => {
   it('keeps Node out of the code that runs in a browser', () => {
     // sync's SQLite for Node: node:sqlite for the Electron main process, and wa-sqlite in memory for the tests.
     // The Rust core's WASM read from disk, for the server's host and the tests.
-    const NODE_ONLY = new Set(['packages/sync/src/client/node-sqlite-db.ts', 'packages/sync/src/client/wa-sqlite-db.ts', 'packages/rust-core/src/node.ts']);
+    // rust-core's scenarios.ts: the tests' organisation in node:sqlite (docs/view-models.md), imported only by tests.
+    const NODE_ONLY = new Set(['packages/sync/src/client/node-sqlite-db.ts', 'packages/sync/src/client/wa-sqlite-db.ts', 'packages/rust-core/src/node.ts', 'packages/rust-core/src/scenarios.ts']);
     const browser = ['packages/core', 'packages/rust-core', 'packages/sync', 'apps/web'].flatMap(imports).filter(({ file, spec }) => spec.startsWith('node:') && !NODE_ONLY.has(file));
 
     expect(browser.map((r) => `${r.at} ${r.spec}`)).toEqual([]);

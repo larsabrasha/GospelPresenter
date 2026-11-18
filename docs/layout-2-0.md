@@ -100,6 +100,12 @@ tapped shows nothing, and ▶ starts it.
 - **An item's …** (on its heading) opens the same menu as its row's (see Left below).
 - **Lägg till** (Sånger, Bibel, Text) adds right after what is shown, or after the last thing added while that is
   still ahead, so several additions keep their order; "Lägg till efter" in an item's … names the place instead.
+  Before presenting it adds after the selected item, as Keynote adds after the selected slide, else after the last
+  thing added, else last; a phone has no selection. One rule for a computer and a phone, the core's
+  (`addPositionView`; Lars, 2026-11-18: the two differed).
+- **The item on the outputs cannot be removed, nor ticked, black or not** (Lars, 2026-11-18): removed after Släck,
+  the next → would find it gone and start the running order over from its first slide
+  (packages/rust-core/test/scenarios.test.ts). A computer allowed it after Släck and a phone did not; now neither does.
   The list goes to the new item and marks it; nothing changes on the outputs. Adding and removing can be undone.
 - **Utgångar** is a sheet as high as its content (centred on an iPad held upright, as iPadOS's form sheet, as are
   the other sheets): each output with its state and a switch, then Anslut tillfällig

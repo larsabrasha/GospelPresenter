@@ -6,14 +6,13 @@ import SwiftUI
 
 struct ItemMenu: View {
     @Environment(Model.self) private var model
-    @Environment(\.wideLayout) private var wide
     let item: ItemView
 
     /// The entries this app draws; the core's others wait for their pages.
     private static let drawn: Set = ["rename", "note", "arrangement", "addAfter", "headerAbove", "delete"]
 
     var body: some View {
-        ForEach(model.itemActions(item, wide: wide), id: \.id) { group in
+        ForEach(model.itemActions(item), id: \.id) { group in
             Section {
                 ForEach(group.actions.filter { Self.drawn.contains($0.id) }, id: \.id) { entry($0) }
             }
@@ -81,27 +80,22 @@ struct AddChoices: View {
 }
 
 extension Model {
-    /// The item an addition goes after, as the web's two layouts ask it: in columns (PresentationEditor's `afterFor`)
-    /// the core's `addPositionView` while presenting, else the item chosen or selected; in one column (PhoneLive's)
-    /// the core's view always, with the shown item only while presenting and no selected item. The two differ before
-    /// presenting, as the web's do.
+    /// The item an addition goes after, the core's one rule (`addPositionView`): in columns with the selected item, in
+    /// one column without, as a phone has no selection.
     func afterFor(_ chosen: String?, wide: Bool) -> String? {
-        let order = current?.items.map(\.id) ?? []
-        let shown: Any = isLive ? (live.pointer?.itemId ?? NSNull()) : NSNull()
-        let last: Any = lastAddedId ?? NSNull(), pick: Any = chosen ?? NSNull()
-        if wide {
-            guard isLive else { return chosen ?? selectedItem }
-            return view("addPositionView", ["order": order, "shownId": shown, "lastAddedId": last, "chosenId": pick, "selectedId": selectedItem ?? NSNull()], as: String?.self) ?? nil
-        }
-        return view("addPositionView", ["order": order, "shownId": shown, "lastAddedId": last, "chosenId": pick], as: String?.self) ?? nil
+        let args: [String: Any] = [
+            "order": current?.items.map(\.id) ?? [],
+            "shownId": isLive ? (live.pointer?.itemId ?? NSNull()) : NSNull(),
+            "lastAddedId": lastAddedId ?? NSNull(), "chosenId": chosen ?? NSNull(),
+            "selectedId": wide ? (selectedItem ?? NSNull()) : NSNull(),
+        ]
+        return view("addPositionView", args, as: String?.self) ?? nil
     }
 
     /// An item's menu, the core's (`itemActionsView`): the item, its song, the song's arrangements, the overlays, and
-    /// the item shown, which cannot be removed. In columns a black screen shows nothing, as the web's computer page
-    /// has it; in one column the item stays shown under black, as the web's phone sheet has it (the two differ).
-    func itemActions(_ item: ItemView, wide: Bool) -> [MenuGroups.Group] {
-        let pointer = isLive ? live.pointer : nil
-        let shown: Any = (wide && pointer?.black == true ? nil : pointer?.itemId) ?? NSNull()
+    /// the item on the outputs, black or not, which cannot be removed.
+    func itemActions(_ item: ItemView) -> [MenuGroups.Group] {
+        let shown: Any = (isLive ? live.pointer?.itemId : nil) ?? NSNull()
         let itemArgs: [String: Any] = ["id": item.id, "type": item.type, "arrangementId": item.arrangementId ?? NSNull(), "overlayId": item.overlayId ?? NSNull()]
         let args: [String: Any] = [
             "item": itemArgs,

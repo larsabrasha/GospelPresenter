@@ -7,3 +7,13 @@ runMutation (function)
 
 ## @gp/rust-core/node
 nodeRustCore (function)
+
+## @gp/rust-core/scenarios
+Scenario (type)
+ScenarioAction (type)
+ScenarioAnswers (type)
+ScenarioItem (type)
+ScenarioPage (type)
+madeScenario (function)
+readScenario (const)
+scenarioAnswers (const)

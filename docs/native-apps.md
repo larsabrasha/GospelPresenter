@@ -103,8 +103,8 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   VISAS and NÄSTA on them, + floating at the bottom right.
 - **An item's menu** (`ItemMenus.swift`), the same on its row and its heading's …: Byt namn for a programme item,
   Kommentar; Arrangemang ›; Lägg till efter ›, Ny programpunkt ovanför; Radera last, in red, asked first, and
-  disabled for the item shown (in columns not after Släck, as the web's computer page). **+** offers Sång, then under
-  a line Programpunkt.
+  disabled for the item on the outputs, black or not. **+** offers Sång, then under a line Programpunkt.
+  `apps/mac/apple.sh uitest` checks these menus against the core's answers for a scenario (docs/view-models.md).
 - **Colours and sizes** (`Look.swift`): the warm grey `stone` by role (ground, surface, raised, sidebar), sky-500 as
   the app's tint, rows at least 52 pt.
 - **Texts** are the web's own, Swedish and English: `apps/mac/texts.mjs` writes `apps/web/src/i18n.ts`'s table into a

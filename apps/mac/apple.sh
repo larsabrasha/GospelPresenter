@@ -4,6 +4,8 @@
 #   apps/mac/apple.sh ios             that, then the iOS app for the simulator (build/derived)
 #   apps/mac/apple.sh device          that, then the iOS app for a device, unsigned (proves it compiles and links)
 #   apps/mac/apple.sh run <simulator> the simulator build, installed and started on a fresh copy of the demo data
+#   apps/mac/apple.sh uitest [<simulator>]
+#                                     the app's menus checked against the core's answers for a scenario (ios/UITests)
 #   TEAM=<team id> apps/mac/apple.sh install <UDID>
 #                                     signed with that team (a personal one will do), installed and started on a device
 #                                     of one's own, unlocked (UDIDs: xcrun devicectl list devices); the team is not kept
@@ -63,6 +65,16 @@ case "$1" in
     xcrun simctl install "$DEVICE" "$APP"
     xcrun simctl launch "$DEVICE" com.gospelpresenter.native
     open -a Simulator
+    ;;
+  uitest)
+    # The app's menus against the core's answers (ios/UITests, docs/view-models.md), on a simulator: minutes, so run
+    # when the app's Swift changes, not in every check. TEST_RUNNER_ hands the repository's path to the test.
+    DEVICE=${2:-iPhone 17 Pro}
+    # A name is found among the installed simulators (the first of its name), as several iOS versions may have one.
+    UDID=$(xcrun simctl list devices available | grep -m1 -E "^ +$DEVICE \(" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+    TEST_RUNNER_GP_REPO="$ROOT" xcodebuild -project ios/GPiOS.xcodeproj -scheme GPiOS -configuration Debug \
+      -derivedDataPath "$BUILD/derived" -destination "platform=iOS Simulator,id=${UDID:-$DEVICE}" test 2>&1 \
+      | grep -E "error|Test Case|XCTAssert|failed|passed|TEST (SUCCEEDED|FAILED)" | grep -v "appintentsmetadataprocessor"
     ;;
   install)
     [ -n "$TEAM" ] && [ -n "$2" ] || { echo "TEAM=<team id> $0 install <UDID>"; exit 1; }

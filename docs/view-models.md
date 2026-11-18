@@ -35,39 +35,47 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 
 | View | What it decides | Proved by | Read by |
 | --- | --- | --- | --- |
-| `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId} | the item + adds after (`addAfter`) | 4 000 random running orders against the TS `addAfter` at 238d481b (`parity/views/page-models.mjs`) | web (`liveList.ts`), iOS (`Model.afterFor`) |
+| `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId} | the item + adds after, one rule for a computer and a phone: the item chosen; while presenting the last added while ahead of the shown, else the shown; before, the selected, else the last added (a phone has no selection) | random running orders against the TS `addAfter` at 238d481b where 2.0's rule holds (`parity/views/page-models.mjs`), unit tests where Lars changed it | web (`liveList.ts`), iOS (`Model.afterFor`) |
 | `startPageView` {today} | the start page's lists: Idag by time, Kommande soonest first, the rest last changed first; which show a date and a year; each row's number of items; an empty list left out | 32 days against the TS `groupPresentations` and `itemCounts` at 238d481b; `packages/rust-core/test/page-models.test.ts` | web (`Presentations.tsx`), iOS (`Model.refresh`) |
 | `presentationActionsView` {isTemplate, presenting, role} | the title menu: Redigera detaljer, Material (not for a template), Spara som mall (who may manage templates), the trash (not while presented) | unit tests (`page-models.test.ts`); the web's e2e specs of the menu | web (`PresentationEditor.tsx`), iOS (`PresentationScreen.titleMenu`) |
-| `itemActionsView` {item, song, arrangements, overlays, shownId} | an item's menu: Byt namn (a programme item), Redigera (a song not in the trash, a custom slide), Redigera bilder, Kommentar; Arrangemang › (two or more, a song not in the trash) and Överlägg › (while there are overlays), not for a programme item; Lägg till efter ›, Ny programpunkt ovanför, Markera; Radera, disabled for the item shown | unit tests; the web's e2e specs of the menu | web (`ItemContextMenu.tsx`), iOS (`ItemMenu`) |
+| `itemActionsView` {item, song, arrangements, overlays, shownId} | an item's menu: Byt namn (a programme item), Redigera (a song not in the trash, a custom slide), Redigera bilder, Kommentar; Arrangemang › (two or more, a song not in the trash) and Överlägg › (while there are overlays), not for a programme item; Lägg till efter ›, Ny programpunkt ovanför, Markera; Radera, disabled for the item on the outputs, black or not | unit tests; the scenario; the web's e2e specs of the menu; iOS's UI test | web (`ItemContextMenu.tsx`, a phone's `ItemSheet.tsx`), iOS (`ItemMenu`) |
 | `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/rust-core/test/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
 
 `addPositionView` and `startPageView` had a TS function to port, so they are proved against it; the menus were JSX
 conditions, so they are proved by unit tests of each condition and by the e2e specs that open the menus.
 
-Where the web's two layouts already differ, the core gives both and the shells keep the difference, until Lars says
-which is meant: before presenting, + on a computer adds after the item chosen or selected, on a phone by the core's
-rule without a selection; after Släck, a computer may remove the item shown, a phone's sheet may not.
+The web's computer and phone layouts differed in two rules; Lars chose on 2026-11-18 (docs/layout-2-0.md): + before
+presenting adds after the selected item, else the last added, on both; and the item on the outputs cannot be removed
+after Släck either, on both, as the scenario showed that → would then start the order over.
 
 ## Checked deterministically
 
-1. **The core**, in `build.sh test` and `pnpm test`: the parity checks against the old TS core where it had the rule,
-   and unit tests of each rule where it did not. Next: scenarios, a JSON file of events (a mutation, a presenting key,
-   a view asked) with the view models expected after each, which prove the core against what 2.0 is meant to do and
-   outlive the reference (`docs/rust-core.md`, "Before 2.0 goes out", point 3).
-2. **Each shell against the view models** (not built): a test per shell feeds a view model from the same fixtures and
-   checks what it draws through its accessibility tree (role, text, enabled), not its pixels: Playwright on the web,
-   XCUITest on iOS, the action's id as the element's identifier. A shell that drops an action, renames it or leaves it
-   enabled fails.
-3. **The shells against each other** (not built): the same scenario's accessibility snapshots, normalised (roles
-   mapped, layout ignored), compared between the web and iOS. Pictures are compared only within one shell, before and
-   after a change (`docs/look.md`), never across shells, whose components differ on purpose.
+1. **The core**, in `pnpm test` and `build.sh test`: the parity checks against the old TS core where it had the rule,
+   unit tests of each rule, and scenarios (`packages/rust-core/scenarios`): a small organisation made by the mutators
+   (`sunday.json`), presenting moved by its keys, and in each state (before, a slide shown, after Släck) what the core
+   offers: the slide shown and marked, each item's menu, where + adds. The answers are `sunday.expected.json`, a file
+   snapshot: a rule changed changes that file (`vitest -u`), read in the diff. They prove the core against what 2.0 is
+   meant to do and outlive the reference (`docs/rust-core.md`, "Before 2.0 goes out", point 3).
+2. **Each shell against the same answers.** iOS: `apps/mac/apple.sh uitest` (XCUITest, `apps/mac/ios/UITests`, about
+   two minutes on a simulator) makes the scenario's organisation in the app (`-gp.fixture`), reaches each state as
+   someone would (▶, a part tapped, Släck), opens each item's … and checks that the entries the app draws are those the
+   core offers, enabled as it says, and that none it does not offer is there; found by their Swedish texts. Run when
+   the app's Swift changes, not in every check. Made to fail once on purpose (Radera always enabled): it failed for the
+   shown item, shown and black. The web: `apps/web/test/ItemMenus.test.tsx`, in `pnpm test` (under a second), draws
+   the computer's … and a phone's sheet for each item in each state, in a DOM (happy-dom, Lars 2026-11-18), from the
+   same organisation (`@gp/rust-core/scenarios` makes it), and checks the same three things. Made to fail on purpose
+   twice (a phone's Radera always enabled; Byt namn drawn for every item): it failed where it should.
+3. **The shells against each other** (not built, and not planned): the same scenario's accessibility snapshots
+   compared between the web and iOS. Point 2 against one answer file catches nearly the same, more simply. Pictures are
+   compared only within one shell, before and after a change (`docs/look.md`), never across shells, whose components
+   differ on purpose.
 
 ## Next
 
 Each further view model is a step of the loop in `docs/rust-core.md`: write it in the core, check it, switch the web to
-read it (the e2e specs that reach the page unchanged), switch the native app. In the order the native app builds
-pages: the phone's item sheet (`PhoneLive`'s, which still decides its own entries), the song's page, the library's
-menus. The cost is more views over the bridge (small JSON, read when a menu opens) and the web's components reading
+read it (the e2e specs that reach the page unchanged), switch the native app, and add the page's states to a scenario.
+In the order the native app builds pages: the song's page, the library's menus. The core decides what can be done;
+layout, icons, focus, scrolling, animation, what is selected and keyboard shortcuts stay each shell's. The cost is more views over the bridge (small JSON, read when a menu opens) and the web's components reading
 actions instead of deciding them; it does not make the shells look alike, which they should not, or decide
 navigation, which stays each platform's.
 

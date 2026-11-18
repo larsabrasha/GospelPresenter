@@ -1,5 +1,5 @@
-import { sortedArrangements, type LivePointer, type Overlay, type Presentation, type PresentationItem, type CustomPage, type Song, type SongArrangement, type Theme, type ItemSlides } from '@gp/core';
-import { Children, useRef, useState, type ReactNode } from 'react';
+import type { LivePointer, Overlay, Presentation, PresentationItem, CustomPage, Song, SongArrangement, Theme, ItemSlides } from '@gp/core';
+import { useRef, useState } from 'react';
 import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData, useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
@@ -8,15 +8,17 @@ import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { CheckSquareIcon, CommentIcon, PointIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
-import { href, navigate } from '../../../ui/router.ts';
-import { ICON_GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
+import { PointIcon, PencilIcon, PlusIcon } from '../../../ui/icons.tsx';
+import { href } from '../../../ui/router.ts';
+import { Sheet } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
 import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
 import { AddItemDialog, addKinds, type AddChoice, type AddKind } from '../../presentation-editor/AddItemDialog.tsx';
 import { useItemTexts } from '../../presentation-editor/HeaderDialog.tsx';
-import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
+import { ImageItemEditor } from '../../presentation-editor/ItemParts.tsx';
+import { ItemSheet } from './ItemSheet.tsx';
+import { MenuGroup, MenuRow } from './MenuRows.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
 import { PresentationBar } from '../PresentationBar.tsx';
 import { useLiveMotion } from '../liveMotion.ts';
@@ -35,8 +37,6 @@ type Open = null | 'display' | 'description' | { item: PresentationItem } | { im
 
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
-/** A row of a sheet's menu. */
-const ROW = 'w-full min-h-12 px-4 flex items-center gap-3.5 text-[17px] text-left cursor-pointer';
 
 /**
  * A presentation on a phone or an iPad held upright, the same before and while it is presented (docs/layout-2-0.md):
@@ -205,7 +205,7 @@ export function PhoneLive({
             songs,
             arrangements,
             overlays,
-                    shownId: pointer.black ? null : pointer.itemId,
+            shownId: presenting ? pointer.itemId : null,
             editHref: (item) => {
               const page = songPage(item, songs);
               return page && href(page);
@@ -278,59 +278,21 @@ export function PhoneLive({
         </Sheet>
       )}
       {open && typeof open === 'object' && 'item' in open && (
-        <Sheet title={open.item.title} onClose={() => setOpen(null)}>
-          {/* Grouped and ordered as the computer's … (ItemContextMenu, Lars 2026-11-05): the item itself, its settings, the
-              list around it, and to the trash last. */}
-          <div className="flex flex-col gap-5">
-            <MenuGroup>
-              {open.item.type === 'header' && (
-                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onRename(open.item))}>
-                  {t('header.rename')}
-                </MenuRow>
-              )}
-              {songPage(open.item, songs) && (
-                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate(songPage(open.item, songs)!))}>
-                  {t('presentation.editSong')}
-                </MenuRow>
-              )}
-              {open.item.type === 'image' && (
-                <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => setOpen({ images: open.item })}>
-                  {t('presentation.editImages')}
-                </MenuRow>
-              )}
-              <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onNote(open.item))}>
-                {t('note.title')}
-              </MenuRow>
-            </MenuGroup>
-            {/* The arrangement and the overlay as rows of a card, as the rows above (ItemSettings); the item as it is
-                now, not as it was when the sheet opened, so a choice shows at once. */}
-            {/* A heading shows nothing, so it has no overlay. */}
-            {open.item.type !== 'header' && (
-              <ItemSettings
-                item={items.find((i) => i.id === open.item.id) ?? open.item}
-                song={songs.get(open.item.sourceId)}
-                arrangements={open.item.type === 'song' ? sortedArrangements(arrangements, open.item.sourceId) : []}
-                overlays={overlays}
-              />
-            )}
-            <MenuGroup>
-              <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
-                {t('live.addAfter')}
-              </MenuRow>
-              <MenuRow icon={<PointIcon className="size-5" />} onClick={() => (setOpen(null), texts.menu.onHeaderAbove(open.item))}>
-                {t('header.above')}
-              </MenuRow>
-              <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(open.item.id))}>
-                {t('presentation.tick')}
-              </MenuRow>
-            </MenuGroup>
-            <MenuGroup>
-              <MenuRow icon={<TrashIcon className="size-5" />} onClick={() => void remove(open.item)} danger disabled={!!presenting && open.item.id === pointer.itemId}>
-                {presenting && open.item.id === pointer.itemId ? t('live.shownCannotRemove') : t('common.delete')}
-              </MenuRow>
-            </MenuGroup>
-          </div>
-        </Sheet>
+        <ItemSheet
+          item={items.find((i) => i.id === open.item.id) ?? open.item}
+          songs={songs}
+          arrangements={arrangements}
+          overlays={overlays}
+          shownId={presenting ? pointer.itemId : null}
+          on={{
+            ...texts.menu,
+            onEditImages: (item) => setOpen({ images: item }),
+            onAddAfter: (item) => setAdding({ chosenId: item.id }),
+            onTick: (item) => setEditing(item.id),
+            onRemove: (item) => void remove(item),
+          }}
+          onClose={() => setOpen(null)}
+        />
       )}
       {choosingKind && <AddKindSheet onChoose={(choice) => choose(adding.chosenId, choice)} onClose={() => setAdding(null)} />}
       {texts.dialogs}
@@ -374,23 +336,5 @@ function AddKindSheet({ onChoose, onClose }: { onChoose: (choice: AddChoice) => 
         </MenuGroup>
       </div>
     </Sheet>
-  );
-}
-
-/** A choice in a sheet's menu, its icon first, as iOS 27 draws them; choosing it closes the sheet. */
-/** One rounded group of rows; with no row in it (each is conditional) it takes no room. */
-function MenuGroup({ children }: { children: ReactNode }) {
-  if (!Children.toArray(children).length) return null;
-  return <div className={ICON_GROUP}>{children}</div>;
-}
-
-function MenuRow({ icon, onClick, danger, disabled, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; children: ReactNode }) {
-  // The sheet slides away first, as on iOS, then the choice is carried out.
-  const dismiss = useSheetDismiss();
-  return (
-    <AppButton variant="plain" onClick={() => dismiss(onClick)} disabled={disabled} className={`${ROW} ${danger ? 'text-red-500' : ''} disabled:text-stone-400 disabled:cursor-default disabled:text-[15px]`}>
-      {icon && <span className={`shrink-0 flex ${danger || disabled ? '' : 'text-stone-500 dark:text-stone-400'}`}>{icon}</span>}
-      <span>{children}</span>
-    </AppButton>
   );
 }

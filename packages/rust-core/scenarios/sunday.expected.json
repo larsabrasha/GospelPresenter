@@ -1,0 +1,1035 @@
+{
+  "items": [
+    {
+      "id": "h1",
+      "title": "Välkomna"
+    },
+    {
+      "id": "i0",
+      "title": "Tack min Gud"
+    },
+    {
+      "id": "i1",
+      "title": "Härlig är jorden"
+    },
+    {
+      "id": "i2",
+      "title": "Gammal sång"
+    }
+  ],
+  "states": [
+    {
+      "state": "before",
+      "shown": null,
+      "marks": null,
+      "menus": {
+        "h1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "rename",
+                "text": "header.rename"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i0": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "s1-a1",
+                    "n": 1,
+                    "name": null
+                  },
+                  {
+                    "id": "s1-a2",
+                    "n": 2,
+                    "name": "Kort"
+                  }
+                ],
+                "chosen": "s1-a1",
+                "destructive": false,
+                "enabled": true,
+                "id": "arrangement",
+                "text": "song.arrangements"
+              },
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i2": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ]
+      },
+      "adds": [
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": null,
+          "after": null
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "h1"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "h1"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": null,
+          "after": "i2"
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": "i2",
+          "selectedId": "h1",
+          "after": "i2"
+        }
+      ]
+    },
+    {
+      "state": "shown",
+      "shown": {
+        "black": false,
+        "itemId": "i1",
+        "partIndex": 0
+      },
+      "marks": {
+        "next": {
+          "itemId": "i1",
+          "partIndex": 1
+        },
+        "shown": {
+          "itemId": "i1",
+          "partIndex": 0
+        }
+      },
+      "menus": {
+        "h1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "rename",
+                "text": "header.rename"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i0": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "s1-a1",
+                    "n": 1,
+                    "name": null
+                  },
+                  {
+                    "id": "s1-a2",
+                    "n": 2,
+                    "name": "Kort"
+                  }
+                ],
+                "chosen": "s1-a1",
+                "destructive": false,
+                "enabled": true,
+                "id": "arrangement",
+                "text": "song.arrangements"
+              },
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": false,
+                "id": "delete",
+                "text": "live.shownCannotRemove"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i2": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ]
+      },
+      "adds": [
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": null,
+          "after": "i1"
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "i1"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "i2"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": null,
+          "after": "i2"
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": "i2",
+          "selectedId": "h1",
+          "after": "i2"
+        }
+      ]
+    },
+    {
+      "state": "black",
+      "shown": {
+        "black": true,
+        "itemId": "i1",
+        "partIndex": 0
+      },
+      "marks": {
+        "next": {
+          "itemId": "i1",
+          "partIndex": 1
+        },
+        "shown": null
+      },
+      "menus": {
+        "h1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "rename",
+                "text": "header.rename"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i0": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i1": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "edit",
+                "text": "presentation.editSong"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "s1-a1",
+                    "n": 1,
+                    "name": null
+                  },
+                  {
+                    "id": "s1-a2",
+                    "n": 2,
+                    "name": "Kort"
+                  }
+                ],
+                "chosen": "s1-a1",
+                "destructive": false,
+                "enabled": true,
+                "id": "arrangement",
+                "text": "song.arrangements"
+              },
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": false,
+                "id": "delete",
+                "text": "live.shownCannotRemove"
+              }
+            ],
+            "id": "remove"
+          }
+        ],
+        "i2": [
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "note",
+                "text": "note.title"
+              }
+            ],
+            "id": "open"
+          },
+          {
+            "actions": [
+              {
+                "choices": [
+                  {
+                    "id": "",
+                    "text": "overlays.itemNone"
+                  },
+                  {
+                    "id": "o1",
+                    "name": "Kollekt"
+                  }
+                ],
+                "chosen": "",
+                "destructive": false,
+                "enabled": true,
+                "id": "overlay",
+                "text": "overlays.itemOverlay"
+              }
+            ],
+            "id": "show"
+          },
+          {
+            "actions": [
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "addAfter",
+                "text": "live.addAfter"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "headerAbove",
+                "text": "header.above"
+              },
+              {
+                "destructive": false,
+                "enabled": true,
+                "id": "tick",
+                "text": "presentation.tick"
+              }
+            ],
+            "id": "list"
+          },
+          {
+            "actions": [
+              {
+                "destructive": true,
+                "enabled": true,
+                "id": "delete",
+                "text": "common.delete"
+              }
+            ],
+            "id": "remove"
+          }
+        ]
+      },
+      "adds": [
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": null,
+          "after": "i1"
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "i1"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": "h1",
+          "after": "i2"
+        },
+        {
+          "lastAddedId": "i2",
+          "chosenId": null,
+          "selectedId": null,
+          "after": "i2"
+        },
+        {
+          "lastAddedId": null,
+          "chosenId": "i2",
+          "selectedId": "h1",
+          "after": "i2"
+        }
+      ]
+    }
+  ]
+}

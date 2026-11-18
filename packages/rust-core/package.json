@@ -5,6 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./node": "./src/node.ts",
+    "./scenarios": "./src/scenarios.ts",
+    "./scenarios/*": "./scenarios/*",
     "./gp_core.wasm": "./dist/gp_core.wasm"
   },
   "scripts": {

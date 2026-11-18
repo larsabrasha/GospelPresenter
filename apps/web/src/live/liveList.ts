@@ -1,12 +1,19 @@
 // The running order while presenting (docs/layout-2-0.md): where an addition goes, and when the list follows the
 // shown part.
-import { pageCore } from '../db/pageCore.ts';
+import { pageCore, type Action } from '../db/pageCore.ts';
+import { t } from '../i18n.ts';
+
+/** An item's Arrangemang › as its menu names them: an arrangement without a name by its place, "Arrangemang 2". */
+export const arrangementChoices = (a: Action | undefined) => (a?.choices ?? []).map((c) => ({ id: c.id, title: c.name ?? `${t('song.arrangement')} ${c.n}` }));
+
+/** An item's Överlägg › as its menu names them: Ingen first, then each overlay's title. */
+export const overlayChoices = (a: Action | undefined) => (a?.choices ?? []).map((c) => ({ id: c.id, title: c.id === '' ? t('overlays.itemNone') : (c.name ?? '') }));
 
 /**
- * The item something added while presenting goes after, as the core works it out for every shell (`addPositionView`,
- * docs/view-models.md): the one chosen in an item's … menu ("Lägg till efter"); else the last thing added, while it is
- * still ahead of the shown item, so several additions keep the order they were added in; else the shown item. With
- * nothing shown, the selected item, as the editor adds.
+ * The item something added goes after, one rule for the computer and the phone, the core's (`addPositionView`,
+ * docs/view-models.md): the one chosen in an item's … menu ("Lägg till efter"); while presenting, the last thing
+ * added while it is still ahead of the shown item, so several additions keep the order they were added in, else the
+ * shown item; before, the selected item, else the last thing added (a phone has no selection). Null: at the end.
  */
 export function addAfter(place: {
   order: readonly string[];

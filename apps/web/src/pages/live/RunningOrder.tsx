@@ -71,8 +71,10 @@ export function RunningOrder({
   // A new select mode starts with the row Markera was chosen on ticked, or none.
   const [first, setFirst] = useState<string | null>(null);
   const order = items.map((i) => i.id);
-  // The shown item cannot be removed, so it cannot be ticked either (docs/layout-2-0.md).
-  const tickable = order.filter((id) => id !== shownId);
+  // The item on the outputs cannot be removed, black or not (its menu's rule, `itemActionsView`), so it cannot be ticked
+  // either (docs/layout-2-0.md).
+  const kept = menuSource.shownId;
+  const tickable = order.filter((id) => id !== kept);
   const [wasTicking, setWasTicking] = useState(false);
   if (wasTicking !== ticking) {
     setWasTicking(ticking);
@@ -87,7 +89,7 @@ export function RunningOrder({
     const to = items.findIndex((i) => i.id === itemId);
     if (range && from >= 0 && to >= 0) for (let i = Math.min(from, to); i <= Math.max(from, to); i++) next.add(items[i]!.id);
     else if (!next.delete(itemId)) next.add(itemId);
-    if (shownId) next.delete(shownId);
+    if (kept) next.delete(kept);
     setLastTicked(itemId);
     setTicked(next);
   };

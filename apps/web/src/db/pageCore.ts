@@ -76,7 +76,7 @@ export const limits = () => theRules().limits;
 export const fields = () => theRules().fields;
 
 /** An action a menu offers, as the core works it out for every shell (docs/view-models.md). */
-interface Action {
+export interface Action {
   id: string;
   /** Its text's key; the web writes each key out where it draws the action, so the texts' check sees them used. */
   text: string;
@@ -96,9 +96,13 @@ export function presentationActionIds(isTemplate: boolean, presenting: boolean, 
   return new Set(groups.flatMap((g) => g.actions.map((a) => a.id)));
 }
 
-/** An item's menu (`itemActionsView`), in its groups, as every shell offers it. */
-export function itemActionGroups(args: { item: unknown; song: unknown; arrangements: unknown[]; overlays: unknown[]; shownId: string | null }): ActionGroups['groups'] {
-  return pageCore().pure<ActionGroups>('itemActionsView', args).groups;
+/**
+ * What an item's menu offers (`itemActionsView`), by action id, as every shell offers it: the computer's … and the
+ * phone's sheet. `shownId` is the item on the outputs while presenting, black or not.
+ */
+export function itemActions(args: { item: unknown; song: unknown; arrangements: unknown[]; overlays: unknown[]; shownId: string | null }): Map<string, Action> {
+  const { groups } = pageCore().pure<ActionGroups>('itemActionsView', args);
+  return new Map(groups.flatMap((g) => g.actions.map((a) => [a.id, a] as const)));
 }
 
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */

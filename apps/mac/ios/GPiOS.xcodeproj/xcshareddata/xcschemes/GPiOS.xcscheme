@@ -39,6 +39,16 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "7A1C0E0F0D0C0B0A09080703"
+               BuildableName = "GPiOSUITests.xctest"
+               BlueprintName = "GPiOSUITests"
+               ReferencedContainer = "container:GPiOS.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -63,10 +63,12 @@ final class Model {
     }()
 
     init() {
-        // For pictures and checks: `-gp.demo YES` opens the demo, `-gp.open <id>` a presentation in it, and
+        // For pictures and checks: `-gp.demo YES` opens the demo (`-gp.fixture <path>` a scenario's data instead),
+        // `-gp.open <id>` a presentation in it, and
         // `-gp.show <itemId>/<n>` presents that slide (launch arguments, read as the app's settings).
         let args = UserDefaults.standard
         if let session = Keychain.session, !args.bool(forKey: "gp.demo") { open(session) }
+        else if let file = args.string(forKey: "gp.fixture") { openFixture(file) }
         else if ProcessInfo.processInfo.environment["GP_MAC_DATA"] != nil || args.bool(forKey: "gp.demo") { openDemo() }
         if let id = args.string(forKey: "gp.open") { path = [id] }
         if let at = args.string(forKey: "gp.show")?.split(separator: "/"), at.count == 2, let n = Int(at[1]) {
@@ -104,6 +106,24 @@ final class Model {
         let core = Core(db: db)
         // The demo data as today's schema has it (it may be made by an older core).
         _ = core.command("migrateOrgSchema", json: "{}", caller: nil)
+        store = .demo(core)
+        reload()
+    }
+
+    /// A scenario's organisation (`-gp.fixture <path>` to packages/rust-core/scenarios/<name>.json), made afresh by its
+    /// mutations, for the UI tests that check what the app draws against the core's answers (apps/mac/ios/UITests).
+    func openFixture(_ file: String) {
+        let path = "\(Self.home)/fixture.sqlite"
+        for end in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + end) }
+        guard let data = FileManager.default.contents(atPath: file),
+              let setup = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["setup"] as? [[Any]],
+              let db = try? Database(path: path) else { return }
+        let core = Core(db: db)
+        _ = core.command("migrateOrgSchema", json: "{}", caller: nil)
+        for step in setup {
+            guard step.count == 2, let name = step[0] as? String else { continue }
+            _ = core.mutate(["name": name, "args": step[1], "ctx": ["userId": "fixture", "role": "admin", "now": 1000]])
+        }
         store = .demo(core)
         reload()
     }
