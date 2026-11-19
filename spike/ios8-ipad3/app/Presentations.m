@@ -91,8 +91,9 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     NSString *name = [[source accountName] componentsSeparatedByString:@" "].firstObject ?: GPOwnText(@"demo");
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:name style:UIBarButtonItemStylePlain
                                                                             target:self action:@selector(account:)];
-    self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:GPText(@"nav.presentations", nil)
-                                                                             style:UIBarButtonItemStylePlain target:nil action:NULL];
+    // ‹ alone back here, as it was beside a plain title: beside the title's button (the presentation's menu) iOS cuts
+    // "Presentationer" to "Tillbaka" and that to "Til…" rather than leave it out (a title of @"" it takes as none).
+    self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@" " style:UIBarButtonItemStylePlain target:nil action:NULL];
     self.tableView.backgroundView = lists.count ? nil : [self empty];
     [self.tableView reloadData];
 }

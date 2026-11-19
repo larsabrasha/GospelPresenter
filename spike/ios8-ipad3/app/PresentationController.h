@@ -14,6 +14,9 @@ UISplitViewController *GPSplit(UIViewController *list);
 /// the left column over the list, its slides at the right; its events through a page model over `source`'s live state.
 void GPShowPage(UISplitViewController *split, NSDictionary *page, id<GPPresentationSource> source, BOOL animated);
 
+/// No presentation: the start page at the left, the right column empty (a presentation trashed here or gone in a sync).
+void GPShowNothing(UISplitViewController *split);
+
 /// The presentation whose running order the left column shows, nil on the start page.
 NSString *GPShownPresentation(UISplitViewController *split);
 

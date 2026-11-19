@@ -5,7 +5,9 @@
 #import <UIKit/UIKit.h>
 #import "AddSong.h"
 #import "Core.h"
+#import "Details.h"
 #import "ItemMenu.h"
+#import "PresentationMenu.h"
 #import "Live.h"
 #import "LivePanel.h"
 #import "PresentationController.h"
@@ -84,7 +86,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     // Read again in place, where the page stands (built anew, it went back to its top).
     if (page && [detail isKindOfClass:[GPDetailController class]]) [detail.model reloadPage:page];
     else if (page) GPShowPage(split, page, self, NO);
-    else if (shown) [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];   // gone
+    else if (shown) GPShowNothing(split);   // gone (trashed elsewhere): its slides with it
 }
 
 // In the background the socket closes; back in front it opens again, catching up as it does.
@@ -253,6 +255,23 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     if (page && [url.host isEqual:@"menu"] && url.pathComponents.count > 1) {
         NSInteger row = [url.pathComponents[1] integerValue];
         GPItemMenu(order, order.tableView, [order.tableView rectForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]], page.page[@"items"][row], page);
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    // The presentation's: gpcore8://pmenu its menu, gpcore8://details Redigera detaljer, gpcore8://trash Radera answered yes.
+    if (page && [url.host isEqual:@"pmenu"]) {
+        UIView *title = order.navigationItem.titleView;
+        if (title) GPPresentationMenu(order, title, page);
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if (page && [url.host isEqual:@"details"]) {
+        [[[GPDetailsController alloc] initWithSource:self presentationId:page.page[@"presentation"][@"id"] done:^(NSString *saved) {}] presentFrom:order];
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if (page && [url.host isEqual:@"trash"]) {
+        GPTrashPresentation(order, page);
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }

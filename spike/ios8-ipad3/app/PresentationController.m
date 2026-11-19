@@ -6,6 +6,7 @@
 // core's marks (VISAS, NÄSTA, the slide made ready) are drawn over the tiles (Live.m).
 #import "PresentationController.h"
 #import "ItemMenu.h"
+#import "PresentationMenu.h"
 #import "LivePanel.h"
 #import "SlideView.h"
 #import "Texts.h"
@@ -187,7 +188,14 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
         model = m;
         page = m.page;
         items = page[@"items"];
-        self.title = page[@"presentation"][@"name"];
+        // The title a button, as the native app's: the presentation's menu (PresentationMenu.m).
+        UIButton *name = [UIButton buttonWithType:UIButtonTypeSystem];
+        name.titleLabel.font = [UIFont boldSystemFontOfSize:17];
+        name.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+        [name setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+        [name addTarget:self action:@selector(menu:) forControlEvents:UIControlEventTouchUpInside];
+        self.navigationItem.titleView = name;
+        [self name:page[@"presentation"][@"name"]];
         // + in the bar: Sång, Programpunkt (ItemMenu.m).
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
                                                                                                target:self action:@selector(add:)];
@@ -201,6 +209,17 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 - (void)add:(UIBarButtonItem *)button { GPAddMenu(self, button, nil, CGRectZero, nil, model); }
 
+- (void)menu:(UIButton *)button { GPPresentationMenu(self, button, model); }
+
+/// The title and its button, no wider than the bar leaves between ‹ and + in the 320 pt column.
+- (void)name:(NSString *)text {
+    self.title = text;
+    UIButton *name = (UIButton *)self.navigationItem.titleView;
+    [name setTitle:text forState:UIControlStateNormal];
+    CGSize fits = [name sizeThatFits:CGSizeMake(CGFLOAT_MAX, 44)];
+    name.frame = CGRectMake(0, 0, MIN(fits.width, 190), 44);
+}
+
 /// The item shown gets its red dot, the selection kept.
 - (void)liveChanged {
     NSIndexPath *chosen = self.tableView.indexPathForSelectedRow;
@@ -212,7 +231,7 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 - (void)pageChanged {
     page = model.page;
     items = page[@"items"];
-    self.title = page[@"presentation"][@"name"];
+    [self name:page[@"presentation"][@"name"]];
     ((UILabel *)self.tableView.tableHeaderView).text = GPWhen(page[@"presentation"]);
     [self liveChanged];
 }
@@ -536,12 +555,21 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 }
 @end
 
+static UIViewController *nothing(void) {
+    UIViewController *empty = [[UIViewController alloc] init];
+    empty.view.backgroundColor = rgb(0xEFEFF4);
+    return empty;
+}
+
+void GPShowNothing(UISplitViewController *split) {
+    [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];
+    ((UINavigationController *)split.viewControllers.lastObject).viewControllers = @[nothing()];
+}
+
 UISplitViewController *GPSplit(UIViewController *list) {
     UISplitViewController *split = [[UISplitViewController alloc] init];
     UINavigationController *left = [[UINavigationController alloc] initWithRootViewController:list];
-    UIViewController *empty = [[UIViewController alloc] init];
-    empty.view.backgroundColor = rgb(0xEFEFF4);
-    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:empty];
+    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:nothing()];
     // Opaque bars: a translucent one blurs what scrolls under it anew on every frame, more than the iPad 3's GPU
     // keeps up with.
     left.navigationBar.translucent = NO;

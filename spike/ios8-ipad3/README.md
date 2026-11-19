@@ -165,6 +165,22 @@ the next one where it stood, the column named after it.
 Not tried: any entry by hand, a song added, Arrangemang and Överlägg with choices to make, a change the core refuses
 (its alert), a menu while presenting.
 
+**The presentation's menu**, as the native app's titleMenu (PresentationMenu.m): the running order's title is a
+button, and a tap on it opens an action sheet of `presentationActionsView`'s entries: Redigera detaljer… (the Details
+form filled in, `updatePresentation`, the page and the start page read again) and Radera presentation (asked first
+with the web's text, `trashPresentation`, then the start page with nothing beside it); Radera is not offered while
+the presentation is presented. Noter och länkar and Spara som mall are left out, as the native app leaves them (the
+role is sent empty, which only Spara som mall asks for). A presentation trashed elsewhere now empties the right
+column too when a sync brings it. The back button to the start page is ‹ alone, as it was beside a plain title: beside
+the title's button iOS 8 cut "Presentationer" to "Til…" rather than leave it out. Over SSH: `gpcore8://pmenu`,
+`gpcore8://details`, `gpcore8://trash` (Radera answered yes).
+
+Tried on the iPad: the menu's popover under the title (Redigera detaljer…, Radera presentation in red), the form
+filled in with the presentation's name, place, day and time; a presentation made, renamed through `run`
+(the title and the start page read again) and trashed (the start page, the right column empty), each pushed (200) and
+in the host's database (`deleted_at` set). Not tried: Spara and Radera tapped by hand, a refusal's alert, a
+presentation trashed on the Mac while the iPad shows it.
+
 Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
 rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the
 trash shows `song-trashed`); after a restart the saved session opened at once and the pull found nothing new
