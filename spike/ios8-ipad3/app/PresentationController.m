@@ -2,10 +2,12 @@
 // both columns shown, the left one 320 pt; at the left the running order as a grouped UITableView, every item a row
 // with a coloured 29 pt icon and a song's number of slides; at the right a UICollectionView of slide tiles 300 to 384
 // pt wide on the grouped table's grey, each item a section headed as a grouped table heads one. A row brings its
-// item's slides to the top, the slides scrolled choose their row, and a tile tapped is outlined, as the web's page
-// picks one. Nothing is presented.
+// item's slides to the top, the slides scrolled choose their row; a tile tapped is the page's `show` event, and the
+// core's marks (VISAS, NÄSTA, the slide made ready) are drawn over the tiles (Live.m).
 #import "PresentationController.h"
+#import "LivePanel.h"
 #import "SlideView.h"
+#import "Texts.h"
 
 UIColor *GPTint(void) { return [UIColor colorWithRed:0.055 green:0.647 blue:0.914 alpha:1]; }
 
@@ -43,13 +45,18 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 #pragma mark - The slides
 
-/// A tile: the slide's picture (GPSlideImage, drawn once), and an outline around it when picked.
+/// A tile: the slide's picture (GPSlideImage, drawn once); over it the core's marks, VISAS (red) or NÄSTA (dark) in
+/// its corner, and a ring around it, red for the slide shown and the tint for the one made ready (SlideTile in
+/// Thumbnails.swift). The marks have rounded corners and no clip, which the GPU draws without an offscreen pass.
 @interface GPSlideCell : UICollectionViewCell
 @property (nonatomic, readonly) UIImageView *picture;
+/// "shown", "next" or nil; and whether it is the slide made ready.
+- (void)mark:(NSString *)mark picked:(BOOL)picked;
 @end
 
 @implementation GPSlideCell {
-    UIView *outline;
+    UIView *outline, *pill;
+    UILabel *pillText;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -58,23 +65,38 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
         _picture.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         _picture.opaque = YES;
         [self.contentView addSubview:_picture];
-        // A border with rounded corners and no clip: drawn by the GPU without an offscreen pass.
         outline = [[UIView alloc] initWithFrame:CGRectInset(self.bounds, -5, -5)];
         outline.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         outline.layer.borderWidth = 3;
         outline.layer.cornerRadius = 8;
-        outline.layer.borderColor = GPTint().CGColor;
         outline.userInteractionEnabled = NO;
         outline.hidden = YES;
         [self addSubview:outline];
+        pill = [[UIView alloc] init];
+        pill.layer.cornerRadius = 4;
+        pill.hidden = YES;
+        pillText = [[UILabel alloc] init];
+        pillText.font = [UIFont boldSystemFontOfSize:11];
+        pillText.textColor = [UIColor whiteColor];
+        [pill addSubview:pillText];
+        [self.contentView addSubview:pill];
     }
     return self;
 }
 
-// Picked: an outline in the tint, outside the picture.
-- (void)setSelected:(BOOL)selected {
-    [super setSelected:selected];
-    outline.hidden = !selected;
+- (void)mark:(NSString *)mark picked:(BOOL)picked {
+    BOOL shown = [mark isEqual:@"shown"];
+    outline.hidden = !(picked || shown);
+    outline.layer.borderColor = (picked ? GPTint() : [UIColor redColor]).CGColor;
+    pill.hidden = mark == nil;
+    if (!mark) return;
+    pillText.text = GPText(shown ? @"live.shownBadge" : @"live.nextBadge", nil);
+    [pillText sizeToFit];
+    pill.backgroundColor = shown ? [UIColor redColor] : [UIColor colorWithWhite:0 alpha:0.6];
+    // At the top right: the part's label is drawn in the picture's top left.
+    CGSize size = pillText.bounds.size;
+    pill.frame = CGRectMake(self.contentView.bounds.size.width - size.width - 18, 8, size.width + 10, size.height + 4);
+    pillText.frame = CGRectMake(5, 2, size.width, size.height);
 }
 @end
 
@@ -127,7 +149,7 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 @interface GPSlidesController : UICollectionViewController <UICollectionViewDelegateFlowLayout>
 @property (nonatomic, weak) GPItemsController *runningOrder;
-- (instancetype)initWithPage:(NSDictionary *)page;
+- (instancetype)initWithModel:(GPPageModel *)model;
 - (void)scrollToItem:(NSInteger)index;
 @end
 
@@ -135,24 +157,36 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 @interface GPItemsController : UITableViewController
 @property (nonatomic, weak) GPSlidesController *slides;
-- (instancetype)initWithPage:(NSDictionary *)page;
+- (instancetype)initWithModel:(GPPageModel *)model;
 - (void)selectItem:(NSInteger)index;
 /// The presentation it shows.
 - (NSString *)presentationId;
 @end
 
 @implementation GPItemsController {
+    GPPageModel *model;
     NSDictionary *page;
     NSArray *items;
 }
 
-- (instancetype)initWithPage:(NSDictionary *)p {
+- (instancetype)initWithModel:(GPPageModel *)m {
     if ((self = [super initWithStyle:UITableViewStyleGrouped])) {
-        page = p;
-        items = p[@"items"];
-        self.title = p[@"presentation"][@"name"];
+        model = m;
+        page = m.page;
+        items = page[@"items"];
+        self.title = page[@"presentation"][@"name"];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(liveChanged) name:GPLiveChanged object:nil];
     }
     return self;
+}
+
+- (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
+
+/// The item shown gets its red dot, the selection kept.
+- (void)liveChanged {
+    NSIndexPath *chosen = self.tableView.indexPathForSelectedRow;
+    [self.tableView reloadData];
+    if (chosen) [self.tableView selectRowAtIndexPath:chosen animated:NO scrollPosition:UITableViewScrollPositionNone];
 }
 
 /// The presentation's day and time over its one group, as a grouped table's note reads: "söndag 8 november 2026 ·
@@ -178,10 +212,29 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
     cell.textLabel.text = item[@"title"];
     NSUInteger n = slidesOf(page, item).count;
     cell.detailTextLabel.text = [item[@"type"] isEqual:@"song"] ? [NSString stringWithFormat:@"%lu", (unsigned long)n] : nil;
+    // The item shown while presenting: a small red dot in the margin before its icon, as WideLayout's row has it. A
+    // picture, not a background colour: a cell chosen clears its subviews' backgrounds, and the dot went with it.
+    static UIImage *red;
+    if (!red) {
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(7, 7), NO, 0);
+        [[UIColor redColor] setFill];
+        [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(0, 0, 7, 7)] fill];
+        red = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    }
+    UIImageView *dot = (UIImageView *)[cell.contentView viewWithTag:7];
+    if (!dot) {
+        dot = [[UIImageView alloc] initWithImage:red];
+        dot.frame = CGRectMake(4, 18, 7, 7);
+        dot.tag = 7;
+        [cell.contentView addSubview:dot];
+    }
+    dot.hidden = !(model.isLive && [model.liveItemId isEqual:item[@"id"]]);
     return cell;
 }
 
 - (void)tableView:(UITableView *)t didSelectRowAtIndexPath:(NSIndexPath *)at {
+    [model send:@{@"type": @"select", @"itemId": items[at.row][@"id"]}];
     [self.slides scrollToItem:at.row];
 }
 
@@ -199,8 +252,10 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 
 @implementation GPSlidesController {
+    GPPageModel *model;
     NSDictionary *page;
     NSArray *items;
+    NSString *followedSelection;   // the item the core last selected, which the slides were brought to
     BOOL following;   // jumped to a row's item: the row stays chosen until the slides are dragged
     CGFloat laidOutWidth;
     BOOL appeared;
@@ -239,18 +294,57 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     });
 }
 
-- (instancetype)initWithPage:(NSDictionary *)p {
+- (instancetype)initWithModel:(GPPageModel *)m {
     GPLeftFlowLayout *flow = [[GPLeftFlowLayout alloc] init];
     flow.minimumInteritemSpacing = 18;
     flow.minimumLineSpacing = 18;
     flow.sectionInset = UIEdgeInsetsMake(0, 28, 28, 28);
     flow.headerReferenceSize = CGSizeMake(100, 44);
     if ((self = [super initWithCollectionViewLayout:flow])) {
-        page = p;
-        items = p[@"items"];
+        model = m;
+        page = m.page;
+        items = page[@"items"];
+        followedSelection = m.state[@"selectedId"];
         self.title = [items.firstObject objectForKey:@"title"];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(liveChanged) name:GPLiveChanged object:nil];
     }
     return self;
+}
+
+- (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
+
+/// The column is named after its item; in the container (LivePanel.m) the container's bar shows the name.
+- (void)setTitle:(NSString *)title {
+    [super setTitle:title];
+    self.parentViewController.title = title;
+}
+
+/// The marks of the tiles on screen as the live state and the page's state now have them; the slides brought to an
+/// item the core selected (a key stepping into the next item, a slide of another item shown), as WideLayout scrolls.
+- (void)liveChanged {
+    for (GPSlideCell *cell in self.collectionView.visibleCells) {
+        NSIndexPath *at = [self.collectionView indexPathForCell:cell];
+        if (at) [self markCell:cell at:at];
+    }
+    NSString *selected = [model.state[@"selectedId"] isKindOfClass:[NSString class]] ? model.state[@"selectedId"] : nil;
+    if (selected && ![selected isEqual:followedSelection]) {
+        followedSelection = selected;
+        NSUInteger index = [[items valueForKey:@"id"] indexOfObject:selected];
+        if (index != NSNotFound) { [self scrollToItem:(NSInteger)index]; [self.runningOrder selectItem:(NSInteger)index]; }
+    }
+}
+
+- (void)markCell:(GPSlideCell *)cell at:(NSIndexPath *)at {
+    NSString *key = GPSlideKey(items[at.section][@"id"], at.item);
+    GPLive *live = model.live;
+    NSString *mark = !model.isLive ? nil : [key isEqual:live.shownKey] ? @"shown" : [key isEqual:live.nextKey] ? @"next" : nil;
+    [cell mark:mark picked:[key isEqual:model.pickedKey]];
+}
+
+/// A tap: the page's `show` event; before presenting it makes the slide ready, while presenting it shows it.
+- (void)collectionView:(UICollectionView *)c didSelectItemAtIndexPath:(NSIndexPath *)at {
+    [c deselectItemAtIndexPath:at animated:NO];
+    [model send:@{@"type": @"show", @"itemId": items[at.section][@"id"], @"partIndex": @(at.item)}];
 }
 
 - (void)viewDidLoad {
@@ -297,6 +391,7 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     CGSize size = [self collectionView:c layout:c.collectionViewLayout sizeForItemAtIndexPath:at];
     cell.picture.image = GPSlideImage(slidesOf(page, items[at.section])[at.item], page[@"theme"], items[at.section][@"title"],
                                       size, c.backgroundColor);
+    [self markCell:cell at:at];
     return cell;
 }
 
@@ -365,18 +460,17 @@ NSString *GPShownPresentation(UISplitViewController *split) {
     return [top isKindOfClass:[GPItemsController class]] ? [(GPItemsController *)top presentationId] : nil;
 }
 
-void GPShowPage(UISplitViewController *split, NSDictionary *page, BOOL animated) {
-    GPItemsController *items = [[GPItemsController alloc] initWithPage:page];
-    GPSlidesController *slides = [[GPSlidesController alloc] initWithPage:page];
+void GPShowPage(UISplitViewController *split, NSDictionary *page, id<GPPresentationSource> source, BOOL animated) {
+    GPPageModel *model = [[GPPageModel alloc] initWithPage:page live:[source live] source:source];
+    GPItemsController *items = [[GPItemsController alloc] initWithModel:model];
+    GPSlidesController *slides = [[GPSlidesController alloc] initWithModel:model];
     items.slides = slides;
     slides.runningOrder = items;
     UINavigationController *left = split.viewControllers.firstObject, *right = split.viewControllers.lastObject;
     [left popToRootViewControllerAnimated:NO];
     [left pushViewController:items animated:animated];
-    // iOS 8's button that folds the running order away, and back.
-    slides.navigationItem.leftBarButtonItem = split.displayModeButtonItem;
-    slides.navigationItem.leftItemsSupplementBackButton = YES;
-    right.viewControllers = @[slides];
+    // The slides with the live column beside them while presenting, ▶ or ■ in the bar (LivePanel.m).
+    right.viewControllers = @[[[GPDetailController alloc] initWithSlides:slides model:model split:split]];
 }
 
 NSString *GPWhen(NSDictionary *presentation) {

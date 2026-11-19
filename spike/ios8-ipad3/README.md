@@ -118,7 +118,30 @@ description, in a form sheet; saved by `createPresentation`, then opened. The ac
 name, Demo in the demo) holds Synka nu, Anslut and Logga ut. The texts are the web's (`../texts.mjs` writes
 apps/web/src/i18n.ts's into `Resources/texts.json`; Texts.m reads them in the device's language, English or else
 Swedish, as Texts.swift), a refusal's code shown as the web's `error.<code>`. In the demo a change runs straight
-through the core as an admin of its own, as the native app's demo.
+through the core as an admin of its own, as the native app's demo. While a presentation is presented, "● Visas just
+nu" stands over the lists with it, as StartPage.swift's NowShowing.
+
+**Presenting**, as the native app's Live.swift, Model.swift and WideLayout.swift, every decision the core's (Live.m):
+the app's live state changed only by `liveChangeView` (one presentation at a time, the overlays' rules); the marks
+from `slideMarksView`; the page's own state (the item selected, the slide made ready) and every event of the page
+answered by `pageEventView`, its change to the live state made and then `{"type": "sync"}` sent, as AppState's
+liveChanged; ▶ as `pageModelView` allows it. On the page (LivePanel.m): ▶ Starta presentation or ■ Avsluta
+presentation in the bar, ■ asking first with the web's text; a tap on a tile is `show` (before presenting it makes the
+slide ready, a ring in the tint; while presenting it shows it); the tile shown has a red ring and VISAS, the next
+NÄSTA, the item shown a red dot in the running order; the slides brought to an item the core selects; while
+presenting, a live column of 300 pt at the right: the picture shown with a red ring, Släck (grey while black or
+nothing is shown), and NÄSTA's slide. The keys of a keyboard or a clicker through UIKeyCommand (iOS 7) as the native
+app's: arrows `pick`, ⌘ and an arrow `item`, space `step`, return `enter`, b and . `black`, escape `escape`. The
+output on an external screen (UIScreen, the 30-pin Digital AV Adapter's HDMI or AirPlay mirroring): a window of its own
+in the screen's largest mode, the slide drawn at its size without its label, black fading over 500 ms, every other
+change a cut. Over SSH: `gpcore8://send/<type>`, `gpcore8://show/<item>/<part>`, `gpcore8://end`.
+
+Tried on the iPad: a slide made ready (the tint's ring), ▶, a slide shown (the live column, VISAS, NÄSTA, the red
+dot), a step to the next part, Släck (the picture black, Släck grey, VISAS gone), ■ (all of it gone, ▶ back), and
+"Visas just nu" on the start page; each event's `pageEventView` 0.5-0.8 ms, `liveChangeView` 0.4 ms. Not tried: an
+external screen (no adapter, no Apple TV here), a keyboard's or a clicker's keys, ■'s question by hand (`gpcore8://end`
+ends without it), overlays (no way to turn one on here yet), and the cost of drawing the output's 1920 × 1080 picture
+on the main thread at a change of slide.
 
 Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
 rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the

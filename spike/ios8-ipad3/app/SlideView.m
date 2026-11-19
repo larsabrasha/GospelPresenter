@@ -46,7 +46,7 @@ static NSAttributedString *fitted(NSString *words, NSDictionary *main, CGRect bo
     return text;
 }
 
-static void drawSlide(NSDictionary *slide, NSDictionary *theme, NSString *title, CGRect bounds) {
+static void drawSlide(NSDictionary *slide, NSDictionary *theme, NSString *title, CGRect bounds, BOOL labelled) {
     NSDictionary *definition = theme[@"definition"];
     NSString *kind = slide[@"kind"];
     NSDictionary *look = definition[kind] ?: definition[@"song"];
@@ -82,7 +82,7 @@ static void drawSlide(NSDictionary *slide, NSDictionary *theme, NSString *title,
         CGFloat y = [valign isEqual:@"top"] ? box.origin.y : [valign isEqual:@"bottom"] ? CGRectGetMaxY(box) - h : CGRectGetMidY(box) - h / 2;
         [text drawWithRect:CGRectMake(box.origin.x, y, box.size.width, h) options:NSStringDrawingUsesLineFragmentOrigin context:nil];
     }
-    NSDictionary *tag = [slide[@"label"] isKindOfClass:[NSDictionary class]] ? slide[@"label"] : nil;
+    NSDictionary *tag = labelled && [slide[@"label"] isKindOfClass:[NSDictionary class]] ? slide[@"label"] : nil;
     if ([tag[@"text"] isKindOfClass:[NSString class]]) {
         NSDictionary *attributes = @{NSFontAttributeName: [UIFont boldSystemFontOfSize:10], NSForegroundColorAttributeName: [UIColor whiteColor]};
         CGSize size = [tag[@"text"] sizeWithAttributes:attributes];
@@ -94,6 +94,10 @@ static void drawSlide(NSDictionary *slide, NSDictionary *theme, NSString *title,
 }
 
 UIImage *GPSlideImage(NSDictionary *slide, NSDictionary *theme, NSString *title, CGSize size, UIColor *ground) {
+    return GPSlidePicture(slide, theme, title, size, ground, YES, 4);
+}
+
+UIImage *GPSlidePicture(NSDictionary *slide, NSDictionary *theme, NSString *title, CGSize size, UIColor *ground, BOOL labelled, CGFloat radius) {
     // Asked on the main thread and on the one drawing ahead (PresentationController.m): NSCache is thread-safe, and
     // UIKit draws into an image context on any thread.
     static NSCache *pictures;
@@ -105,16 +109,16 @@ UIImage *GPSlideImage(NSDictionary *slide, NSDictionary *theme, NSString *title,
     NSData *content = [NSJSONSerialization dataWithJSONObject:@[slide ?: @{}, theme[@"definition"] ?: @{}, title ?: @""] options:0 error:NULL];
     uint8_t digest[CC_SHA1_DIGEST_LENGTH];
     CC_SHA1(content.bytes, (CC_LONG)content.length, digest);
-    NSString *key = [NSString stringWithFormat:@"%@ %.0fx%.0f", [[NSData dataWithBytes:digest length:sizeof digest] base64EncodedStringWithOptions:0],
-                     size.width, size.height];
+    NSString *key = [NSString stringWithFormat:@"%@ %.0fx%.0f %d %.0f", [[NSData dataWithBytes:digest length:sizeof digest] base64EncodedStringWithOptions:0],
+                     size.width, size.height, labelled, radius];
     UIImage *made = [pictures objectForKey:key];
     if (made) return made;
     CGRect bounds = CGRectMake(0, 0, size.width, size.height);
     UIGraphicsBeginImageContextWithOptions(size, YES, 0);
     [ground setFill];
     UIRectFill(bounds);
-    [[UIBezierPath bezierPathWithRoundedRect:bounds cornerRadius:4] addClip];
-    drawSlide(slide, theme, title, bounds);
+    if (radius > 0) [[UIBezierPath bezierPathWithRoundedRect:bounds cornerRadius:radius] addClip];
+    drawSlide(slide, theme, title, bounds, labelled);
     made = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     [pictures setObject:made forKey:key];

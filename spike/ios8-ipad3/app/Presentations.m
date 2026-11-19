@@ -2,6 +2,7 @@
 // ändrade 20 at a time with Visa fler, an empty page's text and button when there are none.
 #import "Presentations.h"
 #import "Details.h"
+#import "Live.h"
 #import "PresentationController.h"
 #import "Texts.h"
 
@@ -58,8 +59,15 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
         self.title = GPText(@"nav.presentations", nil);
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
                                                                                                target:self action:@selector(create)];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(liveChanged:) name:GPLiveChanged object:nil];
     }
     return self;
+}
+
+/// Presenting started or ended: "Visas just nu" comes or goes.
+- (void)liveChanged:(NSNotification *)n {
+    NSString *presented = [source live].presentationId;
+    if ((presented != nil) != [[lists.firstObject objectForKey:@"id"] isEqual:@"live"] || (presented && ![presented isEqual:lists[0][@"rows"][0][@"id"]])) [self reload];
 }
 
 - (void)viewDidLoad {
@@ -73,6 +81,12 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
 - (void)reload {
     id answer = [source view:@"startPageView" args:@{@"today": localToday(0)}];
     lists = [answer isKindOfClass:[NSArray class]] ? answer : @[];
+    // "Visas just nu" at the top: what this device presents, as StartPage.swift's NowShowing.
+    NSString *presented = [source live].presentationId;
+    for (NSDictionary *list in lists) for (NSDictionary *row in list[@"rows"]) if (presented && [row[@"id"] isEqual:presented]) {
+        lists = [@[@{@"id": @"live", @"rows": @[row]}] arrayByAddingObjectsFromArray:lists];
+        presented = nil;
+    }
     // The account's button: the member's first name, or Demo.
     NSString *name = [[source accountName] componentsSeparatedByString:@" "].firstObject ?: GPOwnText(@"demo");
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:name style:UIBarButtonItemStylePlain
@@ -107,7 +121,7 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     GPDetailsController *details = [[GPDetailsController alloc] initWithSource:source presentationId:nil done:^(NSString *made) {
         [self reload];
         NSDictionary *page = made ? [self->source page:made] : nil;
-        if (page) GPShowPage(self.splitViewController, page, YES);
+        if (page) GPShowPage(self.splitViewController, page, source, YES);
     }];
     [details presentFrom:self];
 }
@@ -150,7 +164,7 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)t { return (NSInteger)lists.count; }
 - (NSInteger)tableView:(UITableView *)t numberOfRowsInSection:(NSInteger)s { return (NSInteger)[self rowsOf:s].count + ([self hasMore:s] ? 1 : 0); }
-- (NSString *)tableView:(UITableView *)t titleForHeaderInSection:(NSInteger)s { return GPText(lists[s][@"title"], nil); }
+- (NSString *)tableView:(UITableView *)t titleForHeaderInSection:(NSInteger)s { return lists[s][@"title"] ? GPText(lists[s][@"title"], nil) : nil; }
 - (NSString *)tableView:(UITableView *)t titleForFooterInSection:(NSInteger)s { return s == (NSInteger)lists.count - 1 ? [source sourceNote] : nil; }
 
 - (UITableViewCell *)tableView:(UITableView *)t cellForRowAtIndexPath:(NSIndexPath *)at {
@@ -165,9 +179,10 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     UITableViewCell *cell = [t dequeueReusableCellWithIdentifier:@"presentation"]
         ?: [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"presentation"];
     NSDictionary *p = rows[at.row];
+    BOOL live = [lists[at.section][@"id"] isEqual:@"live"];
     cell.textLabel.text = p[@"name"];
-    cell.detailTextLabel.text = subtitle(p, lists[at.section]);
-    cell.detailTextLabel.textColor = [UIColor grayColor];
+    cell.detailTextLabel.text = live ? [@"● " stringByAppendingString:GPText(@"remote.nowShowing", nil)] : subtitle(p, lists[at.section]);
+    cell.detailTextLabel.textColor = live ? [UIColor redColor] : [UIColor grayColor];
     NSInteger n = [p[@"itemCount"] integerValue];
     UILabel *count = [[UILabel alloc] init];
     count.text = n == 1 ? GPText(@"presentations.item", nil) : GPText(@"presentations.items", @{@"n": @(n)});
@@ -183,6 +198,6 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     NSArray *rows = [self rowsOf:at.section];
     if (at.row == (NSInteger)rows.count) { recentShown += 20; [t reloadData]; return; }
     NSDictionary *page = [source page:rows[at.row][@"id"]];
-    if (page) GPShowPage(self.splitViewController, page, YES);
+    if (page) GPShowPage(self.splitViewController, page, source, YES);
 }
 @end

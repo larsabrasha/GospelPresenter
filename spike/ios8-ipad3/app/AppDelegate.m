@@ -4,6 +4,8 @@
 // gpcore8:// URLs drive it and take pictures of it over SSH (../README.md).
 #import <UIKit/UIKit.h>
 #import "Core.h"
+#import "Live.h"
+#import "LivePanel.h"
 #import "PresentationController.h"
 #import "Presentations.h"
 #import "ScrollTest.h"
@@ -21,7 +23,10 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     GPSync *sync;
     UISplitViewController *split;
     GPPresentationsController *list;
+    GPLive *live;         // what this device presents, one for the app
 }
+
+- (GPLive *)live { return live; }
 
 /// The demo data, copied afresh and migrated by the core.
 - (void)openDemo {
@@ -42,6 +47,8 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     NSDate *t = [NSDate date];
     sync = [GPSync saved];
     if (sync) db = sync.db; else [self openDemo];
+    live = [[GPLive alloc] initWithSource:self];
+    [GPOutput startWithLive:live];
     list = [[GPPresentationsController alloc] initWithSource:self];
     split = GPSplit(list);
     [self openNext:NO];
@@ -64,12 +71,14 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     [sync start];
 }
 
-/// A sync changed rows: the start page read again, and the presentation shown, if one is.
+/// A sync changed rows: the start page read again, the presented page with its marks, and the presentation shown, if
+/// one is.
 - (void)changed {
+    [live reload];
     [list reload];
     NSString *shown = GPShownPresentation(split);
     NSDictionary *page = shown ? [self page:shown] : nil;
-    if (page) GPShowPage(split, page, NO);
+    if (page) GPShowPage(split, page, self, NO);
     else if (shown) [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];   // gone
 }
 
@@ -91,7 +100,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     }
     NSDictionary *chosen = next ?: latest ?: rows.firstObject;
     NSDictionary *page = chosen ? [self page:chosen[@"id"]] : nil;
-    if (page) GPShowPage(split, page, animated);
+    if (page) GPShowPage(split, page, self, animated);
 }
 
 #pragma mark - GPPresentationSource
@@ -224,7 +233,22 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     if ([url.host isEqual:@"open"] && url.pathComponents.count > 1) {
         NSDictionary *page = [self page:url.pathComponents[1]];
         if (!page) return NO;
-        GPShowPage(split, page, NO);
+        GPShowPage(split, page, self, NO);
+        return YES;
+    }
+    // The open page's events: gpcore8://send/<type> (start, black, step, escape), gpcore8://show/<item>/<part> as a
+    // tap on that slide, gpcore8://end as ■ answered yes; a picture a second later.
+    GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
+    GPPageModel *page = [detail isKindOfClass:[GPDetailController class]] ? detail.model : nil;
+    if (page && ([url.host isEqual:@"send"] || [url.host isEqual:@"show"] || [url.host isEqual:@"end"])) {
+        NSArray *at = url.pathComponents;
+        if ([url.host isEqual:@"end"]) [page liveEnded];
+        else if ([url.host isEqual:@"send"] && at.count > 1) [page send:@{@"type": at[1], @"delta": @1}];
+        else if (at.count > 2) {
+            NSDictionary *item = page.page[@"items"][[at[1] integerValue]];
+            [page send:@{@"type": @"show", @"itemId": item[@"id"], @"partIndex": @([at[2] integerValue])}];
+        }
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
     if ([url.host isEqual:@"new"]) {   // + tapped: Skapa presentation's form
@@ -241,7 +265,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         NSString *refused = [self mutate:@"createPresentation" args:@{@"id": made, @"name": url.pathComponents[1], @"eventDate": [NSNull null],
                                                                      @"time": [NSNull null], @"location": @"", @"description": @""}];
         [list reload];
-        if (!refused) GPShowPage(split, [self page:made], NO);
+        if (!refused) GPShowPage(split, [self page:made], self, NO);
         return YES;
     }
     if ([url.host isEqual:@"connect"] && url.pathComponents.count > 1) {

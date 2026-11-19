@@ -4,8 +4,12 @@
 // button at the left holds Synka nu, Anslut and Logga ut. Pulled down, it syncs.
 #import <UIKit/UIKit.h>
 
+@class GPLive;
+
 /// Where the data is: the demo, or an organisation synced from a host (AppDelegate.m).
 @protocol GPPresentationSource <NSObject>
+/// The app's live state, one for the app (Live.m).
+- (GPLive *)live;
 /// A view of the core, decoded.
 - (id)view:(NSString *)name args:(NSDictionary *)args;
 /// presentationPageView's answer for one, nil when there is none.

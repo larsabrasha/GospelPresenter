@@ -9,7 +9,7 @@ HEADER = $(THEOS_PROJECT_DIR)/../../../apps/mac/Sources/GPCoreFFI
 include $(THEOS)/makefiles/common.mk
 
 APPLICATION_NAME = GPCore8
-GPCore8_FILES = main.m AppDelegate.m Core.m Sync.m WebSocket.m Texts.m Presentations.m Details.m PresentationController.m SlideView.m ScrollTest.m clock.c
+GPCore8_FILES = main.m AppDelegate.m Core.m Sync.m WebSocket.m Texts.m Presentations.m Details.m PresentationController.m Live.m LivePanel.m SlideView.m ScrollTest.m clock.c
 GPCore8_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore Security
 # SDK 9.3's module maps are named module.map, which today's clang warns of and Theos makes an error; and [X alloc] as
 # a message, not objc_alloc, which iOS 8's runtime may not export.
