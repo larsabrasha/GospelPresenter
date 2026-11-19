@@ -84,3 +84,15 @@ verse in three lines on the projector and in four in the preview.
 Watch as a remote first (no renderer), then the TV by AirPlay (no app). A probe of way 3 next, on its own: the core
 laying out song slides in one theme, compared with `FittedText` over a few thousand slides, to learn whether the line
 breaks can agree before anything is decided.
+
+## The probe (2026-11-19)
+
+Done, in `spike/slide-layout` (its README has the numbers): parley laid out and fitted 12 916 slides from 812 real
+songs in Inter, Montserrat and Lato as `FittedText` does, against Chromium and WebKit. The same size and lines on
+99.7–99.98 % of them, the browsers differing from each other about as much. The rest is a word within a pixel or two
+of the edge, rounded differently, and two rules where the browsers leave Unicode's line breaking (a break after a
+hyphen before a digit, before a comma after a space). The line breaks can agree; way 3 is not decided by it.
+
+What the probe taught that the core must do: a face is registered under the theme's name, as `@font-face` names it
+(a variable file is named for its default instance, Montserrat's "Montserrat Thin"). Still to decide: whether the
+core follows the browsers on the two rules, and what Classic's Tahoma becomes.
