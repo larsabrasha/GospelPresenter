@@ -13,5 +13,9 @@ NSString *GPCoreCallAs(sqlite3 *db, NSString *name, NSString *args, NSDictionary
 NSString *GPCoreCommand(sqlite3 *db, NSString *name, NSString *args, NSString **refusal);
 NSString *GPCoreCommandAs(sqlite3 *db, NSString *name, NSString *args, NSDictionary *caller, NSString **refusal);
 
+/// A face of the system's the core lays slides out with (slideLayoutView), for a family a theme names that the core
+/// does not ship; `name` is what the layout's runs call it.
+void GPCoreAddSlideFace(NSString *name, NSString *family, NSData *bytes);
+
 /// A view's answer, decoded by NSJSONSerialization; nil when refused.
 id GPCoreView(sqlite3 *db, NSString *name, NSDictionary *args);

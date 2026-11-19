@@ -47,6 +47,21 @@ if [ ! -f "$DEMO" ]; then
 fi
 cp "$DEMO" "$HERE/app/Resources/demo.sqlite"
 
+# The faces the core lays slides out with (slideLayoutView), for the app to paint the same glyphs with the same files.
+# iOS 8 cannot draw a variable face at another weight than its own (one way loses most glyphs, the other ignores the
+# weight), so Inter's and Montserrat's are made into one static face for each weight from 100 to 900 by fonttools'
+# instancer, which keeps the glyphs' ids the core's runs name (`pipx install fonttools`).
+cp "$ROOT/crates/gp-core/fonts/Lato-400.ttf" "$HERE/app/Resources/"
+FONTTOOLS=$(command -v fonttools || echo "$HOME/.local/bin/fonttools")
+[ -x "$FONTTOOLS" ] || { echo "no fonttools: pipx install fonttools" >&2; exit 1; }
+for FACE in Inter Montserrat; do
+  for W in 100 200 300 400 500 600 700 800 900; do
+    OUT="$HERE/app/Resources/$FACE-$W.ttf"
+    [ "$OUT" -nt "$ROOT/crates/gp-core/fonts/$FACE-variable.ttf" ] && continue
+    "$FONTTOOLS" varLib.instancer -q "$ROOT/crates/gp-core/fonts/$FACE-variable.ttf" "wght=$W" -o "$OUT"
+  done
+done
+
 # The web's texts, Swedish and English (texts.mjs).
 node --no-warnings "$HERE/texts.mjs"
 

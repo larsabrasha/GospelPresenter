@@ -159,6 +159,13 @@ NSString *GPCoreCommandAs(sqlite3 *db, NSString *name, NSString *args, NSDiction
     return json;
 }
 
+void GPCoreAddSlideFace(NSString *name, NSString *family, NSData *bytes) {
+    NSMutableData *data = [NSMutableData data];
+    putString(data, bytes.bytes, bytes.length);   // a Vec<u8>: its length, then its bytes
+    RustCallStatus status = {0};
+    uniffi_gp_core_ffi_fn_func_add_slide_face(bufferOfString(name), bufferOfString(family), bufferOf(data), &status);
+}
+
 id GPCoreView(sqlite3 *db, NSString *name, NSDictionary *args) {
     NSData *text = [NSJSONSerialization dataWithJSONObject:args ?: @{} options:0 error:NULL];
     NSString *json = GPCoreCall(db, name, [[NSString alloc] initWithData:text encoding:NSUTF8StringEncoding], NULL);

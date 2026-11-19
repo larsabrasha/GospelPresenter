@@ -219,6 +219,24 @@ live column; ■. Not tried: a real turn by hand, the turn's look (the scene fad
 one column, a media part's picture, the description (the native app shows it at the top; not here), Beskrivning and
 Visning beside Släck.
 
+**Slides painted from the core's layout** (SlideView.m; docs/native-slide-rendering.md, way 3; merged from the native
+app's branch at b8cbbf54 and 4044d2aa): a song slide is laid out by `slideLayoutView`, every glyph where the web's
+SlideView sets it on the 1920 × 1080 stage, and painted with Core Text from the same faces, its ground, outline, shadow
+and clip as the Mac app's SlidePainter.swift paints them; the tile's own small label over it, and no credits on a
+tile (an output shows them). A Bible, picture, video or custom slide, a face the core lacks, or a colour this does not
+read is drawn as before. Parley builds for armv7 and iOS 8 as the rest of the core does; the core grew from 3.3 to
+5.3 MB (the faces are in it). Classic names `'Tahoma', 'Geneva', Verdana`; iOS 8 has only Verdana
+(/System/Library/Fonts/Core), as Safari on this iPad draws Classic, so the app gives the core the system's Verdana
+(regular, bold and italics; `add_slide_face`, as the Mac app gives it Tahoma). iOS 8 cannot draw a variable face at
+another weight than its own: `CGFontCreateCopyWithVariations` lost most glyphs, `kCTFontVariationAttribute` drew them
+all at the default weight (Montserrat's thinnest); so build-core.sh makes Inter and Montserrat static at each weight
+from 100 to 900 with fonttools' instancer (glyph ids kept, 1 MB in all), and the app paints a run with the one
+nearest the text's weight. Tried on the iPad: Classic's slides laid out in 2-3 ms each (25 ms the first, the faces
+read), the lines breaking where the core breaks them; Inter at 400 and 800, Montserrat at 300 and 700 and Lato drawn
+at their weights (a check since removed). Not compared with the web on this iPad (the web app does not run in iOS 8's
+Safari); not seen: an outline, a shadow (Classic has neither), a theme's own picture (not on this device), a weight
+between the hundreds.
+
 The icon was drawn upside down, the logo's cross standing on its head (Lars saw it): art.m turned the CTM to draw from
 the top left but did not say the context was flipped, so `respectFlipped:YES` did nothing. Now it says so.
 
@@ -243,6 +261,7 @@ On a Mac with Xcode and Homebrew, after `pnpm install`:
 ```sh
 rustup toolchain install nightly --profile minimal --component rust-src
 brew install ldid dpkg make                       # Theos's tools; GNU make 4 as gmake
+pipx install fonttools                            # the slide faces' static weights (build-core.sh)
 git clone --recursive https://github.com/theos/theos.git ~/theos
 git clone --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
 git -C /tmp/sdks sparse-checkout set iPhoneOS9.3.sdk && mv /tmp/sdks/iPhoneOS9.3.sdk ~/theos/sdks/
