@@ -5,6 +5,7 @@
 // item's slides to the top, the slides scrolled choose their row; a tile tapped is the page's `show` event, and the
 // core's marks (VISAS, NÄSTA, the slide made ready) are drawn over the tiles (Live.m).
 #import "PresentationController.h"
+#import "ItemMenu.h"
 #import "LivePanel.h"
 #import "SlideView.h"
 #import "Texts.h"
@@ -102,17 +103,29 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 @interface GPHeadingView : UICollectionReusableView
 @property (nonatomic, readonly) UILabel *title;
+/// The item's menu, from its … at the heading's end, as WideLayout's heading has one.
+@property (nonatomic, readonly) UIButton *more;
+@property (nonatomic, copy) void (^onMore)(UIButton *more);
 @end
 
 @implementation GPHeadingView
 - (instancetype)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
-        _title = [[UILabel alloc] initWithFrame:CGRectMake(28, 0, frame.size.width - 56, frame.size.height - 6)];
+        _title = [[UILabel alloc] initWithFrame:CGRectMake(28, 0, frame.size.width - 100, frame.size.height - 6)];
         _title.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [self addSubview:_title];
+        _more = [UIButton buttonWithType:UIButtonTypeSystem];
+        _more.frame = CGRectMake(frame.size.width - 72, 0, 44, frame.size.height - 6);
+        _more.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleHeight;
+        [_more setTitle:@"•••" forState:UIControlStateNormal];
+        _more.titleLabel.font = [UIFont boldSystemFontOfSize:13];
+        [_more addTarget:self action:@selector(tappedMore) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:_more];
     }
     return self;
 }
+
+- (void)tappedMore { if (self.onMore) self.onMore(self.more); }
 
 /// An item's heading as a grouped table's (13 pt, capitals, grey), a programme point's as every other item's.
 - (void)showItem:(NSDictionary *)item problem:(NSString *)problem {
@@ -175,22 +188,37 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
         page = m.page;
         items = page[@"items"];
         self.title = page[@"presentation"][@"name"];
+        // + in the bar: Sång, Programpunkt (ItemMenu.m).
+        self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
+                                                                                               target:self action:@selector(add:)];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(liveChanged) name:GPLiveChanged object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(pageChanged) name:GPPageChanged object:m];
     }
     return self;
 }
 
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
 
+- (void)add:(UIBarButtonItem *)button { GPAddMenu(self, button, nil, CGRectZero, nil, model); }
+
 /// The item shown gets its red dot, the selection kept.
 - (void)liveChanged {
     NSIndexPath *chosen = self.tableView.indexPathForSelectedRow;
     [self.tableView reloadData];
-    if (chosen) [self.tableView selectRowAtIndexPath:chosen animated:NO scrollPosition:UITableViewScrollPositionNone];
+    if (chosen && chosen.row < (NSInteger)items.count) [self.tableView selectRowAtIndexPath:chosen animated:NO scrollPosition:UITableViewScrollPositionNone];
+}
+
+/// The page read again: its items, the title, the day.
+- (void)pageChanged {
+    page = model.page;
+    items = page[@"items"];
+    self.title = page[@"presentation"][@"name"];
+    ((UILabel *)self.tableView.tableHeaderView).text = GPWhen(page[@"presentation"]);
+    [self liveChanged];
 }
 
 /// The presentation's day and time over its one group, as a grouped table's note reads: "söndag 8 november 2026 ·
-/// 11:00".
+/// 11:00". A long press on a row opens its item's menu.
 - (void)viewDidLoad {
     [super viewDidLoad];
     UILabel *when = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 320, 44)];
@@ -199,6 +227,14 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
     when.font = [UIFont systemFontOfSize:13];
     when.textColor = rgb(0x6D6D72);
     self.tableView.tableHeaderView = when;
+    [self.tableView addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(pressed:)]];
+}
+
+- (void)pressed:(UILongPressGestureRecognizer *)press {
+    if (press.state != UIGestureRecognizerStateBegan) return;
+    NSIndexPath *at = [self.tableView indexPathForRowAtPoint:[press locationInView:self.tableView]];
+    if (!at) return;
+    GPItemMenu(self, self.tableView, [self.tableView rectForRowAtIndexPath:at], items[at.row], model);
 }
 
 // One group, every item a row in the order presented, a programme point (type "header") as much a row as a song.
@@ -260,6 +296,36 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     CGFloat laidOutWidth;
     BOOL appeared;
     NSInteger drawingRound;   // drawAhead's: a round whose number is no longer this stops
+    NSString *namedId;        // the item the column is named after, named again when the page changes
+    NSDictionary *standing;   // each item on the screen: how far its heading stood below the top, before a reload
+}
+
+/// The items on the screen, the top first, each one's place noted in `standing` (onScreen, for the core's `changed`).
+- (NSArray *)itemsOnScreen {
+    if (!appeared) return @[];
+    UICollectionView *c = self.collectionView;
+    CGFloat top = c.contentOffset.y + c.contentInset.top, bottom = c.contentOffset.y + c.bounds.size.height;
+    NSMutableArray *ids = [NSMutableArray array];
+    NSMutableDictionary *at = [NSMutableDictionary dictionary];
+    for (NSInteger i = 0; i < (NSInteger)items.count; i++) {
+        CGFloat from = [self headingAt:i], to = i + 1 < (NSInteger)items.count ? [self headingAt:i + 1] : c.contentSize.height;
+        if (to <= top || from >= bottom) continue;
+        [ids addObject:items[i][@"id"]];
+        at[items[i][@"id"]] = @(from - top);
+    }
+    standing = at;
+    return ids;
+}
+
+- (CGFloat)headingAt:(NSInteger)section {
+    return [self.collectionViewLayout layoutAttributesForSupplementaryViewOfKind:UICollectionElementKindSectionHeader
+                                                                     atIndexPath:[NSIndexPath indexPathForItem:0 inSection:section]].frame.origin.y;
+}
+
+- (void)nameAfter:(NSInteger)index {
+    NSDictionary *item = index < (NSInteger)items.count ? items[index] : nil;
+    namedId = item[@"id"];
+    self.title = item[@"title"];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -305,8 +371,11 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
         page = m.page;
         items = page[@"items"];
         followedSelection = m.state[@"selectedId"];
-        self.title = [items.firstObject objectForKey:@"title"];
+        [self nameAfter:0];
+        __weak GPSlidesController *me = self;
+        m.onScreen = ^NSArray *{ return [me itemsOnScreen]; };
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(liveChanged) name:GPLiveChanged object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(pageChanged:) name:GPPageChanged object:m];
     }
     return self;
 }
@@ -399,7 +468,36 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     GPHeadingView *h = [c dequeueReusableSupplementaryViewOfKind:kind withReuseIdentifier:kHeading forIndexPath:at];
     NSString *problem = page[@"slides"][items[at.section][@"id"]][@"problem"];
     [h showItem:items[at.section] problem:[problem isKindOfClass:[NSString class]] ? problem : nil];
+    NSDictionary *item = items[at.section];
+    __weak GPSlidesController *me = self;
+    h.onMore = ^(UIButton *more) {
+        GPSlidesController *s = me;
+        if (s) GPItemMenu(s, more, more.bounds, item, s->model);
+    };
     return h;
+}
+
+/// The page read again (a change here, or one the sync brought): the slides reloaded, the item the core keeps at the
+/// top (`changed`'s `stay`) where it stood on the screen, though the items above it grew, shrank or went.
+- (void)pageChanged:(NSNotification *)note {
+    page = model.page;
+    items = page[@"items"];
+    UICollectionView *c = self.collectionView;
+    [c reloadData];
+    NSString *stay = note.userInfo[@"stay"];
+    NSUInteger index = stay ? [[items valueForKey:@"id"] indexOfObject:stay] : NSNotFound;
+    if (index != NSNotFound && standing[stay]) {
+        [c layoutIfNeeded];
+        CGFloat top = -c.contentInset.top;
+        CGFloat bottom = MAX(top, c.contentSize.height + c.contentInset.bottom - c.bounds.size.height);
+        CGFloat y = [self headingAt:(NSInteger)index] - [standing[stay] doubleValue] + top;
+        [c setContentOffset:CGPointMake(0, MIN(MAX(top, y), bottom)) animated:NO];
+    }
+    followedSelection = [model.state[@"selectedId"] isKindOfClass:[NSString class]] ? model.state[@"selectedId"] : nil;   // no jump in liveChanged
+    NSUInteger named = [[items valueForKey:@"id"] indexOfObject:namedId ?: @""];
+    if (named == NSNotFound) named = index == NSNotFound ? 0 : index;   // gone: the item that stays, else the first
+    [self nameAfter:(NSInteger)named];
+    if (appeared) [self drawAhead];
 }
 
 /// A row's item at the top at once, not scrolled to (Lars: the slides rushing past made him dizzy). The row stays
@@ -411,7 +509,7 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     CGFloat top = -c.contentInset.top;
     CGFloat bottom = MAX(top, c.contentSize.height + c.contentInset.bottom - c.bounds.size.height);
     following = YES;
-    self.title = items[index][@"title"];
+    [self nameAfter:index];
     [c setContentOffset:CGPointMake(0, MIN(MAX(top, heading.frame.origin.y + top), bottom)) animated:NO];
 }
 
@@ -434,7 +532,7 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     }
     if (items.count == 0) return;
     [self.runningOrder selectItem:shown];
-    self.title = items[shown][@"title"];
+    [self nameAfter:shown];
 }
 @end
 

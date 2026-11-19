@@ -143,6 +143,28 @@ external screen (no adapter, no Apple TV here), a keyboard's or a clicker's keys
 ends without it), overlays (no way to turn one on here yet), and the cost of drawing the output's 1920 × 1080 picture
 on the main thread at a change of slide.
 
+**The item's menu and +**, as the native app's ItemMenu.swift and AddSong.swift (ItemMenu.m, AddSong.m): a long
+press on a row or ••• at a slides' heading opens an action sheet (a popover on the iPad) of `itemActionsView`'s
+entries, those it can take: Byt namn (a heading's), Kommentar, Arrangemang …, Överlägg …, Lägg till efter …, and Radera, which asks
+first; an entry it disables is left out, as a sheet has no grey entry. A name or a comment is asked in an alert with
+a text field, a choice in a second sheet with ✓ at the one chosen. + in the running order's bar asks Sång or
+Programpunkt, at the place `addPositionView` gives; Sång opens Lägg till sång, a form sheet with a UISearchBar over
+the table, `searchSongsView` on every key (1-2 ms), ✓ at the song chosen, Lägg till making it. Each change runs as
+`renameItem`, `setItemNote`, `setItemArrangement`, `setItemOverlay`, `removeItem`, `addHeaderToPresentation` or
+`addSongToPresentation` through the sync's queue, and the page is read again where it stands (the column named again
+after its item, renamed or not); an addition is then the page's `added` event. A page read again, by a change here or
+by a sync, is the core's `changed` event with the items on the screen (docs/view-models.md): the item it answers
+stays where it stood, though items above it came or went. Over SSH: `gpcore8://menu/<row>`,
+`gpcore8://add`, `gpcore8://addsong/<query>`, `gpcore8://run/<change>?<JSON>`.
+
+Tried on the iPad: the item's sheet over its row (Kommentar, Lägg till efter …, Radera for a song), + asking Sång or
+Programpunkt, Lägg till sång searched for "s"; through `run`, a heading renamed and back, a heading added after the
+first item and removed, each pushed (200) and in the host's database within a second, the page read again in place:
+a heading added above the item at the top left the slides where they stood, and the item at the top removed left
+the next one where it stood, the column named after it.
+Not tried: any entry by hand, a song added, Arrangemang and Överlägg with choices to make, a change the core refuses
+(its alert), a menu while presenting.
+
 Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
 rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the
 trash shows `song-trashed`); after a restart the saved session opened at once and the pull found nothing new
@@ -253,4 +275,4 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
   button, and the icon on the home screen.
 - Scrolling with a finger, and the deceleration after it: the test moves the views at even speeds.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
-- Commands beyond the migration and the sync's (nothing is changed), pushing, and media files.
+- Media files: pictures, videos and audio are neither pulled nor shown.

@@ -2,6 +2,7 @@
 #import "Live.h"
 
 NSString *const GPLiveChanged = @"GPLiveChanged";
+NSString *const GPPageChanged = @"GPPageChanged";
 
 NSArray *GPOrder(NSDictionary *page) {
     NSMutableArray *order = [NSMutableArray array];
@@ -104,6 +105,7 @@ static NSDictionary *slideAt(NSDictionary *page, NSString *key, NSString **title
 }
 
 - (GPLive *)live { return live; }
+- (id<GPPresentationSource>)source { return source; }
 - (NSString *)liveItemId { return self.isLive && isText(live.state[@"itemId"]) ? live.state[@"itemId"] : nil; }
 
 - (instancetype)initWithPage:(NSDictionary *)page live:(GPLive *)l source:(id<GPPresentationSource>)s {
@@ -152,5 +154,26 @@ static NSDictionary *slideAt(NSDictionary *page, NSString *key, NSString **title
 - (void)liveEnded {
     [live end];
     [self send:@{@"type": @"sync"}];
+}
+
+- (void)reloadPage:(NSDictionary *)page {
+    if (!page) return;
+    NSArray *onScreen = self.onScreen ? self.onScreen() : @[];
+    _page = page;
+    [live reload];
+    // Not through send: `changed` changes no live state, and the views are to hear of the page before its marks.
+    NSDictionary *answer = [source view:@"pageEventView" args:@{@"state": _state, @"context": [self context], @"order": GPOrder(_page),
+                                                                @"event": @{@"type": @"changed", @"itemIds": onScreen ?: @[]}}];
+    if ([answer isKindOfClass:[NSDictionary class]] && [answer[@"state"] isKindOfClass:[NSDictionary class]]) _state = answer[@"state"];
+    id stay = [answer isKindOfClass:[NSDictionary class]] ? answer[@"command"][@"itemId"] : nil;
+    [[NSNotificationCenter defaultCenter] postNotificationName:GPPageChanged object:self
+                                                      userInfo:isText(stay) ? @{@"stay": stay} : nil];
+    [[NSNotificationCenter defaultCenter] postNotificationName:GPLiveChanged object:self];
+}
+
+- (NSString *)run:(NSString *)name args:(NSDictionary *)args {
+    NSString *refused = [source mutate:name args:args];
+    [self reloadPage:[source page:[self presentationId]]];
+    return refused;
 }
 @end

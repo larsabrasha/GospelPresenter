@@ -7,6 +7,9 @@
 
 /// Sent after every change of the live state: what shows it reads it again.
 extern NSString *const GPLiveChanged;
+/// Sent by a page model whose page was read again (a change here, or one the sync brought): its views reload in place,
+/// the slides with the item the core keeps at the top of the screen as userInfo's "stay" (none: where they stand).
+extern NSString *const GPPageChanged;
 
 @interface GPLive : NSObject
 - (instancetype)initWithSource:(id<GPPresentationSource>)source;
@@ -41,6 +44,7 @@ NSString *GPSlideKey(NSString *itemId, NSInteger partIndex);
 - (instancetype)initWithPage:(NSDictionary *)page live:(GPLive *)live source:(id<GPPresentationSource>)source;
 @property (nonatomic, readonly) NSDictionary *page;
 @property (nonatomic, readonly) GPLive *live;
+@property (nonatomic, readonly) id<GPPresentationSource> source;
 /// The item shown, while this page's presentation is presented.
 @property (nonatomic, readonly) NSString *liveItemId;
 /// The page's own state as the core keeps it (selectedId, picked {itemId, partIndex}, presenting, followed, ...).
@@ -56,4 +60,12 @@ NSString *GPSlideKey(NSString *itemId, NSInteger partIndex);
 - (NSDictionary *)send:(NSDictionary *)event;
 /// Avsluta (■, asked first): nothing presented, and the page as that leaves it.
 - (void)liveEnded;
+/// The items on the screen, the top first: what the slides tell the core when the page is read again.
+@property (nonatomic, copy) NSArray *(^onScreen)(void);
+/// The page read again: the core's `changed` event says which item stays at the top (GPPageChanged's "stay"), and
+/// what of the state the page no longer has is let go of; its views reload in place.
+- (void)reloadPage:(NSDictionary *)page;
+/// A change of the data from this page (renameItem, addSongToPresentation, ...): nil, or the refusal's code; the page
+/// read again after it.
+- (NSString *)run:(NSString *)name args:(NSDictionary *)args;
 @end

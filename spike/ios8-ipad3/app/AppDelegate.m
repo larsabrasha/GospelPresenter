@@ -3,7 +3,9 @@
 // at once. What it took is logged, and where the views stand in the first seconds (ScrollTest.m's GPLaunchWatch);
 // gpcore8:// URLs drive it and take pictures of it over SSH (../README.md).
 #import <UIKit/UIKit.h>
+#import "AddSong.h"
 #import "Core.h"
+#import "ItemMenu.h"
 #import "Live.h"
 #import "LivePanel.h"
 #import "PresentationController.h"
@@ -78,7 +80,10 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     [list reload];
     NSString *shown = GPShownPresentation(split);
     NSDictionary *page = shown ? [self page:shown] : nil;
-    if (page) GPShowPage(split, page, self, NO);
+    GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
+    // Read again in place, where the page stands (built anew, it went back to its top).
+    if (page && [detail isKindOfClass:[GPDetailController class]]) [detail.model reloadPage:page];
+    else if (page) GPShowPage(split, page, self, NO);
     else if (shown) [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];   // gone
 }
 
@@ -230,6 +235,8 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 /// slides have scrolled, gpcore8://open/<id> opens a presentation, gpcore8://scrolltest scrolls the slides through
 /// and logs how smoothly (ScrollTest.m), gpcore8://connect/<host:port> pairs as "Anslut" does, without asking.
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
+    // A menu, a sheet or an alert a check left open goes first, so that the next can open (not for a picture of it).
+    if (![url.host isEqual:@"picture"]) [split dismissViewControllerAnimated:NO completion:nil];
     if ([url.host isEqual:@"open"] && url.pathComponents.count > 1) {
         NSDictionary *page = [self page:url.pathComponents[1]];
         if (!page) return NO;
@@ -240,6 +247,38 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     // tap on that slide, gpcore8://end as ■ answered yes; a picture a second later.
     GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
     GPPageModel *page = [detail isKindOfClass:[GPDetailController class]] ? detail.model : nil;
+    // The menus: gpcore8://menu/<row> the item's, gpcore8://add +'s, gpcore8://addsong/<query> Lägg till sång searched,
+    // gpcore8://run/<change>?<JSON> a change as a menu's entry makes it; a picture a second later.
+    UITableViewController *order = (UITableViewController *)[split.viewControllers.firstObject topViewController];
+    if (page && [url.host isEqual:@"menu"] && url.pathComponents.count > 1) {
+        NSInteger row = [url.pathComponents[1] integerValue];
+        GPItemMenu(order, order.tableView, [order.tableView rectForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]], page.page[@"items"][row], page);
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if (page && [url.host isEqual:@"add"]) {
+        GPAddMenu(order, order.navigationItem.rightBarButtonItem, nil, CGRectZero, nil, page);
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if (page && [url.host isEqual:@"addsong"]) {
+        GPAddSongController *add = [[GPAddSongController alloc] initWithModel:page after:nil];
+        [add presentFrom:order];
+        if (url.pathComponents.count > 1) dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC / 2), dispatch_get_main_queue(), ^{
+            UISearchBar *bar = (UISearchBar *)add.tableView.tableHeaderView;
+            bar.text = url.pathComponents[1];
+            [bar.delegate searchBar:bar textDidChange:bar.text];
+        });
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1.5];
+        return YES;
+    }
+    if (page && [url.host isEqual:@"run"] && url.pathComponents.count > 1) {
+        NSData *json = [[url.query stringByRemovingPercentEncoding] dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *args = json ? [NSJSONSerialization JSONObjectWithData:json options:0 error:NULL] : @{};
+        NSLog(@"GPCore8: run %@ %@", url.pathComponents[1], [page run:url.pathComponents[1] args:args ?: @{}] ?: @"ok");
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
     if (page && ([url.host isEqual:@"send"] || [url.host isEqual:@"show"] || [url.host isEqual:@"end"])) {
         NSArray *at = url.pathComponents;
         if ([url.host isEqual:@"end"]) [page liveEnded];
