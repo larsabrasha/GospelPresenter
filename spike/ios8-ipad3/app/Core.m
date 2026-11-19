@@ -103,11 +103,28 @@ static NSData *answer(sqlite3 *db, NSString *sql, Reader *params) {
     return out;
 }
 
+/// UniFFI's Option<Caller>: none (0), or some (1) and the record's fields in order: user_id, role, now (none).
+static NSData *callerOf(NSDictionary *caller) {
+    NSMutableData *d = [NSMutableData data];
+    uint8_t tag = caller ? 1 : 0, none = 0;
+    [d appendBytes:&tag length:1];
+    if (!caller) return d;
+    for (NSString *field in @[@"userId", @"role"]) {
+        NSData *text = [[caller[field] description] dataUsingEncoding:NSUTF8StringEncoding] ?: [NSData data];
+        putString(d, text.bytes, text.length);
+    }
+    [d appendBytes:&none length:1];
+    return d;
+}
+
 NSString *GPCoreCall(sqlite3 *db, NSString *name, NSString *args, NSString **refusal) {
-    uint8_t none = 0;
+    return GPCoreCallAs(db, name, args, nil, refusal);
+}
+
+NSString *GPCoreCallAs(sqlite3 *db, NSString *name, NSString *args, NSDictionary *caller, NSString **refusal) {
     RustCallStatus status = {0};
     RustBuffer step = uniffi_gp_core_ffi_fn_func_start(bufferOfString(name), bufferOfString(args),
-                                                       bufferOf([NSData dataWithBytes:&none length:1]), &status);
+                                                       bufferOf(callerOf(caller)), &status);
     while (status.code == 0) {
         Reader r = { step.data, 0 };
         int32_t kind = readI32(&r);
@@ -130,9 +147,13 @@ NSString *GPCoreCall(sqlite3 *db, NSString *name, NSString *args, NSString **ref
 }
 
 NSString *GPCoreCommand(sqlite3 *db, NSString *name, NSString *args, NSString **refusal) {
+    return GPCoreCommandAs(db, name, args, nil, refusal);
+}
+
+NSString *GPCoreCommandAs(sqlite3 *db, NSString *name, NSString *args, NSDictionary *caller, NSString **refusal) {
     sqlite3_exec(db, "BEGIN", NULL, NULL, NULL);
     NSString *gone = nil;
-    NSString *json = GPCoreCall(db, name, args, &gone);
+    NSString *json = GPCoreCallAs(db, name, args, caller, &gone);
     sqlite3_exec(db, gone ? "ROLLBACK" : "COMMIT", NULL, NULL, NULL);
     if (refusal) *refusal = gone;
     return json;

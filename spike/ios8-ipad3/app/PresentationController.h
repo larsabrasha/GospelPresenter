@@ -5,5 +5,12 @@
 /// The app's tint, the web's sky (#0ea5e9).
 UIColor *GPTint(void);
 
-/// The page's split view, for presentationPageView's answer, decoded.
-UISplitViewController *GPPresentationPage(NSDictionary *page);
+/// The split view, `list` (the presentations) at the root of its left column, the right one empty.
+UISplitViewController *GPSplit(UIViewController *list);
+
+/// A presentation's page (presentationPageView's answer, decoded) in the split view: its running order pushed onto
+/// the left column over the list, its slides at the right.
+void GPShowPage(UISplitViewController *split, NSDictionary *page, BOOL animated);
+
+/// A presentation's day and time: "söndag 8 november 2026 · 11:00".
+NSString *GPWhen(NSDictionary *presentation);

@@ -1,85 +1,191 @@
-// The app: a fresh copy of the demo data (Resources/demo.sqlite, copied in by ../build-core.sh), migrated by the
-// core, and its first presentation's page. What it took is logged, and where the views stand in the first seconds
-// (ScrollTest.m's GPLaunchWatch); gpcore8:// URLs drive it and take pictures of it over SSH (../README.md).
+// The app: the presentations of an organisation synced from a desktop host (Sync.m), or, before it is paired, a fresh
+// copy of the demo data (Resources/demo.sqlite, copied in by ../build-core.sh); the next presentation's page opened
+// at once. What it took is logged, and where the views stand in the first seconds (ScrollTest.m's GPLaunchWatch);
+// gpcore8:// URLs drive it and take pictures of it over SSH (../README.md).
 #import <UIKit/UIKit.h>
 #import "Core.h"
 #import "PresentationController.h"
+#import "Presentations.h"
 #import "ScrollTest.h"
+#import "Sync.h"
 
-@interface GPAppDelegate : UIResponder <UIApplicationDelegate>
+@interface GPAppDelegate : UIResponder <UIApplicationDelegate, GPPresentationSource>
 @property (nonatomic, strong) UIWindow *window;
 @end
 
 static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 
 @implementation GPAppDelegate {
-    sqlite3 *db;
+    sqlite3 *db;          // the synced organisation's, or the demo's
+    GPSync *sync;
+    UISplitViewController *split;
+    GPPresentationsController *list;
 }
 
-- (NSDictionary *)openPage {
+/// The demo data, copied afresh and migrated by the core.
+- (void)openDemo {
     NSString *caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)[0];
     NSString *path = [caches stringByAppendingPathComponent:@"gpcore8.sqlite"];
     NSFileManager *files = [NSFileManager defaultManager];
     [files createDirectoryAtPath:caches withIntermediateDirectories:YES attributes:nil error:NULL];
     for (NSString *end in @[@"", @"-wal", @"-shm", @"-journal"]) [files removeItemAtPath:[path stringByAppendingString:end] error:NULL];
     [files copyItemAtPath:[[NSBundle mainBundle] pathForResource:@"demo" ofType:@"sqlite"] toPath:path error:NULL];
-    if (sqlite3_open(path.UTF8String, &db) != SQLITE_OK) { NSLog(@"GPCore8: cannot open %@", path); return nil; }
+    if (sqlite3_open(path.UTF8String, &db) != SQLITE_OK) { NSLog(@"GPCore8: cannot open %@", path); return; }
     NSDate *t = [NSDate date];
     NSString *refusal = nil;
     GPCoreCommand(db, @"migrateOrgSchema", @"{}", &refusal);
     NSLog(@"GPCore8: migrateOrgSchema %@, %.1f ms", refusal ?: @"ok", since(t));
-    t = [NSDate date];
-    NSArray *rows = GPCoreView(db, @"presentationsView", @{});
-    NSLog(@"GPCore8: presentationsView %lu rows, %.1f ms", (unsigned long)rows.count, since(t));
-    if (rows.count == 0) return nil;
-    t = [NSDate date];
-    NSDictionary *page = GPCoreView(db, @"presentationPageView", @{@"id": rows[0][@"id"]});
-    NSLog(@"GPCore8: presentationPageView %lu items, %.1f ms", (unsigned long)[page[@"items"] count], since(t));
-    return page;
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
     NSDate *t = [NSDate date];
-    NSLog(@"GPCore8: launching, the bar %ld, the screen %.0f x %.0f", (long)application.statusBarOrientation,
-          [UIScreen mainScreen].bounds.size.width, [UIScreen mainScreen].bounds.size.height);
-    NSDictionary *page = [self openPage];
-    UIViewController *root;
-    if (page) {
-        root = GPPresentationPage(page);
-    } else {
-        root = [[UIViewController alloc] init];
-        root.view.backgroundColor = [UIColor whiteColor];
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectInset(root.view.bounds, 24, 48)];
-        label.text = @"Ingen presentation (se loggen)";
-        [root.view addSubview:label];
-    }
+    sync = [GPSync saved];
+    if (sync) db = sync.db; else [self openDemo];
+    list = [[GPPresentationsController alloc] initWithSource:self];
+    split = GPSplit(list);
+    [self openNext:NO];
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     self.window.tintColor = GPTint();
-    self.window.rootViewController = root;
+    self.window.rootViewController = split;
     [self.window makeKeyAndVisible];
     [GPLaunchWatch watch:self.window];
-    NSLog(@"GPCore8: launched in %.1f ms", since(t));
+    NSLog(@"GPCore8: launched in %.1f ms, %@", since(t), sync ? sync.server : @"the demo");
     // No picture of its own at launch: one taken 1.5 s in made the split view fold the running order away and back
     // on the screen (Lars filmed it). Pictures are taken when asked for.
+    if (sync) [self refresh:^(NSString *error) { if (error) NSLog(@"GPCore8: sync at launch: %@", error); }];
     return YES;
 }
 
-/// For checks over SSH (`uiopen`): gpcore8://picture writes the picture now, gpcore8://item/<n> taps the running
-/// order's row n and writes it once the slides have scrolled, gpcore8://scrolltest scrolls the slides through and
-/// logs how smoothly (ScrollTest.m).
+/// The next presentation, from today on (the most recent one when none is coming), its page shown.
+- (void)openNext:(BOOL)animated {
+    NSArray *rows = [self presentations];
+    NSDateFormatter *iso = [[NSDateFormatter alloc] init];
+    iso.dateFormat = @"yyyy-MM-dd";
+    NSString *today = [iso stringFromDate:[NSDate date]];
+    NSDictionary *next = nil, *latest = nil;
+    for (NSDictionary *p in rows) {
+        NSString *day = [p[@"eventDate"] isKindOfClass:[NSString class]] ? p[@"eventDate"] : nil;
+        if (day && [day compare:today] != NSOrderedAscending && (!next || [day compare:next[@"eventDate"]] == NSOrderedAscending)) next = p;
+        if (day && (!latest || [day compare:latest[@"eventDate"]] == NSOrderedDescending)) latest = p;
+    }
+    NSDictionary *chosen = next ?: latest ?: rows.firstObject;
+    NSDictionary *page = chosen ? [self page:chosen[@"id"]] : nil;
+    if (page) GPShowPage(split, page, animated);
+}
+
+#pragma mark - GPPresentationSource
+
+- (NSString *)sourceName { return sync ? (sync.me[@"orgName"] ?: @"Presentationer") : @"Demo"; }
+
+- (NSString *)sourceNote {
+    return sync ? [NSString stringWithFormat:@"Synkas med %@ som %@. Dra ner för att hämta nytt.", sync.server, sync.me[@"name"] ?: @"?"]
+                : @"Demodata. Tryck på Anslut för att synka med en skrivbordsvärd.";
+}
+
+- (NSArray *)presentations {
+    NSDate *t = [NSDate date];
+    NSArray *rows = GPCoreView(db, @"presentationsView", @{});
+    NSLog(@"GPCore8: presentationsView %lu rows, %.1f ms", (unsigned long)rows.count, since(t));
+    return [rows isKindOfClass:[NSArray class]] ? rows : @[];
+}
+
+- (NSDictionary *)page:(NSString *)presentationId {
+    NSDate *t = [NSDate date];
+    NSDictionary *page = GPCoreView(db, @"presentationPageView", @{@"id": presentationId});
+    NSLog(@"GPCore8: presentationPageView %lu items, %.1f ms", (unsigned long)[page[@"items"] count], since(t));
+    return [page[@"presentation"] isKindOfClass:[NSDictionary class]] ? page : nil;
+}
+
+- (void)refresh:(void (^)(NSString *))done {
+    if (!sync) { done(@"Det här är demodata. Tryck på Anslut för att synka med en skrivbordsvärd."); return; }
+    NSDate *t = [NSDate date];
+    BOOL hadAny = [self presentations].count > 0;
+    [sync pull:^(BOOL changed, NSString *error) {
+        NSLog(@"GPCore8: pull %@ in %.0f ms%@", changed ? @"changed rows" : @"changed nothing", since(t), error ? [@", " stringByAppendingString:error] : @"");
+        if (changed) {
+            [self->list reload];
+            if (!hadAny) [self openNext:NO];
+        }
+        done(error);
+    }];
+}
+
+- (void)connectFrom:(UIViewController *)controller {
+    UIAlertController *ask = [UIAlertController alertControllerWithTitle:@"Anslut till en skrivbordsvärd"
+        message:@"Adressen som Gospel Presenter på datorn visar för andra enheter, t.ex. 192.168.1.184:47800." preferredStyle:UIAlertControllerStyleAlert];
+    [ask addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.text = [[NSUserDefaults standardUserDefaults] stringForKey:@"gp.host"];
+        field.placeholder = @"192.168.1.184:47800";
+        field.keyboardType = UIKeyboardTypeURL;
+        field.autocorrectionType = UITextAutocorrectionTypeNo;
+        field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    }];
+    [ask addAction:[UIAlertAction actionWithTitle:@"Avbryt" style:UIAlertActionStyleCancel handler:nil]];
+    [ask addAction:[UIAlertAction actionWithTitle:@"Anslut" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        NSString *address = ask.textFields.firstObject.text;
+        [[NSUserDefaults standardUserDefaults] setObject:address forKey:@"gp.host"];
+        [GPSync askHost:address done:^(NSString *how, NSString *error) {
+            if (error) { [self tell:@"Ingen kontakt" message:error from:controller]; return; }
+            if ([how isEqual:@"dev"]) { [self pair:address code:nil from:controller]; return; }
+            [self askCode:address from:controller];
+        }];
+    }]];
+    [controller presentViewController:ask animated:YES completion:nil];
+}
+
+/// The six digits the host shows under "Para ihop en enhet".
+- (void)askCode:(NSString *)address from:(UIViewController *)controller {
+    UIAlertController *ask = [UIAlertController alertControllerWithTitle:@"Kod" message:@"Den sexsiffriga koden som datorn visar."
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+    [ask addTextFieldWithConfigurationHandler:^(UITextField *field) { field.keyboardType = UIKeyboardTypeNumberPad; }];
+    [ask addAction:[UIAlertAction actionWithTitle:@"Avbryt" style:UIAlertActionStyleCancel handler:nil]];
+    [ask addAction:[UIAlertAction actionWithTitle:@"Para ihop" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        [self pair:address code:ask.textFields.firstObject.text from:controller];
+    }]];
+    [controller presentViewController:ask animated:YES completion:nil];
+}
+
+- (void)pair:(NSString *)address code:(NSString *)code from:(UIViewController *)controller {
+    [GPSync pair:address code:code done:^(GPSync *paired, NSString *error) {
+        if (!paired) { [self tell:@"Parningen misslyckades" message:error from:controller]; return; }
+        NSLog(@"GPCore8: paired with %@ as %@ in %@", paired.server, paired.me[@"name"], paired.me[@"orgName"]);
+        self->sync = paired;
+        self->db = paired.db;
+        [self->list reload];
+        [self refresh:^(NSString *pullError) {
+            if (pullError) [self tell:@"Synken misslyckades" message:pullError from:controller];
+            else [self openNext:YES];
+        }];
+    }];
+}
+
+- (void)tell:(NSString *)title message:(NSString *)message from:(UIViewController *)controller {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [controller presentViewController:a animated:YES completion:nil];
+}
+
+#pragma mark - Checks over SSH
+
+/// gpcore8://picture writes the picture now, gpcore8://item/<n> taps the running order's row n and writes it once the
+/// slides have scrolled, gpcore8://open/<id> opens a presentation, gpcore8://scrolltest scrolls the slides through
+/// and logs how smoothly (ScrollTest.m), gpcore8://connect/<host:port> pairs as "Anslut" does, without asking.
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
     if ([url.host isEqual:@"open"] && url.pathComponents.count > 1) {
-        // gpcore8://open/<presentation id>: that presentation's page instead.
-        NSDate *t = [NSDate date];
-        NSDictionary *page = GPCoreView(db, @"presentationPageView", @{@"id": url.pathComponents[1]});
-        NSLog(@"GPCore8: presentationPageView %lu items, %.1f ms", (unsigned long)[page[@"items"] count], since(t));
-        if (!page[@"presentation"] || page[@"presentation"] == [NSNull null]) return NO;
-        self.window.rootViewController = GPPresentationPage(page);
+        NSDictionary *page = [self page:url.pathComponents[1]];
+        if (!page) return NO;
+        GPShowPage(split, page, NO);
+        return YES;
+    }
+    if ([url.host isEqual:@"connect"] && url.pathComponents.count > 1) {
+        NSString *address = url.pathComponents[1];
+        [GPSync askHost:address done:^(NSString *how, NSString *error) {
+            if ([how isEqual:@"dev"]) [self pair:address code:nil from:self->list];
+            else NSLog(@"GPCore8: connect: %@", error ?: @"the host asks for a code");
+        }];
         return YES;
     }
     if ([url.host isEqual:@"scrolltest"]) {
-        UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
-        if (![split isKindOfClass:[UISplitViewController class]]) return NO;
         // gpcore8://scrolltest/<speed>/list scrolls the running order instead. The collection view itself: on iOS 8
         // the controller's view is a wrapper around it.
         CGFloat speed = url.pathComponents.count > 1 ? [url.pathComponents[1] floatValue] : 1200;
@@ -93,12 +199,10 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         return YES;
     }
     if ([url.host isEqual:@"item"] && url.pathComponents.count > 1) {
-        UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
-        if (![split isKindOfClass:[UISplitViewController class]]) return NO;
-        UITableViewController *list = (UITableViewController *)[split.viewControllers[0] topViewController];
+        UITableViewController *order = (UITableViewController *)[split.viewControllers.firstObject topViewController];
         NSIndexPath *at = [NSIndexPath indexPathForRow:[url.pathComponents[1] integerValue] inSection:0];
-        [list.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionMiddle];
-        [list tableView:list.tableView didSelectRowAtIndexPath:at];
+        [order.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionMiddle];
+        [order tableView:order.tableView didSelectRowAtIndexPath:at];
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }

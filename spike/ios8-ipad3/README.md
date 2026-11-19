@@ -2,12 +2,13 @@
 
 A spike (Lars, 2026-11-18): whether the Rust core (`crates/gp-core`) runs on a jailbroken iPad 3 ("the new iPad",
 A5X, 32-bit armv7) downgraded to iOS 8.4.1, for a screen that shows song texts on an old iPad, as the Raspberry Pi
-in `docs/native-slide-rendering.md`. Not a shell of the app: a presentation's page, read through the core from the
-demo data, drawn with UIKit.
+in `docs/native-slide-rendering.md`. Not a shell of the app: the presentations and their pages, read through the
+core from an organisation synced from a desktop host (or the demo data), drawn with UIKit.
 
-**Where it stands:** it runs. On Lars's iPad 3 (iPad3,3, iOS 8.4.1 12H321, jailbroken) on 2026-11-19 the app opens a
-copy of the demo data in SQLite, has the core migrate it, and shows the first presentation's page: the items at the
-left, every item's slides at the right (below, "On the iPad"). Built at 8aad1883; the core's interface (`start`,
+**Where it stands:** it runs. On Lars's iPad 3 (iPad3,3, iOS 8.4.1 12H321, jailbroken) on 2026-11-19 the app pairs
+with the desktop host on the LAN, pulls the organisation into its own SQLite through the core, lists its
+presentations and shows the next one's page: the items at the left, every item's slides at the right (below, "On the
+iPad" and "Syncing"). Built at 8aad1883; the core's interface (`start`,
 `resume`, UniFFI's `Step` and `SqlAnswer`) may change, and Core.m reads and writes it by hand.
 
 ## Why not the app itself
@@ -83,6 +84,25 @@ The running order (Lars: as fast) needed nothing: on the demo's longest presenta
 (`gpcore8://open/pres-6` opens it), the render server drew 298 of 300 frames at 600 and at 1500 pt/s, as it does for
 the slides at 1200 and 3000 pt/s with the same 5 s test: the 2 missing in every run, whatever moves and how fast, are
 the test's start, not a stutter.
+
+**Syncing** (Lars: real presentations), read only, from a desktop host on the LAN over plain http:
+`GP_DEV_PAIR=1 GP_LAN=1 pnpm --filter @gp/desktop start` on the Mac (after `pnpm build`), which listens on
+0.0.0.0:47800. `Sync.m` does what the native shell's `Pairing` and `SyncClient.pull` do (Server.swift, Sync.swift):
+`/api/pair/status`, then `/api/pair/dev` (or `/api/pair/claim` with the six-digit code a host without
+`GP_DEV_PAIR` shows), the organisation's own SQLite opened with `migrateOrgSchema` and `syncOpen`, and every page of
+`/api/sync/pull` rebased by `syncRebase` in one transaction, the core called as the signed-in member (Core.m's
+`GPCoreCallAs` writes UniFFI's `Option<Caller>`). Not done: pushing (the app changes nothing), and the poke socket
+(NSURLSession has web sockets from iOS 13): it pulls at launch and when the list is pulled down. The session (host,
+bearer token, device token, who) is a file in Library/Application Support, readable by the app alone, not the
+Keychain, which an app signed by ldid without entitlements may not reach. The left column now starts at the
+presentations, as Settings and Mail list theirs (Presentations.m), a tap pushing the running order over them;
+"Anslut" pairs, asking for the host's address in an iOS 8 UIAlertController (and `gpcore8://connect/<host:port>`
+does it over SSH). The app's system texts are Swedish (`CFBundleDevelopmentRegion` sv: "Tillbaka", not "Back").
+
+Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
+rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the
+trash shows `song-trashed`); after a restart the saved session opened at once and the pull found nothing new
+(528 ms). Not tried: pairing with a code, a host on https, many pages, a pull that fails half way.
 
 ## Build
 
@@ -180,4 +200,4 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
   button, and the icon on the home screen.
 - Scrolling with a finger, and the deceleration after it: the test moves the views at even speeds.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
-- Commands beyond the migration (nothing is changed), sync, and media files.
+- Commands beyond the migration and the sync's (nothing is changed), pushing, and media files.

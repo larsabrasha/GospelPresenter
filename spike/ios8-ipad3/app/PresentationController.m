@@ -158,25 +158,11 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 - (void)viewDidLoad {
     [super viewDidLoad];
     UILabel *when = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 320, 44)];
-    when.text = [self when];
+    when.text = GPWhen(page[@"presentation"]);
     when.textAlignment = NSTextAlignmentCenter;
     when.font = [UIFont systemFontOfSize:13];
     when.textColor = rgb(0x6D6D72);
     self.tableView.tableHeaderView = when;
-}
-
-/// "söndag 8 november 2026 · 11:00".
-- (NSString *)when {
-    NSDictionary *p = page[@"presentation"];
-    NSDateFormatter *parse = [[NSDateFormatter alloc] init];
-    parse.dateFormat = @"yyyy-MM-dd";
-    NSDate *day = [p[@"eventDate"] isKindOfClass:[NSString class]] ? [parse dateFromString:p[@"eventDate"]] : nil;
-    if (!day) return @"";
-    NSDateFormatter *out = [[NSDateFormatter alloc] init];
-    out.locale = [NSLocale localeWithLocaleIdentifier:@"sv_SE"];
-    out.dateFormat = @"EEEE d MMMM yyyy";
-    NSString *time = [p[@"time"] isKindOfClass:[NSString class]] ? p[@"time"] : nil;
-    return time ? [NSString stringWithFormat:@"%@ · %@", [out stringFromDate:day], time] : [out stringFromDate:day];
 }
 
 // One group, every item a row in the order presented, a programme point (type "header") as much a row as a song.
@@ -353,14 +339,12 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 }
 @end
 
-UISplitViewController *GPPresentationPage(NSDictionary *page) {
-    GPItemsController *items = [[GPItemsController alloc] initWithPage:page];
-    GPSlidesController *slides = [[GPSlidesController alloc] initWithPage:page];
-    items.slides = slides;
-    slides.runningOrder = items;
+UISplitViewController *GPSplit(UIViewController *list) {
     UISplitViewController *split = [[UISplitViewController alloc] init];
-    UINavigationController *left = [[UINavigationController alloc] initWithRootViewController:items];
-    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:slides];
+    UINavigationController *left = [[UINavigationController alloc] initWithRootViewController:list];
+    UIViewController *empty = [[UIViewController alloc] init];
+    empty.view.backgroundColor = rgb(0xEFEFF4);
+    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:empty];
     // Opaque bars: a translucent one blurs what scrolls under it anew on every frame, more than the iPad 3's GPU
     // keeps up with.
     left.navigationBar.translucent = NO;
@@ -369,8 +353,31 @@ UISplitViewController *GPPresentationPage(NSDictionary *page) {
     split.preferredDisplayMode = UISplitViewControllerDisplayModeAllVisible;
     split.maximumPrimaryColumnWidth = 320;
     split.preferredPrimaryColumnWidthFraction = 0.4;
+    return split;
+}
+
+void GPShowPage(UISplitViewController *split, NSDictionary *page, BOOL animated) {
+    GPItemsController *items = [[GPItemsController alloc] initWithPage:page];
+    GPSlidesController *slides = [[GPSlidesController alloc] initWithPage:page];
+    items.slides = slides;
+    slides.runningOrder = items;
+    UINavigationController *left = split.viewControllers.firstObject, *right = split.viewControllers.lastObject;
+    [left popToRootViewControllerAnimated:NO];
+    [left pushViewController:items animated:animated];
     // iOS 8's button that folds the running order away, and back.
     slides.navigationItem.leftBarButtonItem = split.displayModeButtonItem;
     slides.navigationItem.leftItemsSupplementBackButton = YES;
-    return split;
+    right.viewControllers = @[slides];
+}
+
+NSString *GPWhen(NSDictionary *presentation) {
+    NSDateFormatter *parse = [[NSDateFormatter alloc] init];
+    parse.dateFormat = @"yyyy-MM-dd";
+    NSDate *day = [presentation[@"eventDate"] isKindOfClass:[NSString class]] ? [parse dateFromString:presentation[@"eventDate"]] : nil;
+    if (!day) return @"";
+    NSDateFormatter *out = [[NSDateFormatter alloc] init];
+    out.locale = [NSLocale localeWithLocaleIdentifier:@"sv_SE"];
+    out.dateFormat = @"EEEE d MMMM yyyy";
+    NSString *time = [presentation[@"time"] isKindOfClass:[NSString class]] ? presentation[@"time"] : nil;
+    return time ? [NSString stringWithFormat:@"%@ · %@", [out stringFromDate:day], time] : [out stringFromDate:day];
 }
