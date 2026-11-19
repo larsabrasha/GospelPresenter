@@ -1,28 +1,40 @@
 // What the terminal draws from the core's answers (App holds them): the start page, a presentation's page (the running
-// order, the selected item's slides with the marks VISAS and NÄSTA and the slide made ready, and a preview), and the
-// output view. Layout, colours and glyphs are this shell's; which rows, marks and texts there are is the core's.
-// Drawing also says where each row, item and slide landed (`Hits`), so a click finds what it hit.
+// order, the selected item's slides with the marks VISAS and NÄSTA and the slide made ready, and a preview; one column
+// on a narrow terminal, phone.rs), and the output view. Layout, colours and glyphs are this shell's; which rows, marks
+// and texts there are is the core's. Drawing also says where each row, item and slide landed (`Hits`), so a click finds
+// what it hit and the wheel the list under it.
 use crate::app::{App, Screen};
 use crate::dates::subtitle;
-use crate::keys::Target;
+use crate::keys::{Pane, Target};
+use crate::panes::{draw_rows, Rows};
 use crate::texts::{t, t_of};
 use crate::views::*;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
-use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::widgets::{Block, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
 /// The live colour, VISAS's, and the blue of the slide made ready, as the web marks them.
-const LIVE: Color = Color::Red;
-const READY: Color = Color::Blue;
+pub const LIVE: Color = Color::Red;
+pub const READY: Color = Color::Blue;
+/// Under this many columns a presentation is one column, as the app's phone layout (docs/layout-2-0.md).
+pub const NARROW: u16 = 100;
 
 /// Where each thing a click can hit was drawn, the last drawn last.
 pub type Hits = Vec<(Rect, Target)>;
 
-/// What a click at a cell hits: the last thing drawn there, so the question to end, drawn over all, hides the rest.
+/// What a click at a cell hits: the last thing drawn there, so a row hides its list and the question to end the rest.
 pub fn target_at(hits: &Hits, x: u16, y: u16) -> Option<&Target> {
     hits.iter().rev().find(|(r, _)| x >= r.x && x < r.right() && y >= r.y && y < r.bottom()).map(|(_, t)| t)
+}
+
+/// The list under a cell, for the wheel.
+pub fn pane_at(hits: &Hits, x: u16, y: u16) -> Option<Pane> {
+    hits.iter().rev().find_map(|(r, t)| match t {
+        Target::Pane(p) if x >= r.x && x < r.right() && y >= r.y && y < r.bottom() => Some(*p),
+        _ => None,
+    })
 }
 
 pub fn draw(f: &mut Frame, app: &App) -> Hits {
@@ -35,30 +47,20 @@ pub fn draw(f: &mut Frame, app: &App) -> Hits {
     }
     if app.screen != Screen::Output { footer(f, foot, app) }
     // The question to end takes every click; a click outside it is not an answer.
-    if app.ending { hits.clear() }
-    if app.ending { ask_end(f, f.area()) }
+    if app.ending {
+        hits.clear();
+        ask_end(f, f.area());
+    }
     hits
 }
 
-/// The rows of a list as drawn inside `inner`, scrolled by `offset`: each its height and what it is.
-fn list_hits(hits: &mut Hits, inner: Rect, offset: usize, rows: impl Iterator<Item = (u16, Target)>) {
-    let mut y = inner.y;
-    for (height, target) in rows.skip(offset) {
-        if y >= inner.bottom() { break }
-        hits.push((Rect { x: inner.x, y, width: inner.width, height: height.min(inner.bottom() - y) }, target));
-        y += height;
-    }
-}
-
 fn start(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
-    let mut lines = vec![Line::from(t("nav.presentations", &[]).bold()), Line::default()];
-    if app.lists.is_empty() { lines.push(Line::from(t("presentations.emptyTitle", &[]).dim())) }
+    let mut rows = Rows::default();
+    rows.push(vec![Line::from(t("nav.presentations", &[]).bold()), Line::default()], None, false);
+    if app.lists.is_empty() { rows.push(vec![Line::from(t("presentations.emptyTitle", &[]).dim())], None, false) }
     let mut n = 0;
-    let mut at = 0;
-    // Each row's line, for its place on the screen.
-    let mut row_lines = vec![];
     for list in &app.lists {
-        lines.push(Line::from(t_of(&list.title.clone().into()).bold().underlined()));
+        rows.push(vec![Line::from(t_of(&list.title.clone().into()).bold().underlined())], None, false);
         for row in &list.rows {
             let mut name = vec![Span::raw(row.name.clone())];
             if app.live.presentation_id.as_deref() == Some(row.id.as_str()) { name.push(Span::raw(format!("  ● {}", t("presentations.live", &[]))).fg(LIVE)) }
@@ -66,21 +68,13 @@ fn start(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
             let items = if count == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &count.to_string())]) };
             let sub = subtitle(row, &app.today, list.show_date, list.with_year);
             name.push(Span::raw(format!("   {}", [sub, items].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · "))).dim());
-            let line = Line::from(name);
-            row_lines.push(lines.len() as u16);
-            if n == app.cursor { at = lines.len(); lines.push(line.reversed()) } else { lines.push(line) }
+            let line = if n == app.cursor { Line::from(name).reversed() } else { Line::from(name) };
+            rows.push(vec![line], Some(Target::Row(n)), n == app.cursor);
             n += 1;
         }
-        lines.push(Line::default());
+        rows.push(vec![Line::default()], None, false);
     }
-    // The cursor's row kept on the screen.
-    let scroll = (at as u16).saturating_sub(area.height.saturating_sub(3));
-    let inner = area.inner(Margin::new(1, 0));
-    f.render_widget(Paragraph::new(lines).scroll((scroll, 0)).block(Block::new().borders(Borders::NONE)), inner);
-    for (n, line) in row_lines.into_iter().enumerate() {
-        if line < scroll || line - scroll >= inner.height { continue }
-        hits.push((Rect { x: inner.x, y: inner.y + line - scroll, width: inner.width, height: 1 }, Target::Row(n)));
-    }
+    draw_rows(f, area.inner(Margin::new(1, 0)), Block::new(), rows, Pane::Start, app, hits);
 }
 
 /// The item whose slides are drawn: the selected one, else the first.
@@ -95,6 +89,7 @@ fn page(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
     };
     let [head, body] = Layout::vertical([Constraint::Length(2), Constraint::Min(1)]).areas(area);
     header(f, head, app, page);
+    if area.width < NARROW { return crate::phone::page(f, body, app, page, hits) }
     let [order, slides, preview] = Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(36), Constraint::Percentage(34)]).areas(body);
     running_order(f, order, app, page, hits);
     item_slides(f, slides, app, page, hits);
@@ -116,21 +111,46 @@ fn header(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
     f.render_widget(Paragraph::new(vec![Line::from(spans), cue.unwrap_or_default()]), area.inner(Margin::new(1, 0)));
 }
 
+/// An item's lines in a running order: its title (● when its slide is on the outputs, reversed when selected), and why
+/// it has no slides, if the core says.
+pub fn item_lines(app: &App, page: &PresentationPage, item: &PageItem, selected: bool) -> Vec<Line<'static>> {
+    let live_item = app.is_live().then_some(app.live.item_id.as_deref()).flatten();
+    let mark = if live_item == Some(item.id.as_str()) { Span::raw("● ").fg(LIVE) } else { Span::raw("  ") };
+    let title = if item.kind.as_deref() == Some("header") { Span::raw(item.title.clone()).bold() } else { Span::raw(item.title.clone()) };
+    let line = Line::from(vec![mark, title]);
+    let mut lines = vec![if selected { line.reversed() } else { line }];
+    if let Some(problem) = page.problem_of(&item.id) { lines.push(Line::from(format!("  {}", t(&problem_key(problem), &[]))).dim()) }
+    lines
+}
+
 fn running_order(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage, hits: &mut Hits) {
     let selected = shown_item(page, &app.state);
-    let live_item = app.is_live().then(|| app.live.item_id.clone()).flatten();
-    let items: Vec<ListItem> = page.items.iter().map(|i| {
-        let mark = if live_item.as_deref() == Some(i.id.as_str()) { Span::raw("● ").fg(LIVE) } else { Span::raw("  ") };
-        let title = if i.kind.as_deref() == Some("header") { Span::raw(i.title.clone()).bold() } else { Span::raw(i.title.clone()) };
-        let mut lines = vec![Line::from(vec![mark, title])];
-        if let Some(problem) = page.problem_of(&i.id) { lines.push(Line::from(format!("  {}", t(&problem_key(problem), &[]))).dim()) }
-        ListItem::new(lines)
-    }).collect();
-    let mut state = ListState::default().with_selected(selected.and_then(|s| page.items.iter().position(|i| i.id == s)));
-    let list = List::new(items).highlight_style(Style::new().add_modifier(Modifier::REVERSED)).block(Block::bordered());
-    f.render_stateful_widget(list, area, &mut state);
-    let rows = page.items.iter().map(|i| (1 + page.problem_of(&i.id).is_some() as u16, Target::Item(i.id.clone())));
-    list_hits(hits, area.inner(Margin::new(1, 1)), state.offset(), rows);
+    let mut rows = Rows::default();
+    for i in &page.items {
+        let on = selected.as_deref() == Some(i.id.as_str());
+        rows.push(item_lines(app, page, i, on), Some(Target::Item(i.id.clone())), on);
+    }
+    draw_rows(f, area, Block::bordered(), rows, Pane::Order, app, hits);
+}
+
+/// A slide's place and marks as a slide's row draws them: whether it is VISAS, NÄSTA, made ready.
+pub struct Marks { pub shown: bool, pub next: bool, pub picked: bool }
+
+impl Marks {
+    pub fn of(app: &App, at: &SlideAt) -> Marks {
+        let live = app.is_live();
+        let mark = |m: &Option<MarkAt>| live && m.as_ref().and_then(MarkAt::at).as_ref() == Some(at);
+        Marks { shown: mark(&app.marks.shown), next: mark(&app.marks.next), picked: app.state.picked.as_ref() == Some(at) }
+    }
+}
+
+/// A slide's first line in a list: ▌ when made ready, its number, its label in its colour, VISAS or NÄSTA.
+pub fn slide_head(n: usize, slide: &Slide, marks: &Marks) -> Line<'static> {
+    let mut head = vec![Span::raw(if marks.picked { "▌" } else { " " }).fg(READY), Span::raw(format!("{:>2} ", n + 1)).dim()];
+    if let Some(label) = &slide.label { head.push(Span::raw(label.text.clone()).fg(hex(&label.color)).bold()) }
+    if marks.shown { head.push(Span::raw(format!(" {} ", t("live.shownBadge", &[]))).fg(Color::White).bg(LIVE).bold()) }
+    if marks.next { head.push(Span::raw(format!(" {}", t("live.nextBadge", &[]))).dim().bold()) }
+    Line::from(head)
 }
 
 /// A slide's text in short, its first line, or what a picture or a video is: its item's title.
@@ -146,33 +166,21 @@ fn item_slides(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage, hi
         f.render_widget(Block::bordered(), area);
         return;
     };
-    let live = app.is_live();
-    let shown = if live { app.marks.shown.as_ref().and_then(MarkAt::at) } else { None };
-    let next = if live { app.marks.next.as_ref().and_then(MarkAt::at) } else { None };
-    let mut focus = None;
-    let items: Vec<ListItem> = page.slides_of(&item.id).iter().enumerate().map(|(n, s)| {
+    let mut rows = Rows::default();
+    for (n, s) in page.slides_of(&item.id).iter().enumerate() {
         let at = SlideAt { item_id: item.id.clone(), part_index: n as i64 };
-        let picked = app.state.picked.as_ref() == Some(&at);
-        let mut head = vec![Span::raw(format!("{:>2} ", n + 1)).dim()];
-        if let Some(label) = &s.label { head.push(Span::raw(label.text.clone()).fg(hex(&label.color)).bold()) }
-        if shown.as_ref() == Some(&at) { head.push(Span::raw(format!(" {} ", t("live.shownBadge", &[]))).fg(Color::White).bg(LIVE).bold()) }
-        if next.as_ref() == Some(&at) { head.push(Span::raw(format!(" {}", t("live.nextBadge", &[]))).dim().bold()) }
-        if picked || shown.as_ref() == Some(&at) { focus = Some(n) }
-        let body = Line::from(format!("   {}", first_line(&item, s)));
-        let lines = if picked { vec![Line::from(head).fg(READY), body.fg(READY)] } else { vec![Line::from(head), body] };
-        ListItem::new(lines)
-    }).collect();
-    let title = Line::from(format!(" {} ", item.title)).bold();
-    let mut state = ListState::default().with_selected(focus);
-    let list = List::new(items).block(Block::bordered().title(title)).highlight_symbol("▌").highlight_style(Style::new());
-    f.render_stateful_widget(list, area, &mut state);
-    let count = page.slides_of(&item.id).len();
-    let rows = (0..count).map(|n| (2, Target::Slide(SlideAt { item_id: item.id.clone(), part_index: n as i64 })));
-    list_hits(hits, area.inner(Margin::new(1, 1)), state.offset(), rows);
+        let marks = Marks::of(app, &at);
+        let body = Line::from(format!("    {}", first_line(&item, s)));
+        let lines = if marks.picked { vec![slide_head(n, s, &marks).fg(READY), body.fg(READY)] } else { vec![slide_head(n, s, &marks), body] };
+        let focus = marks.picked || marks.shown;
+        rows.push(lines, Some(Target::Slide(at)), focus);
+    }
+    let block = Block::bordered().title(Line::from(format!(" {} ", item.title)).bold());
+    draw_rows(f, area, block, rows, Pane::Slides, app, hits);
 }
 
 /// A slide's whole text, or what it is when it has none.
-fn slide_text(item: &PageItem, slide: &Slide) -> Text<'static> {
+pub fn slide_text(item: &PageItem, slide: &Slide) -> Text<'static> {
     if slide.text.trim().is_empty() { return Text::from(format!("▣ {}", item.title)).dim() }
     Text::from(slide.text.lines().map(|l| Line::from(l.to_string())).collect::<Vec<_>>())
 }
@@ -183,15 +191,19 @@ fn ready_preview(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) 
     f.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }).block(Block::bordered()), area);
 }
 
-fn live_preview(f: &mut Frame, area: Rect, app: &App) {
-    let [now, next] = Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).areas(area);
-    let shown_title = Line::from(format!(" {} ", t("live.shownBadge", &[]))).fg(LIVE).bold();
-    let shown = match app.shown_slide() {
+/// What the outputs show, under VISAS: the slide's text, Släck after it, nothing before the first.
+pub fn shown_text(app: &App) -> Text<'static> {
+    match app.shown_slide() {
         Some((item, slide)) => slide_text(item, slide),
         None if app.live.black => Text::from(t("live.clear", &[])).dim(),
         None => Text::default(),
-    };
-    f.render_widget(Paragraph::new(shown).wrap(Wrap { trim: false }).block(Block::bordered().border_style(Style::new().fg(LIVE)).title(shown_title)), now);
+    }
+}
+
+fn live_preview(f: &mut Frame, area: Rect, app: &App) {
+    let [now, next] = Layout::vertical([Constraint::Percentage(60), Constraint::Percentage(40)]).areas(area);
+    let shown_title = Line::from(format!(" {} ", t("live.shownBadge", &[]))).fg(LIVE).bold();
+    f.render_widget(Paragraph::new(shown_text(app)).wrap(Wrap { trim: false }).block(Block::bordered().border_style(Style::new().fg(LIVE)).title(shown_title)), now);
     let next_title = Line::from(format!(" {} ", t("live.nextBadge", &[]))).bold();
     let upcoming = app.next_slide().map(|(i, s)| slide_text(i, s)).unwrap_or_default();
     f.render_widget(Paragraph::new(upcoming).wrap(Wrap { trim: false }).dim().block(Block::bordered().title(next_title)), next);

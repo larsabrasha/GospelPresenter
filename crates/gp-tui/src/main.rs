@@ -7,6 +7,9 @@ use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, E
 use ratatui::crossterm::execute;
 use std::io::stdout;
 
+/// Lines one step of the wheel moves a list; a swipe sends several steps.
+const WHEEL_LINES: i32 = 2;
+
 fn main() {
     let Some(path) = std::env::args().nth(1) else {
         eprintln!("usage: gp <path to an organisation's SQLite>");
@@ -32,9 +35,17 @@ fn main() {
             terminal.draw(|f| hits = ui::draw(f, &app))?;
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => app.key(key),
-                Event::Mouse(m) if m.kind == MouseEventKind::Down(MouseButton::Left) => {
-                    if let Some(target) = ui::target_at(&hits, m.column, m.row).cloned() { app.click(&target) }
-                }
+                Event::Mouse(m) => match m.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        if let Some(target) = ui::target_at(&hits, m.column, m.row).cloned() { app.click(&target) }
+                    }
+                    // The wheel, and a swipe on a phone's SSH app, which sends the same: the list under it moves.
+                    MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+                        let lines = if m.kind == MouseEventKind::ScrollDown { WHEEL_LINES } else { -WHEEL_LINES };
+                        if let Some(pane) = ui::pane_at(&hits, m.column, m.row) { app.wheel(pane, lines) }
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
         }

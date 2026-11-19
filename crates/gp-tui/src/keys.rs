@@ -27,6 +27,16 @@ pub enum Action {
 
 fn event(v: Value) -> Option<Action> { Some(Action::Event(v)) }
 
+/// A list the wheel scrolls, each with where it stands (App's `offsets`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pane {
+    Start,
+    Order,
+    Slides,
+    /// A narrow terminal's one column: the whole running order with every slide.
+    Column,
+}
+
 /// What a click can hit, as drawing records it (ui.rs, `Hits`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Target {
@@ -36,15 +46,21 @@ pub enum Target {
     Item(String),
     /// A slide of the item shown.
     Slide(SlideAt),
+    /// Släck, beside the live picture of a narrow terminal.
+    Black,
+    /// A list, for the wheel; a click on it hits nothing.
+    Pane(Pane),
 }
 
 /// A click, as the Mac app's taps take it: a row opened; an item chosen (`select`); a slide tapped (`show`: shown while
-/// presenting, else made ready, as the core decides).
+/// presenting, else made ready, as the core decides); Släck.
 pub fn click(target: &Target) -> Option<Action> {
     match target {
         Target::Row(n) => Some(Action::OpenRow(*n)),
         Target::Item(id) => event(json!({ "type": "select", "itemId": id })),
         Target::Slide(at) => event(json!({ "type": "show", "itemId": at.item_id, "partIndex": at.part_index })),
+        Target::Black => event(json!({ "type": "black" })),
+        Target::Pane(_) => None,
     }
 }
 

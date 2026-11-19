@@ -51,6 +51,19 @@ and slide landed, scrolled lists included (`ui::Hits`), and a click finds the la
 is asked, clicks do nothing; the output view takes none. With the mouse captured, selecting text in the terminal needs
 ⌥ held (iTerm, Terminal.app).
 
+The wheel scrolls the list under it, two lines a step; most phone SSH apps send a swipe as the wheel while the mouse is
+captured (not tried with a swipe yet). Where a list stands is the shell's (`crates/gp-tui/src/panes.rs`):
+it follows its focus (the row under the cursor, the item selected, the slide made ready or shown), moved as little as
+it can be, until the wheel moves it; it stays there until the next key or click, which makes it follow again.
+
+### A narrow terminal
+
+Under 100 columns (a phone held upright over SSH is about 50) a presentation is one column, as the app's phone layout
+(`docs/layout-2-0.md`, "Live, one column"; `PhoneLayout.swift`), in `crates/gp-tui/src/phone.rs`: while presenting,
+what is shown at the top (at most six lines) with Släck at its right, a button lit while the outputs are black; then the
+whole running order, each item a heading and every slide its number, label, marks and whole text broken to the width.
+It keeps in sight the slide made ready, else the one shown, else the item selected. The keys are the wide layout's.
+
 ## Running it
 
 ```sh
@@ -64,11 +77,15 @@ build takes about five minutes (the core with LTO).
 
 ## Checked
 
-`cargo test -p gp-tui`, 50 tests, under a second once built:
+`cargo test -p gp-tui`, 65 tests, under a second once built:
 
-- Pure logic, 28 unit tests: each key to its event on the page, in the output view and in the question to end; each
-  click to its action; the texts from `i18n.ts` and their placeholders; a start row's second line and dates; a value
-  from SQLite to the core and back.
+- Pure logic, 35 unit tests: each key to its event on the page, in the output view and in the question to end; each
+  click to its action; where a list stands to keep a row in sight; a slide's text broken to a width; the texts from
+  `i18n.ts` and their placeholders; a start row's second line and dates; a value from SQLite to the core and back.
+- A narrow terminal and the wheel, 8 tests (`crates/gp-tui/tests/phone.rs`, 50 × 40): one column with every slide's
+  whole text, what is shown at the top with Släck, a click on Släck and on a slide, the wheel moving the column and the
+  start page, a key after it bringing the slide shown back in sight (made to fail once on purpose, a key not making the
+  lists follow again), and three columns kept at 140.
 - Through the core on a copy of the demo data, 22 tests (`crates/gp-tui/tests/demo.rs`): clicks where a text is drawn
   (a start row opens, an item is selected and its slides drawn, a slide made ready before presenting and shown while
   presenting, nothing while Avsluta is asked; made to fail once on purpose with a slide's row one line high); the start page's lists and

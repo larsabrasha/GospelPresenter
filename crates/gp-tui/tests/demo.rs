@@ -1,58 +1,10 @@
 // The terminal shell over a copy of the demo data (crates/gp-core/build.sh makes it at
 // crates/gp-core/parity/.out/fixtures/demo.sqlite; the fixture itself is never written to): the start page, a
 // presentation's page, and presenting by its keys, each through the core's views, and what is drawn from them.
-use gp_tui::app::{App, Screen};
-use gp_tui::shell::{Caller, Core};
-use gp_tui::ui;
-use ratatui::backend::TestBackend;
+mod common;
+use common::*;
+use gp_tui::app::Screen;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::Terminal;
-
-const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../gp-core/parity/.out/fixtures/demo.sqlite");
-
-/// The demo data, copied for this test alone, opened at the same date every run.
-fn demo(name: &str) -> App {
-    assert!(std::path::Path::new(FIXTURE).exists(), "no demo data: run crates/gp-core/build.sh first");
-    let dir = std::env::temp_dir().join(format!("gp-tui-{}-{name}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("demo.sqlite");
-    std::fs::copy(FIXTURE, &path).unwrap();
-    let core = Core::open(path.to_str().unwrap(), Caller { user_id: "demo".into(), role: "admin".into() }).unwrap();
-    App::new(core, "2026-11-19".into())
-}
-
-fn press(app: &mut App, code: KeyCode) { app.key(KeyEvent::new(code, KeyModifiers::NONE)) }
-
-/// The demo's Sunday opened and started, its first slide shown.
-fn presenting(name: &str) -> App {
-    let mut app = demo(name);
-    app.open("pres-main");
-    press(&mut app, KeyCode::F(5));
-    press(&mut app, KeyCode::Char(' '));
-    app
-}
-
-/// The screen drawn at 140 × 40, as text, and where each thing a click can hit landed.
-fn drawn(app: &App) -> (Vec<String>, ui::Hits) {
-    let mut terminal = Terminal::new(TestBackend::new(140, 40)).unwrap();
-    let mut hits = ui::Hits::new();
-    terminal.draw(|f| hits = ui::draw(f, app)).unwrap();
-    let buffer = terminal.backend().buffer();
-    let rows = (0..buffer.area.height).map(|y| (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect::<String>()).collect();
-    (rows, hits)
-}
-
-fn screen(app: &App) -> String { drawn(app).0.join("\n") }
-
-/// A click on the first place, top to bottom, where `text` is drawn.
-fn click_on(app: &mut App, text: &str) {
-    let (rows, hits) = drawn(app);
-    let (x, y) = rows.iter().enumerate().find_map(|(y, row)| row.find(text).map(|i| (row[..i].chars().count() as u16, y as u16)))
-        .unwrap_or_else(|| panic!("{text} is not drawn:\n{}", rows.join("\n")));
-    if let Some(target) = ui::target_at(&hits, x, y).cloned() { app.click(&target) }
-}
-
-fn shown(app: &App) -> (Option<&str>, i64) { (app.live.item_id.as_deref(), app.live.part_index) }
 
 #[test]
 fn the_start_page_lists_the_demos_presentations() {

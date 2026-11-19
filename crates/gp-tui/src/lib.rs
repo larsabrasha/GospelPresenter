@@ -4,6 +4,8 @@
 pub mod app;
 pub mod dates;
 pub mod keys;
+pub mod panes;
+pub mod phone;
 pub mod shell;
 pub mod texts;
 pub mod ui;

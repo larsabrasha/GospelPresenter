@@ -2,11 +2,12 @@
 // page's lists, the presentation open and its page's own state, and the app's live state with its marks. Each is
 // changed only by the core: the page's state by `pageEventView`, the live state by `liveChangeView`; the shell sends
 // events and keeps the answers.
-use crate::keys::{self, Action};
+use crate::keys::{self, Action, Pane};
 use crate::shell::Core;
 use crate::views::*;
 use ratatui::crossterm::event::KeyEvent;
 use serde_json::{json, Value};
+use std::cell::Cell;
 
 /// Where the terminal is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +40,10 @@ pub struct App {
     /// What the core last refused, said in the footer.
     pub refusal: Option<String>,
     pub quit: bool,
+    /// Where each list stands, by `Pane` (panes.rs): set by drawing while it follows its focus, by the wheel otherwise.
+    pub offsets: [Cell<u16>; 4],
+    /// Whether each list follows its focus: until the wheel moves it, and again from the next key or click.
+    pub follow: [bool; 4],
 }
 
 impl App {
@@ -46,7 +51,7 @@ impl App {
         let mut app = App {
             core, today, screen: Screen::Start, lists: vec![], cursor: 0, page: None, state: PageState::default(),
             live: LivePointer::default(), live_page: None, marks: SlideMarks::default(), cue: None, ending: false,
-            refusal: None, quit: false,
+            refusal: None, quit: false, offsets: Default::default(), follow: [true; 4],
         };
         app.load_start();
         app
@@ -77,6 +82,7 @@ impl App {
         self.state = PageState { selected_id: shown.clone(), presenting, followed: shown, ..PageState::default() };
         self.screen = Screen::Page;
         self.refusal = None;
+        self.rewind();
         self.model();
     }
 
@@ -89,13 +95,29 @@ impl App {
                 Screen::Output => keys::output_key(key),
             }
         };
+        self.follow = [true; 4];
         if let Some(action) = action { self.act(action) }
     }
 
     /// A click on what drawing recorded there (ui.rs, `target_at`). None while the question to end is open.
     pub fn click(&mut self, target: &keys::Target) {
         if self.ending { return }
+        self.follow = [true; 4];
         if let Some(action) = keys::click(target) { self.act(action) }
+    }
+
+    /// The wheel, or a swipe a terminal sends as the wheel, over a list: it moves by `lines` and stops following its
+    /// focus until the next key or click.
+    pub fn wheel(&mut self, pane: Pane, lines: i32) {
+        let at = &self.offsets[pane as usize];
+        at.set((at.get() as i32 + lines).clamp(0, u16::MAX as i32) as u16);
+        self.follow[pane as usize] = false;
+    }
+
+    /// The lists from their top, following their focus, as a page opened or left starts.
+    fn rewind(&mut self) {
+        for at in &self.offsets { at.set(0) }
+        self.follow = [true; 4];
     }
 
     pub fn act(&mut self, action: Action) {
@@ -130,6 +152,7 @@ impl App {
     fn back(&mut self) {
         self.screen = Screen::Start;
         self.page = None;
+        self.rewind();
         self.load_start();
     }
 
