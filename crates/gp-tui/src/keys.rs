@@ -2,6 +2,7 @@
 // the core's (`pageEventView`). The page's keys are the Mac app's (apps/mac/Sources/GPMac/WideLayout.swift), the output
 // view's its output window's (Slides.swift); a terminal has no ⌘, so ⇧↑ ⇧↓ take ⌘↑ ⌘↓'s place, and `e` asks to end as
 // ⌘. does.
+use crate::views::SlideAt;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde_json::{json, Value};
 
@@ -16,14 +17,36 @@ pub enum Action {
     Back,
     /// The output view on, or off.
     Output,
-    /// The start page: the cursor up or down (the shell's own list), or the row under it opened.
+    /// The start page: the cursor up or down (the shell's own list), the row under it opened, or a row opened by a click.
     Move(i64),
     Open,
+    OpenRow(usize),
     /// The question to end answered: yes or no.
     Confirm(bool),
 }
 
 fn event(v: Value) -> Option<Action> { Some(Action::Event(v)) }
+
+/// What a click can hit, as drawing records it (ui.rs, `Hits`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Target {
+    /// A start page row, counted over all its lists.
+    Row(usize),
+    /// An item of the running order.
+    Item(String),
+    /// A slide of the item shown.
+    Slide(SlideAt),
+}
+
+/// A click, as the Mac app's taps take it: a row opened; an item chosen (`select`); a slide tapped (`show`: shown while
+/// presenting, else made ready, as the core decides).
+pub fn click(target: &Target) -> Option<Action> {
+    match target {
+        Target::Row(n) => Some(Action::OpenRow(*n)),
+        Target::Item(id) => event(json!({ "type": "select", "itemId": id })),
+        Target::Slide(at) => event(json!({ "type": "show", "itemId": at.item_id, "partIndex": at.part_index })),
+    }
+}
 
 /// A key on the start page.
 pub fn start_key(key: KeyEvent) -> Option<Action> {
@@ -205,6 +228,33 @@ mod tests {
 
         // Assert
         for a in actions { assert_eq!(a, Some(Action::Quit)) }
+    }
+
+    #[test]
+    fn a_click_on_a_row_opens_it() {
+        // Arrange, Act
+        let action = click(&Target::Row(3));
+
+        // Assert
+        assert_eq!(action, Some(Action::OpenRow(3)));
+    }
+
+    #[test]
+    fn a_click_on_an_item_selects_it() {
+        // Arrange, Act
+        let action = click(&Target::Item("i2".into()));
+
+        // Assert
+        assert_eq!(action, Some(Action::Event(json!({ "type": "select", "itemId": "i2" }))));
+    }
+
+    #[test]
+    fn a_click_on_a_slide_is_a_tap_on_it() {
+        // Arrange, Act
+        let action = click(&Target::Slide(SlideAt { item_id: "i1".into(), part_index: 2 }));
+
+        // Assert
+        assert_eq!(action, Some(Action::Event(json!({ "type": "show", "itemId": "i1", "partIndex": 2 }))));
     }
 
     #[test]

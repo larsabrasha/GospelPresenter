@@ -42,6 +42,15 @@ place, and `e` sends `end` as ⌘. does.
 ⌃C quits anywhere. The page's → makes the next slide ready (the web's and the Mac page's rule); in the output view → shows
 it at once, as the Mac's output window does.
 
+### Clicks
+
+The terminal's mouse is captured (a terminal sends clicks as text, over SSH as well; Terminal.app, iTerm, Blink and
+Termius do). A left click is the Mac app's tap: a start page row opens it; an item of the running order is `select`; a
+slide is `show` (shown while presenting, else made ready, as the core decides). Drawing records where each row, item
+and slide landed, scrolled lists included (`ui::Hits`), and a click finds the last thing drawn under it. While Avsluta
+is asked, clicks do nothing; the output view takes none. With the mouse captured, selecting text in the terminal needs
+⌥ held (iTerm, Terminal.app).
+
 ## Running it
 
 ```sh
@@ -55,19 +64,22 @@ build takes about five minutes (the core with LTO).
 
 ## Checked
 
-`cargo test -p gp-tui`, 42 tests, under a second once built:
+`cargo test -p gp-tui`, 50 tests, under a second once built:
 
-- Pure logic, 25 unit tests: each key to its event on the page, in the output view and in the question to end; the
-  texts from `i18n.ts` and their placeholders; a start row's second line and dates; a value from SQLite to the core
-  and back.
-- Through the core on a copy of the demo data, 17 tests (`crates/gp-tui/tests/demo.rs`): the start page's lists and
+- Pure logic, 28 unit tests: each key to its event on the page, in the output view and in the question to end; each
+  click to its action; the texts from `i18n.ts` and their placeholders; a start row's second line and dates; a value
+  from SQLite to the core and back.
+- Through the core on a copy of the demo data, 22 tests (`crates/gp-tui/tests/demo.rs`): clicks where a text is drawn
+  (a start row opens, an item is selected and its slides drawn, a slide made ready before presenting and shown while
+  presenting, nothing while Avsluta is asked; made to fail once on purpose with a slide's row one line high); the start page's lists and
   counts drawn; ↵ opens; F5 starts with nothing shown; Space shows the first slide (past a heading); the marks; → → ↵
   shows the slide made ready; b blacks the screen and Space shows again; the output view's arrows; stepping past an
   item's last slide selects the next; Avsluta asked, then confirmed; another presentation refused while one is
   presented; ⌥↑ moves an item in the copy; and what the page and the output view draw (VISAS, NÄSTA, the slide's text,
   Släck), from ratatui's TestBackend. The fixture's hash is the same after a run.
 - Run by hand in the app's terminal panel on a copy: the start page drew the demo's 16 presentations with Swedish dates
-  and counts. The keys were not pressed by hand (the panel takes no keys from the agent); they are pressed by the tests.
+  and counts, and ⌃C left it with the terminal given back. Keys and clicks were not pressed by hand (the panel takes
+  neither from the agent); the tests press them.
 - `cargo clippy -p gp-tui --all-targets`: no warnings in gp-tui.
 
 Not in `pnpm test` or CI: the demo fixture is made by `build.sh`, which CI does not run.

@@ -1,11 +1,13 @@
 // What the terminal draws from the core's answers (App holds them): the start page, a presentation's page (the running
 // order, the selected item's slides with the marks VISAS and NÄSTA and the slide made ready, and a preview), and the
 // output view. Layout, colours and glyphs are this shell's; which rows, marks and texts there are is the core's.
+// Drawing also says where each row, item and slide landed (`Hits`), so a click finds what it hit.
 use crate::app::{App, Screen};
 use crate::dates::subtitle;
+use crate::keys::Target;
 use crate::texts::{t, t_of};
 use crate::views::*;
-use ratatui::layout::{Alignment, Constraint, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
@@ -15,22 +17,46 @@ use ratatui::Frame;
 const LIVE: Color = Color::Red;
 const READY: Color = Color::Blue;
 
-pub fn draw(f: &mut Frame, app: &App) {
+/// Where each thing a click can hit was drawn, the last drawn last.
+pub type Hits = Vec<(Rect, Target)>;
+
+/// What a click at a cell hits: the last thing drawn there, so the question to end, drawn over all, hides the rest.
+pub fn target_at(hits: &Hits, x: u16, y: u16) -> Option<&Target> {
+    hits.iter().rev().find(|(r, _)| x >= r.x && x < r.right() && y >= r.y && y < r.bottom()).map(|(_, t)| t)
+}
+
+pub fn draw(f: &mut Frame, app: &App) -> Hits {
+    let mut hits = Hits::new();
     let [body, foot] = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(f.area());
     match app.screen {
-        Screen::Start => start(f, body, app),
-        Screen::Page => page(f, body, app),
+        Screen::Start => start(f, body, app, &mut hits),
+        Screen::Page => page(f, body, app, &mut hits),
         Screen::Output => output(f, f.area(), app),
     }
     if app.screen != Screen::Output { footer(f, foot, app) }
+    // The question to end takes every click; a click outside it is not an answer.
+    if app.ending { hits.clear() }
     if app.ending { ask_end(f, f.area()) }
+    hits
 }
 
-fn start(f: &mut Frame, area: Rect, app: &App) {
+/// The rows of a list as drawn inside `inner`, scrolled by `offset`: each its height and what it is.
+fn list_hits(hits: &mut Hits, inner: Rect, offset: usize, rows: impl Iterator<Item = (u16, Target)>) {
+    let mut y = inner.y;
+    for (height, target) in rows.skip(offset) {
+        if y >= inner.bottom() { break }
+        hits.push((Rect { x: inner.x, y, width: inner.width, height: height.min(inner.bottom() - y) }, target));
+        y += height;
+    }
+}
+
+fn start(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
     let mut lines = vec![Line::from(t("nav.presentations", &[]).bold()), Line::default()];
     if app.lists.is_empty() { lines.push(Line::from(t("presentations.emptyTitle", &[]).dim())) }
     let mut n = 0;
     let mut at = 0;
+    // Each row's line, for its place on the screen.
+    let mut row_lines = vec![];
     for list in &app.lists {
         lines.push(Line::from(t_of(&list.title.clone().into()).bold().underlined()));
         for row in &list.rows {
@@ -41,6 +67,7 @@ fn start(f: &mut Frame, area: Rect, app: &App) {
             let sub = subtitle(row, &app.today, list.show_date, list.with_year);
             name.push(Span::raw(format!("   {}", [sub, items].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · "))).dim());
             let line = Line::from(name);
+            row_lines.push(lines.len() as u16);
             if n == app.cursor { at = lines.len(); lines.push(line.reversed()) } else { lines.push(line) }
             n += 1;
         }
@@ -48,7 +75,12 @@ fn start(f: &mut Frame, area: Rect, app: &App) {
     }
     // The cursor's row kept on the screen.
     let scroll = (at as u16).saturating_sub(area.height.saturating_sub(3));
-    f.render_widget(Paragraph::new(lines).scroll((scroll, 0)).block(Block::new().borders(Borders::NONE)), area.inner(ratatui::layout::Margin::new(1, 0)));
+    let inner = area.inner(Margin::new(1, 0));
+    f.render_widget(Paragraph::new(lines).scroll((scroll, 0)).block(Block::new().borders(Borders::NONE)), inner);
+    for (n, line) in row_lines.into_iter().enumerate() {
+        if line < scroll || line - scroll >= inner.height { continue }
+        hits.push((Rect { x: inner.x, y: inner.y + line - scroll, width: inner.width, height: 1 }, Target::Row(n)));
+    }
 }
 
 /// The item whose slides are drawn: the selected one, else the first.
@@ -56,7 +88,7 @@ pub fn shown_item(page: &PresentationPage, state: &PageState) -> Option<String> 
     state.selected_id.clone().filter(|s| page.item(s).is_some()).or_else(|| page.items.first().map(|i| i.id.clone()))
 }
 
-fn page(f: &mut Frame, area: Rect, app: &App) {
+fn page(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
     let Some(page) = &app.page else {
         f.render_widget(Paragraph::new(t("presentation.notFound", &[])), area);
         return;
@@ -64,8 +96,8 @@ fn page(f: &mut Frame, area: Rect, app: &App) {
     let [head, body] = Layout::vertical([Constraint::Length(2), Constraint::Min(1)]).areas(area);
     header(f, head, app, page);
     let [order, slides, preview] = Layout::horizontal([Constraint::Percentage(30), Constraint::Percentage(36), Constraint::Percentage(34)]).areas(body);
-    running_order(f, order, app, page);
-    item_slides(f, slides, app, page);
+    running_order(f, order, app, page, hits);
+    item_slides(f, slides, app, page, hits);
     if app.is_live() { live_preview(f, preview, app) } else { ready_preview(f, preview, app, page) }
 }
 
@@ -81,10 +113,10 @@ fn header(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
         let item = page.item(&c.item_id).map_or(String::new(), |i| i.title.clone());
         Line::from(t(&c.text, &[("n", &c.n.to_string()), ("item", &item)]).fg(READY)).alignment(Alignment::Right)
     });
-    f.render_widget(Paragraph::new(vec![Line::from(spans), cue.unwrap_or_default()]), area.inner(ratatui::layout::Margin::new(1, 0)));
+    f.render_widget(Paragraph::new(vec![Line::from(spans), cue.unwrap_or_default()]), area.inner(Margin::new(1, 0)));
 }
 
-fn running_order(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
+fn running_order(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage, hits: &mut Hits) {
     let selected = shown_item(page, &app.state);
     let live_item = app.is_live().then(|| app.live.item_id.clone()).flatten();
     let items: Vec<ListItem> = page.items.iter().map(|i| {
@@ -97,6 +129,8 @@ fn running_order(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) 
     let mut state = ListState::default().with_selected(selected.and_then(|s| page.items.iter().position(|i| i.id == s)));
     let list = List::new(items).highlight_style(Style::new().add_modifier(Modifier::REVERSED)).block(Block::bordered());
     f.render_stateful_widget(list, area, &mut state);
+    let rows = page.items.iter().map(|i| (1 + page.problem_of(&i.id).is_some() as u16, Target::Item(i.id.clone())));
+    list_hits(hits, area.inner(Margin::new(1, 1)), state.offset(), rows);
 }
 
 /// A slide's text in short, its first line, or what a picture or a video is: its item's title.
@@ -107,7 +141,7 @@ fn first_line(item: &PageItem, slide: &Slide) -> String {
     }
 }
 
-fn item_slides(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
+fn item_slides(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage, hits: &mut Hits) {
     let Some(item) = shown_item(page, &app.state).and_then(|id| page.item(&id).cloned()) else {
         f.render_widget(Block::bordered(), area);
         return;
@@ -132,6 +166,9 @@ fn item_slides(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
     let mut state = ListState::default().with_selected(focus);
     let list = List::new(items).block(Block::bordered().title(title)).highlight_symbol("▌").highlight_style(Style::new());
     f.render_stateful_widget(list, area, &mut state);
+    let count = page.slides_of(&item.id).len();
+    let rows = (0..count).map(|n| (2, Target::Slide(SlideAt { item_id: item.id.clone(), part_index: n as i64 })));
+    list_hits(hits, area.inner(Margin::new(1, 1)), state.offset(), rows);
 }
 
 /// A slide's whole text, or what it is when it has none.

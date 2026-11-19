@@ -32,11 +32,24 @@ fn presenting(name: &str) -> App {
     app
 }
 
-fn screen(app: &App) -> String {
+/// The screen drawn at 140 × 40, as text, and where each thing a click can hit landed.
+fn drawn(app: &App) -> (Vec<String>, ui::Hits) {
     let mut terminal = Terminal::new(TestBackend::new(140, 40)).unwrap();
-    terminal.draw(|f| ui::draw(f, app)).unwrap();
+    let mut hits = ui::Hits::new();
+    terminal.draw(|f| hits = ui::draw(f, app)).unwrap();
     let buffer = terminal.backend().buffer();
-    (0..buffer.area.height).map(|y| (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect::<String>() + "\n").collect()
+    let rows = (0..buffer.area.height).map(|y| (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect::<String>()).collect();
+    (rows, hits)
+}
+
+fn screen(app: &App) -> String { drawn(app).0.join("\n") }
+
+/// A click on the first place, top to bottom, where `text` is drawn.
+fn click_on(app: &mut App, text: &str) {
+    let (rows, hits) = drawn(app);
+    let (x, y) = rows.iter().enumerate().find_map(|(y, row)| row.find(text).map(|i| (row[..i].chars().count() as u16, y as u16)))
+        .unwrap_or_else(|| panic!("{text} is not drawn:\n{}", rows.join("\n")));
+    if let Some(target) = ui::target_at(&hits, x, y).cloned() { app.click(&target) }
 }
 
 fn shown(app: &App) -> (Option<&str>, i64) { (app.live.item_id.as_deref(), app.live.part_index) }
@@ -242,6 +255,72 @@ fn the_output_view_draws_nothing_after_slack() {
     // Assert
     assert!(!drawn.contains("Jag går i din kärlek"), "{drawn}");
     assert!(drawn.contains("Släck"), "{drawn}");
+}
+
+#[test]
+fn a_click_on_a_start_page_row_opens_it() {
+    // Arrange
+    let mut app = demo("click-row");
+
+    // Act
+    click_on(&mut app, "Kvällssamling");
+
+    // Assert
+    assert_eq!((app.screen, app.open_id()), (Screen::Page, Some("pres-4")));
+}
+
+#[test]
+fn a_click_on_an_item_selects_it_and_shows_its_slides() {
+    // Arrange
+    let mut app = demo("click-item");
+    app.open("pres-main");
+
+    // Act
+    click_on(&mut app, "His Mercy is More");
+
+    // Assert
+    assert_eq!(app.state.selected_id.as_deref(), Some("pres-main-i8"));
+    assert!(screen(&app).contains("┌ His Mercy is More"));
+}
+
+#[test]
+fn a_click_on_a_slide_before_presenting_makes_it_ready() {
+    // Arrange
+    let mut app = demo("click-ready");
+    app.open("pres-main");
+    click_on(&mut app, "Tusen skäl");
+
+    // Act
+    click_on(&mut app, "Genom stormens brus");
+
+    // Assert
+    let picked = app.state.picked.clone().unwrap();
+    assert_eq!((picked.item_id.as_str(), picked.part_index, app.live.presentation_id.as_deref()), ("pres-main-i1", 1, None));
+}
+
+#[test]
+fn a_click_on_a_slide_while_presenting_shows_it() {
+    // Arrange
+    let mut app = presenting("click-show");
+
+    // Act
+    click_on(&mut app, "Jag litar i din frid");
+
+    // Assert
+    assert_eq!(shown(&app), (Some("pres-main-i1"), 3));
+}
+
+#[test]
+fn a_click_while_ending_is_asked_does_nothing() {
+    // Arrange
+    let mut app = presenting("click-ending");
+    press(&mut app, KeyCode::Char('e'));
+
+    // Act
+    click_on(&mut app, "His Mercy is More");
+
+    // Assert
+    assert_eq!((app.ending, app.state.selected_id.as_deref()), (true, Some("pres-main-i1")));
 }
 
 #[test]

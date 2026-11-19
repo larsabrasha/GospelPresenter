@@ -92,6 +92,12 @@ impl App {
         if let Some(action) = action { self.act(action) }
     }
 
+    /// A click on what drawing recorded there (ui.rs, `target_at`). None while the question to end is open.
+    pub fn click(&mut self, target: &keys::Target) {
+        if self.ending { return }
+        if let Some(action) = keys::click(target) { self.act(action) }
+    }
+
     pub fn act(&mut self, action: Action) {
         match action {
             Action::Quit => self.quit = true,
@@ -99,7 +105,11 @@ impl App {
                 let n = self.rows().len() as i64;
                 if n > 0 { self.cursor = (self.cursor as i64 + by).clamp(0, n - 1) as usize }
             }
-            Action::Open => if let Some(id) = self.rows().get(self.cursor).map(|r| r.id.clone()) { self.open(&id) },
+            Action::Open => self.act(Action::OpenRow(self.cursor)),
+            Action::OpenRow(n) => if let Some(id) = self.rows().get(n).map(|r| r.id.clone()) {
+                self.cursor = n;
+                self.open(&id);
+            },
             Action::Back => self.back(),
             Action::Output => self.screen = if self.screen == Screen::Output { Screen::Page } else { Screen::Output },
             Action::Confirm(yes) => {
