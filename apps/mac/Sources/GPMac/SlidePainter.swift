@@ -3,7 +3,7 @@
 // Core Text from the same faces, the theme's ground and picture under them and the part's label over them as SlideView
 // draws it. What the core does not lay out (a Bible, picture, video or custom slide, an overlay, a face it lacks) or
 // this does not know how to paint (a colour it does not read) is drawn by the web's SlideView as before
-// (SlideRenderer.swift). On the Mac only for now; GP_PAINTER=0 draws everything with SlideView.
+// (SlideRenderer.swift). GP_PAINTER=0 draws everything with SlideView.
 import CoreText
 import Shell
 import SwiftUI
@@ -15,7 +15,7 @@ struct SlideLayout: Decodable {
     struct Paint: Decodable { let color: String, shadow: Bool?, outline: Double?, outlineColor: String? }
     struct Box: Decodable { let x, y, w, h: Double }
     struct Run: Decodable { let face: String, size: Double, glyphs: [[Double]] }
-    struct Text: Decodable { let role: String, weight: Double, size: Double, paint: Paint, clip: Box, runs: [Run] }
+    struct Text: Decodable { let role: String, face: String, weight: Double, size: Double, paint: Paint, clip: Box, runs: [Run] }
     let background: Background
     let texts: [Text]
 }
@@ -23,13 +23,7 @@ struct SlideLayout: Decodable {
 @MainActor
 enum SlidePainter {
     /// Whether song slides are painted here; a new value of `version` is new thumbnail keys.
-    static let enabled: Bool = {
-        #if os(macOS)
-        ProcessInfo.processInfo.environment["GP_PAINTER"] != "0"
-        #else
-        false
-        #endif
-    }()
+    static let enabled = ProcessInfo.processInfo.environment["GP_PAINTER"] != "0"
     static var version: String { enabled ? "painter-1" : "" }
 
     /// The stage every slide is drawn on (themes.ts's CANVAS).
@@ -193,7 +187,8 @@ enum SlideFaces {
     private static var prepared = false
     private static let pictures = NSCache<NSString, CGImageBox>()
 
-    /// Classic's stack after Tahoma (themes.ts's FONT_STACKS.tahoma): the first of them this system has is added.
+    /// Classic's stack (themes.ts's FONT_STACKS.tahoma): the first of them this system has is added, as its browser
+    /// falls back: Tahoma on a Mac, Verdana on iOS.
     private static let system = ["Tahoma", "Geneva", "Verdana"]
 
     static func prepare() {

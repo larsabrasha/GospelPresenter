@@ -2,7 +2,7 @@
 
 Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
 2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. The core's `slideLayoutView` is
-built, and the Mac app paints song slides from it (both at the end).
+built, and the Mac and iOS app paint song slides from it (both at the end).
 
 ## The question
 
@@ -116,7 +116,7 @@ Mac draws them (`parity/slide-layout.mjs` adds the theme where the system has Ta
 songs, 0 different besides the same words at the edge). That follows each platform as the browser does, and does not
 decide what Classic's Tahoma becomes where a system has none (iOS, where WebKit falls back to Verdana).
 
-## The Mac app paints (2026-11-19)
+## The Mac and iOS app paint (2026-11-19)
 
 `apps/mac/Sources/GPMac/SlidePainter.swift`: a song slide's thumbnail, live picture and output window are painted from
 `slideLayoutView` with Core Text (the glyphs by id where the core put them, the faces from the core's own bytes or the
@@ -139,5 +139,12 @@ painted 0.51 ms, the whole stage 1.66 ms; the web view took 65 ms a snapshot and
 The rounding that makes the pixels agree costs nothing to speak of; Lars, 2026-11-19: where it would cost, exact pixels
 are not needed.
 
-Next: iOS, then Bible slides (verse numbers small and raised), pictures, videos and custom slides; an overlay over a
+On iOS (the iPhone 17 Pro simulator, `-gp.compare YES`), Classic and Ljust are laid out in iOS's Verdana, the first of
+Classic's stack iOS has, as its WebKit falls back; the app's own web view drew SlideView there, so the two are compared
+within one shell: the same lines in the same places, pixels apart a median of 1.5–2.8 % by theme, all at the glyphs'
+edges. Likely the web view's rounding: it draws at the screen's density 3, so it sets a baseline on a third of a stage
+pixel where the painter sets it on a whole one; not tried, as exact pixels are not needed (Lars). Painted in 0.59 ms a
+thumbnail, 1.58 ms the whole stage.
+
+Next: Bible slides (verse numbers small and raised), pictures, videos and custom slides; an overlay over a
 painted slide.

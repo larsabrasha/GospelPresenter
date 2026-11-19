@@ -2,12 +2,12 @@
 // (docs/native-slide-rendering.md). The Mac app paints the slides (GP_MAC_COMPARE, Sources/GPMac/Compare.swift); this
 // draws the same tiles with the app's own renderer page (apps/web's slides.html, as the app bundles it) in Playwright's
 // WebKit, without a screen, and gives the share of pixels apart by more than 48 of 255 in a channel, per theme, and the
-// slides most apart as SlideView | painter | difference.
+// slides most apart as SlideView | painter | difference. The iOS simulator's half is made with `-gp.compare <dir>`.
 //   S=$(mktemp -d); cp crates/gp-core/parity/.out/fixtures/demo.sqlite $S/
 //   (cd apps/web && pnpm exec vite build -c vite.slides.config.ts)
 //   GP_MAC_DATA=$S GP_MAC_COMPARE=$S/compare apps/mac/.build/release/GPMac
 //   node apps/mac/compare.mjs $S/compare
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
@@ -62,12 +62,32 @@ function compare({ a, b, w, h }) {
   });
 }
 
+/**
+ * The theme with its texts in the face the painter's core laid them out in, where its stack names others first: on
+ * iOS Classic's Tahoma is Verdana, as iOS's WebKit falls back, which this Mac's WebKit would draw in Tahoma.
+ */
+function inFace(theme, face) {
+  const song = theme.definition.song;
+  const first = (stack) => stack.split(',')[0].trim().replaceAll(/['"]/g, '');
+  const set = (style) => (face && first(style.fontFamily) !== face && style.fontFamily.includes(face) ? { ...style, fontFamily: `'${face}'` } : style);
+  return { ...theme, definition: { ...theme.definition, song: { ...song, main: set(song.main), credits: set(song.credits) } } };
+}
+
 const byTheme = {};
+let ownWeb = 0;
 for (const t of tiles) {
   const theme = (byTheme[t.theme] ??= { apart: [], refused: 0 });
   if (!t.painted) { theme.refused++; continue; }
-  await page.evaluate((sheet) => window.gpSheet(sheet), { tiles: [{ slide: t.slide, theme: t.themeValue, overlay: null, label: t.label }], width: W, height: H, columns: 1 });
-  const web = await page.screenshot({ clip: { x: 0, y: 0, width: W, height: H } });
+  // The app's own web view's picture where it drew one (the same shell), else this Mac's WebKit's.
+  const own = join(dir, `web-${t.file}`);
+  let web;
+  if (existsSync(own)) {
+    web = readFileSync(own);
+    ownWeb++;
+  } else {
+    await page.evaluate((sheet) => window.gpSheet(sheet), { tiles: [{ slide: t.slide, theme: inFace(t.themeValue, t.face), overlay: null, label: t.label }], width: W, height: H, columns: 1 });
+    web = await page.screenshot({ clip: { x: 0, y: 0, width: W, height: H } });
+  }
   const painted = readFileSync(join(dir, t.file));
   const r = await work.evaluate(compare, { a: `data:image/png;base64,${web.toString('base64')}`, b: `data:image/png;base64,${painted.toString('base64')}`, w: W, h: H });
   theme.apart.push({ ...r, file: t.file });
@@ -75,6 +95,7 @@ for (const t of tiles) {
 await browser.close();
 server.close();
 
+console.log(`SlideView drawn by ${ownWeb ? `the app's own web view (${ownWeb})` : "this Mac's WebKit (Playwright)"}`);
 const pct = (v) => `${(v * 100).toFixed(3)} %`;
 for (const [name, { apart, refused }] of Object.entries(byTheme)) {
   apart.sort((p, q) => q.share - p.share);

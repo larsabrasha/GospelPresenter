@@ -184,11 +184,11 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   as the web's `OverlayLayer` lies over the slide: a snapshot keeps the clear ground (checked: the corner's alpha is
   0). The tiles on screen ask first, the rest of the presentation is fetched after them; while one waits, the theme's
   background colour holds its place.
-- **Song slides painted on the Mac** (Lars, 2026-11-19; way 3 of `docs/native-slide-rendering.md`):
+- **Song slides painted** (Lars, 2026-11-19; way 3 of `docs/native-slide-rendering.md`), on the Mac and iOS:
   `SlidePainter.swift` paints a song slide from the core's `slideLayoutView` with Core Text, in thumbnails and in the
   live picture and output window (a SwiftUI `Canvas`); the rest (Bible, picture, video and custom slides, an
-  overlay, a colour or face it does not have) is still the web view's. Not on iOS yet. `GP_PAINTER=0` draws all with
-  SlideView; the check against SlideView is `apps/mac/compare.mjs`.
+  overlay, a colour or face it does not have) is still the web view's. `GP_PAINTER=0` draws all with SlideView; the
+  check against SlideView is `apps/mac/compare.mjs` (`-gp.compare YES` in the simulator).
 - **Measured** in the iPhone 17 Pro simulator on this Mac (2026-11-17, `-gp.demo YES -gp.measure YES`, Swedish song
   slides in the classic theme): one snapshot 65 ms, a sheet of 20 69 ms, 100 slides cold (caches emptied) 1 140 ms,
   from disk 37 ms, from memory 14 ms. Not yet measured on Lars's iPhone: the simulator runs on the Mac's processor,

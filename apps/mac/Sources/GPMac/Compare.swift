@@ -1,19 +1,23 @@
-// GP_MAC_COMPARE=<dir> (with GP_MAC_DATA's demo): the painter's half of the picture-by-picture check against SlideView
-// (apps/mac/compare.mjs, docs/native-slide-rendering.md). The demo's first 60 song slides in Classic, Ljust and three
-// themes of the shipped faces that move and paint the text (a shadow, an outline, capitals), each painted at 960 × 540
-// to <dir>/<theme>-<n>.png, as a tile (the part's label, no credits) and as the live picture (credits, no label, through
-// LiveSlide's Canvas), and what each is to <dir>/tiles.json, for SlideView to draw the same; the painter's time to
-// <dir>/timing.txt. Then the app quits. No web view here: one in the app of a locked or sleeping Mac draws nothing.
-#if os(macOS)
-import AppKit
+// GP_MAC_COMPARE=<dir>, or `-gp.compare YES` on iOS into its Caches/compare (with the demo data): the painter's half
+// of the picture-by-picture check against SlideView (apps/mac/compare.mjs, docs/native-slide-rendering.md). The demo's first 60 song slides in
+// Classic, Ljust and three themes of the shipped faces that move and paint the text (a shadow, an outline, capitals),
+// each painted at 960 × 540 to <dir>/<theme>-<n>.png, as a tile (the part's label, no credits) and as the live picture
+// (credits, no label, through LiveSlide's Canvas), and what each is to <dir>/tiles.json with the face the core laid it
+// out in, for SlideView to draw the same; the painter's time to <dir>/timing.txt. Then the app quits. No web view here:
+// one in the app of a locked or sleeping Mac draws nothing.
 import SwiftUI
 
 @MainActor
 enum Compare {
     static let pixels = CGSize(width: 960, height: 540)
 
-    static func run(_ model: Model, out: String) {
+    static func run(_ model: Model, out: String) async {
+        // An iOS app writes in its own container only: its Caches/compare (`simctl get_app_container … data`).
+        #if os(iOS)
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appending(path: "compare")
+        #else
         let dir = URL(filePath: out)
+        #endif
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var slides: [JSONValue] = []
         var theme: JSONValue?
@@ -32,14 +36,40 @@ enum Compare {
                     let tile = TileRequest(slide: slide, theme: t, overlay: nil, label: label)
                     let painted = label ? SlidePainter.image(tile, pixels: pixels) : live(tile)
                     if let painted { write(painted, dir.appending(path: file)) }
+                    let face = SlidePainter.layout(tile)?.texts.first?.face ?? ""
                     tiles.append(.object(["theme": .string(name), "file": .string(file), "painted": .bool(painted != nil), "label": .bool(label),
-                                          "slide": slide, "themeValue": t]))
+                                          "face": .string(face), "slide": slide, "themeValue": t]))
                 }
             }
         }
         try? Data(JSONValue.array(tiles).text.utf8).write(to: dir.appending(path: "tiles.json"))
         if let classic = theme { time(Array(slides.prefix(60)), classic, dir) }
-        NSApp.terminate(nil)
+        await web(tiles, dir)
+        exit(0)
+    }
+
+    /// SlideView's half where this app's web view draws (not in the app of a locked Mac): each tile as `web-<file>`,
+    /// which compare.mjs then takes in place of Playwright's WebKit, so the two are compared within one shell.
+    private static func web(_ tiles: [JSONValue], _ dir: URL) async {
+        let requests = tiles.compactMap { t -> (TileRequest, String)? in
+            guard t["painted"] == .bool(true), let file = t["file"]?.string else { return nil }
+            return (TileRequest(slide: t["slide"], theme: t["themeValue"], overlay: nil, label: t["label"] == .bool(true)), file)
+        }
+        guard AppScheme.files != nil, let first = requests.first else { return }
+        // A web view that never draws (a locked Mac) never answers: the first sheet is given 15 s, the app quitting
+        // with it still waiting.
+        let drew: Bool = await withCheckedContinuation { c in
+            var done = false
+            func finish(_ v: Bool) { if !done { done = true; c.resume(returning: v) } }
+            Task { @MainActor in finish((await SlideRenderer.shared.sheet([first.0], pixels: pixels).first ?? nil) != nil) }
+            Task { @MainActor in try? await Task.sleep(for: .seconds(15)); finish(false) }
+        }
+        guard drew else { return }
+        for start in stride(from: 0, to: requests.count, by: 20) {
+            let batch = Array(requests[start..<min(start + 20, requests.count)])
+            let images = await SlideRenderer.shared.sheet(batch.map(\.0), pixels: pixels)
+            for ((_, file), image) in zip(batch, images) { if let image { write(image, dir.appending(path: "web-\(file)")) } }
+        }
     }
 
     /// The painter's time a slide, after a first round (the faces read): the core's layout alone, a thumbnail and a whole
@@ -105,4 +135,3 @@ enum Compare {
         CGImageDestinationFinalize(dest)
     }
 }
-#endif

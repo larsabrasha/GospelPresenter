@@ -36,6 +36,8 @@ final class AppState {
     @ObservationIgnored private var windows: [Weak] = []
     /// The launch arguments' presentation, slide presented and slide made ready, taken by the first window.
     @ObservationIgnored private(set) var launch: (open: String?, show: String?, pick: String?)
+    /// GP_MAC_COMPARE or `-gp.compare`: the painter's pictures for the check against SlideView (Compare.swift).
+    @ObservationIgnored private var compare: String?
     /// `-gp.secondWindow YES`: the first window opens a second once, for the UI test of two windows (WindowsTests).
     @ObservationIgnored private var secondWindow = UserDefaults.standard.bool(forKey: "gp.secondWindow")
     private struct Weak { weak var model: Model? }
@@ -62,11 +64,16 @@ final class AppState {
         else if let file = args.string(forKey: "gp.fixture") { openFixture(file) }
         else if ProcessInfo.processInfo.environment["GP_MAC_DATA"] != nil || args.bool(forKey: "gp.demo") { openDemo() }
         launch = (args.string(forKey: "gp.open"), args.string(forKey: "gp.show"), args.string(forKey: "gp.pick"))
+        compare = ProcessInfo.processInfo.environment["GP_MAC_COMPARE"] ?? args.string(forKey: "gp.compare")
     }
 
     /// A window opened: read again after every change; the first takes the launch arguments.
     func add(_ window: Model) {
         windows = windows.filter { $0.model != nil } + [Weak(model: window)]
+        if let out = compare {
+            compare = nil
+            Task { try? await Task.sleep(for: .seconds(1.5)); await Compare.run(window, out: out) }
+        }
         if launch.open != nil || launch.show != nil || launch.pick != nil {
             let (open, show, pick) = launch
             launch = (nil, nil, nil)
