@@ -13,6 +13,7 @@ use parley::{
 };
 use serde_json::{json, Value};
 use std::cell::RefCell;
+use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 /// The faces the app ships (apps/web/src/assets/fonts), as TrueType: `woff2_decompress` of those files, named as the
@@ -137,7 +138,7 @@ fn style(e: &Engine, o: &Obj) -> R<Style> {
 
 /// The text at `size`, broken to the area's width when `wrap`: white space kept and a word too long for a line broken
 /// where it must be, as `.slide-text` sets it (styles.css).
-fn layout(e: &mut Engine, text: &str, s: &Style, size: f32, wrap: bool) -> Layout<()> {
+fn layout(e: &mut Engine, text: &str, small: &[Range<usize>], s: &Style, size: f32, wrap: bool) -> Layout<()> {
     // Not quantised to whole pixels: lines as far apart as the browser sets them (64 px at 1.6 is 102.4 apart, not 102).
     let mut b = e.layouts.ranged_builder(&mut e.fonts, text, 1.0, false);
     b.set_line_break_override(Some(&CHROMIUM_LINE_BREAK_OVERRIDE));
@@ -146,6 +147,12 @@ fn layout(e: &mut Engine, text: &str, s: &Style, size: f32, wrap: bool) -> Layou
     b.push_default(StyleProperty::FontSize(size));
     b.push_default(StyleProperty::LineHeight(LineHeight::FontSizeRelative(s.line_height)));
     b.push_default(StyleProperty::OverflowWrap(OverflowWrap::BreakWord));
+    // A Bible slide's verse numbers, `.verse-number`: half the size, and `line-height: 0`, so they never make a line
+    // taller; raised when they are painted.
+    for r in small {
+        b.push(StyleProperty::FontSize(size * 0.5), r.clone());
+        b.push(StyleProperty::LineHeight(LineHeight::Absolute(0.0)), r.clone());
+    }
     let mut l = b.build(text);
     l.break_all_lines(wrap.then_some(s.area[2]));
     l
@@ -153,8 +160,8 @@ fn layout(e: &mut Engine, text: &str, s: &Style, size: f32, wrap: bool) -> Layou
 
 /// FittedText's size: the theme's if the text fits its area, else halved between 35 % and all of it eight times while
 /// it is taller (as offsetHeight rounds it, and a pixel), then rounded down.
-fn fitted(e: &mut Engine, text: &str, s: &Style) -> f32 {
-    let mut fits = |size: f32| layout(e, text, s, size, true).height().round() <= s.area[3] + 1.0;
+fn fitted(e: &mut Engine, text: &str, small: &[Range<usize>], s: &Style) -> f32 {
+    let mut fits = |size: f32| layout(e, text, small, s, size, true).height().round() <= s.area[3] + 1.0;
     if fits(s.size) {
         return s.size;
     }
@@ -170,7 +177,7 @@ fn r2(v: f32) -> f64 { (f64::from(v) * 100.0).round() / 100.0 }
 
 /// A laid-out text as the shell paints it: its lines (each one's text, start, baseline and width), its glyph runs by
 /// face, every position on the stage, and the area it is clipped to.
-fn painted(e: &Engine, text: &str, l: &Layout<()>, s: &Style, size: f32, role: &str) -> Value {
+fn painted(e: &Engine, text: &str, small: &[Range<usize>], l: &Layout<()>, s: &Style, size: f32, role: &str) -> Value {
     let top = s.area[1] + (s.area[3] - l.height()) * s.valign;
     let (mut lines, mut runs) = (Vec::new(), Vec::new());
     for line in l.lines() {
@@ -183,8 +190,15 @@ fn painted(e: &Engine, text: &str, l: &Layout<()>, s: &Style, size: f32, role: &
             let PositionedLayoutItem::GlyphRun(run) = item else { continue };
             let id = run.run().font().data.id();
             let face = e.faces.iter().find(|(blob, _, _)| *blob == id).map_or("", |(_, name, _)| name);
-            let glyphs: Vec<Value> = run.positioned_glyphs().map(|g| json!([g.id, r2(left + g.x), r2(top + g.y)])).collect();
-            runs.push(json!({ "face": face, "size": r2(run.run().font_size()), "glyphs": glyphs }));
+            // A verse number: `vertical-align: super` raises it a third of the text's size and a pixel, as Chromium and
+            // WebKit do, and Tailwind's `sup { position: relative; top: -0.5em }` half its own size (a quarter of the
+            // text's) more; drawn at 40 % (`.verse-number`'s opacity).
+            let verse = small.iter().any(|r| r.contains(&run.run().text_range().start));
+            let up = if verse { size / 3.0 + 1.0 + size * 0.25 } else { 0.0 };
+            let glyphs: Vec<Value> = run.positioned_glyphs().map(|g| json!([g.id, r2(left + g.x), r2(top + g.y - up)])).collect();
+            let mut r = json!({ "face": face, "size": r2(run.run().font_size()), "glyphs": glyphs });
+            if verse { r["opacity"] = json!(0.4) }
+            runs.push(r);
         }
     }
     let [x, y, w, h] = s.area;
@@ -196,39 +210,74 @@ fn painted(e: &Engine, text: &str, l: &Layout<()>, s: &Style, size: f32, role: &
 
 /// The credits on one line, cut with an ellipsis where they are wider than their area (`.slide-credits`).
 fn credits(e: &mut Engine, text: &str, s: &Style) -> Value {
-    let whole = layout(e, text, s, s.size, false);
+    let whole = layout(e, text, &[], s, s.size, false);
     if whole.width() <= s.area[2] {
-        return painted(e, text, &whole, s, s.size, "credits");
+        return painted(e, text, &[], &whole, s, s.size, "credits");
     }
     let chars: Vec<char> = text.chars().collect();
     let cut = |n: usize| format!("{}…", chars[..n].iter().collect::<String>().trim_end());
     let (mut lo, mut hi) = (0, chars.len());
     while lo < hi {
         let mid = (lo + hi).div_ceil(2);
-        if layout(e, &cut(mid), s, s.size, false).width() <= s.area[2] { lo = mid } else { hi = mid - 1 }
+        if layout(e, &cut(mid), &[], s, s.size, false).width() <= s.area[2] { lo = mid } else { hi = mid - 1 }
     }
     let shown = cut(lo);
-    let l = layout(e, &shown, s, s.size, false);
-    painted(e, &shown, &l, s, s.size, "credits")
+    let l = layout(e, &shown, &[], s, s.size, false);
+    painted(e, &shown, &[], &l, s, s.size, "credits")
 }
 
-/// `slideLayoutView` {slide, theme}: a song slide's background, main text and credits laid out on the stage, the label
-/// left to the shell (an operator's mark, LIVE-R20). Refused: `font-not-shipped` for a stack of which the core has no
-/// face (Classic's Tahoma where no shell added it), `not-yet` for a Bible, picture, video or custom slide.
+/// A Bible slide's text as SlideView's BibleText makes it (`white-space: normal`): each verse after a space, its
+/// number (a verse number's range in the text) and a no-break space before its words, every run of white space one space, none
+/// at the ends; in capitals piece by piece, so the ranges hold.
+fn bible_text(verses: &[Value], upper: bool) -> (String, Vec<Range<usize>>) {
+    let mut text = String::new();
+    let mut small = Vec::new();
+    let mut add = |piece: &str, verse: bool, text: &mut String| {
+        let start = text.len();
+        let piece = if upper { piece.to_uppercase() } else { piece.to_string() };
+        for c in piece.chars() {
+            if matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{c}') {
+                if !text.is_empty() && !text.ends_with(' ') { text.push(' ') }
+            } else {
+                text.push(c)
+            }
+        }
+        if verse && text.len() > start { small.push(start..text.len()) }
+    };
+    for (i, v) in verses.iter().enumerate() {
+        if i > 0 { add(" ", false, &mut text) }
+        if let Some(n) = v.get("n").filter(|n| !n.is_null()) {
+            add(&n.to_string(), true, &mut text);
+            // A no-break space (SlideView's), so a number never ends a line apart from its words.
+            add("\u{a0}", false, &mut text);
+        }
+        add(v.get("t").and_then(Value::as_str).unwrap_or(""), false, &mut text);
+    }
+    if text.ends_with(' ') { text.pop(); }
+    (text, small)
+}
+
+/// `slideLayoutView` {slide, theme}: a song or Bible slide's background, main text and credits laid out on the stage,
+/// the label left to the shell (an operator's mark, LIVE-R20); a Bible slide's text flows, its verse numbers small,
+/// raised and faint. Refused: `font-not-shipped` for a stack of which the core has no face (Classic's Tahoma where no
+/// shell added it), `not-yet` for a picture, video or custom slide.
 pub fn view(a: &Obj) -> R<Value> {
     let slide = obj(a.get("slide").ok_or("invalid-args")?)?;
-    if slide.get("kind").and_then(Value::as_str) != Some("song") || slide.get("custom").is_some_and(|c| !c.is_null()) {
-        return Err("not-yet".into());
-    }
+    let kind = slide.get("kind").and_then(Value::as_str).filter(|k| *k == "song" || *k == "bible").ok_or("not-yet")?;
+    if slide.get("custom").is_some_and(|c| !c.is_null()) { return Err("not-yet".into()) }
     let theme = obj(a.get("theme").ok_or("invalid-args")?)?;
-    let def = obj(obj(theme.get("definition").ok_or("invalid-args")?)?.get("song").ok_or("invalid-args")?)?;
+    let def = obj(obj(theme.get("definition").ok_or("invalid-args")?)?.get(kind).ok_or("invalid-args")?)?;
     let raw = slide.get("text").and_then(Value::as_str).ok_or("invalid-args")?;
+    let verses = slide.get("verses").and_then(Value::as_array);
     with_engine(|e| {
         let (main, foot) = (style(e, obj(def.get("main").ok_or("invalid-args")?)?)?, style(e, obj(def.get("credits").ok_or("invalid-args")?)?)?);
-        let text = if main.uppercase { raw.to_uppercase() } else { raw.to_string() };
-        let size = fitted(e, &text, &main);
-        let l = layout(e, &text, &main, size, true);
-        let mut texts = vec![painted(e, &text, &l, &main, size, "main")];
+        let (text, small) = match verses {
+            Some(v) => bible_text(v, main.uppercase),
+            None => (if main.uppercase { raw.to_uppercase() } else { raw.to_string() }, vec![]),
+        };
+        let size = fitted(e, &text, &small, &main);
+        let l = layout(e, &text, &small, &main, size, true);
+        let mut texts = vec![painted(e, &text, &small, &l, &main, size, "main")];
         if let Some(c) = slide.get("credits").and_then(Value::as_str).filter(|c| !c.is_empty()) {
             texts.push(credits(e, &if foot.uppercase { c.to_uppercase() } else { c.to_string() }, &foot));
         }

@@ -1,7 +1,9 @@
 // The core's slideLayoutView (src/slide_layout.rs, with the `layout` feature) against the web's SlideView drawn by
 // Chromium and WebKit: the fitted size, each line's text, where it starts across, and its baseline against the
 // browser's line top (the same distance for a face and size wherever a line is). Song slides from the demo's songs, as
-// they are and as flowing paragraphs, and from GP_REAL_PRO_DIR's .pro files when it is set; in four themes of the faces
+// they are and as flowing paragraphs, and from GP_REAL_PRO_DIR's .pro files when it is set; Bible slides from the
+// demo's Bible items and made of the songs' lines as verses, numbered up to three digits, flowing with their numbers
+// small and raised (BibleText); in four themes of the faces
 // the app ships, which move and change the text: centred, left at the top, right at the foot in capitals, a narrow box;
 // and on a Mac, Classic as the browser draws it there, in the system's Tahoma, which the Mac app adds to the core.
 //   node parity/slide-layout.mjs <demo.sqlite> <gp_core_layout.wasm> <repository root>
@@ -36,14 +38,33 @@ const FONTS = { Inter: 'Inter-variable', Montserrat: 'Montserrat-variable', Lato
 const area = (x, y, width, height) => ({ x, y, w: width, h: height });
 const text = (o) => ({ fontSize: 75, fontWeight: 700, lineHeight: 1.4, color: '#ffffff', align: 'center', shadow: false, uppercase: false, outline: 0, outlineColor: '#000000', area: area(80, 80, 1760, 856), valign: 'middle', ...o });
 const credits = { ...text({}), fontSize: 40, lineHeight: 1.2, fontFamily: "'Inter', sans-serif", align: 'left', area: area(80, 936, 1760, 112), valign: 'bottom' };
-const theme = (main) => ({ definition: { song: { background: { color: '#000000', image: null, fit: 'cover', scrim: 0 }, main: text(main), credits } } });
+// A Bible slide's style the song's, so each theme lays both out alike.
+const style = (main) => ({ background: { color: '#000000', image: null, fit: 'cover', scrim: 0 }, main: text(main), credits });
+const theme = (main) => ({ definition: { song: style(main), bible: style(main) } });
 const THEMES = {
   'Inter 700, centred': theme({ fontFamily: "'Inter', sans-serif" }),
   'Montserrat 400, left, top': theme({ fontFamily: "'Montserrat', sans-serif", fontWeight: 400, align: 'left', valign: 'top', lineHeight: 1.2 }),
   'Lato 400, right, foot, capitals': theme({ fontFamily: "'Lato', sans-serif", fontWeight: 400, align: 'right', valign: 'bottom', uppercase: true, fontSize: 90 }),
   'Inter 400, a narrow box': theme({ fontFamily: "'Inter', sans-serif", fontWeight: 400, area: area(400, 200, 900, 500), fontSize: 64, lineHeight: 1.6 }),
   ...(TAHOMA.length === 2 ? { 'Classic, Tahoma 700': theme({ fontFamily: "'Tahoma', 'Geneva', Verdana, sans-serif" }) } : {}),
+  // Classic's Bible style: Tahoma 400 at the left.
+  ...(TAHOMA.length === 2 ? { 'Classic Bible, Tahoma 400, left': theme({ fontFamily: "'Tahoma', 'Geneva', Verdana, sans-serif", fontWeight: 400, align: 'left' }) } : {}),
 };
+
+/** Bible slides: every slide of the demo's Bible items, and the songs' lines as verses, two to five a slide. */
+function bibleSlides(db, bySong) {
+  const out = [];
+  for (const { content } of db.prepare("SELECT content FROM presentation_items WHERE type = 'bible'").all()) {
+    for (const verses of JSON.parse(content).slides ?? []) out.push(verses);
+  }
+  let n = 1;
+  for (const texts of Object.values(bySong).map((ps) => ps.map((p) => p.content))) {
+    const lines = texts.flatMap((t) => t.split('\n')).filter((l) => l.trim());
+    const verses = lines.map((t, i) => ({ n: i % 7 === 3 ? null : (n = (n * 37 + 11) % 176) + 1, t }));
+    for (let i = 0; i + 1 < verses.length; i += 3) out.push(verses.slice(i, i + 2 + (i % 4)));
+  }
+  return out.map((verses) => ({ kind: 'bible', text: verses.map((v) => (v.n === null ? v.t : `${v.n} ${v.t}`)).join(' '), verses }));
+}
 
 function slides() {
   const db = new DatabaseSync(demo);
@@ -53,6 +74,7 @@ function slides() {
   for (const texts of Object.values(bySong).map((ps) => ps.map((p) => p.content))) {
     for (let i = 0; i < texts.length; i++) out.push(texts.slice(i, i + 1 + (i % 6)).join(' ').replace(/\s*\n\s*/g, ' '));
   }
+  const bible = bibleSlides(db, bySong);
   const dir = process.env.GP_REAL_PRO_DIR;
   if (dir) {
     for (const name of readdirSync(dir).filter((n) => n.endsWith('.pro'))) {
@@ -62,11 +84,15 @@ function slides() {
       for (let i = 0; i < texts.length; i += 2) out.push(texts.slice(i, i + 1 + (i % 8)).join(' ').replace(/\s*\n\s*/g, ' '));
     }
   }
-  return [...new Set(out.filter((t) => t.trim()))];
+  return [...[...new Set(out.filter((t) => t.trim()))].map((t) => ({ kind: 'song', text: t, verses: null })), ...bible];
 }
 
-/** In the page: SlideView's main text for each slide, fitted as FittedText fits it, and its lines by its characters. */
-function drawInPage({ texts, css }) {
+/**
+ * In the page: SlideView's main text for each slide, fitted as FittedText fits it, and its lines by its characters (a
+ * line's top that of its first character not in a verse number, which is raised). A Bible slide as BibleText builds
+ * it, a no-break space after each number.
+ */
+function drawInPage({ slides: all, css }) {
   const content = document.getElementById('content');
   const el = document.getElementById('text');
   Object.assign(content.style, css.content);
@@ -74,8 +100,28 @@ function drawInPage({ texts, css }) {
   const base = parseFloat(css.text.fontSize);
   const fits = () => el.offsetHeight <= content.clientHeight + 1;
   const range = document.createRange();
-  return texts.map((t) => {
-    el.textContent = t;
+  const fill = (slide) => {
+    el.replaceChildren();
+    el.style.whiteSpace = slide.verses ? 'normal' : 'pre-wrap';
+    if (!slide.verses) {
+      el.textContent = slide.text;
+      return;
+    }
+    slide.verses.forEach((v, i) => {
+      const span = document.createElement('span');
+      if (i > 0) span.append(' ');
+      if (v.n !== null) {
+        const sup = document.createElement('sup');
+        sup.className = 'verse-number';
+        sup.textContent = String(v.n);
+        span.append(sup, '\u00a0');
+      }
+      span.append(v.t);
+      el.append(span);
+    });
+  };
+  return all.map((slide) => {
+    fill(slide);
     el.style.fontSize = `${base}px`;
     let size = base;
     if (!fits()) {
@@ -89,22 +135,28 @@ function drawInPage({ texts, css }) {
       size = Math.floor(base * lo);
       el.style.fontSize = `${size}px`;
     }
-    const node = el.firstChild;
     const lines = [];
-    if (!node) return { size, lines };
-    for (let i = 0; i < t.length; i++) {
-      const c = t.charCodeAt(i);
-      if ((c >= 0xdc00 && c <= 0xdfff) || t[i] === '\n') continue;
-      range.setStart(node, i);
-      range.setEnd(node, c >= 0xd800 && c <= 0xdbff ? i + 2 : i + 1);
-      const r = range.getClientRects()[0];
-      if (!r || r.width === 0) continue;
-      const last = lines.at(-1);
-      if (!last || r.top > last.top + size * 0.5) lines.push({ text: '', x: r.left, top: r.top, width: 0 });
-      lines.at(-1).text += t.slice(i, c >= 0xd800 && c <= 0xdbff ? i + 2 : i + 1);
-      if (!/\s/.test(t[i])) lines.at(-1).width = r.right - lines.at(-1).x;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const t = node.data;
+      const raised = node.parentElement?.tagName === 'SUP';
+      for (let i = 0; i < t.length; i++) {
+        const c = t.charCodeAt(i);
+        if ((c >= 0xdc00 && c <= 0xdfff) || t[i] === '\n') continue;
+        const end = c >= 0xd800 && c <= 0xdbff ? i + 2 : i + 1;
+        range.setStart(node, i);
+        range.setEnd(node, end);
+        const r = range.getClientRects()[0];
+        if (!r || r.width === 0) continue;
+        const last = lines.at(-1);
+        if (!last || r.top > (last.top ?? last.raisedTop) + size * 0.5) lines.push({ text: '', x: r.left, top: raised ? null : r.top, raisedTop: r.top, width: 0 });
+        const line = lines.at(-1);
+        if (line.top === null && !raised) line.top = r.top;
+        line.text += t.slice(i, end);
+        if (!/\s/.test(t[i])) line.width = r.right - line.x;
+      }
     }
-    return { size, lines };
+    return { size, lines: lines.map((l) => ({ ...l, top: l.top ?? l.raisedTop })) };
   });
 }
 
@@ -124,18 +176,20 @@ async function browser(engine, texts) {
     const data = readFileSync(join(root, `apps/web/src/assets/fonts/${file}.woff2`)).toString('base64');
     return `@font-face { font-family: '${family}'; font-weight: ${file.endsWith('variable') ? '100 900' : '400'}; src: url(data:font/woff2;base64,${data}) format('woff2'); }`;
   });
-  await page.setContent(`<!doctype html><style>${faces.join('\n')} body { margin: 0; }</style><div id="content"><div id="text"></div></div>`);
+  // styles.css's `.verse-number`, over Tailwind's preflight for `sup`.
+  const verse = 'sup { position: relative; top: -0.5em; } .verse-number { font-size: 0.5em; opacity: 0.4; vertical-align: super; line-height: 0; }';
+  await page.setContent(`<!doctype html><style>${faces.join('\n')} body { margin: 0; } ${verse}</style><div id="content"><div id="text"></div></div>`);
   await page.evaluate(async () => {
     await Promise.all(["700 75px 'Inter'", "400 75px 'Inter'", "400 75px 'Montserrat'", "400 75px 'Lato'"].map((f) => document.fonts.load(f)));
   });
   const drawn = {};
-  for (const [name, t] of Object.entries(THEMES)) drawn[name] = await page.evaluate(drawInPage, { texts, css: cssOf(t.definition.song.main) });
+  for (const [name, t] of Object.entries(THEMES)) drawn[name] = await page.evaluate(drawInPage, { slides: texts, css: cssOf(t.definition.song.main) });
   await b.close();
   return drawn;
 }
 
 const texts = slides();
-const core = Object.fromEntries(Object.entries(THEMES).map(([name, t]) => [name, texts.map((tx) => view('slideLayoutView', { slide: { kind: 'song', text: tx, credits: null }, theme: t }))]));
+const core = Object.fromEntries(Object.entries(THEMES).map(([name, t]) => [name, texts.map((tx) => view('slideLayoutView', { slide: { ...tx, credits: null }, theme: t }))]));
 // The page's text is the slide's as written; capitals are drawn by text-transform, so lines compare without case.
 const squash = (s) => s.replace(/\s+/g, ' ').trim().toUpperCase();
 /** Where a browser's main text and the core's part first, or '' where they agree. */
@@ -180,12 +234,12 @@ for (const [engine, pages] of Object.entries(drawn)) {
       const own = d.across && !apart(a, other[name][i]).why;
       if (edge) counts.edge++;
       else if (own) counts.own++;
-      else differ.push(`${engine} ${name}: ${d.why} in ${JSON.stringify(texts[i].slice(0, 60))}`);
+      else differ.push(`${engine} ${name}: ${d.why} in ${texts[i].kind} ${JSON.stringify(texts[i].text.slice(0, 60))}`);
     });
   }
 }
 // The baseline sits the same distance below the line's top for a face and size, wherever the line is: one value each.
 const spread = Object.entries(drops).filter(([, s]) => Math.max(...s) - Math.min(...s) > 1).map(([k, s]) => `${k}: ${[...s].join(', ')}`);
-const notes = [`${texts.length} slides in ${Object.keys(THEMES).length} themes, Chromium and WebKit`, `${counts.edge} a word at the box's edge`, `${counts.own} placed across by one browser only`];
+const notes = [`${texts.length} slides (${texts.filter((t) => t.verses).length} Bible) in ${Object.keys(THEMES).length} themes, Chromium and WebKit`, `${counts.edge} a word at the box's edge`, `${counts.own} placed across by one browser only`];
 console.log(`views slide-layout: ${notes.join(', ')}; ${compared} compared, ${differ.length + spread.length} different`);
 for (const d of [...differ.slice(0, 12), ...spread.slice(0, 6)]) console.log(`  ${d}`);

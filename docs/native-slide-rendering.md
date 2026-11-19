@@ -146,5 +146,18 @@ edges. Likely the web view's rounding: it draws at the screen's density 3, so it
 pixel where the painter sets it on a whole one; not tried, as exact pixels are not needed (Lars). Painted in 0.59 ms a
 thumbnail, 1.58 ms the whole stage.
 
-Next: Bible slides (verse numbers small and raised), pictures, videos and custom slides; an overlay over a
-painted slide.
+## Bible slides (2026-11-19)
+
+`slideLayoutView` lays a Bible slide out too, as SlideView's BibleText sets it: the text flowing (`white-space:
+normal`), each verse number half the size, `line-height: 0`, followed by a no-break space (SlideView's, so a number
+never ends a line apart from its words), raised a third of the text's size and a pixel (`vertical-align: super`, as
+Chromium and WebKit raise it) and a quarter of it more (Tailwind's preflight gives `sup` `position: relative; top:
+-0.5em`), and drawn at 40 %, outline and fill together. The browser check (`parity/slide-layout.mjs`) takes the demo's
+Bible slides and the songs' lines as verses, numbered up to three digits, 165 slides beside the songs, in Classic's
+Bible style too (Tahoma 400 at the left): 0 different. Picture by picture on the Mac, 40 Bible slides in five themes:
+the same pixels but the label's (a median of 0.000 %), 0.4 % with Montserrat outlined (the outline's edges); in the
+iOS simulator against its own web view as the songs, 1.5–2.5 %, at the glyphs' edges. What the
+first try missed, the picture check found: the no-break space and Tailwind's raise, which a copy of SlideView's CSS
+without Tailwind leaves out.
+
+Next: pictures, videos and custom slides; an overlay over a painted slide.

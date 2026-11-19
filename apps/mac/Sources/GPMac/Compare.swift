@@ -1,10 +1,10 @@
 // GP_MAC_COMPARE=<dir>, or `-gp.compare YES` on iOS into its Caches/compare (with the demo data): the painter's half
-// of the picture-by-picture check against SlideView (apps/mac/compare.mjs, docs/native-slide-rendering.md). The demo's first 60 song slides in
-// Classic, Ljust and three themes of the shipped faces that move and paint the text (a shadow, an outline, capitals),
-// each painted at 960 × 540 to <dir>/<theme>-<n>.png, as a tile (the part's label, no credits) and as the live picture
-// (credits, no label, through LiveSlide's Canvas), and what each is to <dir>/tiles.json with the face the core laid it
-// out in, for SlideView to draw the same; the painter's time to <dir>/timing.txt. Then the app quits. No web view here:
-// one in the app of a locked or sleeping Mac draws nothing.
+// of the picture-by-picture check against SlideView (apps/mac/compare.mjs, docs/native-slide-rendering.md). The demo's
+// first 60 song slides and its Bible slides in Classic, Ljust and three themes of the shipped faces that move and paint
+// the text (a shadow, an outline, capitals), each painted at 960 × 540 to <dir>/<theme>-<n>.png, as a tile (the part's
+// label, no credits) and as the live picture (credits, no label, through LiveSlide's Canvas), and what each is to
+// <dir>/tiles.json with the face the core laid it out in, for SlideView to draw the same; the painter's time to
+// <dir>/timing.txt. Then the app quits. No web view here: one in the app of a locked or sleeping Mac draws nothing.
 import SwiftUI
 
 @MainActor
@@ -20,16 +20,20 @@ enum Compare {
         #endif
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var slides: [JSONValue] = []
+        var bible: [JSONValue] = []
         var theme: JSONValue?
         for p in model.presentations {
             guard let page = model.page(p.id) else { continue }
             theme = theme ?? page.theme
             for item in page.items { for s in item.slides where s.kind == "song" && !slides.contains(s.raw) { slides.append(s.raw) } }
+            for item in page.items { for s in item.slides where s.kind == "bible" && !bible.contains(s.raw) { bible.append(s.raw) } }
         }
+        // The first 60 song slides and every Bible slide (the demo's are few).
+        slides = Array(slides.prefix(60)) + bible
         var tiles: [JSONValue] = []
         if let classic = theme {
             for (name, t) in themes(classic) {
-                for (i, slide) in slides.prefix(60).enumerated() {
+                for (i, slide) in slides.enumerated() {
                     // Every other one as the live picture, its credits shown.
                     let label = i % 2 == 0
                     let file = "\(name)-\(i).png"
@@ -104,10 +108,12 @@ enum Compare {
 
     /// Classic as the demo has it, and themes made from it that move and paint the text otherwise.
     private static func themes(_ classic: JSONValue) -> [(String, JSONValue)] {
+        // Song and Bible slides alike.
         func with(_ main: [String: JSONValue], ground: String = "#000000", credits: [String: JSONValue] = [:]) -> JSONValue {
-            var t = merge(classic, ["definition", "song", "main"], main)
-            t = merge(t, ["definition", "song", "credits"], credits)
-            return merge(t, ["definition", "song", "background"], ["color": .string(ground)])
+            ["song", "bible"].reduce(classic) { t, kind in
+                let m = merge(merge(t, ["definition", kind, "main"], main), ["definition", kind, "credits"], credits)
+                return merge(m, ["definition", kind, "background"], ["color": .string(ground)])
+            }
         }
         let inter: JSONValue = .string("'Inter', sans-serif")
         return [

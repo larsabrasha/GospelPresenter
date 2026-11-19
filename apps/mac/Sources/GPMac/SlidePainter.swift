@@ -14,7 +14,8 @@ struct SlideLayout: Decodable {
     struct Background: Decodable { let color: String, image: Picture?, fit: String?, scrim: Double? }
     struct Paint: Decodable { let color: String, shadow: Bool?, outline: Double?, outlineColor: String? }
     struct Box: Decodable { let x, y, w, h: Double }
-    struct Run: Decodable { let face: String, size: Double, glyphs: [[Double]] }
+    /// `opacity`: a Bible slide's verse number's, 0.4; else none.
+    struct Run: Decodable { let face: String, size: Double, glyphs: [[Double]], opacity: Double? }
     struct Text: Decodable { let role: String, face: String, weight: Double, size: Double, paint: Paint, clip: Box, runs: [Run] }
     let background: Background
     let texts: [Text]
@@ -29,10 +30,10 @@ enum SlidePainter {
     /// The stage every slide is drawn on (themes.ts's CANVAS).
     static let stage = CGSize(width: 1920, height: 1080)
 
-    /// The core's layout of the tile's slide, or nil where SlideView draws it: not a song, an overlay over it, or
-    /// refused by the core.
+    /// The core's layout of the tile's slide, or nil where SlideView draws it: not a song or Bible slide, an overlay over
+    /// it, or refused by the core.
     static func layout(_ tile: TileRequest) -> SlideLayout? {
-        guard enabled, tile.overlay == nil, let slide = tile.slide, let theme = tile.theme, slide["kind"]?.string == "song" else { return nil }
+        guard enabled, tile.overlay == nil, let slide = tile.slide, let theme = tile.theme, ["song", "bible"].contains(slide["kind"]?.string) else { return nil }
         SlideFaces.prepare()
         let args = #"{"slide":\#(slide.text),"theme":\#(theme.text)}"#
         guard case let .done(json?) = start(name: "slideLayoutView", args: args, caller: nil),
@@ -116,41 +117,45 @@ enum SlidePainter {
             ctx.setShadow(offset: CGSize(width: 0, height: 0.06 * t.size * k), blur: 0.18 * t.size * abs(k), color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.65))
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
         }
-        if let outline = t.paint.outline, outline > 0, let colour = CSSColor.parse(t.paint.outlineColor ?? "#000000") {
-            // The glyphs' outlines stroked as paths: a context's text stroke is not drawn alike everywhere (SwiftUI's
-            // Canvas strokes it wider than a bitmap's context).
-            ctx.addPath(outlines(t))
-            ctx.setLineWidth(outline * 2)
-            ctx.setStrokeColor(colour)
-            ctx.strokePath()
-        }
-        ctx.setFillColor(CSSColor.parse(t.paint.color) ?? CSSColor.white)
-        glyphs(t, in: ctx)
-        if t.paint.shadow == true { ctx.endTransparencyLayer() }
-    }
-
-    /// The text's glyphs as one path on the stage, each where `glyphs` draws it.
-    private static func outlines(_ t: SlideLayout.Text) -> CGPath {
-        let path = CGMutablePath()
+        let outline = (t.paint.outline ?? 0) > 0 ? CSSColor.parse(t.paint.outlineColor ?? "#000000") : nil
+        let fill = CSSColor.parse(t.paint.color) ?? CSSColor.white
+        // Run by run, each at its opacity (a verse number's 40 %), its outline under its fill.
         for run in t.runs {
             guard let font = SlideFaces.ctFont(run.face, size: run.size, weight: t.weight) else { continue }
-            for g in run.glyphs {
-                guard let glyph = CTFontCreatePathForGlyph(font, CGGlyph(g[0]), nil) else { continue }
-                path.addPath(glyph, transform: CGAffineTransform(translationX: g[1], y: g[2].rounded()).scaledBy(x: 1, y: -1))
+            ctx.saveGState()
+            // A verse number's opacity over its outline and fill together, as CSS's opacity takes the element whole.
+            if let opacity = run.opacity {
+                ctx.setAlpha(opacity)
+                ctx.beginTransparencyLayer(auxiliaryInfo: nil)
             }
-        }
-        return path
-    }
-
-    private static func glyphs(_ t: SlideLayout.Text, in ctx: CGContext) {
-        for run in t.runs {
-            guard let font = SlideFaces.ctFont(run.face, size: run.size, weight: t.weight) else { continue }
+            if let outline {
+                // The glyphs' outlines stroked as paths: a context's text stroke is not drawn alike everywhere (SwiftUI's
+                // Canvas strokes it wider than a bitmap's context).
+                ctx.addPath(outlines(run, font))
+                ctx.setLineWidth((t.paint.outline ?? 0) * 2)
+                ctx.setStrokeColor(outline)
+                ctx.strokePath()
+            }
+            ctx.setFillColor(fill)
             let ids = run.glyphs.map { CGGlyph($0[0]) }
             // Each baseline on a whole pixel of the stage, as WebKit sets a line before the stage is scaled; in text
             // space, which the flipped text matrix turns back: y negated.
             let at = run.glyphs.map { CGPoint(x: $0[1], y: -$0[2].rounded()) }
             CTFontDrawGlyphs(font, ids, at, ids.count, ctx)
+            if run.opacity != nil { ctx.endTransparencyLayer() }
+            ctx.restoreGState()
         }
+        if t.paint.shadow == true { ctx.endTransparencyLayer() }
+    }
+
+    /// A run's glyphs as one path on the stage, each where the run's glyphs are drawn.
+    private static func outlines(_ run: SlideLayout.Run, _ font: CTFont) -> CGPath {
+        let path = CGMutablePath()
+        for g in run.glyphs {
+            guard let glyph = CTFontCreatePathForGlyph(font, CGGlyph(g[0]), nil) else { continue }
+            path.addPath(glyph, transform: CGAffineTransform(translationX: g[1], y: g[2].rounded()).scaledBy(x: 1, y: -1))
+        }
+        return path
     }
 
     /// The part's label at the stage's top right, as SlideView's: `top-6 right-10 rounded-full px-8 py-1`, the app's
