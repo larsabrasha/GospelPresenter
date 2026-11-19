@@ -1,5 +1,5 @@
 Package: se.gospelpresenter.core8probe
-Name: GP Core 8
+Name: Gospel Presenter
 Version: 0.0.1
 Architecture: iphoneos-arm
 Description: The Gospel Presenter core on iOS 8, a probe.

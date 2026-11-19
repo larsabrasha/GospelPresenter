@@ -30,6 +30,7 @@ impl Page<'_> {
         Some((s_of(p.get("itemId"))?, p.get("partIndex")?.as_i64()?))
     }
     fn count(&self, item: &str) -> i64 { self.counts.iter().find(|(i, _)| i == item).map_or(0, |(_, n)| *n) }
+    fn has(&self, item: &str) -> bool { self.counts.iter().any(|(i, _)| i == item) }
     fn typed(&self) -> String { self.get("typed").unwrap_or_default() }
 
     /// What follows from the context before any event: presenting started or ended lets go of the last thing added and
@@ -102,7 +103,7 @@ fn page<'a>(a: &'a Obj) -> R<(Page<'a>, &'a Value)> {
 /// long enough), `item` {delta} (⌘↑ ⌘↓: the item before or after, its first slide made ready), `pickAt` {itemId,
 /// partIndex} (↑ ↓ as the slides stand on the screen), `show` {itemId, partIndex} (a slide tapped: shown while
 /// presenting, else made ready), `select` {itemId} (a row chosen), `added` {itemId}, `move` {by} (⌥↑ ⌥↓), `delete`,
-/// `add`, `start` (F5, ⌥⌘P, ▶), `end` (⌘.), `sync` (the context changed).
+/// `add`, `start` (F5, ⌥⌘P, ▶), `end` (⌘.), `sync` (the context changed), `changed` {itemIds} (the page read again).
 pub fn event(a: &Obj) -> R<Value> {
     let (mut p, order) = page(a)?;
     let cx = obj(&a["context"])?;
@@ -114,6 +115,18 @@ pub fn event(a: &Obj) -> R<Value> {
     let mut handled = true;
     match ev.get("type").and_then(Value::as_str).ok_or("invalid-args")? {
         "sync" => {}
+        "changed" => {
+            // The page read again, by a change made here or one a sync brought: never a new page, but this one where
+            // it stands (Lars, 2026-11-19: the slides jumped to the top at every change made on the Mac). `itemIds` are
+            // the items on the screen, the top first; the first still there stays at the top, so one removed gives its
+            // place to the next. What the state names and the page no longer has is let go of.
+            let on_screen = ev.get("itemIds").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
+            let stay = on_screen.iter().filter_map(|v| s_of(Some(v))).find(|i| p.has(i));
+            if p.get("selectedId").is_some_and(|s| !p.has(&s)) { p.set("selectedId", opt(&stay)) }
+            if p.get("lastAddedId").is_some_and(|s| !p.has(&s)) { p.set("lastAddedId", Value::Null) }
+            if p.picked().is_some_and(|(i, at)| at >= p.count(&i)) { p.set("picked", Value::Null) }
+            command = json!({ "type": "stay", "itemId": opt(&stay) });
+        }
         "pick" => { p.set("typed", json!("")); live = p.press(order, json!({ "type": "pick", "delta": delta }))? }
         "clicker" => { let kind = if p.presenting { "step" } else { "pick" }; live = p.press(order, json!({ "type": kind, "delta": delta }))? }
         "step" if p.presenting => live = p.press(order, json!({ "type": "step", "delta": delta }))?,

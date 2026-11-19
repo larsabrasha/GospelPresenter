@@ -25,3 +25,46 @@ IPHONEOS_DEPLOYMENT_TARGET=8.0 CARGO_TARGET_DIR="$BUILD/target" RUSTC_ICE="$BUIL
   cargo +nightly build -p gp-core-ffi --release --lib --target "$HERE/armv7-apple-ios.json" \
   -Zbuild-std=std,panic_abort -Zjson-target-spec
 lipo -info "$BUILD/target/armv7-apple-ios/release/libgp_core_ffi.a"
+
+# SQLite for the app: iOS 8's own is 3.8.5, older than the core's SQL. The amalgamation the repository already has
+# (better-sqlite3's, through pnpm install), as ARM code for the reason in app/Makefile; no locking styles, whose
+# gethostuuid iOS does not have; one thread, as the app calls the core.
+for SQLITE in "$ROOT"/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3/deps/sqlite3; do :; done
+[ -f "$SQLITE/sqlite3.c" ] || { echo "no sqlite3.c: run pnpm install first" >&2; exit 1; }
+mkdir -p "$BUILD/sqlite"
+cp "$SQLITE/sqlite3.h" "$BUILD/sqlite/"
+xcrun clang -c -arch armv7 -marm -Os -miphoneos-version-min=8.0 -isysroot "${THEOS:-$HOME/theos}/sdks/iPhoneOS9.3.sdk" \
+  -DSQLITE_THREADSAFE=0 -DSQLITE_ENABLE_LOCKING_STYLE=0 -DSQLITE_OMIT_LOAD_EXTENSION -DSQLITE_DEFAULT_MEMSTATUS=0 \
+  "$SQLITE/sqlite3.c" -o "$BUILD/sqlite/sqlite3.o"
+rm -f "$BUILD/sqlite/libsqlite3.a" && xcrun ar rcs "$BUILD/sqlite/libsqlite3.a" "$BUILD/sqlite/sqlite3.o"
+grep '#define SQLITE_VERSION ' "$SQLITE/sqlite3.h"
+
+# The demo data the app opens, as apps/mac/apple.sh takes it (made by crates/gp-core/build.sh and demo-seed.mjs).
+DEMO=$ROOT/crates/gp-core/parity/.out/fixtures/demo.sqlite
+if [ ! -f "$DEMO" ]; then
+  "$ROOT/crates/gp-core/build.sh"
+  (cd "$ROOT/crates/gp-core" && node --no-warnings parity/demo-seed.mjs "$(dirname "$DEMO")")
+fi
+cp "$DEMO" "$HERE/app/Resources/demo.sqlite"
+
+# The faces the core lays slides out with (slideLayoutView), for the app to paint the same glyphs with the same files.
+# iOS 8 cannot draw a variable face at another weight than its own (one way loses most glyphs, the other ignores the
+# weight), so Inter's and Montserrat's are made into one static face for each weight from 100 to 900 by fonttools'
+# instancer, which keeps the glyphs' ids the core's runs name (`pipx install fonttools`).
+cp "$ROOT/crates/gp-core/fonts/Lato-400.ttf" "$HERE/app/Resources/"
+FONTTOOLS=$(command -v fonttools || echo "$HOME/.local/bin/fonttools")
+[ -x "$FONTTOOLS" ] || { echo "no fonttools: pipx install fonttools" >&2; exit 1; }
+for FACE in Inter Montserrat; do
+  for W in 100 200 300 400 500 600 700 800 900; do
+    OUT="$HERE/app/Resources/$FACE-$W.ttf"
+    [ "$OUT" -nt "$ROOT/crates/gp-core/fonts/$FACE-variable.ttf" ] && continue
+    "$FONTTOOLS" varLib.instancer -q "$ROOT/crates/gp-core/fonts/$FACE-variable.ttf" "wght=$W" -o "$OUT"
+  done
+done
+
+# The web's texts, Swedish and English (texts.mjs).
+node --no-warnings "$HERE/texts.mjs"
+
+# The app's icon and launch images, drawn by app/art.m.
+xcrun clang -fobjc-arc "$HERE/app/art.m" -framework AppKit -framework ImageIO -o "$BUILD/art"
+"$BUILD/art" "$ROOT/website/public/logo.svg" "$HERE/app/Resources"
