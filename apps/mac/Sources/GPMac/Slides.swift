@@ -12,7 +12,8 @@ struct OutputView: View {
     var body: some View {
         ZStack {
             Color.black
-            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
+            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false),
+                      video: model.live.slide == nil ? nil : model.app.player.video(for: model.live.state.itemId))
         }
         .ignoresSafeArea()
         .focusable().focusEffectDisabled()

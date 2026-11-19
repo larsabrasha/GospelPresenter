@@ -30,6 +30,8 @@ final class AppState {
     var status = ""
     /// What is presented, the same for every window; it goes on while another page is open (Live.swift).
     private(set) var live = Live()
+    /// The audio and video of what is presented, played on this device (LivePlayer.swift).
+    let player = LivePlayer()
     /// What a connection or the demo refused, said where it was asked for.
     var refusal: String?
     /// The windows open, each read again after a change.
@@ -74,6 +76,11 @@ final class AppState {
             compare = nil
             Task { try? await Task.sleep(for: .seconds(1.5)); await Compare.run(window, out: out) }
         }
+        #if os(macOS)
+        if let out = ProcessInfo.processInfo.environment["GP_MAC_PLAYTEST"], windows.count == 1 {
+            Task { try? await Task.sleep(for: .seconds(1.5)); await PlayTest.run(window, out: out) }
+        }
+        #endif
         if launch.open != nil || launch.show != nil || launch.pick != nil {
             let (open, show, pick) = launch
             launch = (nil, nil, nil)

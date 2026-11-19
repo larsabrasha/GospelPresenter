@@ -76,8 +76,11 @@ enum SlidePainter {
         return SlideLabel(text: text, color: color)
     }
 
+    /// What of a slide a paint draws: all of it, all but the overlay, or the overlay alone (a video plays between them).
+    enum Part { case all, slide, overlay }
+
     /// The slide in a box of `size`, y down from its top: the stage scaled to fit and centred in it, as SlideView's.
-    static func paint(_ l: SlideLayout, label: SlideLabel?, in ctx: CGContext, size: CGSize) {
+    static func paint(_ l: SlideLayout, label: SlideLabel?, in ctx: CGContext, size: CGSize, part: Part = .all) {
         let scale = min(size.width / stage.width, size.height / stage.height)
         ctx.saveGState()
         defer { ctx.restoreGState() }
@@ -85,6 +88,7 @@ enum SlidePainter {
         ctx.scaleBy(x: scale, y: scale)
         let all = CGRect(origin: .zero, size: stage)
         ctx.clip(to: all)
+        if part == .overlay { paint(l.overlay, in: ctx); return }
         if let ground = l.background {
             ctx.setFillColor(CSSColor.parse(ground.color) ?? CSSColor.black)
             ctx.fill(all)
@@ -94,7 +98,7 @@ enum SlidePainter {
         for text in l.texts { paint(text, in: ctx) }
         // The label over the slide (`z-[1]`), an overlay over both (`.slide-overlay`, z-index 2).
         if let label { paint(label, in: ctx) }
-        paint(l.overlay, in: ctx)
+        if part == .all { paint(l.overlay, in: ctx) }
     }
 
     /// A theme's own picture, filling or fitted, with its scrim (SlideView's ThemePicture); nothing while this device
@@ -301,22 +305,5 @@ enum CSSColor {
 
     private static func srgb(_ rgb: [Double], _ alpha: Double) -> CGColor {
         CGColor(srgbRed: rgb[0] / 255, green: rgb[1] / 255, blue: rgb[2] / 255, alpha: alpha)
-    }
-}
-
-/// The live picture and the output: painted from the core's layout where it lays the slide out, else SlideView in a
-/// web view of its own.
-struct LiveSlide: View {
-    let tile: TileRequest
-
-    var body: some View {
-        if let layout = SlidePainter.layout(tile) {
-            Canvas { gc, size in
-                gc.withCGContext { ctx in MainActor.assumeIsolated { SlidePainter.paint(layout, label: nil, in: ctx, size: size) } }
-            }
-            .aspectRatio(16 / 9, contentMode: .fit)
-        } else {
-            LiveWebView(tile: tile)
-        }
     }
 }

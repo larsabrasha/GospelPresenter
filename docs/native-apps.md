@@ -190,6 +190,17 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   the live picture and output window (a SwiftUI `Canvas`); the web view only where the core refuses (a face it lacks)
   or this cannot read a colour. `GP_PAINTER=0` draws all with SlideView; the
   check against SlideView is `apps/mac/compare.mjs` (`-gp.compare YES` in the simulator).
+- **Audio and video live** (Lars, 2026-11-19; `LivePlayer.swift`, `LiveMedia.swift`): the device presenting plays
+  them as the web's Player does (docs/live.md "Where audio and video play"): a video or audio item shown plays from
+  its start, anything else shown stops it, Släck pauses it and a slide shown again plays it on where it was, unless it
+  was paused by hand; the next item's video is fetched meanwhile. One AVPlayer, so the sound plays once and every
+  live picture of the device (the window's, the Mac's output window) shows the video between the slide's still and
+  the overlay. Under the live picture: play or pause, the position, the time, and an audio file's Tona ut (5 s,
+  easing out, then paused at the start). The files come from the host by their hash (`GET /api/media/{hash}`, the
+  shell's `SyncClient.media`) into the media folder, whole before they play; with the demo, only what lies there.
+  Checked by `GP_MAC_PLAYTEST=<file>` (`PlayTest.swift`, muted) with test files under the demo's hashes: each rule
+  above as the player's state says it. Not checked: a file fetched from a real host, the picture on a screen, iOS,
+  and AirPlay. Pictures are not fetched yet, so a picture's slide still draws its theme alone.
 - **Measured** in the iPhone 17 Pro simulator on this Mac (2026-11-17, `-gp.demo YES -gp.measure YES`, Swedish song
   slides in the classic theme): one snapshot 65 ms, a sheet of 20 69 ms, 100 slides cold (caches emptied) 1 140 ms,
   from disk 37 ms, from memory 14 ms. Not yet measured on Lars's iPhone: the simulator runs on the Mac's processor,

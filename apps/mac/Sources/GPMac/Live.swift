@@ -69,6 +69,8 @@ final class Live {
         if overlayKey != overlayRead { overlayRead = overlayKey; overlay = overlayKey.flatMap { m.view("overlayView", ["id": $0], as: JSONValue.self) } }
         if shownKey != key(marks?.shown) { shownKey = key(marks?.shown) }
         if nextKey != key(marks?.next) { nextKey = key(marks?.next) }
+        // Its audio and video, as the rules of what plays say.
+        m.player.follow(m, state)
     }
 
     /// What the outputs show: nothing before presenting, before the first slide and after Släck.

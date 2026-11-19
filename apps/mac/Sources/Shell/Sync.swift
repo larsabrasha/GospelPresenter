@@ -174,6 +174,13 @@ public final class SyncClient {
         return run
     }
 
+    // ------------------------------------------------------------ media
+
+    /// A media blob of the organisation's by its hash, written to `file`: whether the server had it.
+    public func media(_ hash: String, to file: URL) async -> Bool {
+        (try? await server.download("/api/media/\(hash)", as: session, to: file)) ?? false
+    }
+
     // ------------------------------------------------------------ the poke socket
 
     /// Keeps the poke socket open and syncs on every poke, on every (re)connection and on the backstop poll; stops

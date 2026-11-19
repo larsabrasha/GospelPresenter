@@ -222,14 +222,19 @@ struct SlideTile: View {
 }
 
 /// The picture shown while presenting, painted from the core's layout or drawn by the web's SlideView, as the outputs
-/// draw it; black before the first slide and after Släck.
+/// draw it, a video playing in it (LivePlayer.swift); black before the first slide and after Släck. Under it the
+/// controls of the video or audio file live.
 struct LivePicture: View {
     @Environment(Model.self) private var model
 
     var body: some View {
-        LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
-            .background(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(model.live.slide == nil ? 0 : 0.8), lineWidth: 2))
+        VStack(spacing: 8) {
+            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false),
+                      video: model.live.slide == nil ? nil : model.app.player.video(for: model.live.state.itemId))
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(model.live.slide == nil ? 0 : 0.8), lineWidth: 2))
+            PlayerBar()
+        }
     }
 }

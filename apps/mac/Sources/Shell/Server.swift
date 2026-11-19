@@ -87,6 +87,17 @@ public final class Server: Sendable {
         return ["authorization": "Bearer \(s.token)"].merging(s.device.map { ["x-gp-device": $0] } ?? [:]) { a, _ in a }
     }
 
+    /// A file of the server's to `file` (a media blob, `GET /api/media/{hash}`), streamed to disk: whether it came.
+    public func download(_ path: String, as s: Session?, to file: URL) async throws -> Bool {
+        var req = URLRequest(url: base.appending(path: path))
+        for (k, v) in Self.headers(s) { req.setValue(v, forHTTPHeaderField: k) }
+        let (temp, res) = try await session.download(for: req)
+        guard (res as? HTTPURLResponse)?.statusCode == 200 else { try? FileManager.default.removeItem(at: temp); return false }
+        try? FileManager.default.removeItem(at: file)
+        try FileManager.default.moveItem(at: temp, to: file)
+        return true
+    }
+
     public func request(_ method: String, _ path: String, json: String? = nil, as s: Session? = nil) async throws -> Answer {
         var req = URLRequest(url: base.appending(path: path))
         req.httpMethod = method
