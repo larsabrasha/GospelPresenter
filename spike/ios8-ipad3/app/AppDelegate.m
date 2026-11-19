@@ -59,6 +59,23 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     return YES;
 }
 
+/// For checks over SSH (`uiopen`): gpcore8://picture writes the picture now, gpcore8://item/<n> taps the running
+/// order's row n and writes it once the slides have scrolled.
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
+    if ([url.host isEqual:@"item"] && url.pathComponents.count > 1) {
+        UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
+        if (![split isKindOfClass:[UISplitViewController class]]) return NO;
+        UITableViewController *list = (UITableViewController *)[split.viewControllers[0] topViewController];
+        NSIndexPath *at = [NSIndexPath indexPathForRow:[url.pathComponents[1] integerValue] inSection:0];
+        [list.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionMiddle];
+        [list tableView:list.tableView didSelectRowAtIndexPath:at];
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    [self picture];
+    return YES;
+}
+
 /// The window as a PNG in /tmp, as the screen shows it.
 - (void)picture {
     UIGraphicsBeginImageContextWithOptions(self.window.bounds.size, YES, 0);

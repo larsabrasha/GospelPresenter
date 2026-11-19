@@ -42,15 +42,17 @@ for answered from SQLite; `AppDelegate.m` copies the demo data afresh on every s
 reads `presentationsView` and the first presentation's `presentationPageView`; `PresentationController.m` is the page
 with iOS 8's own parts, after the Settings app on an iPad: a UISplitViewController with both columns shown (the left
 320 pt) and iOS 8's button that folds the left one away, each column in a navigation controller; at the left the
-running order as a grouped table, the day and time over it, an item a row with a 29 pt icon in its type's colour and
-a song's number of slides, the header items the groups' titles; at the right the slides on the grouped table's grey,
-tiles 340 to 384 pt wide (the web's SlideGrid), each item a section headed as a grouped table heads one, a header
-item's heading larger. A row scrolls to its item's slides; the slides scrolled select their row and name the right
+running order as a grouped table of one group, the day and time over it, every item a row with a 29 pt icon in its
+type's colour and a song's number of slides, a programme point (type "header") a row as much as a song (Lars); at
+the right the slides on the grouped table's grey, tiles 340 to 384 pt wide (the web's SlideGrid), each item a
+section headed as a grouped table heads one. A row scrolls to its item's slides; the slides scrolled select their row and name the right
 column, as Settings names it after the row chosen; a tile tapped is outlined in the tint, the web's sky. `SlideView.m`
 draws a slide: the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
 until it fits (not the web's fitting), the part's label in a corner. Media show their kind and title: their files are
 not on the device. Nothing is presented. `icon.m` draws the app's icon on the Mac (`build-core.sh` runs it). 1.5 s
-after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png.
+after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png; opened
+with `gpcore8://picture` it writes one then, and with `gpcore8://item/<n>` it taps row n first and writes one a
+second later, so that a check over SSH can drive the page and see it.
 
 ## Build
 
@@ -127,13 +129,14 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
 - `mac-check` on the Mac: the migration, `presentationsView` and `presentationPageView` on the demo data, 13.6, 2.8
   and 3.8 ms.
 - On the iPad (iOS 8.4.1): the same answers; the objects marked iOS 10.0 did not matter to dyld. The page from the
-  app's own picture of its window, upright and lying down; a tap on a row scrolls to its item's slides (Lars).
+  app's own picture of its window, upright and lying down; a tap on a row scrolls to its item's slides (Lars, and
+  `gpcore8://item/9`: the row chosen, its slides at the top, the column named after it).
 
 ## Not checked
 
 - The clock: whether any of these views call `clock_gettime`, so whether `clock.c` has run.
-- By hand on the iPad: the row following the slides as they scroll, a tile's outline, the fold button, and the icon
-  on the home screen.
+- By hand on the iPad: the row following the slides as they are scrolled with a finger, a tile's outline, the fold
+  button, and the icon on the home screen.
 - Lying down, the slides' column is 703 pt and the web's sizes give it one column of 384 pt, half of it empty.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
 - Commands beyond the migration (nothing is changed), sync, and media files.

@@ -82,13 +82,12 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
     return self;
 }
 
-/// A song's or a medium's heading as a grouped table's (13 pt, capitals, grey); a header item's larger and dark.
+/// An item's heading as a grouped table's (13 pt, capitals, grey), a programme point's as every other item's.
 - (void)showItem:(NSDictionary *)item problem:(NSString *)problem {
     NSString *text = problem ? [NSString stringWithFormat:@"%@ · %@", item[@"title"], problem] : item[@"title"];
-    BOOL header = isHeader(item);
-    _title.text = header ? text : text.uppercaseString;
-    _title.font = header ? [UIFont boldSystemFontOfSize:22] : [UIFont systemFontOfSize:13];
-    _title.textColor = header ? [UIColor blackColor] : rgb(0x6D6D72);
+    _title.text = text.uppercaseString;
+    _title.font = [UIFont systemFontOfSize:13];
+    _title.textColor = rgb(0x6D6D72);
 }
 @end
 
@@ -132,32 +131,20 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 @implementation GPItemsController {
     NSDictionary *page;
-    NSArray *groups;   // {title, rows: [index into the page's items]}: a header item opens a group
+    NSArray *items;
 }
 
 - (instancetype)initWithPage:(NSDictionary *)p {
     if ((self = [super initWithStyle:UITableViewStyleGrouped])) {
         page = p;
-        NSMutableArray *all = [NSMutableArray array];
-        NSMutableDictionary *group = [@{@"title": @"", @"rows": [NSMutableArray array]} mutableCopy];
-        NSArray *items = p[@"items"];
-        for (NSUInteger i = 0; i < items.count; i++) {
-            if (isHeader(items[i])) {
-                if ([group[@"rows"] count]) [all addObject:group];
-                group = [@{@"title": items[i][@"title"], @"rows": [NSMutableArray array]} mutableCopy];
-            } else {
-                [group[@"rows"] addObject:@(i)];
-            }
-        }
-        if ([group[@"rows"] count]) [all addObject:group];
-        groups = all;
+        items = p[@"items"];
         self.title = p[@"presentation"][@"name"];
     }
     return self;
 }
 
-/// The presentation's day and time over the groups, as a grouped table's footnote reads: "söndag 8 november 2026 ·
-/// 11:00" (a group's title would be lost when the first item is a header).
+/// The presentation's day and time over its one group, as a grouped table's note reads: "söndag 8 november 2026 ·
+/// 11:00".
 - (void)viewDidLoad {
     [super viewDidLoad];
     UILabel *when = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 320, 44)];
@@ -182,16 +169,13 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
     return time ? [NSString stringWithFormat:@"%@ · %@", [out stringFromDate:day], time] : [out stringFromDate:day];
 }
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)t { return (NSInteger)groups.count; }
-- (NSInteger)tableView:(UITableView *)t numberOfRowsInSection:(NSInteger)s { return (NSInteger)[groups[s][@"rows"] count]; }
-- (NSString *)tableView:(UITableView *)t titleForHeaderInSection:(NSInteger)s { return groups[s][@"title"]; }
-
-- (NSInteger)itemAt:(NSIndexPath *)at { return [groups[at.section][@"rows"][at.row] integerValue]; }
+// One group, every item a row in the order presented, a programme point (type "header") as much a row as a song.
+- (NSInteger)tableView:(UITableView *)t numberOfRowsInSection:(NSInteger)s { return (NSInteger)items.count; }
 
 - (UITableViewCell *)tableView:(UITableView *)t cellForRowAtIndexPath:(NSIndexPath *)at {
     UITableViewCell *cell = [t dequeueReusableCellWithIdentifier:@"item"]
         ?: [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"item"];
-    NSDictionary *item = page[@"items"][[self itemAt:at]];
+    NSDictionary *item = items[at.row];
     cell.imageView.image = iconFor(item[@"type"]);
     cell.textLabel.text = item[@"title"];
     NSUInteger n = slidesOf(page, item).count;
@@ -200,18 +184,13 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 }
 
 - (void)tableView:(UITableView *)t didSelectRowAtIndexPath:(NSIndexPath *)at {
-    [self.slides scrollToItem:[self itemAt:at]];
+    [self.slides scrollToItem:at.row];
 }
 
 - (void)selectItem:(NSInteger)index {
-    for (NSUInteger s = 0; s < groups.count; s++) {
-        NSUInteger row = [groups[s][@"rows"] indexOfObject:@(index)];
-        if (row == NSNotFound) continue;
-        NSIndexPath *at = [NSIndexPath indexPathForRow:(NSInteger)row inSection:(NSInteger)s];
-        if (![self.tableView.indexPathForSelectedRow isEqual:at])
-            [self.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionNone];
-        return;
-    }
+    NSIndexPath *at = [NSIndexPath indexPathForRow:index inSection:0];
+    if (![self.tableView.indexPathForSelectedRow isEqual:at])
+        [self.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionNone];
 }
 @end
 
@@ -238,10 +217,11 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     flow.minimumInteritemSpacing = 18;
     flow.minimumLineSpacing = 18;
     flow.sectionInset = UIEdgeInsetsMake(0, 28, 28, 28);
+    flow.headerReferenceSize = CGSizeMake(100, 44);
     if ((self = [super initWithCollectionViewLayout:flow])) {
         page = p;
         items = p[@"items"];
-        for (NSDictionary *item in items) if (!isHeader(item)) { self.title = item[@"title"]; break; }
+        self.title = [items.firstObject objectForKey:@"title"];
     }
     return self;
 }
@@ -273,13 +253,9 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     return CGSizeMake(width, round(width * 9 / 16));
 }
 
-/// A header item has no slides: no room under its heading.
+/// A programme point has no slides: less room under its heading.
 - (UIEdgeInsets)collectionView:(UICollectionView *)c layout:(UICollectionViewLayout *)l insetForSectionAtIndex:(NSInteger)s {
-    return UIEdgeInsetsMake(0, 28, isHeader(items[s]) ? 0 : 28, 28);
-}
-
-- (CGSize)collectionView:(UICollectionView *)c layout:(UICollectionViewLayout *)l referenceSizeForHeaderInSection:(NSInteger)s {
-    return CGSizeMake(c.bounds.size.width, isHeader(items[s]) ? 64 : 44);
+    return UIEdgeInsetsMake(0, 28, isHeader(items[s]) ? 8 : 28, 28);
 }
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)c cellForItemAtIndexPath:(NSIndexPath *)at {
@@ -315,15 +291,14 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     // asking throws then on iOS 8, and the layout answers every heading at 0): only once it has appeared.
     if (following || !appeared) return;
     CGFloat line = s.contentOffset.y + s.contentInset.top + 1;
-    NSInteger shown = -1;
+    NSInteger shown = 0;   // at the top, the first item, as Settings has a row chosen
     for (NSInteger i = 0; i < (NSInteger)items.count; i++) {
         UICollectionViewLayoutAttributes *a = [self.collectionViewLayout layoutAttributesForSupplementaryViewOfKind:UICollectionElementKindSectionHeader
                                                                                                         atIndexPath:[NSIndexPath indexPathForItem:0 inSection:i]];
-        if (shown < 0 && !isHeader(items[i])) shown = i;   // at the top, the first item, as Settings has a row chosen
         if (a.frame.origin.y > line) break;
-        if (!isHeader(items[i])) shown = i;
+        shown = i;
     }
-    if (shown < 0) return;
+    if (items.count == 0) return;
     [self.runningOrder selectItem:shown];
     self.title = items[shown][@"title"];
 }
