@@ -19,6 +19,7 @@ required-features = ["bindgen"]
 bindgen = ["uniffi/cli"]
 
 [dependencies]
-gp-core = { path = "../gp-core" }
+# With slideLayoutView: the native shells draw slides from the core's layout (docs/native-slide-rendering.md).
+gp-core = { path = "../gp-core", features = ["layout"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 uniffi = "=0.32.2"

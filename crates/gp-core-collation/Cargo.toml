@@ -8,9 +8,10 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+# The core's ICU4X version (2.3, as parley pins it), so the data and the code that reads it match.
 [dependencies]
-icu_collator = { version = "2.4", features = ["datagen"] }
-icu_normalizer = { version = "2.4", features = ["datagen"] }
-icu_provider = { version = "2.4", features = ["export"] }
-icu_provider_export = { version = "2.4", features = ["baked_exporter"] }
-icu_provider_source = { version = "2.4", features = ["networking"] }
+icu_collator = { version = "~2.3", features = ["datagen"] }
+icu_normalizer = { version = "~2.3", features = ["datagen"] }
+icu_provider = { version = "~2.3", features = ["export"] }
+icu_provider_export = { version = "~2.3", features = ["baked_exporter"] }
+icu_provider_source = { version = "~2.3", features = ["networking"] }

@@ -102,6 +102,7 @@ struct MacDemo: ViewModifier {
     private func demo() {
         let env = ProcessInfo.processInfo.environment
         if let out = env["GP_MAC_PERF"] { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { Perf.run(model, out: out) } }
+        if let out = env["GP_MAC_COMPARE"] { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { Compare.run(model, out: out) } }
         guard env["GP_MAC_DEMO"] != nil else {
             if let out = env["GP_MAC_SNAPSHOT"] { snapshot(out) }
             return

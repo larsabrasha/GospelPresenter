@@ -44,6 +44,10 @@ struct Fitter {
 impl Fitter {
     fn layout(&mut self, text: &str, style: &Style, size: f32) -> Layout<()> {
         let mut b = self.layouts.ranged_builder(&mut self.fonts, text, 1.0, true);
+        // Chromium's own break opportunities on ASCII pairs, where browsers leave UAX #14 (GP_CHROMIUM=1).
+        if std::env::var("GP_CHROMIUM").is_ok() {
+            b.set_line_break_override(Some(&parley::CHROMIUM_LINE_BREAK_OVERRIDE));
+        }
         b.push_default(StyleProperty::FontFamily(FontFamily::named(&style.family)));
         b.push_default(StyleProperty::FontWeight(FontWeight::new(style.weight)));
         b.push_default(StyleProperty::FontSize(size));

@@ -55,8 +55,11 @@ names a face, it agrees; the core must do the same.
 - The core can lay out a slide's text and fit it as the web does, with the app's own faces, so a projector and a
   preview drawn by different shells would show the same lines. Differences are a word at the edge, as the browsers
   already have between themselves.
-- To agree on the two rules, parley would need its breaking tailored (a hyphen before a digit, a comma after a space),
-  or the web would keep its own; that is a decision, not a fault.
+- The two rules are parley's to follow: its `CHROMIUM_LINE_BREAK_OVERRIDE` (`GP_CHROMIUM=1` here) breaks as Chromium
+  does on ASCII pairs, and with it WebKit agrees too on these songs. Then the differences left are words at the edge:
+  Inter 700 12 (Chromium) and 2 (WebKit), Inter 400 1, Montserrat 700 6, Montserrat 400 32, Lato 400 none, the only
+  face shipped as a static file; the variable faces' widths seem rounded apart, not checked further.
+- The core does this since (`crates/gp-core/src/slide_layout.rs`, `docs/native-slide-rendering.md`).
 - Speed: 0.046 ms a slide on an M1 Max, the 12 916 laid out and fitted in 0.6 s (native, not WASM).
 - Not tried: Bible slides (verse numbers as superscripts), capitals (`text-transform` follows the language), outlines
   and shadows (they do not move lines), other stage sizes (the stage is always 1920 × 1080, scaled), Tahoma (not

@@ -26,6 +26,8 @@ mod rows;
 mod schema;
 mod search;
 mod settings_views;
+#[cfg(feature = "layout")]
+mod slide_layout;
 mod slides;
 mod song_import;
 mod song_page;
@@ -38,3 +40,5 @@ mod views;
 
 /// What a native shell calls (crates/gp-core-ffi): a command or a view started, and each statement's rows given back.
 pub use bridge::{resume, start, Rows, Step};
+#[cfg(feature = "layout")]
+pub use slide_layout::{add_face as add_slide_face, shipped_face as slide_face};
