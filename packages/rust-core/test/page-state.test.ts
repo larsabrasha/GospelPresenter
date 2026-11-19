@@ -174,3 +174,47 @@ describe('what follows from presenting', () => {
     expect(sent({ type: 'added', itemId: 'n' }).state).toMatchObject({ selectedId: 'n', lastAddedId: 'n' });
   });
 });
+
+describe('the page read again (Lars, 2026-11-19: never back to the top)', () => {
+  it('stays at the item at the top of the screen', () => {
+    const answer = sent({ type: 'changed', itemIds: ['a', 'b'] }, { selectedId: 'a' });
+
+    expect(answer.command).toEqual({ type: 'stay', itemId: 'a' });
+  });
+
+  it('stays at the next item on the screen when the one at the top is gone', () => {
+    const answer = sent({ type: 'changed', itemIds: ['gone', 'b'] });
+
+    expect(answer.command).toEqual({ type: 'stay', itemId: 'b' });
+  });
+
+  it('names no item to stay at when none on the screen is left', () => {
+    const answer = sent({ type: 'changed', itemIds: ['gone'] });
+
+    expect(answer.command).toEqual({ type: 'stay', itemId: null });
+  });
+
+  it('keeps the selection and the slide made ready that the page still has', () => {
+    const answer = sent({ type: 'changed', itemIds: ['h'] }, { selectedId: 'b', picked: { itemId: 'a', partIndex: 2 }, lastAddedId: 'b' });
+
+    expect(answer.state).toMatchObject({ selectedId: 'b', picked: { itemId: 'a', partIndex: 2 }, lastAddedId: 'b' });
+  });
+
+  it('selects the item it stays at when the one selected is gone', () => {
+    const answer = sent({ type: 'changed', itemIds: ['gone', 'b'] }, { selectedId: 'gone' });
+
+    expect(answer.state.selectedId).toBe('b');
+  });
+
+  it('lets go of a slide made ready that the page no longer has', () => {
+    const answer = sent({ type: 'changed', itemIds: ['a'] }, { picked: { itemId: 'b', partIndex: 2 } });
+
+    expect(answer.state.picked).toBeNull();
+  });
+
+  it('lets go of the last thing added when it is gone', () => {
+    const answer = sent({ type: 'changed', itemIds: ['a'] }, { lastAddedId: 'gone' });
+
+    expect(answer.state.lastAddedId).toBeNull();
+  });
+});
