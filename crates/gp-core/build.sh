@@ -51,6 +51,8 @@ NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-e
 
 (cd "$ROOT" && cargo build -p gp-core --release --target wasm32-unknown-unknown --quiet \
   && cp target/wasm32-unknown-unknown/release/gp_core.wasm "$OUT/" \
+  && cargo build -p gp-core --release --target wasm32-unknown-unknown --features layout --quiet \
+  && cp target/wasm32-unknown-unknown/release/gp_core.wasm "$OUT/gp_core_layout.wasm" \
   && cargo build -p gp-core-ffi --release --lib --quiet)
 # The Mac app over the core's UniFFI interface (crates/gp-core-ffi), its Swift bindings generated first.
 "$ROOT/crates/gp-core-ffi/bindings.sh"
@@ -72,6 +74,8 @@ case "$1" in
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"
     node --no-warnings parity/views-check.mjs "$OUT/fixtures/demo.sqlite"
+    # A slide laid out by the core (the native shells' slideLayoutView) against SlideView in Chromium and WebKit.
+    node --no-warnings parity/slide-layout.mjs "$OUT/fixtures/demo.sqlite" "$OUT/gp_core_layout.wasm" "$ROOT"
     mkdir -p "$OUT/native"
     GP_SYNC=NORMAL "$ROOT/apps/mac/.build/release/parity" "$OUT/fixtures" "$OUT/native"
     node --no-warnings parity/compare-final.mjs "$OUT/fixtures" "$OUT/native"

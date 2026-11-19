@@ -1,6 +1,8 @@
-# Slides drawn without a browser: a proposal, not decided
+# Slides drawn without a browser
 
-Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind. Not built, and not for 2.0.
+Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
+2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. Its first piece is built (the core's
+`slideLayoutView`, at the end); no shell draws from it yet.
 
 ## The question
 
@@ -94,5 +96,20 @@ of the edge, rounded differently, and two rules where the browsers leave Unicode
 hyphen before a digit, before a comma after a space). The line breaks can agree; way 3 is not decided by it.
 
 What the probe taught that the core must do: a face is registered under the theme's name, as `@font-face` names it
-(a variable file is named for its default instance, Montserrat's "Montserrat Thin"). Still to decide: whether the
-core follows the browsers on the two rules, and what Classic's Tahoma becomes.
+(a variable file is named for its default instance, Montserrat's "Montserrat Thin"). And parley's own
+`CHROMIUM_LINE_BREAK_OVERRIDE` makes the two rules the browsers' (WebKit's too, where songs need them): with it the
+differences left are the words at the edge, none at all in Lato, the one face shipped as a static file.
+
+## In the core (2026-11-19)
+
+`slideLayoutView` {slide, theme} (`crates/gp-core/src/slide_layout.rs`): a song slide's background, its main text
+fitted as FittedText fits it and its credits on one line, each text with its lines (text, start across, baseline,
+width), its glyph runs by face and every glyph's id and position on the 1920 × 1080 stage, and the area it is clipped
+to. The shell paints the glyphs with the same faces (`crates/gp-core/fonts`, the app's own as TrueType) and its own
+means, and draws the label, overlays and the black itself. Proved against SlideView in Chromium and WebKit (the row in
+`docs/rust-core.md`). Only the native shells have it (the `layout` feature): parley, its line breaking data and the
+faces would double the web's WASM, which draws with SlideView.
+
+Next: a shell painting from it (the Mac and iOS app first, in place of the web view), compared picture by picture
+with SlideView; then Bible slides (verse numbers small and raised), pictures, videos and custom slides. Still to
+decide: what Classic's Tahoma becomes, as the core has no Tahoma.

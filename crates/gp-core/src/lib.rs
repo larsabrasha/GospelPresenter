@@ -26,6 +26,8 @@ mod rows;
 mod schema;
 mod search;
 mod settings_views;
+#[cfg(feature = "layout")]
+mod slide_layout;
 mod slides;
 mod song_import;
 mod song_page;

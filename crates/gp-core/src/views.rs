@@ -82,6 +82,8 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "exportRowsView" => crate::legacy::export_rows().await,
         "songNamesakesView" => crate::song_import::namesakes(a),
         "songImportDuplicatesView" => crate::song_import::duplicates(a),
+        #[cfg(feature = "layout")]
+        "slideLayoutView" => crate::slide_layout::view(a),
         _ => return None,
     })
 }
