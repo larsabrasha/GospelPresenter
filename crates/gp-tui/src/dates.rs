@@ -19,9 +19,15 @@ pub fn date_label(iso: &str, today: &str, with_year: bool) -> String {
 
 /// The row's second line.
 pub fn subtitle(p: &PresentationRow, today: &str, show_date: bool, with_year: bool) -> String {
-    let date = p.event_date.as_deref().filter(|_| show_date).map(|d| date_label(d, today, with_year));
-    let when: Vec<String> = [date, p.time.clone()].into_iter().flatten().filter(|s| !s.is_empty()).collect();
-    [when.join(" · "), p.location.clone().unwrap_or_default()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
+    let [date, time, place] = parts(p, today, show_date, with_year);
+    let when: Vec<String> = [date, time].into_iter().filter(|s| !s.is_empty()).collect();
+    [when.join(" · "), place].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
+}
+
+/// The second line's parts apart, each empty when not set: the date (where the list shows it), the time, the place.
+pub fn parts(p: &PresentationRow, today: &str, show_date: bool, with_year: bool) -> [String; 3] {
+    let date = p.event_date.as_deref().filter(|_| show_date).map(|d| date_label(d, today, with_year)).unwrap_or_default();
+    [date, p.time.clone().unwrap_or_default(), p.location.clone().unwrap_or_default()]
 }
 
 #[cfg(test)]

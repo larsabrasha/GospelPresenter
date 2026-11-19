@@ -7,7 +7,7 @@ use crate::app::{App, Screen};
 use crate::dates::subtitle;
 use crate::keys::{Pane, Target};
 use crate::panes::{draw_rows, Rows};
-use crate::texts::{t, t_of};
+use crate::texts::t;
 use crate::views::*;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
 use ratatui::style::{Color, Style, Stylize};
@@ -41,7 +41,7 @@ pub fn draw(f: &mut Frame, app: &App) -> Hits {
     let mut hits = Hits::new();
     let [body, foot] = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(f.area());
     match app.screen {
-        Screen::Start => start(f, body, app, &mut hits),
+        Screen::Start => crate::start::page(f, body, app, &mut hits),
         Screen::Page => page(f, body, app, &mut hits),
         Screen::Output => output(f, f.area(), app),
     }
@@ -52,29 +52,6 @@ pub fn draw(f: &mut Frame, app: &App) -> Hits {
         ask_end(f, f.area());
     }
     hits
-}
-
-fn start(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
-    let mut rows = Rows::default();
-    rows.push(vec![Line::from(t("nav.presentations", &[]).bold()), Line::default()], None, false);
-    if app.lists.is_empty() { rows.push(vec![Line::from(t("presentations.emptyTitle", &[]).dim())], None, false) }
-    let mut n = 0;
-    for list in &app.lists {
-        rows.push(vec![Line::from(t_of(&list.title.clone().into()).bold().underlined())], None, false);
-        for row in &list.rows {
-            let mut name = vec![Span::raw(row.name.clone())];
-            if app.live.presentation_id.as_deref() == Some(row.id.as_str()) { name.push(Span::raw(format!("  ● {}", t("presentations.live", &[]))).fg(LIVE)) }
-            let count = row.item_count.unwrap_or(0);
-            let items = if count == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &count.to_string())]) };
-            let sub = subtitle(row, &app.today, list.show_date, list.with_year);
-            name.push(Span::raw(format!("   {}", [sub, items].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · "))).dim());
-            let line = if n == app.cursor { Line::from(name).reversed() } else { Line::from(name) };
-            rows.push(vec![line], Some(Target::Row(n)), n == app.cursor);
-            n += 1;
-        }
-        rows.push(vec![Line::default()], None, false);
-    }
-    draw_rows(f, area.inner(Margin::new(1, 0)), Block::new(), rows, Pane::Start, app, hits);
 }
 
 /// The item whose slides are drawn: the selected one, else the first.

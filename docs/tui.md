@@ -18,7 +18,7 @@ What a screen shows and what a key does is the core's, read as the Mac app reads
 
 | Screen | From the core | Shell's own |
 | --- | --- | --- |
-| Start page | `startPageView` {today}: the lists, their order, which show a date and its year, each row's number of items | the cursor; a row's second line as the Mac's `subtitle` (dates in Swedish through chrono's sv_SE) |
+| Start page | `startPageView` {today}: the lists, their order, which show a date and its year, each row's number of items | the cursor; each row in columns of one width through every list (`crates/gp-tui/src/start.rs`): ● while presented, the name, the date (Swedish through chrono's sv_SE, a day of one digit padded), the time, the place, the number of items at the right; where they do not fit, the name with the rest under it as the Mac's `subtitle` |
 | A presentation | `presentationPageView`: the running order and each item's slides; `pageEventView` for every key (the page's state: selected, made ready, typed); `pageModelView`'s cue ("Bild 2 i Tusen skäl – Enter visar") | three columns: the order, the selected item's slides (first line, label in its colour, VISAS, NÄSTA, made ready in blue), and a preview |
 | Presenting | `liveChangeView` for every change of the live state (one presentation at a time); `slideMarksView` for VISAS and NÄSTA | the preview shows VISAS and NÄSTA; Avsluta asks first, as the Mac app does |
 | Output view (`o`) | the slide shown, from the same live state | its text centred, nothing before the first slide or after Släck, one quiet status line |
@@ -77,12 +77,14 @@ build takes about five minutes (the core with LTO).
 
 ## Checked
 
-`cargo test -p gp-tui`, 65 tests, under a second once built:
+`cargo test -p gp-tui`, 72 tests, under a second once built:
 
-- Pure logic, 35 unit tests: each key to its event on the page, in the output view and in the question to end; each
+- Pure logic, 39 unit tests: a start row's day padded and its number of items padded at the left; each key to its event on the page, in the output view and in the question to end; each
   click to its action; where a list stands to keep a row in sight; a slide's text broken to a width; the texts from
   `i18n.ts` and their placeholders; a start row's second line and dates; a value from SQLite to the core and back.
-- A narrow terminal and the wheel, 8 tests (`crates/gp-tui/tests/phone.rs`, 50 × 40): one column with every slide's
+- The start page's columns and a narrow terminal and the wheel, 11 tests (`crates/gp-tui/tests/phone.rs`, 140 and
+  50 columns): dates, times and the numbers of items standing in one column through rows of short and long names and
+  days of one and two digits, and two lines a row at 50; one column with every slide's
   whole text, what is shown at the top with Släck, a click on Släck and on a slide, the wheel moving the column and the
   start page, a key after it bringing the slide shown back in sight (made to fail once on purpose, a key not making the
   lists follow again), and three columns kept at 140.

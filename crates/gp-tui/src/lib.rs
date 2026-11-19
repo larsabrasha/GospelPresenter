@@ -7,6 +7,7 @@ pub mod keys;
 pub mod panes;
 pub mod phone;
 pub mod shell;
+pub mod start;
 pub mod texts;
 pub mod ui;
 pub mod views;

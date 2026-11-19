@@ -93,6 +93,52 @@ fn the_wheel_moves_the_start_page_on_a_short_terminal() {
     assert!(!drawn.contains("Presentationer"), "{drawn}");
 }
 
+/// Where `text` begins on the first line that has it, in characters.
+fn column_of(drawn: &str, text: &str) -> usize {
+    drawn.lines().find_map(|l| l.find(text).map(|i| l[..i].chars().count())).unwrap_or_else(|| panic!("{text} is not drawn:\n{drawn}"))
+}
+
+#[test]
+fn the_start_pages_dates_and_times_stand_in_columns() {
+    // Arrange
+    let app = demo("start-columns");
+
+    // Act
+    let drawn = screen_in(&app, WIDE);
+
+    // Assert: a short name and a long one, a day of one digit and one of two.
+    let dates = [column_of(&drawn, "sön  8 november"), column_of(&drawn, "lör 12 september"), column_of(&drawn, "fre  3 april")];
+    let times = [column_of(&drawn, "11:00 "), column_of(&drawn, "19:00"), column_of(&drawn, "17:00")];
+    assert!(dates.iter().all(|d| *d == dates[0]) && times.iter().all(|t| *t == times[0]), "{drawn}");
+}
+
+#[test]
+fn the_start_pages_numbers_of_items_end_in_one_column() {
+    // Arrange
+    let app = demo("start-counts");
+
+    // Act
+    let drawn = screen_in(&app, WIDE);
+
+    // Assert
+    let ends = ["15 inslag", " 7 inslag", "1 inslag"].map(|n| column_of(&drawn, n) + n.chars().count());
+    assert!(ends.iter().all(|e| *e == ends[0]), "{drawn}");
+}
+
+#[test]
+fn a_narrow_start_page_puts_the_date_under_the_name() {
+    // Arrange
+    let app = demo("start-narrow");
+
+    // Act
+    let drawn = screen_in(&app, PHONE);
+
+    // Assert
+    let lines: Vec<&str> = drawn.lines().collect();
+    let at = lines.iter().position(|l| l.contains("Nattvardsgudstjänst")).unwrap();
+    assert!(lines[at + 1].contains("sön 6 september 2026 · 11:00 · 20 inslag"), "{drawn}");
+}
+
 #[test]
 fn a_wide_terminal_keeps_three_columns() {
     // Arrange
