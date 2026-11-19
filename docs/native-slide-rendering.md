@@ -2,7 +2,7 @@
 
 Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
 2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. The core's `slideLayoutView` is
-built, and the Mac and iOS app paint song slides from it (both at the end).
+built, and the Mac and iOS app paint every kind of slide from it (the sections at the end).
 
 ## The question
 
@@ -160,4 +160,26 @@ iOS simulator against its own web view as the songs, 1.5–2.5 %, at the glyphs'
 first try missed, the picture check found: the no-break space and Tailwind's raise, which a copy of SlideView's CSS
 without Tailwind leaves out.
 
-Next: pictures, videos and custom slides; an overlay over a painted slide.
+## Pictures, videos, slideshows and overlays (2026-11-19)
+
+`slideLayoutView` {slide, theme, overlay} lays out every slide now (`crates/gp-core/src/slide_items.rs`): a picture
+slide's picture and a video's still fitted to the stage over the theme's media ground, a slideshow's page (its own
+colour, its picture filling the stage, a PDF's page fitted, then its elements in order: pictures fitted or filling
+their box, rectangles with rounded corners and a border inside their edge, ellipses, lines round at the ends, and
+texts in the theme's song style at their own size, from their box's top, never made smaller, clipped only by the
+stage), and an overlay's page over all; no slide is a clear ground (a thumbnail's overlay layer). An italic the faces
+lack is slanted by the shell as WebKit slants it (a quarter of the height); a weight the face lacks (Lato is shipped
+at 400) is marked, and the shell draws the glyphs again a 24th of the size to the right, as WebKit does, though
+WebKit also widens each advance by as much, which the layout does not (such a line runs a little narrower). The
+native app plays no video: a video slide shows its still, live too.
+
+Compared picture by picture with made-up pages that have every element, an overlay over a song, a picture slide and
+nothing, and pictures drawn into the app's media folder (`apps/mac/Sources/GPMac/ComparePages.swift`): on the Mac
+the pages without pictures a median of 0.000 % apart, 0.27 % for Lato's drawn bold (the pictures need the app's own
+web view, which a locked Mac's app lacks); in the iOS simulator against its own web view the pictures 0.000–0.3 %,
+the pages 0.1–1.8 % at the glyphs' edges. The check found a fault of the web's own: `CustomPageView` read a picture
+through the database's hooks also where the page has none (the native apps' renderer, a paired screen), and React
+dropped the whole sheet of thumbnails with it; it now takes `media`'s URL without them, as SlideView's pictures do.
+
+Left to decide: iOS's WebKit sets Lato's lines a few pixels higher than the Mac's, which the core follows; whether a
+shell paints for its platform's browser or for one look everywhere.

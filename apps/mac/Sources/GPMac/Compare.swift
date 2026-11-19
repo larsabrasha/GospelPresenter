@@ -21,28 +21,39 @@ enum Compare {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var slides: [JSONValue] = []
         var bible: [JSONValue] = []
+        var others: [JSONValue] = []
         var theme: JSONValue?
         for p in model.presentations {
             guard let page = model.page(p.id) else { continue }
             theme = theme ?? page.theme
-            for item in page.items { for s in item.slides where s.kind == "song" && !slides.contains(s.raw) { slides.append(s.raw) } }
-            for item in page.items { for s in item.slides where s.kind == "bible" && !bible.contains(s.raw) { bible.append(s.raw) } }
+            for item in page.items {
+                for s in item.slides {
+                    let custom = s.raw["custom"].map { $0 != .null } ?? false
+                    if custom || s.kind == "media" { if !others.contains(s.raw) { others.append(s.raw) } }
+                    else if s.kind == "song" { if !slides.contains(s.raw) { slides.append(s.raw) } }
+                    else if s.kind == "bible", !bible.contains(s.raw) { bible.append(s.raw) }
+                }
+            }
         }
-        // The first 60 song slides and every Bible slide (the demo's are few).
-        slides = Array(slides.prefix(60)) + bible
+        // The first 60 song slides, every Bible slide, picture, video and slideshow page of the demo (they are few),
+        // and pages made up to have every element and an overlay (ComparePages.swift).
+        let made = ComparePages.slides()
+        let all: [(slide: JSONValue?, overlay: JSONValue?, pictures: Bool)] = (Array(slides.prefix(60)) + bible).map { ($0, nil, false) }
+            + others.map { ($0, nil, true) } + made
         var tiles: [JSONValue] = []
         if let classic = theme {
             for (name, t) in themes(classic) {
-                for (i, slide) in slides.enumerated() {
+                for (i, s) in all.enumerated() {
                     // Every other one as the live picture, its credits shown.
                     let label = i % 2 == 0
                     let file = "\(name)-\(i).png"
-                    let tile = TileRequest(slide: slide, theme: t, overlay: nil, label: label)
+                    let tile = TileRequest(slide: s.slide, theme: t, overlay: s.overlay, label: label)
                     let painted = label ? SlidePainter.image(tile, pixels: pixels) : live(tile)
                     if let painted { write(painted, dir.appending(path: file)) }
                     let face = SlidePainter.layout(tile)?.texts.first?.face ?? ""
                     tiles.append(.object(["theme": .string(name), "file": .string(file), "painted": .bool(painted != nil), "label": .bool(label),
-                                          "face": .string(face), "slide": slide, "themeValue": t]))
+                                          "face": .string(face), "slide": s.slide ?? .null, "overlay": s.overlay ?? .null, "pictures": .bool(s.pictures),
+                                          "themeValue": t]))
                 }
             }
         }
@@ -57,7 +68,8 @@ enum Compare {
     private static func web(_ tiles: [JSONValue], _ dir: URL) async {
         let requests = tiles.compactMap { t -> (TileRequest, String)? in
             guard t["painted"] == .bool(true), let file = t["file"]?.string else { return nil }
-            return (TileRequest(slide: t["slide"], theme: t["themeValue"], overlay: nil, label: t["label"] == .bool(true)), file)
+            let given = { (k: String) in t[k].flatMap { $0 == .null ? nil : $0 } }
+            return (TileRequest(slide: given("slide"), theme: t["themeValue"], overlay: given("overlay"), label: t["label"] == .bool(true)), file)
         }
         guard AppScheme.files != nil, let first = requests.first else { return }
         // A web view that never draws (a locked Mac) never answers: the first sheet is given 15 s, the app quitting
@@ -108,7 +120,7 @@ enum Compare {
 
     /// Classic as the demo has it, and themes made from it that move and paint the text otherwise.
     private static func themes(_ classic: JSONValue) -> [(String, JSONValue)] {
-        // Song and Bible slides alike.
+        // Every kind of slide alike.
         func with(_ main: [String: JSONValue], ground: String = "#000000", credits: [String: JSONValue] = [:]) -> JSONValue {
             ["song", "bible"].reduce(classic) { t, kind in
                 let m = merge(merge(t, ["definition", kind, "main"], main), ["definition", kind, "credits"], credits)

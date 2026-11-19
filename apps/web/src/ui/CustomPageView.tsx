@@ -7,12 +7,21 @@ import { mainCss } from '../themes.ts';
 // colour and font of its song slides, and the stage under the page is the theme's background. A PDF's page is a
 // picture under the elements.
 
-/** A picture of Bilder: this device's full copy, else its thumbnail; or, on a page with no database, `media`'s URL. */
-function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
-  const full = useLocalUrl(media ? null : hash);
-  const small = useLocalUrl(media || full || thumb === hash ? null : thumb);
-  const url = media ? media(hash) : (full ?? small);
+/** A picture of Bilder from this device: its full copy, else its thumbnail. */
+function BlobPagePicture({ hash, thumb, style, id }: { hash: string; thumb: string; style: CSSProperties; id?: string }) {
+  const full = useLocalUrl(hash);
+  const small = useLocalUrl(full || thumb === hash ? null : thumb);
+  const url = full ?? small;
   return url ? <img src={url} alt="" draggable={false} style={style} data-element={id} /> : <div style={style} data-element={id} />;
+}
+
+/**
+ * A picture of Bilder: this device's, or, on a page with no database (the native apps' renderer, a paired screen),
+ * `media`'s URL, read with no hook of the database, which such a page lacks (SlideView's `Picture` does the same).
+ */
+function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
+  if (!media) return <BlobPagePicture hash={hash} thumb={thumb} style={style} id={id} />;
+  return <img src={media(hash)} alt="" draggable={false} style={style} data-element={id} />;
 }
 
 /** Where an element sits: its box, and a line's from its start to its end, whichever way it runs. */

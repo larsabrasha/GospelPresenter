@@ -25,7 +25,7 @@ const FACES: [(&str, &[u8]); 3] = [
 ];
 
 /// The stage every slide is drawn on, scaled to its box (themes.ts's CANVAS).
-const STAGE: (f32, f32) = (1920.0, 1080.0);
+pub(crate) const STAGE: (f32, f32) = (1920.0, 1080.0);
 /// The smallest a main text is made, of its theme's size (FittedText's MIN_SCALE).
 const MIN_SCALE: f32 = 0.35;
 
@@ -48,7 +48,7 @@ pub fn add_face(name: String, family: String, bytes: Vec<u8>) {
 /// A shipped face's bytes by its name (a run's `face`), for the shell to paint the glyphs with the very same file.
 pub fn shipped_face(name: &str) -> Option<&'static [u8]> { FACES.iter().find(|(n, _)| *n == name).map(|(_, bytes)| *bytes) }
 
-struct Engine {
+pub(crate) struct Engine {
     fonts: FontContext,
     layouts: LayoutContext<()>,
     /// Each face's blob, its name for the runs and its family: the shipped faces, then those added.
@@ -103,21 +103,21 @@ fn with_engine<T>(f: impl FnOnce(&mut Engine) -> T) -> T {
 }
 
 /// A theme's text style (themes.ts's TextStyle), as far as it moves or paints the text.
-struct Style {
-    size: f32,
+pub(crate) struct Style {
+    pub(crate) size: f32,
     face: String,
     weight: f32,
     line_height: f32,
     align: f32,
     valign: f32,
-    uppercase: bool,
+    pub(crate) uppercase: bool,
     area: [f32; 4],
     paint: Value,
 }
 
-fn number(o: &Obj, k: &str) -> R<f32> { o.get(k).and_then(Value::as_f64).map(|n| n as f32).ok_or_else(|| "invalid-args".into()) }
+pub(crate) fn number(o: &Obj, k: &str) -> R<f32> { o.get(k).and_then(Value::as_f64).map(|n| n as f32).ok_or_else(|| "invalid-args".into()) }
 
-fn style(e: &Engine, o: &Obj) -> R<Style> {
+pub(crate) fn style(e: &Engine, o: &Obj) -> R<Style> {
     let stack = o.get("fontFamily").and_then(Value::as_str).ok_or("invalid-args")?;
     let area = obj(o.get("area").ok_or("invalid-args")?)?;
     let at = |s: &str, options: [&str; 3]| options.iter().position(|o| *o == s).map(|i| i as f32 / 2.0);
@@ -138,7 +138,7 @@ fn style(e: &Engine, o: &Obj) -> R<Style> {
 
 /// The text at `size`, broken to the area's width when `wrap`: white space kept and a word too long for a line broken
 /// where it must be, as `.slide-text` sets it (styles.css).
-fn layout(e: &mut Engine, text: &str, small: &[Range<usize>], s: &Style, size: f32, wrap: bool) -> Layout<()> {
+pub(crate) fn layout(e: &mut Engine, text: &str, small: &[Range<usize>], s: &Style, size: f32, wrap: bool) -> Layout<()> {
     // Not quantised to whole pixels: lines as far apart as the browser sets them (64 px at 1.6 is 102.4 apart, not 102).
     let mut b = e.layouts.ranged_builder(&mut e.fonts, text, 1.0, false);
     b.set_line_break_override(Some(&CHROMIUM_LINE_BREAK_OVERRIDE));
@@ -173,11 +173,11 @@ fn fitted(e: &mut Engine, text: &str, small: &[Range<usize>], s: &Style) -> f32 
     (s.size * lo).floor()
 }
 
-fn r2(v: f32) -> f64 { (f64::from(v) * 100.0).round() / 100.0 }
+pub(crate) fn r2(v: f32) -> f64 { (f64::from(v) * 100.0).round() / 100.0 }
 
 /// A laid-out text as the shell paints it: its lines (each one's text, start, baseline and width), its glyph runs by
 /// face, every position on the stage, and the area it is clipped to.
-fn painted(e: &Engine, text: &str, small: &[Range<usize>], l: &Layout<()>, s: &Style, size: f32, role: &str) -> Value {
+pub(crate) fn painted(e: &Engine, text: &str, small: &[Range<usize>], l: &Layout<()>, s: &Style, size: f32, role: &str) -> Value {
     let top = s.area[1] + (s.area[3] - l.height()) * s.valign;
     let (mut lines, mut runs) = (Vec::new(), Vec::new());
     for line in l.lines() {
@@ -198,6 +198,8 @@ fn painted(e: &Engine, text: &str, small: &[Range<usize>], l: &Layout<()>, s: &S
             let glyphs: Vec<Value> = run.positioned_glyphs().map(|g| json!([g.id, r2(left + g.x), r2(top + g.y - up)])).collect();
             let mut r = json!({ "face": face, "size": r2(run.run().font_size()), "glyphs": glyphs });
             if verse { r["opacity"] = json!(0.4) }
+            // A weight the face lacks (Lato is shipped at 400 only): the browser draws it bold itself, as the shell must.
+            if run.run().synthesis().embolden() { r["bold"] = json!(true) }
             runs.push(r);
         }
     }
@@ -257,30 +259,49 @@ fn bible_text(verses: &[Value], upper: bool) -> (String, Vec<Range<usize>>) {
     (text, small)
 }
 
-/// `slideLayoutView` {slide, theme}: a song or Bible slide's background, main text and credits laid out on the stage,
-/// the label left to the shell (an operator's mark, LIVE-R20); a Bible slide's text flows, its verse numbers small,
-/// raised and faint. Refused: `font-not-shipped` for a stack of which the core has no face (Classic's Tahoma where no
-/// shell added it), `not-yet` for a picture, video or custom slide.
-pub fn view(a: &Obj) -> R<Value> {
-    let slide = obj(a.get("slide").ok_or("invalid-args")?)?;
-    let kind = slide.get("kind").and_then(Value::as_str).filter(|k| *k == "song" || *k == "bible").ok_or("not-yet")?;
-    if slide.get("custom").is_some_and(|c| !c.is_null()) { return Err("not-yet".into()) }
-    let theme = obj(a.get("theme").ok_or("invalid-args")?)?;
-    let def = obj(obj(theme.get("definition").ok_or("invalid-args")?)?.get(kind).ok_or("invalid-args")?)?;
+/// A song or Bible slide's ground, main text and credits.
+fn text_slide(e: &mut Engine, slide: &Obj, def: &Obj) -> R<(Value, Vec<Value>)> {
+    let (main, foot) = (style(e, obj(def.get("main").ok_or("invalid-args")?)?)?, style(e, obj(def.get("credits").ok_or("invalid-args")?)?)?);
     let raw = slide.get("text").and_then(Value::as_str).ok_or("invalid-args")?;
-    let verses = slide.get("verses").and_then(Value::as_array);
+    let (text, small) = match slide.get("verses").and_then(Value::as_array) {
+        Some(v) => bible_text(v, main.uppercase),
+        None => (if main.uppercase { raw.to_uppercase() } else { raw.to_string() }, vec![]),
+    };
+    let size = fitted(e, &text, &small, &main);
+    let l = layout(e, &text, &small, &main, size, true);
+    let mut texts = vec![painted(e, &text, &small, &l, &main, size, "main")];
+    if let Some(c) = slide.get("credits").and_then(Value::as_str).filter(|c| !c.is_empty()) {
+        texts.push(credits(e, &if foot.uppercase { c.to_uppercase() } else { c.to_string() }, &foot));
+    }
+    Ok((def.get("background").cloned().unwrap_or(Value::Null), texts))
+}
+
+/// `slideLayoutView` {slide, theme, overlay}: a slide laid out on the stage for a shell that paints it, as SlideView
+/// draws it, the label left to the shell (an operator's mark, LIVE-R20): its `background` (the theme's ground and
+/// picture; none for no slide, a clear ground), `items` over it in drawing order (a picture slide's or a video's
+/// still, a slideshow's page: its ground, pictures, shapes and texts, `slide_items.rs`), `texts` (a song or Bible
+/// slide's main text, fitted, and its credits; a Bible slide's text flowing, its verse numbers small, raised and
+/// faint), and `overlay`, an overlay's page over all (LIVE-R15). Refused `font-not-shipped` for a stack of which the
+/// core has no face (Classic's Tahoma where no shell added it).
+pub fn view(a: &Obj) -> R<Value> {
+    let theme = obj(a.get("theme").ok_or("invalid-args")?)?;
+    let def = obj(theme.get("definition").ok_or("invalid-args")?)?;
+    let given = |k: &str| a.get(k).filter(|v| !v.is_null()).map(obj).transpose();
+    let (slide, overlay) = (given("slide")?, given("overlay")?);
     with_engine(|e| {
-        let (main, foot) = (style(e, obj(def.get("main").ok_or("invalid-args")?)?)?, style(e, obj(def.get("credits").ok_or("invalid-args")?)?)?);
-        let (text, small) = match verses {
-            Some(v) => bible_text(v, main.uppercase),
-            None => (if main.uppercase { raw.to_uppercase() } else { raw.to_string() }, vec![]),
+        let (background, items, texts) = match slide {
+            None => (Value::Null, vec![], vec![]),
+            Some(s) => match s.get("custom").filter(|c| !c.is_null()) {
+                Some(page) => crate::slide_items::custom(e, s, obj(page)?, def)?,
+                None if s.get("kind").and_then(Value::as_str) == Some("media") => crate::slide_items::media(s, def)?,
+                None => {
+                    let kind = s.get("kind").and_then(Value::as_str).filter(|k| *k == "song" || *k == "bible").ok_or("invalid-args")?;
+                    let (ground, texts) = text_slide(e, s, obj(def.get(kind).ok_or("invalid-args")?)?)?;
+                    (ground, vec![], texts)
+                }
+            },
         };
-        let size = fitted(e, &text, &small, &main);
-        let l = layout(e, &text, &small, &main, size, true);
-        let mut texts = vec![painted(e, &text, &small, &l, &main, size, "main")];
-        if let Some(c) = slide.get("credits").and_then(Value::as_str).filter(|c| !c.is_empty()) {
-            texts.push(credits(e, &if foot.uppercase { c.to_uppercase() } else { c.to_string() }, &foot));
-        }
-        Ok(json!({ "width": STAGE.0, "height": STAGE.1, "background": def.get("background"), "texts": texts }))
+        let over = match overlay { Some(o) => crate::slide_items::page(e, o, def)?, None => vec![] };
+        Ok(json!({ "width": STAGE.0, "height": STAGE.1, "background": background, "items": items, "texts": texts, "overlay": over }))
     })
 }

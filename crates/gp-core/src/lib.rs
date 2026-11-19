@@ -28,6 +28,8 @@ mod search;
 mod settings_views;
 #[cfg(feature = "layout")]
 mod slide_layout;
+#[cfg(feature = "layout")]
+mod slide_items;
 mod slides;
 mod song_import;
 mod song_page;

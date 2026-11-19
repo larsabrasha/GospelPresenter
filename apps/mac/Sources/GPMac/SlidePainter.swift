@@ -1,9 +1,9 @@
-// Song slides painted from the core's layout (docs/native-slide-rendering.md, way 3; Lars, 2026-11-19): the core's
+// Slides painted from the core's layout (docs/native-slide-rendering.md, way 3; Lars, 2026-11-19): the core's
 // slideLayoutView places every glyph on the 1920 × 1080 stage as the web's SlideView sets it, and this paints them with
-// Core Text from the same faces, the theme's ground and picture under them and the part's label over them as SlideView
-// draws it. What the core does not lay out (a Bible, picture, video or custom slide, an overlay, a face it lacks) or
-// this does not know how to paint (a colour it does not read) is drawn by the web's SlideView as before
-// (SlideRenderer.swift). GP_PAINTER=0 draws everything with SlideView.
+// Core Text from the same faces: the theme's ground and picture, a picture slide's picture or a slideshow's page
+// (SlideItems.swift), a song's or Bible text, the part's label and an overlay over all, as SlideView draws them. What
+// the core refuses (a face it lacks) or this does not know how to paint (a colour it does not read) is drawn by the
+// web's SlideView as before (SlideRenderer.swift). GP_PAINTER=0 draws everything with SlideView.
 import CoreText
 import Shell
 import SwiftUI
@@ -14,28 +14,34 @@ struct SlideLayout: Decodable {
     struct Background: Decodable { let color: String, image: Picture?, fit: String?, scrim: Double? }
     struct Paint: Decodable { let color: String, shadow: Bool?, outline: Double?, outlineColor: String? }
     struct Box: Decodable { let x, y, w, h: Double }
-    /// `opacity`: a Bible slide's verse number's, 0.4; else none.
-    struct Run: Decodable { let face: String, size: Double, glyphs: [[Double]], opacity: Double? }
-    struct Text: Decodable { let role: String, face: String, weight: Double, size: Double, paint: Paint, clip: Box, runs: [Run] }
-    let background: Background
+    /// `opacity`: a Bible slide's verse number's, 0.4; else none. `bold`: a weight the face lacks, drawn bold here.
+    struct Run: Decodable { let face: String, size: Double, glyphs: [[Double]], opacity: Double?, bold: Bool? }
+    /// `italic`: a page's italic text, slanted as the browser slants a face that has no italic.
+    struct Text: Decodable { let role: String, face: String, weight: Double, size: Double, paint: Paint, clip: Box, runs: [Run], italic: Bool? }
+    /// None: no slide, a clear ground (an overlay alone).
+    let background: Background?
+    /// Under the texts: a picture slide's picture, a page's ground and elements.
+    let items: [Item]
     let texts: [Text]
+    /// An overlay's page, over all.
+    let overlay: [Item]
 }
 
 @MainActor
 enum SlidePainter {
     /// Whether song slides are painted here; a new value of `version` is new thumbnail keys.
     static let enabled = ProcessInfo.processInfo.environment["GP_PAINTER"] != "0"
-    static var version: String { enabled ? "painter-1" : "" }
+    static var version: String { enabled ? "painter-2" : "" }
 
     /// The stage every slide is drawn on (themes.ts's CANVAS).
     static let stage = CGSize(width: 1920, height: 1080)
 
-    /// The core's layout of the tile's slide, or nil where SlideView draws it: not a song or Bible slide, an overlay over
-    /// it, or refused by the core.
+    /// The core's layout of the tile's slide and overlay, or nil where SlideView draws it: refused by the core, or what
+    /// this does not paint.
     static func layout(_ tile: TileRequest) -> SlideLayout? {
-        guard enabled, tile.overlay == nil, let slide = tile.slide, let theme = tile.theme, ["song", "bible"].contains(slide["kind"]?.string) else { return nil }
+        guard enabled, let theme = tile.theme, tile.slide != nil || tile.overlay != nil else { return nil }
         SlideFaces.prepare()
-        let args = #"{"slide":\#(slide.text),"theme":\#(theme.text)}"#
+        let args = #"{"slide":\#(tile.slide?.text ?? "null"),"theme":\#(theme.text),"overlay":\#(tile.overlay?.text ?? "null")}"#
         guard case let .done(json?) = start(name: "slideLayoutView", args: args, caller: nil),
               let layout = try? JSONDecoder().decode(SlideLayout.self, from: Data(json.utf8)), paintable(layout) else { return nil }
         return layout
@@ -43,8 +49,10 @@ enum SlidePainter {
 
     /// Every colour read and every face had: else SlideView draws it.
     private static func paintable(_ l: SlideLayout) -> Bool {
-        let colours = [l.background.color] + l.texts.flatMap { [$0.paint.color, $0.paint.outlineColor ?? "#000000"] }
-        return colours.allSatisfy { CSSColor.parse($0) != nil } && l.texts.allSatisfy { $0.runs.allSatisfy { SlideFaces.font($0.face) != nil } }
+        let items = l.items + l.overlay
+        let texts = l.texts + items.compactMap(\.text)
+        let colours = [l.background?.color].compactMap { $0 } + texts.flatMap { [$0.paint.color, $0.paint.outlineColor ?? "#000000"] } + items.flatMap(\.colours)
+        return colours.allSatisfy { CSSColor.parse($0) != nil } && texts.allSatisfy { $0.runs.allSatisfy { SlideFaces.font($0.face) != nil } }
     }
 
     /// The tile at `pixels`, as a thumbnail keeps it; nil where SlideView draws it.
@@ -57,7 +65,7 @@ enum SlidePainter {
         ctx.translateBy(x: 0, y: CGFloat(h))
         ctx.scaleBy(x: 1, y: -1)
         // A tile shows the part's label and no credits, the live picture the credits and no label (slides/main.tsx).
-        let shown = tile.label ? SlideLayout(background: layout.background, texts: layout.texts.filter { $0.role != "credits" }) : layout
+        let shown = tile.label ? SlideLayout(background: layout.background, items: layout.items, texts: layout.texts.filter { $0.role != "credits" }, overlay: layout.overlay) : layout
         paint(shown, label: tile.label ? label(tile) : nil, in: ctx, size: pixels)
         return ctx.makeImage()
     }
@@ -77,26 +85,23 @@ enum SlidePainter {
         ctx.scaleBy(x: scale, y: scale)
         let all = CGRect(origin: .zero, size: stage)
         ctx.clip(to: all)
-        ctx.setFillColor(CSSColor.parse(l.background.color) ?? CSSColor.black)
-        ctx.fill(all)
-        picture(l.background, in: ctx)
+        if let ground = l.background {
+            ctx.setFillColor(CSSColor.parse(ground.color) ?? CSSColor.black)
+            ctx.fill(all)
+            picture(ground, in: ctx)
+        }
+        paint(l.items, in: ctx)
         for text in l.texts { paint(text, in: ctx) }
+        // The label over the slide (`z-[1]`), an overlay over both (`.slide-overlay`, z-index 2).
         if let label { paint(label, in: ctx) }
+        paint(l.overlay, in: ctx)
     }
 
     /// A theme's own picture, filling or fitted, with its scrim (SlideView's ThemePicture); nothing while this device
     /// does not have it.
     private static func picture(_ bg: SlideLayout.Background, in ctx: CGContext) {
         guard let p = bg.image, p.kind == "picture", let image = SlideFaces.picture(p.full) ?? SlideFaces.picture(p.thumb) else { return }
-        let (iw, ih) = (CGFloat(image.width), CGFloat(image.height))
-        let k = bg.fit == "contain" ? min(stage.width / iw, stage.height / ih) : max(stage.width / iw, stage.height / ih)
-        let rect = CGRect(x: (stage.width - iw * k) / 2, y: (stage.height - ih * k) / 2, width: iw * k, height: ih * k)
-        ctx.saveGState()
-        ctx.translateBy(x: 0, y: rect.maxY + rect.minY)
-        ctx.scaleBy(x: 1, y: -1)
-        ctx.interpolationQuality = .high
-        ctx.draw(image, in: rect)
-        ctx.restoreGState()
+        draw(image, in: CGRect(origin: .zero, size: stage), fit: bg.fit ?? "cover", in: ctx)
         if let scrim = bg.scrim, scrim > 0 {
             ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: min(scrim, 100) / 100))
             ctx.fill(CGRect(origin: .zero, size: stage))
@@ -105,12 +110,14 @@ enum SlidePainter {
 
     /// A text's glyphs where the core put them, clipped to its box: its outline under its fill, as `paint-order: stroke
     /// fill` draws it, and one shadow under both (themes.ts's TEXT_SHADOW, `0 0.06em 0.18em rgba(0, 0, 0, 0.65)`).
-    private static func paint(_ t: SlideLayout.Text, in ctx: CGContext) {
+    static func paint(_ t: SlideLayout.Text, in ctx: CGContext) {
         ctx.saveGState()
         defer { ctx.restoreGState() }
         ctx.clip(to: CGRect(x: t.clip.x, y: t.clip.y, width: t.clip.w, height: t.clip.h))
-        // Glyphs upright in a space whose y runs down.
-        ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        // Glyphs upright in a space whose y runs down; an italic text's slanted (the positions, which the text matrix
+        // turns too, set back by its slant).
+        let slant: CGFloat = t.italic == true ? obliqueSlant : 0
+        ctx.textMatrix = CGAffineTransform(a: 1, b: 0, c: slant, d: -1, tx: 0, ty: 0)
         if t.paint.shadow == true {
             // A shadow's offset and blur are in the device's space, not the stage's.
             let k = ctx.ctm.d
@@ -131,7 +138,7 @@ enum SlidePainter {
             if let outline {
                 // The glyphs' outlines stroked as paths: a context's text stroke is not drawn alike everywhere (SwiftUI's
                 // Canvas strokes it wider than a bitmap's context).
-                ctx.addPath(outlines(run, font))
+                ctx.addPath(outlines(run, font, slant: slant))
                 ctx.setLineWidth((t.paint.outline ?? 0) * 2)
                 ctx.setStrokeColor(outline)
                 ctx.strokePath()
@@ -140,8 +147,15 @@ enum SlidePainter {
             let ids = run.glyphs.map { CGGlyph($0[0]) }
             // Each baseline on a whole pixel of the stage, as WebKit sets a line before the stage is scaled; in text
             // space, which the flipped text matrix turns back: y negated.
-            let at = run.glyphs.map { CGPoint(x: $0[1], y: -$0[2].rounded()) }
+            let at = run.glyphs.map { CGPoint(x: $0[1] + slant * $0[2].rounded(), y: -$0[2].rounded()) }
             CTFontDrawGlyphs(font, ids, at, ids.count, ctx)
+            // A bold the face lacks, as WebKit draws it: the glyphs again, a 24th of the size to the right, rounded up.
+            // (WebKit also widens each glyph's advance by as much, which the layout does not: such a line runs a little
+            // narrower here.)
+            if run.bold == true {
+                let offset = (run.size / 24).rounded(.up)
+                CTFontDrawGlyphs(font, ids, at.map { CGPoint(x: $0.x + offset, y: $0.y) }, ids.count, ctx)
+            }
             if run.opacity != nil { ctx.endTransparencyLayer() }
             ctx.restoreGState()
         }
@@ -149,14 +163,17 @@ enum SlidePainter {
     }
 
     /// A run's glyphs as one path on the stage, each where the run's glyphs are drawn.
-    private static func outlines(_ run: SlideLayout.Run, _ font: CTFont) -> CGPath {
+    private static func outlines(_ run: SlideLayout.Run, _ font: CTFont, slant: CGFloat) -> CGPath {
         let path = CGMutablePath()
         for g in run.glyphs {
             guard let glyph = CTFontCreatePathForGlyph(font, CGGlyph(g[0]), nil) else { continue }
-            path.addPath(glyph, transform: CGAffineTransform(translationX: g[1], y: g[2].rounded()).scaledBy(x: 1, y: -1))
+            path.addPath(glyph, transform: CGAffineTransform(a: 1, b: 0, c: slant, d: -1, tx: g[1], ty: g[2].rounded()))
         }
         return path
     }
+
+    /// How far a synthetic italic leans, as WebKit's and Skia's: a quarter of the height (about 14°).
+    static let obliqueSlant: CGFloat = 0.25
 
     /// The part's label at the stage's top right, as SlideView's: `top-6 right-10 rounded-full px-8 py-1`, the app's
     /// sans at 48 px, line height 1.5, semibold, white on the label's colour.

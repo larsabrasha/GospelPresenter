@@ -1,5 +1,5 @@
-// Slide thumbnails (Lars, 2026-11-17; docs/native-apps.md): song slides painted from the core's layout
-// (SlidePainter.swift), the rest drawn by the web's SlideView (SlideRenderer.swift), kept by
+// Slide thumbnails (Lars, 2026-11-17; docs/native-apps.md): painted from the core's layout (SlidePainter.swift), what
+// it refuses drawn by the web's SlideView (SlideRenderer.swift), kept by
 // their content, not by presentation. The key is a hash of all that changes the picture: the slide, the whole theme,
 // the size and the renderer bundled, so an edited theme or a new renderer is new keys and nothing is cleared by hand.
 // On disk in Caches (the system may empty it; then slides are drawn again), at most about 100 MB, the least recently
@@ -95,7 +95,7 @@ final class Thumbnails {
                 var batch: [(TileRequest, String)] = []
                 while batch.count < Self.perSheet, !urgent.isEmpty { batch.append(urgent.removeFirst()) }
                 while batch.count < Self.perSheet, !ahead.isEmpty { batch.append(ahead.removeFirst()) }
-                // Song slides painted from the core's layout; the rest drawn by SlideView, one sheet.
+                // Painted from the core's layout; what it refuses drawn by SlideView, one sheet.
                 var images = batch.map { SlidePainter.image($0.0, pixels: Self.pixels) }
                 let web = images.indices.filter { images[$0] == nil }
                 if AppScheme.files != nil, !web.isEmpty {
