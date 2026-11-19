@@ -53,9 +53,29 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     NSLog(@"GPCore8: launched in %.1f ms, %@", since(t), sync ? sync.server : @"the demo");
     // No picture of its own at launch: one taken 1.5 s in made the split view fold the running order away and back
     // on the screen (Lars filmed it). Pictures are taken when asked for.
-    if (sync) [self refresh:^(NSString *error) { if (error) NSLog(@"GPCore8: sync at launch: %@", error); }];
+    [self listen];
     return YES;
 }
+
+/// The poke socket open, and what a sync changes read again (it syncs at once on opening).
+- (void)listen {
+    __weak GPAppDelegate *me = self;
+    sync.onChange = ^{ [me changed]; };
+    [sync start];
+}
+
+/// A sync changed rows: the start page read again, and the presentation shown, if one is.
+- (void)changed {
+    [list reload];
+    NSString *shown = GPShownPresentation(split);
+    NSDictionary *page = shown ? [self page:shown] : nil;
+    if (page) GPShowPage(split, page, NO);
+    else if (shown) [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];   // gone
+}
+
+// In the background the socket closes; back in front it opens again, catching up as it does.
+- (void)applicationDidEnterBackground:(UIApplication *)application { [sync stopListening]; }
+- (void)applicationWillEnterForeground:(UIApplication *)application { [sync start]; }
 
 /// The next presentation, from today on (the most recent one when none is coming), its page shown.
 - (void)openNext:(BOOL)animated {
@@ -177,7 +197,9 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     [GPSync pair:address code:code done:^(GPSync *paired, NSString *error) {
         if (!paired) { [self tell:GPOwnText(@"pairFailed") message:GPRefusalText(error) from:controller]; return; }
         NSLog(@"GPCore8: paired with %@ as %@ in %@", paired.server, paired.me[@"name"], paired.me[@"orgName"]);
+        [self->sync stopListening];
         self->sync = paired;
+        [self listen];
         self->db = paired.db;
         [self->list reload];
         [self refresh:^(NSString *pullError) {

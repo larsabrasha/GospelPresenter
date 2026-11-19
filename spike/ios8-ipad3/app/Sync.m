@@ -1,9 +1,10 @@
-// The sync's network and its calls into the core (Sync.h). HTTP with NSURLSession (iOS 7); no poke socket, which
-// NSURLSession has from iOS 13 only: the app syncs when it starts, after every change, and when asked. The session (the host's address, its bearer token, the paired device's token and who) is
+// The sync's network and its calls into the core (Sync.h). HTTP with NSURLSession (iOS 7); the poke socket with a
+// WebSocket client of our own (WebSocket.m), as NSURLSession has one from iOS 13 only. The session (the host's address, its bearer token, the paired device's token and who) is
 // kept in a file in Library, readable by this app alone: on a jailbroken iPad, not the Keychain the native shell
 // uses, which an app signed by ldid without entitlements may not reach.
 #import "Sync.h"
 #import "Core.h"
+#import "WebSocket.h"
 #import <UIKit/UIKit.h>
 
 static const int kProtocol = 1;   // packages/core/src/protocol.ts, as Sync.swift speaks it
@@ -61,6 +62,72 @@ static NSString *refusal(NSInteger status, id answer, NSString *text) {
     BOOL running, again;     // a sync running, and another asked for meanwhile
     NSMutableArray *waiting; // the `done`s of the syncs asked for while one ran
     BOOL changedMeanwhile;
+    GPWebSocket *socket;
+    NSTimer *poll;
+    BOOL listening;
+}
+
+#pragma mark - The poke socket
+
+- (void)start {
+    if (listening) return;
+    listening = YES;
+    [self listen];
+    poll = [NSTimer scheduledTimerWithTimeInterval:300 target:self selector:@selector(syncNotifying) userInfo:nil repeats:YES];
+}
+
+- (void)stopListening {
+    listening = NO;
+    [poll invalidate];
+    poll = nil;
+    [socket close];
+    socket = nil;
+    _connected = NO;
+}
+
+/// One connection of /api/sync/poke, until it closes; then another after 3 s while listening.
+- (void)listen {
+    if (!listening || _stopped) return;
+    NSString *scheme = [url.scheme isEqual:@"https"] ? @"wss" : @"ws";
+    NSString *address = [NSString stringWithFormat:@"%@://%@:%@/api/sync/poke?clientId=%@", scheme, url.host,
+                         url.port ?: ([scheme isEqual:@"wss"] ? @443 : @80), clientId];
+    NSMutableDictionary *headers = [NSMutableDictionary dictionary];
+    if ([session[@"token"] isKindOfClass:[NSString class]]) headers[@"Authorization"] = [@"Bearer " stringByAppendingString:session[@"token"]];
+    if ([session[@"device"] isKindOfClass:[NSString class]]) headers[@"x-gp-device"] = session[@"device"];
+    GPWebSocket *ws = [[GPWebSocket alloc] initWithURL:[NSURL URLWithString:address] protocol:@"gp.v1" headers:headers];
+    socket = ws;
+    __weak GPSync *me = self;
+    ws.onOpen = ^{
+        GPSync *s = me;
+        s->_connected = YES;
+        NSLog(@"GPCore8: poke socket open");
+        [s syncNotifying];   // catch up on what happened while disconnected
+    };
+    ws.onMessage = ^(NSString *text) {
+        NSLog(@"GPCore8: poke %@", text);
+        [me syncNotifying];
+    };
+    ws.onClose = ^(NSString *why) {
+        GPSync *s = me;
+        if (!s) return;
+        BOOL was = s->_connected;
+        s->_connected = NO;
+        if (s->socket == ws) s->socket = nil;
+        NSLog(@"GPCore8: poke socket closed: %@", why);
+        // A refused socket says nothing of why: a sync tells offline from refused credentials.
+        if (!was) [s syncNotifying];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            GPSync *later = me;
+            if (later && !later->socket) [later listen];
+        });
+    };
+}
+
+- (void)syncNotifying {
+    [self sync:^(BOOL changed, NSString *error) {
+        if (error) NSLog(@"GPCore8: sync: %@", error);
+        if (changed && self.onChange) self.onChange();
+    }];
 }
 
 - (instancetype)initWithSession:(NSDictionary *)s error:(NSString **)error {
@@ -130,6 +197,7 @@ static NSString *refusal(NSInteger status, id answer, NSString *text) {
 }
 
 - (void)signOut {
+    [self stopListening];
     [[NSFileManager defaultManager] removeItemAtPath:library(@"session.json") error:NULL];
 }
 

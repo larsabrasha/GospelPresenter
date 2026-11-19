@@ -73,7 +73,9 @@ devices read, looked up at run time). The main thread was never late, before or 
 | The same, every picture drawn ahead on a thread of its own   | 59.6 fps           | 59.6 fps |
 
 At 3000 pt/s, a flick's speed, 59.5 fps (122 frames drawn of 123). What it took: a slide is drawn once into an opaque
-picture at the tile's size in pixels (`GPSlideImage`, kept in an NSCache), its rounded corners and label drawn in,
+picture at the tile's size in pixels (`GPSlideImage`, kept in an NSCache by a SHA-1 of the slide as the core gives
+it, the theme's definition, the title and the size, as Thumbnails.swift keeps its by content: kept by the slide's key,
+a song's text edited on the Mac came over by the sync but the old picture stayed), its rounded corners and label drawn in,
 so that the GPU only moves pictures: no clip to a rounded corner (an offscreen pass per tile, per frame), nothing to
 blend, nothing to scale; the navigation bars opaque, since a translucent one blurs what scrolls under it anew on
 every frame; and all 54 pictures drawn after the page shows, on a thread of their own (0.7 s), so that the main
@@ -94,8 +96,14 @@ with `migrateOrgSchema` and `syncOpen`; a change run at once and queued by `sync
 sent to `/api/sync/push`, and every page of `/api/sync/pull` rebased by `syncRebase` in one transaction, push then
 pull, coalesced to one run and one waiting; the core called as the signed-in member (Core.m's `GPCoreCallAs` writes
 UniFFI's `Option<Caller>`); syncing stopped for good on "update-required" and credentials the host no longer takes.
-Not done: the poke socket (NSURLSession has web sockets from iOS 13): it syncs at launch, after a change and when the
-list is pulled down. The session (host, bearer token, device token, who) is a file in Library/Application Support,
+The poke socket (`/api/sync/poke`) with a WebSocket client of our own (WebSocket.m; NSURLSession has one from iOS 13
+only) over NSStream: RFC 6455's upgrade, the accept key checked with CommonCrypto's SHA-1, frames of every length,
+fragments joined, ping answered by pong, a close answered, everything sent masked; the credentials as headers
+(`Authorization`, `x-gp-device`), which a native client can send and a browser cannot, and `gp.v1` as the
+subprotocol. As Sync.swift's `start`: a sync when it opens and on every poke, another try 3 s after it closes, a sync
+every 5 minutes as a backstop, a refused socket followed by a sync to tell offline from refused credentials; closed in
+the background, opened again in front. A sync that changed rows reads the start page again and shows the open
+presentation again (from its top: its scroll is not kept). The session (host, bearer token, device token, who) is a file in Library/Application Support,
 readable by the app alone, not the Keychain, which an app signed by ldid without entitlements may not reach. "Anslut"
 pairs, asking for the host's address in an iOS 8 UIAlertController (and `gpcore8://connect/<host:port>` does it over
 SSH). The app's system texts are Swedish (`CFBundleDevelopmentRegion` sv: "Tillbaka", not "Back").
@@ -118,7 +126,11 @@ trash shows `song-trashed`); after a restart the saved session opened at once an
 (528 ms). Then a presentation made on the iPad (`gpcore8://create/<name>`, which saves as the form does):
 `createPresentation` ok, the push answered 200, and the host's own database has it; the start page lists it under
 Senast ändrade with "0 inslag", and the form opens with the core's "Skapa presentation", Avbryt and Skapa
-(`gpcore8://new`). Not tried: pairing with a code, a host on https, many pages, a sync that fails half way, a change
+(`gpcore8://new`). Then pokes: the socket opened against the host, and a presentation Lars made in the host's window
+on the Mac came as two pokes (`{"type":"poke","seq":86}`, 87), each followed by a pull rebased in 43-44 ms, within a
+second, the start page listing it under Kommande with its 2 items, nothing pulled down by hand; a song's text edited
+on the Mac shows on the iPad too (Lars). Not tried: the socket opening again after the network or the host goes, the
+background and back, pokes over https, pairing with a code, a host on https, many pages, a sync that fails half way, a change
 the host refuses on the next pull (it is not shown yet), and by hand: the form's Skapa, the date and time pickers,
 and the account's menu.
 

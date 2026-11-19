@@ -12,5 +12,8 @@ UISplitViewController *GPSplit(UIViewController *list);
 /// the left column over the list, its slides at the right.
 void GPShowPage(UISplitViewController *split, NSDictionary *page, BOOL animated);
 
+/// The presentation whose running order the left column shows, nil on the start page.
+NSString *GPShownPresentation(UISplitViewController *split);
+
 /// A presentation's day and time: "söndag 8 november 2026 · 11:00".
 NSString *GPWhen(NSDictionary *presentation);

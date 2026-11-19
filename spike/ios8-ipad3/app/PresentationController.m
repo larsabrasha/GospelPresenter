@@ -137,6 +137,8 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 @property (nonatomic, weak) GPSlidesController *slides;
 - (instancetype)initWithPage:(NSDictionary *)page;
 - (void)selectItem:(NSInteger)index;
+/// The presentation it shows.
+- (NSString *)presentationId;
 @end
 
 @implementation GPItemsController {
@@ -182,6 +184,8 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 - (void)tableView:(UITableView *)t didSelectRowAtIndexPath:(NSIndexPath *)at {
     [self.slides scrollToItem:at.row];
 }
+
+- (NSString *)presentationId { return page[@"presentation"][@"id"]; }
 
 - (void)selectItem:(NSInteger)index {
     NSIndexPath *at = [NSIndexPath indexPathForRow:index inSection:0];
@@ -354,6 +358,11 @@ UISplitViewController *GPSplit(UIViewController *list) {
     split.maximumPrimaryColumnWidth = 320;
     split.preferredPrimaryColumnWidthFraction = 0.4;
     return split;
+}
+
+NSString *GPShownPresentation(UISplitViewController *split) {
+    UIViewController *top = [split.viewControllers.firstObject topViewController];
+    return [top isKindOfClass:[GPItemsController class]] ? [(GPItemsController *)top presentationId] : nil;
 }
 
 void GPShowPage(UISplitViewController *split, NSDictionary *page, BOOL animated) {

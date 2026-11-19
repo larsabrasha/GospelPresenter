@@ -36,6 +36,17 @@
 /// `done` on the main thread. Runs are coalesced: at most one running and one waiting, as Sync.swift's requestSync.
 - (void)sync:(void (^)(BOOL changed, NSString *error))done;
 
+/// After a sync of its own (a poke, a reconnection, the backstop poll) that changed rows.
+@property (nonatomic, copy) void (^onChange)(void);
+/// The poke socket is open.
+@property (nonatomic, readonly) BOOL connected;
+
+/// Keeps the poke socket open and syncs on every poke and every (re)connection, and every 5 minutes as a backstop,
+/// as Sync.swift's start; until `stopListening` or the host refuses the credentials.
+- (void)start;
+/// Ends the socket and the poll (the app going to the background, or signing out).
+- (void)stopListening;
+
 /// Forgets the session (the database stays).
 - (void)signOut;
 @end

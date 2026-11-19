@@ -2,6 +2,7 @@
 // tile (the theme's areas and font sizes are in that canvas's pixels). Not the web's text fitting: the theme's size,
 // made smaller in steps of 5 % until the text fits its area.
 #import "SlideView.h"
+#import <CommonCrypto/CommonDigest.h>
 
 UIColor *GPColor(NSString *css) {
     if (![css isKindOfClass:[NSString class]]) return nil;
@@ -98,7 +99,14 @@ UIImage *GPSlideImage(NSDictionary *slide, NSDictionary *theme, NSString *title,
     static NSCache *pictures;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ pictures = [[NSCache alloc] init]; });
-    NSString *key = [NSString stringWithFormat:@"%@ %@ %.0fx%.0f", title, slide[@"key"], size.width, size.height];
+    // Kept by everything that changes the picture, as the native app's Thumbnails.swift keeps its by content: the
+    // slide as the core gives it (its text, label and kind; its key alone stays the same when a song's text is
+    // edited, and the old picture showed), the theme's definition, the title a medium shows, and the size.
+    NSData *content = [NSJSONSerialization dataWithJSONObject:@[slide ?: @{}, theme[@"definition"] ?: @{}, title ?: @""] options:0 error:NULL];
+    uint8_t digest[CC_SHA1_DIGEST_LENGTH];
+    CC_SHA1(content.bytes, (CC_LONG)content.length, digest);
+    NSString *key = [NSString stringWithFormat:@"%@ %.0fx%.0f", [[NSData dataWithBytes:digest length:sizeof digest] base64EncodedStringWithOptions:0],
+                     size.width, size.height];
     UIImage *made = [pictures objectForKey:key];
     if (made) return made;
     CGRect bounds = CGRectMake(0, 0, size.width, size.height);
