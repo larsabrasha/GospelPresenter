@@ -81,10 +81,8 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     [list reload];
     NSString *shown = GPShownPresentation();
     NSDictionary *page = shown ? [self page:shown] : nil;
-    GPDetailController *detail = (GPDetailController *)[GPShownSplit().viewControllers.lastObject topViewController];
     // Read again in place, where the page stands (built anew, it went back to its top).
-    if (page && [detail isKindOfClass:[GPDetailController class]]) [detail.model reloadPage:page];
-    else if (page) GPShowPage(page, self, NO);
+    if (page) [GPShownModel() reloadPage:page];
     else if (shown) GPShowStart(YES);   // gone (trashed elsewhere): the start page
 }
 
@@ -248,14 +246,14 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     UISplitViewController *split = GPShownSplit();   // nil on the start page
     // The open page's events: gpcore8://send/<type> (start, black, step, escape), gpcore8://show/<item>/<part> as a
     // tap on that slide, gpcore8://end as ■ answered yes; a picture a second later.
-    GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
-    GPPageModel *page = [detail isKindOfClass:[GPDetailController class]] ? detail.model : nil;
-    // The menus: gpcore8://menu/<row> the item's, gpcore8://add +'s, gpcore8://addsong/<query> Lägg till sång searched,
-    // gpcore8://run/<change>?<JSON> a change as a menu's entry makes it; a picture a second later.
-    UITableViewController *order = (UITableViewController *)[split.viewControllers.firstObject topViewController];
-    if (page && [url.host isEqual:@"menu"] && url.pathComponents.count > 1) {
+    GPPageModel *page = GPShownModel();
+    // The menus: gpcore8://menu/<row> the item's (lying down), gpcore8://add +'s, gpcore8://addsong/<query> Lägg till
+    // sång searched, gpcore8://run/<change>?<JSON> a change as a menu's entry makes it; a picture a second later.
+    UIViewController *order = GPShownPageController();   // the running order, or the one column
+    UITableView *rows = [order isKindOfClass:[UITableViewController class]] ? ((UITableViewController *)order).tableView : nil;
+    if (page && rows && [url.host isEqual:@"menu"] && url.pathComponents.count > 1) {
         NSInteger row = [url.pathComponents[1] integerValue];
-        GPItemMenu(order, order.tableView, [order.tableView rectForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]], page.page[@"items"][row], page);
+        GPItemMenu(order, rows, [rows rectForRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]], page.page[@"items"][row], page);
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
@@ -355,6 +353,13 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         [order.tableView selectRowAtIndexPath:at animated:NO scrollPosition:UITableViewScrollPositionMiddle];
         [order tableView:order.tableView didSelectRowAtIndexPath:at];
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if ([url.host isEqual:@"turn"] && url.pathComponents.count > 1) {   // gpcore8://turn/portrait or landscape, a picture after
+        // The device's orientation set by key, a known way round its being read only, as the iPad lies on a desk.
+        BOOL upright = [url.pathComponents[1] isEqual:@"portrait"];
+        [[UIDevice currentDevice] setValue:@(upright ? UIInterfaceOrientationPortrait : UIInterfaceOrientationLandscapeLeft) forKey:@"orientation"];
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1.5];
         return YES;
     }
     if ([url.host isEqual:@"picture"]) {

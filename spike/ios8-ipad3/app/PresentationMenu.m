@@ -31,6 +31,39 @@ void GPTrashPresentation(UIViewController *c, GPPageModel *model) {
     GPShowStart(YES);
 }
 
+/// The title's button: its menu over its controller.
+@interface GPTitleButton : UIButton
+@property (nonatomic, weak) UIViewController *controller;
+@property (nonatomic, weak) GPPageModel *model;
+@property (nonatomic) CGFloat widest;
+@end
+
+@implementation GPTitleButton
+- (void)tapped { if (self.controller && self.model) GPPresentationMenu(self.controller, self, self.model); }
+@end
+
+void GPTitleMenu(UIViewController *c, GPPageModel *model, CGFloat widest) {
+    GPTitleButton *name = [GPTitleButton buttonWithType:UIButtonTypeSystem];
+    name.controller = c;
+    name.model = model;
+    name.widest = widest;
+    name.titleLabel.font = [UIFont boldSystemFontOfSize:17];
+    name.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    [name setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+    [name addTarget:name action:@selector(tapped) forControlEvents:UIControlEventTouchUpInside];
+    c.navigationItem.titleView = name;
+    GPTitleName(c, model.page[@"presentation"][@"name"]);
+}
+
+void GPTitleName(UIViewController *c, NSString *text) {
+    c.title = text;
+    GPTitleButton *name = (GPTitleButton *)c.navigationItem.titleView;
+    if (![name isKindOfClass:[GPTitleButton class]]) return;
+    [name setTitle:text forState:UIControlStateNormal];
+    CGSize fits = [name sizeThatFits:CGSizeMake(CGFLOAT_MAX, 44)];
+    name.frame = CGRectMake(0, 0, MIN(fits.width, name.widest), 44);
+}
+
 void GPPresentationMenu(UIViewController *c, UIView *view, GPPageModel *model) {
     // The role only decides Spara som mall, which is not drawn here.
     NSDictionary *menu = [model.source view:@"presentationActionsView" args:@{@"isTemplate": @NO, @"presenting": @(model.isLive), @"role": @""}];

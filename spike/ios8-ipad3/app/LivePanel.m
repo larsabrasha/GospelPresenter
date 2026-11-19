@@ -1,18 +1,14 @@
 // LivePanel.h: the right column while presenting, and the output on an external screen. Every picture is
 // GPSlidePicture's, drawn once and kept; a slide shown is a picture swapped, a cut.
 #import "LivePanel.h"
+#import <objc/runtime.h>
 #import "PresentationController.h"
 #import "SlideView.h"
 #import "Texts.h"
 
 static const CGFloat kPanelWidth = 300;
 
-/// A slide as an output shows it: the picture, and over it the black that fades in and out over 500 ms (Släck, and
-/// nothing shown yet), as every output of the web's fades it; any other change a cut (Lars: no transitions).
-@interface GPLivePicture : UIView
-- (void)showSlide:(NSDictionary *)slide theme:(NSDictionary *)theme title:(NSString *)title radius:(CGFloat)radius;
-@end
-
+// GPLivePicture: black fades as every output of the web's fades it; any other change a cut (Lars: no transitions).
 @implementation GPLivePicture {
     UIImageView *picture;
     UIView *black;
@@ -139,39 +135,14 @@ static const CGFloat kPanelWidth = 300;
 
 /// ▶ or ■, the live column shown or not, and what it shows.
 - (void)liveChanged {
-    UIBarButtonItem *button;
-    if (model.isLive) {
-        button = [[UIBarButtonItem alloc] initWithTitle:[@"■ " stringByAppendingString:GPText(@"live.end", nil)] style:UIBarButtonItemStylePlain
-                                                 target:self action:@selector(end)];
-        button.tintColor = [UIColor redColor];
-    } else {
-        button = [[UIBarButtonItem alloc] initWithTitle:[@"▶︎ " stringByAppendingString:GPText(@"presentation.start", nil)]
-                                                  style:UIBarButtonItemStyleDone target:self action:@selector(start)];
-        button.tintColor = [UIColor colorWithRed:0.2 green:0.7 blue:0.3 alpha:1];
-        button.enabled = model.canStart;
-    }
-    self.navigationItem.rightBarButtonItem = button;
+    self.navigationItem.rightBarButtonItem = GPStartStopItem(self, model, YES);
     [panel showLive:model.live];
     [self.view setNeedsLayout];
 }
 
-- (void)start { [model send:@{@"type": @"start"}]; }
 - (void)blackOut { [model send:@{@"type": @"black"}]; }
 
-/// ■ asks first, as the native app's: Avsluta presentation, and what it ends.
-- (void)end {
-    UIAlertController *ask = [UIAlertController alertControllerWithTitle:GPText(@"live.end", nil) message:GPText(@"live.endText", nil)
-                                                          preferredStyle:UIAlertControllerStyleAlert];
-    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"common.cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
-    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"live.end", nil) style:UIAlertActionStyleDestructive
-                                          handler:^(UIAlertAction *a) { [self->model liveEnded]; }]];
-    [self presentViewController:ask animated:YES completion:nil];
-}
-
-#pragma mark - Keys
-
-// A keyboard's or a presenter's clicker's keys, as the native app's (WideLayout.swift's onKeyPress): each its event,
-// what it does the core's.
+// The keys, each the page's event, what it does the core's.
 - (BOOL)canBecomeFirstResponder { return YES; }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -179,30 +150,70 @@ static const CGFloat kPanelWidth = 300;
     [self becomeFirstResponder];
 }
 
-- (NSArray *)keyCommands {
+- (NSArray *)keyCommands { return GPKeyCommands(@selector(key:)); }
+- (void)key:(UIKeyCommand *)key { NSDictionary *event = GPKeyEvent(key); if (event) [model send:event]; }
+@end
+
+#pragma mark - What both layouts share: ▶ or ■, and the keys
+
+/// The bar button's target: ▶ sends `start`, ■ asks.
+@interface GPStartStop : NSObject
+@property (nonatomic, weak) UIViewController *controller;
+@property (nonatomic, strong) GPPageModel *model;
+@end
+
+@implementation GPStartStop
+- (void)start { [self.model send:@{@"type": @"start"}]; }
+- (void)end { if (self.controller) GPAskEnd(self.controller, self.model); }
+@end
+
+UIBarButtonItem *GPStartStopItem(UIViewController *controller, GPPageModel *model, BOOL worded) {
+    GPStartStop *target = [[GPStartStop alloc] init];
+    target.controller = controller;
+    target.model = model;
+    BOOL live = model.isLive;
+    NSString *text = live ? (worded ? [@"■ " stringByAppendingString:GPText(@"live.end", nil)] : @"■")
+                          : (worded ? [@"▶︎ " stringByAppendingString:GPText(@"presentation.start", nil)] : @"▶︎");
+    UIBarButtonItem *button = [[UIBarButtonItem alloc] initWithTitle:text style:live ? UIBarButtonItemStylePlain : UIBarButtonItemStyleDone
+                                                              target:target action:live ? @selector(end) : @selector(start)];
+    button.tintColor = live ? [UIColor redColor] : [UIColor colorWithRed:0.2 green:0.7 blue:0.3 alpha:1];
+    button.enabled = live || model.canStart;
+    // The item holds its target weakly: kept with the item.
+    objc_setAssociatedObject(button, @selector(start), target, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return button;
+}
+
+void GPAskEnd(UIViewController *controller, GPPageModel *model) {
+    UIAlertController *ask = [UIAlertController alertControllerWithTitle:GPText(@"live.end", nil) message:GPText(@"live.endText", nil)
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"common.cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"live.end", nil) style:UIAlertActionStyleDestructive
+                                          handler:^(UIAlertAction *a) { [model liveEnded]; }]];
+    [controller presentViewController:ask animated:YES completion:nil];
+}
+
+NSArray *GPKeyCommands(SEL action) {
     NSMutableArray *keys = [NSMutableArray array];
     NSArray *plain = @[UIKeyInputRightArrow, UIKeyInputLeftArrow, UIKeyInputDownArrow, UIKeyInputUpArrow, @" ", @"\r", @"b", @".", UIKeyInputEscape];
-    for (NSString *input in plain) [keys addObject:[UIKeyCommand keyCommandWithInput:input modifierFlags:0 action:@selector(key:)]];
+    for (NSString *input in plain) [keys addObject:[UIKeyCommand keyCommandWithInput:input modifierFlags:0 action:action]];
     for (NSString *input in @[UIKeyInputRightArrow, UIKeyInputLeftArrow, UIKeyInputDownArrow, UIKeyInputUpArrow])
-        [keys addObject:[UIKeyCommand keyCommandWithInput:input modifierFlags:UIKeyModifierCommand action:@selector(key:)]];
+        [keys addObject:[UIKeyCommand keyCommandWithInput:input modifierFlags:UIKeyModifierCommand action:action]];
     return keys;
 }
 
-- (void)key:(UIKeyCommand *)key {
+NSDictionary *GPKeyEvent(UIKeyCommand *key) {
     NSString *pressed = key.input;
     BOOL command = (key.modifierFlags & UIKeyModifierCommand) != 0;
     BOOL forward = [pressed isEqual:UIKeyInputRightArrow] || [pressed isEqual:UIKeyInputDownArrow];
     BOOL back = [pressed isEqual:UIKeyInputLeftArrow] || [pressed isEqual:UIKeyInputUpArrow];
-    NSDictionary *event = nil;
-    if (command && (forward || back)) event = @{@"type": @"item", @"delta": forward ? @1 : @-1};
-    else if (forward || back) event = @{@"type": @"pick", @"delta": forward ? @1 : @-1};
-    else if ([pressed isEqual:@" "]) event = @{@"type": @"step", @"delta": @1};
-    else if ([pressed isEqual:@"\r"]) event = @{@"type": @"enter", @"onPage": @YES};
-    else if ([pressed isEqual:@"b"] || [pressed isEqual:@"."]) event = @{@"type": @"black"};
-    else if ([pressed isEqual:UIKeyInputEscape]) event = @{@"type": @"escape"};
-    if (event) [model send:event];
+    if (command && (forward || back)) return @{@"type": @"item", @"delta": forward ? @1 : @-1};
+    if (forward || back) return @{@"type": @"pick", @"delta": forward ? @1 : @-1};
+    if ([pressed isEqual:@" "]) return @{@"type": @"step", @"delta": @1};
+    if ([pressed isEqual:@"\r"]) return @{@"type": @"enter", @"onPage": @YES};
+    if ([pressed isEqual:@"b"] || [pressed isEqual:@"."]) return @{@"type": @"black"};
+    if ([pressed isEqual:UIKeyInputEscape]) return @{@"type": @"escape"};
+    return nil;
 }
-@end
 
 #pragma mark - The output
 

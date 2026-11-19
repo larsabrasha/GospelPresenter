@@ -18,16 +18,29 @@ void GPShowStart(BOOL animated);
 /// The start page's lists read again (a name or a day changed, a presentation gone).
 void GPStartPageChanged(void);
 
-/// A presentation's page (presentationPageView's answer, decoded) as a split view of its own, made anew: its running
-/// order at the left over ‹ to the start page, its slides at the right; its events through a page model over
-/// `source`'s live state; faded in when `animated`.
+/// A presentation's page (presentationPageView's answer, decoded) as a scene of its own, made anew: from 1 000 pt
+/// wide (lying down) a split view, its running order at the left over ‹ to the start page and its slides at the
+/// right; narrower (standing) one column of the parts' text (OneColumn.m); turned past 1 000 pt, the other, with the
+/// same page model. Its events through a page model over `source`'s live state; faded in when `animated`.
 void GPShowPage(NSDictionary *page, id<GPPresentationSource> source, BOOL animated);
 
-/// The presentation's split view shown, nil on the start page.
+/// The presentation's split view shown, nil on the start page and in one column.
 UISplitViewController *GPShownSplit(void);
 
-/// The presentation whose running order is shown, nil on the start page.
+/// The page model of the presentation shown, nil on the start page.
+GPPageModel *GPShownModel(void);
+
+/// The presentation's controller at the top of its bar's stack: the running order, or the one column.
+UIViewController *GPShownPageController(void);
+
+/// The presentation shown, nil on the start page.
 NSString *GPShownPresentation(void);
+
+/// An item's slides as the page has them (each {kind, text, label {text, color}, ...}), none for a programme point.
+NSArray *GPSlidesOf(NSDictionary *page, NSDictionary *item);
+
+/// Why an item has no slides (`song-trashed`, ...), nil when it has them.
+NSString *GPItemProblem(NSDictionary *page, NSDictionary *item);
 
 /// A presentation's day and time: "söndag 8 november 2026 · 11:00".
 NSString *GPWhen(NSDictionary *presentation);

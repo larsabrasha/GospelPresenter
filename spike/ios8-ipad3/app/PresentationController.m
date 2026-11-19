@@ -7,6 +7,7 @@
 #import "PresentationController.h"
 #import "ItemMenu.h"
 #import "PresentationMenu.h"
+#import "OneColumn.h"
 #import "LivePanel.h"
 #import "SlideView.h"
 #import "Texts.h"
@@ -38,10 +39,17 @@ static UIImage *iconFor(NSString *type) {
     return image;
 }
 
-static NSArray *slidesOf(NSDictionary *page, NSDictionary *item) {
+NSArray *GPSlidesOf(NSDictionary *page, NSDictionary *item) {
     NSArray *slides = page[@"slides"][item[@"id"]][@"slides"];
     return [slides isKindOfClass:[NSArray class]] ? slides : @[];
 }
+
+NSString *GPItemProblem(NSDictionary *page, NSDictionary *item) {
+    NSString *problem = page[@"slides"][item[@"id"]][@"problem"];
+    return [problem isKindOfClass:[NSString class]] ? problem : nil;
+}
+
+static NSArray *slidesOf(NSDictionary *page, NSDictionary *item) { return GPSlidesOf(page, item); }
 
 static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"header"]; }
 
@@ -188,14 +196,9 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
         model = m;
         page = m.page;
         items = page[@"items"];
-        // The title a button, as the native app's: the presentation's menu (PresentationMenu.m).
-        UIButton *name = [UIButton buttonWithType:UIButtonTypeSystem];
-        name.titleLabel.font = [UIFont boldSystemFontOfSize:17];
-        name.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-        [name setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
-        [name addTarget:self action:@selector(menu:) forControlEvents:UIControlEventTouchUpInside];
-        self.navigationItem.titleView = name;
-        [self name:page[@"presentation"][@"name"]];
+        // The title a button, as the native app's: the presentation's menu (PresentationMenu.m), no wider than the
+        // bar leaves between ‹ and + in the 320 pt column.
+        GPTitleMenu(self, m, 190);
         // + in the bar: Sång, Programpunkt (ItemMenu.m).
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
                                                                                                target:self action:@selector(add:)];
@@ -209,17 +212,6 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 - (void)add:(UIBarButtonItem *)button { GPAddMenu(self, button, nil, CGRectZero, nil, model); }
 
-- (void)menu:(UIButton *)button { GPPresentationMenu(self, button, model); }
-
-/// The title and its button, no wider than the bar leaves between ‹ and + in the 320 pt column.
-- (void)name:(NSString *)text {
-    self.title = text;
-    UIButton *name = (UIButton *)self.navigationItem.titleView;
-    [name setTitle:text forState:UIControlStateNormal];
-    CGSize fits = [name sizeThatFits:CGSizeMake(CGFLOAT_MAX, 44)];
-    name.frame = CGRectMake(0, 0, MIN(fits.width, 190), 44);
-}
-
 /// The item shown gets its red dot, the selection kept.
 - (void)liveChanged {
     NSIndexPath *chosen = self.tableView.indexPathForSelectedRow;
@@ -231,7 +223,7 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 - (void)pageChanged {
     page = model.page;
     items = page[@"items"];
-    [self name:page[@"presentation"][@"name"]];
+    GPTitleName(self, page[@"presentation"][@"name"]);
     ((UILabel *)self.tableView.tableHeaderView).text = GPWhen(page[@"presentation"]);
     [self liveChanged];
 }
@@ -485,8 +477,7 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 
 - (UICollectionReusableView *)collectionView:(UICollectionView *)c viewForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)at {
     GPHeadingView *h = [c dequeueReusableSupplementaryViewOfKind:kind withReuseIdentifier:kHeading forIndexPath:at];
-    NSString *problem = page[@"slides"][items[at.section][@"id"]][@"problem"];
-    [h showItem:items[at.section] problem:[problem isKindOfClass:[NSString class]] ? problem : nil];
+    [h showItem:items[at.section] problem:GPItemProblem(page, items[at.section])];
     NSDictionary *item = items[at.section];
     __weak GPSlidesController *me = self;
     h.onMore = ^(UIButton *more) {
@@ -634,13 +625,31 @@ static void showScene(UIViewController *scene, BOOL animated) {
     [UIView transitionWithView:sceneWindow duration:0.25 options:UIViewAnimationOptionTransitionCrossDissolve animations:swap completion:nil];
 }
 
+/// The presentation shown and the layout it is shown in (columns from 1 000 pt wide, as the native app's
+/// Size.columns: lying down; one column standing).
+static GPPageModel *shownModel;
+static BOOL shownWide;
+
+static BOOL wideNow(void) { return sceneWindow.bounds.size.width >= 1000; }
+
+static void showModel(GPPageModel *model, BOOL animated);
+
 void GPScenes(UIWindow *window, UIViewController *list) {
     sceneWindow = window;
     startList = [list isKindOfClass:[GPPresentationsController class]] ? (GPPresentationsController *)list : nil;
     startScene = opaqueNav([[GPReadableColumn alloc] initWithPage:list]);
+    // Turned past 1 000 pt: the same page, its state and its place in the live state, in the other layout. After the
+    // turn, when the window has its new size.
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidChangeStatusBarOrientationNotification object:nil
+                                                       queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *n) {
+        if (shownModel && wideNow() != shownWide) showModel(shownModel, YES);
+    }];
 }
 
-void GPShowStart(BOOL animated) { showScene(startScene, animated); }
+void GPShowStart(BOOL animated) {
+    shownModel = nil;
+    showScene(startScene, animated);
+}
 
 void GPStartPageChanged(void) { [startList reload]; }
 
@@ -649,34 +658,51 @@ UISplitViewController *GPShownSplit(void) {
     return [root isKindOfClass:[UISplitViewController class]] ? root : nil;
 }
 
-NSString *GPShownPresentation(void) {
-    UIViewController *top = [GPShownSplit().viewControllers.firstObject topViewController];
-    return [top isKindOfClass:[GPItemsController class]] ? [(GPItemsController *)top presentationId] : nil;
+GPPageModel *GPShownModel(void) { return shownModel; }
+
+UIViewController *GPShownPageController(void) {
+    if (!shownModel) return nil;
+    UIViewController *root = sceneWindow.rootViewController;
+    UINavigationController *nav = shownWide ? GPShownSplit().viewControllers.firstObject : (UINavigationController *)root;
+    return [nav isKindOfClass:[UINavigationController class]] ? nav.topViewController : nil;
 }
 
-void GPShowPage(NSDictionary *page, id<GPPresentationSource> source, BOOL animated) {
-    GPPageModel *model = [[GPPageModel alloc] initWithPage:page live:[source live] source:source];
-    GPItemsController *items = [[GPItemsController alloc] initWithModel:model];
-    GPSlidesController *slides = [[GPSlidesController alloc] initWithModel:model];
-    items.slides = slides;
-    slides.runningOrder = items;
+NSString *GPShownPresentation(void) { return shownModel.page[@"presentation"][@"id"]; }
+
+/// The left column's root, or the one column's: ‹ back to the start page.
+static UINavigationController *overStart(UIViewController *page) {
     GPStartMark *mark = [[GPStartMark alloc] init];
     mark.title = GPText(@"nav.presentations", nil);
     // ‹ alone back to it, as beside a plain title: beside the title's button (the presentation's menu) iOS cut the
     // start page's name to "Tillbaka" and that to "Til…" rather than leave it out (a title of @"" it takes as none).
     mark.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@" " style:UIBarButtonItemStylePlain target:nil action:NULL];
-    UINavigationController *left = opaqueNav(mark);
-    [left pushViewController:items animated:NO];
+    UINavigationController *nav = opaqueNav(mark);
+    [nav pushViewController:page animated:NO];
     // A swipe from the edge would show the mark, and so the start page, though the swipe were let go of half way.
-    left.interactivePopGestureRecognizer.enabled = NO;
+    nav.interactivePopGestureRecognizer.enabled = NO;
+    return nav;
+}
+
+static void showModel(GPPageModel *model, BOOL animated) {
+    shownModel = model;
+    shownWide = wideNow();
+    if (!shownWide) { showScene(overStart([[GPOneColumnController alloc] initWithModel:model]), animated); return; }
+    GPItemsController *items = [[GPItemsController alloc] initWithModel:model];
+    GPSlidesController *slides = [[GPSlidesController alloc] initWithModel:model];
+    items.slides = slides;
+    slides.runningOrder = items;
     UISplitViewController *split = [[UISplitViewController alloc] init];
     // The slides with the live column beside them while presenting, ▶ or ■ in the bar (LivePanel.m).
     UINavigationController *right = opaqueNav([[GPDetailController alloc] initWithSlides:slides model:model split:split]);
-    split.viewControllers = @[left, right];
+    split.viewControllers = @[overStart(items), right];
     split.preferredDisplayMode = UISplitViewControllerDisplayModeAllVisible;
     split.maximumPrimaryColumnWidth = 320;
     split.preferredPrimaryColumnWidthFraction = 0.4;
     showScene(split, animated);
+}
+
+void GPShowPage(NSDictionary *page, id<GPPresentationSource> source, BOOL animated) {
+    showModel([[GPPageModel alloc] initWithPage:page live:[source live] source:source], animated);
 }
 
 NSString *GPWhen(NSDictionary *presentation) {

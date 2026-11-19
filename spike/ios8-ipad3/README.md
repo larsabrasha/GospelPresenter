@@ -201,6 +201,24 @@ method, `-[UITableView _setSectionContentInset:]`, found on the iPad by listing 
 private method is no matter for an app signed by ldid on a jailbroken iPad, but would be refused by the App Store;
 the call is skipped where UIKit lacks it.
 
+**One column, standing** (OneColumn.m), as the native app's PhoneLayout under 1 000 pt (`Size.columns`; the iPad is
+768 pt wide standing, 1 024 lying down): no pictures of the slides but their whole text; a plain table, each item a
+section whose heading sticks (a red dot while it is shown, its name, its note in orange, ••• for its menu), each part a
+row (its label as a pill in its colour, VISAS or NÄSTA at the right, its text; tinted red while shown, the tint's blue
+while made ready); a tap the page's `show`; while presenting the picture shown, half the width, over the list with
+Släck beside it, the list following the part shown unless it was tapped; + floating at the bottom right (Sång,
+Programpunkt); the title the presentation's menu and ▶ or ■ as icons beside it. Turned past 1 000 pt, the
+presentation is shown again in the other layout with the same page model, its state and its place in the live state
+kept. What both layouts share is shared, not copied: ▶ or ■ and ■'s question (GPStartStopItem, GPAskEnd), the keys
+(GPKeyCommands, GPKeyEvent), the title's button (GPTitleMenu), the item's slides (GPSlidesOf). Over SSH:
+`gpcore8://turn/portrait` and `landscape` turn it by setting UIDevice's `orientation` by key, as the iPad lies on a
+desk. Tried on the iPad: standing, the column with its headings, pills and two-line text (a label given the height
+measured cut the second line to "…", now it is as tall as its lines); ▶, a part shown (the picture, Släck, VISAS on
+a red row, NÄSTA, the red dot); turned to lying down while presenting, the split view with the same marks and the
+live column; ■. Not tried: a real turn by hand, the turn's look (the scene fades over after the turn), the keys in
+one column, a media part's picture, the description (the native app shows it at the top; not here), Beskrivning and
+Visning beside Släck.
+
 The icon was drawn upside down, the logo's cross standing on its head (Lars saw it): art.m turned the CTM to draw from
 the top left but did not say the context was flipped, so `respectFlipped:YES` did nothing. Now it says so.
 
