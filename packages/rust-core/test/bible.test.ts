@@ -131,6 +131,8 @@ describe('slides (BIBLE-R12)', () => {
     expect([slides.length, slides[0]!.verses[0]!.n, slides[1]!.verses[0]!.n]).toEqual([2, 1, null]);
   });
 
+  // Where a passage breaks between slides (BIBLE-A18) is tested beside the split, in crates/gp-core/src/bible.rs.
+
   it('an empty verse still shows its number; no verses, no slides', () => {
     expect(shown([verse(5, '')]).slides.map((s) => s.text)).toEqual(['5']);
     expect(shown([]).slides).toEqual([]);

@@ -3,6 +3,7 @@
 // (`searchVerses`, its reference planned by `planVerseSearch`), on a made-up text of three books stored as the app
 // stores one (`storeBibleTextSql`), and a text this database does not have.
 import { bibleBooks, bibleItemSlides, bibleLabel, bibleTitle, planVerseSearch, searchVerses, splitBibleSlides, storeBibleTextSql, versesInRange } from '../.out/web-queries.mjs';
+import { bibleSlides } from '../beyond-reference.mjs';
 import { viewRust } from '../diff.mjs';
 import { canon } from '../sources.mjs';
 import { fixture } from './fixture.mjs';
@@ -36,7 +37,8 @@ export default async function check(_, file) {
   // The tab's preview of a passage (`bibleSlidesView`, pure): the title and slides 2.0 worked out on the page.
   const preview = async (verses) => {
     compared++;
-    const want = { title: bibleTitle(verses), label: bibleLabel(verses), slides: bibleItemSlides(bibleTitle(verses), { translation: 'SFB', slides: splitBibleSlides(verses) }) };
+    // The passage's slides broken as the core breaks them, where reading pauses (beyond-reference.mjs).
+    const want = { title: bibleTitle(verses), label: bibleLabel(verses), slides: bibleItemSlides(bibleTitle(verses), { translation: 'SFB', slides: bibleSlides(splitBibleSlides(verses)) }) };
     const got = await viewRust(db, 'bibleSlidesView', { translation: 'SFB', verses });
     if (canon(want) !== canon({ title: got.title, label: got.label, slides: got.slides })) differ.push(`bibleSlidesView ${verses.length} verses: TS ${canon(want).slice(0, 300)} Rust ${canon(got).slice(0, 300)}`);
   };

@@ -3,7 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } from '../.out/ts-core.mjs';
-import { coreRules, fieldTimeMigration, fieldTimeRefusal } from '../beyond-reference.mjs';
+import { bibleContent, coreRules, fieldTimeMigration, fieldTimeRefusal } from '../beyond-reference.mjs';
 
 const out = new URL('../.out/', import.meta.url).pathname;
 
@@ -48,6 +48,11 @@ export async function runTs(db, { name, args, ctx }) {
   db.exec('BEGIN');
   try {
     await runMutator(getMutator(name), tx, args, ctx);
+    // A passage's slides broken as the core breaks them (beyond-reference.mjs).
+    if (name === 'addBibleToPresentation' && typeof args?.itemId === 'string') {
+      const row = db.prepare("SELECT content FROM presentation_items WHERE id = ? AND type = 'bible'").get(args.itemId);
+      if (row?.content) db.prepare('UPDATE presentation_items SET content = ? WHERE id = ?').run(bibleContent(row.content), args.itemId);
+    }
     db.exec('COMMIT');
     return 'ok';
   } catch (e) {

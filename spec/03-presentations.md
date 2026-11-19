@@ -234,7 +234,9 @@ clickable to re-pick; sequence: chapter → start verse → end verse (end chapt
 chapter; end chapter re-pickable); start/end swap if reversed; selected range highlighted; Add appears
 only once both start and end verse are picked. Changing the Bible resets browse state. Verse parsing,
 book names and search → "Bibles, themes and media" area. Slide splitting: max ~250 chars per slide,
-balanced across slides, verse numbers as superscripts (`S/Services/BibleTextService.cs:14,68-107`).
+balanced across slides, verse numbers as superscripts (`S/Services/BibleTextService.cs:14,68-107`); 2.0 breaks
+where reading pauses, a slide then up to 1.4 times as long as the others' mean, about 350 characters at most
+(BIBLE-R12; Lars, 2026-11-19).
 
 **Bilder / Ljud tabs**: library grid (images, thumbs 3–5 columns) / list (audio). Click toggles
 selection (multi). **Importera** uploads (multi-file, drag-and-drop zone), progress "Importerar {i} av

@@ -367,6 +367,15 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
   - `slideCount = max(1, ceil(total / 250))`, `target = ceil(total / slideCount)`; words are added to
     the current slide until adding one would exceed `target` (and the slide is non-empty and it is not
     the last allowed slide) → slides are balanced, the last one takes any remainder.
+  - 2.0 (Lars, 2026-11-19: no word or two of a sentence left alone on the next slide): the breaks are chosen
+    together, the cheapest set over every way to break (`crates/gp-core/src/bible.rs`, `breaks`). A slide's cost is
+    20 × its length's share apart from `target` (`total / slideCount`), squared; a break's: nothing before a verse,
+    1 after `.` `!` `?` `…`, 2 after `;` `:`, 3 after `,` `–` `—`, 6 within a sentence (closing quotes and brackets
+    after the mark do not count), and 4 more where the one or two first or last words of a sentence would stand
+    apart from the rest of it; a slide at most 1.4 × `target` unless one word is longer. Measured on a real Swedish
+    Bible, every chapter and 3 000 passages of 3–15 verses: breaks within a sentence 42 381 → 2 174, one or two
+    words of a sentence apart 10 434 → 0, the longest slide 568 → 349 characters, 2 % fewer slides. Frozen at
+    add time as before, so a passage added earlier keeps its slides.
   - Slide HTML: `<div class="text-left">` + words joined by spaces + `</div>`; verse start renders as
     `<sup class="opacity-40">{n}</sup>&nbsp;{word}`; all verse text HTML-encoded exactly once.
   - No verses → no slides. Empty verse text → verse number still rendered.
@@ -613,6 +622,8 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
   8:28–30 (swapped) and the button reads "Lägg till Romarbrevet 8:28-30".
 - **BIBLE-A13** Adding a passage of ~600 plain characters produces 3 slides of roughly 200 characters
   each; no word is lost or duplicated; each verse number appears once.
+- **BIBLE-A18** 2.0: a passage breaks between sentences rather than within one, before a verse rather than within
+  a sentence, and leaves no one or two words of a sentence apart from it (`packages/rust-core/test/bible.test.ts`).
 - **BIBLE-A14** A verse containing `<script>` is rendered as text on the slide.
 - **BIBLE-A15** Typing `Ps` shows "Visar 500 av {N} verser" and adding inserts 500 verses only
   (documents current behaviour; see Open questions).

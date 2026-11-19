@@ -61,8 +61,9 @@ node "$ROOT/apps/mac/texts.mjs"
 
 case "$1" in
   test)
-    # The native interface's own tests: how a step and SQLite's values cross over to Swift.
-    (cd "$ROOT" && cargo test -p gp-core-ffi --quiet 2>&1 | grep -E "^test result|FAILED|panicked")
+    # The core's own tests of what reads no SQL (a passage's slides), and the native interface's: how a step and
+    # SQLite's values cross over to Swift.
+    (cd "$ROOT" && cargo test -p gp-core -p gp-core-ffi --quiet 2>&1 | grep -E "^test result|FAILED|panicked")
     node --no-warnings parity/diff.mjs 3000 10
     # The schema and its migrations, then every ported file of mutators (3 000 each here; the proof of a file is
     # `node parity/mutations/run.mjs <file> --ops 3000 --seeds 10`, 30 000).
