@@ -113,6 +113,8 @@ private struct SlideColumn: View {
                     ForEach(p.items) { item in
                         Section {
                             if let problem = item.problem { Text(t("presentation.\(problemKey(problem))")).font(.footnote).foregroundStyle(Color.quiet) }
+                            // Before presenting, an audio or video item's preview (the web's ItemMedia).
+                            if !model.isLive && (item.audio != nil || item.video != nil) { ItemPreview(item: item).frame(maxWidth: 512, alignment: .leading) }
                             LazyVGrid(columns: Array(repeating: GridItem(.fixed(grid.width), spacing: Self.spacing), count: grid.columns), alignment: .leading, spacing: Self.spacing) {
                                 ForEach(Array(item.slides.enumerated()), id: \.element.key) { n, slide in
                                     tile(item, n, slide)

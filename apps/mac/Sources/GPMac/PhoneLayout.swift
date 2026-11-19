@@ -19,6 +19,9 @@ struct PhoneLayout: View {
                     ForEach(p.items) { item in
                         Section {
                             if let problem = item.problem { Text(t("presentation.\(problemKey(problem))")).font(.footnote).foregroundStyle(Color.quiet) }
+                            // Before presenting, an audio or video item's preview; while presenting its controls are
+                            // under the live picture once it is shown.
+                            if !model.isLive && (item.audio != nil || item.video != nil) { ItemPreview(item: item) }
                             ForEach(Array(item.slides.enumerated()), id: \.element.key) { n, slide in
                                 PartRow(item: item, n: n, slide: slide).id(slideKey(item.id, n))
                             }
@@ -48,7 +51,6 @@ struct PhoneLayout: View {
             .accessibilityLabel(t("live.add"))
             .padding(20)
         }
-        .removeQuestion(model)
         .environment(\.phoneTapped, { tapped = true })
     }
 
@@ -81,6 +83,7 @@ private struct ItemHeading: View {
             Spacer()
             Menu { ItemMenu(item: item) } label: { Image(systemName: "ellipsis").frame(width: 32, height: 28) }
                 .accessibilityLabel(t("live.itemMore", ["title": item.title]))
+                .removeQuestion(model, item: item)
         }
         .font(.footnote.weight(.semibold))
         .textCase(nil)
@@ -107,16 +110,28 @@ private struct PartRow: View {
             // Shown while presenting; before, made ready and its item selected, so + adds after it (the page's state).
             model.send(["type": "show", "itemId": item.id, "partIndex": n])
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    if let label = slide.label { Pill(text: label.text, color: Color(hex: label.color)) }
-                    Spacer()
-                    if shown { Pill(text: t("live.shownBadge"), color: .red) } else if next { Pill(text: t("live.nextBadge"), color: .sky.opacity(0.15), ink: .sky) }
+            // As the web's SlideRow: a picture, a video and a slideshow's page small, as their slide, an audio file's
+            // with its speaker and its name beside; a song or a reading by its words, a part without a label by its number.
+            HStack(alignment: slide.pictured ? .center : .top, spacing: 12) {
+                if slide.pictured {
+                    SlideThumbnail(slide: slide, theme: model.current?.theme, label: false)
+                        .frame(width: 96)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay { AudioMark(slide: slide, small: true) }
                 }
-                if slide.kind == "media" {
-                    SlideThumbnail(slide: slide, theme: model.current?.theme).frame(maxWidth: 220)
-                } else {
-                    Text(slide.text).font(.body).frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        if let label = slide.label {
+                            Pill(text: label.text, color: Color(hex: label.color))
+                        } else if !slide.pictured {
+                            Text("\(n + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Color.quiet)
+                        }
+                        Spacer()
+                        if shown { Pill(text: t("live.shownBadge"), color: .red) } else if next { Pill(text: t("live.nextBadge"), color: .sky.opacity(0.15), ink: .sky) }
+                    }
+                    .frame(minHeight: 20)
+                    if !slide.pictured { Text(slide.text).font(.body).frame(maxWidth: .infinity, alignment: .leading) }
+                    if let name = slide.audioName { Text(name).font(.body).lineLimit(1) }
                 }
             }
             .padding(.vertical, 6)

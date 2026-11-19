@@ -116,9 +116,11 @@ extension Model {
 }
 
 extension View {
-    /// Radera, asked first (the web's `presentation.removeConfirm`).
-    func removeQuestion(_ model: Model) -> some View {
-        confirmationDialog(t("common.delete"), isPresented: Binding(get: { model.removing != nil }, set: { if !$0 { model.removing = nil } }), presenting: model.removing) { item in
+    /// Radera, asked first (the web's `presentation.removeConfirm`); with `item`, only for that item, so a phone's
+    /// question points at the item's own … (iOS 26 shows it as a popover from the view it is on).
+    func removeQuestion(_ model: Model, item only: ItemView? = nil) -> some View {
+        let asked = { model.removing != nil && (only == nil || model.removing?.id == only?.id) }
+        return confirmationDialog(t("common.delete"), isPresented: Binding(get: asked, set: { if !$0 { model.removing = nil } }), presenting: model.removing) { item in
             Button(t("common.delete"), role: .destructive) { model.run("removeItem", ["itemId": item.id]) }
         } message: { item in Text(t("presentation.removeConfirm", ["title": item.title])) }
     }

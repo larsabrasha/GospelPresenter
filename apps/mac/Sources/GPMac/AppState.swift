@@ -32,6 +32,10 @@ final class AppState {
     private(set) var live = Live()
     /// The audio and video of what is presented, played on this device (LivePlayer.swift).
     let player = LivePlayer()
+    /// Raised when media files arrived (MediaSync.swift): a picture drawn without its file is drawn again.
+    var mediaGeneration = 0
+    @ObservationIgnored var mediaRunning = false
+    @ObservationIgnored var mediaAgain = false
     /// What a connection or the demo refused, said where it was asked for.
     var refusal: String?
     /// The windows open, each read again after a change.
@@ -216,12 +220,15 @@ final class AppState {
         live.reload(self)
         windows = windows.filter { $0.model != nil }
         for w in windows { w.model?.load() }
+        syncMedia()
     }
 
     /// The live state changed: each window's page as that leaves it (presenting started or ended); another item shown
     /// moves only the selection of the window that showed it, the others keep theirs (`pageEventView`).
     func liveChanged() {
         for w in windows { w.model?.send(["type": "sync"]) }
+        // Presenting fetches the presentation's files at once (wantedMediaView).
+        syncMedia()
     }
 
     /// A presentation's page as `presentationPageView` reads it.

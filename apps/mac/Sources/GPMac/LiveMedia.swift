@@ -67,33 +67,41 @@ struct VideoLayer: NSViewRepresentable {
 
 extension LivePlayer {
     /// The player for the live picture of `item`'s slide: while its video is ready to show.
-    func video(for item: String?) -> AVPlayer? { kind == "video" && ready && item != nil && item == itemId ? player : nil }
+    func video(for item: String?) -> AVPlayer? { kind == "video" && media.ready && item != nil && item == itemId ? player : nil }
 }
 
-/// Under the live picture while a video or audio item is live: play or pause, the position to drag, the time, and an
-/// audio file's Tona ut (the web's PlayerControls and AudioPlayer).
+/// Under the live picture while a video or audio item is live: its controls.
 struct PlayerBar: View {
     @Environment(Model.self) private var model
 
     var body: some View {
-        let player = model.app.player
-        if let kind = player.kind, player.itemId == model.live.state.itemId {
-            HStack(spacing: 12) {
-                Button { player.toggle() } label: {
-                    Image(systemName: player.playing ? "pause.fill" : "play.fill").frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(t(player.playing ? "\(kind).pause" : "\(kind).play"))
-                Slider(value: Binding(get: { player.position }, set: { player.seek($0) }), in: 0...max(player.duration, 0.1))
-                    .accessibilityLabel(t("\(kind).seek"))
-                Text("\(clock(player.position)) / \(clock(player.duration))").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                if kind == "audio" {
-                    Button(t("audio.fade")) { player.fadeOut() }
-                        .disabled(player.fading || !player.playing)
-                }
+        let live = model.app.player
+        if let kind = live.kind, live.itemId == model.live.state.itemId { PlayerControls(media: live.media, kind: kind) }
+    }
+}
+
+/// A file's controls: play or pause, the position to drag, the time, and an audio file's Tona ut (the web's
+/// PlayerControls and AudioPlayer).
+struct PlayerControls: View {
+    let media: MediaPlayer
+    let kind: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button { media.toggle() } label: {
+                Image(systemName: media.playing ? "pause.fill" : "play.fill").frame(width: 28, height: 28)
             }
-            .padding(.horizontal, 4)
+            .buttonStyle(.plain)
+            .accessibilityLabel(t(media.playing ? "\(kind).pause" : "\(kind).play"))
+            Slider(value: Binding(get: { media.position }, set: { media.seek($0) }), in: 0...max(media.duration, 0.1))
+                .accessibilityLabel(t("\(kind).seek"))
+            Text("\(clock(media.position)) / \(clock(media.duration))").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            if kind == "audio" {
+                Button(t("audio.fade")) { media.fadeOut() }
+                    .disabled(media.fading || !media.playing)
+            }
         }
+        .padding(.horizontal, 4)
     }
 
     /// m:ss, as the web's player shows a time.

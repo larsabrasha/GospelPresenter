@@ -43,7 +43,7 @@ final class Thumbnails {
 
     /// The key of a tile: what changes its picture, hashed.
     func key(_ tile: TileRequest) -> String {
-        let text = [SlideRenderer.version, SlidePainter.version, "\(Self.pixels.width)x\(Self.pixels.height)", tile.label ? "label" : "", tile.slide?.text ?? "null", tile.theme?.text ?? "null", tile.overlay?.text ?? "null"].joined(separator: "\u{0}")
+        let text = [SlideRenderer.version, SlidePainter.version, "\(Self.pixels.width)x\(Self.pixels.height)", tile.label ? "label" : "", "\(tile.media)", tile.slide?.text ?? "null", tile.theme?.text ?? "null", tile.overlay?.text ?? "null"].joined(separator: "\u{0}")
         return SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
@@ -52,12 +52,12 @@ final class Thumbnails {
 
     /// A slide with its overlay over it: each drawn (or found) on its own, then laid together.
     func image(_ slide: TileRequest, urgent: Bool = true) async -> CGImage? {
-        let bare = TileRequest(slide: slide.slide, theme: slide.theme, overlay: nil, label: slide.label)
+        let bare = TileRequest(slide: slide.slide, theme: slide.theme, overlay: nil, label: slide.label, media: slide.media)
         guard let base = await layer(bare, urgent: urgent) else { return nil }
         guard let overlay = slide.overlay else { return base }
         let key = key(slide)
         if let hit = memory.object(forKey: key as NSString)?.image { return hit }
-        guard let top = await layer(TileRequest(slide: nil, theme: slide.theme, overlay: overlay, label: false), urgent: urgent),
+        guard let top = await layer(TileRequest(slide: nil, theme: slide.theme, overlay: overlay, label: false, media: slide.media), urgent: urgent),
               let laid = Self.lay(top, over: base) else { return base }
         memory.setObject(CGImageBox(laid), forKey: key as NSString, cost: laid.width * laid.height * 4)
         return laid
@@ -174,13 +174,18 @@ func placeholder(_ theme: JSONValue?) -> Color {
 
 /// A slide's picture as the web draws it, at a tile's size; the theme's ground until it is drawn.
 struct SlideThumbnail: View {
+    @Environment(Model.self) private var model
     let slide: Slide
     let theme: JSONValue?
     var overlay: JSONValue? = nil
     var label = true
     @State private var image: CGImage?
 
-    private var request: TileRequest { TileRequest(slide: slide.raw, theme: theme, overlay: overlay, label: label) }
+    private var request: TileRequest {
+        var r = TileRequest(slide: slide.raw, theme: theme, overlay: overlay, label: label)
+        if r.drawsPictures { r.media = model.app.mediaGeneration }
+        return r
+    }
 
     var body: some View {
         ZStack {
@@ -209,6 +214,7 @@ struct SlideTile: View {
     var body: some View {
         SlideThumbnail(slide: slide, theme: theme, overlay: overlay)
             .frame(width: width, height: width * 9 / 16)
+            .overlay { AudioMark(slide: slide) }
             .overlay(alignment: .topLeading) {
                 if let mark {
                     Pill(text: t(mark == .shown ? "live.shownBadge" : "live.nextBadge"), color: mark == .shown ? .red : Color.black.opacity(0.6)).padding(8)
@@ -229,7 +235,7 @@ struct LivePicture: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false),
+            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false, media: model.app.mediaGeneration),
                       video: model.live.slide == nil ? nil : model.app.player.video(for: model.live.state.itemId))
                 .background(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 12))

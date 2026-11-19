@@ -13,10 +13,11 @@ enum PlayTest {
         let player = model.app.player
         // Silent: the checks read the player's state, not the room's ears (its volume, which Tona ut turns, apart).
         player.player.isMuted = true
+        let media = player.media
         var lines: [String] = []
         func note(_ step: String) {
             lines.append(String(format: "%@: black %@, item %@, %@, ready %@, playing %@, at %.2f s of %.2f s, volume %.2f", step, String(model.live.state.black),
-                                player.itemId ?? "none", player.kind ?? "-", String(player.ready), String(player.playing), player.position, player.duration,
+                                player.itemId ?? "none", player.kind ?? "-", String(media.ready), String(media.playing), media.position, media.duration,
                                 player.player.volume))
         }
         func wait(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
@@ -32,7 +33,7 @@ enum PlayTest {
         model.send(again)
         await wait(1)
         note("shown again, 1 s on")
-        player.toggle()
+        media.toggle()
         await wait(0.5)
         note("paused by hand")
         model.send(["type": "black"])
@@ -42,7 +43,7 @@ enum PlayTest {
         model.send(["type": "show", "itemId": "pres-main-i5", "partIndex": 0])
         await wait(2)
         note("audio shown, 2 s on")
-        player.fadeOut()
+        media.fadeOut()
         await wait(2.5)
         note("Tona ut, 2.5 s on")
         await wait(3)

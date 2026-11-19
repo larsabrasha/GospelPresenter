@@ -20,12 +20,13 @@ import bibleImport from './views/bible-import.mjs';
 import legacy from './views/legacy.mjs';
 import songImport from './views/song-import.mjs';
 import collation from './views/collation.mjs';
+import wantedMedia from './views/wanted-media.mjs';
 
 const db = new DatabaseSync(process.argv[2]);
 let failed = 0;
 // GP_VIEWS=bibleImport,proPresenter runs only those checks, while one is being written.
 const only = process.env.GP_VIEWS?.split(',');
-const checks = { presentation, presentationPage, live, songs, songPage, media, lists, settings, bible, bibleRefs, highlight, pageModels, liveState, proPresenter, bibleImport, legacy, songImport, collation };
+const checks = { presentation, presentationPage, live, songs, songPage, media, lists, settings, bible, bibleRefs, highlight, pageModels, liveState, proPresenter, bibleImport, legacy, songImport, collation, wantedMedia };
 for (const [page, check] of Object.entries(checks).filter(([name]) => !only || only.includes(name))) {
   // Each check is given the database, and its file for a check that adds rows to a copy of it.
   const { compared, differ, notes } = await check(db, process.argv[2]);

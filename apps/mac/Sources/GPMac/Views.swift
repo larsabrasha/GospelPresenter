@@ -80,6 +80,11 @@ struct Slide: Decodable, Hashable, Identifiable {
     let image: String?, thumb: String?
     let raw: JSONValue
     var id: String { key }
+    /// An audio file's name, on an audio item's slide.
+    var audioName: String? { raw["audio"]?["name"]?.string }
+    /// Shown small, as its slide, on a phone's row: a picture, a video, a slideshow's page (the web's SlideRow); a song or
+    /// a reading by its words.
+    var pictured: Bool { kind == "media" || raw["custom"].map { $0 != .null } ?? false }
 
     private enum Keys: String, CodingKey { case key, kind, text, label, image, thumb }
     init(from decoder: Decoder) throws {
@@ -98,7 +103,7 @@ struct Slide: Decodable, Hashable, Identifiable {
 /// songs' arrangements.
 struct PresentationPage: Decodable {
     struct Item: Decodable { let id: String, type: String?, title: String, sourceId: String, arrangementId: String?, note: String?, overlayId: String? }
-    struct Slides: Decodable { let slides: [Slide], problem: String? }
+    struct Slides: Decodable { let slides: [Slide], problem: String?, audio: AudioFile?, video: VideoFile? }
     struct Arrangement: Decodable { let id: String, songId: String, name: String? }
     let presentation: PresentationRow?
     let theme: JSONValue?
@@ -110,6 +115,11 @@ struct PresentationPage: Decodable {
 }
 
 struct Arrangement: Identifiable, Hashable { let id: String, name: String? }
+
+/// An audio item's file, as its slides give it: what its preview plays.
+struct AudioFile: Decodable, Hashable { let hash: String, fileName: String }
+/// A video item's file, its still and its thumbnail.
+struct VideoFile: Decodable, Hashable { let hash: String, fileName: String, contentType: String?, stillHash: String?, thumbHash: String? }
 
 /// An entry a menu offers, as the core works it out for every shell (`itemActionsView`, `presentationActionsView`;
 /// docs/view-models.md): its id, its text's key, whether it can be chosen, and a submenu's choices.
@@ -137,6 +147,9 @@ struct ItemView: Identifiable, Hashable {
     let overlayId: String?
     /// A song item's song as the page read it (nil when it is gone), for its menu (`itemActionsView`).
     let song: JSONValue?
+    /// An audio or video item's file, for its preview before presenting.
+    var audio: AudioFile? = nil
+    var video: VideoFile? = nil
 }
 
 /// A presentation's page, as the columns show it.
@@ -156,7 +169,8 @@ struct PresentationView {
             let song = i.type == "song" ? page.songs.first { $0["id"]?.string == i.sourceId } : nil
             let arrangements = i.type == "song" ? page.arrangements.filter { $0.songId == i.sourceId }.map { Arrangement(id: $0.id, name: $0.name) } : []
             return ItemView(id: i.id, type: i.type ?? "song", title: i.title, note: i.note, slides: shown?.slides ?? [],
-                            arrangementId: i.arrangementId, arrangements: arrangements, problem: shown?.problem, overlayId: i.overlayId, song: song)
+                            arrangementId: i.arrangementId, arrangements: arrangements, problem: shown?.problem, overlayId: i.overlayId, song: song,
+                            audio: shown?.audio, video: shown?.video)
         }
     }
 }

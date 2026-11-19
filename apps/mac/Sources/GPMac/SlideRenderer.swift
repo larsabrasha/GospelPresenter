@@ -70,6 +70,16 @@ struct TileRequest: Hashable {
     let overlay: JSONValue?
     /// The part's label on the stage, as a tile shows it.
     var label = true
+    /// For a slide that draws pictures: the media files' generation (AppState.mediaGeneration), so it is drawn again
+    /// when they arrive; 0 for one that draws none.
+    var media = 0
+
+    /// Whether it draws a picture of the device's: a picture, a video's still, a slideshow's page, an overlay, a
+    /// theme's own picture.
+    var drawsPictures: Bool {
+        slide?["kind"]?.string == "media" || slide?["custom"].map { $0 != .null } == true || overlay != nil
+            || ["song", "bible", "media"].contains { theme?["definition"]?[$0]?["background"]?["image"]?["kind"]?.string == "picture" || theme?["definition"]?[$0]?["image"]?["kind"]?.string == "picture" }
+    }
 
     var json: [String: Any] {
         func any(_ v: JSONValue?) -> Any { v.flatMap { try? JSONSerialization.jsonObject(with: Data($0.text.utf8), options: .fragmentsAllowed) } ?? NSNull() }

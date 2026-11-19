@@ -140,7 +140,7 @@ where the menu is drawn.
 
 Not built in a presentation: Redigera (a song's page), Markera, Utgångar, Fjärrstyrning, the kinds but
 Sång and Programpunkt, Noter och länkar, Spara som mall, a phone lying down in two columns, a template's page, and
-moving an item on a phone. Media bytes are not synced to the device yet, so a picture's slide draws its theme alone.
+moving an item on a phone. Media files are fetched as the web's sync fetches them (below, "Media files").
 
 **Wanted, not built: App Intents and Shortcuts** (Lars, 2026-11-18). Presenting reached without the app in front:
 Siri ("Nästa vers i Gospel Presenter", "Släck i Gospel Presenter"), Genvägar/Shortcuts on the iPhone, iPad and Mac,
@@ -193,14 +193,25 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
 - **Audio and video live** (Lars, 2026-11-19; `LivePlayer.swift`, `LiveMedia.swift`): the device presenting plays
   them as the web's Player does (docs/live.md "Where audio and video play"): a video or audio item shown plays from
   its start, anything else shown stops it, Släck pauses it and a slide shown again plays it on where it was, unless it
-  was paused by hand; the next item's video is fetched meanwhile. One AVPlayer, so the sound plays once and every
+  was paused by hand, each step as the core works it out (`playbackStepView`, below) and the player does; the next
+  item's video is fetched meanwhile. One AVPlayer, so the sound plays once and every
   live picture of the device (the window's, the Mac's output window) shows the video between the slide's still and
   the overlay. Under the live picture: play or pause, the position, the time, and an audio file's Tona ut (5 s,
   easing out, then paused at the start). The files come from the host by their hash (`GET /api/media/{hash}`, the
   shell's `SyncClient.media`) into the media folder, whole before they play; with the demo, only what lies there.
   Checked by `GP_MAC_PLAYTEST=<file>` (`PlayTest.swift`, muted) with test files under the demo's hashes: each rule
   above as the player's state says it. Not checked: a file fetched from a real host, the picture on a screen, iOS,
-  and AirPlay. Pictures are not fetched yet, so a picture's slide still draws its theme alone.
+  and AirPlay. A video is fetched whole before it plays, where the web streams it (its play token); not yet the web's.
+- **Media files** (Lars, 2026-11-19: as the web; `MediaSync.swift`): what the core's `wantedMediaView` names, the
+  web's `wantedBlobs` (every picture's and video's thumbnail, themes', slideshows' and overlays' pictures, and while
+  presenting the presentation's full pictures, audio, stills and pages), fetched after every sync and when presenting
+  starts or ends, into the media folder; what arrives draws the tiles with pictures again (`TileRequest.media`). Not
+  done: the web's check of each file's hash, its budget and its clean-up, presentations kept offline.
+- **Rows and previews as the web's** (`ItemPreview.swift`, `PhoneLayout.swift`): on a phone a picture, a video and a
+  slideshow's page show small in their row, an audio file's with its speaker and its name beside (the web's SlideRow
+  and AudioMark), a song's or reading's part by its words or number; a tile of an audio item has the speaker and the
+  name. Before presenting, an audio item has its name and its own player (Tona ut too), a video item its still with
+  the system's player, each fetching its file when first wanted (the web's ItemMedia).
 - **Measured** in the iPhone 17 Pro simulator on this Mac (2026-11-17, `-gp.demo YES -gp.measure YES`, Swedish song
   slides in the classic theme): one snapshot 65 ms, a sheet of 20 69 ms, 100 slides cold (caches emptied) 1 140 ms,
   from disk 37 ms, from memory 14 ms. Not yet measured on Lars's iPhone: the simulator runs on the Mac's processor,
