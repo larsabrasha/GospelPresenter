@@ -122,9 +122,11 @@ async fn restore_song_version(a: &Obj, ctx: &Ctx) -> R<()> {
     }
     for (sort, (xid, name, ids)) in snap.arrangements.iter().enumerate() {
         let own: Vec<String> = ids.iter().filter(|p| part_ids.contains(p)).cloned().collect();
+        let new = super::arrangements::is_new(xid).await;
         sql("INSERT INTO song_arrangements (id, song_id, name, part_ids, sort) VALUES (?, ?, ?, ?, ?)
              ON CONFLICT (id) DO UPDATE SET song_id = excluded.song_id, name = excluded.name, part_ids = excluded.part_ids, sort = excluded.sort",
             vec![json!(xid), json!(song_id), name.clone(), json!(string_list(&own)), json!(sort)]).await;
+        if new { super::arrangements::keep_original(&song_id).await }
     }
     Ok(())
 }

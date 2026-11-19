@@ -275,6 +275,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await expect(first.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem')).toHaveText([/Verse 1/, /Chorus/, /Verse 2/]);
   await expect(first.getByLabel('Namn')).toHaveCount(0);
   await page.getByRole('link', { name: 'Tillbaka' }).click();
+  // SONG-R58: Original, the parts' own order, is first beside the song's arrangements, and not opened.
+  await expect(page.getByTestId('original-row')).toHaveText('OriginalVerse 1 · Chorus · Verse 2');
 
   // A second one gets names (SONG-A11); edit it to Chorus, Verse 1, Chorus (SONG-A10).
   await page.getByRole('button', { name: 'Nytt arrangemang' }).click();
@@ -311,6 +313,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök på titel, författare eller textrad');
   await search.fill('pilgrim');
+  await expect(picker.getByRole('group', { name: 'Arrangemang' }).getByRole('button')).toHaveText(['Original', 'Arrangemang 1', 'Kort']);
   await picker.getByRole('button', { name: 'Kort' }).click();
   await expect(picker.getByRole('list', { name: 'Pilgrimsfärd' }).getByRole('listitem')).toHaveCount(3);
   // The preview marks the search's words in the slides' text too (SongTab.razor's Highlight(part.Content)).
@@ -354,6 +357,11 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await itemMenu.click();
   await page.getByRole('menuitem', { name: /^Arrangemang/ }).click();
   await expect(page.getByRole('menuitemradio', { name: 'Arrangemang 1' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('menuitemradio', { name: 'Original' }).click();
+  await expect(tiles).toHaveText(['Härlig är jorden', 'Pilgrimsfärd', 'Tidevarv komma']);
+  await itemMenu.click();
+  await page.getByRole('menuitem', { name: /^Arrangemang/ }).click();
+  await expect(page.getByRole('menuitemradio', { name: 'Original' })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('menuitemradio', { name: 'Kort' }).click();
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
 

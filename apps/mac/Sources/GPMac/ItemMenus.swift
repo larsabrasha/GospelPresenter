@@ -35,7 +35,8 @@ struct ItemMenu: View {
                     model.run("setItemArrangement", ["itemId": item.id, "arrangementId": id.map { $0 as Any } ?? NSNull()])
                 })) {
                     ForEach(a.choices ?? [], id: \.id) { c in
-                        Text(c.name ?? "\(t("song.arrangement")) \(c.n ?? 0)").tag(Optional(c.id))
+                        // Original's a text key; an arrangement without a name by its place.
+                        Text(c.name ?? c.text.map { t($0) } ?? "\(t("song.arrangement")) \(c.n ?? 0)").tag(Optional(c.id))
                     }
                 }
                 .pickerStyle(.inline)

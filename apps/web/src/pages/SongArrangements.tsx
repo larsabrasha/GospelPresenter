@@ -32,9 +32,10 @@ export function useArrangementData(id: string) {
 
 /**
  * Arrangemang (spec 02), pushed in from a song's page as Historik is (Lars, 2026-11-03: as iOS's Settings pushes a
- * page): one group with a row for each arrangement, its name over its parts in a line when there are two or more, and
- * Nytt arrangemang as the group's last row, there also while the song has only its parts' own order (Lars, 2026-11-03),
- * which is then the one row and makes the first arrangement too. A row pushes its arrangement in.
+ * page): one group with Original first (the parts in their own order) and a row for each arrangement, each name over
+ * its parts in a line, and Nytt arrangemang as the group's last row, there also while the song has only its parts' own
+ * order (Lars, 2026-11-03), which is then the one row and makes the first arrangement too. A row pushes its arrangement
+ * in; Original is not opened.
  */
 export function SongArrangements({ id }: { id: string }) {
   const db = useDb();
@@ -55,11 +56,21 @@ export function SongArrangements({ id }: { id: string }) {
     const arrangementId = newId();
     afterWrite(db.mutate('createArrangement', { id: arrangementId, songId: id, partIds: parts.map((p) => p.id) }), () => navigate({ page: 'songArrangement', id, arrangementId }), saveFailed);
   };
-  const named = arrangements.length > 1;
+  const named = arrangements.length > 0;
   return (
     <PageContainer className="pb-8">
       {header}
       <Group>
+        {arrangements.length > 0 && (
+          // Original, the parts in their own order, beside the song's arrangements (Lars, 2026-11-19): not one of
+          // them, so not opened; a part added is in it at once.
+          <div data-testid="original-row" className={GROUP_ROW}>
+            <span className="min-w-0">
+              <span className="block">{t('song.original')}</span>
+              <span className="block truncate text-xs text-stone-500 dark:text-stone-400">{orderLine(parts.map((p) => p.id), parts, labels)}</span>
+            </span>
+          </div>
+        )}
         {arrangements.length ? (
           arrangements.map((a, i) => (
             <AppButton key={a.id} variant="plain" data-testid="arrangement-row" href={href({ page: 'songArrangement', id, arrangementId: a.id })} className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}>

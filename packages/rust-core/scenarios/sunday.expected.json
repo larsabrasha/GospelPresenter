@@ -162,6 +162,10 @@
               {
                 "choices": [
                   {
+                    "id": "original",
+                    "text": "song.original"
+                  },
+                  {
                     "id": "s1-a1",
                     "n": 1,
                     "name": null
@@ -611,6 +615,10 @@
               {
                 "choices": [
                   {
+                    "id": "original",
+                    "text": "song.original"
+                  },
+                  {
                     "id": "s1-a1",
                     "n": 1,
                     "name": null
@@ -1050,6 +1058,10 @@
             "actions": [
               {
                 "choices": [
+                  {
+                    "id": "original",
+                    "text": "song.original"
+                  },
                   {
                     "id": "s1-a1",
                     "n": 1,

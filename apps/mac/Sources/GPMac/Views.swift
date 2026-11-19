@@ -114,7 +114,7 @@ struct Arrangement: Identifiable, Hashable { let id: String, name: String? }
 /// An entry a menu offers, as the core works it out for every shell (`itemActionsView`, `presentationActionsView`;
 /// docs/view-models.md): its id, its text's key, whether it can be chosen, and a submenu's choices.
 struct MenuAction: Decodable, Hashable {
-    /// An arrangement's (`name` nil: "Arrangemang {n}"), or an overlay's (`text`, a key, for Ingen).
+    /// An arrangement's (`name` nil: "Arrangemang {n}"; `text`, a key, for Original), or an overlay's (`text` for Ingen).
     struct Choice: Decodable, Hashable { let id: String, name: String?, n: Int?, text: String? }
     let id: String, text: String, enabled: Bool, destructive: Bool
     let choices: [Choice]?

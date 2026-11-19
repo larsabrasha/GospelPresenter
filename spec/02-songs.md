@@ -50,6 +50,9 @@ Paths in citations are relative to `GospelPresenter/` (the solution folder) unle
   (`GospelPresenter.Shared/State/Song.cs:120-130`).
 - Which arrangement is used when a song is shown: the presentation item's `ArrangementId`, else the
   song's first arrangement, else all parts (`GospelPresenter.Shared/Services/LiveSlideBuilder.cs:99-100`).
+- 2.0 (Lars, 2026-11-19): **Original**, the parts in their own order, is offered beside a song's arrangements
+  wherever one is chosen, first: not an arrangement of its own but the id `original`, which no arrangement has, so it
+  shows all parts (SONG-R18) and a part added later is in it at once (SONG-R58).
 
 **Song version (history)** (`GospelPresenter.Shared/Models/SongVersion.cs:3`)
 - Snapshot of `Name`, `Author` and the parts (id, label id, label text, label colour, content) —
@@ -169,6 +172,8 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
      last; and **Ta bort arrangemang** as a red row, after which Arrangemang takes its place. The row of a song with
      none makes its first arrangement, every part once, and pushes it in. A song just made in a presentation's add
      dialog has no Arrangemang, Noter och länkar or Historik rows: a page pushed in would leave the dialog.
+     2.0 (Lars, 2026-11-19): once the song has an arrangement, **Original** is the group's first row, its name over the
+     parts' own order, and every arrangement's name shows; it is not opened, as there is nothing in it to change.
 4. **Noter och länkar** (2.0): a row on the song's page with how many ("Inga" when none), pushing a page in as Historik does (`/admin/songs/{id}/materials`; Lars, 2026-11-03) with the song's material as one list, a coloured icon each (PDF red, recording violet,
    link sky), its title and under it the kind and size, or where a link points; **Ladda upp fil** (a PDF or an audio
    file, several at once; the title is the file's name) and **Lägg till länk** (the address, and a name that is the
@@ -236,7 +241,8 @@ edit a presentation.
   search box autofocus except on screens < 768 px. Typing selects the first hit. Virtualised list
   (name + author, highlighted). Right half (≥ md): preview of the selected song with name/author,
   pencil (edit), arrangement pills when the song has ≥ 2 arrangements (unnamed ones read
-  "Arrangemang"; first is preselected), and one slide per arranged part rendered in the target
+  "Arrangemang"; first is preselected; 2.0: with one or more, **Original** first, the first arrangement still
+  preselected), and one slide per arranged part rendered in the target
   presentation's theme with matches highlighted. Nothing selected → "Ingen sång vald". No hits →
   "Inga sånger hittades" + **Skapa** (name dialog prefilled with the query).
 - Footer: "Lägg till fler" checkbox and **Lägg till {name}**. Keyboard: ↑/↓ moves selection (and
@@ -307,6 +313,11 @@ Parts and arrangements
   duplicates allowed and rendered as repeated slides. `GospelPresenter.Shared/State/Song.cs:120-130`
 - **SONG-R19** When showing a song item: item arrangement → else first arrangement → else all parts.
   `LiveSlideBuilder.cs:99-100`; picker default = first arrangement `GospelPresenter.Shared/Components/Presentations/AddItem/Song/SongTab.razor` (`GetEffectiveArrangementId`).
+- **SONG-R58** 2.0 (Lars, 2026-11-19): Original is the arrangement id `original` (no arrangement has it, so SONG-R18
+  shows all parts). An item may be added with it or changed to it. When a song gets its first arrangement (a new one,
+  made, imported or restored), its items naming none are given `original`, so they go on showing what they showed
+  instead of all taking the new arrangement as the song's first. `crates/gp-core/src/mutators/arrangements.rs`
+  (`keep_original`).
 
 History
 - **SONG-R20** Before every server mutation of an existing song (fields, part edit/add/delete/move,

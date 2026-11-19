@@ -5,6 +5,7 @@ use crate::bridge::{now, sql, Rows};
 use serde_json::{json, Value};
 
 mod arrangements;
+pub use arrangements::ORIGINAL;
 mod bibles_and_themes;
 mod ccli;
 mod custom_slides;

@@ -105,7 +105,7 @@ describe('itemActionsView', () => {
     const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: song, song: { deletedAt: null }, arrangements: two, overlays: [], shownId: null });
 
     expect(ids(menu)).toEqual([['open', ['edit', 'note']], ['show', ['arrangement']], ['list', ['addAfter', 'tick']], ['remove', ['delete']]]);
-    expect(menu.groups[1]!.actions[0]!.choices).toEqual([{ id: 'a1', name: null, n: 1 }, { id: 'a2', name: 'Kort', n: 2 }]);
+    expect(menu.groups[1]!.actions[0]!.choices).toEqual([{ id: 'original', text: 'song.original' }, { id: 'a1', name: null, n: 1 }, { id: 'a2', name: 'Kort', n: 2 }]);
     expect(menu.groups[1]!.actions[0]!.chosen).toBe('a1');
   });
 

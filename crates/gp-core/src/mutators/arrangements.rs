@@ -17,6 +17,24 @@ pub async fn run(name: &str, a: &Obj, ctx: &Ctx) -> Option<R<()>> {
     })
 }
 
+/// What an item names for Original, a song's parts in their own order (Lars, 2026-11-19): no arrangement of its own, so
+/// it never falls out of date when a part is added, and an id no arrangement has, which every reader takes as all the
+/// parts in order (SONG-R18).
+pub const ORIGINAL: &str = "original";
+
+/// A new arrangement written for `song_id`: when it is the song's only one, the song's items that named none showed
+/// its parts in their order until now, and go on showing them, as Original (Lars, 2026-11-19), instead of all taking
+/// the new arrangement as the song's first (SONG-R19, SONG-R58).
+pub async fn keep_original(song_id: &str) {
+    let n = first(sql("SELECT count(*) FROM song_arrangements WHERE song_id = ?", vec![json!(song_id)]).await).unwrap();
+    if int_of(&n[0]) != 1 { return }
+    sql("UPDATE presentation_items SET arrangement_id = ? WHERE type = 'song' AND source_id = ? AND arrangement_id IS NULL",
+        vec![json!(ORIGINAL), json!(song_id)]).await;
+}
+
+/// Whether no arrangement has the id yet: an insert of it makes a new one.
+pub async fn is_new(xid: &str) -> bool { !found("SELECT id FROM song_arrangements WHERE id = ?", vec![json!(xid)]).await }
+
 /// The ids that are parts of the song, in the given order with repeats.
 async fn own_part_ids(song_id: &str, part_ids: &[String]) -> Vec<String> {
     let own = part_ids_in_order(song_id).await;
@@ -32,8 +50,10 @@ async fn create(a: &Obj, ctx: &Ctx) -> R<()> {
     keep_song_version(&sid, ctx, false).await;
     let ids = string_list(&own_part_ids(&sid, &part_ids).await);
     let sort = if n[1].is_null() { 0 } else { int_of(&n[1]) + 1 };
+    let new = is_new(&xid).await;
     sql("INSERT INTO song_arrangements (id, song_id, name, part_ids, sort) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
         vec![json!(xid), json!(sid), json!(name), json!(ids), json!(sort)]).await;
+    if new { keep_original(&sid).await }
     Ok(())
 }
 

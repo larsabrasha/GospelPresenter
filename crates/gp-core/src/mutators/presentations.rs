@@ -92,6 +92,7 @@ async fn add_song(a: &Obj, ctx: &Ctx) -> R<()> {
     change_presentation(&pid, ctx).await?;
     let s = first(sql("SELECT name FROM songs WHERE id = ?", vec![json!(song_id)]).await).ok_or("not-found")?;
     let own = match arrangement {
+        Some(arr) if arr == super::arrangements::ORIGINAL => Some(arr),
         Some(arr) => first(sql("SELECT id FROM song_arrangements WHERE id = ? AND song_id = ?", vec![json!(arr), json!(song_id)]).await).map(|r| r[0].as_str().unwrap().to_string()),
         None => None,
     };
@@ -210,7 +211,8 @@ async fn set_item_note(a: &Obj, ctx: &Ctx) -> R<()> {
     Ok(())
 }
 
-/// The arrangement a song item shows; null is the song's default.
+/// The arrangement a song item shows; null is the song's default (its first arrangement), `original` its parts in
+/// their own order.
 async fn set_item_arrangement(a: &Obj, ctx: &Ctx) -> R<()> {
     let (item_id, wanted) = (id(a, "itemId")?, id_or_null(a, "arrangementId")?);
     require(ctx, "ManagePresentations")?;
@@ -218,6 +220,7 @@ async fn set_item_arrangement(a: &Obj, ctx: &Ctx) -> R<()> {
     require_item(&item_id, ctx).await?;
     if item[1].as_str() != Some("song") { return Err("not-a-song".into()) }
     let own = match &wanted {
+        Some(arr) if arr == super::arrangements::ORIGINAL => Some(json!(arr)),
         Some(arr) => first(sql("SELECT id FROM song_arrangements WHERE id = ? AND song_id = ?", vec![json!(arr), item[0].clone()]).await).map(|r| r[0].clone()),
         None => None,
     };

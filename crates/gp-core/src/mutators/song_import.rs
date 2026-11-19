@@ -65,8 +65,10 @@ pub async fn import_songs(a: &Obj, ctx: &Ctx) -> R<()> {
         let own: Vec<&String> = s.parts.iter().map(|p| &p.id).collect();
         for (sort, x) in s.arrangements.iter().enumerate() {
             let kept: Vec<String> = x.part_ids.iter().filter(|p| own.contains(p)).cloned().collect();
+            let new = super::arrangements::is_new(&x.id).await;
             sql("INSERT INTO song_arrangements (id, song_id, name, part_ids, sort) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
                 vec![json!(x.id), json!(song_id), json!(x.name), json!(string_list(&kept)), json!(sort)]).await;
+            if new { super::arrangements::keep_original(&song_id).await }
         }
     }
     Ok(())

@@ -55,6 +55,12 @@ export function parsePartIds(json: string): string[] {
   }
 }
 
+/**
+ * What an item names for Original, a song's parts in their own order, beside its arrangements (Lars, 2026-11-19): the
+ * core's `ORIGINAL`, an id no arrangement has, so every reader shows all the parts (SONG-R18).
+ */
+export const ORIGINAL_ARRANGEMENT = 'original';
+
 /** A song's arrangements in their order; the first is the default (SONG-R19). */
 export function sortedArrangements(arrangements: SongArrangement[], songId: string): SongArrangement[] {
   return arrangements.filter((a) => a.songId === songId).toSorted((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));

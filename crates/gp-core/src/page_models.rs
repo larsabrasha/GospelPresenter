@@ -73,8 +73,10 @@ pub fn item_actions(a: &Obj) -> R<Value> {
     let mut show = vec![];
     if kind != "header" {
         let arrangements = if song_here { list("arrangements") } else { vec![] };
-        if arrangements.len() > 1 {
-            let choices: Vec<Value> = arrangements.iter().enumerate().map(|(n, x)| json!({ "id": x["id"], "name": x["name"], "n": n + 1 })).collect();
+        // Original first, the song's parts in their own order, beside an arrangement of its own (Lars, 2026-11-19).
+        if !arrangements.is_empty() {
+            let mut choices = vec![json!({ "id": crate::mutators::ORIGINAL, "text": "song.original" })];
+            choices.extend(arrangements.iter().enumerate().map(|(n, x)| json!({ "id": x["id"], "name": x["name"], "n": n + 1 })));
             let chosen = item.get("arrangementId").filter(|v| v.is_string()).cloned().unwrap_or_else(|| arrangements[0]["id"].clone());
             let mut arr = action("arrangement", "song.arrangements");
             arr["choices"] = json!(choices);

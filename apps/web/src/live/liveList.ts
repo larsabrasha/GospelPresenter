@@ -1,10 +1,12 @@
 // The running order while presenting (docs/layout-2-0.md): where an addition goes, and when the list follows the
 // shown part.
+import { ORIGINAL_ARRANGEMENT } from '@gp/core';
 import { pageCore, type Action } from '../db/pageCore.ts';
 import { t } from '../i18n.ts';
 
-/** An item's Arrangemang › as its menu names them: an arrangement without a name by its place, "Arrangemang 2". */
-export const arrangementChoices = (a: Action | undefined) => (a?.choices ?? []).map((c) => ({ id: c.id, title: c.name ?? `${t('song.arrangement')} ${c.n}` }));
+/** An item's Arrangemang › as its menu names them: Original, then an arrangement without a name by its place, "Arrangemang 2". */
+export const arrangementChoices = (a: Action | undefined) =>
+  (a?.choices ?? []).map((c) => ({ id: c.id, title: c.id === ORIGINAL_ARRANGEMENT ? t('song.original') : (c.name ?? `${t('song.arrangement')} ${c.n}`) }));
 
 /** An item's Överlägg › as its menu names them: Ingen first, then each overlay's title. */
 export const overlayChoices = (a: Action | undefined) => (a?.choices ?? []).map((c) => ({ id: c.id, title: c.id === '' ? t('overlays.itemNone') : (c.name ?? '') }));

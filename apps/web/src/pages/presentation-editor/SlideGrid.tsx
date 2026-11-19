@@ -1,16 +1,21 @@
-import type { LivePointer, SongArrangement, Theme, ItemSlides, SlideMarkKind } from '@gp/core';
+import { ORIGINAL_ARRANGEMENT, type LivePointer, type SongArrangement, type Theme, type ItemSlides, type SlideMarkKind } from '@gp/core';
 import { useShownOverlay } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AudioMark, SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
-/** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Arrangemang 2", by their place. */
+/**
+ * Arrangement pills, shown when a song has an arrangement of its own (spec 02): Original, then each arrangement, unnamed
+ * ones read "Arrangemang 2", by their place.
+ */
 export function ArrangementPills({ arrangements, chosen, onChoose, className }: { arrangements: SongArrangement[]; chosen: string | null; onChoose: (id: string) => void; className?: string }) {
-  if (arrangements.length < 2) return null;
+  if (!arrangements.length) return null;
+  // Original first, the song's parts in their own order, beside an arrangement of its own (Lars, 2026-11-19).
+  const pills = [{ id: ORIGINAL_ARRANGEMENT, title: t('song.original') }, ...arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }))];
   return (
     <div className={`flex flex-wrap gap-1.5 ${className ?? ''}`} role="group" aria-label={t('song.arrangements')}>
-      {arrangements.map((a, i) => (
+      {pills.map((a) => (
         <AppButton
           key={a.id}
           variant="plain"
@@ -18,7 +23,7 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
           onClick={() => onChoose(a.id)}
           className={`${a.id === chosen ? 'bg-sky-500 text-white' : 'bg-stone-200 dark:bg-raised text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-raised-2'} rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors`}
         >
-          {a.name ?? `${t('song.arrangement')} ${i + 1}`}
+          {a.title}
         </AppButton>
       ))}
     </div>
