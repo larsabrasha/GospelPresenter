@@ -49,7 +49,9 @@ section headed as a grouped table heads one. A row scrolls to its item's slides;
 column, as Settings names it after the row chosen; a tile tapped is outlined in the tint, the web's sky. `SlideView.m`
 draws a slide: the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
 until it fits (not the web's fitting), the part's label in a corner. Media show their kind and title: their files are
-not on the device. Nothing is presented. `icon.m` draws the app's icon on the Mac (`build-core.sh` runs it). 1.5 s
+not on the device. Nothing is presented. A row's item comes to the top at once, not scrolled to (Lars: the slides
+rushing past made him dizzy). `icon.m` draws the app's icon on the Mac, Gospel Presenter's logo
+(`website/public/logo.svg`) on white as the desktop app's icon has it (`build-core.sh` runs it). 1.5 s
 after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png; opened
 with `gpcore8://picture` it writes one then, and with `gpcore8://item/<n>` it taps row n first and writes one a
 second later, so that a check over SSH can drive the page and see it.

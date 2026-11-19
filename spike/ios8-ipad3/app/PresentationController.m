@@ -201,7 +201,7 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 @implementation GPSlidesController {
     NSDictionary *page;
     NSArray *items;
-    BOOL following;   // scrolling to a row's item: the selection stays on that row until it ends
+    BOOL following;   // jumped to a row's item: the row stays chosen until the slides are dragged
     CGFloat laidOutWidth;
     BOOL appeared;
 }
@@ -271,6 +271,8 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     return h;
 }
 
+/// A row's item at the top at once, not scrolled to (Lars: the slides rushing past made him dizzy). The row stays
+/// chosen though an item near the end cannot reach the top.
 - (void)scrollToItem:(NSInteger)index {
     UICollectionView *c = self.collectionView;
     UICollectionViewLayoutAttributes *heading = [self.collectionViewLayout layoutAttributesForSupplementaryViewOfKind:UICollectionElementKindSectionHeader
@@ -279,10 +281,11 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     CGFloat bottom = MAX(top, c.contentSize.height + c.contentInset.bottom - c.bounds.size.height);
     following = YES;
     self.title = items[index][@"title"];
-    [c setContentOffset:CGPointMake(0, MIN(MAX(top, heading.frame.origin.y + top), bottom)) animated:YES];
+    [c setContentOffset:CGPointMake(0, MIN(MAX(top, heading.frame.origin.y + top), bottom)) animated:NO];
 }
 
-- (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)s { following = NO; }
+/// A finger on the slides again: they choose their row from now on.
+- (void)scrollViewWillBeginDragging:(UIScrollView *)s { following = NO; }
 
 /// The item whose heading has passed under the navigation bar selects its row and names the column, as the Settings
 /// app's right column is named after the row chosen.

@@ -47,6 +47,6 @@ if [ ! -f "$DEMO" ]; then
 fi
 cp "$DEMO" "$HERE/app/Resources/demo.sqlite"
 
-# The app's icon, drawn by app/icon.m.
-xcrun clang -fobjc-arc "$HERE/app/icon.m" -framework Foundation -framework CoreGraphics -framework ImageIO -o "$BUILD/icon"
-"$BUILD/icon" "$HERE/app/Resources"
+# The app's icon: Gospel Presenter's logo, drawn by app/icon.m.
+xcrun clang -fobjc-arc "$HERE/app/icon.m" -framework AppKit -framework ImageIO -o "$BUILD/icon"
+"$BUILD/icon" "$ROOT/website/public/logo.svg" "$HERE/app/Resources"
