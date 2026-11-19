@@ -1,5 +1,5 @@
-// The start page at the root of the left column, as the native app's StartPage.swift and the web's Presentations.tsx
-// have it, in iOS 8's parts: Idag, Kommande and Senast ändrade from the core (`startPageView`), each row its name,
+// The start page over the whole screen in a column of 720 pt (GPSplit), as the native app's StartPage.swift and the
+// web's Presentations.tsx have it, in iOS 8's parts: Idag, Kommande and Senast ändrade from the core (`startPageView`), each row its name,
 // when and where under it and its number of items at the right; + makes a presentation (Details.m); the account's
 // button at the left holds Synka nu, Anslut and Logga ut. Pulled down, it syncs.
 #import <UIKit/UIKit.h>

@@ -4,12 +4,6 @@
 #import "PresentationController.h"
 #import "Texts.h"
 
-/// The start page at the root of the left column, read again (a name or a day changed, a presentation gone).
-static void startPageChanged(UIViewController *c) {
-    UIViewController *root = c.navigationController.viewControllers.firstObject;
-    if ([root isKindOfClass:[GPPresentationsController class]]) [(GPPresentationsController *)root reload];
-}
-
 static void trash(UIViewController *c, UIView *view, GPPageModel *model) {
     NSDictionary *p = model.page[@"presentation"];
     UIAlertController *sure = [UIAlertController alertControllerWithTitle:GPText(@"presentation.trash", nil)
@@ -33,9 +27,8 @@ void GPTrashPresentation(UIViewController *c, GPPageModel *model) {
         [c presentViewController:no animated:YES completion:nil];
         return;
     }
-    UISplitViewController *split = c.splitViewController;
-    startPageChanged(c);
-    GPShowNothing(split);
+    GPStartPageChanged();
+    GPShowStart(YES);
 }
 
 void GPPresentationMenu(UIViewController *c, UIView *view, GPPageModel *model) {
@@ -50,7 +43,7 @@ void GPPresentationMenu(UIViewController *c, UIView *view, GPPageModel *model) {
             GPDetailsController *details = [[GPDetailsController alloc] initWithSource:model.source presentationId:pid done:^(NSString *saved) {
                 if (!saved) return;
                 [model reloadPage:[model.source page:saved]];
-                startPageChanged(c);
+                GPStartPageChanged();
             }];
             [details presentFrom:c];
         };

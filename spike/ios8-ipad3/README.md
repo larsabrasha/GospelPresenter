@@ -177,9 +177,32 @@ the title's button iOS 8 cut "Presentationer" to "Til…" rather than leave it o
 
 Tried on the iPad: the menu's popover under the title (Redigera detaljer…, Radera presentation in red), the form
 filled in with the presentation's name, place, day and time; a presentation made, renamed through `run`
-(the title and the start page read again) and trashed (the start page, the right column empty), each pushed (200) and
-in the host's database (`deleted_at` set). Not tried: Spara and Radera tapped by hand, a refusal's alert, a
-presentation trashed on the Mac while the iPad shows it.
+(the title and the start page read again) and trashed (then the start page in the left column and the right one
+empty, before the start page below), each pushed (200) and in the host's database (`deleted_at` set). Not tried:
+Spara and Radera tapped by hand, a refusal's alert, a presentation trashed on the Mac while the iPad shows it.
+
+**Two scenes, as the Mac's** (Lars, 2026-11-19): the start page over the whole screen, in a column of the web's page
+width (720 pt) in the middle as the Mac's `readableWidth`, and a presentation as a split view of its own, made anew
+each time it opens; the window's root is one or the other, faded over in 0.25 s (as an iPad's Keynote opens a
+document; not pushed, and nothing of one scene kept for the other: first the start page and the slides had shared the
+split view's right column, and it looked as if the page were reused). ‹ in the running order goes back: the left
+column's root is a mark never seen itself (GPStartMark), whose appearing shows the start page, the edge's swipe back
+turned off as it would show it though let go of half way. A presentation trashed, here or in a sync, shows the start
+page too. Tried on the iPad: ‹ (`gpcore8://start`) to the start page in its column, a presentation opened
+(`gpcore8://open/<id>`) beside its running order, and the launch logging the same frame each time, nothing moving.
+Not tried: the fade seen by hand, an upright iPad, and an iPhone, which UIDeviceFamily allows: its split view would
+fold into one column, with ‹ the same. A row on the start page is a Settings row that opens a page: the number of
+items in the Settings app's value grey and › after it (GPStartCell), as Lars's photo of Allmänt shows them; before,
+the number stood in ›'s place and the rows did not look as if they opened anything. Its groups are drawn in from the
+sides with rounded corners, as Settings has them on an iPad: no public part of iOS 8 does that (a grouped table is
+square and edge to edge; the inset style is public from iOS 13), but UIKit does it itself when told to by a private
+method, `-[UITableView _setSectionContentInset:]`, found on the iPad by listing UITableView's methods at run time
+(`_setMarginWidth:` only moved the text in). Settings' own Preferences.framework likely uses it; not checked. A
+private method is no matter for an app signed by ldid on a jailbroken iPad, but would be refused by the App Store;
+the call is skipped where UIKit lacks it.
+
+The icon was drawn upside down, the logo's cross standing on its head (Lars saw it): art.m turned the CTM to draw from
+the top left but did not say the context was flipped, so `respectFlipped:YES` did nothing. Now it says so.
 
 Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
 rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the

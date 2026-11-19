@@ -555,48 +555,128 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 }
 @end
 
-static UIViewController *nothing(void) {
-    UIViewController *empty = [[UIViewController alloc] init];
-    empty.view.backgroundColor = rgb(0xEFEFF4);
-    return empty;
+#pragma mark - Where the app stands: the start page, or a presentation
+
+/// A page in a column of the web's page width in the middle of a wide screen, as the Mac's start page (`readableWidth`,
+/// 720 pt, when the sides are more than 20 pt each); its bar the page's own.
+@interface GPReadableColumn : UIViewController
+@end
+
+@implementation GPReadableColumn {
+    UIViewController *page;
 }
 
-void GPShowNothing(UISplitViewController *split) {
-    [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];
-    ((UINavigationController *)split.viewControllers.lastObject).viewControllers = @[nothing()];
+- (instancetype)initWithPage:(UIViewController *)p {
+    if ((self = [super initWithNibName:nil bundle:nil])) {
+        page = p;
+        self.title = p.title;
+        [self addChildViewController:p];
+    }
+    return self;
 }
 
-UISplitViewController *GPSplit(UIViewController *list) {
-    UISplitViewController *split = [[UISplitViewController alloc] init];
-    UINavigationController *left = [[UINavigationController alloc] initWithRootViewController:list];
-    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:nothing()];
+- (UINavigationItem *)navigationItem { return page.navigationItem; }
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = rgb(0xEFEFF4);
+    [self.view addSubview:page.view];
+    [page didMoveToParentViewController:self];
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    CGRect all = self.view.bounds;
+    CGFloat side = floor((all.size.width - 720) / 2);
+    page.view.frame = side > 20 ? CGRectMake(side, 0, 720, all.size.height) : all;
+}
+@end
+
+/// Two scenes, as the Mac's NavigationStack has its start page and a presentation over it, each its own and nothing
+/// of one kept for the other (Lars, 2026-11-19: one right column for both looked as if the page were reused): the
+/// start page over the whole screen, and a presentation's split view, made anew for each. The window's root is one
+/// or the other, faded over in 0.25 s, as an iPad's Keynote opens a document rather than pushing it.
+static UIWindow *sceneWindow;
+static UINavigationController *startScene;
+static GPPresentationsController *startList;
+
+/// The left column's root, under a presentation's running order: never seen itself, but what ‹ goes back to; shown
+/// again (‹ tapped), it shows the start page.
+@interface GPStartMark : UIViewController
+@end
+
+@implementation GPStartMark
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    GPShowStart(animated);
+}
+@end
+
+static UINavigationController *opaqueNav(UIViewController *root) {
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:root];
     // Opaque bars: a translucent one blurs what scrolls under it anew on every frame, more than the iPad 3's GPU
     // keeps up with.
-    left.navigationBar.translucent = NO;
-    right.navigationBar.translucent = NO;
-    split.viewControllers = @[left, right];
-    split.preferredDisplayMode = UISplitViewControllerDisplayModeAllVisible;
-    split.maximumPrimaryColumnWidth = 320;
-    split.preferredPrimaryColumnWidthFraction = 0.4;
-    return split;
+    nav.navigationBar.translucent = NO;
+    return nav;
 }
 
-NSString *GPShownPresentation(UISplitViewController *split) {
-    UIViewController *top = [split.viewControllers.firstObject topViewController];
+static void showScene(UIViewController *scene, BOOL animated) {
+    if (sceneWindow.rootViewController == scene) return;
+    [sceneWindow.rootViewController dismissViewControllerAnimated:NO completion:nil];
+    void (^swap)(void) = ^{
+        // The new scene laid out where it stands, not grown from nothing inside the fade.
+        BOOL was = [UIView areAnimationsEnabled];
+        [UIView setAnimationsEnabled:NO];
+        sceneWindow.rootViewController = scene;
+        [UIView setAnimationsEnabled:was];
+    };
+    if (!animated || !sceneWindow.rootViewController) { swap(); return; }
+    [UIView transitionWithView:sceneWindow duration:0.25 options:UIViewAnimationOptionTransitionCrossDissolve animations:swap completion:nil];
+}
+
+void GPScenes(UIWindow *window, UIViewController *list) {
+    sceneWindow = window;
+    startList = [list isKindOfClass:[GPPresentationsController class]] ? (GPPresentationsController *)list : nil;
+    startScene = opaqueNav([[GPReadableColumn alloc] initWithPage:list]);
+}
+
+void GPShowStart(BOOL animated) { showScene(startScene, animated); }
+
+void GPStartPageChanged(void) { [startList reload]; }
+
+UISplitViewController *GPShownSplit(void) {
+    id root = sceneWindow.rootViewController;
+    return [root isKindOfClass:[UISplitViewController class]] ? root : nil;
+}
+
+NSString *GPShownPresentation(void) {
+    UIViewController *top = [GPShownSplit().viewControllers.firstObject topViewController];
     return [top isKindOfClass:[GPItemsController class]] ? [(GPItemsController *)top presentationId] : nil;
 }
 
-void GPShowPage(UISplitViewController *split, NSDictionary *page, id<GPPresentationSource> source, BOOL animated) {
+void GPShowPage(NSDictionary *page, id<GPPresentationSource> source, BOOL animated) {
     GPPageModel *model = [[GPPageModel alloc] initWithPage:page live:[source live] source:source];
     GPItemsController *items = [[GPItemsController alloc] initWithModel:model];
     GPSlidesController *slides = [[GPSlidesController alloc] initWithModel:model];
     items.slides = slides;
     slides.runningOrder = items;
-    UINavigationController *left = split.viewControllers.firstObject, *right = split.viewControllers.lastObject;
-    [left popToRootViewControllerAnimated:NO];
-    [left pushViewController:items animated:animated];
+    GPStartMark *mark = [[GPStartMark alloc] init];
+    mark.title = GPText(@"nav.presentations", nil);
+    // ‹ alone back to it, as beside a plain title: beside the title's button (the presentation's menu) iOS cut the
+    // start page's name to "Tillbaka" and that to "Til…" rather than leave it out (a title of @"" it takes as none).
+    mark.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@" " style:UIBarButtonItemStylePlain target:nil action:NULL];
+    UINavigationController *left = opaqueNav(mark);
+    [left pushViewController:items animated:NO];
+    // A swipe from the edge would show the mark, and so the start page, though the swipe were let go of half way.
+    left.interactivePopGestureRecognizer.enabled = NO;
+    UISplitViewController *split = [[UISplitViewController alloc] init];
     // The slides with the live column beside them while presenting, ▶ or ■ in the bar (LivePanel.m).
-    right.viewControllers = @[[[GPDetailController alloc] initWithSlides:slides model:model split:split]];
+    UINavigationController *right = opaqueNav([[GPDetailController alloc] initWithSlides:slides model:model split:split]);
+    split.viewControllers = @[left, right];
+    split.preferredDisplayMode = UISplitViewControllerDisplayModeAllVisible;
+    split.maximumPrimaryColumnWidth = 320;
+    split.preferredPrimaryColumnWidthFraction = 0.4;
+    showScene(split, animated);
 }
 
 NSString *GPWhen(NSDictionary *presentation) {

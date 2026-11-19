@@ -1,6 +1,7 @@
 // The start page (Presentations.h): a grouped table, a section for each of the core's lists in its order, Senast
 // ändrade 20 at a time with Visa fler, an empty page's text and button when there are none.
 #import "Presentations.h"
+#import <objc/message.h>
 #import "Details.h"
 #import "Live.h"
 #import "PresentationController.h"
@@ -46,6 +47,39 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     return [parts componentsJoinedByString:@" · "];
 }
 
+/// A presentation's row as a row of the Settings app's that opens a page: its name and its second line, the number of
+/// items at the right, and › after it (an accessory view of its own would take the place of ›).
+@interface GPStartCell : UITableViewCell
+@property (nonatomic, readonly) UILabel *items;   // not `count`, which NSArray's would clash with on an id
+@end
+
+@implementation GPStartCell
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuse {
+    if ((self = [super initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuse])) {
+        self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        _items = [[UILabel alloc] init];
+        _items.font = [UIFont systemFontOfSize:15];
+        _items.textColor = [UIColor colorWithRed:0x8E / 255.0 green:0x8E / 255.0 blue:0x93 / 255.0 alpha:1];   // the Settings app's value grey
+        [self.contentView addSubview:_items];
+    }
+    return self;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGRect box = self.contentView.bounds;
+    [_items sizeToFit];
+    CGSize size = _items.bounds.size;
+    CGFloat x = box.size.width - size.width;
+    _items.frame = CGRectMake(x, floor((box.size.height - size.height) / 2), size.width, size.height);
+    for (UILabel *label in @[self.textLabel, self.detailTextLabel]) {
+        CGRect f = label.frame;
+        f.size.width = MIN(f.size.width, x - 12 - f.origin.x);
+        label.frame = f;
+    }
+}
+@end
+
 @implementation GPPresentationsController {
     id<GPPresentationSource> source;
     NSArray *lists;
@@ -73,6 +107,12 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.tableView.rowHeight = 56;
+    // The Settings app's groups on an iPad, drawn in from the sides with rounded corners: UIKit's own, but private
+    // (-[UITableView _setSectionContentInset:], found on the iPad by listing UITableView's methods; public grouped
+    // tables are square and edge to edge on iOS 8, and the inset style public only from iOS 13). Without it, as before.
+    SEL inset = NSSelectorFromString(@"_setSectionContentInset:");
+    if ([self.tableView respondsToSelector:inset])
+        ((void (*)(id, SEL, UIEdgeInsets))objc_msgSend)(self.tableView, inset, UIEdgeInsetsMake(0, 30, 0, 30));
     self.refreshControl = [[UIRefreshControl alloc] init];
     [self.refreshControl addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
     [self reload];
@@ -91,9 +131,6 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     NSString *name = [[source accountName] componentsSeparatedByString:@" "].firstObject ?: GPOwnText(@"demo");
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:name style:UIBarButtonItemStylePlain
                                                                             target:self action:@selector(account:)];
-    // ‹ alone back here, as it was beside a plain title: beside the title's button (the presentation's menu) iOS cuts
-    // "Presentationer" to "Tillbaka" and that to "Til…" rather than leave it out (a title of @"" it takes as none).
-    self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@" " style:UIBarButtonItemStylePlain target:nil action:NULL];
     self.tableView.backgroundView = lists.count ? nil : [self empty];
     [self.tableView reloadData];
 }
@@ -122,7 +159,7 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     GPDetailsController *details = [[GPDetailsController alloc] initWithSource:source presentationId:nil done:^(NSString *made) {
         [self reload];
         NSDictionary *page = made ? [self->source page:made] : nil;
-        if (page) GPShowPage(self.splitViewController, page, source, YES);
+        if (page) GPShowPage(page, source, YES);
     }];
     [details presentFrom:self];
 }
@@ -177,20 +214,16 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
         more.textLabel.textColor = self.view.tintColor;
         return more;
     }
-    UITableViewCell *cell = [t dequeueReusableCellWithIdentifier:@"presentation"]
-        ?: [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"presentation"];
+    GPStartCell *cell = [t dequeueReusableCellWithIdentifier:@"presentation"]
+        ?: [[GPStartCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"presentation"];
     NSDictionary *p = rows[at.row];
     BOOL live = [lists[at.section][@"id"] isEqual:@"live"];
     cell.textLabel.text = p[@"name"];
     cell.detailTextLabel.text = live ? [@"● " stringByAppendingString:GPText(@"remote.nowShowing", nil)] : subtitle(p, lists[at.section]);
     cell.detailTextLabel.textColor = live ? [UIColor redColor] : [UIColor grayColor];
     NSInteger n = [p[@"itemCount"] integerValue];
-    UILabel *count = [[UILabel alloc] init];
-    count.text = n == 1 ? GPText(@"presentations.item", nil) : GPText(@"presentations.items", @{@"n": @(n)});
-    count.font = [UIFont systemFontOfSize:13];
-    count.textColor = [UIColor grayColor];
-    [count sizeToFit];
-    cell.accessoryView = count;
+    cell.items.text = n == 1 ? GPText(@"presentations.item", nil) : GPText(@"presentations.items", @{@"n": @(n)});
+    [cell setNeedsLayout];
     return cell;
 }
 
@@ -199,6 +232,6 @@ static NSString *subtitle(NSDictionary *p, NSDictionary *list) {
     NSArray *rows = [self rowsOf:at.section];
     if (at.row == (NSInteger)rows.count) { recentShown += 20; [t reloadData]; return; }
     NSDictionary *page = [source page:rows[at.row][@"id"]];
-    if (page) GPShowPage(self.splitViewController, page, source, YES);
+    if (page) GPShowPage(page, source, YES);
 }
 @end

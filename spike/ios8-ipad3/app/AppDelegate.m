@@ -25,7 +25,6 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 @implementation GPAppDelegate {
     sqlite3 *db;          // the synced organisation's, or the demo's
     GPSync *sync;
-    UISplitViewController *split;
     GPPresentationsController *list;
     GPLive *live;         // what this device presents, one for the app
 }
@@ -54,11 +53,11 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     live = [[GPLive alloc] initWithSource:self];
     [GPOutput startWithLive:live];
     list = [[GPPresentationsController alloc] initWithSource:self];
-    split = GPSplit(list);
-    [self openNext:NO];
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     self.window.tintColor = GPTint();
-    self.window.rootViewController = split;
+    GPScenes(self.window, list);
+    GPShowStart(NO);
+    [self openNext:NO];
     [self.window makeKeyAndVisible];
     [GPLaunchWatch watch:self.window];
     NSLog(@"GPCore8: launched in %.1f ms, %@", since(t), sync ? sync.server : @"the demo");
@@ -80,13 +79,13 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 - (void)changed {
     [live reload];
     [list reload];
-    NSString *shown = GPShownPresentation(split);
+    NSString *shown = GPShownPresentation();
     NSDictionary *page = shown ? [self page:shown] : nil;
-    GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
+    GPDetailController *detail = (GPDetailController *)[GPShownSplit().viewControllers.lastObject topViewController];
     // Read again in place, where the page stands (built anew, it went back to its top).
     if (page && [detail isKindOfClass:[GPDetailController class]]) [detail.model reloadPage:page];
-    else if (page) GPShowPage(split, page, self, NO);
-    else if (shown) GPShowNothing(split);   // gone (trashed elsewhere): its slides with it
+    else if (page) GPShowPage(page, self, NO);
+    else if (shown) GPShowStart(YES);   // gone (trashed elsewhere): the start page
 }
 
 // In the background the socket closes; back in front it opens again, catching up as it does.
@@ -107,7 +106,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     }
     NSDictionary *chosen = next ?: latest ?: rows.firstObject;
     NSDictionary *page = chosen ? [self page:chosen[@"id"]] : nil;
-    if (page) GPShowPage(split, page, self, animated);
+    if (page) GPShowPage(page, self, animated);
 }
 
 #pragma mark - GPPresentationSource
@@ -238,13 +237,15 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 /// and logs how smoothly (ScrollTest.m), gpcore8://connect/<host:port> pairs as "Anslut" does, without asking.
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
     // A menu, a sheet or an alert a check left open goes first, so that the next can open (not for a picture of it).
-    if (![url.host isEqual:@"picture"]) [split dismissViewControllerAnimated:NO completion:nil];
+    if (![url.host isEqual:@"picture"]) [self.window.rootViewController dismissViewControllerAnimated:NO completion:nil];
     if ([url.host isEqual:@"open"] && url.pathComponents.count > 1) {
         NSDictionary *page = [self page:url.pathComponents[1]];
         if (!page) return NO;
-        GPShowPage(split, page, self, NO);
+        GPShowPage(page, self, YES);
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
+    UISplitViewController *split = GPShownSplit();   // nil on the start page
     // The open page's events: gpcore8://send/<type> (start, black, step, escape), gpcore8://show/<item>/<part> as a
     // tap on that slide, gpcore8://end as ■ answered yes; a picture a second later.
     GPDetailController *detail = (GPDetailController *)[split.viewControllers.lastObject topViewController];
@@ -314,8 +315,9 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
-    if ([url.host isEqual:@"start"]) {   // the start page, the left column back at its root
-        [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];
+    if ([url.host isEqual:@"start"]) {   // ‹ tapped: the left column back at its root, which shows the start page
+        [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:YES];
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
     if ([url.host isEqual:@"create"] && url.pathComponents.count > 1) {   // a presentation made as Skapa makes one
@@ -323,7 +325,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         NSString *refused = [self mutate:@"createPresentation" args:@{@"id": made, @"name": url.pathComponents[1], @"eventDate": [NSNull null],
                                                                      @"time": [NSNull null], @"location": @"", @"description": @""}];
         [list reload];
-        if (!refused) GPShowPage(split, [self page:made], self, NO);
+        if (!refused) GPShowPage([self page:made], self, NO);
         return YES;
     }
     if ([url.host isEqual:@"connect"] && url.pathComponents.count > 1) {

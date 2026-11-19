@@ -17,11 +17,14 @@ static BOOL picture(NSString *path, CGFloat w, CGFloat h, CGFloat scale, void (^
         pixelsHigh:(NSInteger)ph bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
         colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
     [NSGraphicsContext saveGraphicsState];
-    NSGraphicsContext *c = [NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap];
+    CGContextRef cg = [NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap].CGContext;
+    CGContextTranslateCTM(cg, 0, ph);
+    CGContextScaleCTM(cg, scale, -scale);
+    // Said to be flipped, as the CTM now is: else an image drawn with respectFlipped:YES comes out upside down (the
+    // logo's cross stood on its head, 2026-11-19, until Lars saw it).
+    NSGraphicsContext *c = [NSGraphicsContext graphicsContextWithCGContext:cg flipped:YES];
     NSGraphicsContext.currentContext = c;
     c.imageInterpolation = NSImageInterpolationHigh;
-    CGContextTranslateCTM(c.CGContext, 0, ph);
-    CGContextScaleCTM(c.CGContext, scale, -scale);
     draw();
     [NSGraphicsContext restoreGraphicsState];
     CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
