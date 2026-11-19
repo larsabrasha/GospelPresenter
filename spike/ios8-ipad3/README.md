@@ -44,10 +44,10 @@ with iOS 8's own parts, after the Settings app on an iPad: a UISplitViewControll
 320 pt) and iOS 8's button that folds the left one away, each column in a navigation controller; at the left the
 running order as a grouped table of one group, the day and time over it, every item a row with a 29 pt icon in its
 type's colour and a song's number of slides, a programme point (type "header") a row as much as a song (Lars); at
-the right the slides on the grouped table's grey, tiles 340 to 384 pt wide (the web's SlideGrid), each item a
+the right the slides on the grouped table's grey, tiles 300 to 384 pt wide (the web's SlideGrid stops at 340; Lars: two columns lying down), each item a
 section headed as a grouped table heads one. A row scrolls to its item's slides; the slides scrolled select their row and name the right
 column, as Settings names it after the row chosen; a tile tapped is outlined in the tint, the web's sky. `SlideView.m`
-draws a slide: the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
+draws a slide into a picture, once (below): the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
 until it fits (not the web's fitting), the part's label in a corner. Media show their kind and title: their files are
 not on the device. Nothing is presented. A row's item comes to the top at once, not scrolled to (Lars: the slides
 rushing past made him dizzy). `icon.m` draws the app's icon on the Mac, Gospel Presenter's logo
@@ -55,6 +55,26 @@ rushing past made him dizzy). `icon.m` draws the app's icon on the Mac, Gospel P
 after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png; opened
 with `gpcore8://picture` it writes one then, and with `gpcore8://item/<n>` it taps row n first and writes one a
 second later, so that a check over SSH can drive the page and see it.
+
+**Scrolling at 60 frames a second** (Lars: no jitter, no stutter). `gpcore8://scrolltest/<pt a second>` scrolls the
+slides from the top to the end, a step on every frame the display shows (ScrollTest.m), and logs two sides: the
+app's, frames that came late to the main thread (CADisplayLink), and the render server's, which composites the
+layers on the GPU, frames drawn (QuartzCore's private `CARenderServerGetFrameCounter`, what FPS meters for jailbroken
+devices read, looked up at run time). The main thread was never late, before or after; the GPU was:
+
+| Lying down, 1200 pt/s                                        | first time through | again    |
+| ------------------------------------------------------------ | ------------------ | -------- |
+| Tiles as views, clipped rounded corners, translucent bars    | 48.9 fps           | 51.2 fps |
+| Each slide a picture drawn once, opaque bars                 | 55.7 fps           | 59.8 fps |
+| The same, every picture drawn ahead on a thread of its own   | 59.6 fps           | 59.6 fps |
+
+At 3000 pt/s, a flick's speed, 59.5 fps (122 frames drawn of 123). What it took: a slide is drawn once into an opaque
+picture at the tile's size in pixels (`GPSlideImage`, kept in an NSCache), its rounded corners and label drawn in,
+so that the GPU only moves pictures: no clip to a rounded corner (an offscreen pass per tile, per frame), nothing to
+blend, nothing to scale; the navigation bars opaque, since a translucent one blurs what scrolls under it anew on
+every frame; and all 54 pictures drawn after the page shows, on a thread of their own (0.7 s), so that the main
+thread does not draw one as it scrolls into view. The before was the commit before this one, built with the same
+test; it ran 10.6 s, not 5.1, since its 340 pt tiles stood in one column, not two.
 
 ## Build
 
@@ -139,6 +159,6 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
 - The clock: whether any of these views call `clock_gettime`, so whether `clock.c` has run.
 - By hand on the iPad: the row following the slides as they are scrolled with a finger, a tile's outline, the fold
   button, and the icon on the home screen.
-- Lying down, the slides' column is 703 pt and the web's sizes give it one column of 384 pt, half of it empty.
+- Scrolling with a finger, decelerating, and the running order's list: the test moves the slides at even speeds.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
 - Commands beyond the migration (nothing is changed), sync, and media files.

@@ -1,9 +1,9 @@
 // The presentation page with iOS 8's own parts, laid out as the Settings app on an iPad: a UISplitViewController,
-// both columns shown, the left one 320 pt; at the left the running order as a grouped UITableView, an item a row with
-// a coloured 29 pt icon and its number of slides, the headers (type "header") the groups' titles; at the right a
-// UICollectionView of slide tiles 340 to 384 pt wide (SlideGrid.tsx's sizes) on the grouped table's grey, each item
-// a section headed as a grouped table heads one. A row scrolls to its item's slides, the slides scrolled to select
-// their row, and a tile tapped is outlined, as the web's page picks one. Nothing is presented.
+// both columns shown, the left one 320 pt; at the left the running order as a grouped UITableView, every item a row
+// with a coloured 29 pt icon and a song's number of slides; at the right a UICollectionView of slide tiles 300 to 384
+// pt wide on the grouped table's grey, each item a section headed as a grouped table heads one. A row brings its
+// item's slides to the top, the slides scrolled choose their row, and a tile tapped is outlined, as the web's page
+// picks one. Nothing is presented.
 #import "PresentationController.h"
 #import "SlideView.h"
 
@@ -43,18 +43,30 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 
 #pragma mark - The slides
 
+/// A tile: the slide's picture (GPSlideImage, drawn once), and an outline around it when picked.
 @interface GPSlideCell : UICollectionViewCell
-@property (nonatomic, readonly) GPSlideView *slide;
+@property (nonatomic, readonly) UIImageView *picture;
 @end
 
-@implementation GPSlideCell
+@implementation GPSlideCell {
+    UIView *outline;
+}
+
 - (instancetype)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
-        _slide = [[GPSlideView alloc] initWithFrame:self.contentView.bounds];
-        _slide.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        _slide.layer.cornerRadius = 4;
-        self.layer.cornerRadius = 6;
-        [self.contentView addSubview:_slide];
+        _picture = [[UIImageView alloc] initWithFrame:self.contentView.bounds];
+        _picture.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        _picture.opaque = YES;
+        [self.contentView addSubview:_picture];
+        // A border with rounded corners and no clip: drawn by the GPU without an offscreen pass.
+        outline = [[UIView alloc] initWithFrame:CGRectInset(self.bounds, -5, -5)];
+        outline.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        outline.layer.borderWidth = 3;
+        outline.layer.cornerRadius = 8;
+        outline.layer.borderColor = GPTint().CGColor;
+        outline.userInteractionEnabled = NO;
+        outline.hidden = YES;
+        [self addSubview:outline];
     }
     return self;
 }
@@ -62,9 +74,7 @@ static BOOL isHeader(NSDictionary *item) { return [item[@"type"] isEqual:@"heade
 // Picked: an outline in the tint, outside the picture.
 - (void)setSelected:(BOOL)selected {
     [super setSelected:selected];
-    self.layer.borderWidth = selected ? 3 : 0;
-    self.layer.borderColor = GPTint().CGColor;
-    self.contentView.frame = selected ? CGRectInset(self.bounds, 4, 4) : self.bounds;
+    outline.hidden = !selected;
 }
 @end
 
@@ -204,12 +214,39 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     BOOL following;   // jumped to a row's item: the row stays chosen until the slides are dragged
     CGFloat laidOutWidth;
     BOOL appeared;
+    NSInteger drawingRound;   // drawAhead's: a round whose number is no longer this stops
 }
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     appeared = YES;
     [self scrollViewDidScroll:self.collectionView];
+    [self drawAhead];
+}
+
+/// Every slide's picture drawn on a thread of its own, in the order presented, at the tiles' size now, so that the
+/// main thread finds them drawn when the slides scroll into view (it drew them as they came, the first time through,
+/// and the render server drew 56 frames a second, not 60). Begun again when the size changes; an older round stops.
+- (void)drawAhead {
+    NSIndexPath *first = [NSIndexPath indexPathForItem:0 inSection:0];
+    CGSize size = [self collectionView:self.collectionView layout:self.collectionViewLayout sizeForItemAtIndexPath:first];
+    UIColor *ground = self.collectionView.backgroundColor;
+    NSInteger round = ++drawingRound;
+    NSDictionary *p = page;
+    __weak GPSlidesController *me = self;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+        NSDate *t = [NSDate date];
+        NSInteger n = 0;
+        for (NSDictionary *item in p[@"items"]) {
+            for (NSDictionary *slide in slidesOf(p, item)) {
+                GPSlidesController *still = me;
+                if (!still || still->drawingRound != round) return;
+                GPSlideImage(slide, p[@"theme"], item[@"title"], size, ground);
+                n++;
+            }
+        }
+        NSLog(@"GPCore8: drew %ld slides ahead at %.0f x %.0f in %.0f ms", (long)n, size.width, size.height, -[t timeIntervalSinceNow] * 1000);
+    });
 }
 
 - (instancetype)initWithPage:(NSDictionary *)p {
@@ -241,14 +278,18 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     if (self.collectionView.bounds.size.width == laidOutWidth) return;
     laidOutWidth = self.collectionView.bounds.size.width;
     [self.collectionViewLayout invalidateLayout];
+    if (appeared) [self drawAhead];   // turned: the tiles have another size
 }
 
 - (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)c { return (NSInteger)items.count; }
 - (NSInteger)collectionView:(UICollectionView *)c numberOfItemsInSection:(NSInteger)s { return (NSInteger)slidesOf(page, items[s]).count; }
 
+/// 384 pt, shrunk where that fits one more to a row, as the web's SlideGrid does, but to no less than 300 pt where
+/// the web stops at 340 (Lars): lying down, the 703 pt column takes two of 314 pt, not one of 384 and half of it
+/// empty; standing, one of 384; the running order folded away, three of 310.
 - (CGSize)collectionView:(UICollectionView *)c layout:(UICollectionViewLayout *)l sizeForItemAtIndexPath:(NSIndexPath *)at {
     CGFloat available = c.bounds.size.width - 56, spacing = 18;
-    NSInteger columns = MAX(1, (NSInteger)((available + spacing) / (340 + spacing)));
+    NSInteger columns = MAX(1, (NSInteger)((available + spacing) / (300 + spacing)));
     CGFloat width = floor(MIN(384, (available - spacing * (columns - 1)) / columns));
     return CGSizeMake(width, round(width * 9 / 16));
 }
@@ -260,7 +301,9 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)c cellForItemAtIndexPath:(NSIndexPath *)at {
     GPSlideCell *cell = [c dequeueReusableCellWithReuseIdentifier:kSlide forIndexPath:at];
-    [cell.slide showSlide:slidesOf(page, items[at.section])[at.item] theme:page[@"theme"] title:items[at.section][@"title"]];
+    CGSize size = [self collectionView:c layout:c.collectionViewLayout sizeForItemAtIndexPath:at];
+    cell.picture.image = GPSlideImage(slidesOf(page, items[at.section])[at.item], page[@"theme"], items[at.section][@"title"],
+                                      size, c.backgroundColor);
     return cell;
 }
 
@@ -313,8 +356,13 @@ UISplitViewController *GPPresentationPage(NSDictionary *page) {
     items.slides = slides;
     slides.runningOrder = items;
     UISplitViewController *split = [[UISplitViewController alloc] init];
-    split.viewControllers = @[[[UINavigationController alloc] initWithRootViewController:items],
-                              [[UINavigationController alloc] initWithRootViewController:slides]];
+    UINavigationController *left = [[UINavigationController alloc] initWithRootViewController:items];
+    UINavigationController *right = [[UINavigationController alloc] initWithRootViewController:slides];
+    // Opaque bars: a translucent one blurs what scrolls under it anew on every frame, more than the iPad 3's GPU
+    // keeps up with.
+    left.navigationBar.translucent = NO;
+    right.navigationBar.translucent = NO;
+    split.viewControllers = @[left, right];
     split.preferredDisplayMode = UISplitViewControllerDisplayModeAllVisible;
     split.maximumPrimaryColumnWidth = 320;
     split.preferredPrimaryColumnWidthFraction = 0.4;

@@ -4,6 +4,7 @@
 #import <UIKit/UIKit.h>
 #import "Core.h"
 #import "PresentationController.h"
+#import "ScrollTest.h"
 
 @interface GPAppDelegate : UIResponder <UIApplicationDelegate>
 @property (nonatomic, strong) UIWindow *window;
@@ -60,8 +61,18 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 }
 
 /// For checks over SSH (`uiopen`): gpcore8://picture writes the picture now, gpcore8://item/<n> taps the running
-/// order's row n and writes it once the slides have scrolled.
+/// order's row n and writes it once the slides have scrolled, gpcore8://scrolltest scrolls the slides through and
+/// logs how smoothly (ScrollTest.m).
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
+    if ([url.host isEqual:@"scrolltest"]) {
+        UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
+        if (![split isKindOfClass:[UISplitViewController class]]) return NO;
+        // The collection view itself: on iOS 8 the controller's view is a wrapper around it.
+        UICollectionViewController *slides = (UICollectionViewController *)[split.viewControllers.lastObject topViewController];
+        CGFloat speed = url.pathComponents.count > 1 ? [url.pathComponents[1] floatValue] : 1200;
+        [GPScrollTest run:slides.collectionView speed:speed];
+        return YES;
+    }
     if ([url.host isEqual:@"item"] && url.pathComponents.count > 1) {
         UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
         if (![split isKindOfClass:[UISplitViewController class]]) return NO;

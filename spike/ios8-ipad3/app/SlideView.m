@@ -1,6 +1,6 @@
-// A slide drawn with UIKit: the web's SlideView in miniature, on a 1920 × 1080 canvas scaled to the tile (the theme's
-// areas and font sizes are in that canvas's pixels). Not the web's text fitting: the theme's size, made smaller in
-// steps of 5 % until the text fits its area.
+// A slide drawn with UIKit into a picture: the web's SlideView in miniature, on a 1920 × 1080 canvas scaled to the
+// tile (the theme's areas and font sizes are in that canvas's pixels). Not the web's text fitting: the theme's size,
+// made smaller in steps of 5 % until the text fits its area.
 #import "SlideView.h"
 
 UIColor *GPColor(NSString *css) {
@@ -21,90 +21,94 @@ UIColor *GPColor(NSString *css) {
 static NSString *kindName(NSString *kind) {
     if ([kind isEqual:@"video"]) return @"Video";
     if ([kind isEqual:@"audio"]) return @"Ljud";
-    if ([kind isEqual:@"image"]) return @"Bild";
-    return kind;
+    return @"Bild";
 }
 
-@implementation GPSlideView {
-    UILabel *text, *label, *media;
-    NSDictionary *look;   // the theme's definition for the slide's kind: background, main
-}
-
-- (instancetype)initWithFrame:(CGRect)frame {
-    if ((self = [super initWithFrame:frame])) {
-        self.clipsToBounds = YES;
-        text = [[UILabel alloc] init];
-        text.numberOfLines = 0;
-        label = [[UILabel alloc] init];
-        label.font = [UIFont boldSystemFontOfSize:10];
-        label.textColor = [UIColor whiteColor];
-        label.textAlignment = NSTextAlignmentCenter;
-        label.layer.cornerRadius = 3;
-        label.layer.masksToBounds = YES;
-        media = [[UILabel alloc] init];
-        media.textColor = [UIColor colorWithWhite:0.6 alpha:1];
-        media.textAlignment = NSTextAlignmentCenter;
-        media.numberOfLines = 2;
-        media.font = [UIFont systemFontOfSize:13];
-        for (UIView *v in @[text, media, label]) [self addSubview:v];
+/// The text at the theme's size, made 5 % smaller at a time until it fits `box`.
+static NSAttributedString *fitted(NSString *words, NSDictionary *main, CGRect box, CGFloat scale) {
+    BOOL bold = [main[@"fontWeight"] intValue] >= 600;
+    NSMutableParagraphStyle *paragraph = [[NSMutableParagraphStyle alloc] init];
+    NSString *align = main[@"align"];
+    paragraph.alignment = [align isEqual:@"center"] ? NSTextAlignmentCenter : [align isEqual:@"right"] ? NSTextAlignmentRight : NSTextAlignmentLeft;
+    paragraph.lineHeightMultiple = [main[@"lineHeight"] floatValue] ?: 1.2;
+    UIColor *color = GPColor(main[@"color"]) ?: [UIColor whiteColor];
+    CGFloat points = ([main[@"fontSize"] floatValue] ?: 75) * scale;
+    NSAttributedString *text = nil;
+    for (int i = 0; i < 40; i++, points *= 0.95) {
+        UIFont *font = bold ? [UIFont boldSystemFontOfSize:points] : [UIFont systemFontOfSize:points];
+        text = [[NSAttributedString alloc] initWithString:words attributes:@{
+            NSFontAttributeName: font, NSParagraphStyleAttributeName: paragraph, NSForegroundColorAttributeName: color}];
+        CGRect need = [text boundingRectWithSize:CGSizeMake(box.size.width, CGFLOAT_MAX)
+                                         options:NSStringDrawingUsesLineFragmentOrigin context:nil];
+        if (need.size.height <= box.size.height) break;
     }
-    return self;
+    return text;
 }
 
-- (void)showSlide:(NSDictionary *)slide theme:(NSDictionary *)theme title:(NSString *)title {
+static void drawSlide(NSDictionary *slide, NSDictionary *theme, NSString *title, CGRect bounds) {
     NSDictionary *definition = theme[@"definition"];
     NSString *kind = slide[@"kind"];
-    look = definition[kind] ?: definition[@"song"];
+    NSDictionary *look = definition[kind] ?: definition[@"song"];
     NSDictionary *background = look[@"background"] ?: look;
-    self.backgroundColor = GPColor(background[@"color"]) ?: [UIColor blackColor];
-    NSString *words = [slide[@"text"] isKindOfClass:[NSString class]] ? slide[@"text"] : @"";
-    BOOL isMedia = [kind isEqual:@"media"];
-    text.hidden = isMedia;
-    media.hidden = !isMedia;
-    if (isMedia) {
-        self.backgroundColor = [UIColor colorWithWhite:0.13 alpha:1];
+    CGFloat scale = bounds.size.width / 1920;
+    if ([kind isEqual:@"media"]) {
         // No pictures here: the media's files are not on this device. Its kind and the item's title instead.
+        [[UIColor colorWithWhite:0.13 alpha:1] setFill];
+        UIRectFill(bounds);
         NSString *what = slide[@"video"] ? @"video" : slide[@"audio"] ? @"audio" : @"image";
-        media.text = [NSString stringWithFormat:@"%@\n%@", kindName(what), title ?: @""];
+        NSMutableParagraphStyle *centred = [[NSMutableParagraphStyle alloc] init];
+        centred.alignment = NSTextAlignmentCenter;
+        NSAttributedString *text = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n%@", kindName(what), title ?: @""]
+            attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:13], NSParagraphStyleAttributeName: centred,
+                         NSForegroundColorAttributeName: [UIColor colorWithWhite:0.6 alpha:1]}];
+        CGRect box = CGRectInset(bounds, 8, 8);
+        CGFloat h = [text boundingRectWithSize:box.size options:NSStringDrawingUsesLineFragmentOrigin context:nil].size.height;
+        [text drawWithRect:CGRectMake(box.origin.x, CGRectGetMidY(box) - h / 2, box.size.width, h) options:NSStringDrawingUsesLineFragmentOrigin context:nil];
+        return;
     }
-    text.text = words;
-    NSDictionary *tag = [slide[@"label"] isKindOfClass:[NSDictionary class]] ? slide[@"label"] : nil;
-    label.hidden = tag == nil;
-    label.text = tag[@"text"];
-    label.backgroundColor = GPColor(tag[@"color"]) ?: [UIColor grayColor];
-    [self setNeedsLayout];
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    CGFloat scale = self.bounds.size.width / 1920;
-    media.frame = CGRectInset(self.bounds, 8, 8);
-    CGSize size = [label sizeThatFits:CGSizeMake(200, 16)];
-    label.frame = CGRectMake(6, 6, size.width + 10, 16);
+    [(GPColor(background[@"color"]) ?: [UIColor blackColor]) setFill];
+    UIRectFill(bounds);
     NSDictionary *main = look[@"main"];
     NSDictionary *area = main[@"area"];
     CGRect box = area ? CGRectMake([area[@"x"] floatValue] * scale, [area[@"y"] floatValue] * scale,
                                    [area[@"w"] floatValue] * scale, [area[@"h"] floatValue] * scale)
-                      : CGRectInset(self.bounds, 80 * scale, 80 * scale);
-    text.frame = box;
-    if (text.hidden || text.text.length == 0) return;
-    BOOL bold = [main[@"fontWeight"] intValue] >= 600;
-    CGFloat lineHeight = [main[@"lineHeight"] floatValue] ?: 1.2;
-    NSMutableParagraphStyle *paragraph = [[NSMutableParagraphStyle alloc] init];
-    NSString *align = main[@"align"];
-    paragraph.alignment = [align isEqual:@"center"] ? NSTextAlignmentCenter : [align isEqual:@"right"] ? NSTextAlignmentRight : NSTextAlignmentLeft;
-    paragraph.lineHeightMultiple = lineHeight;
-    CGFloat points = ([main[@"fontSize"] floatValue] ?: 75) * scale;
-    NSAttributedString *fitted = nil;
-    for (int i = 0; i < 40; i++, points *= 0.95) {
-        UIFont *font = bold ? [UIFont boldSystemFontOfSize:points] : [UIFont systemFontOfSize:points];
-        fitted = [[NSAttributedString alloc] initWithString:text.text attributes:@{
-            NSFontAttributeName: font, NSParagraphStyleAttributeName: paragraph,
-            NSForegroundColorAttributeName: GPColor(main[@"color"]) ?: [UIColor whiteColor]}];
-        CGRect need = [fitted boundingRectWithSize:CGSizeMake(box.size.width, CGFLOAT_MAX)
-                                           options:NSStringDrawingUsesLineFragmentOrigin context:nil];
-        if (need.size.height <= box.size.height) break;
+                      : CGRectInset(bounds, 80 * scale, 80 * scale);
+    NSString *words = [slide[@"text"] isKindOfClass:[NSString class]] ? slide[@"text"] : @"";
+    if (words.length) {
+        NSAttributedString *text = fitted(words, main, box, scale);
+        CGFloat h = [text boundingRectWithSize:CGSizeMake(box.size.width, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin context:nil].size.height;
+        NSString *valign = main[@"valign"];
+        CGFloat y = [valign isEqual:@"top"] ? box.origin.y : [valign isEqual:@"bottom"] ? CGRectGetMaxY(box) - h : CGRectGetMidY(box) - h / 2;
+        [text drawWithRect:CGRectMake(box.origin.x, y, box.size.width, h) options:NSStringDrawingUsesLineFragmentOrigin context:nil];
     }
-    text.attributedText = fitted;
+    NSDictionary *tag = [slide[@"label"] isKindOfClass:[NSDictionary class]] ? slide[@"label"] : nil;
+    if ([tag[@"text"] isKindOfClass:[NSString class]]) {
+        NSDictionary *attributes = @{NSFontAttributeName: [UIFont boldSystemFontOfSize:10], NSForegroundColorAttributeName: [UIColor whiteColor]};
+        CGSize size = [tag[@"text"] sizeWithAttributes:attributes];
+        CGRect chip = CGRectMake(6, 6, ceil(size.width) + 10, 16);
+        [(GPColor(tag[@"color"]) ?: [UIColor grayColor]) setFill];
+        [[UIBezierPath bezierPathWithRoundedRect:chip cornerRadius:3] fill];
+        [tag[@"text"] drawAtPoint:CGPointMake(chip.origin.x + 5, chip.origin.y + (16 - size.height) / 2) withAttributes:attributes];
+    }
 }
-@end
+
+UIImage *GPSlideImage(NSDictionary *slide, NSDictionary *theme, NSString *title, CGSize size, UIColor *ground) {
+    // Asked on the main thread and on the one drawing ahead (PresentationController.m): NSCache is thread-safe, and
+    // UIKit draws into an image context on any thread.
+    static NSCache *pictures;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ pictures = [[NSCache alloc] init]; });
+    NSString *key = [NSString stringWithFormat:@"%@ %@ %.0fx%.0f", title, slide[@"key"], size.width, size.height];
+    UIImage *made = [pictures objectForKey:key];
+    if (made) return made;
+    CGRect bounds = CGRectMake(0, 0, size.width, size.height);
+    UIGraphicsBeginImageContextWithOptions(size, YES, 0);
+    [ground setFill];
+    UIRectFill(bounds);
+    [[UIBezierPath bezierPathWithRoundedRect:bounds cornerRadius:4] addClip];
+    drawSlide(slide, theme, title, bounds);
+    made = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    [pictures setObject:made forKey:key];
+    return made;
+}

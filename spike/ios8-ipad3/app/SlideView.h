@@ -3,7 +3,7 @@
 
 UIColor *GPColor(NSString *css);
 
-@interface GPSlideView : UIView
-/// A slide of presentationPageView's (key, kind, text, label {text, color}) and the presentation's theme.
-- (void)showSlide:(NSDictionary *)slide theme:(NSDictionary *)theme title:(NSString *)title;
-@end
+/// The slide (presentationPageView's: key, kind, text, label {text, color}) drawn once at `size`, its corners rounded
+/// on `ground`, and kept: the same slide at the same size is the same picture, opaque, so that scrolling only moves
+/// pictures (the iPad 3's GPU stuttered drawing the tiles' rounded clips and labels anew on every frame).
+UIImage *GPSlideImage(NSDictionary *slide, NSDictionary *theme, NSString *title, CGSize size, UIColor *ground);
