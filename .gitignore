@@ -36,6 +36,7 @@ crates/gp-core/parity/.out/
 /spike/ios8-ipad3/.build/
 /spike/ios8-ipad3/app/.theos/
 /spike/ios8-ipad3/app/packages/
+/spike/ios8-ipad3/app/Resources/demo.sqlite
 # The slide layout probe's build, faces and report (spike/slide-layout/README.md)
 /spike/slide-layout/target/
 /spike/slide-layout/.build/

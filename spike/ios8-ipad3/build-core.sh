@@ -25,3 +25,24 @@ IPHONEOS_DEPLOYMENT_TARGET=8.0 CARGO_TARGET_DIR="$BUILD/target" RUSTC_ICE="$BUIL
   cargo +nightly build -p gp-core-ffi --release --lib --target "$HERE/armv7-apple-ios.json" \
   -Zbuild-std=std,panic_abort -Zjson-target-spec
 lipo -info "$BUILD/target/armv7-apple-ios/release/libgp_core_ffi.a"
+
+# SQLite for the app: iOS 8's own is 3.8.5, older than the core's SQL. The amalgamation the repository already has
+# (better-sqlite3's, through pnpm install), as ARM code for the reason in app/Makefile; no locking styles, whose
+# gethostuuid iOS does not have; one thread, as the app calls the core.
+for SQLITE in "$ROOT"/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3/deps/sqlite3; do :; done
+[ -f "$SQLITE/sqlite3.c" ] || { echo "no sqlite3.c: run pnpm install first" >&2; exit 1; }
+mkdir -p "$BUILD/sqlite"
+cp "$SQLITE/sqlite3.h" "$BUILD/sqlite/"
+xcrun clang -c -arch armv7 -marm -Os -miphoneos-version-min=8.0 -isysroot "${THEOS:-$HOME/theos}/sdks/iPhoneOS9.3.sdk" \
+  -DSQLITE_THREADSAFE=0 -DSQLITE_ENABLE_LOCKING_STYLE=0 -DSQLITE_OMIT_LOAD_EXTENSION -DSQLITE_DEFAULT_MEMSTATUS=0 \
+  "$SQLITE/sqlite3.c" -o "$BUILD/sqlite/sqlite3.o"
+rm -f "$BUILD/sqlite/libsqlite3.a" && xcrun ar rcs "$BUILD/sqlite/libsqlite3.a" "$BUILD/sqlite/sqlite3.o"
+grep '#define SQLITE_VERSION ' "$SQLITE/sqlite3.h"
+
+# The demo data the app opens, as apps/mac/apple.sh takes it (made by crates/gp-core/build.sh and demo-seed.mjs).
+DEMO=$ROOT/crates/gp-core/parity/.out/fixtures/demo.sqlite
+if [ ! -f "$DEMO" ]; then
+  "$ROOT/crates/gp-core/build.sh"
+  (cd "$ROOT/crates/gp-core" && node --no-warnings parity/demo-seed.mjs "$(dirname "$DEMO")")
+fi
+cp "$DEMO" "$HERE/app/Resources/demo.sqlite"

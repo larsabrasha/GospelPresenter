@@ -3,13 +3,14 @@
 # Its .tbd files (format 1) name armv7, armv7s, arm64, i386 and x86_64 under "ios"; today's ld reads the last two as
 # the simulator's and refuses the file ("built for 'iOS-simulator'"). Each file keeps armv7 only, and the export
 # sections without it go. And libsystem_c's leaves out memcmp, memcpy, memmove, memset and memset_pattern16, which
-# the core's library needs: they are added there (the app links libSystem, whose libraries dyld searches all of, so
-# which of them names a symbol does not matter on the device). Running it twice changes nothing more.
+# the core's library needs, and memchr, strchr, strcmp and strncmp, which SQLite needs: they are added there (the app
+# links libSystem, whose libraries dyld searches all of, so which of them names a symbol does not matter on the
+# device). Running it twice changes nothing more.
 import pathlib, re, sys
 
 ARCHS = re.compile(r'^(\s*(?:- )?archs:\s*)\[([^\]]*)\]')
 SECTION = re.compile(r'^(exports|undefineds):\s*$')
-MISSING = ['_memcmp', '_memcpy', '_memmove', '_memset', '_memset_pattern16']
+MISSING = ['_memcmp', '_memcpy', '_memmove', '_memset', '_memset_pattern16', '_memchr', '_strchr', '_strcmp', '_strncmp']
 
 
 def armv7_only(text):
