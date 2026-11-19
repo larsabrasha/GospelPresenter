@@ -32,6 +32,10 @@ Thumbs.db
 # The collation data's generator, outside the workspace, builds beside itself.
 /crates/gp-core-collation/target/
 crates/gp-core/parity/.out/
+# The iPad 3 spike's builds (spike/ios8-ipad3/README.md)
+/spike/ios8-ipad3/.build/
+/spike/ios8-ipad3/app/.theos/
+/spike/ios8-ipad3/app/packages/
 apps/mac/.build/
 apps/mac/run/
 apps/mac/build/
