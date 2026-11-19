@@ -47,6 +47,9 @@ if [ ! -f "$DEMO" ]; then
 fi
 cp "$DEMO" "$HERE/app/Resources/demo.sqlite"
 
+# The web's texts, Swedish and English (texts.mjs).
+node --no-warnings "$HERE/texts.mjs"
+
 # The app's icon and launch images, drawn by app/art.m.
 xcrun clang -fobjc-arc "$HERE/app/art.m" -framework AppKit -framework ImageIO -o "$BUILD/art"
 "$BUILD/art" "$ROOT/website/public/logo.svg" "$HERE/app/Resources"

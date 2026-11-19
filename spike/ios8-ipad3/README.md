@@ -85,24 +85,42 @@ The running order (Lars: as fast) needed nothing: on the demo's longest presenta
 the slides at 1200 and 3000 pt/s with the same 5 s test: the 2 missing in every run, whatever moves and how fast, are
 the test's start, not a stutter.
 
-**Syncing** (Lars: real presentations), read only, from a desktop host on the LAN over plain http:
+**Syncing** (Lars: real presentations), from a desktop host on the LAN over plain http:
 `GP_DEV_PAIR=1 GP_LAN=1 pnpm --filter @gp/desktop start` on the Mac (after `pnpm build`), which listens on
-0.0.0.0:47800. `Sync.m` does what the native shell's `Pairing` and `SyncClient.pull` do (Server.swift, Sync.swift):
-`/api/pair/status`, then `/api/pair/dev` (or `/api/pair/claim` with the six-digit code a host without
-`GP_DEV_PAIR` shows), the organisation's own SQLite opened with `migrateOrgSchema` and `syncOpen`, and every page of
-`/api/sync/pull` rebased by `syncRebase` in one transaction, the core called as the signed-in member (Core.m's
-`GPCoreCallAs` writes UniFFI's `Option<Caller>`). Not done: pushing (the app changes nothing), and the poke socket
-(NSURLSession has web sockets from iOS 13): it pulls at launch and when the list is pulled down. The session (host,
-bearer token, device token, who) is a file in Library/Application Support, readable by the app alone, not the
-Keychain, which an app signed by ldid without entitlements may not reach. The left column now starts at the
-presentations, as Settings and Mail list theirs (Presentations.m), a tap pushing the running order over them;
-"Anslut" pairs, asking for the host's address in an iOS 8 UIAlertController (and `gpcore8://connect/<host:port>`
-does it over SSH). The app's system texts are Swedish (`CFBundleDevelopmentRegion` sv: "Tillbaka", not "Back").
+0.0.0.0:47800 and keeps its data in ~/Library/Application Support/Gospel Presenter. `Sync.m` does what the native
+shell's `Pairing` and `SyncClient` do (Server.swift, Sync.swift): `/api/pair/status`, then `/api/pair/dev` (or
+`/api/pair/claim` with the six-digit code a host without `GP_DEV_PAIR` shows), the organisation's own SQLite opened
+with `migrateOrgSchema` and `syncOpen`; a change run at once and queued by `syncMutate`, the queue (`syncPending`)
+sent to `/api/sync/push`, and every page of `/api/sync/pull` rebased by `syncRebase` in one transaction, push then
+pull, coalesced to one run and one waiting; the core called as the signed-in member (Core.m's `GPCoreCallAs` writes
+UniFFI's `Option<Caller>`); syncing stopped for good on "update-required" and credentials the host no longer takes.
+Not done: the poke socket (NSURLSession has web sockets from iOS 13): it syncs at launch, after a change and when the
+list is pulled down. The session (host, bearer token, device token, who) is a file in Library/Application Support,
+readable by the app alone, not the Keychain, which an app signed by ldid without entitlements may not reach. "Anslut"
+pairs, asking for the host's address in an iOS 8 UIAlertController (and `gpcore8://connect/<host:port>` does it over
+SSH). The app's system texts are Swedish (`CFBundleDevelopmentRegion` sv: "Tillbaka", not "Back").
+
+**The start page** at the root of the left column, as the native app's StartPage.swift (Presentations.m): the core's
+lists (`startPageView`: Idag, Kommande, Senast ändrade, an empty one left out), each row its name, "sön 8 november
+2026 · 11:00" and the place under it (the web's dateLabel: Idag, Imorgon, the year where the list asks) and its number
+of items at the right; Senast ändrade 20 at a time with Visa fler; an empty page's text and button. + opens "Skapa
+presentation" (Details.m): the core's title, groups and buttons (`detailsDialogView`; the theme's group left out, as
+the native app leaves it), a name and a place, a switch and a date picker each for the day and the time, the
+description, in a form sheet; saved by `createPresentation`, then opened. The account's button (the member's first
+name, Demo in the demo) holds Synka nu, Anslut and Logga ut. The texts are the web's (`../texts.mjs` writes
+apps/web/src/i18n.ts's into `Resources/texts.json`; Texts.m reads them in the device's language, English or else
+Swedish, as Texts.swift), a refusal's code shown as the web's `error.<code>`. In the demo a change runs straight
+through the core as an admin of its own, as the native app's demo.
 
 Tried on the iPad: paired with the host on Lars's Mac as Lars Arvidsson in his organisation, one page pulled and
 rebased in 80 ms (117 ms in all), its 2 presentations listed and the latest opened (an item whose song is in the
 trash shows `song-trashed`); after a restart the saved session opened at once and the pull found nothing new
-(528 ms). Not tried: pairing with a code, a host on https, many pages, a pull that fails half way.
+(528 ms). Then a presentation made on the iPad (`gpcore8://create/<name>`, which saves as the form does):
+`createPresentation` ok, the push answered 200, and the host's own database has it; the start page lists it under
+Senast ändrade with "0 inslag", and the form opens with the core's "Skapa presentation", Avbryt and Skapa
+(`gpcore8://new`). Not tried: pairing with a code, a host on https, many pages, a sync that fails half way, a change
+the host refuses on the next pull (it is not shown yet), and by hand: the form's Skapa, the date and time pickers,
+and the account's menu.
 
 ## Build
 

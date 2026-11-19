@@ -1,6 +1,6 @@
-// An organisation synced from a desktop host on the LAN, read only: paired as the native shell pairs
-// (apps/mac/Sources/Shell/Server.swift's Pairing), its changes pulled into a local SQLite as SyncClient.pull does
-// (Sync.swift), the queue, the rebase and the triggers the core's.
+// An organisation synced from a desktop host on the LAN: paired as the native shell pairs
+// (apps/mac/Sources/Shell/Server.swift's Pairing); a change run at once and queued, the queue pushed and the server's
+// changes pulled into a local SQLite as SyncClient does (Sync.swift); the queue, the rebase and the triggers the core's.
 #import <Foundation/Foundation.h>
 #include "sqlite3.h"
 
@@ -21,8 +21,20 @@
 /// Pairs with the host (`code` nil: the development route), keeps the session, opens its database.
 + (void)pair:(NSString *)address code:(NSString *)code done:(void (^)(GPSync *sync, NSString *error))done;
 
-/// Every page of changes since the last pull, rebased into the database in one transaction; on the main thread.
-- (void)pull:(void (^)(BOOL changed, NSString *error))done;
+/// Why syncing stopped until the person acts ("update-required", "unauthenticated", "not-a-member",
+/// "device-not-paired"); nil while it goes on.
+@property (nonatomic, readonly) NSString *stopped;
+
+/// A change run at once and queued for the host (`syncMutate`), in one transaction; refused, nothing is written or
+/// queued and the refusal's code comes back. Then a sync.
+- (NSString *)mutate:(NSString *)name args:(NSDictionary *)args;
+
+/// How many changes wait for the host.
+- (NSUInteger)pendingCount;
+
+/// The queue pushed, then every page of changes since the last pull rebased into the database in one transaction;
+/// `done` on the main thread. Runs are coalesced: at most one running and one waiting, as Sync.swift's requestSync.
+- (void)sync:(void (^)(BOOL changed, NSString *error))done;
 
 /// Forgets the session (the database stays).
 - (void)signOut;

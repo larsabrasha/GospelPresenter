@@ -8,6 +8,7 @@
 #import "Presentations.h"
 #import "ScrollTest.h"
 #import "Sync.h"
+#import "Texts.h"
 
 @interface GPAppDelegate : UIResponder <UIApplicationDelegate, GPPresentationSource>
 @property (nonatomic, strong) UIWindow *window;
@@ -75,17 +76,44 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 
 #pragma mark - GPPresentationSource
 
-- (NSString *)sourceName { return sync ? (sync.me[@"orgName"] ?: @"Presentationer") : @"Demo"; }
+/// Who calls the core: the signed-in member, or in the demo an admin of its own, as the native app's demo.
+- (NSDictionary *)caller { return sync ? sync.caller : @{@"userId": @"demo", @"role": @"admin"}; }
+
+- (id)view:(NSString *)name args:(NSDictionary *)args {
+    NSDate *t = [NSDate date];
+    NSData *text = [NSJSONSerialization dataWithJSONObject:args ?: @{} options:0 error:NULL];
+    NSString *json = GPCoreCallAs(db, name, [[NSString alloc] initWithData:text encoding:NSUTF8StringEncoding], [self caller], NULL);
+    NSLog(@"GPCore8: %@ %.1f ms", name, since(t));
+    return json ? [NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:NULL] : nil;
+}
+
+- (NSString *)mutate:(NSString *)name args:(NSDictionary *)args {
+    if (sync) return [sync mutate:name args:args];
+    NSData *text = [NSJSONSerialization dataWithJSONObject:args options:0 error:NULL];
+    NSString *refused = nil;
+    GPCoreCommandAs(db, name, [[NSString alloc] initWithData:text encoding:NSUTF8StringEncoding], [self caller], &refused);
+    NSLog(@"GPCore8: %@ %@ (the demo)", name, refused ?: @"ok");
+    return refused;
+}
+
+- (NSString *)accountName { return sync ? sync.me[@"name"] : nil; }
 
 - (NSString *)sourceNote {
-    return sync ? [NSString stringWithFormat:@"Synkas med %@ som %@. Dra ner för att hämta nytt.", sync.server, sync.me[@"name"] ?: @"?"]
-                : @"Demodata. Tryck på Anslut för att synka med en skrivbordsvärd.";
+    if (!sync) return GPOwnText(@"demoNote");
+    NSString *note = [NSString stringWithFormat:GPOwnText(@"syncedNote"), sync.server, sync.me[@"orgName"] ?: @"?"];
+    return sync.stopped ? [NSString stringWithFormat:@"%@ (%@)", note, GPRefusalText(sync.stopped)] : note;
+}
+
+- (void)signOut {
+    [sync signOut];
+    sync = nil;
+    [self openDemo];
+    [list reload];
+    [self openNext:NO];
 }
 
 - (NSArray *)presentations {
-    NSDate *t = [NSDate date];
-    NSArray *rows = GPCoreView(db, @"presentationsView", @{});
-    NSLog(@"GPCore8: presentationsView %lu rows, %.1f ms", (unsigned long)rows.count, since(t));
+    NSArray *rows = [self view:@"presentationsView" args:@{}];
     return [rows isKindOfClass:[NSArray class]] ? rows : @[];
 }
 
@@ -97,10 +125,10 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 }
 
 - (void)refresh:(void (^)(NSString *))done {
-    if (!sync) { done(@"Det här är demodata. Tryck på Anslut för att synka med en skrivbordsvärd."); return; }
+    if (!sync) { done(GPOwnText(@"demoNote")); return; }
     NSDate *t = [NSDate date];
     BOOL hadAny = [self presentations].count > 0;
-    [sync pull:^(BOOL changed, NSString *error) {
+    [sync sync:^(BOOL changed, NSString *error) {
         NSLog(@"GPCore8: pull %@ in %.0f ms%@", changed ? @"changed rows" : @"changed nothing", since(t), error ? [@", " stringByAppendingString:error] : @"");
         if (changed) {
             [self->list reload];
@@ -111,8 +139,8 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 }
 
 - (void)connectFrom:(UIViewController *)controller {
-    UIAlertController *ask = [UIAlertController alertControllerWithTitle:@"Anslut till en skrivbordsvärd"
-        message:@"Adressen som Gospel Presenter på datorn visar för andra enheter, t.ex. 192.168.1.184:47800." preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *ask = [UIAlertController alertControllerWithTitle:GPOwnText(@"connectTitle")
+        message:GPOwnText(@"connectHint") preferredStyle:UIAlertControllerStyleAlert];
     [ask addTextFieldWithConfigurationHandler:^(UITextField *field) {
         field.text = [[NSUserDefaults standardUserDefaults] stringForKey:@"gp.host"];
         field.placeholder = @"192.168.1.184:47800";
@@ -120,12 +148,12 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         field.autocorrectionType = UITextAutocorrectionTypeNo;
         field.autocapitalizationType = UITextAutocapitalizationTypeNone;
     }];
-    [ask addAction:[UIAlertAction actionWithTitle:@"Avbryt" style:UIAlertActionStyleCancel handler:nil]];
-    [ask addAction:[UIAlertAction actionWithTitle:@"Anslut" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"common.cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [ask addAction:[UIAlertAction actionWithTitle:GPOwnText(@"connect") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         NSString *address = ask.textFields.firstObject.text;
         [[NSUserDefaults standardUserDefaults] setObject:address forKey:@"gp.host"];
         [GPSync askHost:address done:^(NSString *how, NSString *error) {
-            if (error) { [self tell:@"Ingen kontakt" message:error from:controller]; return; }
+            if (error) { [self tell:GPOwnText(@"noContact") message:error from:controller]; return; }
             if ([how isEqual:@"dev"]) { [self pair:address code:nil from:controller]; return; }
             [self askCode:address from:controller];
         }];
@@ -135,11 +163,11 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 
 /// The six digits the host shows under "Para ihop en enhet".
 - (void)askCode:(NSString *)address from:(UIViewController *)controller {
-    UIAlertController *ask = [UIAlertController alertControllerWithTitle:@"Kod" message:@"Den sexsiffriga koden som datorn visar."
+    UIAlertController *ask = [UIAlertController alertControllerWithTitle:GPOwnText(@"code") message:GPOwnText(@"codeHint")
                                                           preferredStyle:UIAlertControllerStyleAlert];
     [ask addTextFieldWithConfigurationHandler:^(UITextField *field) { field.keyboardType = UIKeyboardTypeNumberPad; }];
-    [ask addAction:[UIAlertAction actionWithTitle:@"Avbryt" style:UIAlertActionStyleCancel handler:nil]];
-    [ask addAction:[UIAlertAction actionWithTitle:@"Para ihop" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [ask addAction:[UIAlertAction actionWithTitle:GPText(@"common.cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [ask addAction:[UIAlertAction actionWithTitle:GPOwnText(@"pair") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         [self pair:address code:ask.textFields.firstObject.text from:controller];
     }]];
     [controller presentViewController:ask animated:YES completion:nil];
@@ -147,13 +175,13 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 
 - (void)pair:(NSString *)address code:(NSString *)code from:(UIViewController *)controller {
     [GPSync pair:address code:code done:^(GPSync *paired, NSString *error) {
-        if (!paired) { [self tell:@"Parningen misslyckades" message:error from:controller]; return; }
+        if (!paired) { [self tell:GPOwnText(@"pairFailed") message:GPRefusalText(error) from:controller]; return; }
         NSLog(@"GPCore8: paired with %@ as %@ in %@", paired.server, paired.me[@"name"], paired.me[@"orgName"]);
         self->sync = paired;
         self->db = paired.db;
         [self->list reload];
         [self refresh:^(NSString *pullError) {
-            if (pullError) [self tell:@"Synken misslyckades" message:pullError from:controller];
+            if (pullError) [self tell:GPOwnText(@"syncFailed") message:GPRefusalText(pullError) from:controller];
             else [self openNext:YES];
         }];
     }];
@@ -175,6 +203,23 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         NSDictionary *page = [self page:url.pathComponents[1]];
         if (!page) return NO;
         GPShowPage(split, page, NO);
+        return YES;
+    }
+    if ([url.host isEqual:@"new"]) {   // + tapped: Skapa presentation's form
+        [list performSelector:@selector(create)];
+        [self performSelector:@selector(picture) withObject:nil afterDelay:1];
+        return YES;
+    }
+    if ([url.host isEqual:@"start"]) {   // the start page, the left column back at its root
+        [(UINavigationController *)split.viewControllers.firstObject popToRootViewControllerAnimated:NO];
+        return YES;
+    }
+    if ([url.host isEqual:@"create"] && url.pathComponents.count > 1) {   // a presentation made as Skapa makes one
+        NSString *made = [[NSUUID UUID].UUIDString lowercaseString];
+        NSString *refused = [self mutate:@"createPresentation" args:@{@"id": made, @"name": url.pathComponents[1], @"eventDate": [NSNull null],
+                                                                     @"time": [NSNull null], @"location": @"", @"description": @""}];
+        [list reload];
+        if (!refused) GPShowPage(split, [self page:made], NO);
         return YES;
     }
     if ([url.host isEqual:@"connect"] && url.pathComponents.count > 1) {

@@ -11,6 +11,11 @@ int main(int argc, char **argv) {
         NSDate *t = [NSDate date];
         NSString *refusal = nil;
         GPCoreCommand(db, @"migrateOrgSchema", @"{}", &refusal);
+        if (argc >= 4) {   // mac-check <db> <view> <args as JSON>: that view's answer alone
+            NSString *answer = GPCoreCallAs(db, @(argv[2]), @(argv[3]), @{@"userId": @"demo", @"role": @"admin"}, &refusal);
+            printf("%s\n", (answer ?: refusal ?: @"(none)").UTF8String);
+            return 0;
+        }
         printf("migrateOrgSchema: %s, %.1f ms\n", refusal ? refusal.UTF8String : "ok", -[t timeIntervalSinceNow] * 1000);
         printf("coreInfoView: %s\n", GPCoreCall(db, @"coreInfoView", @"{}", NULL).UTF8String);
         t = [NSDate date];

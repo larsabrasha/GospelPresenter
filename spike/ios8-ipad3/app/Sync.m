@@ -1,6 +1,5 @@
 // The sync's network and its calls into the core (Sync.h). HTTP with NSURLSession (iOS 7); no poke socket, which
-// NSURLSession has from iOS 13 only: the app pulls when it starts and when asked. Read only: nothing is pushed, as
-// the app changes nothing. The session (the host's address, its bearer token, the paired device's token and who) is
+// NSURLSession has from iOS 13 only: the app syncs when it starts, after every change, and when asked. The session (the host's address, its bearer token, the paired device's token and who) is
 // kept in a file in Library, readable by this app alone: on a jailbroken iPad, not the Keychain the native shell
 // uses, which an app signed by ldid without entitlements may not reach.
 #import "Sync.h"
@@ -59,6 +58,9 @@ static NSString *refusal(NSInteger status, id answer, NSString *text) {
     NSDictionary *session;   // {server, token, device, me}
     NSURL *url;
     NSString *clientId;
+    BOOL running, again;     // a sync running, and another asked for meanwhile
+    NSMutableArray *waiting; // the `done`s of the syncs asked for while one ran
+    BOOL changedMeanwhile;
 }
 
 - (instancetype)initWithSession:(NSDictionary *)s error:(NSString **)error {
@@ -141,7 +143,69 @@ static NSString *refusal(NSInteger status, id answer, NSString *text) {
     return [NSString stringWithFormat:@"\"protocol\":%d,\"schemaVersion\":%lld,\"clientId\":%@", kProtocol, version, json(clientId)];
 }
 
+/// An answer that stops syncing: "update required", or credentials the host no longer takes (SYNC-A15).
+- (BOOL)refused:(NSInteger)status answer:(id)answer {
+    NSString *error = [answer isKindOfClass:[NSDictionary class]] ? answer[@"error"] : nil;
+    BOOL stops = (status == 426 && [error isEqual:@"update-required"]) ||
+                 ((status == 401 || status == 403) && [@[@"unauthenticated", @"not-a-member", @"device-not-paired"] containsObject:error ?: @""]);
+    if (stops) _stopped = error;
+    return stops;
+}
+
+- (NSString *)mutate:(NSString *)name args:(NSDictionary *)args {
+    NSString *refused = nil;
+    GPCoreCommandAs(_db, @"syncMutate", [NSString stringWithFormat:@"{\"mutator\":%@,\"args\":%@}", json(name), json(json(args))], _caller, &refused);
+    NSLog(@"GPCore8: %@ %@", name, refused ?: @"ok");
+    if (!refused) [self sync:^(BOOL changed, NSString *error) { if (error) NSLog(@"GPCore8: sync after %@: %@", name, error); }];
+    return refused;
+}
+
+- (NSArray *)pending {
+    NSString *text = GPCoreCallAs(_db, @"syncPending", @"{}", _caller, NULL);
+    id queue = text ? [NSJSONSerialization JSONObjectWithData:[text dataUsingEncoding:NSUTF8StringEncoding] options:0 error:NULL] : nil;
+    return [queue isKindOfClass:[NSArray class]] ? queue : @[];
+}
+
+- (NSUInteger)pendingCount { return [self pending].count; }
+
+/// Sends the queue: each change's arguments as the core queued them, their JSON text unchanged. A network failure
+/// leaves it as it is; the host confirms through the next pull.
+- (void)push:(void (^)(NSString *error))done {
+    NSArray *queue = [self pending];
+    if (_stopped || queue.count == 0) { done(nil); return; }
+    NSMutableArray *changes = [NSMutableArray array];
+    for (NSDictionary *q in queue)
+        [changes addObject:[NSString stringWithFormat:@"{\"id\":%@,\"name\":%@,\"v\":%@,\"args\":%@}", q[@"id"], json(q[@"name"]), q[@"v"], q[@"args"]]];
+    NSString *body = [NSString stringWithFormat:@"{%@,\"mutations\":[%@]}", [self head], [changes componentsJoinedByString:@","]];
+    request(url, @"POST", @"/api/sync/push", body, session, ^(NSInteger status, id answer, NSString *text) {
+        if ([self refused:status answer:answer]) { done(self->_stopped); return; }
+        NSLog(@"GPCore8: pushed %lu changes: %ld", (unsigned long)queue.count, (long)status);
+        done(status == 200 ? nil : refusal(status, answer, text));
+    });
+}
+
+- (void)sync:(void (^)(BOOL, NSString *))done {
+    if (!waiting) waiting = [NSMutableArray array];
+    if (done) [waiting addObject:done];
+    if (running) { again = YES; return; }
+    running = YES;
+    again = NO;
+    [self push:^(NSString *pushError) {
+        [self pull:^(BOOL changed, NSString *pullError) {
+            self->changedMeanwhile |= changed;
+            if (self->again) { self->running = NO; [self sync:nil]; return; }
+            NSArray *callers = self->waiting;
+            BOOL any = self->changedMeanwhile;
+            self->waiting = [NSMutableArray array];
+            self->changedMeanwhile = NO;
+            self->running = NO;
+            for (void (^d)(BOOL, NSString *) in callers) d(any, pushError ?: pullError);
+        }];
+    }];
+}
+
 - (void)pull:(void (^)(BOOL, NSString *))done {
+    if (_stopped) { done(NO, _stopped); return; }
     sqlite3_stmt *st = NULL;
     NSString *cookie = nil;
     sqlite3_int64 last = 0;
@@ -157,6 +221,7 @@ static NSString *refusal(NSInteger status, id answer, NSString *text) {
 - (void)pullFrom:(NSString *)cookie last:(sqlite3_int64)last pages:(NSMutableArray *)pages done:(void (^)(BOOL, NSString *))done {
     NSString *body = [NSString stringWithFormat:@"{%@,\"cookie\":%@,\"lastMutationId\":%lld}", [self head], json(cookie), last];
     request(url, @"POST", @"/api/sync/pull", body, session, ^(NSInteger status, id answer, NSString *text) {
+        if ([self refused:status answer:answer]) { done(NO, self->_stopped); return; }
         if (status != 200 || ![answer isKindOfClass:[NSDictionary class]]) { done(NO, refusal(status, answer, text)); return; }
         [pages addObject:text];
         if ([answer[@"more"] boolValue]) { [self pullFrom:answer[@"cookie"] last:last pages:pages done:done]; return; }
