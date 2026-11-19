@@ -277,6 +277,9 @@ static NSString *const kSlide = @"slide", *const kHeading = @"heading";
     [super viewWillLayoutSubviews];
     if (self.collectionView.bounds.size.width == laidOutWidth) return;
     laidOutWidth = self.collectionView.bounds.size.width;
+    NSLog(@"GPCore8: slides %.0f pt wide, the order %@, the bar %ld", laidOutWidth,
+          self.splitViewController.displayMode == UISplitViewControllerDisplayModeAllVisible ? @"shown" : @"hidden",
+          (long)[UIApplication sharedApplication].statusBarOrientation);
     [self.collectionViewLayout invalidateLayout];
     if (appeared) [self drawAhead];   // turned: the tiles have another size
 }

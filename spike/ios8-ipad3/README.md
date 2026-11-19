@@ -50,14 +50,17 @@ column, as Settings names it after the row chosen; a tile tapped is outlined in 
 draws a slide into a picture, once (below): the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
 until it fits (not the web's fitting), the part's label in a corner. Media show their kind and title: their files are
 not on the device. Nothing is presented. A row's item comes to the top at once, not scrolled to (Lars: the slides
-rushing past made him dizzy). `icon.m` draws the app's icon on the Mac, Gospel Presenter's logo
-(`website/public/logo.svg`) on white as the desktop app's icon has it (`build-core.sh` runs it). 1.5 s
-after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png; opened
-with `gpcore8://picture` it writes one then, and with `gpcore8://item/<n>` it taps row n first and writes one a
-second later, so that a check over SSH can drive the page and see it.
+rushing past made him dizzy). `art.m` draws the app's icon on the Mac, Gospel Presenter's logo
+(`website/public/logo.svg`) on white as the desktop app's icon has it, and its launch images, upright and lying down:
+the page's empty frame (`build-core.sh` runs it). It supports all four orientations, as an iPad app should. Opened
+with `gpcore8://picture` the app writes a picture of its window as it stands (without the status bar) to
+/tmp/gpcore8.png, and with `gpcore8://item/<n>` it taps row n first and writes one a
+second later, and with `gpcore8://open/<presentation id>` it opens another presentation, so that a check over SSH
+can drive the page and see it.
 
 **Scrolling at 60 frames a second** (Lars: no jitter, no stutter). `gpcore8://scrolltest/<pt a second>` scrolls the
-slides from the top to the end, a step on every frame the display shows (ScrollTest.m), and logs two sides: the
+slides (`…/list`: the running order) down and up for 5 s, a step on every frame the display shows (ScrollTest.m;
+the table below is from its first form, once from the top to the end), and logs two sides: the
 app's, frames that came late to the main thread (CADisplayLink), and the render server's, which composites the
 layers on the GPU, frames drawn (QuartzCore's private `CARenderServerGetFrameCounter`, what FPS meters for jailbroken
 devices read, looked up at run time). The main thread was never late, before or after; the GPU was:
@@ -75,6 +78,11 @@ blend, nothing to scale; the navigation bars opaque, since a translucent one blu
 every frame; and all 54 pictures drawn after the page shows, on a thread of their own (0.7 s), so that the main
 thread does not draw one as it scrolls into view. The before was the commit before this one, built with the same
 test; it ran 10.6 s, not 5.1, since its 340 pt tiles stood in one column, not two.
+
+The running order (Lars: as fast) needed nothing: on the demo's longest presentation, 27 items
+(`gpcore8://open/pres-6` opens it), the render server drew 298 of 300 frames at 600 and at 1500 pt/s, as it does for
+the slides at 1200 and 3000 pt/s with the same 5 s test: the 2 missing in every run, whatever moves and how fast, are
+the test's start, not a stutter.
 
 ## Build
 
@@ -136,6 +144,17 @@ What happened, in order:
    layout of the collection view that is its own view, which lays it out again, for ever; then the wrong row chosen,
    the layout answering every heading at 0 until the view has appeared. The picture in both orientations after that.
 
+The launch lying down, filmed by Lars at 30 frames a second: without launch images the system zoomed a black
+rectangle out of the icon, slid a black screen in from the left over the wallpaper, stayed black for about half a
+second, and then showed the page at once; the app's own views stood still from their first frame on (`GPLaunchWatch`
+in ScrollTest.m logs where they stand on every frame of the first 3 s). Hence the launch images; filmed again, the
+page's frame zoomed out of the icon and the page faded in over it. But 1.5 s after launch the running order folded
+away, the slides stood three to a row, and it slid back: the picture the app then took of itself, with
+`drawViewHierarchyInRect:afterScreenUpdates:YES`, which lays the window out once more, and the split view with it.
+Now the app takes no picture unless asked, and takes it with `afterScreenUpdates:NO`; nothing moves in the 3 s after
+launch nor after a picture, by the log, and Lars saw the launch as it should be. The Mac could not record the iPad's
+screen as QuickTime does: no capture device showed up, and the camera access this needs was not given.
+
 The first start after `dpkg -i` and `uicache` waits about 10 s between `main` and `didFinishLaunching`; the next
 starts do not. Harmless, seen on every launch: installd's "Failed to verify code signature … (Code not signed)" when
 `uicache` registers it (iOS 8 does not read ldid's signature; the jailbreak lets it run anyway), and libxpc's
@@ -159,6 +178,6 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
 - The clock: whether any of these views call `clock_gettime`, so whether `clock.c` has run.
 - By hand on the iPad: the row following the slides as they are scrolled with a finger, a tile's outline, the fold
   button, and the icon on the home screen.
-- Scrolling with a finger, decelerating, and the running order's list: the test moves the slides at even speeds.
+- Scrolling with a finger, and the deceleration after it: the test moves the views at even speeds.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
 - Commands beyond the migration (nothing is changed), sync, and media files.

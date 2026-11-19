@@ -1,6 +1,6 @@
 // The app: a fresh copy of the demo data (Resources/demo.sqlite, copied in by ../build-core.sh), migrated by the
-// core, and its first presentation's page. What it took is logged; a second after the page shows, a picture of it is
-// written to /tmp/gpcore8.png, to be fetched over SSH (../README.md).
+// core, and its first presentation's page. What it took is logged, and where the views stand in the first seconds
+// (ScrollTest.m's GPLaunchWatch); gpcore8:// URLs drive it and take pictures of it over SSH (../README.md).
 #import <UIKit/UIKit.h>
 #import "Core.h"
 #import "PresentationController.h"
@@ -40,6 +40,8 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
     NSDate *t = [NSDate date];
+    NSLog(@"GPCore8: launching, the bar %ld, the screen %.0f x %.0f", (long)application.statusBarOrientation,
+          [UIScreen mainScreen].bounds.size.width, [UIScreen mainScreen].bounds.size.height);
     NSDictionary *page = [self openPage];
     UIViewController *root;
     if (page) {
@@ -55,8 +57,10 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     self.window.tintColor = GPTint();
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
+    [GPLaunchWatch watch:self.window];
     NSLog(@"GPCore8: launched in %.1f ms", since(t));
-    [self performSelector:@selector(picture) withObject:nil afterDelay:1.5];
+    // No picture of its own at launch: one taken 1.5 s in made the split view fold the running order away and back
+    // on the screen (Lars filmed it). Pictures are taken when asked for.
     return YES;
 }
 
@@ -64,13 +68,28 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
 /// order's row n and writes it once the slides have scrolled, gpcore8://scrolltest scrolls the slides through and
 /// logs how smoothly (ScrollTest.m).
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)source annotation:(id)annotation {
+    if ([url.host isEqual:@"open"] && url.pathComponents.count > 1) {
+        // gpcore8://open/<presentation id>: that presentation's page instead.
+        NSDate *t = [NSDate date];
+        NSDictionary *page = GPCoreView(db, @"presentationPageView", @{@"id": url.pathComponents[1]});
+        NSLog(@"GPCore8: presentationPageView %lu items, %.1f ms", (unsigned long)[page[@"items"] count], since(t));
+        if (!page[@"presentation"] || page[@"presentation"] == [NSNull null]) return NO;
+        self.window.rootViewController = GPPresentationPage(page);
+        return YES;
+    }
     if ([url.host isEqual:@"scrolltest"]) {
         UISplitViewController *split = (UISplitViewController *)self.window.rootViewController;
         if (![split isKindOfClass:[UISplitViewController class]]) return NO;
-        // The collection view itself: on iOS 8 the controller's view is a wrapper around it.
-        UICollectionViewController *slides = (UICollectionViewController *)[split.viewControllers.lastObject topViewController];
+        // gpcore8://scrolltest/<speed>/list scrolls the running order instead. The collection view itself: on iOS 8
+        // the controller's view is a wrapper around it.
         CGFloat speed = url.pathComponents.count > 1 ? [url.pathComponents[1] floatValue] : 1200;
-        [GPScrollTest run:slides.collectionView speed:speed];
+        UIScrollView *scrolled;
+        if (url.pathComponents.count > 2 && [url.pathComponents[2] isEqual:@"list"]) {
+            scrolled = ((UITableViewController *)[split.viewControllers.firstObject topViewController]).tableView;
+        } else {
+            scrolled = ((UICollectionViewController *)[split.viewControllers.lastObject topViewController]).collectionView;
+        }
+        [GPScrollTest run:scrolled speed:speed];
         return YES;
     }
     if ([url.host isEqual:@"item"] && url.pathComponents.count > 1) {
@@ -83,14 +102,18 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         [self performSelector:@selector(picture) withObject:nil afterDelay:1];
         return YES;
     }
-    [self picture];
+    if ([url.host isEqual:@"picture"]) {
+        [GPLaunchWatch watch:self.window];   // and whether taking it moves anything
+        [self picture];
+    }
     return YES;
 }
 
-/// The window as a PNG in /tmp, as the screen shows it.
+/// The window as a PNG in /tmp, as the screen shows it. As it stands: with afterScreenUpdates:YES, UIKit lays the
+/// window out once more to draw it, and the split view folded the running order away and back on the screen.
 - (void)picture {
     UIGraphicsBeginImageContextWithOptions(self.window.bounds.size, YES, 0);
-    [self.window drawViewHierarchyInRect:self.window.bounds afterScreenUpdates:YES];
+    [self.window drawViewHierarchyInRect:self.window.bounds afterScreenUpdates:NO];
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     BOOL written = [UIImagePNGRepresentation(image) writeToFile:@"/tmp/gpcore8.png" atomically:YES];
