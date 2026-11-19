@@ -1,8 +1,8 @@
 # Slides drawn without a browser
 
 Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
-2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. Its first piece is built (the core's
-`slideLayoutView`, at the end); no shell draws from it yet.
+2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. The core's `slideLayoutView` is
+built, and the Mac app paints song slides from it (both at the end).
 
 ## The question
 
@@ -110,6 +110,34 @@ means, and draws the label, overlays and the black itself. Proved against SlideV
 `docs/rust-core.md`). Only the native shells have it (the `layout` feature): parley, its line breaking data and the
 faces would double the web's WASM, which draws with SlideView.
 
-Next: a shell painting from it (the Mac and iOS app first, in place of the web view), compared picture by picture
-with SlideView; then Bible slides (verse numbers small and raised), pictures, videos and custom slides. Still to
-decide: what Classic's Tahoma becomes, as the core has no Tahoma.
+A shell may add faces of its system for a family a theme names that the app does not ship (`add_slide_face` through
+UniFFI, `gp_add_face` in the WASM): the Mac adds its own Tahoma, so Classic and Ljust lay out as the browser on that
+Mac draws them (`parity/slide-layout.mjs` adds the theme where the system has Tahoma: 106 460 comparisons over the real
+songs, 0 different besides the same words at the edge). That follows each platform as the browser does, and does not
+decide what Classic's Tahoma becomes where a system has none (iOS, where WebKit falls back to Verdana).
+
+## The Mac app paints (2026-11-19)
+
+`apps/mac/Sources/GPMac/SlidePainter.swift`: a song slide's thumbnail, live picture and output window are painted from
+`slideLayoutView` with Core Text (the glyphs by id where the core put them, the faces from the core's own bytes or the
+system's Tahoma), the theme's colour and own picture with its scrim under them, the outline and shadow as SlideView
+paints them, and the part's label in the system's sans as the page's. A tile shows the label and no credits, the live
+picture the credits and no label, as `apps/web/src/slides/main.tsx` does. Everything else is still SlideView's.
+
+Compared picture by picture (`apps/mac/compare.mjs`): the Mac app paints the demo's first 60 song slides in Classic,
+Ljust and three themes of the shipped faces (a shadow, an outline, capitals), every other one through the live
+picture's `Canvas`, and the app's own `slides.html` draws the same in Playwright's WebKit; pixels differing by more than
+48 of 255: a median of 0.064 % in four themes (the label's letters, drawn by Core Text and by the page in the same
+system font), 0.29 % with Montserrat outlined (the outline's edges). What made them agree: each baseline on a whole
+pixel of the 1920 stage, as WebKit sets a line before the stage is scaled; the outline stroked as the glyphs' paths,
+since a SwiftUI `Canvas` strokes a context's text wider than a bitmap does. Not compared in a WKWebView in the app (a
+web view in an app of a locked Mac draws nothing), nor on a screen of the Mac's own density, nor with a theme's
+picture.
+
+Measured on an M1 Max (the same run, `<dir>/timing.txt`): a slide's layout 0.36 ms with its JSON both ways, a thumbnail
+painted 0.51 ms, the whole stage 1.66 ms; the web view took 65 ms a snapshot and 69 ms a sheet of 20 (docs/native-apps.md).
+The rounding that makes the pixels agree costs nothing to speak of; Lars, 2026-11-19: where it would cost, exact pixels
+are not needed.
+
+Next: iOS, then Bible slides (verse numbers small and raised), pictures, videos and custom slides; an overlay over a
+painted slide.

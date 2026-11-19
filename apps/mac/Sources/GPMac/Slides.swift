@@ -1,4 +1,5 @@
-// The Mac's output window, and "Lägg till sång". Slides themselves are the web's SlideView (SlideRenderer.swift).
+// The Mac's output window, and "Lägg till sång". Slides themselves are painted from the core (SlidePainter.swift)
+// or drawn by the web's SlideView (SlideRenderer.swift).
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -11,7 +12,7 @@ struct OutputView: View {
     var body: some View {
         ZStack {
             Color.black
-            LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
+            LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
         }
         .ignoresSafeArea()
         .focusable().focusEffectDisabled()

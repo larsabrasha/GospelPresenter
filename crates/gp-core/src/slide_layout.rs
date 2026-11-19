@@ -1,7 +1,8 @@
 // A song slide laid out to the glyph, for a shell that draws it itself (docs/native-slide-rendering.md, way 3): the
 // theme's background, and its main text and credits as the web's SlideView sets them (apps/web/src/ui/SlideView.tsx,
 // FittedText.tsx), each line where it starts and each glyph where it stands on the 1920 × 1080 stage. The shell paints
-// that list with the same faces (fonts/, the app's own as TrueType) and its own means. Laid out with parley over those
+// that list with the same faces (fonts/, the app's own as TrueType, and those it added from its system) and its own
+// means. Laid out with parley over those
 // faces only, with Chromium's break opportunities on ASCII pairs, which WebKit shares where songs need them
 // (spike/slide-layout/README.md: the same lines as the browsers on 99.7–100 % of 12 916 real slides).
 use crate::args::*;
@@ -12,7 +13,7 @@ use parley::{
 };
 use serde_json::{json, Value};
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// The faces the app ships (apps/web/src/assets/fonts), as TrueType: `woff2_decompress` of those files, named as the
 /// web's `@font-face` names them (a variable file's own name is its default instance's: "Montserrat Thin").
@@ -27,11 +28,51 @@ const STAGE: (f32, f32) = (1920.0, 1080.0);
 /// The smallest a main text is made, of its theme's size (FittedText's MIN_SCALE).
 const MIN_SCALE: f32 = 0.35;
 
+/// The faces a shell adds from its system, for a family a theme names that the app does not ship: Classic's Tahoma on
+/// a Mac, where the browser draws it with the system's (`add_face`). Each one's name for the runs, its family, its
+/// bytes; one list for every thread, each thread's engine registering those it has not yet.
+static ADDED: Mutex<Vec<Added>> = Mutex::new(Vec::new());
+/// An added face: its name, its family, its bytes.
+type Added = (String, String, Arc<Vec<u8>>);
+
+/// A face of the system's for `family`, named `name` in the runs (its PostScript name, say): a stack's family the core
+/// then lays out with, where none before it in the stack is had. Added once; a name added again is left as it was.
+pub fn add_face(name: String, family: String, bytes: Vec<u8>) {
+    let mut added = ADDED.lock().unwrap_or_else(|e| e.into_inner());
+    if !added.iter().any(|(n, _, _)| *n == name) {
+        added.push((name, family, Arc::new(bytes)));
+    }
+}
+
+/// A shipped face's bytes by its name (a run's `face`), for the shell to paint the glyphs with the very same file.
+pub fn shipped_face(name: &str) -> Option<&'static [u8]> { FACES.iter().find(|(n, _)| *n == name).map(|(_, bytes)| *bytes) }
+
 struct Engine {
     fonts: FontContext,
     layouts: LayoutContext<()>,
-    /// Each face's blob, to name the face a glyph run was shaped with.
-    blobs: Vec<u64>,
+    /// Each face's blob, its name for the runs and its family: the shipped faces, then those added.
+    faces: Vec<(u64, String, String)>,
+}
+
+impl Engine {
+    /// The faces added since this thread's engine last looked, registered.
+    fn take_added(&mut self) {
+        let added = ADDED.lock().unwrap_or_else(|e| e.into_inner());
+        for (name, family, bytes) in added.iter().skip(self.faces.len() - FACES.len()) {
+            let blob = Blob::new(bytes.clone());
+            let named = FontInfoOverride { family_name: Some(family), ..Default::default() };
+            self.fonts.collection.register_fonts(blob.clone(), Some(named));
+            self.faces.push((blob.id(), name.clone(), family.clone()));
+        }
+    }
+
+    /// The first family of a CSS font stack the core has, shipped or added: `'Inter', sans-serif` is Inter;
+    /// Classic's `'Tahoma', 'Geneva', Verdana, sans-serif` is Tahoma where the shell added it, else none.
+    fn family_of(&self, stack: &str) -> Option<String> {
+        stack.split(',').map(|f| f.trim().trim_matches(|c| c == '\'' || c == '"')).find_map(|f| {
+            self.faces.iter().find(|(_, _, family)| family.eq_ignore_ascii_case(f)).map(|(_, _, family)| family.clone())
+        })
+    }
 }
 
 thread_local! {
@@ -44,17 +85,18 @@ fn with_engine<T>(f: impl FnOnce(&mut Engine) -> T) -> T {
         let mut cell = cell.borrow_mut();
         let engine = cell.get_or_insert_with(|| {
             let mut fonts = FontContext::new();
-            let blobs = FACES
+            let faces = FACES
                 .iter()
                 .map(|&(family, bytes)| {
                     let blob = Blob::new(Arc::new(bytes));
                     let named = FontInfoOverride { family_name: Some(family), ..Default::default() };
                     fonts.collection.register_fonts(blob.clone(), Some(named));
-                    blob.id()
+                    (blob.id(), family.to_string(), family.to_string())
                 })
                 .collect();
-            Engine { fonts, layouts: LayoutContext::new(), blobs }
+            Engine { fonts, layouts: LayoutContext::new(), faces }
         });
+        engine.take_added();
         f(engine)
     })
 }
@@ -62,7 +104,7 @@ fn with_engine<T>(f: impl FnOnce(&mut Engine) -> T) -> T {
 /// A theme's text style (themes.ts's TextStyle), as far as it moves or paints the text.
 struct Style {
     size: f32,
-    face: &'static str,
+    face: String,
     weight: f32,
     line_height: f32,
     align: f32,
@@ -74,18 +116,13 @@ struct Style {
 
 fn number(o: &Obj, k: &str) -> R<f32> { o.get(k).and_then(Value::as_f64).map(|n| n as f32).ok_or_else(|| "invalid-args".into()) }
 
-/// The first face of a CSS font stack the core has: `'Inter', sans-serif` is Inter; Classic's Tahoma is none.
-fn face_of(stack: &str) -> Option<&'static str> {
-    stack.split(',').map(|f| f.trim().trim_matches(|c| c == '\'' || c == '"')).find_map(|f| FACES.iter().find(|(name, _)| name.eq_ignore_ascii_case(f)).map(|(name, _)| *name))
-}
-
-fn style(o: &Obj) -> R<Style> {
+fn style(e: &Engine, o: &Obj) -> R<Style> {
     let stack = o.get("fontFamily").and_then(Value::as_str).ok_or("invalid-args")?;
     let area = obj(o.get("area").ok_or("invalid-args")?)?;
     let at = |s: &str, options: [&str; 3]| options.iter().position(|o| *o == s).map(|i| i as f32 / 2.0);
     Ok(Style {
         size: number(o, "fontSize")?,
-        face: face_of(stack).ok_or("font-not-shipped")?,
+        face: e.family_of(stack).ok_or("font-not-shipped")?,
         weight: number(o, "fontWeight")?,
         line_height: number(o, "lineHeight")?,
         align: at(&one_of(o, "align", &["left", "center", "right"])?, ["left", "center", "right"]).unwrap_or(0.0),
@@ -104,7 +141,7 @@ fn layout(e: &mut Engine, text: &str, s: &Style, size: f32, wrap: bool) -> Layou
     // Not quantised to whole pixels: lines as far apart as the browser sets them (64 px at 1.6 is 102.4 apart, not 102).
     let mut b = e.layouts.ranged_builder(&mut e.fonts, text, 1.0, false);
     b.set_line_break_override(Some(&CHROMIUM_LINE_BREAK_OVERRIDE));
-    b.push_default(StyleProperty::FontFamily(FontFamily::named(s.face)));
+    b.push_default(StyleProperty::FontFamily(FontFamily::named(&s.face)));
     b.push_default(StyleProperty::FontWeight(FontWeight::new(s.weight)));
     b.push_default(StyleProperty::FontSize(size));
     b.push_default(StyleProperty::LineHeight(LineHeight::FontSizeRelative(s.line_height)));
@@ -144,7 +181,8 @@ fn painted(e: &Engine, text: &str, l: &Layout<()>, s: &Style, size: f32, role: &
         lines.push(json!({ "text": text[range.clone()].trim_end_matches(['\n', '\r']), "x": r2(left), "y": r2(top + m.baseline), "width": r2(width) }));
         for item in line.items() {
             let PositionedLayoutItem::GlyphRun(run) = item else { continue };
-            let face = e.blobs.iter().position(|id| *id == run.run().font().data.id()).map_or("", |i| FACES[i].0);
+            let id = run.run().font().data.id();
+            let face = e.faces.iter().find(|(blob, _, _)| *blob == id).map_or("", |(_, name, _)| name);
             let glyphs: Vec<Value> = run.positioned_glyphs().map(|g| json!([g.id, r2(left + g.x), r2(top + g.y)])).collect();
             runs.push(json!({ "face": face, "size": r2(run.run().font_size()), "glyphs": glyphs }));
         }
@@ -175,8 +213,8 @@ fn credits(e: &mut Engine, text: &str, s: &Style) -> Value {
 }
 
 /// `slideLayoutView` {slide, theme}: a song slide's background, main text and credits laid out on the stage, the label
-/// left to the shell (an operator's mark, LIVE-R20). Refused: `font-not-shipped` for a face the core does not have
-/// (Classic's Tahoma), `not-yet` for a Bible, picture, video or custom slide.
+/// left to the shell (an operator's mark, LIVE-R20). Refused: `font-not-shipped` for a stack of which the core has no
+/// face (Classic's Tahoma where no shell added it), `not-yet` for a Bible, picture, video or custom slide.
 pub fn view(a: &Obj) -> R<Value> {
     let slide = obj(a.get("slide").ok_or("invalid-args")?)?;
     if slide.get("kind").and_then(Value::as_str) != Some("song") || slide.get("custom").is_some_and(|c| !c.is_null()) {
@@ -184,10 +222,10 @@ pub fn view(a: &Obj) -> R<Value> {
     }
     let theme = obj(a.get("theme").ok_or("invalid-args")?)?;
     let def = obj(obj(theme.get("definition").ok_or("invalid-args")?)?.get("song").ok_or("invalid-args")?)?;
-    let (main, foot) = (style(obj(def.get("main").ok_or("invalid-args")?)?)?, style(obj(def.get("credits").ok_or("invalid-args")?)?)?);
     let raw = slide.get("text").and_then(Value::as_str).ok_or("invalid-args")?;
-    let text = if main.uppercase { raw.to_uppercase() } else { raw.to_string() };
     with_engine(|e| {
+        let (main, foot) = (style(e, obj(def.get("main").ok_or("invalid-args")?)?)?, style(e, obj(def.get("credits").ok_or("invalid-args")?)?)?);
+        let text = if main.uppercase { raw.to_uppercase() } else { raw.to_string() };
         let size = fitted(e, &text, &main);
         let l = layout(e, &text, &main, size, true);
         let mut texts = vec![painted(e, &text, &l, &main, size, "main")];

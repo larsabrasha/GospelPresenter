@@ -2,9 +2,10 @@
 // Chromium and WebKit: the fitted size, each line's text, where it starts across, and its baseline against the
 // browser's line top (the same distance for a face and size wherever a line is). Song slides from the demo's songs, as
 // they are and as flowing paragraphs, and from GP_REAL_PRO_DIR's .pro files when it is set; in four themes of the faces
-// the app ships, which move and change the text: centred, left at the top, right at the foot in capitals, a narrow box.
+// the app ships, which move and change the text: centred, left at the top, right at the foot in capitals, a narrow box;
+// and on a Mac, Classic as the browser draws it there, in the system's Tahoma, which the Mac app adds to the core.
 //   node parity/slide-layout.mjs <demo.sqlite> <gp_core_layout.wasm> <repository root>
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -23,6 +24,14 @@ function view(name, args) {
   return st === 0 ? JSON.parse(text || 'null') : { refused: text };
 }
 
+// The system's Tahoma, as the Mac app adds it (SlideFaces.swift): both files under the family the stack names.
+const SYSTEM = '/System/Library/Fonts/Supplemental';
+const TAHOMA = [['Tahoma', 'Tahoma.ttf'], ['Tahoma-Bold', 'Tahoma Bold.ttf']].filter(([, f]) => existsSync(join(SYSTEM, f)));
+for (const [name, file] of TAHOMA) {
+  const status = w.gp_add_face(...pass(JSON.stringify({ name, family: 'Tahoma', data: readFileSync(join(SYSTEM, file)).toString('base64') })));
+  if (status !== 0) throw new Error(`${file} not added`);
+}
+
 const FONTS = { Inter: 'Inter-variable', Montserrat: 'Montserrat-variable', Lato: 'Lato-400' };
 const area = (x, y, width, height) => ({ x, y, w: width, h: height });
 const text = (o) => ({ fontSize: 75, fontWeight: 700, lineHeight: 1.4, color: '#ffffff', align: 'center', shadow: false, uppercase: false, outline: 0, outlineColor: '#000000', area: area(80, 80, 1760, 856), valign: 'middle', ...o });
@@ -33,6 +42,7 @@ const THEMES = {
   'Montserrat 400, left, top': theme({ fontFamily: "'Montserrat', sans-serif", fontWeight: 400, align: 'left', valign: 'top', lineHeight: 1.2 }),
   'Lato 400, right, foot, capitals': theme({ fontFamily: "'Lato', sans-serif", fontWeight: 400, align: 'right', valign: 'bottom', uppercase: true, fontSize: 90 }),
   'Inter 400, a narrow box': theme({ fontFamily: "'Inter', sans-serif", fontWeight: 400, area: area(400, 200, 900, 500), fontSize: 64, lineHeight: 1.6 }),
+  ...(TAHOMA.length === 2 ? { 'Classic, Tahoma 700': theme({ fontFamily: "'Tahoma', 'Geneva', Verdana, sans-serif" }) } : {}),
 };
 
 function slides() {

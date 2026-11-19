@@ -64,6 +64,15 @@ pub fn resume(answer: SqlAnswer) -> Step {
     }))
 }
 
+/// A face of the system's for slides laid out by the core (`slideLayoutView`), for a family a theme names that the app
+/// does not ship: Classic's Tahoma on a Mac. `name` is what the layout's runs call it; added once.
+#[uniffi::export]
+pub fn add_slide_face(name: String, family: String, data: Vec<u8>) { gp_core::add_slide_face(name, family, data) }
+
+/// A face the core ships, by a run's name for it ("Inter", "Montserrat", "Lato"): the file the shell paints with.
+#[uniffi::export]
+pub fn slide_face(name: String) -> Option<Vec<u8>> { gp_core::slide_face(&name).map(<[u8]>::to_vec) }
+
 fn step(s: CoreStep) -> Step {
     match s {
         CoreStep::Done(Value::Null) => Step::Done { json: None },

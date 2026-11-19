@@ -140,3 +140,16 @@ pub extern "C" fn gp_resume(ptr: *mut u8, len: usize) -> u32 {
 pub extern "C" fn gp_out_ptr() -> *const u8 { OUT.with(|o| o.borrow().as_ptr()) }
 #[no_mangle]
 pub extern "C" fn gp_out_len() -> usize { OUT.with(|o| o.borrow().len()) }
+
+/// A face of the system's for slideLayoutView (`slide_layout::add_face`): {"name", "family", "data" (base64)}. 0 when
+/// added, 1 when the JSON does not read.
+#[cfg(feature = "layout")]
+#[no_mangle]
+pub extern "C" fn gp_add_face(ptr: *mut u8, len: usize) -> u32 {
+    let v: Value = serde_json::from_str(&read(ptr, len)).unwrap_or(Value::Null);
+    let text = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
+    let data = text("data").as_deref().and_then(crate::files::base64);
+    let (Some(name), Some(family), Some(data)) = (text("name"), text("family"), data) else { return 1 };
+    crate::slide_layout::add_face(name, family, data);
+    0
+}

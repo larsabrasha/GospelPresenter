@@ -1,4 +1,5 @@
-// Slide thumbnails (Lars, 2026-11-17; docs/native-apps.md): drawn by the web's SlideView (SlideRenderer.swift), kept by
+// Slide thumbnails (Lars, 2026-11-17; docs/native-apps.md): song slides painted from the core's layout
+// (SlidePainter.swift), the rest drawn by the web's SlideView (SlideRenderer.swift), kept by
 // their content, not by presentation. The key is a hash of all that changes the picture: the slide, the whole theme,
 // the size and the renderer bundled, so an edited theme or a new renderer is new keys and nothing is cleared by hand.
 // On disk in Caches (the system may empty it; then slides are drawn again), at most about 100 MB, the least recently
@@ -42,7 +43,7 @@ final class Thumbnails {
 
     /// The key of a tile: what changes its picture, hashed.
     func key(_ tile: TileRequest) -> String {
-        let text = [SlideRenderer.version,"\(Self.pixels.width)x\(Self.pixels.height)", tile.label ? "label" : "", tile.slide?.text ?? "null", tile.theme?.text ?? "null", tile.overlay?.text ?? "null"].joined(separator: "\u{0}")
+        let text = [SlideRenderer.version, SlidePainter.version, "\(Self.pixels.width)x\(Self.pixels.height)", tile.label ? "label" : "", tile.slide?.text ?? "null", tile.theme?.text ?? "null", tile.overlay?.text ?? "null"].joined(separator: "\u{0}")
         return SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
@@ -94,7 +95,13 @@ final class Thumbnails {
                 var batch: [(TileRequest, String)] = []
                 while batch.count < Self.perSheet, !urgent.isEmpty { batch.append(urgent.removeFirst()) }
                 while batch.count < Self.perSheet, !ahead.isEmpty { batch.append(ahead.removeFirst()) }
-                let images = AppScheme.files != nil ? await SlideRenderer.shared.sheet(batch.map(\.0), pixels: Self.pixels) : Array(repeating: nil, count: batch.count)
+                // Song slides painted from the core's layout; the rest drawn by SlideView, one sheet.
+                var images = batch.map { SlidePainter.image($0.0, pixels: Self.pixels) }
+                let web = images.indices.filter { images[$0] == nil }
+                if AppScheme.files != nil, !web.isEmpty {
+                    let drawn = await SlideRenderer.shared.sheet(web.map { batch[$0].0 }, pixels: Self.pixels)
+                    for (i, image) in zip(web, drawn) { images[i] = image }
+                }
                 for ((_, key), image) in zip(batch, images) {
                     if let image { remember(image, key); write(image, key) }
                     for c in waiting.removeValue(forKey: key) ?? [] { c.resume(returning: image) }
@@ -214,13 +221,13 @@ struct SlideTile: View {
     }
 }
 
-/// The picture shown while presenting, drawn live by the web's SlideView as the outputs draw it; black before the
-/// first slide and after Släck.
+/// The picture shown while presenting, painted from the core's layout or drawn by the web's SlideView, as the outputs
+/// draw it; black before the first slide and after Släck.
 struct LivePicture: View {
     @Environment(Model.self) private var model
 
     var body: some View {
-        LiveWebView(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
+        LiveSlide(tile: TileRequest(slide: model.live.slide?.raw, theme: model.live.theme, overlay: model.live.overlay, label: false))
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(model.live.slide == nil ? 0 : 0.8), lineWidth: 2))
