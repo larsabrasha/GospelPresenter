@@ -40,11 +40,17 @@ left, every item's slides at the right (below, "On the iPad"). Built at 8aad1883
 The app: `Core.m` runs a call of the core to its end as the native shell's `Core.call` does, each statement it asks
 for answered from SQLite; `AppDelegate.m` copies the demo data afresh on every start, runs `migrateOrgSchema`, and
 reads `presentationsView` and the first presentation's `presentationPageView`; `PresentationController.m` is the page
-as the native app's `WideLayout` has it (a UITableView 300 pt wide, a UICollectionView of tiles 340 to 384 pt wide,
-a section per item); `SlideView.m` draws a slide: the theme's background, the text in the theme's area at the theme's
-size made 5 % smaller at a time until it fits (not the web's fitting), the part's label in a corner. Media show their
-kind and title: their files are not on the device. A tap on an item scrolls to its slides; nothing is presented.
-1.5 s after the page shows, the app writes a picture of its window to /tmp/gpcore8.png.
+with iOS 8's own parts, after the Settings app on an iPad: a UISplitViewController with both columns shown (the left
+320 pt) and iOS 8's button that folds the left one away, each column in a navigation controller; at the left the
+running order as a grouped table, the day and time over it, an item a row with a 29 pt icon in its type's colour and
+a song's number of slides, the header items the groups' titles; at the right the slides on the grouped table's grey,
+tiles 340 to 384 pt wide (the web's SlideGrid), each item a section headed as a grouped table heads one, a header
+item's heading larger. A row scrolls to its item's slides; the slides scrolled select their row and name the right
+column, as Settings names it after the row chosen; a tile tapped is outlined in the tint, the web's sky. `SlideView.m`
+draws a slide: the theme's background, the text in the theme's area at the theme's size made 5 % smaller at a time
+until it fits (not the web's fitting), the part's label in a corner. Media show their kind and title: their files are
+not on the device. Nothing is presented. `icon.m` draws the app's icon on the Mac (`build-core.sh` runs it). 1.5 s
+after the page shows, the app writes a picture of its window (without the status bar) to /tmp/gpcore8.png.
 
 ## Build
 
@@ -101,6 +107,10 @@ What happened, in order:
    ms, `presentationPageView` (15 items, 54 slides) 51 to 58 ms, `didFinishLaunching` 189 to 276 ms in all. The
    picture showed the page as meant after two rounds: headings in line with the tiles, the tiles at the left (a flow
    layout centres a row of one, and spreads one that is not full), the video's ▶ as text, not emoji.
+5. As the Settings app: first a SIGABRT, `scrollViewDidScroll` asking UICollectionView for a section's heading
+   before it had any (iOS 8 throws), then the watchdog's kill after 20 s, `viewWillLayoutSubviews` invalidating the
+   layout of the collection view that is its own view, which lays it out again, for ever; then the wrong row chosen,
+   the layout answering every heading at 0 until the view has appeared. The picture in both orientations after that.
 
 The first start after `dpkg -i` and `uicache` waits about 10 s between `main` and `didFinishLaunching`; the next
 starts do not. Harmless, seen on every launch: installd's "Failed to verify code signature … (Code not signed)" when
@@ -117,11 +127,13 @@ starts do not. Harmless, seen on every launch: installd's "Failed to verify code
 - `mac-check` on the Mac: the migration, `presentationsView` and `presentationPageView` on the demo data, 13.6, 2.8
   and 3.8 ms.
 - On the iPad (iOS 8.4.1): the same answers; the objects marked iOS 10.0 did not matter to dyld. The page from the
-  app's own picture of its window, in portrait.
+  app's own picture of its window, upright and lying down; a tap on a row scrolls to its item's slides (Lars).
 
 ## Not checked
 
 - The clock: whether any of these views call `clock_gettime`, so whether `clock.c` has run.
-- Landscape, and a tap on an item (scrolls to its slides): the iPad stood upright and nothing was tapped.
+- By hand on the iPad: the row following the slides as they scroll, a tile's outline, the fold button, and the icon
+  on the home screen.
+- Lying down, the slides' column is 703 pt and the web's sizes give it one column of 384 pt, half of it empty.
 - That the slides' text breaks and sizes as the web's: the fitting here is a simpler one, not compared.
 - Commands beyond the migration (nothing is changed), sync, and media files.

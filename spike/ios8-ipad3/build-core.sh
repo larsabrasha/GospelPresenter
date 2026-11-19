@@ -46,3 +46,7 @@ if [ ! -f "$DEMO" ]; then
   (cd "$ROOT/crates/gp-core" && node --no-warnings parity/demo-seed.mjs "$(dirname "$DEMO")")
 fi
 cp "$DEMO" "$HERE/app/Resources/demo.sqlite"
+
+# The app's icon, drawn by app/icon.m.
+xcrun clang -fobjc-arc "$HERE/app/icon.m" -framework Foundation -framework CoreGraphics -framework ImageIO -o "$BUILD/icon"
+"$BUILD/icon" "$HERE/app/Resources"

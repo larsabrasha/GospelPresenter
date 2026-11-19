@@ -42,7 +42,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
     NSDictionary *page = [self openPage];
     UIViewController *root;
     if (page) {
-        root = [[GPPresentationController alloc] initWithPage:page];
+        root = GPPresentationPage(page);
     } else {
         root = [[UIViewController alloc] init];
         root.view.backgroundColor = [UIColor whiteColor];
@@ -51,6 +51,7 @@ static double since(NSDate *t) { return -[t timeIntervalSinceNow] * 1000; }
         [root.view addSubview:label];
     }
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    self.window.tintColor = GPTint();
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
     NSLog(@"GPCore8: launched in %.1f ms", since(t));
