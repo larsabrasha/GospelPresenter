@@ -391,6 +391,15 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   direkt. Spara bildspelet som PDF i PowerPoint (Arkiv → Spara som → PDF) och importera PDF-filen.";
   another type with "Bara PDF-filer kan importeras."; an empty or larger file with "Filen är tom eller
   större än 50 MB."; an unreadable PDF with "Kunde inte importera filen. Försök igen.".
+  **New app, since 2026-11-20 (docs/powerpoint-deckcraft.md, step 1):** a `.pptx` too, where a desktop host
+  can draw it: the host draws every slide shown at every click of its builds with DeckCraft's libraries
+  (`crates/gp-pptx`, `POST /api/slides/pptx`), each a page as a PDF's (JPEG), a hidden slide left out, a hard
+  cut between the clicks; ≤50 MB and ≤100 pages counting the clicks. A deck with a chart is kept with
+  "Bildspelet har diagram, som kan se annorlunda ut än i PowerPoint…" (a PDF may show it better). Where no
+  host draws (the cloud) a `.pptx` is refused with "PowerPoint-filer läses av datorappen, och den här
+  enheten är inte ansluten till någon. Spara bildspelet som PDF…"; a `.ppt` always with "Äldre
+  PowerPoint-filer (.ppt) kan inte importeras…"; another type with "Bara PDF- och PowerPoint-filer
+  (.pptx) kan importeras."; a `.pptx` the host cannot read with "Kunde inte importera filen. Försök igen.".
 - PRES-R12 Overlay image upload: jpeg/png/webp/gif, ≤10 MB, overlay must exist in org (404 otherwise);
   replaces any previous image (`W/UploadEndpoints.cs:56-98`).
 - PRES-R13 UI-only: presentation/template/overlay names are trimmed and must be non-blank; the
@@ -584,7 +593,8 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   "Filen har för många sidor. Maximum är 100 sidor."; uploading a .pptx when Gotenberg is not
   configured shows "Kunde inte importera filen. Försök igen.".
   New app: the modal stays open (D15), and a .pptx always shows "PowerPoint-filer kan inte importeras
-  direkt…" (D29).
+  direkt…" (D29). Since 2026-11-20 a .pptx on a desktop host becomes a "Slides" item with a page a click
+  (PRES-R11), and is refused only where no host draws it.
 - PRES-A16 Given a selected item, when the user presses Delete, then the confirm dialog "Vill du ta bort
   **{title}**?" opens; Avbryt keeps it; Radera removes it permanently (not in the trash).
 - PRES-A17 Given multi-select mode, when the user clicks item 1 and Shift+clicks item 3, then items 1–3

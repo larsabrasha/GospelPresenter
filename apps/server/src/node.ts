@@ -13,6 +13,7 @@ import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { serverChangeTriggers, serverSyncDdl, type Poke } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
+import type { PptxPages } from './pptx-routes.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
@@ -37,6 +38,7 @@ import { nodeRustCore } from '@gp/rust-core/node';
 import { appCors } from './cors.ts';
 
 export { mailConfigFrom, type MailConfig } from './mail.ts';
+export type { PptxPages } from './pptx-routes.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -178,6 +180,8 @@ export interface NodeServerOptions {
   media?: MediaStorage;
   /** How long a picture blob nothing names is kept: an hour (tests shorten it). */
   mediaGraceMs?: number;
+  /** Draws a PowerPoint deck's pages (the desktop host runs crates/gp-pptx); without it, decks come in as PDF only. */
+  pptx?: PptxPages;
   /** What first-run setup must be given (D19). Without one, a random one is made at start; see `RunningServer.setupToken`. */
   setupToken?: string;
   /** Refuse every API request from a device that is not paired (the desktop host). */
@@ -355,6 +359,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       mediaGraceMs: opts.mediaGraceMs,
       watch,
       playTokens,
+      pptx: opts.pptx,
     }),
   );
   if (opts.webRoot) {

@@ -3,8 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { hostname, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { GoogleConfig, PasskeyConfig } from '@gp/server';
 import { startNodeServer, type MailConfig } from '@gp/server/node';
+import { pptxPages, pptxProgram } from './pptx.ts';
 
 /** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
 export const onLan = () => process.env.GP_LAN === '1';
@@ -92,6 +94,8 @@ export async function startHost(opts: {
 }) {
   mkdirSync(opts.dataDir, { recursive: true });
   const tls = tlsConfig(opts.dataDir);
+  // This module is bundled into dist/main.mjs and dist/serve.mjs alike.
+  const pptx = pptxProgram(fileURLToPath(new URL('.', import.meta.url)));
   return startNodeServer({
     dataDir: join(opts.dataDir, 'server'),
     driver: 'node:sqlite',
@@ -111,6 +115,8 @@ export async function startHost(opts: {
     passkeys: opts.passkeys,
     superAdmins: opts.superAdmins,
     mail: opts.mail,
+    // PowerPoint decks drawn here (docs/powerpoint-deckcraft.md), where the program is beside the bundle.
+    pptx: pptx ? pptxPages(pptx) : undefined,
   });
 }
 

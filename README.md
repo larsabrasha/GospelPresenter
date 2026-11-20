@@ -113,6 +113,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [view-models.md](docs/view-models.md) | What a page offers (menus, enabled actions, where + adds, a field's rule) worked out in the core for every shell: what is built, how it is proved, what is next |
 | [native-apps.md](docs/native-apps.md) | The iOS and Mac app in SwiftUI over the Rust core: its UniFFI interface, building, running and installing, pairing and sync as the web's, the pages built and those not |
 | [tui.md](docs/tui.md) | The terminal shell over the Rust core: what it draws from which view, its keys, how to run it, what is checked and what is left (sync, the CLI, SSH) |
+| [powerpoint-deckcraft.md](docs/powerpoint-deckcraft.md) | Decided, step 1 to build: a `.pptx` item drawn by DeckCraft's libraries when added, its builds and animations as layers every device moves; what was tried on real decks and LibreOffice's and Apache POI's test files, and what is open |
 | [native-slide-rendering.md](docs/native-slide-rendering.md) | A proposal, not decided: slides drawn without a browser (an Apple TV app), the core laying them out and each platform painting them, and what would prove it |
 
 ### Next steps

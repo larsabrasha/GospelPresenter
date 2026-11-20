@@ -29,6 +29,7 @@ import {
 import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoalescer, type SerialQueue } from '@gp/sync/server';
 import type { Caller } from './auth/index.ts';
 import { legacyRoutes } from './legacy-routes.ts';
+import { pptxRoutes, type PptxPages } from './pptx-routes.ts';
 import type { LiveHub } from './live-hub.ts';
 import type { Viewer } from './live-viewers.ts';
 import type { MediaStorage } from './media.ts';
@@ -98,6 +99,8 @@ export interface SyncRouteOptions {
   watch?: WatchRegistry | null;
   /** Where the tokens a `<video src>` streams with are kept (global); without it, no video streams. */
   playTokens?: PlayTokens | null;
+  /** Draws a PowerPoint deck's pages (the desktop host, crates/gp-pptx); without it, `/api/slides/pptx` is not there. */
+  pptx?: PptxPages | null;
 }
 
 export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
@@ -106,6 +109,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   // Every body is capped as it is read, at the server's root (body-cap.ts).
   app.route('/', videoRoutes(resolve, { media, playTokens }));
   app.route('/', legacyRoutes(resolve, watch));
+  if (opts.pptx) app.route('/', pptxRoutes(resolve, opts.pptx));
 
   app.post('/api/sync/push', async (c) => {
     const r = await resolve(c);

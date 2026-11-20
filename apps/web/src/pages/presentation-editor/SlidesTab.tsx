@@ -6,6 +6,7 @@ import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { useDeckImport } from '../../media/deckImport.ts';
+import { DECK_ACCEPT } from '../../media/slides.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { DropZone } from '../../ui/DropZone.tsx';
@@ -18,7 +19,6 @@ import { FirstPage } from '../custom-slides/CustomSlides.tsx';
 import { useView, ViewPicker, type View } from '../../ui/ViewPicker.tsx';
 import type { TabProps } from './AddItemDialog.tsx';
 
-const PDF = 'application/pdf,.pdf';
 const SLIDES_LIST: Record<View, string> = {
   list: 'flex flex-col gap-1 p-1',
   grid: 'grid grid-cols-2 sm:grid-cols-3 gap-3 p-1',
@@ -55,7 +55,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   const toast = useToast();
   const slides = useData(listCustomSlides, []);
   const theme = useData(defaultTheme, []);
-  const { importing, error, run } = useDeckImport();
+  const { importing, error, notice, run } = useDeckImport();
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
   useFocusWhenShown(search, active);
@@ -114,7 +114,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   };
 
   return (
-    <DropZone className="flex-1 min-h-0 flex flex-col" label={t('slides.dropHere')} accept={PDF} multiple={false} enabled={!importing} onFiles={(files) => void importFile(files[0])}>
+    <DropZone className="flex-1 min-h-0 flex flex-col" label={t('slides.dropHere')} accept={DECK_ACCEPT} multiple={false} enabled={!importing} onFiles={(files) => void importFile(files[0])}>
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 max-sm:gap-2 pb-4">
           <SearchField className="max-sm:basis-full" inputRef={search} label={t('images.search')} value={query} onChange={setQuery} />
@@ -129,7 +129,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
             <span className="max-sm:sr-only">{t('slides.import')}</span>
             <input
               type="file"
-              accept={PDF}
+              accept={DECK_ACCEPT}
               hidden
               data-testid="slides-file"
               onChange={(e) => {
@@ -149,6 +149,11 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
         {error && (
           <p className="pb-3 text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
+          </p>
+        )}
+        {notice && !importing && (
+          <p className="pb-3 text-sm text-stone-500 dark:text-stone-400" role="status">
+            {notice}
           </p>
         )}
         <div className="flex-1 min-h-0 overflow-y-auto">

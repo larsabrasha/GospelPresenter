@@ -1,0 +1,26 @@
+[package]
+name = "gp-pptx"
+version = "0.1.0"
+edition = "2021"
+# DeckCraft's libraries need 1.95 (rust-toolchain.toml holds the repository at 1.100.0).
+rust-version = "1.95"
+publish = false
+
+# A PowerPoint deck as a slideshow's pages (docs/powerpoint-deckcraft.md, step 1): every slide at every click of its
+# builds, drawn by DeckCraft's libraries. Run by the desktop host (apps/desktop); never part of the web's core.
+[lib]
+name = "gp_pptx"
+
+[[bin]]
+name = "gp-pptx"
+path = "src/main.rs"
+
+[dependencies]
+# DeckCraft (MIT OR Apache-2.0) from git at a pinned commit, as it is not on crates.io; its own workspace pins theirs.
+deckcraft-pptx = { git = "https://github.com/storytold/deckcraft", rev = "3ffeffcdf55984cd1a23401e3362c85ddb3db720" }
+deckcraft-anim = { git = "https://github.com/storytold/deckcraft", rev = "3ffeffcdf55984cd1a23401e3362c85ddb3db720" }
+deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "3ffeffcdf55984cd1a23401e3362c85ddb3db720" }
+deckcraft-geom = { git = "https://github.com/storytold/deckcraft", rev = "3ffeffcdf55984cd1a23401e3362c85ddb3db720" }
+deckcraft-model = { git = "https://github.com/storytold/deckcraft", rev = "3ffeffcdf55984cd1a23401e3362c85ddb3db720" }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+serde_json = "1"

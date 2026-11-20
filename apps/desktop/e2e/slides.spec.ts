@@ -1,6 +1,6 @@
 // PDFs (D29, PRES-R11, docs/custom-slides.md): a PDF is rendered on the device by pdf.js, one picture per page,
-// kept there, uploaded to the host and shown on the output. A PowerPoint is refused with how to save it as PDF. A
-// PDF is a slideshow of the library (Inställningar → Bildspel), its pages its pages' pictures, and an item names it.
+// kept there, uploaded to the host and shown on the output. An old PowerPoint (.ppt) is refused with how to save it
+// otherwise; a .pptx the host draws (powerpoint.spec.ts). A PDF is a slideshow of the library (Inställningar → Bildspel), its pages its pages' pictures, and an item names it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -22,7 +22,7 @@ function storedBlobs(dataDir: string): Buffer[] {
     .map((e) => readFileSync(join(e.parentPath, e.name)));
 }
 
-test('a three-page PDF becomes a slideshow item whose pages show on the output; a PowerPoint and a 101-page PDF are refused', async () => {
+test('a three-page PDF becomes a slideshow item whose pages show on the output; an old or broken PowerPoint and a 101-page PDF are refused', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -33,9 +33,12 @@ test('a three-page PDF becomes a slideshow item whose pages show on the output; 
   await expect(dialog).toHaveAccessibleName('Lägg till bildspel');
   const file = dialog.getByTestId('slides-file');
 
-  // A PowerPoint is refused with how to save it as PDF.
+  // An old PowerPoint (.ppt) is refused with how to save it otherwise; a .pptx the host cannot read, as unreadable
+  // (one it reads: powerpoint.spec.ts).
+  await file.setInputFiles({ name: 'Predikan.ppt', mimeType: 'application/vnd.ms-powerpoint', buffer: Buffer.from('not really') });
+  await expect(dialog.getByRole('alert')).toHaveText(/Äldre PowerPoint-filer \(\.ppt\) kan inte importeras\. Spara bildspelet som \.pptx eller som PDF/);
   await file.setInputFiles({ name: 'Predikan.pptx', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', buffer: Buffer.from('PK not really') });
-  await expect(dialog.getByRole('alert')).toHaveText(/PowerPoint-filer kan inte importeras direkt\. Spara bildspelet som PDF/);
+  await expect(dialog.getByRole('alert')).toHaveText('Kunde inte importera filen. Försök igen.');
 
   // More than 100 pages is refused, as in the old app.
   await file.setInputFiles({ name: 'Lång.pdf', mimeType: 'application/pdf', buffer: colouredPdf(101) });

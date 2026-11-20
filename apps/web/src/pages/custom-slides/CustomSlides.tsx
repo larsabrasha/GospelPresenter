@@ -6,6 +6,7 @@ import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { useDeckImport } from '../../media/deckImport.ts';
+import { DECK_ACCEPT } from '../../media/slides.ts';
 import { AddButton, RoundButton } from '../../ui/AddButton.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
@@ -27,8 +28,6 @@ export function FirstPage({ slide, theme }: { slide: LibraryCustomSlide; theme: 
     </span>
   );
 }
-
-const PDF = 'application/pdf,.pdf';
 
 /**
  * Bildspel (docs/custom-slides.md): the organisation's slideshows, made here or imported from a PDF, as a grid of
@@ -52,7 +51,7 @@ export function CustomSlides() {
       navigate({ page: 'customSlide', id });
     }
   };
-  const { importing, error, run } = useDeckImport();
+  const { importing, error, notice, run } = useDeckImport();
   const picker = useRef<HTMLInputElement>(null);
   /** What the next picked PDF is for: a new slideshow, or the pages of this one. */
   const replacing = useRef<LibraryCustomSlide | null>(null);
@@ -73,7 +72,7 @@ export function CustomSlides() {
   return (
     <>
       {dialog}
-      <input ref={picker} type="file" accept={PDF} hidden data-testid="slide-deck-file" onChange={(e) => (void picked(e.target.files?.[0]), (e.target.value = ''))} />
+      <input ref={picker} type="file" accept={DECK_ACCEPT} hidden data-testid="slide-deck-file" onChange={(e) => (void picked(e.target.files?.[0]), (e.target.value = ''))} />
       <Library
         title={t('nav.customSlides')}
         items={slides}
@@ -111,12 +110,12 @@ export function CustomSlides() {
             <AddButton label={t('customSlides.new')} onClick={() => void create()} />
           </>
         }
-        drop={{ label: t('slides.dropHere'), accept: PDF, multiple: false, onFiles: (files) => void run(files[0], { deckId: newId(), into: 'library' }) }}
+        drop={{ label: t('slides.dropHere'), accept: DECK_ACCEPT, multiple: false, onFiles: (files) => void run(files[0], { deckId: newId(), into: 'library' }) }}
         notices={
           <>
-            {(importing || error) && (
+            {(importing || error || notice) && (
               <p className={`px-5 text-sm ${error ? 'text-red-500 dark:text-red-400' : 'text-stone-500 dark:text-stone-400'}`} role={error ? 'alert' : 'status'}>
-                {error ?? t('slides.importing')}
+                {error ?? (importing ? t('slides.importing') : notice)}
               </p>
             )}
           </>

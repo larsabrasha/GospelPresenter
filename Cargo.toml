@@ -1,6 +1,7 @@
-# The Rust core (crates/gp-core), built to WASM for the web and the checks, and to a static library for apps/mac.
+# The Rust core (crates/gp-core), built to WASM for the web and the checks, and to a static library for apps/mac; and
+# the desktop host's PowerPoint drawing (crates/gp-pptx, docs/powerpoint-deckcraft.md).
 [workspace]
-members = ["crates/gp-core", "crates/gp-core-ffi", "crates/gp-tui"]
+members = ["crates/gp-core", "crates/gp-core-ffi", "crates/gp-tui", "crates/gp-pptx"]
 # The collation data's generator, run by hand (crates/gp-core-collation/Cargo.toml).
 exclude = ["crates/gp-core-collation"]
 resolver = "2"

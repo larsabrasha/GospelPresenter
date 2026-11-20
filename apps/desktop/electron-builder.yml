@@ -16,6 +16,10 @@ files:
 extraResources:
   - from: ../web/dist
     to: web/dist
+  # The PowerPoint drawing (crates/gp-pptx), a program, so outside app.asar; host.ts finds it two up from dist/.
+  - from: dist/
+    to: .
+    filter: ['gp-pptx', 'gp-pptx.exe']
 npmRebuild: false
 # Sign-in hands the token back on this scheme (ADR 0005 (5)); the installer registers it.
 protocols:

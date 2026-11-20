@@ -1,5 +1,6 @@
 // Bundles the Electron main process, its preload, and a plain-Node server for
 // development. better-sqlite3 stays external; the desktop uses node:sqlite.
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
@@ -31,3 +32,9 @@ await build({ ...common, entryPoints: ['src/preload.ts'], format: 'cjs', outExte
 // dist/main.mjs is dist/ itself).
 mkdirSync('dist', { recursive: true });
 copyFileSync(createRequire(import.meta.url).resolve('@gp/rust-core/gp_core.wasm'), 'dist/gp_core.wasm');
+// The host's PowerPoint drawing (crates/gp-pptx, docs/powerpoint-deckcraft.md) beside the bundle, where host.ts looks;
+// electron-builder.yml puts it among a package's resources. Built for this machine; a package for another system or
+// architecture needs it built for that one.
+const program = `gp-pptx${process.platform === 'win32' ? '.exe' : ''}`;
+execFileSync('cargo', ['build', '-p', 'gp-pptx', '--release', '--quiet'], { cwd: '../..', stdio: 'inherit' });
+copyFileSync(`../../target/release/${program}`, `dist/${program}`);

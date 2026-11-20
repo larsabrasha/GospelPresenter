@@ -19,7 +19,9 @@ thread_local! {
     static FAILED: RefCell<Option<String>> = RefCell::new(None);
 }
 
+// Imported from the module `env`, named: newer linkers refuse an undefined symbol that names no module (Rust 1.100).
 #[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "env")]
 extern "C" {
     fn now_ms() -> f64;
 }

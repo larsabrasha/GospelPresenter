@@ -42,6 +42,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Bible readings | `milestone4.spec.ts`: "a Bible reading, imported from a zip" |
 | Pictures, PDF slides, audio and video in a presentation | `milestone5.spec.ts`: "a picture is imported", `slides.spec.ts`: "a three-page PDF", `audio.spec.ts`: "an audio file is imported", `video.spec.ts`: "a video is imported" |
 | Keep a PDF as a slideshow in the library, put it in a presentation, and replace it with a new PDF that the presentation then shows | `slides.spec.ts`: "a PDF imported into the library" |
+| Put the sermon's PowerPoint (.pptx) in the presentation on the church computer: every click a slide, a chart noted | `powerpoint.spec.ts`: "a PowerPoint deck becomes a slideshow item" |
 | Make a slideshow of its own (a welcome, the collection) with texts, pictures and shapes, and show it in a presentation | `custom-slides.spec.ts`: "a custom slide is made" |
 | Do it all by the keyboard: ⌘K to add a song or go anywhere, the menus, the lists and the slides' editors | `keyboard.spec.ts`: "⌘K searches everything", "the app's keys", "an item's … menu is used by the keyboard" |
 | Reach a shape or text covered by another on a slide, and change which lies in front | `custom-slides.spec.ts`: "an element covered by another" |

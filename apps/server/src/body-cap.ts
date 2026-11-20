@@ -1,4 +1,4 @@
-import { BIBLE_LIMITS, MEDIA_LIMITS, VIDEO_LIMITS } from '@gp/core';
+import { BIBLE_LIMITS, MAX_SLIDES_SOURCE_BYTES, MEDIA_LIMITS, VIDEO_LIMITS } from '@gp/core';
 import type { MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
@@ -18,6 +18,8 @@ const CAPS: [RegExp, number][] = [
   [/^\/api\/media\/[^/]+$/, MEDIA_LIMITS.audioBytes],
   [/^\/api\/media\/[^/]+\/upload\/[^/]+$/, VIDEO_LIMITS.partBytes],
   [/^\/api\/bibles\/[^/]+$/, BIBLE_LIMITS.textBytes],
+  // A PowerPoint deck to draw (pptx-routes.ts), as large as a PDF may be.
+  [/^\/api\/slides\/pptx$/, MAX_SLIDES_SOURCE_BYTES],
   // A bug report with its picture and state.
   [/^\/api\/reports(\/|$)/, 4 * MB],
 ];

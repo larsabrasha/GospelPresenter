@@ -1,13 +1,15 @@
 import { fitWithin, IMAGE_VARIANTS, MAX_SLIDE_PAGES, MAX_SLIDES_SOURCE_BYTES, MEDIA_LIMITS } from '@gp/core';
+import { authHeaders } from '../auth/api.ts';
 import type { SlidesImport, SlidesTarget } from '../db/protocol.ts';
+import { serverUrl } from '../server.ts';
 
-// The slide deck import (D29, PRES-R11): only PDF. A PowerPoint, Keynote or
-// Google Slides deck is saved as PDF first, in the program that made it. Each
-// page is rendered once, here, by pdf.js, to a picture fitting 1920×1080 and a
-// thumbnail fitting 400×225, so other devices only download pictures.
+// The slide deck import (D29, PRES-R11): a PDF, or a PowerPoint deck (.pptx) where the desktop host can draw it
+// (docs/powerpoint-deckcraft.md, step 1, Lars 2026-11-20). A PDF's pages are rendered once, here, by pdf.js; a
+// deck's slides, at every click of their builds, by the host (crates/gp-pptx). Either way each page is a picture
+// fitting 1920×1080 and a thumbnail fitting 400×225, so other devices only download pictures.
 
 /** Why a file was not imported; the tab says each in its own words. */
-export type SlidesProblem = 'powerpoint' | 'type' | 'size' | 'name' | 'pages' | 'invalid';
+export type SlidesProblem = 'powerpoint' | 'oldPowerpoint' | 'type' | 'size' | 'name' | 'pages' | 'invalid';
 
 export class SlidesRefused extends Error {
   constructor(readonly problem: SlidesProblem) {
@@ -15,13 +17,56 @@ export class SlidesRefused extends Error {
   }
 }
 
-/** The checks that need no reading: a PowerPoint is refused with how to save it as PDF. */
-export function checkPickedDeck(file: Pick<File, 'type' | 'size' | 'name'>): void {
+/** What a slideshow's picker and drop take: a PDF or a PowerPoint deck. */
+export const DECK_ACCEPT = 'application/pdf,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx';
+
+/** The file's kind as the import takes it, by its extension or the type the browser reports. */
+function kindOf(file: Pick<File, 'type' | 'name'>): 'pdf' | 'pptx' | 'ppt' | null {
   const ext = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase();
-  if (ext === 'pptx' || ext === 'ppt' || file.type.includes('presentation') || file.type === 'application/vnd.ms-powerpoint') throw new SlidesRefused('powerpoint');
-  if (file.type !== 'application/pdf' && ext !== 'pdf') throw new SlidesRefused('type');
+  if (ext === 'pdf' || file.type === 'application/pdf') return 'pdf';
+  if (ext === 'pptx' || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx';
+  if (ext === 'ppt' || file.type === 'application/vnd.ms-powerpoint') return 'ppt';
+  return null;
+}
+
+/** The checks that need no reading: an old PowerPoint (.ppt) is refused with how to save it otherwise. */
+export function checkPickedDeck(file: Pick<File, 'type' | 'size' | 'name'>): 'pdf' | 'pptx' {
+  const kind = kindOf(file);
+  if (kind === 'ppt') throw new SlidesRefused('oldPowerpoint');
+  if (!kind) throw new SlidesRefused('type');
   if (file.size === 0 || file.size > MAX_SLIDES_SOURCE_BYTES) throw new SlidesRefused('size');
   if (file.name.length > MEDIA_LIMITS.fileName) throw new SlidesRefused('name');
+  return kind;
+}
+
+/** What the host answers for a drawn deck (apps/server/src/pptx-routes.ts). */
+interface DrawnDeck {
+  charts: boolean;
+  contentType: 'image/jpeg';
+  pages: { full: string; thumb: string }[];
+}
+
+const bytesOf = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+
+/**
+ * A PowerPoint deck drawn by the host: every slide shown at every click, as pages. Where no host draws decks (the
+ * cloud, a page without one) the server has no such route, and the deck is refused with how to save it as PDF.
+ * `charts`: a slide has a chart, which may not look as in PowerPoint.
+ */
+async function drawPptx(file: File, target: SlidesTarget): Promise<{ slides: SlidesImport; charts: boolean }> {
+  const res = await fetch(serverUrl('/api/slides/pptx'), { method: 'POST', headers: { 'content-type': 'application/octet-stream', ...authHeaders() }, body: file });
+  const body = (await res.json().catch(() => null)) as (DrawnDeck & { error?: string }) | null;
+  if (res.status === 404) throw new SlidesRefused('powerpoint');
+  if (res.status === 413) throw new SlidesRefused('size');
+  if (!res.ok || !body) throw new SlidesRefused(body?.error === 'pages' ? 'pages' : 'invalid');
+  const pages = body.pages.map((p) => ({ full: bytesOf(p.full), thumb: bytesOf(p.thumb) }));
+  return { slides: { ...target, fileName: file.name, contentType: body.contentType, pages }, charts: body.charts };
+}
+
+/** A deck picked, as pages: a PDF rendered here, a PowerPoint deck drawn by the host. */
+export async function renderDeck(file: File, target: SlidesTarget): Promise<{ slides: SlidesImport; charts: boolean }> {
+  if (checkPickedDeck(file) === 'pptx') return drawPptx(file, target);
+  return { slides: await renderPdf(file, target), charts: false };
 }
 
 /** The browser's canvas encodes WebP; WebKit's silently answers PNG, so that device stores JPEG instead. */
@@ -40,7 +85,7 @@ function canvasOf(width: number, height: number): HTMLCanvasElement {
  * Reads the PDF and renders every page, `onPage(done, total)` after each. pdf.js
  * is loaded here, on first use, so the app does not carry it until a deck is imported.
  */
-export async function renderPdf(file: File, target: SlidesTarget, onPage?: (done: number, total: number) => void): Promise<SlidesImport> {
+async function renderPdf(file: File, target: SlidesTarget, onPage?: (done: number, total: number) => void): Promise<SlidesImport> {
   checkPickedDeck(file);
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
