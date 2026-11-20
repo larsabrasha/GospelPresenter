@@ -40,16 +40,11 @@ import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './sha
 import { mediaAdds } from './mediaAdds.ts';
 import { socketUrl } from '../server.ts';
 
-/** The backstop poll (SYNC-R43): pokes are never load-bearing. */
-const POLL_MS = 5 * 60_000;
-const RECONNECT_MS = 3_000;
-
 let client: SyncClient | undefined;
 let session: Session | undefined;
 /** The server's origin, from the page (server.ts): a worker has no storage of its own to read it from. */
 let server = location.origin;
 let storage = '';
-let connected = false;
 let songSearch: SongSearch | undefined;
 /** Tells this window's page and the other windows that the database changed: `tables` are those written, or every one when not given. */
 let notifyChanged: (tables?: Iterable<string>) => void = () => {};
@@ -110,7 +105,7 @@ async function view(name: string, args: unknown): Promise<unknown> {
 async function status(): Promise<DbStatus> {
   return {
     storage,
-    connected,
+    connected: client?.connected ?? false,
     syncing: client?.busy ?? false, // read before the await below, so the report is of this moment
     pending: client ? (await client.pending()).length : 0,
     updateRequired: client?.updateRequired ?? false,
@@ -123,42 +118,6 @@ async function reportStatus() {
   post({ type: 'status', status: await status() });
 }
 
-/**
- * Keeps the poke socket open and syncs on every poke, on reconnect and on the
- * backstop poll; stops for good once the server refuses the credentials.
- */
-function startSync(c: SyncClient, s: Session) {
-  const url = socketUrl('/api/sync/poke', server);
-  const connect = async () => {
-    if (c.authError) return void reportStatus();
-    try {
-      await c.listen(url, {
-        protocols: socketProtocols({ token: s.token, device: s.device }),
-        onClose: () => {
-          connected = false;
-          void reportStatus();
-          setTimeout(() => void connect(), RECONNECT_MS);
-        },
-      });
-      connected = true;
-      await c.requestSync(); // catch up on what happened while disconnected
-      syncBibles(); // and fetch any text a failed download left out
-      syncMediaBlobs();
-    } catch {
-      // A refused socket says nothing of why: a sync attempt tells offline from refused credentials.
-      connected = false;
-      await c.requestSync();
-      if (!c.authError) setTimeout(() => void connect(), RECONNECT_MS);
-    }
-    void reportStatus();
-  };
-  void connect();
-  setInterval(() => {
-    void c.requestSync().then(reportStatus);
-    syncBibles();
-    syncMediaBlobs();
-  }, POLL_MS);
-}
 
 // ------------------------------------------------------------ Bible texts (docs/bibles-and-themes.md, "Bibles") and media blobs ("Media")
 
@@ -377,6 +336,11 @@ async function handle(call: DbCall): Promise<unknown> {
         ctx: { userId: s.userId, role: s.role },
         core: await rustCore(),
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
+        // After the sync on a connection and on each poll: any text or file a failed download left out.
+        onMedia: () => {
+          syncBibles();
+          syncMediaBlobs();
+        },
       });
       client = c;
       session = s;
@@ -398,7 +362,7 @@ async function handle(call: DbCall): Promise<unknown> {
         post({ type: 'changed', ...(list ? { tables: list } : {}) });
         share.changed(list);
       };
-      c.onBusy(() => void reportStatus());
+      c.onStatus(() => void reportStatus());
       c.onChange((tables) => {
         notifyChanged(tables);
         syncBibles();
@@ -408,7 +372,8 @@ async function handle(call: DbCall): Promise<unknown> {
       // In memory, the database is empty until it is pulled: the window opens on the data, not on empty pages
       // (a song's page that finds no song goes back to the list). The server is on this machine.
       if (s.hostWindow) await c.requestSync();
-      startSync(c, s);
+      // The poke socket, its reconnects and the backstop poll, as the core's sync driver says (SYNC-R43).
+      void c.start({ url: socketUrl('/api/sync/poke', server), protocols: socketProtocols({ token: s.token, device: s.device }) });
       syncBibles();
       syncMediaBlobs();
       return c.id;

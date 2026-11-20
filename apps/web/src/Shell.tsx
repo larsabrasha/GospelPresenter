@@ -5,6 +5,7 @@ import { REPAIR_KEY } from './Boot.tsx';
 import { useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
 import { AppButton } from './ui/AppButton.tsx';
+import { syncNotice } from './ui/syncState.ts';
 import { WarningIcon } from './ui/icons.tsx';
 import { isHostWindow } from './hostWindow.ts';
 import { useToast } from './ui/Toast.tsx';
@@ -41,10 +42,12 @@ function pairAgain() {
  */
 export function SyncWarnings() {
   const s = useDbStatus();
+  // What the sync needs of the person, as the core says it (`syncStatusView`); the words and buttons are the web's.
+  const notice = syncNotice(s ?? null);
   const warnings: ReactNode[] = [];
   if (s && s.storage !== 'opfs' && !isHostWindow()) warnings.push(t('status.memory', { reason: s.storage }));
-  if (s?.updateRequired) warnings.push(t('status.updateRequired'));
-  if (s?.authError === 'device-not-paired')
+  if (notice?.code === 'updateRequired') warnings.push(t('status.updateRequired'));
+  if (notice?.code === 'notPaired')
     warnings.push(
       <>
         {t('status.notPaired')}
@@ -53,7 +56,7 @@ export function SyncWarnings() {
         </AppButton>
       </>,
     );
-  if (s?.authError === 'unauthenticated' || s?.authError === 'not-a-member')
+  if (notice?.code === 'authRequired')
     warnings.push(
       <>
         {t('status.authRequired')}

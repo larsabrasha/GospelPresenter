@@ -3,6 +3,12 @@
 import Foundation
 import Shell
 
+// `parity sync <sessions.json> <dir>`: the native sync against a running server (SyncCheck.swift).
+if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "sync" {
+    Task { @MainActor in exit(await SyncCheck.run(CommandLine.arguments[2], CommandLine.arguments[3])) }
+    dispatchMain()
+}
+
 MainActor.assumeIsolated {
     let fixtures = CommandLine.arguments[1], outDir = CommandLine.arguments[2]
     let lines = try! String(contentsOfFile: "\(fixtures)/parity.jsonl", encoding: .utf8).split(separator: "\n")

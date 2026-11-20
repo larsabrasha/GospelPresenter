@@ -154,11 +154,17 @@ const pagePictures = (cols: string, from: string, where = '1') =>
   FROM ${from}, json_each(pg.value, '$.elements') e WHERE ${where} AND json_extract(e.value, '$.kind') = 'image'`)
     .join('\n  UNION ALL\n  ');
 
+/**
+ * A column's JSON for `json_each`, or null (no rows) where it does not read: one row that does not read would stop the
+ * whole query, and with it every file a device fetches (Lars, 2026-11-20).
+ */
+const readable = (column: string) => `CASE WHEN json_valid(${column}) THEN ${column} END`;
+
 /** Every picture of every slideshow a presentation's items name, with the presentation: a row per picture. */
-export const SLIDE_PAGES_SQL = pagePictures('p.presentation_id, ', `presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg`, `p.type = 'custom'`);
+export const SLIDE_PAGES_SQL = pagePictures('p.presentation_id, ', `presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(${readable('c.pages')}) pg`, `p.type = 'custom'`);
 
 /** Every picture of every slideshow of the library, the trash too: blobs a slideshow still names. */
-export const SLIDESHOW_PICTURES_SQL = pagePictures('', 'custom_slides c, json_each(c.pages) pg');
+export const SLIDESHOW_PICTURES_SQL = pagePictures('', `custom_slides c, json_each(${readable('c.pages')}) pg`);
 
 /**
  * Every picture of every image item, with its presentation: the `sourceId` of one with a single
@@ -166,10 +172,10 @@ export const SLIDESHOW_PICTURES_SQL = pagePictures('', 'custom_slides c, json_ea
  */
 export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_id FROM presentation_items p WHERE p.type = 'image' AND p.content IS NULL
   UNION ALL
-  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
+  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(${readable('p.content')}, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
 
 /** Every picture an overlay's page draws, with the overlay and its place in the list (docs/custom-slides.md). */
-export const OVERLAY_PICTURES_SQL = pagePictures('o.id AS overlay_id, o.sort, ', `overlays o, json_each(json_array(json(o.content))) pg`);
+export const OVERLAY_PICTURES_SQL = pagePictures('o.id AS overlay_id, o.sort, ', `overlays o, json_each(CASE WHEN json_valid(o.content) THEN json_array(json(o.content)) END) pg`);
 
 /**
  * Every background picture of the organisation's own themes (docs/themes.md), a row per picture. Like the overlays',

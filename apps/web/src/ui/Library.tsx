@@ -317,8 +317,9 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
               {t('common.delete')}
             </AppButton>
           </SelectionBar>
-        ) : p.items && !p.items.length && p.manage && p.empty.action ? null : (
-          // Not beside an empty list's own buttons, which say the same in the middle (Lars, 2026-11-07: it was said twice).
+        ) : !p.items || (!p.items.length && p.manage && p.empty.action) ? null : (
+          // Not beside an empty list's own buttons, which say the same in the middle (Lars, 2026-11-07: it was said twice);
+          // nor while the list loads, as it would move there if the list is empty, and files chosen in it go with it.
           p.add
         )}
       </PageHeader>

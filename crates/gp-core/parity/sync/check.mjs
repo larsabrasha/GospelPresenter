@@ -66,12 +66,14 @@ async function seedRun(s) {
       const ra = await call(A);
       replayed = replay(tA.log.slice(from), differ);
       const rb = await call(R);
+      const stopped = (c) => `${c.client.updateRequired} ${c.client.authError}`;
       note(`${kind} ${fate}${A.client.stopped ? ' (refused)' : ''}${fate === 'through' && ra !== 'ok' ? `: ${ra}` : ''}`);
-      if (ra !== rb || !replayed.done || A.client.stopped !== R.client.stopped) differ(`${kind}: TS ${ra}, Rust ${rb}${replayed.done ? '' : ', fewer requests'}`, '', '');
-      for (const c of [A, R]) {
-        c.client.updateRequired = false; // as when the app is updated or signed in again
-        c.client.authError = null;
-      }
+      if (ra !== rb || !replayed.done || stopped(A) !== stopped(R)) differ(`${kind}: TS ${ra}, Rust ${rb}${replayed.done ? '' : ', fewer requests'}`, '', '');
+      // As when the app is updated or signed in again: the reference's flags cleared, and the driver's state as a new
+      // client on the same database starts it (crates/gp-core/src/sync_driver.rs).
+      A.client.updateRequired = false;
+      A.client.authError = null;
+      R.client.state = { ...R.client.state, stopped: null };
       fate = 'through';
     } else {
       kind = 'A role';

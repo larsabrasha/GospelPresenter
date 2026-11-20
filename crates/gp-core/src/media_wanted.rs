@@ -22,16 +22,22 @@ fn page_pictures(cols: &str, from: &str, at_where: &str) -> String {
     parts.join("\n  UNION ALL\n  ")
 }
 
+/// A column's JSON for `json_each`, or null (no rows) where it does not read: one row that does not read would stop the
+/// whole query, and with it every file a device fetches (`readable`, Lars, 2026-11-20).
+fn readable(column: &str) -> String { format!("CASE WHEN json_valid({column}) THEN {column} END") }
+
 /// `SLIDE_PAGES_SQL`: every picture of every slideshow a presentation's items name, with the presentation.
 fn slide_pages() -> String {
-    page_pictures("p.presentation_id, ", "presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each(c.pages) pg", "p.type = 'custom'")
+    page_pictures("p.presentation_id, ", &format!("presentation_items p JOIN custom_slides c ON c.id = p.source_id, json_each({}) pg", readable("c.pages")), "p.type = 'custom'")
 }
 
 /// `SLIDESHOW_PICTURES_SQL`: every picture of every slideshow of the library, the trash too.
-fn slideshow_pictures() -> String { page_pictures("", "custom_slides c, json_each(c.pages) pg", "1") }
+fn slideshow_pictures() -> String { page_pictures("", &format!("custom_slides c, json_each({}) pg", readable("c.pages")), "1") }
 
 /// `OVERLAY_PICTURES_SQL`: every picture an overlay's page draws, with the overlay and its place in the list.
-fn overlay_pictures() -> String { page_pictures("o.id AS overlay_id, o.sort, ", "overlays o, json_each(json_array(json(o.content))) pg", "1") }
+fn overlay_pictures() -> String {
+    page_pictures("o.id AS overlay_id, o.sort, ", "overlays o, json_each(CASE WHEN json_valid(o.content) THEN json_array(json(o.content)) END) pg", "1")
+}
 
 /// `THEME_PICTURES_SQL`: every background picture of the organisation's own themes, a row per picture.
 fn theme_pictures() -> String {
@@ -43,7 +49,7 @@ fn theme_pictures() -> String {
 /// `ITEM_IMAGES_SQL`: every picture of every image item, with its presentation.
 const ITEM_IMAGES: &str = "SELECT p.presentation_id, p.source_id AS image_id FROM presentation_items p WHERE p.type = 'image' AND p.content IS NULL
   UNION ALL
-  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL";
+  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(CASE WHEN json_valid(p.content) THEN p.content END, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL";
 
 /// The policy as the shell gives it (`MediaPolicy`).
 struct Policy { presenting: Option<String>, persistent: bool, keep_coming: bool, today: String, days: i64, fetch: bool }

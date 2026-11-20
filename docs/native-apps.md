@@ -59,17 +59,27 @@ compares it with the host's and accepts it, and from then on only that certifica
 browser's warning is accepted once (`PinnedCertificates` in `apps/mac/Sources/Shell/Server.swift`). Plain http works on
 the LAN too.
 
-Sync is the web's `SyncClient` (`packages/sync/src/client/client.ts`) in Swift (`apps/mac/Sources/Shell/Sync.swift`):
+Sync is the core's, the web's too (Lars, 2026-11-20): the queue and the rebase (`syncMutate`, `syncRebase`), and the
+driver `syncStepView` (`crates/gp-core/src/sync_driver.rs`, `sync_wire.rs`), which decides when to sync, builds each
+request, reads each answer and says what to do next. `apps/mac/Sources/Shell/Sync.swift` only does what it says, as
+`packages/sync/src/client/client.ts` does on the web:
 
 - opening: `PRAGMA foreign_keys = ON`, then `migrateOrgSchema` and `syncOpen` in one transaction;
 - a change: `syncMutate` in a transaction of its own, then a sync, as the web's worker does after every change;
-- push: `syncPending`, each change's arguments sent as the core queued them; pull: every page, then `syncRebase` in one
-  transaction, its refusals kept and the pages read again when it changed rows;
-- the poke socket (`/api/sync/poke`, the credentials as subprotocols): a sync on every poke and every connection, a
-  new try 3 s after it closes, a poll every 5 minutes, runs coalesced to one running and one waiting;
-- "update required" (426) and refused credentials (401/403) stop syncing and keep the queue; the account menu says so.
-  Signing in again is by connecting again (Logga ut first).
-- The socket closes when the app goes to the background and opens again, with a sync, when it comes back.
+- the driver's effects: a request to post (its body JSON's text, each change's arguments as the core queued them), a
+  page to keep, the rebase (`syncRebase` over the pages kept, in one transaction; its refusals kept, the pages read
+  again when it changed rows), the poke socket to open or close, a timer, the media to fetch (`onMedia`);
+- the events the shell sends back: the answer's status and text, a failed request, the rebase done, the socket opened,
+  a poke, the socket closed, a timer run out;
+- what the driver holds to: a sync on every poke and every connection, a new try 3 s after the socket closes, a poll
+  every 5 minutes, runs coalesced to one running and one waiting; "update required" (426) and refused credentials
+  (401/403) stop syncing and keep the queue, and the account menu says so. Signing in again is by connecting again
+  (Logga ut first).
+- The socket closes when the app goes to the background (`close`) and opens again, with a sync, when it comes back.
+
+Checked against a real server by `apps/mac`'s `parity sync` (`apps/server/test/native-sync.test.ts`, run by
+`crates/gp-core/build.sh test`): two devices see each other's changes through pokes, the queue empties, refused
+credentials stop syncing with the queue kept, and closing closes the socket.
 
 Tried against a desktop host on this Mac, from the iPhone 17 Pro simulator (2026-11-17), with the host's commands:
 

@@ -54,6 +54,8 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "livePlaybackView" => crate::live_views::playback(a).await,
         "itemAudioView" => crate::live_views::item_audio(a).await,
         "wantedMediaView" => crate::media_wanted::view(a).await,
+        "syncStepView" => crate::sync_driver::view(a).await,
+        "syncStatusView" => crate::sync_status::view(a),
         "playbackStepView" => crate::playback::view(a),
         "ccliUseView" => crate::live_views::ccli_use(a).await,
         "displaysView" => crate::live_views::displays(a).await,

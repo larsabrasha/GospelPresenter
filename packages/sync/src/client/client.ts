@@ -1,8 +1,6 @@
 import {
   CHANGED_TABLES,
-  PROTOCOL_VERSION,
   randomId,
-  SCHEMA_VERSION,
   SerialQueue,
   tableByName,
   tableInfo,
@@ -11,10 +9,7 @@ import {
   type MutatorArgs,
   type MutatorCtx,
   type MutatorName,
-  type PullRequest,
   type PullResponse,
-  type PushRequest,
-  type PushResponse,
 } from '@gp/core';
 import type { RunSql, RustCore } from '@gp/rust-core';
 import { queryObjects, type ClientSqlite } from './sqlite.ts';
@@ -24,7 +19,7 @@ export interface SyncClientOptions {
   transport: Transport;
   /** What this device believes about its user. The server re-checks with its own. */
   ctx: MutatorCtx;
-  /** The Rust core's WASM: every change runs on it, and it keeps the queue and rebases it (crates/gp-core's sync.rs). */
+  /** The Rust core's WASM: every change runs on it, and it keeps the queue, rebases it and decides when to sync. */
   core: RustCore;
   clientId?: string;
   /** Overridable so tests can play an old client. */
@@ -36,6 +31,8 @@ export interface SyncClientOptions {
    * The rest wait for the next push.
    */
   beforePush?: (pending: PendingMutation[], client: SyncClient) => Promise<number | undefined>;
+  /** After the sync on a connection and on each poll: fetch what a failed download left out (Bible texts, media). */
+  onMedia?: () => void;
 }
 
 /** A queued mutation as stored: its arguments are JSON. */
@@ -46,23 +43,48 @@ export interface PendingMutation {
   args: string;
 }
 
+/** The poke socket's address and the subprotocols that carry the credentials (`socketProtocols`). */
+interface PokeSocket {
+  url: string;
+  protocols?: string[];
+}
+
+/** The core's sync driver's state (crates/gp-core/src/sync_driver.rs): given back with each event; these fields are read. */
+interface DriverState {
+  connected: boolean;
+  busy: boolean;
+  stopped: string | null;
+}
+
+/** What the core's sync driver tells the shell to do, in order. */
+type Effect =
+  | { type: 'queued'; run: number }
+  | { type: 'beforePush' }
+  | { type: 'post'; path: string; body: string }
+  | { type: 'keepPage' }
+  | { type: 'rebase' }
+  | { type: 'ended'; run: number; error: string | null }
+  | { type: 'idle' }
+  | { type: 'media' }
+  | { type: 'openSocket' }
+  | { type: 'closeSocket' }
+  | { type: 'timer'; name: string; ms: number }
+  | { type: 'cancelTimers' };
+
+/** What a caller of `send` waits for: nothing, the end of the run its sync event starts, or the device idle. */
+type Wait = 'none' | 'run' | 'idle';
+
+const AUTH_ERRORS = ['unauthenticated', 'not-a-member', 'device-not-paired'] as const;
+
 /**
  * A device's view of one organisation: a local SQLite with the synced tables,
  * a pending-mutation queue (`_mutation`), and pre-images of the rows those
- * mutations touched (`_undo`) so a pull can rebase them. The queue, the rebase
- * and the triggers are the Rust core's (`sync…` commands); this is the shell
- * around them: the network, pokes, when to sync, and the server's refusals.
+ * mutations touched (`_undo`) so a pull can rebase them. The queue, the rebase,
+ * the requests, the reading of the server's answers and when to sync are the
+ * Rust core's (`sync…` commands and `syncStepView`); this is the shell that
+ * does what it says: the network, the poke socket and the timers.
  */
 export class SyncClient {
-  /** Set when the server answered "update required": the client stops syncing and keeps its queue. */
-  updateRequired = false;
-  /**
-   * Set when the server refused the credentials (signed out elsewhere,
-   * removed, or the device unpaired): the client stops syncing and keeps its
-   * queue, as with a revoked token (ADR 0006, SYNC-A15). Signing in again
-   * opens a new client on the same database.
-   */
-  authError: 'unauthenticated' | 'not-a-member' | 'device-not-paired' | null = null;
   /** Mutations the server rejected, reported once each. */
   readonly rejected: MutationResult[] = [];
   private lock = new SerialQueue();
@@ -104,6 +126,8 @@ export class SyncClient {
       await this.exec('ROLLBACK');
       throw e;
     }
+    const init = { hooks: !!this.opts.beforePush, ...(this.opts.protocol === undefined ? {} : { protocol: this.opts.protocol }) };
+    this.state = (await this.opts.core.view<{ state: DriverState }>('syncStepView', { init }, this.rows)).state;
   }
 
   /** A sync command of the Rust core, on this connection, as this device's user. */
@@ -138,12 +162,7 @@ export class SyncClient {
    * the database: serialised with every write. A refusal is thrown as MutationError with the core's code.
    */
   view<T>(name: string, args: unknown): Promise<T> {
-    return this.lock.run(() => this.opts.core.view<T>(name, args, async (sql, params) => (await this.sqlite.query(sql, params)).rows));
-  }
-
-  private async meta() {
-    const [m] = await queryObjects(this.sqlite, 'SELECT cookie, last_mutation_id, next_mutation_id FROM _sync_meta');
-    return m as { cookie: string | null; last_mutation_id: number; next_mutation_id: number };
+    return this.lock.run(() => this.opts.core.view<T>(name, args, this.rows));
   }
 
   /**
@@ -194,73 +213,60 @@ export class SyncClient {
     return (await this.core('syncPending', {})) as PendingMutation[];
   }
 
-  /**
-   * Sends the pending queue, or the front of it that `beforePush` allows. A
-   * network failure leaves it untouched; the server confirms through the next pull.
-   */
-  async push(): Promise<void> {
-    if (this.stopped) return;
-    let pending = await this.pending();
-    if (pending.length && this.opts.beforePush) pending = pending.slice(0, (await this.opts.beforePush(pending, this)) ?? pending.length);
-    if (!pending.length) return;
-    const req: PushRequest = {
-      protocol: this.opts.protocol ?? PROTOCOL_VERSION,
-      schemaVersion: SCHEMA_VERSION,
-      clientId: this.clientId,
-      mutations: pending.map((m) => ({ id: m.id, name: m.name, v: m.v, args: JSON.parse(m.args) })),
-    };
-    const res = await this.opts.transport.post<PushResponse>('/api/sync/push', req);
-    if (this.isRefused(res)) return;
-    if (res.status !== 200) throw new Error(`push failed: ${res.status} ${JSON.stringify(res.body)}`);
+  /** Sends the pending queue, or the front of it that `beforePush` allows. Rejects with a failed request's error. */
+  push(): Promise<void> {
+    return this.send({ type: 'sync', push: true, pull: false }, { asked: true, wait: 'run' });
   }
 
   /** Fetches every page of changes, then rebases the pending queue onto them in one transaction. */
-  async pull(): Promise<void> {
-    if (this.stopped) return;
-    const meta = await this.meta();
-    const pages: PullResponse[] = [];
-    let cookie = meta.cookie;
-    for (;;) {
-      const req: PullRequest = {
-        protocol: this.opts.protocol ?? PROTOCOL_VERSION,
-        schemaVersion: SCHEMA_VERSION,
-        clientId: this.clientId,
-        cookie,
-        lastMutationId: meta.last_mutation_id,
-      };
-      const res = await this.opts.transport.post<PullResponse>('/api/sync/pull', req);
-      if (this.isRefused(res)) return;
-      if (res.status !== 200) throw new Error(`pull failed: ${res.status} ${JSON.stringify(res.body)}`);
-      pages.push(res.body);
-      cookie = res.body.cookie;
-      if (!res.body.more) break;
-    }
-    await this.rebase(pages);
+  pull(): Promise<void> {
+    return this.send({ type: 'sync', push: false, pull: true }, { asked: true, wait: 'run' });
   }
 
-  async sync(): Promise<void> {
-    await this.push();
-    await this.pull();
+  sync(): Promise<void> {
+    return this.send({ type: 'sync' }, { asked: true, wait: 'run' });
   }
 
-  /** Whether syncing has stopped until the app is updated or signed in again. */
-  get stopped(): boolean {
-    return this.updateRequired || this.authError !== null;
+  /** A sync, coalesced with the one running: resolves when the device is idle again; never rejects (offline: the next poke or poll tries again). */
+  requestSync(): Promise<void> {
+    return this.send({ type: 'sync' }, { asked: true, wait: 'idle' });
   }
 
-  /** An answer that stops syncing: "update required", or credentials the server no longer accepts. */
-  private isRefused(res: { status: number; body: unknown }) {
-    const error = (res.body as { error?: string } | null)?.error;
-    if (res.status === 426 && error === 'update-required') {
-      this.updateRequired = true;
-      return true;
-    }
-    if ((res.status === 401 || res.status === 403) && (error === 'unauthenticated' || error === 'not-a-member' || error === 'device-not-paired')) {
-      this.authError = error;
-      this.socket?.close();
-      return true;
-    }
-    return false;
+  /** Keeps the poke socket open and syncs on every poke, on every (re)connection and on the backstop poll (SYNC-R43). */
+  start(poke: PokeSocket): Promise<void> {
+    this.poke = poke;
+    return this.send({ type: 'start' });
+  }
+
+  /** Whether the poke socket is open. */
+  get connected(): boolean {
+    return this.state.connected;
+  }
+
+  /** Set when the server answered "update required": the client stops syncing and keeps its queue. */
+  get updateRequired(): boolean {
+    return this.state.stopped === 'update-required';
+  }
+
+  /**
+   * Set when the server refused the credentials (signed out elsewhere,
+   * removed, or the device unpaired): the client stops syncing and keeps its
+   * queue, as with a revoked token (ADR 0006, SYNC-A15). Signing in again
+   * opens a new client on the same database.
+   */
+  get authError(): (typeof AUTH_ERRORS)[number] | null {
+    return AUTH_ERRORS.find((e) => e === this.state.stopped) ?? null;
+  }
+
+  /** A sync run is under way or asked for, the ones queued behind it included. */
+  get busy(): boolean {
+    return this.state.busy || this.asked > 0;
+  }
+
+  /** Calls `fn` when `busy`, `connected` or the stop changes. Returns an unsubscribe. */
+  onStatus(fn: () => void): () => void {
+    this.statusListeners.add(fn);
+    return () => this.statusListeners.delete(fn);
   }
 
   /**
@@ -283,69 +289,168 @@ export class SyncClient {
     return out as Dump;
   }
 
-  // ------------------------------------------------------------ pokes
+  async close() {
+    await this.send({ type: 'close' }, { wait: 'idle' });
+    await this.sqlite.close();
+  }
 
+  // ------------------------------------------------------------ the core's sync driver
+
+  private state: DriverState = { connected: false, busy: false, stopped: null };
+  private events = new SerialQueue();
+  /** Sync events sent and not yet worked out: `busy` from the moment one is asked for. */
+  private asked = 0;
+  private statusListeners = new Set<() => void>();
+  private pages: unknown[] = [];
+  private runWaiters = new Map<number, { resolve: () => void; reject: (e: unknown) => void }[]>();
+  /** The error a request or an upload threw, by run, so the caller gets it as it was. */
+  private runErrors = new Map<number, unknown>();
+  private idleWaiters: (() => void)[] = [];
+  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private poke: PokeSocket | undefined;
   private socket: WebSocket | undefined;
-  private syncing: Promise<void> | undefined;
-  private again = false;
+  private run = 0;
+
+  private status() {
+    return `${this.busy} ${this.state.connected} ${this.state.stopped}`;
+  }
+
+  private statusChanged(before: string) {
+    if (this.status() !== before) for (const fn of this.statusListeners) fn();
+  }
 
   /**
-   * Pulls whenever the server pokes. Sync runs are coalesced: at most one
-   * running and one queued. `onClose` runs once if an open socket closes.
+   * Gives the core an event with the state it last gave, and does what it answers, in order; one event at a time.
+   * `page` is the body of the answer the event carries, kept when the core says so.
    */
-  listen(pokeUrl: string, opts: { onClose?: () => void; protocols?: string[] } = {}): Promise<void> {
-    const url = new URL(pokeUrl);
-    url.searchParams.set('clientId', this.clientId);
-    const ws = new WebSocket(url, opts.protocols);
-    this.socket = ws;
-    ws.addEventListener('message', () => void this.requestSync());
-    ws.addEventListener('open', () => ws.addEventListener('close', () => opts.onClose?.(), { once: true }), { once: true });
-    return new Promise((resolve, reject) => {
-      ws.addEventListener('open', () => resolve(), { once: true });
-      ws.addEventListener('error', (e) => reject(e), { once: true });
+  private send(event: object, o: { page?: unknown; asked?: boolean; wait?: Wait } = {}): Promise<void> {
+    const asking = this.status();
+    if (o.asked) this.asked++;
+    this.statusChanged(asking);
+    return new Promise<void>((resolve, reject) => {
+      void this.events
+        .run(async () => {
+          const before = this.status();
+          // Under the lock: a push is built from what is committed, never from a change a transaction may roll back.
+          const step = await this.lock.run(() => this.opts.core.view<{ state: DriverState & { run: number }; effects: Effect[] }>('syncStepView', { state: this.state, event }, this.rows));
+          this.state = step.state;
+          this.run = step.state.run;
+          if (o.asked) this.asked--;
+          if (o.wait === 'run') {
+            const run = step.effects.find((e) => e.type === 'queued')?.run ?? this.run;
+            this.runWaiters.set(run, [...(this.runWaiters.get(run) ?? []), { resolve, reject }]);
+          } else if (o.wait === 'idle' && this.state.busy) this.idleWaiters.push(resolve);
+          else resolve();
+          for (const e of step.effects) this.perform(e, o.page);
+          this.statusChanged(before);
+        })
+        .catch(reject);
     });
   }
 
-  requestSync(): Promise<void> {
-    if (this.syncing) {
-      this.again = true;
-      return this.syncing;
-    }
-    this.syncing = (async () => {
-      try {
-        do {
-          this.again = false;
-          await this.sync().catch(() => undefined); // offline: the next poke or poll retries
-        } while (this.again);
-      } finally {
-        this.syncing = undefined;
-        this.busyChanged();
+  /** A request or an upload of the current run failed: the core hears of it, the caller gets the error. */
+  private failed(run: number, e: unknown) {
+    this.runErrors.set(run, e);
+    void this.send({ type: 'failed', error: e instanceof Error ? e.message : String(e) });
+  }
+
+  private perform(e: Effect, page: unknown) {
+    const run = this.run;
+    switch (e.type) {
+      case 'beforePush':
+        void (async () => {
+          // As many as the uploads saw and let go, never more: a change queued meanwhile waits for the next push, as
+          // what it names was not uploaded (its add would be refused, media-missing).
+          const pending = this.opts.beforePush ? await this.pending() : [];
+          const limit = pending.length ? ((await this.opts.beforePush!(pending, this)) ?? pending.length) : 0;
+          await this.send({ type: 'pushLimit', limit });
+        })().catch((err: unknown) => this.failed(run, err));
+        return;
+      case 'post':
+        void (async () => {
+          const res = await this.opts.transport.post<unknown>(e.path, JSON.parse(e.body));
+          await this.send({ type: 'answer', status: res.status, body: res.body ?? null }, { page: res.body });
+        })().catch((err: unknown) => this.failed(run, err));
+        return;
+      case 'keepPage':
+        this.pages.push(page);
+        return;
+      case 'rebase': {
+        const pages = this.pages as PullResponse[];
+        this.pages = [];
+        void this.rebase(pages)
+          .then(() => this.send({ type: 'rebased' }))
+          .catch((err: unknown) => this.failed(run, err));
+        return;
       }
-    })();
-    this.busyChanged();
-    return this.syncing;
+      case 'ended': {
+        this.pages = [];
+        const error = this.runErrors.get(e.run) ?? (e.error === null ? undefined : new Error(e.error));
+        this.runErrors.delete(e.run);
+        for (const w of this.runWaiters.get(e.run) ?? []) {
+          if (error === undefined) w.resolve();
+          else w.reject(error);
+        }
+        this.runWaiters.delete(e.run);
+        return;
+      }
+      case 'idle':
+        for (const w of this.idleWaiters.splice(0)) w();
+        return;
+      case 'media':
+        this.opts.onMedia?.();
+        return;
+      case 'openSocket':
+        return this.openSocket();
+      case 'closeSocket': {
+        const ws = this.socket;
+        this.socket = undefined;
+        ws?.close();
+        return;
+      }
+      case 'timer':
+        clearTimeout(this.timers.get(e.name));
+        this.timers.set(
+          e.name,
+          setTimeout(() => {
+            this.timers.delete(e.name);
+            void this.send({ type: 'timer', name: e.name });
+          }, e.ms),
+        );
+        return;
+      case 'cancelTimers':
+        for (const t of this.timers.values()) clearTimeout(t);
+        this.timers.clear();
+        return;
+      case 'queued':
+        return;
+    }
   }
 
-  private busyListeners = new Set<() => void>();
-
-  /** A sync run (`requestSync`) is under way, queued ones included. */
-  get busy(): boolean {
-    return this.syncing !== undefined;
-  }
-
-  /** Calls `fn` when a sync run starts and when it ends (`busy`). Returns an unsubscribe. */
-  onBusy(fn: () => void): () => void {
-    this.busyListeners.add(fn);
-    return () => this.busyListeners.delete(fn);
-  }
-
-  private busyChanged() {
-    for (const fn of this.busyListeners) fn();
-  }
-
-  async close() {
-    this.socket?.close();
-    await this.syncing;
-    await this.sqlite.close();
+  /** The poke socket: its opening, each poke and its closing (a refused one too) told to the core. */
+  private openSocket() {
+    if (!this.poke) return;
+    let ws: WebSocket;
+    try {
+      const url = new URL(this.poke.url);
+      url.searchParams.set('clientId', this.clientId);
+      ws = new WebSocket(url, this.poke.protocols);
+    } catch {
+      void this.send({ type: 'socketClosed' });
+      return;
+    }
+    this.socket = ws;
+    const mine = () => this.socket === ws;
+    ws.addEventListener('open', () => {
+      if (mine()) void this.send({ type: 'socketOpened' });
+    });
+    ws.addEventListener('message', () => {
+      if (mine()) void this.send({ type: 'poke' });
+    });
+    ws.addEventListener('close', () => {
+      if (!mine()) return;
+      this.socket = undefined;
+      void this.send({ type: 'socketClosed' });
+    });
   }
 }

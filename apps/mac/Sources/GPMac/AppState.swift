@@ -36,6 +36,10 @@ final class AppState {
     var mediaGeneration = 0
     @ObservationIgnored var mediaRunning = false
     @ObservationIgnored var mediaAgain = false
+    /// The sync's grace (the core's `syncStatusView`): whether changes waiting or no connection have held long enough to
+    /// count as a problem, and the timer that says so.
+    @ObservationIgnored private var waitedLong = false
+    @ObservationIgnored private var grace: Task<Void, Never>?
     /// What a connection or the demo refused, said where it was asked for.
     var refusal: String?
     /// The windows open, each read again after a change.
@@ -109,6 +113,7 @@ final class AppState {
             let client = try SyncClient(path: "\(Self.home)/org-\(session.me.orgId).sqlite", session: session)
             client.onChange = { [weak self] _ in self?.changed() }
             client.onStatus = { [weak self] in self?.noteSync() }
+            client.onMedia = { [weak self] in self?.syncMedia() }
             store = .synced(client)
             Keychain.session = session
             client.start()
@@ -177,17 +182,38 @@ final class AppState {
         status = "\(what) · \(core.lastSqlCalls) SQL · \(Int(core.lastMicros)) µs"
     }
 
-    /// The web's status line (`status.*`), only when there is a problem.
+    /// How the sync stands, as the core says it (`syncStatusView`), only when there is a problem: what needs the person
+    /// (an update, signing in or pairing again) in the web's words for its yellow line, as this app has none; else
+    /// the problem's texts, offline or changes waiting once they have held past the core's grace.
     private func noteSync() {
         guard case let .synced(c) = store else { syncProblem = nil; return }
-        let waiting = c.pendingCount
-        syncProblem = switch c.stopped {
-        case .updateRequired: t("status.updateRequired")
-        case .signedOut: t("status.authNeeded")
-        case nil where !c.connected && !c.busy: waiting > 0 ? "\(t("status.offline")) · \(waiting == 1 ? t("status.pendingOne") : t("status.pending", ["n": waiting]))" : t("status.offline")
-        case nil where waiting > 0 && !c.busy: waiting == 1 ? t("status.pendingOne") : t("status.pending", ["n": waiting])
-        case nil: nil
+        struct Status: Decodable {
+            struct Text: Decodable { let code: String; let n: Int? }
+            struct Notice: Decodable { let code: String }
+            let problem: Bool, texts: [Text], notice: Notice?, waiting: Bool, graceMs: Int
         }
+        let stopped: Any = switch c.stopped {
+        case .updateRequired: "update-required"
+        case let .signedOut(reason): reason
+        case nil: NSNull()
+        }
+        let args: [String: Any] = ["pending": c.pendingCount, "stopped": stopped, "connected": c.connected, "busy": c.busy, "waitedLong": waitedLong]
+        guard let s = c.view("syncStatusView", args, as: Status.self) else { return }
+        if !s.waiting {
+            grace?.cancel()
+            grace = nil
+            waitedLong = false
+        } else if grace == nil, !waitedLong {
+            grace = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(s.graceMs))
+                guard !Task.isCancelled, let self else { return }
+                grace = nil
+                waitedLong = true
+                noteSync()
+            }
+        }
+        let texts = s.texts.map { $0.code == "pending" ? t("status.pending", ["n": $0.n ?? 0]) : t("status.\($0.code)") }
+        syncProblem = s.notice.map { t("status.\($0.code)") } ?? (s.problem ? texts.joined(separator: " · ") : nil)
     }
 
     func syncNow() { if case let .synced(c) = store { c.requestSync() } }

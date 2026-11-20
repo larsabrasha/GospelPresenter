@@ -13,7 +13,7 @@ import { ArrowsRightLeftIcon, BugIcon, CheckIcon, ChevronLeftIcon, CloudOffIcon,
 import { href } from './ui/router.ts';
 import { runCommand } from './ui/appKeys.ts';
 import { useUnreadReplies } from './report/unread.ts';
-import { initials, syncState, useWaitedLong } from './ui/syncState.ts';
+import { initials, syncState, syncWaiting, useWaitedLong } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
 import { LIFTED, ROUND_BACK } from './ui/glass.ts';
 
@@ -23,7 +23,7 @@ import { LIFTED, ROUND_BACK } from './ui/glass.ts';
 /** How the sync stands (ui/syncState.ts), with changes waiting or no connection past the grace counted as a problem. */
 function useSync() {
   const s = useDbStatus();
-  const waitedLong = useWaitedLong(!!s && (s.pending > 0 || !s.connected));
+  const waitedLong = useWaitedLong(syncWaiting(s ?? null));
   return s ? syncState(s, waitedLong) : null;
 }
 

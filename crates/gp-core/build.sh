@@ -73,6 +73,8 @@ case "$1" in
     node --no-warnings parity/mutations/run.mjs --ops 1000 --seeds 3 | grep -vE "^[a-z-]+: [0-9]+ mutations"
     # Sync's client logic against the TS SyncClient and a real server engine (the proof: --steps 1500 --seeds 10).
     node --no-warnings parity/sync/check.mjs --steps 1500 --seeds 3 | grep -vE "^seed"
+    # The Mac and iOS app's sync, as the core's sync driver says, against a real server (apps/mac's `parity sync`).
+    (cd "$ROOT/apps/server" && GP_NATIVE_SYNC=1 pnpm exec vitest run test/native-sync.test.ts --silent=false 2>&1 | grep -E "^(ok|FAIL):|Tests ")
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"

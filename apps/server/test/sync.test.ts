@@ -268,9 +268,28 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     await fx.expectConverged(fx.alice, fx.carol);
   });
 
+  it('a change queued while the uploads before a push run waits for the next push', async () => {
+    let queuedMeanwhile = false;
+    const d = await device(fx.h, fx.org, 'alice', 'admin', {
+      beforePush: async (_, client) => {
+        if (!queuedMeanwhile) {
+          queuedMeanwhile = true;
+          await client.mutate('createPresentation', { id: 'LATE', name: 'Köad under uppladdningen' });
+        }
+        return undefined;
+      },
+    });
+    fx.track(d);
+    await d.client.mutate('createPresentation', { id: 'FIRST', name: 'Först' });
+
+    await d.client.push();
+
+    expect((await fx.server()).tables.presentations.map((p) => p.id)).toEqual(['FIRST']);
+  });
+
   it('a sync run is busy from its start to its end, and says so at both', async () => {
     const seen: boolean[] = [];
-    fx.alice.client.onBusy(() => seen.push(fx.alice.client.busy));
+    fx.alice.client.onStatus(() => seen.push(fx.alice.client.busy));
 
     const run = fx.alice.client.requestSync();
     const during = fx.alice.client.busy;
@@ -388,14 +407,13 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
   it('SYNC-R42: a fx.server edit reaches another client in under 3 s through a poke', async () => {
     await fx.seed();
     await new Promise((r) => setTimeout(r, POKE_WINDOW_MS + 200)); // let the seed's own poke window drain
-    let bobPokes = 0;
-    await fx.alice.client.listen(pokeUrl(fx.h), { protocols: pokeProtocols(fx.h, fx.org, 'alice') });
-    await fx.bob.client.listen(pokeUrl(fx.h), { protocols: pokeProtocols(fx.h, fx.org, 'bob') });
-    const origSync = fx.bob.client.sync.bind(fx.bob.client);
-    fx.bob.client.sync = async () => {
-      bobPokes++;
-      return origSync();
-    };
+    await fx.alice.client.start({ url: pokeUrl(fx.h), protocols: pokeProtocols(fx.h, fx.org, 'alice') });
+    await fx.bob.client.start({ url: pokeUrl(fx.h), protocols: pokeProtocols(fx.h, fx.org, 'bob') });
+    const settled = (d: typeof fx.alice) => d.client.connected && !d.client.busy;
+    await waitFor(async () => settled(fx.alice) && settled(fx.bob), 3000); // each catches up once it is connected
+    // Bob only pushes below: a pull of his is a poke's.
+    const bobPulls = () => fx.bob.net.requests.filter((p) => p === '/api/sync/pull').length;
+    const pullsBefore = bobPulls();
     const samples: number[] = [];
     for (let i = 0; i < 3; i++) {
       const name = `Poked ${i}`;
@@ -409,7 +427,7 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     console.log(`[measure] ${adapterName} poke latency ms: ${samples.map(Math.round).join(', ')}`);
     for (const s of samples) expect(s).toBeLessThan(3000);
     await new Promise((r) => setTimeout(r, 700)); // nothing may happen: past a poke window
-    expect(bobPokes).toBe(0); // the writer is not woken by its own change (SYNC-R39)
+    expect(bobPulls()).toBe(pullsBefore); // the writer is not woken by its own change (SYNC-R39)
   });
 
   it.runIf(adapterName === 'node')('better-sqlite3: db.transaction() refuses an async mutator; BEGIN/COMMIT works', async () => {
