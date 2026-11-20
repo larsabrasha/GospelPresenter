@@ -109,7 +109,8 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
   useEffect(() => {
     api<Me>('GET', '/api/auth/me')
       .then((r) => {
-        if (r.error) return;
+        // An answer without its body (cut short by a reload) keeps the stored identity, as offline does.
+        if (r.error || !r.body?.userId) return;
         updateMe(r.body);
         setMe(r.body);
       })

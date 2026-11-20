@@ -30,10 +30,10 @@ export function FirstPage({ slide, theme }: { slide: LibraryCustomSlide; theme: 
 }
 
 /**
- * Bildspel (docs/custom-slides.md): the organisation's slideshows, made here or imported from a PDF, as a grid of
- * their first pages; a tap opens one's editor, + makes a new one, named first, and opens it, and Importera (or a
- * drop) takes a PDF. A slideshow of a PDF's pages has Ersätt med ny PDF in its menu: after a question, its pages
- * are the new PDF's, what was put on them gone, in every presentation that shows it.
+ * Bildspel (docs/custom-slides.md): the organisation's slideshows, made here or imported from a PDF or a PowerPoint
+ * deck, as a grid of their first pages; a tap opens one's editor, + makes a new one, named first, and opens it, and
+ * Importera (or a drop) takes a PDF or a .pptx. A slideshow of imported pages has Ersätt med ny fil in its menu: after
+ * a question, its pages are the new file's, what was put on them gone, in every presentation that shows it.
  */
 export function CustomSlides() {
   const db = useDb();

@@ -85,26 +85,64 @@ fn page(img: Image, slide: usize, click: usize) -> Page {
     Page { slide, click, full: jpeg(&rgba, FULL.2), thumb: jpeg(&thumb, THUMB.2) }
 }
 
-/// Every slide shown at every click, or why the file cannot be read.
-pub fn pages(pptx: &[u8]) -> Result<Deck, String> {
-    let pres = deckcraft_pptx::import(pptx).map_err(|e| e.to_string())?;
+/// Why a deck gives no pages.
+#[derive(Debug, PartialEq)]
+pub enum Refused {
+    /// The file is not a deck this reads.
+    Invalid(String),
+    /// More pages than `max`, the clicks counted: drawing stops there.
+    TooMany,
+}
+
+/// Every slide shown at every click, at most `max` pages, or why not.
+pub fn pages(pptx: &[u8], max: usize) -> Result<Deck, Refused> {
+    let pres = deckcraft_pptx::import(pptx).map_err(|e| Refused::Invalid(e.to_string()))?;
     // Points to pixels so the slide fits 1920×1080, as a PDF's page is drawn at the size it is shown.
     let (w, h) = (pres.slide_size.width, pres.slide_size.height);
     if !(w > 0.0 && h > 0.0) {
-        return Err("the deck has no slide size".into());
+        return Err(Refused::Invalid("the deck has no slide size".into()));
     }
     let scale = (FULL.0 as f64 / w).min(FULL.1 as f64 / h);
-    let mut deck = Deck { pages: vec![], charts: false };
-    for (i, slide) in pres.slides.iter().enumerate().filter(|(_, s)| !s.hidden) {
-        deck.charts |= has_chart(&slide.shapes);
-        let tl = ShowState::timeline(&pres, i);
-        for click in 0..=tl.steps() {
-            let state = |id: ShapeId| shape_state(&tl, id, click);
-            let opts = RenderOpts { scale, state: Some(&state), ..Default::default() };
-            deck.pages.push(page(deckcraft_render::render_slide(&pres, i, &opts), i + 1, click));
+    // Every page there will be, (slide, click), counted before any is drawn, so a deck of too many is refused at once.
+    let shown: Vec<usize> = (0..pres.slides.len()).filter(|&i| !pres.slides[i].hidden).collect();
+    let mut at = vec![];
+    for &i in &shown {
+        at.extend((0..=ShowState::timeline(&pres, i).steps()).map(|click| (i, click)));
+        if at.len() > max {
+            return Err(Refused::TooMany);
         }
     }
-    Ok(deck)
+    let charts = shown.iter().any(|&i| has_chart(&pres.slides[i].shapes));
+    // Pages drawn side by side, each thread a page at a time with a drawing of its own: DeckCraft's threads within a
+    // drawing must stay off where effects use filters (RenderOpts.threads). Half the cores: the host may be
+    // presenting meanwhile, and its outputs keep the rest.
+    let workers = (std::thread::available_parallelism().map_or(2, |n| n.get()) / 2).clamp(1, at.len().max(1));
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let mut drawn: Vec<Option<Page>> = std::thread::scope(|s| {
+        let threads: Vec<_> = (0..workers)
+            .map(|_| {
+                s.spawn(|| {
+                    let mut mine = vec![];
+                    loop {
+                        let n = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some(&(i, click)) = at.get(n) else { return mine };
+                        let tl = ShowState::timeline(&pres, i);
+                        let state = |id: ShapeId| shape_state(&tl, id, click);
+                        let opts = RenderOpts { scale, state: Some(&state), ..Default::default() };
+                        mine.push((n, page(deckcraft_render::render_slide(&pres, i, &opts), i + 1, click)));
+                    }
+                })
+            })
+            .collect();
+        let mut drawn: Vec<Option<Page>> = (0..at.len()).map(|_| None).collect();
+        for t in threads {
+            for (n, p) in t.join().expect("a drawing thread") {
+                drawn[n] = Some(p);
+            }
+        }
+        drawn
+    });
+    Ok(Deck { pages: drawn.iter_mut().map(|p| p.take().expect("every page drawn")).collect(), charts })
 }
 
 #[cfg(test)]
@@ -128,7 +166,7 @@ mod tests {
 
     #[test]
     fn what_is_not_a_deck_is_refused() {
-        assert!(pages(b"not a zip").is_err());
+        assert!(matches!(pages(b"not a zip", 100), Err(Refused::Invalid(_))));
     }
 
     /// fixtures/deck.pptx (make_deck.py): a list of three built a paragraph a click, a hidden slide, a chart.
@@ -136,7 +174,7 @@ mod tests {
 
     #[test]
     fn each_click_of_a_build_is_a_page_and_a_hidden_slide_none() {
-        let deck = pages(DECK).unwrap();
+        let deck = pages(DECK, 100).unwrap();
 
         let at: Vec<(usize, usize)> = deck.pages.iter().map(|p| (p.slide, p.click)).collect();
         assert_eq!(at, vec![(1, 0), (1, 1), (1, 2), (1, 3), (3, 0)]);
@@ -144,12 +182,22 @@ mod tests {
 
     #[test]
     fn a_deck_with_a_chart_says_so() {
-        assert!(pages(DECK).unwrap().charts);
+        assert!(pages(DECK, 100).unwrap().charts);
+    }
+
+    #[test]
+    fn drawing_stops_at_the_most_pages_taken() {
+        assert_eq!(pages(DECK, 4).err(), Some(Refused::TooMany));
+    }
+
+    #[test]
+    fn a_deck_of_exactly_the_most_pages_is_taken() {
+        assert_eq!(pages(DECK, 5).unwrap().pages.len(), 5);
     }
 
     #[test]
     fn a_page_is_a_full_picture_and_a_thumbnail_as_a_pdfs_page() {
-        let deck = pages(DECK).unwrap();
+        let deck = pages(DECK, 100).unwrap();
 
         let size = |b: &[u8]| { let i = image::load_from_memory(b).unwrap(); (i.width(), i.height()) };
         assert_eq!((size(&deck.pages[0].full), size(&deck.pages[0].thumb)), ((1920, 1080), (400, 225)));

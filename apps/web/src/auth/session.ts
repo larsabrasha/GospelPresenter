@@ -44,9 +44,11 @@ export function forgetSession() {
   write(SESSION_KEY, null);
 }
 
-export function updateMe(me: Me) {
+export function updateMe(me: Me | null) {
   const s = storedSession();
-  if (s) write(SESSION_KEY, { ...s, me });
+  // Never a `me` that reads back as signed out: an answer whose body did not arrive (a reload cutting
+  // `/api/auth/me` short, which `api` gives as a success with no body) once signed the device out at its next start.
+  if (s && me?.userId && me.orgId) write(SESSION_KEY, { ...s, me });
 }
 
 export function deviceToken(): string | null {

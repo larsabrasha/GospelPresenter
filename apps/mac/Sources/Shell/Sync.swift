@@ -133,8 +133,11 @@ public final class SyncClient {
                 guard let self else { return }
                 do {
                     let a = try await server.request("POST", path, json: body, as: session)
-                    let text = String(decoding: a.body, as: UTF8.self)
-                    send(["type": "answer", "status": a.status, "text": text], page: text)
+                    // What the driver reads of it (a refusal's error, a page's cookie and more), not the page itself,
+                    // which may be megabytes and is kept here for the rebase.
+                    let body = (try? JSONSerialization.jsonObject(with: a.body)) as? [String: Any] ?? [:]
+                    let head = ["error", "cookie", "more"].reduce(into: [String: Any]()) { $0[$1] = body[$1] }
+                    send(["type": "answer", "status": a.status, "body": head], page: String(decoding: a.body, as: UTF8.self))
                 } catch {
                     send(["type": "failed", "error": "\(error)"]) // offline: the next poke or poll tries again
                 }

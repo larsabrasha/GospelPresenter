@@ -33,8 +33,20 @@ await build({ ...common, entryPoints: ['src/preload.ts'], format: 'cjs', outExte
 mkdirSync('dist', { recursive: true });
 copyFileSync(createRequire(import.meta.url).resolve('@gp/rust-core/gp_core.wasm'), 'dist/gp_core.wasm');
 // The host's PowerPoint drawing (crates/gp-pptx, docs/powerpoint-deckcraft.md) beside the bundle, where host.ts looks;
-// electron-builder.yml puts it among a package's resources. Built for this machine; a package for another system or
-// architecture needs it built for that one.
+// electron-builder.yml puts it among a package's resources. Built for this machine; a release on a Mac, whose
+// packages are arm64 and x64 alike from this one dist/, builds both and joins them into one program (lipo). Windows
+// and Linux packages are this machine's architecture, as their electron-builder targets are.
 const program = `gp-pptx${process.platform === 'win32' ? '.exe' : ''}`;
-execFileSync('cargo', ['build', '-p', 'gp-pptx', '--release', '--quiet'], { cwd: '../..', stdio: 'inherit' });
-copyFileSync(`../../target/release/${program}`, `dist/${program}`);
+// A workspace of its own, so it builds into crates/gp-pptx/target.
+const crate = '../../crates/gp-pptx';
+const cargo = (...args) => execFileSync('cargo', ['build', '--release', '--quiet', ...args], { cwd: crate, stdio: 'inherit' });
+if (process.env.GP_RELEASE === '1' && process.platform === 'darwin') {
+  const macs = ['aarch64-apple-darwin', 'x86_64-apple-darwin'];
+  // The Intel target only here, not in rust-toolchain.toml: no other build needs it.
+  execFileSync('rustup', ['target', 'add', ...macs], { cwd: crate, stdio: 'inherit' });
+  for (const target of macs) cargo('--target', target);
+  execFileSync('lipo', ['-create', ...macs.map((t) => `${crate}/target/${t}/release/gp-pptx`), '-output', `dist/${program}`], { stdio: 'inherit' });
+} else {
+  cargo();
+  copyFileSync(`${crate}/target/release/${program}`, `dist/${program}`);
+}

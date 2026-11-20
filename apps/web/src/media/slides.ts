@@ -54,6 +54,8 @@ const bytesOf = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charC
  * `charts`: a slide has a chart, which may not look as in PowerPoint.
  */
 async function drawPptx(file: File, target: SlidesTarget): Promise<{ slides: SlidesImport; charts: boolean }> {
+  // Asked first, so a deck of up to 50 MB is not sent to a server that cannot draw it (the cloud, over a phone's data).
+  if ((await fetch(serverUrl('/api/slides/pptx'), { headers: authHeaders() })).status === 404) throw new SlidesRefused('powerpoint');
   const res = await fetch(serverUrl('/api/slides/pptx'), { method: 'POST', headers: { 'content-type': 'application/octet-stream', ...authHeaders() }, body: file });
   const body = (await res.json().catch(() => null)) as (DrawnDeck & { error?: string }) | null;
   if (res.status === 404) throw new SlidesRefused('powerpoint');

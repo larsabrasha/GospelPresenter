@@ -139,6 +139,13 @@ fn the_socket_opened_syncs_and_fetches_the_media_after() {
 }
 
 #[test]
+fn a_run_that_ends_after_closing_fetches_no_media() {
+    let (_, out) = after(idle(), &[Event::Start, Event::SocketOpened, Event::Close, Event::NothingToPush, page(false), Event::Rebased]);
+
+    assert_eq!(out, vec![ended(1), Do::Idle]);
+}
+
+#[test]
 fn a_poke_syncs() {
     let (_, out) = step(&online(), &Event::Poke);
 

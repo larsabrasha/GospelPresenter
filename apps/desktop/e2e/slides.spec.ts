@@ -89,11 +89,11 @@ test('a PDF imported into the library goes into a presentation as a reference, a
   const parts = page.getByRole('list', { name: 'Predikan.pdf' }).getByRole('listitem');
   await expect(parts).toHaveCount(2);
 
-  // Ersätt med ny PDF, in the slideshow's menu, after a question: the presentation shows the new pages.
+  // Ersätt med ny fil, in the slideshow's menu, after a question: the presentation shows the new pages.
   await openAdmin(page, 'Bildspel');
   await card.getByRole('link', { name: 'Predikan.pdf', exact: true }).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Ersätt med ny PDF' }).click();
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog', { name: 'Ersätt med ny PDF' }).getByRole('button', { name: 'Välj PDF' }).click()]);
+  await page.getByRole('menuitem', { name: 'Ersätt med ny fil' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog', { name: 'Ersätt med ny fil' }).getByRole('button', { name: 'Välj fil' }).click()]);
   await chooser.setFiles({ name: 'Predikan v2.pdf', mimeType: 'application/pdf', buffer: colouredPdf(3) });
   await expect(page.getByRole('status').getByText('Predikan.pdf har fått nya sidor')).toBeVisible({ timeout: 15_000 });
   await closeAdmin(page);

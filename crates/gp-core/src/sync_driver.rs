@@ -211,7 +211,8 @@ fn end(s: &mut State, out: &mut Vec<Do>, error: Option<String>) {
     s.busy = false;
     s.phase = Phase::Idle;
     out.push(Do::Idle);
-    if std::mem::take(&mut s.media) && s.stopped.is_none() { out.push(Do::Media) }
+    // Not once closed: the shell is letting go of its database (signing out, the app in the background).
+    if std::mem::take(&mut s.media) && s.started && s.stopped.is_none() { out.push(Do::Media) }
     if std::mem::take(&mut s.reconnect) && s.started && s.stopped.is_none() && s.socket == Socket::Closed {
         out.push(Do::Timer("reconnect", RECONNECT_MS));
     }

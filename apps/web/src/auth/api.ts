@@ -25,7 +25,19 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const parsed = (await res.json().catch(() => null)) as T;
-  const error = res.ok ? null : ((parsed as { error?: string } | null)?.error ?? `http-${res.status}`);
+  // A body that did not arrive whole (a reload or the network cutting it short) is no answer, even under a 2xx: as a
+  // success with no body it once stored an empty identity and signed the device out at its next start. An empty body
+  // (204) is an answer.
+  const text = await res.text().catch(() => null);
+  let parsed = null as T;
+  let unreadable = text === null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text) as T;
+    } catch {
+      unreadable = true;
+    }
+  }
+  const error = res.ok ? (unreadable ? 'unreadable' : null) : ((parsed as { error?: string } | null)?.error ?? `http-${res.status}`);
   return { status: res.status, body: parsed, error };
 }

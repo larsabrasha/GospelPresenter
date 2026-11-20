@@ -60,7 +60,8 @@ picture per page ([media-and-files.md](media-and-files.md#slide-decks)), and bec
 file, each page the picture of its PDF page on black (`pdfPages`) with nothing on it: Lägg till puts it in the
 presentation at once (`addSlides`). It is then a slideshow as any other: its pages can be removed, moved, and have
 texts put on them, and a page's PDF picture taken away (Format, with nothing picked). A slideshow with a PDF page
-has Ersätt med ny PDF in its menu: after a question, all its pages are the new PDF's, what was put on them gone,
+has Ersätt med ny fil in its menu: after a question, all its pages are the new file's (a PDF, or a PowerPoint deck
+drawn by the desktop host, docs/powerpoint-deckcraft.md), what was put on them gone,
 in every presentation that shows it. A page with a PDF picture is a picture slide for the outputs: a public output
 gets its picture (and its texts), as an image item's.
 

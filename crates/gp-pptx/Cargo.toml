@@ -8,6 +8,16 @@ publish = false
 
 # A PowerPoint deck as a slideshow's pages (docs/powerpoint-deckcraft.md, step 1): every slide at every click of its
 # builds, drawn by DeckCraft's libraries. Run by the desktop host (apps/desktop); never part of the web's core.
+# A workspace of its own (its Cargo.lock, its target/), so the core's builds never resolve DeckCraft's git crates.
+[workspace]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [lib]
 name = "gp_pptx"
 

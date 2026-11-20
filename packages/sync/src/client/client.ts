@@ -77,6 +77,15 @@ type Wait = 'none' | 'run' | 'idle';
 const AUTH_ERRORS = ['unauthenticated', 'not-a-member', 'device-not-paired'] as const;
 
 /**
+ * What the driver reads of an answer (sync_wire.rs `read`): a refusal's `error`, and a page's `cookie` and `more`. Not
+ * the page itself, which may be megabytes, kept here for the rebase.
+ */
+function answerHead(body: unknown) {
+  const b = (body ?? {}) as { error?: unknown; cookie?: unknown; more?: unknown };
+  return { error: b.error, cookie: b.cookie, more: b.more };
+}
+
+/**
  * A device's view of one organisation: a local SQLite with the synced tables,
  * a pending-mutation queue (`_mutation`), and pre-images of the rows those
  * mutations touched (`_undo`) so a pull can rebase them. The queue, the rebase,
@@ -209,8 +218,9 @@ export class SyncClient {
     this.changed(new Set(tables));
   }
 
-  async pending(): Promise<PendingMutation[]> {
-    return (await this.core('syncPending', {})) as PendingMutation[];
+  /** The queue as committed: read under the lock, so a change in a transaction that may roll back is not in it. */
+  pending(): Promise<PendingMutation[]> {
+    return this.lock.run(async () => (await this.core('syncPending', {})) as PendingMutation[]);
   }
 
   /** Sends the pending queue, or the front of it that `beforePush` allows. Rejects with a failed request's error. */
@@ -328,23 +338,32 @@ export class SyncClient {
     if (o.asked) this.asked++;
     this.statusChanged(asking);
     return new Promise<void>((resolve, reject) => {
-      void this.events
-        .run(async () => {
-          const before = this.status();
+      void this.events.run(async () => {
+        const before = this.status();
+        let step: { state: DriverState & { run: number }; effects: Effect[] };
+        try {
           // Under the lock: a push is built from what is committed, never from a change a transaction may roll back.
-          const step = await this.lock.run(() => this.opts.core.view<{ state: DriverState & { run: number }; effects: Effect[] }>('syncStepView', { state: this.state, event }, this.rows));
-          this.state = step.state;
-          this.run = step.state.run;
+          step = await this.lock.run(() => this.opts.core.view<typeof step>('syncStepView', { state: this.state, event }, this.rows));
+        } catch (e) {
+          // The core could not take the event: the state stays, the ask is no longer pending, and only a caller
+          // waiting for its run's outcome hears of it (requestSync never rejects).
           if (o.asked) this.asked--;
-          if (o.wait === 'run') {
-            const run = step.effects.find((e) => e.type === 'queued')?.run ?? this.run;
-            this.runWaiters.set(run, [...(this.runWaiters.get(run) ?? []), { resolve, reject }]);
-          } else if (o.wait === 'idle' && this.state.busy) this.idleWaiters.push(resolve);
-          else resolve();
-          for (const e of step.effects) this.perform(e, o.page);
           this.statusChanged(before);
-        })
-        .catch(reject);
+          if (o.wait === 'run') reject(e);
+          else resolve();
+          return;
+        }
+        this.state = step.state;
+        this.run = step.state.run;
+        if (o.asked) this.asked--;
+        if (o.wait === 'run') {
+          const run = step.effects.find((e) => e.type === 'queued')?.run ?? this.run;
+          this.runWaiters.set(run, [...(this.runWaiters.get(run) ?? []), { resolve, reject }]);
+        } else if (o.wait === 'idle' && this.state.busy) this.idleWaiters.push(resolve);
+        else resolve();
+        for (const e of step.effects) this.perform(e, o.page);
+        this.statusChanged(before);
+      });
     });
   }
 
@@ -360,7 +379,8 @@ export class SyncClient {
       case 'beforePush':
         void (async () => {
           // As many as the uploads saw and let go, never more: a change queued meanwhile waits for the next push, as
-          // what it names was not uploaded (its add would be refused, media-missing).
+          // what it names was not uploaded (its add would be refused, media-missing). Of committed changes (pending()
+          // reads under the lock): one a transaction rolls back gives its id to the next.
           const pending = this.opts.beforePush ? await this.pending() : [];
           const limit = pending.length ? ((await this.opts.beforePush!(pending, this)) ?? pending.length) : 0;
           await this.send({ type: 'pushLimit', limit });
@@ -369,7 +389,7 @@ export class SyncClient {
       case 'post':
         void (async () => {
           const res = await this.opts.transport.post<unknown>(e.path, JSON.parse(e.body));
-          await this.send({ type: 'answer', status: res.status, body: res.body ?? null }, { page: res.body });
+          await this.send({ type: 'answer', status: res.status, body: answerHead(res.body) }, { page: res.body });
         })().catch((err: unknown) => this.failed(run, err));
         return;
       case 'keepPage':

@@ -67,7 +67,7 @@ case "$1" in
     # SQLite's values cross over to Swift.
     (cd "$ROOT" && cargo test -p gp-core -p gp-core-ffi --quiet 2>&1 | grep -E "^test result|FAILED|panicked")
     # The desktop host's PowerPoint drawing on its fixture deck (crates/gp-pptx, docs/powerpoint-deckcraft.md).
-    (cd "$ROOT" && cargo test -p gp-pptx --release --quiet 2>&1 | grep -E "^test result: ok. [1-9]|FAILED|panicked")
+    (cd "$ROOT/crates/gp-pptx" && cargo test --release --quiet 2>&1 | grep -E "^test result: ok. [1-9]|FAILED|panicked")
     node --no-warnings parity/diff.mjs 3000 10
     # The schema and its migrations, then every ported file of mutators (3 000 each here; the proof of a file is
     # `node parity/mutations/run.mjs <file> --ops 3000 --seeds 10`, 30 000).

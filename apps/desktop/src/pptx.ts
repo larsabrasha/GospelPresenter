@@ -10,8 +10,9 @@ import type { PptxPages } from '@gp/server/node';
 
 /** Longer than any deck the probe drew (1.2 s for 21 slides), and short enough that a hung one gives up. */
 const TIMEOUT_MS = 120_000;
-/** What the program says when the file is not a deck it can read. */
+/** What the program says when the file is not a deck it can read, and when it has more pages than taken. */
 const NOT_A_DECK = 2;
+const TOO_MANY_PAGES = 3;
 
 const program = `gp-pptx${process.platform === 'win32' ? '.exe' : ''}`;
 
@@ -23,17 +24,24 @@ export function pptxProgram(here: string): string | null {
   return [join(here, program), join(here, '..', '..', program)].find((p) => existsSync(p)) ?? null;
 }
 
+/**
+ * Draws decks one at a time: the program uses the processor fully, and the church computer may be presenting while a
+ * phone imports a deck.
+ */
 export function pptxPages(programPath: string): PptxPages {
-  return async (pptx) => {
+  let queue: Promise<unknown> = Promise.resolve();
+  const draw: PptxPages = async (pptx, max) => {
     const dir = await mkdtemp(join(tmpdir(), 'gp-pptx-'));
     try {
       const deck = join(dir, 'deck.pptx');
       await writeFile(deck, pptx);
       let stdout: string;
       try {
-        ({ stdout } = await promisify(execFile)(programPath, [deck, dir], { timeout: TIMEOUT_MS, maxBuffer: 1024 * 1024 }));
+        ({ stdout } = await promisify(execFile)(programPath, [deck, dir, String(max)], { timeout: TIMEOUT_MS, maxBuffer: 1024 * 1024 }));
       } catch (e) {
-        if ((e as { code?: unknown }).code === NOT_A_DECK) return null;
+        const code = (e as { code?: unknown }).code;
+        if (code === NOT_A_DECK) return 'invalid';
+        if (code === TOO_MANY_PAGES) return 'pages';
         throw e;
       }
       const drawn = JSON.parse(stdout) as { charts: boolean; pages: { full: string; thumb: string }[] };
@@ -42,5 +50,10 @@ export function pptxPages(programPath: string): PptxPages {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  };
+  return (pptx, max) => {
+    const run = queue.then(() => draw(pptx, max));
+    queue = run.catch(() => undefined);
+    return run;
   };
 }

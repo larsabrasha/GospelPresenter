@@ -19,11 +19,14 @@ its crates come from git at pinned commits, not crates.io.
 
 - **`crates/gp-pptx`**: `pages(pptx)` reads the deck and draws every slide shown, at every click of its builds, to a
   JPEG fitting 1920×1080 and a thumbnail fitting 400×225 (`IMAGE_VARIANTS`), a hidden slide left out; `charts` says
-  whether a slide shown has a chart. Its program `gp-pptx DECK OUT` writes them and prints what it wrote. DeckCraft
-  from git at a pinned commit; 5.7 MB stripped; the fixture deck (`fixtures/make_deck.py`) in under a second.
+  whether a slide shown has a chart. Its program `gp-pptx DECK OUT MAX` writes them and prints what it wrote, and
+  stops at MAX pages (exit 3). A Cargo workspace of its own, so the core's builds never fetch DeckCraft, from git at
+  a pinned commit; 5.7 MB stripped; the fixture deck (`fixtures/make_deck.py`) in under a second. A Mac release
+  builds it for arm64 and x64 and joins them (lipo), as its packages are both.
 - **The desktop host** builds the program beside its bundle (`apps/desktop/build.mjs`; `electron-builder.yml` puts it
   among a package's resources) and gives the server `POST /api/slides/pptx` (`apps/server/src/pptx-routes.ts`): the
-  deck in, its pages out. The route is only where a host draws decks: the cloud has none and answers 404.
+  deck in, its pages out, one deck drawn at a time. The route is only where a host draws decks: the cloud has none
+  and answers 404, which the page asks first (`GET`), so a deck is never sent for nothing.
 - **The web** (`apps/web/src/media/slides.ts`) takes a `.pptx` where it takes a PDF: the host draws it and the pages
   are kept as a PDF's (`addSlides`), so they sync, show and are replaced as those do; a 404 asks for a PDF, a `.ppt`
   for a `.pptx` or a PDF, and a deck with a chart is kept with a notice that a PDF may show it better (PRES-R11).

@@ -44,6 +44,7 @@
   "ignore": ["spike/**"],
   // `cloudflare:workers` is the Workers runtime's own module, not a package.
   "ignoreDependencies": ["cloudflare"],
-  // The tests and the desktop host make their self-signed certificates with the system's openssl.
-  "ignoreBinaries": ["openssl"]
+  // The tests and the desktop host make their self-signed certificates with the system's openssl; a Mac release joins
+  // the PowerPoint drawing's two architectures with macOS's lipo, after rustup adds the Intel target (apps/desktop/build.mjs).
+  "ignoreBinaries": ["openssl", "lipo", "rustup"]
 }
