@@ -22,6 +22,7 @@ struct OutputView: View {
         .onKeyPress(.leftArrow) { key(["type": "step", "delta": -1]) }
         .onKeyPress("b") { key(["type": "black"]) }
         #if os(macOS)
+        .onAppear { AutoOutputs.shared.opened() }
         .onDisappear { AutoOutputs.shared.closed() }
         #endif
     }
@@ -40,11 +41,15 @@ struct OutputView: View {
 #if os(macOS)
 /// The output on a display of its own, filling it, when there is one besides the main one; else a window.
 enum OutputPlacement {
-    /// On `screen`, else the first display besides the main one.
+    /// The operator's display: the one with the menu bar, which stays the same whichever window has focus
+    /// (NSScreen.main is the key window's, and moved with it).
+    static var operatorScreen: NSScreen? { NSScreen.screens.first }
+
+    /// On `screen`, else the first display besides the operator's.
     static func place(on chosen: NSScreen? = nil) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             guard let window = NSApp.windows.first(where: { $0.title == t("live.outputWindow") }) else { return }
-            guard let screen = chosen ?? NSScreen.screens.first(where: { $0 != NSScreen.main }) else { return }
+            guard let screen = chosen ?? NSScreen.screens.first(where: { $0 != operatorScreen }) else { return }
             window.styleMask = [.borderless]
             window.level = .mainMenu + 1
             window.setFrame(screen.frame, display: true)

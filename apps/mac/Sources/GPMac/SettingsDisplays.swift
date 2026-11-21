@@ -11,7 +11,7 @@ struct DisplayRow: Decodable, Identifiable, Hashable { let id: String, name: Str
 
 struct DisplaysPage: View {
     @Environment(Model.self) private var model
-    @State private var adding: String?
+    @State private var prompt: TextPrompt?
     @State private var showing: DisplayRow?
     @State private var message: String?
     @State private var live = LiveStatus()
@@ -26,26 +26,29 @@ struct DisplaysPage: View {
             IntroCard(id: "displays")
             Section(t("screens.title")) {
                 ForEach(displays.filter { $0.kind == "screen" }) { d in row(d, status[d.id]) }
-                Button(t("screens.addTitle"), systemImage: "plus") { adding = "screen" }
+                Button(t("screens.addTitle"), systemImage: "plus") { prompt = addPrompt("screen") }
             }
             Section(t("displays.public")) {
                 ForEach(displays.filter { $0.kind == "public" }) { d in row(d, status[d.id]) }
-                Button(t("displays.create"), systemImage: "plus") { adding = "public" }
+                Button(t("displays.create"), systemImage: "plus") { prompt = addPrompt("public") }
             }
         }
         .onAppear { live.start(model.session) }
         .onDisappear { live.stop() }
-        .textPrompt(Binding(get: {
-            adding.map { kind in
-                TextPrompt(title: t(kind == "screen" ? "screens.addTitle" : "displays.create"), label: t("displays.name"), text: "", rule: FieldRule(required: true, max: 200)) { name in
-                    let id = UUID().uuidString.lowercased()
-                    message = change(model, "createDisplay", ["id": id, "name": name.trimmingCharacters(in: .whitespaces), "code": model.displayCode(), "kind": kind])
-                    if message == nil { showing = (model.view("displaysView", ["locale": Texts.language], as: [DisplayRow].self) ?? []).first { $0.id == id } }
-                }
-            }
-        }, set: { if $0 == nil { adding = nil } }))
+        // Made once when + is pressed, kept in state: one made at each render (the live status renders the page every
+        // ping) is a new prompt, and its field was emptied while typed in.
+        .textPrompt($prompt)
         .sheet(item: $showing) { d in DisplayLinkSheet(display: d) }
         .refusal($message)
+    }
+
+    /// Lägg till skärm or Skapa: the name asked, then the output made and its link shown.
+    private func addPrompt(_ kind: String) -> TextPrompt {
+        TextPrompt(title: t(kind == "screen" ? "screens.addTitle" : "displays.create"), label: t("displays.name"), text: "", rule: FieldRule(required: true, max: 200)) { name in
+            let id = UUID().uuidString.lowercased()
+            message = change(model, "createDisplay", ["id": id, "name": name.trimmingCharacters(in: .whitespaces), "code": model.displayCode(), "kind": kind])
+            if message == nil { showing = (model.view("displaysView", ["locale": Texts.language], as: [DisplayRow].self) ?? []).first { $0.id == id } }
+        }
     }
 
     /// An output: its name, what is sent to it, and whether it is online or how many watch, a green dot while live.
@@ -104,8 +107,8 @@ struct DisplayLinkSheet: View {
                 // A public output's code to print or show (the web's Ladda ner), as a picture.
                 if current.kind == "public", let png = qrPNG(url) {
                     Button(t("displays.download"), systemImage: "square.and.arrow.down") {
-                        let file = FileManager.default.temporaryDirectory.appending(path: "\(current.name).png")
-                        if (try? png.write(to: file)) != nil { savingQR = FileURLDocument(url: file, name: "\(current.name).png") }
+                        let file = FileManager.default.temporaryDirectory.appending(path: "\(current.name.fileSafe).png")
+                        if (try? png.write(to: file)) != nil { savingQR = FileURLDocument(url: file, name: "\(current.name.fileSafe).png") }
                     }
                 }
             }
@@ -119,7 +122,7 @@ struct DisplayLinkSheet: View {
         .fileExporter(isPresented: Binding(get: { savingQR != nil }, set: { if !$0 { savingQR = nil } }), document: savingQR, contentType: .png, defaultFilename: savingQR?.name) { _ in }
         .confirmationDialog(t("displays.newCode"), isPresented: $renewing) {
             Button(t("displays.newCode")) { message = change(model, "newDisplayCode", ["id": display.id, "code": model.displayCode()]) ?? t("displays.newCodeDone") }
-        } message: { Text(t("displays.newCodeConfirm")) }
+        } message: { Text(t("displays.newCodeConfirm", ["name": current.name])) }
         .confirmationDialog(t("displays.delete"), isPresented: $removing) {
             Button(t("displays.delete"), role: .destructive) { if let e = change(model, "deleteDisplay", ["id": display.id]) { message = e } else { dismiss() } }
         } message: { Text(t("displays.deleteConfirm", ["name": current.name])) }

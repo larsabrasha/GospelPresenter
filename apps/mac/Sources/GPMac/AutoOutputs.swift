@@ -48,9 +48,9 @@ final class AutoOutputs {
     private var placed: (id: String, name: String)?
     private var closing = false
 
-    /// The displays an output may go to: every one but the main one.
+    /// The displays an output may go to: every one but the operator's (the menu bar's, not the focused window's).
     private var displays: [[String: String]] {
-        NSScreen.screens.filter { $0 != NSScreen.main }.map { ["id": Self.id(of: $0), "name": $0.localizedName] }
+        NSScreen.screens.filter { $0 != OutputPlacement.operatorScreen }.map { ["id": Self.id(of: $0), "name": $0.localizedName] }
     }
 
     private static func id(of screen: NSScreen) -> String {
@@ -75,6 +75,15 @@ final class AutoOutputs {
               let screen = NSScreen.screens.first(where: { Self.id(of: $0) == id }) else { return }
         placed = (id, d["name"] ?? "")
         open()
+        OutputPlacement.place(on: screen)
+    }
+
+    /// The output window opened by hand (Fönster → Utgång) while presenting: put on the first display besides the
+    /// operator's and remembered on there, as the web's hand switch is; closing it is the switch off.
+    func opened() {
+        guard placed == nil, !closing, OutputMemory.on, let screen = NSScreen.screens.first(where: { $0 != OutputPlacement.operatorScreen }) else { return }
+        placed = (Self.id(of: screen), screen.localizedName)
+        OutputMemory.remember(screen.localizedName, true)
         OutputPlacement.place(on: screen)
     }
 

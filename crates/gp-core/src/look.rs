@@ -3,7 +3,8 @@
 // GTK) in the colour named here. Which button a page has, its text and its role are the views' (page_models.rs
 // `pageButtonsView`, the menus' actions); how a role looks on a platform, its icon and its size are the shell's
 // (docs/view-models.md, "What stays a shell's"). The colours are the web's Tailwind ones (apps/web/src/app.css), by
-// their Tailwind names, which the web's classes are checked against (apps/web/test/look.test.ts).
+// their Tailwind names; nothing checks them against the web's classes yet, so a colour changed there is changed here
+// by hand.
 use serde_json::{json, Value};
 
 /// A colour by its Tailwind name and hex, light and dark.

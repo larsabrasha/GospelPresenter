@@ -162,7 +162,9 @@ struct LabelSheet: View {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(c).getRed(&r, green: &g, blue: &b, alpha: &a)
         #endif
-        return String(format: "#%02x%02x%02x", Int(r * 255), Int(g * 255), Int(b * 255))
+        // Kept within 0…255: iOS's picker may give a wide-gamut colour outside 0…1, which is no #rrggbb.
+        let byte = { (v: CGFloat) in min(255, max(0, Int((v * 255).rounded()))) }
+        return String(format: "#%02x%02x%02x", byte(r), byte(g), byte(b))
     }
 }
 

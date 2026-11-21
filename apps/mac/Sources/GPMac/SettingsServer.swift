@@ -390,7 +390,11 @@ struct OrgDetailPage: View {
                 TextField(t("org.name"), text: $name).savedWhenLeft($naming, value: name) {
                     let v = name.trimmingCharacters(in: .whitespaces)
                     guard !v.isEmpty, v != org.name else { return }
-                    Task { message = await model.api("PATCH", "/api/orgs/\(id)", ["name": v]).error.map(hostRefusal) }
+                    Task {
+                        if let e = await model.api("PATCH", "/api/orgs/\(id)", ["name": v]).error { return message = hostRefusal(e) }
+                        // The new name read back, so Radera asks for it and says it.
+                        self.org = await model.api("GET", "/api/orgs/\(id)", as: Detail.self).value ?? self.org
+                    }
                 }
                 Section(t("org.membersTitle", ["n": org.users.count])) {
                     if org.users.isEmpty { Text(t("org.noMembers")).foregroundStyle(.secondary) }

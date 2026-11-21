@@ -66,7 +66,9 @@ struct SettingsView: View {
     @State private var query = ""
     @State private var visibility = NavigationSplitViewVisibility.all
 
-    private var host: Bool { model.session?.device != nil }
+    /// Whether this is the desktop host itself (the web's `/api/pair/status` host), where Enheter's endpoints answer:
+    /// never this app, which pairs with a host but has not its token.
+    private let host = false
     private var groups: [SettingsGroup] { model.view("settingsListView", ["role": model.role, "host": host], as: [SettingsGroup].self) ?? [] }
 
     /// What the search finds, the core's: it is given the words of each key it reads, in this device's language.
@@ -252,7 +254,7 @@ struct IntroCard: View {
     let id: String
 
     var body: some View {
-        if let row = (model.view("settingsListView", ["role": model.role, "host": model.session?.device != nil], as: [SettingsGroup].self) ?? [])
+        if let row = (model.view("settingsListView", ["role": model.role, "host": false], as: [SettingsGroup].self) ?? [])
             .flatMap(\.rows).first(where: { $0.id == id }), let intro = row.intro {
             Section {
                 VStack(spacing: 8) {

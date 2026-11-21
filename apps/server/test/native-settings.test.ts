@@ -81,21 +81,27 @@ function certificate(dir: string): { key: string; cert: string } | null {
 }
 
 describe.runIf(run)('the native Videor preview from a self-signed host', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'gp-native-tls-'));
-  const pem = certificate(dir);
+  // Made in beforeAll, not here: vitest runs a skipped describe's body to collect it, which left a folder with a key
+  // at every run without GP_NATIVE_SYNC.
+  let dir = '';
+  let pem: ReturnType<typeof certificate>;
   let server: RunningServer;
   let h: Harness;
   beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'gp-native-tls-'));
+    pem = certificate(dir);
     if (!pem) return;
     server = await startNodeServer({ dataDir: join(dir, 'data'), debug: true, tls: { ...pem, port: 0 }, log: () => undefined });
     h = { name: 'node', url: server.url, mediaKeys: async () => [], dropMedia: async () => {}, close: () => server.close() };
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    rmSync(dir, { recursive: true, force: true });
+    if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
-  it.skipIf(!pem)('fetches a video through the accepted certificate and plays it, where AVPlayer cannot stream', async () => {
+  it('fetches a video through the accepted certificate and plays it, where AVPlayer cannot stream', async (ctx) => {
+    // Without openssl there is no certificate to accept: skipped, decided now, as pem is made in beforeAll.
+    if (!pem) return ctx.skip();
     const org = `org-${crypto.randomUUID()}`;
     const session = async (userId: string, role: 'admin' | 'user') => ({
       server: server.tls!.url,
