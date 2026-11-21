@@ -200,11 +200,11 @@ struct UserDetailPage: View {
             if let user, let rules = model.userRules([user])[user.id] {
                 Section {
                     if rules.canEdit {
-                        TextField(t("users.name"), text: $name).savedWhenLeft($naming) {
+                        TextField(t("users.name"), text: $name).savedWhenLeft($naming, value: name) {
                             let v = name.trimmingCharacters(in: .whitespaces)
                             if v != user.name { patch(["name": v]) }
                         }
-                        TextField(t("users.email"), text: $email).savedWhenLeft($addressing) {
+                        TextField(t("users.email"), text: $email).savedWhenLeft($addressing, value: email) {
                             let e = email.trimmingCharacters(in: .whitespaces)
                             if e != (user.email ?? "") { patch(["email": e.isEmpty ? NSNull() : e]) }
                         }
@@ -272,8 +272,9 @@ struct UserDetailPage: View {
 
     private func load() async {
         user = await model.api("GET", "/api/users/\(id)", as: UserEntry.self).value
-        name = user?.name ?? ""
-        email = user?.email ?? ""
+        // Not over a field being typed in (a save of the other field reloads while one types here).
+        if !naming { name = user?.name ?? "" }
+        if !addressing { email = user?.email ?? "" }
         logins = await model.api("GET", "/api/users/\(id)/logins", as: [LoginEntry].self).value ?? []
         struct State: Decodable { let mail: Bool }
         mail = await model.api("GET", "/api/auth/state", as: State.self).value?.mail ?? false

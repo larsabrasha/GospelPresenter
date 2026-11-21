@@ -157,7 +157,7 @@ struct ThemeEditorPage: View {
             if picked == nil {
                 Section {
                     TextField(t("song.name"), text: $name).limited($name, to: 100)
-                        .savedWhenLeft($naming) { let v = name.trimmingCharacters(in: .whitespaces); if !v.isEmpty, v != stored { message = change(model, "updateTheme", ["id": id, "name": v, "at": nowMs()]) } }
+                        .savedWhenLeft($naming, value: name) { let v = name.trimmingCharacters(in: .whitespaces); if !v.isEmpty, v != stored { message = change(model, "updateTheme", ["id": id, "name": v, "at": nowMs()]) } }
                 }
             } else {
                 Section { Button(t("themeEditor.backgroundOf", ["kind": t("themeEditor.\(kind)").lowercased()]), systemImage: "chevron.left") { picked = nil } }

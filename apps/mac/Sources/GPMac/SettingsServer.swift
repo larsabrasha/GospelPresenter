@@ -387,7 +387,7 @@ struct OrgDetailPage: View {
     var body: some View {
         Form {
             if let org {
-                TextField(t("org.name"), text: $name).savedWhenLeft($naming) {
+                TextField(t("org.name"), text: $name).savedWhenLeft($naming, value: name) {
                     let v = name.trimmingCharacters(in: .whitespaces)
                     guard !v.isEmpty, v != org.name else { return }
                     Task { message = await model.api("PATCH", "/api/orgs/\(id)", ["name": v]).error.map(hostRefusal) }

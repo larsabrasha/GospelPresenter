@@ -30,6 +30,8 @@ struct SlideEditorPage: View {
     @State private var name = ""
     /// A field being typed in (the name, an element's text): ⌘X, ⌘C, ⌘V and ⌘Z are then the field's, not the page's.
     @FocusState private var typing: Bool
+    /// How many times Ångra or Gör om has run: words typed before one are not saved after it.
+    @State private var steps = 0
     @State private var past: [[JSONValue]] = []
     @State private var future: [[JSONValue]] = []
     @State private var choosing: String?
@@ -197,7 +199,7 @@ struct SlideEditorPage: View {
             if editor.element == nil {
                 Section {
                     TextField(t("song.name"), text: $name).limited($name, to: 200)
-                        .savedWhenLeft($typing) { rename() }
+                        .savedWhenLeft($typing, value: name) { rename() }
                 }
             } else if let tabs = editor.tabs {
                 Picker(t("slideEditor.format"), selection: Binding(get: { editor.tab ?? "" }, set: { tab = $0 })) {
@@ -230,9 +232,9 @@ struct SlideEditorPage: View {
     @ViewBuilder private func control(_ c: SlideEditorModel.Control) -> some View {
         switch c.kind {
         case "textArea":
-            // Saved to the element it was typed into, though another is picked by the time it saves.
-            let element = picked ?? ""
-            TextAreaControl(text: c.value?.string ?? "", label: t(c.text), typing: $typing) { edit(["op": "change", "id": element, "patch": ["text": $0]]) }.id(picked)
+            // Saved to the element and page it was typed on, though another is picked or shown by the time it saves.
+            let (element, page, made) = (picked ?? "", at, steps)
+            TextAreaControl(text: c.value?.string ?? "", label: t(c.text), typing: $typing) { saveText($0, element: element, page: page, made: made) }.id(picked)
         case "slider":
             let v: Double = { if case let .number(n)? = c.value { n } else { 0 } }()
             LabeledContent(t(c.text)) {
@@ -322,8 +324,20 @@ struct SlideEditorPage: View {
         save(r.pages)
     }
 
+    /// An element's words, typed on `page`, kept without moving what is shown or picked now. Dropped when Ångra or Gör
+    /// om came since it was typed (`made`: it would undo the undo), or when the element is gone (cut, removed).
+    private func saveText(_ text: String, element: String, page: Int, made: Int) {
+        guard made == steps else { return }
+        let args: [String: Any] = ["op": "change", "id": element, "patch": ["text": text], "pages": pages.map(\.any), "page": page, "overlay": overlay, "picked": element]
+        guard let r = model.view("slideEditView", args, as: Edited.self), r.pages != pages else { return }
+        past.append(pages)
+        future = []
+        save(r.pages)
+    }
+
     private func step(back: Bool) {
         guard let next = back ? past.popLast() : future.popLast() else { return }
+        steps += 1
         if back { future.append(pages) } else { past.append(pages) }
         at = min(at, next.count - 1)
         picked = nil

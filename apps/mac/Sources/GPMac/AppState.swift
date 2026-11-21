@@ -69,7 +69,12 @@ final class AppState {
         #if os(iOS)
         let home = files.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].path
         #else
-        let home = files.currentDirectoryPath
+        // Started from a terminal, the folder it was started in (apps/mac/run); opened from Finder or the Dock, where
+        // that is "/" and cannot be written, the app's own folder in Application Support, named by its bundle id
+        // ("Gospel Presenter" there is the desktop app's, Electron's).
+        let cwd = files.currentDirectoryPath
+        let home = cwd != "/" && files.isWritableFile(atPath: cwd) ? cwd
+            : files.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: Bundle.main.bundleIdentifier ?? "com.gospelpresenter.native").path
         #endif
         let dir = ProcessInfo.processInfo.environment["GP_MAC_DATA"] ?? home
         try? files.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -149,9 +154,16 @@ final class AppState {
                 refusal = "demo.sqlite saknas i \(Self.home)"
                 return
             }
-            try? files.copyItem(atPath: source, toPath: path)
+            // A failed copy said, not left as an empty database the next start would keep.
+            do { try files.copyItem(atPath: source, toPath: path) } catch {
+                refusal = "demo.sqlite kunde inte kopieras till \(Self.home)"
+                return
+            }
         }
-        guard let db = try? Database(path: path) else { return }
+        guard let db = try? Database(path: path) else {
+            refusal = "demo.sqlite kunde inte öppnas i \(Self.home)"
+            return
+        }
         try? db.exec("PRAGMA journal_mode = WAL")
         let core = Core(db: db)
         // The demo data as today's schema has it (it may be made by an older core).

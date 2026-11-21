@@ -65,7 +65,7 @@ struct MySettingsPage: View {
     @ViewBuilder private func row(_ r: MineRow) -> some View {
         switch r.kind {
         case "field":
-            TextField(t(r.text), text: $name).savedWhenLeft($naming) { Task { await saveName() } }
+            TextField(t(r.text), text: $name).savedWhenLeft($naming, value: name) { Task { await saveName() } }
                 .disabled(model.session == nil)
         case "value":
             LabeledContent(t(r.text)) {
@@ -104,7 +104,7 @@ struct MySettingsPage: View {
     private func load() async {
         name = model.userName
         guard model.session != nil else { return }
-        if let m = await model.api("GET", "/api/auth/me", as: FullMe.self).value { me = m; name = m.name }
+        if let m = await model.api("GET", "/api/auth/me", as: FullMe.self).value { me = m; if !naming { name = m.name } }
         struct State: Decodable { let mail: Bool }
         mail = await model.api("GET", "/api/auth/state", as: State.self).value?.mail ?? false
         struct Unread: Decodable { let unread: Int }

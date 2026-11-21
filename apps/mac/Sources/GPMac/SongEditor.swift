@@ -204,7 +204,7 @@ struct ArrangementPage: View {
         let a = page?.arrangements.first { $0.id == id }
         Form {
             if let page, let a {
-                TextField(t("song.name"), text: $name).savedWhenLeft($naming) {
+                TextField(t("song.name"), text: $name).savedWhenLeft($naming, value: name) {
                     let v = name.trimmingCharacters(in: .whitespaces)
                     if v != (a.name ?? "") { message = change(model, "updateArrangement", ["id": id, "name": v]) }
                 }

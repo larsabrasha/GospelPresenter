@@ -71,7 +71,7 @@ NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-e
 node "$ROOT/apps/mac/texts.mjs"
 # Its log kept and read after, as sh has no pipefail: a failed build stops here with its errors.
 if ! (cd "$ROOT/apps/mac" && swift build -c release > "$OUT/swift-build.log" 2>&1); then
-  grep -E "error" "$OUT/swift-build.log" >&2; echo "swift build failed ($OUT/swift-build.log)" >&2; exit 1
+  grep -E "error" "$OUT/swift-build.log" >&2 || true; echo "swift build failed ($OUT/swift-build.log)" >&2; exit 1
 fi
 grep -E "warning: |Build complete" "$OUT/swift-build.log" || true
 # SwiftPM's link writes the deployment target (14.0) as the SDK the app was built with, and AppKit then draws it as an

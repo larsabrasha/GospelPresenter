@@ -102,7 +102,7 @@ struct BibleDetailPage: View {
         Form {
             if let bible {
                 TextField(t("song.name"), text: $name).limited($name, to: 200)
-                    .savedWhenLeft($naming) {
+                    .savedWhenLeft($naming, value: name) {
                         let v = name.trimmingCharacters(in: .whitespaces)
                         if !v.isEmpty, v != bible.name { message = change(model, "renameBible", ["id": id, "name": v]) }
                     }

@@ -201,15 +201,39 @@ extension String {
     var fileSafe: String { replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") }
 }
 
+private struct SavedWhenLeft: ViewModifier {
+    let focus: FocusState<Bool>.Binding
+    let value: String
+    let save: () -> Void
+    /// The text as filled from the data or last saved; nil until the field has shown.
+    @State private var kept: String?
+
+    func body(content: Content) -> some View {
+        content
+            .focused(focus)
+            .onAppear { kept = value }
+            // A change while not typed in is the data's (filled on appearing, or changed elsewhere), not an edit.
+            .onChange(of: value) { _, v in if !focus.wrappedValue { kept = v } }
+            .onSubmit(leave)
+            .onChange(of: focus.wrappedValue) { was, now in if was, !now { leave() } }
+            .onDisappear { if focus.wrappedValue { leave() } }
+    }
+
+    private func leave() {
+        guard value != kept else { return }
+        kept = value
+        save()
+    }
+}
+
 extension View {
     /// A field saved when it is left, as the web's fields save on blur: ↵, focus moving away (Tab, a click elsewhere),
     /// or the view closing while it has focus (‹ back). `focus` is the caller's, so an editor knows a field is being
     /// typed in and leaves ⌘Z, ⌘X, ⌘C and ⌘V to it.
-    func savedWhenLeft(_ focus: FocusState<Bool>.Binding, save: @escaping () -> Void) -> some View {
-        focused(focus)
-            .onSubmit(save)
-            .onChange(of: focus.wrappedValue) { was, now in if was, !now { save() } }
-            .onDisappear { if focus.wrappedValue { save() } }
+    /// `value` is the field's text: it is saved only when it differs from what it was filled with or last saved, so
+    /// leaving it unchanged saves nothing, and ↵ then the focus moving (iOS's ↵ ends the editing too) saves once.
+    func savedWhenLeft(_ focus: FocusState<Bool>.Binding, value: String, save: @escaping () -> Void) -> some View {
+        modifier(SavedWhenLeft(focus: focus, value: value, save: save))
     }
 
     /// A sheet's least size on a Mac, where a sheet is as small as its content; iOS sizes its own sheets.
