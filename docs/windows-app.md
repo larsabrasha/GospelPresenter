@@ -69,6 +69,7 @@ brought to today's schema (`migrateOrgSchema`) on each. The old app (v1) keeps i
 Lars, 2026-11-21, on Windows 10 (19045, x64): `build.ps1 run` builds the core, the bindings and the texts, the Shell's
 12 tests pass against the core and the demo data, and the app starts with gp_core_ffi.dll beside it; read through UI
 Automation, its window holds the start page's list (Senast ändrade) with the demo's presentations, each row's name and
-date line. Not seen: what the window draws. On that machine every capture of a WinUI window (GDI's and
-Windows.Graphics.Capture's) came out empty, Microsoft's own Photos (WinUI 3) as much as this app, so the picture is
-for a look at the screen. Not built: ARM64, and Windows 11 with Mica.
+date line. Seen on the screen as well: the list under its title on the theme's light page background, each row's name
+in bold over its date line in grey. Every capture of a WinUI window on that machine (GDI's and
+Windows.Graphics.Capture's) came out empty, Microsoft's own Photos (WinUI 3) as much as this app, so a picture of it
+is for a look at the screen. Not built: ARM64, and Windows 11 with Mica.
