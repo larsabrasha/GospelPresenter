@@ -11,6 +11,9 @@ struct GPMacApp: App {
     init() {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
+        // No window tabs for now (Lars, 2026-11-21): a presentation's state is a window's, and tabs of it did not work
+        // well; windows stay windows of their own, and the View menu has no tab bar.
+        NSWindow.allowsAutomaticWindowTabbing = false
     }
 
     var body: some Scene {

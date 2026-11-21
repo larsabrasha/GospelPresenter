@@ -31,29 +31,10 @@ struct WideLayout: View {
                 .navigationSplitViewColumnWidth(min: order.min, ideal: order.ideal, max: order.max)
                 .toolbar(removing: .sidebarToggle)
         } detail: {
-            // The live column a column of its own beside the slides, there only while it is out: as the system's
-            // inspector, folded, its edge stayed at the window's and dragged out over the slides' scrollbar (Lars,
-            // 2026-11-21). The slides stay the same view, keeping their place, as it comes and goes; it keeps the
-            // core's ideal width, not dragged.
-            HStack(spacing: 0) {
-                SlideColumn(p: p)
-                    .overlay(alignment: .bottomLeading) { if sidebar == .detailOnly { unfold("sidebar.left", "presentation.showSidebar") { sidebar = .all } } }
-                    .overlay(alignment: .bottomTrailing) { if model.isLive && !liveOut { unfold("sidebar.right", "presentation.showLiveColumn") { liveOut = true } } }
-                // Its width, not its presence, comes and goes: removed at once, the slides and their scrollbar jumped to
-                // the window's edge while it was still sliding out over them (Lars, 2026-11-21); narrowed, they follow
-                // its edge as it goes. At no width it is a view of our own with nothing to drag out.
-                if model.isLive {
-                    let out = liveOut
-                    HStack(spacing: 0) {
-                        Divider()
-                        LiveColumn(fold: { withAnimation { liveOut = false } }).frame(width: live.ideal)
-                    }
-                    .frame(width: out ? live.ideal + 1 : 0, alignment: .leading)
-                    .clipped()
-                    .allowsHitTesting(out)
-                    .accessibilityHidden(!out)
-                }
-            }
+            // A view of its own, reading whether the presentation is live itself: inline, the split view did not run
+            // this column again when presenting started after the window appeared, so neither the live column nor its
+            // button came (Lars, 2026-11-21).
+            WideDetail(p: p, liveWidth: live.ideal, sidebar: $sidebar, liveOut: $liveOut)
         }
         .onAppear { sidebar = leftFolded ? .detailOnly : .all; liveOut = !liveFolded }
         .onChange(of: sidebar) { _, now in leftFolded = now == .detailOnly }
@@ -86,9 +67,7 @@ struct WideLayout: View {
     }
 
     private func unfold(_ symbol: String, _ label: String, _ act: @escaping () -> Void) -> some View {
-        // Clear of the slides' scrollbar, which runs down the trailing edge to the foot: 14 pt from the edge it stood over
-        // the scrollbar's foot (Lars, 2026-11-21).
-        FoldButton(symbol: symbol, label: label) { withAnimation { act() } }.padding(14).padding(.trailing, symbol == "sidebar.right" ? 16 : 0)
+        unfoldButton(symbol, label, act)
     }
 
     /// Whether a column comes out again at each start (`presentationColumnsView`).
@@ -96,6 +75,49 @@ struct WideLayout: View {
         model.view("presentationColumnsView", ["presenting": true], as: Columns.self)?.columns.first { $0.id == id }?.outOnStart ?? true
     }
 }
+
+/// A folded column's way back: its round button at the slides' foot on its side, clear of the slides' scrollbar, which
+/// runs down the trailing edge to the foot (14 pt from the edge it stood over the scrollbar's foot, Lars, 2026-11-21).
+private func unfoldButton(_ symbol: String, _ label: String, _ act: @escaping () -> Void) -> some View {
+    FoldButton(symbol: symbol, label: label) { withAnimation { act() } }.padding(14).padding(.trailing, symbol == "sidebar.right" ? 16 : 0)
+}
+
+#if os(macOS)
+/// A Mac's middle and right: the slides, and while presenting the live column beside them, a column of its own there
+/// only while it is out (as the system's inspector, folded, its edge stayed at the window's and dragged out over the
+/// slides' scrollbar, Lars, 2026-11-21). The slides stay the same view, keeping their place, as it comes and goes; it
+/// keeps the core's ideal width, not dragged.
+private struct WideDetail: View {
+    @Environment(Model.self) private var model
+    let p: PresentationView
+    let liveWidth: CGFloat
+    @Binding var sidebar: NavigationSplitViewVisibility
+    @Binding var liveOut: Bool
+
+    var body: some View {
+        let live = model.isLive
+        HStack(spacing: 0) {
+            SlideColumn(p: p)
+                .overlay(alignment: .bottomLeading) { if sidebar == .detailOnly { unfoldButton("sidebar.left", "presentation.showSidebar") { sidebar = .all } } }
+                .overlay(alignment: .bottomTrailing) { if live && !liveOut { unfoldButton("sidebar.right", "presentation.showLiveColumn") { liveOut = true } } }
+            // Its width, not its presence, comes and goes: removed at once, the slides and their scrollbar jumped to the
+            // window's edge while it was still sliding out over them (Lars, 2026-11-21); narrowed, they follow its edge as
+            // it goes. At no width it is a view of our own with nothing to drag out.
+            if live {
+                let out = liveOut
+                HStack(spacing: 0) {
+                    Divider()
+                    LiveColumn(fold: { withAnimation { liveOut = false } }).frame(width: liveWidth)
+                }
+                .frame(width: out ? liveWidth + 1 : 0, alignment: .leading)
+                .clipped()
+                .allowsHitTesting(out)
+                .accessibilityHidden(!out)
+            }
+        }
+    }
+}
+#endif
 
 /// The side columns as the core lays them out (`presentationColumnsView`): what each holds, in order, and its foot.
 struct Columns: Decodable {
