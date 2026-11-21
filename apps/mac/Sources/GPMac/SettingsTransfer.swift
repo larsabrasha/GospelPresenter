@@ -11,6 +11,8 @@ struct OrgExportSection: View {
     @Environment(Model.self) private var model
     @State private var line: String?
     @State private var saving: FileURLDocument?
+    /// The export's folder, kept while its zip waits for the save panel.
+    @State private var exportDir: URL?
 
     private struct Plan: Decodable {
         struct Entry: Decodable { let name: String, text: String }
@@ -25,6 +27,8 @@ struct OrgExportSection: View {
         } header: { Text(t("orgExport.title")) } footer: { Text(t("orgExport.text")) }
         .fileExporter(isPresented: Binding(get: { saving != nil }, set: { if !$0 { saving = nil } }), document: saving, contentType: .zip, defaultFilename: saving?.name) { result in
             if case .success = result { line = t("orgExport.done") }
+            if let exportDir { try? FileManager.default.removeItem(at: exportDir) }
+            exportDir = nil
         }
     }
 
@@ -42,6 +46,9 @@ struct OrgExportSection: View {
         if plan.problem != nil { return failed("rows") }
         let dir = FileManager.default.temporaryDirectory.appending(path: "gp-export-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // The folder removed on every way out but the zip handed to the save panel (removed once that is done).
+        var handed = false
+        defer { if !handed { try? FileManager.default.removeItem(at: dir) } }
         let files = plan.files ?? []
         var fetched: [(String, URL)] = []
         for (n, f) in files.enumerated() {
@@ -59,6 +66,10 @@ struct OrgExportSection: View {
             try w.finish()
         } catch ZipError.tooLarge { return failed("too-large") } catch { return failed("download") }
         line = nil
+        // The files fetched are in the zip now: only the zip kept until it is saved.
+        for f in fetched { try? FileManager.default.removeItem(at: f.1) }
+        handed = true
+        exportDir = dir
         saving = FileURLDocument(url: zip, name: plan.name ?? "export.zip")
     }
 }
@@ -143,10 +154,13 @@ struct LegacyImportSection: View {
         }
         guard let session = model.session, let server = try? Server(session.server) else { return failed("upload") }
         let files = c.zip.entries.keys.filter { $0.hasPrefix("blobs/") || $0.hasPrefix("bibles/") }.sorted()
+        // A file's name in the zip is its hash, used as a file name and in a path: anything else (a crafted "../") refused.
+        let isHash = { (h: String) in h.count == 64 && h.allSatisfy { $0.isASCII && $0.isHexDigit && !$0.isUppercase } }
         for (n, name) in files.enumerated() {
             line = t("legacy.files", ["done": n, "total": files.count])
+            let hash = name.hasPrefix("blobs/") ? String(name.dropFirst("blobs/".count)) : String(name.dropFirst("bibles/".count).dropLast(".json".count))
+            guard isHash(hash) else { return failed("not-export", name) }
             if name.hasPrefix("blobs/") {
-                let hash = String(name.dropFirst("blobs/".count))
                 if plan.videos.contains(hash) {
                     let tmp = FileManager.default.temporaryDirectory.appending(path: hash)
                     defer { try? FileManager.default.removeItem(at: tmp) }
@@ -158,7 +172,6 @@ struct LegacyImportSection: View {
                     guard let d = try? c.zip.read(name), let a = try? await server.put("/api/media/\(hash)", data: d, as: session), (200..<300).contains(a.status) else { return failed("upload", name) }
                 }
             } else {
-                let hash = String(name.dropFirst("bibles/".count).dropLast(".json".count))
                 guard let d = try? c.zip.read(name), let a = try? await server.put("/api/bibles/\(hash)", data: d, contentType: "application/json", as: session), (200..<300).contains(a.status) else { return failed("upload", name) }
             }
         }

@@ -83,7 +83,8 @@ final class AutoOutputs {
     func opened() {
         guard placed == nil, !closing, OutputMemory.on, let screen = NSScreen.screens.first(where: { $0 != OutputPlacement.operatorScreen }) else { return }
         placed = (Self.id(of: screen), screen.localizedName)
-        OutputMemory.remember(screen.localizedName, true)
+        // Not for the demo's pictures (GP_MAC_DEMO), which would write into this Mac's own choice.
+        if ProcessInfo.processInfo.environment["GP_MAC_DEMO"] == nil { OutputMemory.remember(screen.localizedName, true) }
         OutputPlacement.place(on: screen)
     }
 

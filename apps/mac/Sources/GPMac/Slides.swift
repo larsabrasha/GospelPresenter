@@ -22,7 +22,8 @@ struct OutputView: View {
         .onKeyPress(.leftArrow) { key(["type": "step", "delta": -1]) }
         .onKeyPress("b") { key(["type": "black"]) }
         #if os(macOS)
-        .onAppear { AutoOutputs.shared.opened() }
+        // Only while presenting: a window restored at launch, or opened with nothing live, places nothing.
+        .onAppear { if model.live.id != nil { AutoOutputs.shared.opened() } }
         .onDisappear { AutoOutputs.shared.closed() }
         #endif
     }

@@ -137,7 +137,9 @@ struct ZipReader {
         let h = try FileHandle(forReadingFrom: url)
         defer { try? h.close() }
         try h.seek(toOffset: try start(e, h))
-        guard let raw = try h.read(upToCount: e.compressed) else { throw ZipError.unreadable }
+        // All of it, or the zip is cut short: an entry shorter than its header says is no entry.
+        // (An empty entry reads as none: read(upToCount: 0) may give nil.)
+        guard let raw = e.compressed == 0 ? Data() : try h.read(upToCount: e.compressed), raw.count == e.compressed else { throw ZipError.unreadable }
         switch e.method {
         case 0: return raw
         case 8:
@@ -169,5 +171,6 @@ struct ZipReader {
             try out.write(contentsOf: chunk)
             left -= chunk.count
         }
+        guard left == 0 else { throw ZipError.unreadable }
     }
 }
