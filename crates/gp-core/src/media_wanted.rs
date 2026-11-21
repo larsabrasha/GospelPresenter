@@ -32,15 +32,15 @@ fn slide_pages() -> String {
 }
 
 /// `SLIDESHOW_PICTURES_SQL`: every picture of every slideshow of the library, the trash too.
-fn slideshow_pictures() -> String { page_pictures("", &format!("custom_slides c, json_each({}) pg", readable("c.pages")), "1") }
+pub(crate) fn slideshow_pictures() -> String { page_pictures("", &format!("custom_slides c, json_each({}) pg", readable("c.pages")), "1") }
 
 /// `OVERLAY_PICTURES_SQL`: every picture an overlay's page draws, with the overlay and its place in the list.
-fn overlay_pictures() -> String {
+pub(crate) fn overlay_pictures() -> String {
     page_pictures("o.id AS overlay_id, o.sort, ", "overlays o, json_each(CASE WHEN json_valid(o.content) THEN json_array(json(o.content)) END) pg", "1")
 }
 
 /// `THEME_PICTURES_SQL`: every background picture of the organisation's own themes, a row per picture.
-fn theme_pictures() -> String {
+pub(crate) fn theme_pictures() -> String {
     ["$.song.background.image", "$.bible.background.image", "$.media.image"].iter().map(|at| format!(
         "SELECT t.id AS theme_id, json_extract(t.definition, '{at}.full') AS full_hash, json_extract(t.definition, '{at}.thumb') AS thumb_hash\n  FROM themes t WHERE json_valid(t.definition) AND json_extract(t.definition, '{at}.kind') = 'picture'"
     )).collect::<Vec<_>>().join("\n  UNION ALL\n  ")
@@ -52,7 +52,7 @@ const ITEM_IMAGES: &str = "SELECT p.presentation_id, p.source_id AS image_id FRO
   SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(CASE WHEN json_valid(p.content) THEN p.content END, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL";
 
 /// The policy as the shell gives it (`MediaPolicy`).
-struct Policy { presenting: Option<String>, persistent: bool, keep_coming: bool, today: String, days: i64, fetch: bool }
+pub(crate) struct Policy { pub(crate) presenting: Option<String>, persistent: bool, keep_coming: bool, today: String, days: i64, fetch: bool }
 
 /// `addDays`: a plain date `YYYY-MM-DD` plus `days`, in the calendar.
 fn add_days(date: &str, days: i64) -> String {
@@ -80,12 +80,12 @@ fn add_days(date: &str, days: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-async fn column(q: &str, params: Vec<Value>) -> Vec<String> {
+pub(crate) async fn column(q: &str, params: Vec<Value>) -> Vec<String> {
     sql(q, params).await.into_iter().map(|r| s(&r[0])).collect()
 }
 
 /// `keptPresentations`: those chosen by hand, and, with `keepComing`, those dated from today to `days` ahead.
-async fn kept(p: &Policy) -> Vec<String> {
+pub(crate) async fn kept(p: &Policy) -> Vec<String> {
     if !p.persistent { return vec![] }
     let mut ids = column("SELECT p.id FROM pinned_presentations k JOIN presentations p ON p.id = k.id WHERE p.deleted_at IS NULL ORDER BY k.pinned_at", vec![]).await;
     if p.keep_coming {
@@ -101,7 +101,7 @@ fn unique(xs: Vec<String>) -> Vec<String> {
 }
 
 /// `presentationFiles`: every file a presentation needs live but its videos.
-async fn presentation_files(id: &str) -> Vec<String> {
+pub(crate) async fn presentation_files(id: &str) -> Vec<String> {
     let pages = slide_pages();
     let q = format!(
         "SELECT i.full_hash AS hash FROM ({ITEM_IMAGES}) p JOIN images i ON i.id = p.image_id
@@ -120,25 +120,35 @@ async fn presentation_files(id: &str) -> Vec<String> {
     column(&q, vec![json!(id); 5]).await
 }
 
-/// `wantedMediaView` {presenting, persistent, keepComing, today, days, fetch}: the blobs this device should hold now,
-/// in the order to fetch them (`wantedBlobs`), and the videos it keeps whole (`wantedVideos`, each {hash, size}).
-pub async fn view(a: &Obj) -> R<Value> {
-    let p = Policy {
+/// The policy from a view's arguments {presenting, persistent, keepComing, today, days, fetch}.
+pub(crate) fn policy(a: &Obj) -> R<Policy> {
+    Ok(Policy {
         presenting: opt_id(a, "presenting")?,
         persistent: a.get("persistent").and_then(Value::as_bool).unwrap_or(true),
         keep_coming: a.get("keepComing").and_then(Value::as_bool).unwrap_or(false),
         today: a.get("today").and_then(Value::as_str).unwrap_or("").to_string(),
         days: a.get("days").and_then(Value::as_i64).unwrap_or(7),
         fetch: a.get("fetch").and_then(Value::as_bool).unwrap_or(true),
-    };
-    if !p.fetch { return Ok(json!({ "blobs": [], "videos": [] })) }
+    })
+}
+
+/// `wantedMediaView` {presenting, persistent, keepComing, today, days, fetch}: the blobs this device should hold now,
+/// in the order to fetch them (`wantedBlobs`), and the videos it keeps whole (`wantedVideos`, each {hash, size}).
+pub async fn view(a: &Obj) -> R<Value> {
+    let (blobs, videos) = wanted(&policy(a)?).await;
+    Ok(json!({ "blobs": blobs, "videos": videos }))
+}
+
+/// The blobs this device should hold now, in the order to fetch them, and the videos it keeps whole.
+pub(crate) async fn wanted(p: &Policy) -> (Vec<String>, Vec<Value>) {
+    if !p.fetch { return (vec![], vec![]) }
     let mut hashes = column("SELECT hash FROM (SELECT thumb_hash AS hash, created_at FROM images UNION ALL SELECT thumb_hash AS hash, created_at FROM videos) ORDER BY created_at DESC", vec![]).await;
     for q in [theme_pictures(), slideshow_pictures()] {
         hashes.extend(column(&format!("SELECT thumb_hash AS hash FROM ({q}) WHERE thumb_hash IS NOT NULL"), vec![]).await);
     }
     let overlays = sql(&format!("SELECT full_hash, thumb_hash FROM ({}) ORDER BY sort", overlay_pictures()), vec![]).await;
     hashes.extend(overlays.iter().filter(|o| !o[1].is_null()).map(|o| s(&o[1])));
-    let kept_ids = kept(&p).await;
+    let kept_ids = kept(p).await;
     let order = unique(p.presenting.iter().cloned().chain(kept_ids.iter().cloned()).collect());
     if !order.is_empty() {
         hashes.extend(overlays.iter().map(|o| s(&o[0])));
@@ -151,7 +161,7 @@ pub async fn view(a: &Obj) -> R<Value> {
             kept_ids.iter().map(|k| json!(k)).collect()).await
             .into_iter().map(|r| json!({ "hash": s(&r[0]), "size": int_of(&r[1]) })).collect()
     };
-    Ok(json!({ "blobs": unique(hashes), "videos": videos }))
+    (unique(hashes), videos)
 }
 
 #[cfg(test)]

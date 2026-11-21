@@ -87,15 +87,35 @@ public final class Server: Sendable {
         return ["authorization": "Bearer \(s.token)"].merging(s.device.map { ["x-gp-device": $0] } ?? [:]) { a, _ in a }
     }
 
-    /// A file of the server's to `file` (a media blob, `GET /api/media/{hash}`), streamed to disk: whether it came.
-    public func download(_ path: String, as s: Session?, to file: URL) async throws -> Bool {
+    /// A file of the server's to `file` (a media blob, `GET /api/media/{hash}`), streamed to disk: whether it came, and
+    /// is what `sha256` names when given (a file that is not is never kept, as the web's sync keeps none).
+    public func download(_ path: String, as s: Session?, to file: URL, sha256: String? = nil) async throws -> Bool {
         var req = URLRequest(url: base.appending(path: path))
         for (k, v) in Self.headers(s) { req.setValue(v, forHTTPHeaderField: k) }
         let (temp, res) = try await session.download(for: req)
-        guard (res as? HTTPURLResponse)?.statusCode == 200 else { try? FileManager.default.removeItem(at: temp); return false }
+        var ok = (res as? HTTPURLResponse)?.statusCode == 200
+        if ok, let sha256 { ok = await Self.hashed(temp) == sha256 }
+        guard ok else {
+            try? FileManager.default.removeItem(at: temp)
+            return false
+        }
         try? FileManager.default.removeItem(at: file)
         try FileManager.default.moveItem(at: temp, to: file)
         return true
+    }
+
+    /// `sha256(of:)` on a queue of its own: a video's takes a second, which Swift's few task threads should not wait.
+    static func hashed(_ file: URL) async -> String? {
+        await withCheckedContinuation { done in DispatchQueue.global(qos: .utility).async { done.resume(returning: sha256(of: file)) } }
+    }
+
+    /// A file's SHA-256 as lowercase hex, read a megabyte at a time (a video is far larger than one read should be).
+    static func sha256(of file: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: file) else { return nil }
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty { hasher.update(data: chunk) }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     public func request(_ method: String, _ path: String, json: String? = nil, as s: Session? = nil) async throws -> Answer {

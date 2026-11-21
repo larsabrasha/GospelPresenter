@@ -2,6 +2,7 @@
 // against a real server, run by apps/server/test/native-sync.test.ts. Two devices of one organisation each open a
 // database in <dir> and start their poke socket; a change on one reaches the other through a poke, and back; a device
 // whose credentials the server refuses stops syncing. One line a step, "ok" or "FAIL"; the exit code is the failures.
+import CryptoKit
 import Foundation
 import Shell
 
@@ -54,6 +55,21 @@ enum SyncCheck {
             let stopped = await wait(5) { refused.stopped != nil && !refused.busy }
             check("refused credentials stop syncing (\(String(describing: refused.stopped)))", stopped != nil && refused.stopped == .signedOut("unauthenticated"))
             check("and the queue is kept", refused.pendingCount == 1)
+
+            // A media file: up from one device, down to the other, kept only when its bytes are what its hash names.
+            var picture = Data([0xFF, 0xD8, 0xFF, 0xE0])
+            picture.append(contentsOf: (0..<300).map { UInt8(truncatingIfNeeded: $0 * 7) })
+            let hash = SHA256.hash(data: picture).map { String(format: "%02x", $0) }.joined()
+            var put = URLRequest(url: URL(string: "\(a.server)/api/media/\(hash)")!)
+            put.httpMethod = "PUT"
+            put.setValue("Bearer \(a.token)", forHTTPHeaderField: "authorization")
+            put.setValue("application/octet-stream", forHTTPHeaderField: "content-type")
+            let status = ((try? await URLSession.shared.upload(for: put, from: picture))?.1 as? HTTPURLResponse)?.statusCode ?? 0
+            let file = URL(filePath: dir).appending(path: hash)
+            let fetched = await bob.media(hash, to: file)
+            check("a media file fetched is the one uploaded (\(status))", fetched && (try? Data(contentsOf: file)) == picture)
+            let missing = await bob.media(String(repeating: "0", count: 64), to: URL(filePath: dir).appending(path: "missing"))
+            check("a media file the server lacks is not kept", !missing && !FileManager.default.fileExists(atPath: "\(dir)/missing"))
 
             alice.close()
             check("closing closes the socket", await wait(2) { !alice.connected } != nil)

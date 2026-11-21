@@ -212,11 +212,16 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   Checked by `GP_MAC_PLAYTEST=<file>` (`PlayTest.swift`, muted) with test files under the demo's hashes: each rule
   above as the player's state says it. Not checked: a file fetched from a real host, the picture on a screen, iOS,
   and AirPlay. A video is fetched whole before it plays, where the web streams it (its play token); not yet the web's.
-- **Media files** (Lars, 2026-11-19: as the web; `MediaSync.swift`): what the core's `wantedMediaView` names, the
-  web's `wantedBlobs` (every picture's and video's thumbnail, themes', slideshows' and overlays' pictures, and while
-  presenting the presentation's full pictures, audio, stills and pages), fetched after every sync and when presenting
-  starts or ends, into the media folder; what arrives draws the tiles with pictures again (`TileRequest.media`). Not
-  done: the web's check of each file's hash, its budget and its clean-up, presentations kept offline.
+- **Media files** (Lars, 2026-11-19, the core's plan since 2026-11-20; `MediaSync.swift`): the core's `mediaPlanView`
+  is given the media folder's files ({hash, size, at}) and says what to fetch (every picture's and video's thumbnail,
+  themes', slideshows' and overlays' pictures, and while presenting the presentation's full pictures, audio, stills
+  and pages) and what to remove (what nothing names past the hour's grace, never what a queued change names, and the
+  oldest of what nothing wants now while that is over the 2 GiB budget; never the videos the player has, `inUse`, nor
+  while presenting the presentation's videos), as the web's syncMedia; fetched after every
+  sync and when presenting starts or ends, each file's SHA-256 checked before it is kept (`Server.download`); what
+  arrives draws the tiles with pictures again (`TileRequest.media`). Checked against a real server by `parity sync`
+  (a file fetched is the one uploaded, one the server lacks is not kept). Not done: presentations kept offline,
+  uploads (the app imports no files yet).
 - **Rows and previews as the web's** (`ItemPreview.swift`, `PhoneLayout.swift`): on a phone a picture, a video and a
   slideshow's page show small in their row, an audio file's with its speaker and its name beside (the web's SlideRow
   and AudioMark), a song's or reading's part by its words or number; a tile of an audio item has the speaker and the

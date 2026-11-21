@@ -191,7 +191,7 @@ public final class SyncClient {
 
     /// A media blob of the organisation's by its hash, written to `file`: whether the server had it.
     public func media(_ hash: String, to file: URL) async -> Bool {
-        (try? await server.download("/api/media/\(hash)", as: session, to: file)) ?? false
+        (try? await server.download("/api/media/\(hash)", as: session, to: file, sha256: hash)) ?? false
     }
 
     // ------------------------------------------------------------ the poke socket

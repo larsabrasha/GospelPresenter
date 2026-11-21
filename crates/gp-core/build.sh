@@ -32,8 +32,12 @@ REF_LEGACY=$OUT/ref-legacy
 rm -rf "$REF_LEGACY" && mkdir -p "$REF_LEGACY" && git -C "$ROOT" archive "$LEGACY_REFERENCE" packages/core/src apps/web/src | tar -x -C "$REF_LEGACY"
 printf "export { upgradeLegacyRows, legacyBlobs, legacyRowsProblem, legacyOverlayPage, LEGACY_TABLES } from '%s/packages/core/src/legacy.ts';\nexport { tableByName } from '%s/packages/core/src/sync-sql.ts';\nexport { CLASSIC } from '%s/packages/core/src/themes.ts';\n" "$REF_LEGACY" "$REF_LEGACY" "$REF_LEGACY" > "$OUT/legacy-entry.ts"
 "$ESBUILD" "$OUT/legacy-entry.ts" --bundle --format=esm --platform=node --outfile="$OUT/legacy-core.mjs" --log-level=warning
-# Which media files a device fetches, as the web's sync has it today (views/wanted-media.mjs).
-"$ESBUILD" "$ROOT/packages/sync/src/client/media.ts" --bundle --format=esm --platform=node --outfile="$OUT/sync-media.mjs" --log-level=warning
+# Which media files a device fetches, keeps, drops and uploads (views/wanted-media.mjs, views/media-plan.mjs), as the
+# web's media.ts had it when it moved to the core, at bb87c4aa, taken from git.
+MEDIA_REFERENCE=bb87c4aa
+git -C "$ROOT" show "$MEDIA_REFERENCE:packages/sync/src/client/media.ts" > "$OUT/ref-media.ts"
+"$ESBUILD" "$OUT/ref-media.ts" --bundle --format=esm --platform=node --outfile="$OUT/sync-media.mjs" --log-level=warning \
+  --alias:@gp/core="$ROOT/packages/core/src/index.ts"
 # The ProPresenter import's duplicates (parity/views/song-import.mjs) against the web's songImport.ts there too.
 "$ESBUILD" "$REF_LEGACY/apps/web/src/pages/songImport.ts" --bundle --format=esm --platform=node --outfile="$OUT/song-import.mjs" --log-level=warning
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the

@@ -3,8 +3,10 @@
 // `images` row syncs; this uploads the blobs of a queued `addImage` (or
 // `addAudio`, `addVideo`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names. A video itself is never kept on a device: it was uploaded before its
-// `addVideo` was queued, is recorded here without its bytes, and streams from the server.
-import { customPageBlobs, ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, parseThemeDefinition, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, SLIDESHOW_PICTURES_SQL, sniffMedia, THEME_PICTURES_SQL, themeBlobs, type CustomPage } from '@gp/core';
+// `addVideo` was queued, is recorded here without its bytes, and streams from the server. Which files, the core says
+// (crates/gp-core/src/media_plan.rs: `mediaPlanView`, `mediaUploadsView`, `mediaStorageView`); this moves the bytes and
+// checks each file's hash.
+import { ITEM_IMAGES_SQL, OVERLAY_PICTURES_SQL, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia, THEME_PICTURES_SQL } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -78,89 +80,15 @@ export function addDays(date: string, days: number): string {
 
 type Query = { query(sql: string, params?: unknown[]): Promise<Record<string, unknown>[]> };
 
-/**
- * The presentations kept offline on this device: those chosen by hand (`pinned_presentations`), and, with
- * `keepComing`, those dated from today to `days` ahead. None on a device that keeps nothing between reloads.
- */
-export async function keptPresentations(client: Query, policy: Pick<MediaPolicy, 'persistent' | 'keepComing' | 'today' | 'days'>): Promise<string[]> {
-  if (!policy.persistent) return [];
-  const pinned = (await client.query(
-    'SELECT p.id FROM pinned_presentations k JOIN presentations p ON p.id = k.id WHERE p.deleted_at IS NULL ORDER BY k.pinned_at',
-  )) as { id: string }[];
-  const coming = policy.keepComing
-    ? ((await client.query('SELECT id FROM presentations WHERE deleted_at IS NULL AND is_template = 0 AND event_date >= ? AND event_date <= ? ORDER BY event_date', [
-        policy.today,
-        addDays(policy.today, policy.days),
-      ])) as { id: string }[])
-    : [];
-  return [...new Set([...pinned, ...coming].map((p) => p.id))];
-}
-
-/** Every file a presentation needs live, but its videos: full pictures (its custom slides' too), audio, stills, slide pages (both sizes). */
-async function presentationFiles(client: Query, presentationId: string): Promise<string[]> {
-  const rows = (await client.query(
-    `SELECT i.full_hash AS hash FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
-       WHERE p.presentation_id = ?
-     UNION ALL
-     SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id
-       WHERE p.presentation_id = ? AND p.type = 'audio'
-     UNION ALL
-     SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id
-       WHERE p.presentation_id = ? AND p.type = 'video'
-     UNION ALL
-     SELECT s.thumb_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
-     UNION ALL
-     SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?`,
-    [presentationId, presentationId, presentationId, presentationId, presentationId],
-  )) as { hash: string }[];
-  return rows.map((r) => r.hash);
-}
-
-/** The videos of the presentations kept offline: kept whole on a device that keeps its data, outside `media_blobs`. */
-export async function wantedVideos(client: Query, policy: MediaPolicy): Promise<{ hash: string; size: number }[]> {
-  if (policy.fetch === false) return [];
-  const kept = await keptPresentations(client, policy);
-  if (!kept.length) return [];
-  const rows = (await client.query(
-    `SELECT DISTINCT v.hash, v.size FROM presentation_items p JOIN videos v ON v.id = p.source_id
-      WHERE p.type = 'video' AND p.presentation_id IN (${kept.map(() => '?').join(',')})`,
-    kept,
-  )) as { hash: string; size: number }[];
-  return rows.map((r) => ({ hash: String(r.hash), size: Number(r.size) }));
+/** The videos of the presentations kept offline: kept whole on a device that keeps its data, outside `media_blobs` (`wantedMediaView`). */
+export async function wantedVideos(client: SyncClient, policy: MediaPolicy): Promise<{ hash: string; size: number }[]> {
+  return (await client.view<{ videos: { hash: string; size: number }[] }>('wantedMediaView', policy)).videos;
 }
 
 /**
- * The blobs this device should hold now, in the order to fetch them:
- * thumbnails, then what the presented presentation needs (the overlays' pictures first), then what the
- * presentations kept offline need.
- */
-export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
-  if (policy.fetch === false) return [];
-  const thumbs = (await client.query(
-    'SELECT hash FROM (SELECT thumb_hash AS hash, created_at FROM images UNION ALL SELECT thumb_hash AS hash, created_at FROM videos) ORDER BY created_at DESC',
-  )) as { hash: string }[];
-  const hashes: string[] = thumbs.map((t) => t.hash);
-  // A theme's pictures as Teman shows them, on every device (docs/themes.md); and the pages of every slideshow and
-  // overlay, as Bildspel, Överlägg and an item's slides show them: a page draws its thumbnail where its full picture
-  // is not on the device, which it then always is (the review, 2026-11-09: they showed blank on a device that had not
-  // made them).
-  for (const sql of [THEME_PICTURES_SQL, SLIDESHOW_PICTURES_SQL]) {
-    hashes.push(...((await client.query(`SELECT thumb_hash AS hash FROM (${sql}) WHERE thumb_hash IS NOT NULL`)) as { hash: string }[]).map((t) => t.hash));
-  }
-  const overlays = (await client.query(`SELECT full_hash, thumb_hash FROM (${OVERLAY_PICTURES_SQL}) ORDER BY sort`)) as { full_hash: string; thumb_hash: string | null }[];
-  hashes.push(...overlays.flatMap((o) => (o.thumb_hash ? [o.thumb_hash] : [])));
-  const order = [...new Set([...(policy.presenting ? [policy.presenting] : []), ...(await keptPresentations(client, policy))])];
-  // Every overlay's picture, and every theme's: any of them can be switched on or chosen during live.
-  if (order.length) hashes.push(...overlays.map((o) => o.full_hash), ...(await themePictures(client)));
-  for (const presentationId of order) hashes.push(...(await presentationFiles(client, presentationId)));
-  return [...new Set(hashes)];
-}
-
-/**
- * Fetches the blobs `wantedBlobs` names that this device lacks, checking
- * each one's hash. Then removes blobs nothing names (after the grace period,
- * and never what a queued add names), and, while the files nothing wants
- * now (the cache) are above the budget, the oldest of those.
+ * Removes what the core's plan drops (`mediaPlanView`): blobs nothing names after the grace period (never what a
+ * queued add names), and, while the files nothing wants now (the cache) are above the budget, the oldest of those;
+ * then fetches the blobs it names (what is wanted and not here), checking each one's hash.
  * `download` returns the bytes, or null if the server has none. Callers
  * serialise this with their own imports.
  */
@@ -171,10 +99,11 @@ export async function syncMedia(
   policy: MediaPolicy = { ...DEFAULT_MEDIA_POLICY, today: new Date(now).toISOString().slice(0, 10) },
 ): Promise<MediaSync> {
   const result: MediaSync = { downloaded: [], missing: [], removed: 0, cache: 0 };
-  const wanted = await wantedBlobs(client, policy);
-  const have = new Set(((await client.query('SELECT hash FROM media_blobs WHERE bytes IS NOT NULL')) as { hash: string }[]).map((r) => r.hash));
-  for (const hash of wanted) {
-    if (have.has(hash)) continue;
+  const plan = await client.view<{ fetch: string[]; drop: string[]; cache: number }>('mediaPlanView', { ...policy, now });
+  // Dropped first, at once: after the downloads, which take long, a blob the plan drops could be named again by then
+  // (a picture imported anew), and would go from under its add.
+  if (plan.drop.length) await client.localWrite(plan.drop.map((h) => ({ sql: 'DELETE FROM media_blobs WHERE hash = ?', params: [h] })));
+  for (const hash of plan.fetch) {
     let bytes: Uint8Array | null = null;
     try {
       bytes = await download(hash);
@@ -190,30 +119,8 @@ export async function syncMedia(
     await client.localWrite([{ sql: 'DELETE FROM media_blobs WHERE hash = ?', params: [hash] }, recordMediaBlobSql(hash, type, bytes.length, bytes, now)]);
     result.downloaded.push(hash);
   }
-
-  const queued = new Set<string>();
-  for (const mutation of await client.pending()) {
-    if (!BLOB_ADDS.has(mutation.name)) continue;
-    for (const hash of blobsOf(mutation)) queued.add(hash);
-  }
-  const unused = (await client.query(ORPHAN_BLOBS_SQL, [now - ORPHAN_GRACE_MS])) as { hash: string }[];
-  const drop = unused.map((u) => u.hash).filter((h) => !queued.has(h));
-
-  // Within the budget: what nobody needs now goes, oldest first; what is wanted, or waiting to be uploaded, stays.
-  const keep = new Set([...wanted, ...queued, ...drop]);
-  const spare = ((await client.query('SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL ORDER BY received_at, hash')) as { hash: string; size: number }[]).filter(
-    (b) => !keep.has(b.hash),
-  );
-  let spareBytes = spare.reduce((n, b) => n + Number(b.size), 0);
-  for (const b of spare) {
-    if (spareBytes <= policy.budget) break;
-    drop.push(b.hash);
-    spareBytes -= Number(b.size);
-  }
-
-  if (drop.length) await client.localWrite(drop.map((h) => ({ sql: 'DELETE FROM media_blobs WHERE hash = ?', params: [h] })));
-  result.removed = drop.length;
-  result.cache = spareBytes;
+  result.removed = plan.drop.length;
+  result.cache = plan.cache;
   return result;
 }
 
@@ -269,46 +176,6 @@ export async function presentationOfflineState(client: Query, presentationId: st
   return { share: complete ? 1 : Math.min(0.99, done / files), complete, files };
 }
 
-/** The full pictures of the organisation's own themes. */
-async function themePictures(client: Query): Promise<string[]> {
-  return ((await client.query(`SELECT full_hash AS hash FROM (${THEME_PICTURES_SQL})`)) as { hash: string }[]).map((t) => t.hash);
-}
-
-/** The mutators that may name pictures of a page a device kept first: a PDF's import, a slideshow or an overlay made or changed. */
-const DECK_PAGES = new Set(['addSlides', 'createCustomSlide', 'updateCustomSlide', 'createOverlay', 'updateOverlay']);
-/** The mutators that may name a theme's pictures (docs/themes.md). */
-const THEME_PICTURES = new Set(['createTheme', 'updateTheme']);
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'editImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES, ...THEME_PICTURES]);
-
-/**
- * The blobs a queued add names: a picture's two, an audio file's or a song's PDF's one, a video's three, or two per
- * page of a slide deck. A video's own blob has no bytes here: it was uploaded before the add, so it is only kept named.
- */
-function blobsOf(m: PendingMutation): Set<string> {
-  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown; page?: unknown; definition?: unknown };
-  if (THEME_PICTURES.has(m.name)) {
-    const definition = a.definition === undefined ? null : parseThemeDefinition(JSON.stringify(a.definition));
-    return new Set(definition ? themeBlobs(definition) : []);
-  }
-  if (m.name === 'addAudio' || m.name === 'addSongFile') return new Set([String(a.hash)]);
-  if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
-  if (m.name === 'addSlides') {
-    // A PDF's import names the pages themselves.
-    const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];
-    return new Set(pages.flatMap((p) => [String(p?.full), String(p?.thumb)]));
-  }
-  if (DECK_PAGES.has(m.name)) {
-    // A slideshow's pages, or an overlay's one, name the pictures they draw.
-    const pages = (m.name.endsWith('Overlay') ? (a.page ? [a.page] : []) : Array.isArray(a.pages) ? a.pages : []) as CustomPage[];
-    try {
-      return new Set(customPageBlobs(pages));
-    } catch {
-      return new Set();
-    }
-  }
-  return new Set([String(a.fullHash), String(a.thumbHash)]);
-}
-
 /** Sends a blob to the server (`PUT /media/{hash}`) and returns the HTTP status. Throws when the server cannot be reached. */
 export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<number>;
 
@@ -337,22 +204,24 @@ export class MediaUploads {
   ) {}
 
   beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
-    for (const [i, m] of pending.entries()) {
-      if (!BLOB_ADDS.has(m.name)) continue;
-      for (const hash of blobsOf(m)) {
-        const at = this.uploaded.get(hash);
-        if (!MEDIA_HASH.test(hash) || (at !== undefined && this.now() - at < ORPHAN_GRACE_MS / 2)) continue;
-        const blob = await loadMediaBlob(client, hash);
-        if (!blob) continue; // nothing to send: the server refuses the add
-        let status: number;
-        try {
-          status = await this.upload(hash, blob.bytes);
-        } catch {
-          return i; // unreachable: this add and what follows wait
-        }
-        if (status >= 500) return i;
-        if (status < 300) this.uploaded.set(hash, this.now());
+    // Which blobs, in order, each with its change's place in the queue (`mediaUploadsView`); only those of the changes
+    // this push was given: one queued since is not in `pending`, and its place is beyond it.
+    const { uploads } = await client.view<{ uploads: { index: number; hash: string }[] }>('mediaUploadsView', { uploaded: Object.fromEntries(this.uploaded), now: this.now() });
+    const sent = new Set<string>();
+    for (const { index, hash } of uploads.filter((u) => u.index < pending.length)) {
+      if (sent.has(hash)) continue; // named again by a later change, and already up
+      const blob = await loadMediaBlob(client, hash);
+      if (!blob) continue; // nothing to send: the server refuses the add
+      let status: number;
+      try {
+        status = await this.upload(hash, blob.bytes);
+      } catch {
+        return index; // unreachable: this add and what follows wait
       }
+      if (status >= 500) return index;
+      // Refused (4xx), it would be refused again: sent once a push either way.
+      sent.add(hash);
+      if (status < 300) this.uploaded.set(hash, this.now());
     }
     return undefined;
   };
@@ -423,25 +292,6 @@ export interface StorageReport {
  * The storage report. The cache is what is neither a thumbnail, nor waiting to be uploaded, nor needed by
  * the presentation shown now or one kept offline: what "Rensa cache" may drop.
  */
-export async function storageReport(client: SyncClient, policy: MediaPolicy): Promise<StorageReport> {
-  const blobs = ((await client.query('SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL')) as { hash: string; size: number }[]).map((b) => ({ hash: b.hash, size: Number(b.size) }));
-  const videos = ((await client.query('SELECT hash, received FROM video_files')) as { hash: string; received: number }[]).map((v) => ({ hash: v.hash, size: Number(v.received) }));
-  const sizes = new Map([...blobs, ...videos].map((f) => [f.hash, f.size]));
-  const queued = new Set<string>();
-  for (const m of await client.pending()) if (BLOB_ADDS.has(m.name)) for (const hash of blobsOf(m)) queued.add(hash);
-  const wanted = new Set([...(await wantedBlobs(client, policy)), ...queued, ...(await wantedVideos(client, policy)).map((v) => v.hash)]);
-  const sum = (hashes: Iterable<string>) => [...new Set(hashes)].reduce((n, h) => n + (sizes.get(h) ?? 0), 0);
-  const kept = await keptPresentations(client, policy);
-  const overlays = [...((await client.query(`SELECT o.full_hash AS hash FROM (${OVERLAY_PICTURES_SQL}) o`)) as { hash: string }[]).map((o) => o.hash), ...(await themePictures(client))];
-  const offline: StorageReport['offline'] = [];
-  const keptFiles: string[] = [];
-  for (const presentationId of kept) {
-    const own = (await client.query(`SELECT v.hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'`, [presentationId])) as {
-      hash: string;
-    }[];
-    const files = [...overlays, ...(await presentationFiles(client, presentationId)), ...own.map((v) => v.hash)];
-    keptFiles.push(...files);
-    offline.push({ presentationId, bytes: sum(files) });
-  }
-  return { total: sum(sizes.keys()), offline, offlineTotal: sum(keptFiles), cache: sum([...sizes.keys()].filter((h) => !wanted.has(h))) };
+export function storageReport(client: SyncClient, policy: MediaPolicy): Promise<StorageReport> {
+  return client.view<StorageReport>('mediaStorageView', policy);
 }

@@ -3,7 +3,9 @@
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, pdfPages, sha256HexBytes, type CustomPage } from '@gp/core';
-import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
+import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, SyncClient, syncMedia } from '@gp/sync/client';
+import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
+import { nodeRustCore } from '@gp/rust-core/node';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { downloader, get, imageArgs, jpeg, presentingP, put, refusedAsTooLarge, TODAY, uploaded, webp } from './media-fixtures.ts';
 
@@ -345,6 +347,15 @@ describe.each(adapters)('%s adapter: when unused blobs are removed', (adapterNam
 });
 
 describe('uploads before a push', () => {
+  /** A device with a picture imported offline: its two blobs kept, its add queued (which blobs go up is the core's). */
+  async function offlinePicture() {
+    const client = await SyncClient.open(await openWaSqlite(), { transport: { post: () => Promise.reject(new Error('offline')) }, ctx: { userId: 'u', role: 'admin' }, core: nodeRustCore() });
+    const fullHash = await storeMediaBlob(client, jpeg('full'), 'image/jpeg');
+    const thumbHash = await storeMediaBlob(client, jpeg('thumb'), 'image/jpeg');
+    await client.mutate('addImage', imageArgs('img-q', fullHash, thumbHash));
+    return { client, fullHash, thumbHash };
+  }
+
   it('uploads a waiting add\'s blobs again once half the grace period has passed', async () => {
     let now = 1_000_000;
     const sent: string[] = [];
@@ -352,25 +363,48 @@ describe('uploads before a push', () => {
       sent.push(hash);
       return 204;
     }, () => now);
-    const fullHash = 'a'.repeat(64);
-    const thumbHash = 'b'.repeat(64);
-    const pending = [{ id: 1, name: 'addImage', v: 1, args: JSON.stringify({ fullHash, thumbHash }) }];
-    const blobs = new Map([
-      [fullHash, new Uint8Array([1])],
-      [thumbHash, new Uint8Array([2])],
-    ]);
-    const client = {
-      query: async (_sql: string, params: unknown[]) => {
-        const bytes = blobs.get(String(params[0]));
-        return bytes ? [{ content_type: 'image/jpeg', bytes }] : [];
-      },
-    } as unknown as SyncClient;
+    const { client, fullHash, thumbHash } = await offlinePicture();
+    const pending = await client.pending();
     await uploads.beforePush(pending, client);
     await uploads.beforePush(pending, client);
     expect(sent).toEqual([fullHash, thumbHash]); // once
     now += ORPHAN_GRACE_MS / 2;
     await uploads.beforePush(pending, client);
     expect(sent).toEqual([fullHash, thumbHash, fullHash, thumbHash]);
+  });
+
+  it('holds back the add whose upload cannot reach the server, and what follows it', async () => {
+    const uploads = new MediaUploads(() => Promise.reject(new Error('offline')));
+    const { client } = await offlinePicture();
+    await client.mutate('createPresentation', { id: 'later', name: 'Sedan' });
+
+    const limit = await uploads.beforePush(await client.pending(), client);
+
+    expect(limit).toBe(0);
+  });
+
+  it('sends a refused blob once a push, however many changes name it', async () => {
+    const sent: string[] = [];
+    const uploads = new MediaUploads(async (hash) => (sent.push(hash), 413));
+    const { client, fullHash, thumbHash } = await offlinePicture();
+    await client.mutate('addImage', imageArgs('img-again', fullHash, thumbHash));
+
+    await uploads.beforePush(await client.pending(), client);
+
+    expect(sent).toEqual([fullHash, thumbHash]);
+  });
+
+  it('leaves out a change queued after the push was given its queue', async () => {
+    const sent: string[] = [];
+    const uploads = new MediaUploads(async (hash) => (sent.push(hash), 204));
+    const { client } = await offlinePicture();
+    const pending = await client.pending();
+    const later = await storeMediaBlob(client, jpeg('later'), 'image/jpeg');
+    await client.mutate('addImage', imageArgs('img-later', later, later));
+
+    await uploads.beforePush(pending, client);
+
+    expect(sent).not.toContain(later);
   });
 });
 

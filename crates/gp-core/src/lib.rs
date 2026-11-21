@@ -13,6 +13,7 @@ mod live;
 mod live_state;
 mod lists;
 mod live_views;
+mod media_plan;
 mod media_wanted;
 mod playback;
 mod media_views;

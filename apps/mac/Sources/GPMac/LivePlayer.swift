@@ -123,6 +123,8 @@ final class LivePlayer {
     @ObservationIgnored private var held = Held()
     /// Pointers followed, so a file that comes late never plays over a newer one.
     @ObservationIgnored private var turn = 0
+    /// The videos the player has or fetched in advance (the item shown's, the next item's): the media sync keeps them.
+    @ObservationIgnored private(set) var inUse: Set<String> = []
 
     /// What the core says of the item shown: its kind, its video and the next item's.
     private struct Playback: Decodable {
@@ -146,6 +148,7 @@ final class LivePlayer {
         let args: [String: Any] = ["player": holds, "presentationId": state.presentationId.map { $0 as Any } ?? NSNull(), "item": item, "black": state.black]
         guard let answer = app.view("playbackStepView", args, as: Answer.self) else { return }
         held = answer.player
+        inUse = Set([shown?.video?.hash, shown?.nextVideo?.hash].compactMap { $0 })
         if let next = shown?.nextVideo { Task { _ = await MediaFiles.file(next.hash, store: app.store) } }
         for step in answer.steps {
             switch step.do {
@@ -176,7 +179,7 @@ final class LivePlayer {
     func stop() {
         turn += 1
         media.stop()
-        (itemId, kind, held) = (nil, nil, Held())
+        (itemId, kind, held, inUse) = (nil, nil, Held(), [])
     }
 }
 
