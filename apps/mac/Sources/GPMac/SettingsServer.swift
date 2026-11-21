@@ -333,6 +333,7 @@ struct OrgsPage: View {
     @State private var orgs: [OrgEntry] = []
     @State private var prompt: TextPrompt?
     @State private var message: String?
+    @State private var refusal: String?
     @State private var query = ""
 
     var body: some View {
@@ -351,9 +352,9 @@ struct OrgsPage: View {
                         Task {
                             struct Made: Decodable { let id: String }
                             switch await model.api("POST", "/api/orgs", ["name": name.trimmingCharacters(in: .whitespaces)], as: Made.self) {
-                            case let .refused(e): message = hostRefusal(e)
+                            case let .refused(e): refusal = hostRefusal(e)
                             // Into the new organisation, as the web's switchOrg, its users the next thing to set up.
-                            case let .ok(m): if let e = await model.app.switchOrg(m.id) { message = hostRefusal(e) }
+                            case let .ok(m): if let e = await model.app.switchOrg(m.id) { refusal = hostRefusal(e) }
                             }
                             await load()
                         }
@@ -363,6 +364,9 @@ struct OrgsPage: View {
         }
         .textPrompt($prompt)
         .task { await load() }
+        // A refused new organisation or switch said in an alert, as the web's dialog says it; `message` is the list's
+        // load failure, in its place.
+        .refusal($refusal)
     }
 
     private func load() async {

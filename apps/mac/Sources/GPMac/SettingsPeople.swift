@@ -326,6 +326,7 @@ struct DevicesPage: View {
     @State private var pairing = false
     @State private var disconnecting: DeviceEntry?
     @State private var message: String?
+    @State private var refusal: String?
 
     var body: some View {
         List {
@@ -347,8 +348,10 @@ struct DevicesPage: View {
         .task { await load() }
         .sheet(isPresented: $pairing) { PairSheet() }
         .confirmationDialog(t("devices.disconnect"), isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }), presenting: disconnecting) { d in
-            Button(t("devices.disconnect"), role: .destructive) { Task { message = await model.api("DELETE", "/api/pair/devices/\(d.id)").error.map(hostRefusal); await load() } }
+            Button(t("devices.disconnect"), role: .destructive) { Task { refusal = await model.api("DELETE", "/api/pair/devices/\(d.id)").error.map(hostRefusal); await load() } }
         } message: { d in Text(t("devices.disconnectConfirm", ["name": d.name])) }
+        // A refused disconnect said in an alert, as the web's toast; `message` is the list's load failure, in its place.
+        .refusal($refusal)
     }
 
     private func load() async {
