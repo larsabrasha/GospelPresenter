@@ -215,14 +215,20 @@ pub async fn uploads_view(a: &Obj) -> R<Value> {
     Ok(json!({ "uploads": out }))
 }
 
-/// `mediaStorageView` {presenting, persistent, keepComing, today, days, fetch}: how this device's files are used
+/// `mediaStorageView` {presenting, persistent, keepComing, today, days, fetch, held?}: how this device's files are used
 /// (`storageReport`): every file kept, each presentation kept offline with the bytes of the files it needs, those
-/// files once, and the cache (what is neither wanted, nor waiting to be uploaded, nor a video kept offline).
+/// files once, and the cache (what is neither wanted, nor waiting to be uploaded, nor a video kept offline). `held`:
+/// [{hash, size, at}] a shell keeping its files in a folder holds, videos too, in place of `media_blobs` and
+/// `video_files`.
 pub async fn storage_view(a: &Obj) -> R<Value> {
     let p = policy(a)?;
     let mut sizes: Map<String, Value> = Map::new();
-    for r in sql("SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL", vec![]).await { sizes.insert(s(&r[0]), json!(int_of(&r[1]))); }
-    for r in sql("SELECT hash, received FROM video_files", vec![]).await { sizes.insert(s(&r[0]), json!(int_of(&r[1]))); }
+    if a.contains_key("held") {
+        for (hash, size, _) in held(a).await { sizes.insert(hash, json!(size)); }
+    } else {
+        for r in sql("SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL", vec![]).await { sizes.insert(s(&r[0]), json!(int_of(&r[1]))); }
+        for r in sql("SELECT hash, received FROM video_files", vec![]).await { sizes.insert(s(&r[0]), json!(int_of(&r[1]))); }
+    }
     let sum = |hashes: &mut dyn Iterator<Item = &String>| -> i64 {
         let mut seen = HashSet::new();
         hashes.filter(|h| seen.insert((*h).clone())).map(|h| sizes.get(h).map_or(0, int_of)).sum()

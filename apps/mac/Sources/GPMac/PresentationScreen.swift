@@ -23,6 +23,17 @@ struct PresentationScreen: View {
                 #endif
                 .toolbarTitleMenu { titleMenu(p) }
                 .toolbar {
+                    #if os(macOS)
+                    // Not on a stack on a Mac (a split view of its own, GPMacApp's RootView): ‹ back to the start page.
+                    ToolbarItem(placement: .navigation) {
+                        Button { model.path = [] } label: { Label(t("nav.backToPresentations"), systemImage: Look.symbol("back")) }
+                            .help(t("nav.backToPresentations")).keyboardShortcut("[", modifiers: .command)
+                    }
+                    #endif
+                    #if os(iOS)
+                    // Utgångar while an external display is connected: its output on or off by hand.
+                    ToolbarItem(placement: .primaryAction) { ExternalOutputsMenu() }
+                    #endif
                     ToolbarItem(placement: .primaryAction) { startStop(wide: geo.size.width >= Size.columns) }
                 }
                 .sheet(isPresented: $editing) { DetailsSheet(presentationId: p.id) }
@@ -61,8 +72,8 @@ struct PresentationScreen: View {
             Section {
                 ForEach(group.actions, id: \.id) { a in
                     switch a.id {
-                    case "editDetails": Button(t(a.text), systemImage: "pencil") { editing = true }
-                    case "trash": Button(t(a.text), systemImage: "trash", role: .destructive) { trashing = true }
+                    case "editDetails": Button(t(a.text), systemImage: Look.symbol(a.icon)) { editing = true }
+                    case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }
                     default: EmptyView()
                     }
                 }
@@ -70,41 +81,33 @@ struct PresentationScreen: View {
         }
     }
 
-    /// ▶ to start or ■ to end, which asks first; on a computer with its words, as the web's bar.
+    /// ▶ to start or ■ to end, which asks first; on a computer with its words, as the web's bar. Which, its text, its role
+    /// and whether it may be pressed are the core's (`pageButtonsView`); its icon and key are this app's.
     @ViewBuilder
     private func startStop(wide: Bool) -> some View {
-        if model.isLive {
-            Button(role: .destructive) { ending = true } label: {
-                Label(t("live.end"), systemImage: "stop.fill").labelStyle(Wide(wide: wide))
+        let args: [String: Any] = ["place": "presentationBar", "presenting": model.isLive, "canStart": model.canStart,
+                                   "hasSlides": !(model.current?.items.allSatisfy(\.slides.isEmpty) ?? true)]
+        if let b = model.view("pageButtonsView", args, as: PageButtons.self)?.buttons.last {
+            let ends = b.id == "end"
+            Button { if ends { ending = true } else { model.send(["type": "start"]) } } label: {
+                Label(t(b.text), systemImage: Look.symbol(b.icon)).labelStyle(Wide(wide: wide))
             }
-            .prominentGlass().tint(.red)
-            .keyboardShortcut(".", modifiers: .command)
-        } else {
-            Button { model.send(["type": "start"]) } label: {
-                Label(t("presentation.start"), systemImage: "play.fill").labelStyle(Wide(wide: wide))
-            }
-            .prominentGlass().tint(.green)
-            // The core's: not while another presentation is presented (`pageModelView`); and, this app's own, not with
-            // nothing to show.
-            .disabled(!model.canStart || (model.current?.items.allSatisfy(\.slides.isEmpty) ?? true))
-            .accessibilityIdentifier("start")
+            .role(b.role)
+            .disabled(!b.enabled)
+            // ⌘. ends, as before; starting has no key here yet.
+            .keyboardShortcut(ends ? KeyboardShortcut(".", modifiers: .command) : nil)
+            // "start" for the UI tests, as before.
+            .accessibilityIdentifier(b.id)
         }
     }
 }
 
-private extension View {
-    /// ▶ and ■: Liquid Glass in their colour where there is one (iOS 26, macOS 26), as the floating +; before, filled.
-    @ViewBuilder
-    func prominentGlass() -> some View {
-        if #available(iOS 26, macOS 26, *) { buttonStyle(.glassProminent) } else { buttonStyle(.borderedProminent) }
-    }
-}
-
-/// A label with its words on a computer, the icon alone on a phone.
+/// A label with its words on a computer, the icon alone on a phone. The two side by side, not a Label again: in a Mac's
+/// toolbar a Label is drawn as its icon alone.
 private struct Wide: LabelStyle {
     let wide: Bool
     func makeBody(configuration: Configuration) -> some View {
-        if wide { Label { configuration.title } icon: { configuration.icon } } else { configuration.icon }
+        if wide { HStack(spacing: 6) { configuration.icon; configuration.title }.padding(.horizontal, 4) } else { configuration.icon }
     }
 }
 

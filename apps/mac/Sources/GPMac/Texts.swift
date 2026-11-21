@@ -3,11 +3,19 @@
 import Foundation
 
 enum Texts {
-    /// "sv" or "en".
-    static let language: String = {
+    /// "sv" or "en": the one chosen under Mina inställningar › Språk (`gp.language`, this device's, as the web keeps
+    /// its own), else the device's.
+    static var language: String = {
+        if let chosen = UserDefaults.standard.string(forKey: "gp.language"), ["sv", "en"].contains(chosen) { return chosen }
         let preferred = Locale.preferredLanguages.first?.lowercased() ?? "sv"
         return preferred.hasPrefix("en") ? "en" : "sv"
     }()
+
+    /// Språk chosen: kept for the next start, and the texts read in it from now on (the caller draws its views again).
+    static func choose(_ language: String) {
+        UserDefaults.standard.set(language, forKey: "gp.language")
+        self.language = language
+    }
 
     /// The locale for dates in the app's language.
     static var locale: Locale { Locale(identifier: language == "sv" ? "sv_SE" : "en_GB") }
@@ -36,6 +44,9 @@ func n(_ key: String, _ vars: [String: CustomStringConvertible] = [:]) -> String
         "refused": ("Värden sa nej ({code}).", "The host said no ({code})."),
         "certificate": ("Värdens certifikat", "The host's certificate"),
         "trust": ("Lita på det", "Trust it"),
+        "notBuilt": ("Finns inte i appen än. Gör det i webbläsaren eller datorappen.", "Not in the app yet. Do it in the browser or the desktop app."),
+        "externalDisplay": ("Extern skärm", "External display"),
+        "noServer": ("Demodatan har ingen server. Anslut till kyrkans dator för det här.", "The demo data has no server. Connect to the church's computer for this."),
         "certificateText": ("{host} har ett eget certifikat. Lita bara på det om fingeravtrycket är detsamma som på värden:\n\n{fingerprint}", "{host} has a certificate of its own. Trust it only if the fingerprint is the same as on the host:\n\n{fingerprint}"),
     ]
     guard let pair = table[key] else { return key }

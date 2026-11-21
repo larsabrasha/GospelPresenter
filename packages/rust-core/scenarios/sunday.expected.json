@@ -29,12 +29,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "rename",
                 "text": "header.rename"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -44,14 +46,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -63,6 +111,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -76,12 +125,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -104,6 +155,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -113,14 +165,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -132,6 +230,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -145,12 +244,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -179,6 +280,7 @@
                 "chosen": "s1-a1",
                 "destructive": false,
                 "enabled": true,
+                "icon": "arrangement",
                 "id": "arrangement",
                 "text": "song.arrangements"
               },
@@ -196,6 +298,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -205,14 +308,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -224,6 +373,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -237,6 +387,7 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -259,6 +410,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -268,14 +420,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -287,6 +485,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -482,12 +681,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "rename",
                 "text": "header.rename"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -497,14 +698,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -516,6 +763,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -529,12 +777,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -557,6 +807,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -566,14 +817,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -585,6 +882,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -598,12 +896,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -632,6 +932,7 @@
                 "chosen": "s1-a1",
                 "destructive": false,
                 "enabled": true,
+                "icon": "arrangement",
                 "id": "arrangement",
                 "text": "song.arrangements"
               },
@@ -649,6 +950,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -658,14 +960,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -677,6 +1025,7 @@
               {
                 "destructive": true,
                 "enabled": false,
+                "icon": "delete",
                 "id": "delete",
                 "text": "live.shownCannotRemove"
               }
@@ -690,6 +1039,7 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -712,6 +1062,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -721,14 +1072,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -740,6 +1137,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -926,12 +1324,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "rename",
                 "text": "header.rename"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -941,14 +1341,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -960,6 +1406,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -973,12 +1420,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -1001,6 +1450,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -1010,14 +1460,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -1029,6 +1525,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }
@@ -1042,12 +1539,14 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "edit",
                 "id": "edit",
                 "text": "presentation.editSong"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -1076,6 +1575,7 @@
                 "chosen": "s1-a1",
                 "destructive": false,
                 "enabled": true,
+                "icon": "arrangement",
                 "id": "arrangement",
                 "text": "song.arrangements"
               },
@@ -1093,6 +1593,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -1102,14 +1603,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -1121,6 +1668,7 @@
               {
                 "destructive": true,
                 "enabled": false,
+                "icon": "delete",
                 "id": "delete",
                 "text": "live.shownCannotRemove"
               }
@@ -1134,6 +1682,7 @@
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "comment",
                 "id": "note",
                 "text": "note.title"
               }
@@ -1156,6 +1705,7 @@
                 "chosen": "",
                 "destructive": false,
                 "enabled": true,
+                "icon": "overlay",
                 "id": "overlay",
                 "text": "overlays.itemOverlay"
               }
@@ -1165,14 +1715,60 @@
           {
             "actions": [
               {
+                "choices": [
+                  {
+                    "apart": false,
+                    "icon": "song",
+                    "id": "song",
+                    "text": "add.song"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "bible",
+                    "id": "bible",
+                    "text": "add.bible"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "image",
+                    "id": "image",
+                    "text": "add.image"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "audio",
+                    "id": "audio",
+                    "text": "presentation.audioTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "video",
+                    "id": "video",
+                    "text": "presentation.videoTab"
+                  },
+                  {
+                    "apart": false,
+                    "icon": "slides",
+                    "id": "slides",
+                    "text": "add.slides"
+                  },
+                  {
+                    "apart": true,
+                    "icon": "header",
+                    "id": "header",
+                    "text": "header.kind"
+                  }
+                ],
                 "destructive": false,
                 "enabled": true,
+                "icon": "add",
                 "id": "addAfter",
                 "text": "live.addAfter"
               },
               {
                 "destructive": false,
                 "enabled": true,
+                "icon": "tick",
                 "id": "tick",
                 "text": "presentation.tick"
               }
@@ -1184,6 +1780,7 @@
               {
                 "destructive": true,
                 "enabled": true,
+                "icon": "delete",
                 "id": "delete",
                 "text": "common.delete"
               }

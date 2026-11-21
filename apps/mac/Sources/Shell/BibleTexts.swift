@@ -51,13 +51,41 @@ extension SyncClient {
         return !stored.isEmpty
     }
 
+    /// An imported text kept here, and its translation marked kept (as the web's import does), so the text stays once
+    /// the import is pushed: whether the text was what `hash` names.
+    public func keepImported(_ id: String, hash: String, json: String) -> Bool {
+        guard storeBibleText(hash, json: json) else { return false }
+        try? write([("INSERT INTO kept_bibles (id, kept_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING", [.text(value: id), .integer(value: Int64(Date().timeIntervalSince1970 * 1000))])])
+        return true
+    }
+
+    /// A text this device does not keep, fetched for a page and held where the core reads it as it reads a kept one: a
+    /// database of its own in memory holding only it, as the web's fetchedBibles.ts; nil when the server has none, it
+    /// cannot be reached, or the text is not what `hash` names.
+    public func fetchedBibleText(_ hash: String) async -> Core? {
+        guard let json = await bibleText(hash), let store = storeStatements(hash, json: json), let db = try? Database(path: ":memory:") else { return nil }
+        let held = Core(db: db)
+        do {
+            try db.exec("CREATE TABLE bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL)")
+            try db.exec("CREATE TABLE bible_blobs (hash TEXT PRIMARY KEY NOT NULL, verse_count INTEGER NOT NULL)")
+            try held.transaction { for (sql, params) in store { _ = try db.query(sql, params) } }
+        } catch { return nil }
+        return held
+    }
+
+    /// The statements that keep a text (`bibleTextStoreView`), or nil when it is not what `hash` names.
+    private func storeStatements(_ hash: String, json: String) -> [(String, [SqlValue])]? {
+        guard case let .success(answer?) = core.call("bibleTextStoreView", ["hash": hash, "json": json], caller: caller),
+              let store = Self.object(answer)["store"] as? [[String: Any]] else { return nil }
+        return store.map { ($0["sql"] as? String ?? "", ($0["params"] as? [Any] ?? []).map(Self.sqlValue)) }
+    }
+
     /// Keeps a text, fetched or imported here, as the core reads it (`bibleTextStoreView`): whether it was what `hash`
     /// names, and so kept. An `importBible` naming it can then be queued; keep its translation too (`kept_bibles`, as
     /// the web's import does), or `syncBibleTexts` drops the text once the import is pushed.
     public func storeBibleText(_ hash: String, json: String) -> Bool {
-        guard case let .success(answer?) = core.call("bibleTextStoreView", ["hash": hash, "json": json], caller: caller),
-              let store = Self.object(answer)["store"] as? [[String: Any]] else { return false }
-        return (try? write(store.map { ($0["sql"] as? String ?? "", ($0["params"] as? [Any] ?? []).map(Self.sqlValue)) })) != nil
+        guard let store = storeStatements(hash, json: json) else { return false }
+        return (try? write(store)) != nil
     }
 
     /// Statements on this device's own tables, in one transaction.

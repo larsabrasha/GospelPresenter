@@ -17,20 +17,22 @@ struct ItemMenu: View {
                 ForEach(group.actions.filter { Self.drawn.contains($0.id) }, id: \.id) { entry($0) }
             }
         }
+        // Each entry with its icon, as the web's menu has them; a Mac's menu shows the title alone unless asked.
+        .labelStyle(.titleAndIcon)
     }
 
     @ViewBuilder private func entry(_ a: MenuAction) -> some View {
         switch a.id {
         case "rename":
-            Button(t(a.text), systemImage: "pencil") {
+            Button(t(a.text), systemImage: Look.symbol(a.icon)) {
                 model.prompt = TextPrompt(title: t(a.text), label: t("header.name"), text: item.title, rule: model.rule("itemTitle")) { model.run("renameItem", ["itemId": item.id, "title": $0]) }
             }
         case "note":
-            Button(t(a.text), systemImage: "text.bubble") {
+            Button(t(a.text), systemImage: Look.symbol(a.icon)) {
                 model.prompt = TextPrompt(title: t(a.text), label: t(a.text), text: item.note ?? "", rule: model.rule("itemNote")) { model.run("setItemNote", ["itemId": item.id, "note": $0]) }
             }
         case "arrangement":
-            Menu(t(a.text), systemImage: "list.number") {
+            Menu(t(a.text), systemImage: Look.symbol(a.icon)) {
                 Picker(t(a.text), selection: Binding(get: { a.chosen }, set: { id in
                     model.run("setItemArrangement", ["itemId": item.id, "arrangementId": id.map { $0 as Any } ?? NSNull()])
                 })) {
@@ -43,7 +45,7 @@ struct ItemMenu: View {
             }
         case "overlay":
             // Ingen (the empty id, a text key) and the organisation's overlays by name; the item's own ticked.
-            Menu(t(a.text), systemImage: "square.on.square") {
+            Menu(t(a.text), systemImage: Look.symbol(a.icon)) {
                 Picker(t(a.text), selection: Binding(get: { a.chosen ?? "" }, set: { id in
                     model.run("setItemOverlay", ["itemId": item.id, "overlayId": id.isEmpty ? NSNull() : id as Any])
                 })) {
@@ -52,9 +54,9 @@ struct ItemMenu: View {
                 .pickerStyle(.inline)
             }
         case "addAfter":
-            Menu(t(a.text), systemImage: "plus") { AddChoices(chosen: item.id) }
+            Menu(t(a.text), systemImage: Look.symbol(a.icon)) { AddChoices(chosen: item.id) }
         case "delete":
-            Button(t(a.text), systemImage: "trash", role: a.destructive ? .destructive : nil) { model.removing = item }
+            Button(t(a.text), systemImage: Look.symbol(a.icon), role: a.destructive ? .destructive : nil) { model.removing = item }
                 .disabled(!a.enabled)
         default:
             EmptyView()
@@ -62,23 +64,34 @@ struct ItemMenu: View {
     }
 }
 
-/// What + adds, in the web's order; here Sång, then under a line Programpunkt. `chosen` is the item "Lägg till efter"
-/// named, none for +.
+/// What + adds: the kinds, their texts, icons and order the core's (`pageButtonsView`'s Lägg till, the web's), the one
+/// set apart under a line. `chosen` is the item "Lägg till efter" named, none for +. Not here yet, so left out: Bibeltext,
+/// Bild, Ljud, Video, Bildspel.
 struct AddChoices: View {
     @Environment(Model.self) private var model
     let chosen: String?
 
+    /// The kinds this app can add.
+    private static let drawn: Set = ["song", "header"]
+
     var body: some View {
-        Button(t("add.song"), systemImage: "music.note") { model.addingSong = AddAt(after: model.afterFor(chosen)) }
-        Divider()
-        Button(t("header.kind"), systemImage: "text.alignleft") {
-            let after = model.afterFor(chosen)
-            model.prompt = TextPrompt(title: t("header.new"), label: t("header.name"), text: "", rule: model.rule("itemTitle")) { title in
-                let itemId = model.newId()
-                var args: [String: Any] = ["itemId": itemId, "presentationId": model.selectedPresentation ?? "", "title": title]
-                if let after { args["afterItemId"] = after }
-                if model.run("addHeaderToPresentation", args) == "ok" { model.added(itemId) }
-            }
+        let kinds = (model.view("pageButtonsView", ["place": "runningOrder"], as: PageButtons.self)?.buttons.first { $0.id == "add" }?.choices ?? [])
+            .filter { Self.drawn.contains($0.id) }
+        ForEach(kinds, id: \.id) { k in
+            if k.apart == true { Divider() }
+            Button(t(k.text ?? k.id), systemImage: Look.symbol(k.icon)) { add(k.id) }
+        }
+        .labelStyle(.titleAndIcon)
+    }
+
+    private func add(_ kind: String) {
+        let after = model.afterFor(chosen)
+        guard kind == "header" else { model.addingSong = AddAt(after: after); return }
+        model.prompt = TextPrompt(title: t("header.new"), label: t("header.name"), text: "", rule: model.rule("itemTitle")) { title in
+            let itemId = model.newId()
+            var args: [String: Any] = ["itemId": itemId, "presentationId": model.selectedPresentation ?? "", "title": title]
+            if let after { args["afterItemId"] = after }
+            if model.run("addHeaderToPresentation", args) == "ok" { model.added(itemId) }
         }
     }
 }

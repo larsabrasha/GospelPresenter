@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 
 mod arrangements;
 pub use arrangements::ORIGINAL;
+pub use media::FILE_NAME as FILE_NAME_LIMIT;
 mod bibles_and_themes;
 mod ccli;
 mod custom_slides;

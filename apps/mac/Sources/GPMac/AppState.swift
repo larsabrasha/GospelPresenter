@@ -34,6 +34,10 @@ final class AppState {
     let player = LivePlayer()
     /// Raised when media files arrived (MediaSync.swift): a picture drawn without its file is drawn again.
     var mediaGeneration = 0
+    /// How the media folder is used, as the last media run left it (`mediaStorageView`, Lagring).
+    var storage = StorageReport()
+    /// Rensa cache asked: the next media run keeps no room for what nothing wants now.
+    @ObservationIgnored var clearCache = false
     @ObservationIgnored var mediaRunning = false
     @ObservationIgnored var mediaAgain = false
     @ObservationIgnored var bibleRunning = false
@@ -42,6 +46,11 @@ final class AppState {
     /// count as a problem, and the timer that says so.
     @ObservationIgnored private var waitedLong = false
     @ObservationIgnored private var grace: Task<Void, Never>?
+    /// Raised at every change of the data, here or by a pull: what a page read from the core is read again.
+    var dataGeneration = 0
+    /// Raised when Språk was chosen: every window draws itself again in it.
+    var textsGeneration = 0
+    func textsChanged() { textsGeneration += 1 }
     /// What a connection or the demo refused, said where it was asked for.
     var refusal: String?
     /// The windows open, each read again after a change.
@@ -103,6 +112,9 @@ final class AppState {
         windows.compactMap(\.model).first { $0 !== me && $0.selectedPresentation == id }
     }
 
+    /// A window's Model, to ask the core through where no window is at hand.
+    var anyModel: Model? { windows.compactMap(\.model).first }
+
     /// Whether a window should open a second one now: once, with `-gp.secondWindow YES`.
     func takeSecondWindow() -> Bool {
         defer { secondWindow = false }
@@ -116,6 +128,7 @@ final class AppState {
             client.onChange = { [weak self] _ in self?.changed() }
             client.onStatus = { [weak self] in self?.noteSync() }
             client.onMedia = { [weak self] in self?.syncMedia(); self?.syncBibles() }
+            client.mediaDir = AppScheme.mediaDir
             store = .synced(client)
             Keychain.session = session
             client.start()
@@ -130,7 +143,14 @@ final class AppState {
     func openDemo() {
         let files = FileManager.default
         let path = "\(Self.home)/app.sqlite", demo = "\(Self.home)/demo.sqlite"
-        if !files.fileExists(atPath: path) { try? files.copyItem(atPath: files.fileExists(atPath: demo) ? demo : Bundle.main.path(forResource: "demo", ofType: "sqlite")!, toPath: path) }
+        if !files.fileExists(atPath: path) {
+            // Run from the repository outside build.sh run, the app has no demo of its own: said, not a crash.
+            guard let source = files.fileExists(atPath: demo) ? demo : Bundle.main.path(forResource: "demo", ofType: "sqlite") else {
+                refusal = "demo.sqlite saknas i \(Self.home)"
+                return
+            }
+            try? files.copyItem(atPath: source, toPath: path)
+        }
         guard let db = try? Database(path: path) else { return }
         try? db.exec("PRAGMA journal_mode = WAL")
         let core = Core(db: db)
@@ -220,12 +240,14 @@ final class AppState {
 
     func syncNow() { if case let .synced(c) = store { c.requestSync() } }
 
-    /// A view of the core, as the store's user.
+    /// A view of the core, as the store's user. Read in a page's body, it draws the page again after every change
+    /// (`dataGeneration`), as the settings' pages read their data straight from the core.
     func view<T: Decodable>(_ name: String, _ args: [String: Any] = [:], as type: T.Type) -> T? {
+        _ = dataGeneration
         switch store {
-        case let .demo(core): core.view(name, args, caller: Caller(userId: "demo", role: role, now: nil), as: type)
-        case let .synced(client): client.view(name, args, as: type)
-        case nil: nil
+        case let .demo(core): return core.view(name, args, caller: Caller(userId: "demo", role: role, now: nil), as: type)
+        case let .synced(client): return client.view(name, args, as: type)
+        case nil: return nil
         }
     }
 
@@ -244,6 +266,7 @@ final class AppState {
 
     /// Everything read again, in every window: after a change here, and after a pull that changed rows.
     func changed() {
+        dataGeneration += 1
         lists = view("startPageView", ["today": localToday()], as: [StartList].self) ?? []
         live.reload(self)
         windows = windows.filter { $0.model != nil }

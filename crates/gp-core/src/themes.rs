@@ -28,6 +28,9 @@ fn style(background: Value, main: &[(&str, Value)], credits: &[(&str, Value)]) -
     json!({ "background": background, "main": text(false, main), "credits": text(true, credits) })
 }
 
+/// Mörkt's definition: where the theme editor's Återställ puts a text's box back (themeModel.ts's `defaultArea`).
+pub fn classic_definition() -> Value { built_in("classic").unwrap()["definition"].clone() }
+
 /// `BUILT_IN_THEMES`: Mörkt (Classic, the fallback) and Ljust.
 fn built_in(id: &str) -> Option<Value> {
     let black = || json!("#000000");

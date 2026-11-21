@@ -45,6 +45,12 @@ struct ConnectView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Gospel Presenter")
+            #if os(macOS)
+            // The start page's bar, the tall one of a window with a toolbar, not a bare title bar; the name stays the
+            // window's (Window menu, Mission Control), as the start page keeps its own.
+            .titleOnlyInWindow()
+            .toolbar { ToolbarItemGroup { Spacer() } }
+            #endif
             .disabled(busy)
             .overlay { if busy { ProgressView() } }
             .alert(n("certificate"), isPresented: Binding(get: { certificate != nil }, set: { if !$0 { certificate = nil } }), presenting: certificate) { c in
@@ -99,6 +105,14 @@ struct ConnectView: View {
 /// with, to try what each may do.
 struct AccountMenu: View {
     @Environment(Model.self) private var model
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    /// Inställningar in a window of its own, as System Settings (⌘, too: GPMacApp's commands).
+    private func openSettings() { openWindow(id: "settings") }
+    #else
+    /// Inställningar over the page, full screen on a phone, as a sheet on an iPad.
+    private func openSettings() { model.settingsOpen = true }
+    #endif
 
     var body: some View {
         @Bindable var model = model
@@ -114,6 +128,7 @@ struct AccountMenu: View {
                         Text(t("role.admin")).tag("admin")
                     }
                 }
+                Button(t("nav.admin"), systemImage: "gearshape") { openSettings() }
                 Button(t("auth.signOut"), systemImage: "rectangle.portrait.and.arrow.right") { model.signOut() }
             }
         } label: {

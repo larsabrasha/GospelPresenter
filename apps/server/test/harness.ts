@@ -10,6 +10,7 @@ import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { nodeRustCore } from '@gp/rust-core/node';
 import type { Dump, MutatorCtx, Role } from '@gp/core';
 import { memoryStorage } from '../src/media.ts';
+import type { PptxPages } from '../src/node.ts';
 import { startNodeServer } from '@gp/server/node';
 
 export type AdapterName = 'node' | 'node-sqlite' | 'workers' | 'remote';
@@ -48,6 +49,8 @@ export interface AdapterOptions {
   webRoot?: string;
   /** Node only: where the server's log events go (none by default). */
   log?: (event: Record<string, unknown>) => void;
+  /** Node only: a PowerPoint deck's renderer, as the desktop host gives one (apps/desktop/src/pptx.ts). */
+  pptx?: PptxPages;
 }
 
 /**

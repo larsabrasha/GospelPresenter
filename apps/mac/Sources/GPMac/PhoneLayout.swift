@@ -314,12 +314,18 @@ private struct DisplaySheet: View {
 struct BlackButton: View {
     @Environment(Model.self) private var model
 
+    /// Släck as the core gives it (`pageButtonsView`'s `liveColumn`): its text, icon, role and whether it may be pressed.
     var body: some View {
+        let args: [String: Any] = ["place": "liveColumn", "black": model.live.pointer?.black ?? true]
+        let b = model.view("pageButtonsView", args, as: PageButtons.self)?.buttons.first { $0.id == "black" }
+        // As the web's: a capsule the column's width, its symbol and word in semibold, lifted off the column (here clear
+        // glass, the role `quiet`), faded while the outputs are black already.
         Button { model.send(["type": "black"]) } label: {
-            Label(t("live.clear"), systemImage: "display").frame(maxWidth: .infinity).padding(.vertical, 8)
+            HStack(spacing: 8) { Image(systemName: Look.symbol(b?.icon)); Text(t(b?.text ?? "live.clear")) }
+                .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 36).contentShape(Capsule())
         }
-        .buttonStyle(.bordered).buttonBorderShape(.capsule)
-        .disabled(model.live.pointer?.black ?? true)
+        .buttonStyle(.plain).foregroundStyle(.primary).clearGlassCapsule()
+        .disabled(!(b?.enabled ?? false)).opacity(b?.enabled ?? false ? 1 : 0.4)
         .keyboardShortcut("b", modifiers: [])
         .accessibilityIdentifier("black")
     }

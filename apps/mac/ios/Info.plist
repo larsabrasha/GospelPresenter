@@ -17,6 +17,9 @@
 		<string>sv</string>
 		<string>en</string>
 	</array>
+	<!-- The commit built, for Om (apple.sh passes git's as GP_COMMIT, as the web's). -->
+	<key>GPCommit</key>
+	<string>$(GP_COMMIT)</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Gospel Presenter synkar med kyrkans dator i det lokala nätverket.</string>
 	<!-- Several windows on an iPad, each with its own page, selection and slide made ready (Model, one per window). -->
@@ -24,6 +27,19 @@
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<true/>
+		<!-- An external display (a cable, or AirPlay as a second screen) shows the output (ExternalOutput.swift). -->
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleExternalDisplayNonInteractive</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>External</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).ExternalSceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
 	</dict>
 </dict>
 </plist>

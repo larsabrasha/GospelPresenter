@@ -58,6 +58,8 @@ final class Model {
     var addingSong: AddAt?
     /// An item whose removal asks first.
     var removing: ItemView?
+    /// Inställningar open over the page (iOS; a Mac opens a window of its own).
+    var settingsOpen = false
 
     init(app: AppState) {
         self.app = app

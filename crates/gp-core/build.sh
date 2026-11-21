@@ -70,6 +70,15 @@ NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-e
 "$ROOT/crates/gp-core-ffi/bindings.sh"
 node "$ROOT/apps/mac/texts.mjs"
 (cd "$ROOT/apps/mac" && swift build -c release 2>&1 | grep -E "error|warning: |Build complete")
+# SwiftPM's link writes the deployment target (14.0) as the SDK the app was built with, and AppKit then draws it as an
+# app of macOS 14: no Liquid Glass. The SDK it was built with written instead, and signed again (Lars, 2026-11-21).
+SDK=$(xcrun --show-sdk-version)
+# The app as a bundle too (apps/mac/bundle.sh), as its accent lives in one.
+"$ROOT/apps/mac/bundle.sh" >/dev/null 2>&1
+for bin in GPMac parity; do
+  B="$ROOT/apps/mac/.build/release/$bin"
+  vtool -set-build-version macos 14.0 "$SDK" -replace -output "$B.sdk" "$B" && mv "$B.sdk" "$B" && codesign -f -s - "$B" 2>/dev/null
+done
 
 case "$1" in
   test)
@@ -86,7 +95,8 @@ case "$1" in
     # Sync's client logic against the TS SyncClient and a real server engine (the proof: --steps 1500 --seeds 10).
     node --no-warnings parity/sync/check.mjs --steps 1500 --seeds 3 | grep -vE "^seed"
     # The Mac and iOS app's sync, as the core's sync driver says, against a real server (apps/mac's `parity sync`).
-    (cd "$ROOT/apps/server" && GP_NATIVE_SYNC=1 pnpm exec vitest run test/native-sync.test.ts --silent=false 2>&1 | grep -E "^(ok|FAIL):|Tests ")
+    # And its Inställningar (apps/mac's `parity settings`): uploads before a push, the endpoints, an organisation moved.
+    (cd "$ROOT/apps/server" && GP_NATIVE_SYNC=1 pnpm exec vitest run test/native-sync.test.ts test/native-settings.test.ts --silent=false 2>&1 | grep -E "^(ok|FAIL):|Tests ")
     node --no-warnings parity/export.mjs "$OUT/fixtures" 3000 5
     node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     node --no-warnings parity/live-check.mjs "$OUT/fixtures/demo.sqlite"

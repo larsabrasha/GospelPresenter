@@ -24,6 +24,45 @@ pub async fn songs(a: &Obj) -> R<Value> {
     Ok(Value::Array(rows))
 }
 
+/// The section a name goes under (songLetters.ts's `letterOf`): its first letter in capitals, Å, Ä and Ö their own;
+/// "#" for a digit or a sign.
+fn letter_of(name: &str) -> String {
+    match name.trim().chars().next() {
+        Some(c) if c.is_alphabetic() => c.to_uppercase().collect(),
+        _ => "#".into(),
+    }
+}
+
+/// The songs from which a sectioned list has its letter index (the web's ui/Library.tsx `INDEX_FROM`).
+const INDEX_FROM: usize = 20;
+
+/// `songListView` {sort, locale}: Sånger as its page lists it (the web's Songs.tsx): `sorts` (by name, the default, or
+/// by author, those without one last and then by name), the `sort` chosen, and the songs in `sections`: by name in runs
+/// by first letter, each letter once where its first song is (as Contacts has them), by author in one section
+/// without a letter; `index`: whether a touch screen shows the letters along the list's edge (the web's LetterIndex,
+/// from `INDEX_FROM` songs in sections).
+pub async fn song_list(a: &Obj) -> R<Value> {
+    let l = lang(a);
+    let mut rows = songs(a).await?.as_array().cloned().unwrap_or_default();
+    let by_author = a.get("sort").and_then(Value::as_str) == Some("author");
+    let sorts = json!([{ "id": "name", "text": "library.sort.name" }, { "id": "author", "text": "library.sort.author" }]);
+    if by_author {
+        let author = |r: &Value| r["author"].as_str().filter(|s| !s.is_empty()).map(String::from).unwrap_or_else(|| "\u{ffff}".into());
+        rows.sort_by(|x, y| crate::collation::ids(l, &author(x), &author(y)).then_with(|| crate::collation::ids(l, x["name"].as_str().unwrap_or(""), y["name"].as_str().unwrap_or(""))));
+        return Ok(json!({ "sorts": sorts, "sort": "author", "sections": [{ "letter": null, "rows": rows }], "index": false }));
+    }
+    let index = rows.len() >= INDEX_FROM;
+    let mut sections: Vec<Value> = Vec::new();
+    for r in rows {
+        let letter = letter_of(r["name"].as_str().unwrap_or(""));
+        match sections.iter_mut().find(|s| s["letter"] == letter.as_str()) {
+            Some(s) => s["rows"].as_array_mut().unwrap().push(r),
+            None => sections.push(json!({ "letter": letter, "rows": [r] })),
+        }
+    }
+    Ok(json!({ "sorts": sorts, "sort": "name", "sections": sections, "index": index }))
+}
+
 /// `songSearchPrepare` {order}: reads the library and prepares it for search, in `order` (the songs' ids as the shell
 /// orders them; ties in a search keep it). A song not in `order` is not searched.
 pub async fn prepare(a: &Obj) -> R<Value> {

@@ -27,9 +27,47 @@ pub fn add_position(a: &Obj) -> R<Value> {
     })
 }
 
-/// An action of a menu: its id, which the shell maps to what it does; its text's key in apps/web/src/i18n.ts; whether
-/// it may be done now (with the key of why not, as its text); red when it removes something.
-fn action(id: &str, text: &str) -> Value { json!({ "id": id, "text": text, "enabled": true, "destructive": false }) }
+/// An action of a menu: its id, which the shell maps to what it does; its text's key in apps/web/src/i18n.ts; its icon
+/// (`icon_of`); whether it may be done now (with the key of why not, as its text); red when it removes something.
+fn action(id: &str, text: &str) -> Value { json!({ "id": id, "text": text, "icon": icon_of(id), "enabled": true, "destructive": false }) }
+
+/// An action's or a button's icon, as the web draws it (ItemContextMenu.tsx, PresentationMenu.tsx, AddItemDialog.tsx,
+/// PresentationBar.tsx), by a name of the app's own that each shell maps once to its platform's (SF Symbols on a Mac,
+/// Heroicons on the web; Fluent and Adwaita after them): what the action is drawn as, not how (Lars, 2026-11-21).
+fn icon_of(id: &str) -> &'static str {
+    match id {
+        "rename" | "edit" | "editImages" | "editDetails" => "edit",
+        "note" => "comment",
+        "arrangement" => "arrangement",
+        "overlay" => "overlay",
+        "addAfter" | "add" | "new" => "add",
+        "tick" => "tick",
+        "black" => "display",
+        "delete" | "trash" => "delete",
+        "materials" => "song",
+        "saveAsTemplate" => "duplicate",
+        "back" => "back",
+        "start" => "play",
+        "end" => "stop",
+        "fold" => "sidebar",
+        kind => kind_icon(kind),
+    }
+}
+
+/// The kinds Lägg till offers, in the web's order (AddItemDialog.tsx's tabs, then Programpunkt apart, as the item's
+/// Lägg till efter › has them): each its id, its text's key and its icon. A shell that cannot add a kind yet leaves it
+/// out, and says so where it draws the menu.
+const ADD_KINDS: [(&str, &str); 7] = [("song", "add.song"), ("bible", "add.bible"), ("image", "add.image"), ("audio", "presentation.audioTab"),
+    ("video", "presentation.videoTab"), ("slides", "add.slides"), ("header", "header.kind")];
+
+fn kind_icon(kind: &str) -> &'static str {
+    match kind { "song" => "song", "bible" => "bible", "image" => "image", "audio" => "audio", "video" => "video", "slides" => "slides", "header" => "header", _ => "none" }
+}
+
+/// The kinds to add, as choices of Lägg till (efter) ›; Programpunkt in a group of its own, after a line.
+fn add_kinds() -> Value {
+    Value::Array(ADD_KINDS.iter().map(|(id, text)| json!({ "id": id, "text": text, "icon": kind_icon(id), "apart": *id == "header" })).collect())
+}
 
 fn group(id: &str, actions: Vec<Value>) -> Option<Value> { (!actions.is_empty()).then(|| json!({ "id": id, "actions": actions })) }
 
@@ -93,7 +131,9 @@ pub fn item_actions(a: &Obj) -> R<Value> {
             show.push(ov);
         }
     }
-    let listing = vec![action("addAfter", "live.addAfter"), action("tick", "presentation.tick")];
+    let mut add_after = action("addAfter", "live.addAfter");
+    add_after["choices"] = add_kinds();
+    let listing = vec![add_after, action("tick", "presentation.tick")];
     let can = removable(id, given(a, "shownId"));
     let mut delete = action("delete", if can { "common.delete" } else { "live.shownCannotRemove" });
     delete["enabled"] = json!(can);
@@ -121,6 +161,64 @@ pub fn details_dialog(a: &Obj) -> R<Value> {
             { "id": "save", "text": if new { "common.create" } else { "common.save" }, "busyText": if new { json!("common.creating") } else { Value::Null }, "role": "confirm" },
         ],
     }))
+}
+
+/// A button of a page: its id, which the shell maps to what it does and to its icon; its text's key (said beside the
+/// icon where there is room, else its label for a screen reader and its tooltip); its role (`lookView`'s roles, its
+/// colour and weight); whether it may be pressed.
+fn button(id: &str, text: &str, role: &str, enabled: bool) -> Value {
+    json!({ "id": id, "text": text, "icon": icon_of(id), "role": role, "enabled": enabled })
+}
+
+/// `pageButtonsView` {place, presenting?, canStart?, hasSlides?, black?}: the buttons of a place in a page, in order, as
+/// every shell draws them (Lars, 2026-11-21): `presentationBar` the way back and ▶ Starta (when `canStart`, the core's
+/// `pageModelView`, and the presentation has a slide) or ■ Avsluta while presenting; `startPage` the + of its heading;
+/// `runningOrder` Lägg till and folding the column; `liveColumn` Släck (not while `black`) and folding it. A shell may draw one it cannot do yet as
+/// left out, and says so where it draws the place.
+pub fn page_buttons(a: &Obj) -> R<Value> {
+    let flag = |k: &str| a.get(k).and_then(Value::as_bool).unwrap_or(false);
+    let buttons = match a.get("place").and_then(Value::as_str).ok_or("invalid-args")? {
+        "presentationBar" => vec![
+            button("back", "nav.backToPresentations", "quiet", true),
+            if flag("presenting") { button("end", "live.end", "end", true) } else { button("start", "presentation.start", "start", flag("canStart") && flag("hasSlides")) },
+        ],
+        "startPage" => vec![button("new", "presentations.new", "add", true)],
+        "runningOrder" => {
+            let mut add = button("add", "live.add", "add", true);
+            add["choices"] = add_kinds();
+            vec![add, button("fold", "presentation.hideSidebar", "quiet", true)]
+        }
+        // Släck under the picture, which cannot be pressed while it is black already.
+        // Lifted off the column as the web's (LivePicture.tsx `LIFTED`): a quiet button of the column's own.
+        "liveColumn" => vec![button("black", "live.clear", "quiet", !flag("black")), button("fold", "presentation.hideLiveColumn", "quiet", true)],
+        _ => return Err("invalid-args".into()),
+    };
+    Ok(json!({ "buttons": buttons }))
+}
+
+/// `presentationColumnsView` {presenting}: a presentation's side columns on a computer or an iPad lying down, as the
+/// web's PresentationEditor.tsx, RunningOrder.tsx and LivePanel.tsx lay them out (Lars, 2026-11-21): each its side,
+/// what it holds from the top (`parts`: a shell draws those it has, in this order, and nothing else), what its foot
+/// holds (`foot`, from its outer edge to its inner one: the sync line or Fjärrstyrning at the outer, the window's, and
+/// its fold button at the inner, beside the slides, as the web's SideMenu.tsx and LivePanel.tsx have them; Lars,
+/// 2026-11-21), whether it is out (the live column only while presenting, and
+/// out again at each start), its `width` in points (the web's pixels: `ideal`, and where it is `resizable` by dragging
+/// its edge, within `min` and `max`; a platform whose columns are not, such as the web's, keeps the ideal), never
+/// folded by that dragging (`foldsByDrag`: dragged past its least width beside the slides' scrollbar, it folded away by
+/// mistake; Lars, 2026-11-21), and where a folded one's way back floats (at the foot of the slides, on its side). The
+/// live column holds what is shown and Släck (`picture`), the outputs and the overlays: never the next slide (Lars,
+/// 2026-11-21). `sticky` names the parts always within reach: each follows the parts above it while they fit, and
+/// floats at the column's foot, over them, when they run past it (Lägg till, as the web's RunningOrder.tsx).
+pub fn presentation_columns(a: &Obj) -> R<Value> {
+    let presenting = a.get("presenting").and_then(Value::as_bool).ok_or("invalid-args")?;
+    Ok(json!({ "columns": [
+        { "id": "runningOrder", "side": "leading", "shown": true, "parts": ["description", "items", "add"], "sticky": ["add"],
+          "foot": ["sync", "fold"], "foldEdge": "inner", "unfold": "slidesFoot", "outOnStart": false,
+          "width": { "ideal": 300, "min": 240, "max": 420 }, "resizable": true, "foldsByDrag": false },
+        { "id": "live", "side": "trailing", "shown": presenting, "parts": ["picture", "outputs", "overlays"], "sticky": [],
+          "foot": ["remote", "fold"], "foldEdge": "inner", "unfold": "slidesFoot", "outOnStart": true,
+          "width": { "ideal": 340, "min": 300, "max": 480 }, "resizable": true, "foldsByDrag": false },
+    ] }))
 }
 
 /// Whether an item may be removed: not the one on the outputs (`shown`, black or not), whose removal would send the

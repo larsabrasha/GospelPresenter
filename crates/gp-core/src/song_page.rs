@@ -49,6 +49,34 @@ pub async fn history(a: &Obj) -> R<Value> {
     }))
 }
 
+/// `songHistoryPageView` {id, today, yesterday}: the history page as it shows it (the web's SongHistory.tsx and
+/// songHistory.ts): the versions newest first in runs by day, each run's `day` today, yesterday, or before (a heading of
+/// its date, the shell's to write) by the starts of today and yesterday in the device's time zone (`today`,
+/// `yesterday`, ms, the shell's); each version its id, time, and as it was then its name, author and a slide per part
+/// with its label (`versionSlides`), drawn in the organisation's default `theme`.
+pub async fn history_page(a: &Obj) -> R<Value> {
+    let h = history(a).await?;
+    let today = a.get("today").and_then(Value::as_f64).unwrap_or(f64::MAX);
+    let yesterday = a.get("yesterday").and_then(Value::as_f64).unwrap_or(f64::MAX);
+    let mut days: Vec<Value> = Vec::new();
+    for v in h["versions"].as_array().cloned().unwrap_or_default() {
+        let at = v["createdAt"].as_f64().unwrap_or(0.0);
+        let day = if at >= today { "today" } else if at >= yesterday { "yesterday" } else { "before" };
+        let snap: Value = v["data"].as_str().and_then(|d| serde_json::from_str(d).ok()).unwrap_or(Value::Null);
+        let slides: Vec<Value> = snap["parts"].as_array().cloned().unwrap_or_default().iter().map(|p| json!({
+            "key": p["id"], "kind": "song", "text": p["content"], "verses": null, "image": null, "credits": null,
+            "label": if p["labelText"].as_str().is_some_and(|t| !t.is_empty()) { json!({ "text": p["labelText"], "color": p["labelColor"].as_str().unwrap_or("#6b7280") }) } else { Value::Null },
+        })).collect();
+        let version = json!({ "id": v["id"], "at": at, "name": snap["name"], "author": snap["author"], "slides": slides });
+        // Today and yesterday each one run; before, a run a calendar day, which the shell tells apart by `at`.
+        match days.last_mut() {
+            Some(d) if d["day"] == day && day != "before" => d["versions"].as_array_mut().unwrap().push(version),
+            _ => days.push(json!({ "day": day, "versions": [version] })),
+        }
+    }
+    Ok(json!({ "days": days, "theme": h["theme"] }))
+}
+
 /// `songMaterialsView` {songIds}: the sheet music, recordings and links of the songs, each song's in its order.
 pub async fn materials(a: &Obj) -> R<Value> {
     let ids: Vec<Value> = a.get("songIds").and_then(Value::as_array).ok_or("invalid-args")?.clone();

@@ -50,7 +50,7 @@ rm -rf "$BUILD/slides" && cp -R "$ROOT/apps/web/dist-slides" "$BUILD/slides"
 ios() {
   dest=$1; shift
   xcodebuild -project ios/GPiOS.xcodeproj -scheme GPiOS -configuration Debug -derivedDataPath "$BUILD/derived" \
-    -destination "$dest" "$@" build 2>&1 | grep -E "error|warning: |BUILD (SUCCEEDED|FAILED)" | grep -v "appintentsmetadataprocessor"
+    -destination "$dest" GP_COMMIT="$(git rev-parse --short=7 HEAD 2>/dev/null || true)" "$@" build 2>&1 | grep -E "error|warning: |BUILD (SUCCEEDED|FAILED)" | grep -v "appintentsmetadataprocessor"
 }
 
 case "$1" in

@@ -4,7 +4,7 @@ import { useData, useSongSearch } from '../db/react.tsx';
 import { listPresentations } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { dateLabel, localToday } from '../pages/dashboard.ts';
-import { searchSettings, settingsGroups } from '../pages/settings/settingsLinks.ts';
+import { searchSettings } from '../pages/settings/settingsLinks.ts';
 import { AppButton } from './AppButton.tsx';
 import { runCommand, SECTIONS, type AppCommand } from './appKeys.ts';
 import { Dialog } from './Dialog.tsx';
@@ -177,7 +177,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
       }));
     // A page of Inställningar a command already goes to is not listed twice ("Gå till Videor" and Videor).
     const goneTo = new Set<string>(commands.flatMap((c) => (c.key.startsWith('c:go:') ? [c.key] : [])).map((k) => SECTIONS.find((s) => s.letter === k.slice(5))?.page ?? ''));
-    const settingsHits: Hit[] = searchSettings(settingsGroups(me, host), query, t)
+    const settingsHits: Hit[] = searchSettings(me, host, query, t)
       .filter((l) => !goneTo.has(l.route.page))
       .slice(0, PER_GROUP)
       .map((l) => ({

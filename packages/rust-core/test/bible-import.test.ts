@@ -1,7 +1,7 @@
 // A translation's zip read by the core (`bibleImportView`, spec 05 BIBLE-R3–R6): the tests of 2.0's TS importBibleZip,
 // parseUsx, parseUsfm and parseXml, moved here with it; a book's text read through a zip holding that one file.
 import { deflateRawSync } from 'node:zlib';
-import { makeZip, MutationError, utf8Encode, type BibleBookText } from '@gp/core';
+import { bibleId, bibleTextHash, makeZip, MutationError, serializeBibleText, utf8Encode, type BibleBookText } from '@gp/core';
 import { describe, expect, it } from 'vitest';
 import { nodeRustCore } from '../src/node.ts';
 import { sampleDblZip, sampleUsfm, sampleUsfmZip, sampleUsx, WEB_SAMPLE } from './bible-fixtures.ts';
@@ -87,6 +87,18 @@ describe('a USX book', () => {
     const text = `<?xml version="1.0"?><!-- a > comment --><usx><book code="GEN" x="1 > 0"/><chapter number="1"/><para style="p"><verse number="1"/>&lt;b&gt; &#229;&#xe4;<![CDATA[<raw>]]></para></usx>`;
 
     expect(book('GEN.usx', text)?.verses).toEqual([[1, 1, '<b> åä<raw>']]);
+  });
+});
+
+describe('an import as a shell keeps it (bibleImportTextView)', () => {
+  it('gives the text and hash serializeBibleText and bibleTextHash give, and the id bibleId gives', async () => {
+    const zip = sampleDblZip();
+    const bible = read(zip);
+
+    const kept = nodeRustCore().pure<{ id: string; json: string; hash: string; verses: number }>('bibleImportTextView', { data: Buffer.from(zip).toString('base64') });
+
+    const json = serializeBibleText(bible.books);
+    expect(kept).toMatchObject({ id: bibleId(bible.abbreviation), json, hash: await bibleTextHash(json), verses: bible.books.reduce((n, b) => n + b.verses.length, 0) });
   });
 });
 

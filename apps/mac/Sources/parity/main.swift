@@ -9,6 +9,17 @@ if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "sync" {
     dispatchMain()
 }
 
+// `parity settings <sessions.json> <dir>`: the native Inställningar against a running server (SettingsCheck.swift).
+if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "settings" {
+    Task { @MainActor in exit(await SettingsCheck.run(CommandLine.arguments[2], CommandLine.arguments[3])) }
+    dispatchMain()
+}
+// `parity settings-tls <sessions.json> <dir> <fingerprint>`: Videor's preview from a self-signed host (SettingsTlsCheck.swift).
+if CommandLine.arguments.count > 4, CommandLine.arguments[1] == "settings-tls" {
+    Task { @MainActor in exit(await SettingsTlsCheck.run(CommandLine.arguments[2], CommandLine.arguments[3], CommandLine.arguments[4])) }
+    dispatchMain()
+}
+
 MainActor.assumeIsolated {
     let fixtures = CommandLine.arguments[1], outDir = CommandLine.arguments[2]
     let lines = try! String(contentsOfFile: "\(fixtures)/parity.jsonl", encoding: .utf8).split(separator: "\n")

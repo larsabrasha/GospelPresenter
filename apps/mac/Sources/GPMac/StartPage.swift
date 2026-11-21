@@ -40,7 +40,7 @@ struct StartPage: View {
                     Text(t("nav.presentations")).font(.largeTitle.bold()).foregroundStyle(Color.primary)
                     Spacer()
                     Button { creating = true } label: { Image(systemName: "plus").font(.title3.weight(.semibold)) }
-                        .buttonStyle(.borderedProminent).buttonBorderShape(.circle).controlSize(.large).tint(.sky)
+                        .role("add").buttonBorderShape(.circle).controlSize(.large)
                         .accessibilityLabel(t("presentations.new")).help(t("presentations.new"))
                 }
                 .padding(.bottom, 4)
@@ -64,6 +64,9 @@ struct StartPage: View {
             }
         }
         .formStyle(.grouped)
+        // The platform's grouped ground under the rows' cards (`lookView`'s `ground`), as System Settings has it.
+        .scrollContentBackground(.hidden).background(Color.ground)
+        .hardTopEdge()
         .readableWidth($wide)
         .overlay { if model.presentations.isEmpty { empty } }
     }
@@ -197,8 +200,8 @@ struct AddButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) { Image(systemName: "plus").foregroundStyle(.white) }
-            .buttonStyle(.borderedProminent).buttonBorderShape(.circle).tint(.sky)
+        Button(action: action) { Image(systemName: "plus") }
+            .role("add").buttonBorderShape(.circle)
             .accessibilityLabel(label).help(label)
     }
 }

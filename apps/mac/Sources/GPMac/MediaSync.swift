@@ -8,8 +8,14 @@
 import Foundation
 
 extension AppState {
-    /// The most bytes kept of files nothing wants now (MEDIA-R14: 2 GiB), as on the web.
-    static let mediaBudget = 2 * 1024 * 1024 * 1024
+    /// The most bytes kept of files nothing wants now: the one chosen under Lagring (`gp.mediaBudget`), else
+    /// MEDIA-R14's 2 GiB, as on the web.
+    static var mediaBudget: Int {
+        let chosen = UserDefaults.standard.integer(forKey: "gp.mediaBudget")
+        return chosen > 0 ? chosen : 2 * 1024 * 1024 * 1024
+    }
+    /// Spara kommande presentationer offline, under Lagring (`gp.keepComing`).
+    static var keepComing: Bool { UserDefaults.standard.bool(forKey: "gp.keepComing") }
 
     /// Fetches and removes what the core says; once at a time, again if asked meanwhile.
     func syncMedia() {
@@ -19,19 +25,27 @@ extension AppState {
         Task { @MainActor in
             repeat {
                 mediaAgain = false
-                struct Plan: Decodable { let fetch: [String], drop: [String] }
+                struct Plan: Decodable { let fetch: [String], drop: [String], cache: Int }
                 // Listed off the main thread: a church's folder holds thousands of files.
                 let dir = AppScheme.mediaDir
                 let held = await Task.detached { MediaFiles.held(in: dir) }.value
+                // Rensa cache: this run with no room for what nothing wants now.
+                let clearing = clearCache
+                clearCache = false
                 let policy: [String: Any] = [
-                    "presenting": live.id ?? NSNull(), "persistent": true, "keepComing": false, "today": localToday(), "days": 7,
-                    "budget": Self.mediaBudget, "now": Int(Date().timeIntervalSince1970 * 1000),
+                    "presenting": live.id ?? NSNull(), "persistent": true, "keepComing": Self.keepComing, "today": localToday(), "days": 7,
+                    "budget": clearing ? 0 : Self.mediaBudget, "now": Int(Date().timeIntervalSince1970 * 1000),
                     "held": held.map { ["hash": $0.hash, "size": $0.size, "at": $0.at] as [String: Any] },
                     // The player's videos, the next item's fetched in advance too: never dropped while it needs them.
                     "inUse": Array(player.inUse),
                 ]
                 guard let plan = view("mediaPlanView", policy, as: Plan.self) else { break }
                 for hash in plan.drop { MediaFiles.remove(hash) }
+                // What Lagring shows: the folder after this run's drops, each offline presentation's bytes and the cache's.
+                let dropped = Set(plan.drop)
+                var report = policy
+                report["held"] = held.filter { !dropped.contains($0.hash) }.map { ["hash": $0.hash, "size": $0.size, "at": $0.at] as [String: Any] }
+                if let r = view("mediaStorageView", report, as: StorageReport.self) { storage = r }
                 var arrived = 0
                 for hash in plan.fetch {
                     guard await MediaFiles.file(hash, store: store) != nil else { continue }
@@ -44,6 +58,13 @@ extension AppState {
             mediaRunning = false
         }
     }
+}
+
+/// How this device's files are used (`mediaStorageView`): every file's bytes, each presentation kept offline with the
+/// bytes of the files it needs, those files once, and the cache.
+struct StorageReport: Decodable {
+    struct Offline: Decodable, Hashable { let presentationId: String, bytes: Int }
+    var total = 0, offline: [Offline] = [], offlineTotal = 0, cache = 0
 }
 
 /// A file of the media folder as the core takes it: its hash (its name), its size and its time in milliseconds.

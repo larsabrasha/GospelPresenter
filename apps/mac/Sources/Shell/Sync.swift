@@ -52,7 +52,8 @@ public final class SyncClient {
             return try Self.decode(core.call("syncOpen", ["clientId": UUID().uuidString.lowercased()], caller: caller).get())
         }
         clientId = opened.clientId
-        state = Self.object(try core.call("syncStepView", ["init": [:] as [String: Any]], caller: nil).get())["state"] as? [String: Any] ?? [:]
+        // `hooks`: this shell uploads first what a push needs (`beforePush`), as the web's client with its uploads.
+        state = Self.object(try core.call("syncStepView", ["init": ["hooks": true] as [String: Any]], caller: nil).get())["state"] as? [String: Any] ?? [:]
     }
 
     static func decode<T: Decodable>(_ json: String?) throws -> T {
@@ -126,7 +127,14 @@ public final class SyncClient {
     private func perform(_ effect: [String: Any], page: String?) {
         switch effect["type"] as? String {
         case "beforePush":
-            send(["type": "pushLimit", "limit": pendingCount]) // nothing is uploaded before a push here yet
+            // The files and Bible texts the queued changes name go up first, as the web's MediaUploads and
+            // BibleTextUploads send them; an upload that does not reach the server holds back its change and those after.
+            let limit = pendingCount
+            Task { [weak self] in
+                guard let self else { return }
+                let held = await uploadBeforePush(limit)
+                send(["type": "pushLimit", "limit": held])
+            }
         case "post":
             guard let path = effect["path"] as? String, let body = effect["body"] as? String else { return }
             Task { [weak self] in
@@ -192,6 +200,54 @@ public final class SyncClient {
     /// A media blob of the organisation's by its hash, written to `file`: whether the server had it.
     public func media(_ hash: String, to file: URL) async -> Bool {
         (try? await server.download("/api/media/\(hash)", as: session, to: file, sha256: hash)) ?? false
+    }
+
+    // ------------------------------------------------------------ uploads before a push
+
+    /// The folder this device keeps its media files in, each named by its hash: what an import put there is uploaded
+    /// from it before the change that names it is pushed.
+    public var mediaDir: URL?
+    /// When each blob last went up (hash → milliseconds), so one is sent once a push and not again within the grace.
+    private var uploadedBlobs: [String: Int] = [:]
+    /// The Bible texts that went up.
+    private var uploadedTexts: Set<String> = []
+
+    /// A file put in the media folder by an import, recorded so the core's changes may name it (`requireBlobs`) and
+    /// its upload lists it (`mediaUploadsView` reads `bytes IS NOT NULL`: the bytes stay in the folder, a mark here).
+    /// `held` false: a video, which went up in parts already and is only named here, as the web's addVideo records it.
+    public func recordBlob(_ hash: String, contentType: String, size: Int, held: Bool = true) {
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        _ = try? core.db.query("INSERT INTO media_blobs (hash, content_type, size, bytes, received_at) VALUES (?, ?, ?, \(held ? "X'00'" : "NULL"), ?) ON CONFLICT (hash) DO NOTHING",
+                               [.text(value: hash), .text(value: contentType), .integer(value: Int64(size)), .integer(value: Int64(now))])
+    }
+
+    /// Uploads what the queued changes name and the server may lack, the core's lists (`mediaUploadsView`,
+    /// `bibleUploadsView`): the push's limit, the place of the first change whose upload failed, else `limit`.
+    private func uploadBeforePush(_ limit: Int) async -> Int {
+        struct Blobs: Decodable { struct U: Decodable { let index: Int, hash: String }; let uploads: [U] }
+        struct Texts: Decodable { struct U: Decodable { let index: Int, hash: String, uploaded: Bool }; let uploads: [U] }
+        struct Text: Decodable { let json: String? }
+        var held = limit
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        let blobs = view("mediaUploadsView", ["uploaded": uploadedBlobs, "now": now], as: Blobs.self)?.uploads ?? []
+        var sent = Set<String>()
+        // As the web's MediaUploads and BibleTextUploads: only an unreachable server or a 5xx holds a change back; a file
+        // not here is not sent (the server refuses the change), and a refused one (4xx) would be refused again.
+        for u in blobs where u.index < held {
+            if sent.contains(u.hash) { continue }
+            guard let dir = mediaDir, let data = try? Data(contentsOf: dir.appending(path: u.hash)) else { continue }
+            guard let a = try? await server.put("/api/media/\(u.hash)", data: data, as: session), a.status < 500 else { held = u.index; break }
+            sent.insert(u.hash)
+            if a.status < 300 { uploadedBlobs[u.hash] = now }
+        }
+        let texts = view("bibleUploadsView", ["uploaded": Array(uploadedTexts)], as: Texts.self)?.uploads ?? []
+        for u in texts where !u.uploaded && u.index < held {
+            guard let json = view("bibleTextJsonView", ["hash": u.hash], as: Text.self)?.json else { continue }
+            guard let a = try? await server.put("/api/bibles/\(u.hash)", data: Data(json.utf8), contentType: "application/json", as: session),
+                  a.status < 500 else { held = u.index; break }
+            if a.status < 300 { uploadedTexts.insert(u.hash) }
+        }
+        return held
     }
 
     // ------------------------------------------------------------ the poke socket

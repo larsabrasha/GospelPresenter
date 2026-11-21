@@ -100,6 +100,24 @@ fn join(books: &[(String, String)]) -> String {
     format!("{{\"v\":1,\"books\":[{}]}}", parts.join(","))
 }
 
+/// `bibleImportTextView` {data (the zip, base64)}: an import as a shell keeps and records it (the web worker's
+/// importBible: `readBibleZip`, `serializeBibleText`, `bibleTextHash`, `bibleId`): the translation's `name`,
+/// `abbreviation`, `language` and `verses`, its `id`, and its text's canonical `json` and its `hash`, which
+/// `bibleTextStoreView` keeps and `importBible` names; refused as `bibleImportView` refuses.
+pub fn import_text_view(a: &Obj) -> R<Value> {
+    let bible = crate::bible_import::view(a)?;
+    let books: Vec<(String, String, usize)> = bible["books"].as_array().ok_or("no-verses")?.iter().map(|b| book(b).ok_or_else(|| "no-verses".to_string())).collect::<R<_>>()?;
+    let verses: usize = books.iter().map(|b| b.2).sum();
+    let json = join(&books.into_iter().map(|(c, k, _)| (c, k)).collect::<Vec<_>>());
+    let abbreviation = bible["abbreviation"].as_str().unwrap_or("");
+    let id = format!("bible:{}", crate::args::js_trim(&unicode_nfc(abbreviation)).to_lowercase());
+    Ok(json!({ "name": bible["name"], "abbreviation": abbreviation, "language": bible["language"], "verses": verses, "id": id,
+               "hash": sha256_hex(&json), "json": json }))
+}
+
+/// NFC, as JavaScript's `normalize('NFC')`.
+fn unicode_nfc(s: &str) -> String { unicode_normalization::UnicodeNormalization::nfc(s).collect() }
+
 fn sha256_hex(text: &str) -> String {
     Sha256::digest(text.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
 }

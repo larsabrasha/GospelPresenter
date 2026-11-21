@@ -21,6 +21,9 @@ struct OutputView: View {
         .onKeyPress(keys: [.rightArrow, .space, .return]) { _ in key(["type": "step", "delta": 1]) }
         .onKeyPress(.leftArrow) { key(["type": "step", "delta": -1]) }
         .onKeyPress("b") { key(["type": "black"]) }
+        #if os(macOS)
+        .onDisappear { AutoOutputs.shared.closed() }
+        #endif
     }
 
     /// A key, to the window that has the presentation presented open (a presentation has one window), else to this
@@ -37,10 +40,11 @@ struct OutputView: View {
 #if os(macOS)
 /// The output on a display of its own, filling it, when there is one besides the main one; else a window.
 enum OutputPlacement {
-    static func place() {
+    /// On `screen`, else the first display besides the main one.
+    static func place(on chosen: NSScreen? = nil) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             guard let window = NSApp.windows.first(where: { $0.title == t("live.outputWindow") }) else { return }
-            guard let screen = NSScreen.screens.first(where: { $0 != NSScreen.main }) else { return }
+            guard let screen = chosen ?? NSScreen.screens.first(where: { $0 != NSScreen.main }) else { return }
             window.styleMask = [.borderless]
             window.level = .mainMenu + 1
             window.setFrame(screen.frame, display: true)
@@ -55,42 +59,3 @@ enum OutputPlacement {
 }
 #endif
 
-/// Lägg till sång: the library searched as the core searches it, a song chosen with a tap, added after `at`.
-struct AddSongSheet: View {
-    @Environment(Model.self) private var model
-    let at: AddAt
-    @State private var query = ""
-    @State private var hits: [SongHit] = []
-    @State private var chosen: String?
-
-    var body: some View {
-        List(hits) { hit in
-            Button { chosen = hit.id } label: {
-                HStack {
-                    Text(hit.name).foregroundStyle(.primary)
-                    Spacer()
-                    if chosen == hit.id { Image(systemName: "checkmark").foregroundStyle(Color.sky) }
-                }
-                .frame(minHeight: 36)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .searchable(text: $query, placement: .automatic, prompt: t("presentation.searchSongs"))
-        .sheetBar(t("presentation.addKind", ["kind": t("add.song").lowercased()]), confirm: t("presentation.add"), disabled: chosen == nil, add)
-        .frame(minHeight: 360)
-        .macWidth(440)
-        .onAppear { hits = model.searchSongs("") }
-        .onChange(of: query) { _, q in hits = model.searchSongs(q); chosen = hits.first?.id }
-    }
-
-    private func add() -> Bool {
-        guard let songId = chosen, let pid = model.selectedPresentation else { return false }
-        let itemId = model.newId()
-        var args: [String: Any] = ["itemId": itemId, "presentationId": pid, "songId": songId]
-        if let after = at.after { args["afterItemId"] = after }
-        guard model.run("addSongToPresentation", args) == "ok" else { return false }
-        model.added(itemId)
-        return true
-    }
-}

@@ -54,4 +54,5 @@ apps/mac/Sources/Shell/CoreBindings.swift
 apps/mac/Sources/GPCoreFFI/gp_core_ffi.h
 # The web's texts as Swift (apps/mac/texts.mjs), and the slides' web bundle (apps/web/vite.slides.config.ts)
 apps/mac/Sources/GPMac/TextTable.swift
+apps/mac/Sources/GPMac/LookTable.swift
 apps/web/dist-slides/

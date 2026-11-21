@@ -55,7 +55,7 @@ function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route
   const mine = isOpen(MINE, route);
   const [query, setQuery] = useState('');
   const groups = settingsGroups(me, host);
-  const found = searchSettings(groups, query, t);
+  const found = searchSettings(me, host, query, t);
   return (
     <nav className="flex flex-col gap-[22px] split:gap-4" aria-label={t('nav.adminMenu')}>
       {/* Kept at the top while the list scrolls, as System Settings' on a Mac (Lars, 2026-11-06); its background as far

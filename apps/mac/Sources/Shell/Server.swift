@@ -7,6 +7,14 @@ import Security
 /// The signed-in user, as the server answers it (`Me` in packages/core/src/accounts.ts); what the shell needs of it.
 public struct Me: Codable, Equatable, Sendable {
     public let userId: String, name: String, role: String, orgId: String, orgName: String
+
+    public init(userId: String, name: String, role: String, orgId: String, orgName: String) {
+        self.userId = userId
+        self.name = name
+        self.role = role
+        self.orgId = orgId
+        self.orgName = orgName
+    }
 }
 
 /// A device's sign-in at a server: the session's bearer token, the paired device's token on a desktop host, and who.
@@ -15,6 +23,13 @@ public struct Session: Codable, Equatable, Sendable {
     public let token: String
     public let device: String?
     public var me: Me
+
+    public init(server: String, token: String, device: String?, me: Me) {
+        self.server = server
+        self.token = token
+        self.device = device
+        self.me = me
+    }
 }
 
 /// What a server answered: the status and the body's bytes.
@@ -105,7 +120,7 @@ public final class Server: Sendable {
     }
 
     /// `sha256(of:)` on a queue of its own: a video's takes a second, which Swift's few task threads should not wait.
-    static func hashed(_ file: URL) async -> String? {
+    public static func hashed(_ file: URL) async -> String? {
         await withCheckedContinuation { done in DispatchQueue.global(qos: .utility).async { done.resume(returning: sha256(of: file)) } }
     }
 
@@ -135,9 +150,21 @@ public final class Server: Sendable {
         }
     }
 
+    /// `data` as the body of a PUT (a media blob, a Bible text), as `s`.
+    public func put(_ path: String, data: Data, contentType: String = "application/octet-stream", as s: Session?, method: String = "PUT") async throws -> Answer {
+        var req = URLRequest(url: base.appending(path: path))
+        req.httpMethod = method
+        // A large file going up, or a deck the host draws, takes longer than a request's usual 20 s.
+        req.timeoutInterval = 600
+        for (k, v) in Self.headers(s) { req.setValue(v, forHTTPHeaderField: k) }
+        req.setValue(contentType, forHTTPHeaderField: "content-type")
+        let (body, res) = try await session.upload(for: req, from: data)
+        return Answer(status: (res as? HTTPURLResponse)?.statusCode ?? 0, body: body)
+    }
+
     /// The poke socket (`/api/sync/poke`): the credentials as subprotocols, so they stay out of the address and logs,
     /// as the web's `socketProtocols` sends them.
-    func socket(_ path: String, clientId: String, as s: Session) -> URLSessionWebSocketTask {
+    public func socket(_ path: String, clientId: String, as s: Session) -> URLSessionWebSocketTask {
         var parts = URLComponents(url: base.appending(path: path), resolvingAgainstBaseURL: false)!
         parts.scheme = base.scheme == "https" ? "wss" : "ws"
         parts.queryItems = [URLQueryItem(name: "clientId", value: clientId)]

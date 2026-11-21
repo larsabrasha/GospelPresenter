@@ -159,6 +159,73 @@ describe('detailsDialogView', () => {
   });
 });
 
+describe('pageButtonsView', () => {
+  type Buttons = { buttons: { id: string; text: string; role: string; enabled: boolean }[] };
+  const bar = (args: object) => nodeRustCore().pure<Buttons>('pageButtonsView', { place: 'presentationBar', ...args }).buttons;
+
+  it('offers Starta in its role while the presentation can start and has a slide', () => {
+    const start = bar({ presenting: false, canStart: true, hasSlides: true }).at(-1);
+
+    expect(start).toEqual({ id: 'start', text: 'presentation.start', icon: 'play', role: 'start', enabled: true });
+  });
+
+  it('holds Starta back while another presentation is presented', () => {
+    expect(bar({ presenting: false, canStart: false, hasSlides: true }).at(-1)?.enabled).toBe(false);
+  });
+
+  it('offers Avsluta while presenting', () => {
+    expect(bar({ presenting: true }).map((b) => [b.id, b.role])).toEqual([['back', 'quiet'], ['end', 'end']]);
+  });
+
+  it('gives the start page its + as an add', () => {
+    const buttons = nodeRustCore().pure<Buttons>('pageButtonsView', { place: 'startPage' }).buttons;
+
+    expect(buttons.map((b) => [b.id, b.role])).toEqual([['new', 'add']]);
+  });
+});
+
+describe('presentationColumnsView', () => {
+  type Columns = { columns: { id: string; shown: boolean; parts: string[]; foot: string[] }[] };
+  const columns = (presenting: boolean) => nodeRustCore().pure<Columns>('presentationColumnsView', { presenting }).columns;
+
+  it('never shows the next slide in the live column', () => {
+    const live = columns(true).find((c) => c.id === 'live');
+
+    expect(live?.parts).toEqual(['picture', 'outputs', 'overlays']);
+  });
+
+  it('shows the live column only while presenting', () => {
+    expect([columns(false), columns(true)].map((cs) => cs.find((c) => c.id === 'live')?.shown)).toEqual([false, true]);
+  });
+
+  it('keeps Lägg till within reach in the running order', () => {
+    const order = nodeRustCore().pure<{ columns: { id: string; sticky: string[] }[] }>('presentationColumnsView', { presenting: false }).columns[0];
+
+    expect(order?.sticky).toEqual(['add']);
+  });
+
+  it('lets each column be dragged wider or narrower within bounds, never folded by it', () => {
+    type Width = { ideal: number; min: number; max: number };
+    const cs = nodeRustCore().pure<{ columns: { width: Width; foldsByDrag: boolean }[] }>('presentationColumnsView', { presenting: true }).columns;
+
+    expect(cs.map((c) => [c.width.min <= c.width.ideal && c.width.ideal <= c.width.max, c.foldsByDrag])).toEqual([[true, false], [true, false]]);
+  });
+
+  it('folds each column by a button at its foot, at the edge beside the slides', () => {
+    expect(columns(true).map((c) => c.foot.at(-1))).toEqual(['fold', 'fold']);
+  });
+});
+
+describe('lookView', () => {
+  type Look = { colors: Record<string, { light: { name: string; hex: string } }>; roles: Record<string, { color: string | null; weight: string }> };
+
+  it('fills ▶ in emerald and ■ in red, as the web draws them', () => {
+    const look = nodeRustCore().pure<Look>('lookView', {});
+
+    expect([look.colors[look.roles.start!.color!]!.light.name, look.colors[look.roles.end!.color!]!.light.name]).toEqual(['emerald-500', 'red-500']);
+  });
+});
+
 describe('addPositionView', () => {
   it('adds after the last thing added while that is still ahead of the shown item', () => {
     const place = { order: ['welcome', 'song', 'added', 'reading'], shownId: 'song', lastAddedId: 'added', chosenId: null };

@@ -125,8 +125,11 @@ struct VideoFile: Decodable, Hashable { let hash: String, fileName: String, cont
 /// docs/view-models.md): its id, its text's key, whether it can be chosen, and a submenu's choices.
 struct MenuAction: Decodable, Hashable {
     /// An arrangement's (`name` nil: "Arrangemang {n}"; `text`, a key, for Original), or an overlay's (`text` for Ingen).
-    struct Choice: Decodable, Hashable { let id: String, name: String?, n: Int?, text: String? }
+    /// A kind to add (Lägg till efter ›) has its icon, and Programpunkt is set `apart` under a line.
+    struct Choice: Decodable, Hashable { let id: String, name: String?, n: Int?, text: String?, icon: String?, apart: Bool? }
     let id: String, text: String, enabled: Bool, destructive: Bool
+    /// The icon's name, the app's own (`lookView`'s icons); this app's SF Symbol for it is `Look.symbol`.
+    let icon: String?
     let choices: [Choice]?
     let chosen: String?
 }
@@ -175,7 +178,7 @@ struct PresentationView {
     }
 }
 
-struct SongHit: Decodable, Identifiable, Hashable { let id: String, name: String }
+struct SongHit: Decodable, Identifiable, Hashable { let id: String, name: String, author: String? }
 
 /// A slide: its item, and its place among the item's slides.
 struct SlideAt: Codable, Hashable { let itemId: String, partIndex: Int }

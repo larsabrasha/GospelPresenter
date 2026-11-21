@@ -347,6 +347,13 @@ test('capture every page', async () => {
     ['overlay', overlay, closeAdminMenu],
     ['themes', '/admin/themes', closeAdminMenu],
     ['about', '/admin/about', closeAdminMenu],
+    // The settings sections the native app's are compared with besides those above (docs/native-apps.md).
+    ['videos', '/admin/videos', closeAdminMenu],
+    ['custom-slides', '/admin/custom-slides', closeAdminMenu],
+    ['labels', '/admin/labels', closeAdminMenu],
+    ['ccli-report', '/admin/ccli-report', closeAdminMenu],
+    ['org-settings', '/admin/settings', closeAdminMenu],
+    ['reports', '/admin/reports', closeAdminMenu],
     [
       'themes-end',
       '/admin/themes',

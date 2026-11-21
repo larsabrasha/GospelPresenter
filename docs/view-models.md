@@ -64,6 +64,29 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 | `detailsDialogView` {isNew} | a presentation's details dialog: its title, its fields in their groups in order (the theme only for one there), its buttons in order with their texts and roles (Avbryt; Skapa, Skapar…, or Spara) | unit tests (`page-models.test.ts`); the web's e2e specs that make and edit presentations | web (`PresentationDetailsDialog.tsx`), Mac and iOS (`DetailsSheet`, whose bar draws the core's texts: on a Mac as buttons with them, on iOS 26 as the system's × and ✓ named by them) |
 | `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/rust-core/test/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
 
+Inställningar (Lars, 2026-11-21: settings in the native app, `crates/gp-core/src/settings_models.rs`,
+`settings_pages.rs`):
+
+| View | What it decides | Proved by | Read by |
+| --- | --- | --- | --- |
+| `settingsListView` {role, host}, `settingsSearchView` {role, host, query, texts}, `settingsSearchKeysView` | Inställningar's groups and rows: who sees which (the permission each needs, Enheter on a host only), each row's text, icon, colour and intro; the search over names and other words (the shell gives the words of the keys, as the core holds none) | Rust tests (`settings_models_tests.rs`); `apps/web/test/settingsLinks.test.ts` against the web's old expectations, and that the core names only texts the web writes out | web (`settingsLinks.ts`), Mac and iOS (`Settings.swift`) |
+| `mySettingsView` {role, superAdmin, desktop, email, emailConfirmed, mail} | Mina inställningar's groups and rows in order: Bekräfta e-post only for an unconfirmed address where the server mails, Superadminläge only for a Superadmin, Slå på utgångar automatiskt only in the desktop app | Rust tests | Mac and iOS (`SettingsMine.swift`); the web not yet |
+| `trashPageView` {role, now, kind?, query?} | the trash: the kinds a role manages, newest deletion first, days left, the mutators that restore and purge each, the tabs, whether to purge what expired | `packages/rust-core/test/settings-pages.test.ts` | Mac and iOS (`SettingsTrash.swift`); the web not yet (Trash.tsx has the same rules) |
+| `ccliPageView` {locale, filter, keep}, `themesPageView` {role} | the CCLI report's cards and filter; Teman's order, default and each theme's actions | the same | Mac and iOS; the web not yet |
+| `freshNameView`, `displayCodeView`, `labelColoursView`, `mediaImportView`, `storageLimitsView`, `bibleImportTextView` | a new thing's name; an output's code from random bytes; a label's swatches; what an import takes and how a picture is fitted; Lagring's limits; a Bible zip as the text and hash a shell keeps | the same, and `bible-import.test.ts` against the TS `serializeBibleText`, `bibleTextHash`, `bibleId` | Mac and iOS; the web reads `freshNameView` (`justCreated.ts`) |
+
+The editors and the rest of Inställningar (the same day, `theme_editor.rs`, `slide_editor.rs`, `image_edit.rs`,
+`org_transfer.rs`, `settings_pages.rs`): `themeEditorView`/`themeEditView`, `slideEditorView`/`slideEditView`/
+`slideHitView`/`editorSlideView`, `imageEditView`/`imageDrawView` (proved against the web's `imageEdit.ts` and
+`CropFrame.tsx` on 500 random pictures, `apps/web/test/imageEditCore.test.ts`), `libraryOrderView`, `deckImportView`,
+`deckPagesView`, `videoImportView`, `displayStatusView`, `exportPlanView`, `importManifestView`, `importPlanView`;
+`userRulesView` (what Användare and Enheter offer before pressing, proved against accounts.ts on every case,
+`packages/rust-core/test/user-rules.test.ts`), `autoOutputsView` (Slå på utgångar automatiskt on the Mac, proved
+against the web's `displaysToTurnOn` and useAutoOutputs's step, `apps/web/test/autoOutputsCore.test.ts`), `mediaStorageView` taking a folder's files (`held`) for Lagring;
+`songListView` gained letter sections, the sort by author and `index` (the letters at the edge), `songHistoryPageView` {id, today, yesterday} groups the
+versions by day, and `slideEditView`'s `insert` pastes a copied element under a new id; Rust tests of each, and `parity settings` against a real server. The web still decides these in its own TS; switching
+it to them is not done.
+
 `addPositionView` and `startPageView` had a TS function to port, so they are proved against it; the menus were JSX
 conditions, so they are proved by unit tests of each condition and by the e2e specs that open the menus.
 

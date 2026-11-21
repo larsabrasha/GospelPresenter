@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../src/i18n.ts';
-import { isOpen, MINE, searchSettings, settingsGroups } from '../src/pages/settings/settingsLinks.ts';
+import { pageCore } from '../src/db/pageCore.ts';
+import { isOpen, MINE, searchSettings, settingsGroups, SETTINGS_TEXTS } from '../src/pages/settings/settingsLinks.ts';
 
 const labels = (role: 'user' | 'admin' | 'superAdmin', host = false) => settingsGroups({ role }, host).flatMap((g) => g.links.map((l) => l.label));
 
@@ -50,9 +51,20 @@ describe('isOpen', () => {
   });
 });
 
+describe('the core’s texts', () => {
+  it('names only texts the web writes out', () => {
+    const named = [
+      ...pageCore().pure<string[]>('settingsSearchKeysView', {}),
+      ...settingsGroups({ role: 'superAdmin' }, true).flatMap((g) => [g.title, ...g.links.map((l) => l.intro)]),
+    ].filter((k): k is string => !!k);
+
+    expect(named.filter((k) => !(SETTINGS_TEXTS as readonly string[]).includes(k))).toEqual([]);
+  });
+});
+
 describe('searchSettings', () => {
-  const groups = settingsGroups({ role: 'admin' }, false);
-  const found = (query: string) => searchSettings(groups, query, t).map((l) => l.label);
+  const admin = { role: 'admin' } as const;
+  const found = (query: string) => searchSettings(admin, false, query, t).map((l) => l.label);
 
   it('finds a row by its name, whatever the case', () => {
     expect(found('sÅNG')).toContain('nav.songs');
@@ -67,8 +79,8 @@ describe('searchSettings', () => {
   });
 
   it('says where a result from Mina inställningar lives, and nothing for a row of the list', () => {
-    const [language] = searchSettings(groups, 'språk', t);
-    const [displays] = searchSettings(groups, 'projektor', t);
+    const [language] = searchSettings(admin, false, 'språk', t);
+    const [displays] = searchSettings(admin, false, 'projektor', t);
     expect([language?.where, displays?.where]).toEqual(['nav.settings', undefined]);
   });
 
@@ -77,7 +89,7 @@ describe('searchSettings', () => {
   });
 
   it('finds no row the user may not open', () => {
-    expect(searchSettings(settingsGroups({ role: 'admin' }, false), 'organisationer', t).map((l) => l.label)).not.toContain('nav.orgs');
+    expect(searchSettings(admin, false, 'organisationer', t).map((l) => l.label)).not.toContain('nav.orgs');
   });
 
   it('finds nothing for an empty query', () => {
