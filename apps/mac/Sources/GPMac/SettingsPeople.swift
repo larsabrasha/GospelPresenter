@@ -303,7 +303,8 @@ struct UserDetailPage: View {
 
     /// A new link: the old ones first removed, as the web's Skapa ny länk does.
     private func createInvite(replacing: Bool) async {
-        if replacing { _ = await model.api("DELETE", "/api/users/\(id)/invites") }
+        // The old link not removed (refused, offline): said, and no new one, as the web's: it is made to kill the old.
+        if replacing, let e = await model.api("DELETE", "/api/users/\(id)/invites").error { return message = hostRefusal(e) }
         struct Answer: Decodable { let inviteToken: String }
         switch await model.api("POST", "/api/users/\(id)/invites", as: Answer.self) {
         case let .ok(a): link = "\(model.session?.server ?? "")/invite#\(a.inviteToken)"

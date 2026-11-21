@@ -127,7 +127,8 @@ struct SongsPage: View {
         let id = UUID().uuidString.lowercased()
         let name = model.freshName(t("songs.new"), taken: all.map(\.name))
         if let e = change(model, "createSong", ["id": id, "name": name]) { return message = e }
-        message = change(model, "addSongPart", ["id": UUID().uuidString.lowercased(), "songId": id, "labelText": "Verse 1", "content": ""])
+        // Its part refused: said here, not opened (opening would push past the alert and leave a song with no part).
+        if let e = change(model, "addSongPart", ["id": UUID().uuidString.lowercased(), "songId": id, "labelText": "Verse 1", "content": ""]) { return message = e }
         opened = id
     }
 
