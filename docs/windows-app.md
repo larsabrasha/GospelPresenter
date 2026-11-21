@@ -41,19 +41,34 @@ The demo data is `crates/gp-core/parity/.out/fixtures/demo.sqlite`, made by `cra
 `dotnet build apps/windows/App -p:EnableWindowsTargeting=true` restores the Windows App SDK and builds the Shell for
 Windows, then stops at the XAML compiler.
 
-On Windows, with Rust (and Visual Studio's C++ build tools), the .NET 8 SDK and Node 22 or later; the demo data copied
-from a Mac to the same place:
+On Windows, with Rust (and Visual Studio's C++ build tools), the .NET 8 SDK or later and Node 22.18 or later (type
+stripping unflagged, as `texts.mjs` imports the web's `i18n.ts`; tested: 24.11.1); the demo data copied from a Mac to
+the same place, or made on Windows (below):
 
 ```powershell
-apps\windows\build\build.ps1 run               # the core, the bindings, the texts, the Shell's tests, then the app
-apps\windows\build\build.ps1 run -Arch arm64   # the same for ARM64
+apps\windowsuilduild.ps1 run               # the core, the bindings, the texts, the Shell's tests, then the app
+apps\windowsuilduild.ps1 run -Arch arm64   # the same for ARM64
 ```
 
-The app keeps its data in `%LOCALAPPDATA%\GospelPresenter\app.sqlite`, copied from the demo on the first start and
-brought to today's schema (`migrateOrgSchema`) on each.
+The app builds with `dotnet` alone, without Visual Studio: `EnableMsixTooling` in `App.csproj` has the Windows App SDK
+make the resource index (`resources.pri`) itself, where its default looks for Visual Studio's AppxPackage tasks
+(MSB4062 in `MrtCore.PriGen.targets`). The Windows App SDK 1.6 and the XAML built as written on the Mac. Mica only
+from Windows 11 (`MicaController.IsSupported()`); on Windows 10 the page has the theme's background brush.
 
-## Not checked
+The demo data on Windows: `pnpm install`, then `crates/gp-core/build.sh`'s lines for `ts-core.mjs`, `ts-core.min.mjs`
+(the reference at 238d481b through esbuild) and `gp_core.wasm`, then
+`node parity/demo-seed.mjs <abs path>/parity/.out/fixtures` in `crates/gp-core`; in Git Bash, `pwd -W` gives the
+Windows paths esbuild and Node need.
 
-The app has not been built or run: it is written, not seen. Its first build on Windows will say what the Mac cannot:
-the XAML, the Windows App SDK's version (1.6), and the DLL loading beside the app. GitHub Actions' Windows runners
-could build it too, which needs the branch pushed.
+The app keeps its data in `%LOCALAPPDATA%\GospelPresenterpp.sqlite`, copied from the demo on the first start and
+brought to today's schema (`migrateOrgSchema`) on each. The old app (v1) keeps its own in the same folder
+(`gospelpresenter.db`); neither touches the other's files.
+
+## Checked, and not
+
+Lars, 2026-11-21, on Windows 10 (19045, x64): `build.ps1 run` builds the core, the bindings and the texts, the Shell's
+12 tests pass against the core and the demo data, and the app starts with gp_core_ffi.dll beside it; read through UI
+Automation, its window holds the start page's list (Senast ändrade) with the demo's presentations, each row's name and
+date line. Not seen: what the window draws. On that machine every capture of a WinUI window (GDI's and
+Windows.Graphics.Capture's) came out empty, Microsoft's own Photos (WinUI 3) as much as this app, so the picture is
+for a look at the screen. Not built: ARM64, and Windows 11 with Mica.

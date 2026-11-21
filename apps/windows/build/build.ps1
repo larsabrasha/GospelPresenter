@@ -3,8 +3,8 @@
 #   apps\windows\build\build.ps1              build the core, the bindings and the texts; test the Shell library
 #   apps\windows\build\build.ps1 run          that, then start the app
 #   apps\windows\build\build.ps1 -Arch arm64  for ARM64 (default: this machine's)
-# Needs Rust (rustup, with Visual Studio's C++ build tools), the .NET 8 SDK and Node 22 or later; installs
-# uniffi-bindgen-cs on the first run.
+# Needs Rust (rustup, with Visual Studio's C++ build tools), the .NET 8 SDK or later and Node 22.18 or later (type
+# stripping unflagged; tested: 24.11.1); installs uniffi-bindgen-cs on the first run.
 param([string]$Command = "build", [string]$Arch = $(if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }))
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path "$PSScriptRoot\..\..\.."
@@ -12,6 +12,9 @@ $Win = "$Root\apps\windows"
 Set-Location $Root
 
 function Run([string]$exe) {
+    # A program's stderr (rustup's and cargo's progress) is not a failure: Windows PowerShell 5.1 stops on it under
+    # "Stop" when the output is redirected. The exit code says.
+    $ErrorActionPreference = "Continue"
     & $exe @args
     if ($LASTEXITCODE -ne 0) { throw "$exe $args failed ($LASTEXITCODE)" }
 }

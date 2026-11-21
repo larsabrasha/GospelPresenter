@@ -3,10 +3,11 @@
 // Mac's. Written only when it changed. build/core.sh and build/build.ps1 run it.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { texts } = await import(join(here, '../web/src/i18n.ts'));
+// A file URL: a Windows path (C:\…) is no URL to import.
+const { texts } = await import(pathToFileURL(join(here, '../web/src/i18n.ts')).href);
 const out = join(here, 'Shell/texts.json');
 const json = JSON.stringify(texts);
 let old = '';

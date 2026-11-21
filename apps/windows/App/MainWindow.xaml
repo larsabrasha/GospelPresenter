@@ -7,10 +7,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:GospelPresenter.App"
     Title="Gospel Presenter">
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
-    <Grid Padding="24,16">
+    <!-- Mica where Windows has it (11), set in code; on Windows 10 the theme's page background. -->
+    <Grid x:Name="Page" Padding="24,16" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
