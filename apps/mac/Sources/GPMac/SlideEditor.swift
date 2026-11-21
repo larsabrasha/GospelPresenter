@@ -109,14 +109,16 @@ struct SlideEditorPage: View {
             guard let row = model.view("customSlideView", ["id": id], as: Row.self) else { missing = true; return }
             name = row.name
             pages = row.pages
-            // Read again with fewer pages (removed on another device): the page shown kept within them.
-            at = min(at, max(0, pages.count - 1))
         case .overlay:
             struct Row: Decodable { let title: String, content: String? }
             guard let row = model.view("overlayRowView", ["id": id], as: Row.self) else { missing = true; return }
             name = row.title
             pages = [row.content.flatMap { try? JSONDecoder().decode(JSONValue.self, from: Data($0.utf8)) } ?? .object(["background": .null, "backgroundPicture": .null, "backgroundPage": .null, "elements": .array([])])]
         }
+        // Read again (the page shown anew, with pages perhaps removed on another device): the page shown kept within
+        // them, and the history of before dropped, as Ångra would put back pages removed since.
+        at = min(at, max(0, pages.count - 1))
+        (past, future, picked) = ([], [], nil)
         if pages.isEmpty { missing = true }
     }
 

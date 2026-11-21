@@ -32,7 +32,9 @@ struct RefusalAlert: ViewModifier {
         latest += 1
         let mine = latest
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            guard mine == latest, message == text || message == nil, shown != text else { return }
+            // (No "already shown" check: a message set while it could not be presented stays in `shown` with no alert,
+            // and the same refusal again must close and show it anew; one truly on screen keeps `message`, so no show.)
+            guard mine == latest, message == text || message == nil else { return }
             if shown == nil { shown = text; return }
             shown = nil
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { if mine == latest { shown = text } }
