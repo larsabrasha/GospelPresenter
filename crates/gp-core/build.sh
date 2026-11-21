@@ -69,12 +69,19 @@ NODE_PATH=$ROOT/packages/sync/node_modules:$NODE_PATH "$ESBUILD" "$OUT/ts-sync-e
 # The Mac app over the core's UniFFI interface (crates/gp-core-ffi), its Swift bindings generated first.
 "$ROOT/crates/gp-core-ffi/bindings.sh"
 node "$ROOT/apps/mac/texts.mjs"
-(cd "$ROOT/apps/mac" && swift build -c release 2>&1 | grep -E "error|warning: |Build complete")
+# Its log kept and read after, as sh has no pipefail: a failed build stops here with its errors.
+if ! (cd "$ROOT/apps/mac" && swift build -c release > "$OUT/swift-build.log" 2>&1); then
+  grep -E "error" "$OUT/swift-build.log" >&2; echo "swift build failed ($OUT/swift-build.log)" >&2; exit 1
+fi
+grep -E "warning: |Build complete" "$OUT/swift-build.log" || true
 # SwiftPM's link writes the deployment target (14.0) as the SDK the app was built with, and AppKit then draws it as an
 # app of macOS 14: no Liquid Glass. The SDK it was built with written instead, and signed again (Lars, 2026-11-21).
 SDK=$(xcrun --show-sdk-version)
-# The app as a bundle too (apps/mac/bundle.sh), as its accent lives in one.
-"$ROOT/apps/mac/bundle.sh" >/dev/null 2>&1
+# The app as a bundle too (apps/mac/bundle.sh), as its accent lives in one; with the demo data and the slide renderer
+# among its resources, so it runs opened from Finder (the slides drawn by the web's SlideView, docs/native-apps.md).
+[ -f "$OUT/fixtures/demo.sqlite" ] || node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
+(cd "$ROOT/apps/web" && pnpm exec vite build -c vite.slides.config.ts --logLevel warn)
+"$ROOT/apps/mac/bundle.sh" "$OUT/fixtures/demo.sqlite" "$ROOT/apps/web/dist-slides" >/dev/null || { echo "apps/mac/bundle.sh failed" >&2; exit 1; }
 for bin in GPMac parity; do
   B="$ROOT/apps/mac/.build/release/$bin"
   vtool -set-build-version macos 14.0 "$SDK" -replace -output "$B.sdk" "$B" && mv "$B.sdk" "$B" && codesign -f -s - "$B" 2>/dev/null
@@ -120,11 +127,8 @@ case "$1" in
     ;;
   run)
     RUN=$ROOT/apps/mac/run
-    [ -f "$OUT/fixtures/demo.sqlite" ] || node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
     mkdir -p "$RUN" && rm -f "$RUN/app.sqlite" "$RUN/app.sqlite-wal" "$RUN/app.sqlite-shm"
     cp "$OUT/fixtures/demo.sqlite" "$RUN/"
-    # The slides drawn by the web's SlideView, from the repository's build of it (docs/native-apps.md).
-    (cd "$ROOT/apps/web" && pnpm exec vite build -c vite.slides.config.ts --logLevel warn)
     GP_MAC_DATA="$RUN" GP_SLIDES="$ROOT/apps/web/dist-slides" exec "$ROOT/apps/mac/.build/release/GPMac"
     ;;
 esac

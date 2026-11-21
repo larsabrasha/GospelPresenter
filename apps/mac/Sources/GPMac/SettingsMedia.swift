@@ -262,7 +262,7 @@ extension MediaFiles {
             struct Play: Decodable { let url: String }
             guard let hash = f.hash, let play = await model.api("POST", "/api/media/\(hash)/play", as: Play.self).value,
                   let session = model.session, let server = try? Server(session.server) else { return nil }
-            let target = FileManager.default.temporaryDirectory.appending(path: "\(hash)-\(f.fileName)")
+            let target = FileManager.default.temporaryDirectory.appending(path: "\(hash)-\(f.fileName.fileSafe)")
             return (try? await server.download(play.url, as: session, to: target)) == true ? target : nil
         }
     }

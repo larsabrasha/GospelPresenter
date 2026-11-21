@@ -196,7 +196,22 @@ struct SettingsDetail: View {
     }
 }
 
+extension String {
+    /// The name fit for a file of its own: a "/" or ":" (which a library name may hold) would name a folder.
+    var fileSafe: String { replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") }
+}
+
 extension View {
+    /// A field saved when it is left, as the web's fields save on blur: ↵, focus moving away (Tab, a click elsewhere),
+    /// or the view closing while it has focus (‹ back). `focus` is the caller's, so an editor knows a field is being
+    /// typed in and leaves ⌘Z, ⌘X, ⌘C and ⌘V to it.
+    func savedWhenLeft(_ focus: FocusState<Bool>.Binding, save: @escaping () -> Void) -> some View {
+        focused(focus)
+            .onSubmit(save)
+            .onChange(of: focus.wrappedValue) { was, now in if was, !now { save() } }
+            .onDisappear { if focus.wrappedValue { save() } }
+    }
+
     /// A sheet's least size on a Mac, where a sheet is as small as its content; iOS sizes its own sheets.
     @ViewBuilder func sheetSize(_ width: CGFloat, _ height: CGFloat) -> some View {
         #if os(macOS)

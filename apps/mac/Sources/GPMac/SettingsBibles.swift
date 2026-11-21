@@ -91,6 +91,7 @@ struct BibleDetailPage: View {
     @Environment(Model.self) private var model
     let id: String
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var busy = false
     @State private var deleting = false
     @State private var message: String?
@@ -101,7 +102,7 @@ struct BibleDetailPage: View {
         Form {
             if let bible {
                 TextField(t("song.name"), text: $name).limited($name, to: 200)
-                    .onSubmit {
+                    .savedWhenLeft($naming) {
                         let v = name.trimmingCharacters(in: .whitespaces)
                         if !v.isEmpty, v != bible.name { message = change(model, "renameBible", ["id": id, "name": v]) }
                     }
@@ -267,12 +268,12 @@ struct CustomSlidesPage: View {
         switch await DeckImport.pages(url, model: model) {
         case let .failure(r): message = DeckImport.text(r.problem)
         case let .success((pages, charts)):
-            if let into {
-                message = change(model, "updateCustomSlide", ["id": into, "pages": pages, "at": nowMs()]) ?? t("slideDecks.replaced", ["name": url.lastPathComponent])
-            } else {
-                message = change(model, "createCustomSlide", ["id": UUID().uuidString.lowercased(), "name": url.lastPathComponent, "pages": pages, "at": nowMs()])
-            }
-            if message == nil, charts { message = t("slides.charts") }
+            let refused = into.map { change(model, "updateCustomSlide", ["id": $0, "pages": pages, "at": nowMs()]) }
+                ?? change(model, "createCustomSlide", ["id": UUID().uuidString.lowercased(), "name": url.lastPathComponent, "pages": pages, "at": nowMs()])
+            // The chart notice after a replace too, with the words that it was replaced.
+            let done = into == nil ? nil : t("slideDecks.replaced", ["name": url.lastPathComponent])
+            let said = [done, charts ? t("slides.charts") : nil].compactMap { $0 }
+            message = refused ?? (said.isEmpty ? nil : said.joined(separator: "\n"))
         }
     }
 

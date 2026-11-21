@@ -87,8 +87,9 @@ final class Model {
     var syncProblem: String? { app.syncProblem }
     var lists: [StartList] { app.lists }
     var presentations: [PresentationRow] { app.lists.flatMap(\.rows) }
+    /// The signed-in user's role as the server says it (`me.role`, as the web reads it); the demo's picker's without one.
     var role: String {
-        get { app.role }
+        get { app.session?.me.role ?? app.role }
         set { app.role = newValue }
     }
     var live: Live { app.live }

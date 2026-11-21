@@ -28,6 +28,8 @@ struct SlideEditorPage: View {
     @State private var picked: String?
     @State private var tab: String?
     @State private var name = ""
+    /// A field being typed in (the name, an element's text): ⌘X, ⌘C, ⌘V and ⌘Z are then the field's, not the page's.
+    @FocusState private var typing: Bool
     @State private var past: [[JSONValue]] = []
     @State private var future: [[JSONValue]] = []
     @State private var choosing: String?
@@ -78,14 +80,14 @@ struct SlideEditorPage: View {
                 // Klipp ut, Kopiera and Klistra in, as the web's element menu and its keys.
                 Menu {
                     Button(t("slideEditor.cut"), systemImage: "scissors") { if let e = editor?.element { clip = e; edit(["op": "remove", "id": picked ?? ""]) } }
-                        .disabled(editor?.element == nil).keyboardShortcut("x", modifiers: .command)
+                        .disabled(editor?.element == nil).keyboardShortcut(key("x"))
                     Button(t("slideEditor.copy"), systemImage: "doc.on.doc") { clip = editor?.element }
-                        .disabled(editor?.element == nil).keyboardShortcut("c", modifiers: .command)
+                        .disabled(editor?.element == nil).keyboardShortcut(key("c"))
                     Button(t("slideEditor.paste"), systemImage: "doc.on.clipboard") { if let clip { edit(["op": "insert", "element": clip.any, "id": newId()]) } }
-                        .disabled(clip == nil).keyboardShortcut("v", modifiers: .command)
+                        .disabled(clip == nil).keyboardShortcut(key("v"))
                 } label: { Label(t("slideEditor.paste"), systemImage: "doc.on.clipboard") }
-                Button(t("slideEditor.undo"), systemImage: "arrow.uturn.backward") { step(back: true) }.disabled(past.isEmpty).keyboardShortcut("z", modifiers: .command)
-                Button(t("slideEditor.redo"), systemImage: "arrow.uturn.forward") { step(back: false) }.disabled(future.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
+                Button(t("slideEditor.undo"), systemImage: "arrow.uturn.backward") { step(back: true) }.disabled(past.isEmpty).keyboardShortcut(key("z"))
+                Button(t("slideEditor.redo"), systemImage: "arrow.uturn.forward") { step(back: false) }.disabled(future.isEmpty).keyboardShortcut(key("z", [.command, .shift]))
             }
         }
         .onAppear(perform: load)
@@ -195,7 +197,7 @@ struct SlideEditorPage: View {
             if editor.element == nil {
                 Section {
                     TextField(t("song.name"), text: $name).limited($name, to: 200)
-                        .onSubmit { rename() }
+                        .savedWhenLeft($typing) { rename() }
                 }
             } else if let tabs = editor.tabs {
                 Picker(t("slideEditor.format"), selection: Binding(get: { editor.tab ?? "" }, set: { tab = $0 })) {
@@ -228,7 +230,9 @@ struct SlideEditorPage: View {
     @ViewBuilder private func control(_ c: SlideEditorModel.Control) -> some View {
         switch c.kind {
         case "textArea":
-            TextAreaControl(text: c.value?.string ?? "", label: t(c.text)) { changeElement(["text": $0]) }.id(picked)
+            // Saved to the element it was typed into, though another is picked by the time it saves.
+            let element = picked ?? ""
+            TextAreaControl(text: c.value?.string ?? "", label: t(c.text), typing: $typing) { edit(["op": "change", "id": element, "patch": ["text": $0]]) }.id(picked)
         case "slider":
             let v: Double = { if case let .number(n)? = c.value { n } else { 0 } }()
             LabeledContent(t(c.text)) {
@@ -293,6 +297,11 @@ struct SlideEditorPage: View {
 
     // MARK: changes
 
+    /// The page's key, none while a field is typed in (a toolbar button's key goes before the field's own).
+    private func key(_ k: Character, _ modifiers: EventModifiers = .command) -> KeyboardShortcut? {
+        typing ? nil : KeyboardShortcut(KeyEquivalent(k), modifiers: modifiers)
+    }
+
     private func changeElement(_ patch: [String: Any]) {
         guard let picked else { return }
         edit(["op": "change", "id": picked, "patch": patch])
@@ -340,17 +349,21 @@ struct SlideEditorPage: View {
 }
 
 /// A text element's words, saved half a second after the last key as the web's textarea is.
+/// What is typed when the element stops being edited (another picked) is saved then, not lost.
 struct TextAreaControl: View {
     let text: String, label: String
+    var typing: FocusState<Bool>.Binding
     let save: (String) -> Void
     @State private var draft = ""
 
     var body: some View {
         TextEditor(text: $draft).frame(minHeight: 80).accessibilityLabel(label)
+            .focused(typing)
             .onAppear { draft = text }
             .onChange(of: draft) { _, v in
                 let now = v
                 Task { try? await Task.sleep(for: .milliseconds(500)); if draft == now, now != text { save(now) } }
             }
+            .onDisappear { if draft != text { save(draft) } }
     }
 }

@@ -22,6 +22,8 @@ struct ThemeEditorPage: View {
     let id: String
     @State private var definition: JSONValue?
     @State private var name = ""
+    /// The name field being typed in: ⌘Z is then the field's, not the definition's.
+    @FocusState private var naming: Bool
     @State private var kind = "song"
     @State private var picked: String?
     @State private var past: [JSONValue] = []
@@ -62,8 +64,10 @@ struct ThemeEditorPage: View {
         .navigationTitle(name)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button(t("slideEditor.undo"), systemImage: "arrow.uturn.backward") { step(back: true) }.disabled(past.isEmpty).keyboardShortcut("z", modifiers: .command)
-                Button(t("slideEditor.redo"), systemImage: "arrow.uturn.forward") { step(back: false) }.disabled(future.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
+                Button(t("slideEditor.undo"), systemImage: "arrow.uturn.backward") { step(back: true) }.disabled(past.isEmpty)
+                    .keyboardShortcut(naming ? nil : KeyboardShortcut("z", modifiers: .command))
+                Button(t("slideEditor.redo"), systemImage: "arrow.uturn.forward") { step(back: false) }.disabled(future.isEmpty)
+                    .keyboardShortcut(naming ? nil : KeyboardShortcut("z", modifiers: [.command, .shift]))
             }
         }
         .onAppear(perform: load)
@@ -72,6 +76,9 @@ struct ThemeEditorPage: View {
         }
         .refusal($message)
     }
+
+    /// The theme's name as kept, so leaving the field unchanged saves nothing.
+    private var stored: String? { model.view("ownThemeView", ["id": id], as: Own.self)?.theme.name }
 
     private func load() {
         guard let own = model.view("ownThemeView", ["id": id], as: Own.self) else { return }
@@ -150,7 +157,7 @@ struct ThemeEditorPage: View {
             if picked == nil {
                 Section {
                     TextField(t("song.name"), text: $name).limited($name, to: 100)
-                        .onSubmit { let v = name.trimmingCharacters(in: .whitespaces); if !v.isEmpty { message = change(model, "updateTheme", ["id": id, "name": v, "at": nowMs()]) } }
+                        .savedWhenLeft($naming) { let v = name.trimmingCharacters(in: .whitespaces); if !v.isEmpty, v != stored { message = change(model, "updateTheme", ["id": id, "name": v, "at": nowMs()]) } }
                 }
             } else {
                 Section { Button(t("themeEditor.backgroundOf", ["kind": t("themeEditor.\(kind)").lowercased()]), systemImage: "chevron.left") { picked = nil } }

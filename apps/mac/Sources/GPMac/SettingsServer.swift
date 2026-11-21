@@ -379,6 +379,7 @@ struct OrgDetailPage: View {
     let id: String
     @State private var org: Detail?
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var typed = ""
     @State private var message: String?
     struct Detail: Decodable { struct Member: Decodable, Identifiable { let id: String, name: String, role: String }; let name: String, users: [Member] }
@@ -386,8 +387,10 @@ struct OrgDetailPage: View {
     var body: some View {
         Form {
             if let org {
-                TextField(t("org.name"), text: $name).onSubmit {
-                    Task { message = await model.api("PATCH", "/api/orgs/\(id)", ["name": name.trimmingCharacters(in: .whitespaces)]).error.map(hostRefusal) }
+                TextField(t("org.name"), text: $name).savedWhenLeft($naming) {
+                    let v = name.trimmingCharacters(in: .whitespaces)
+                    guard !v.isEmpty, v != org.name else { return }
+                    Task { message = await model.api("PATCH", "/api/orgs/\(id)", ["name": v]).error.map(hostRefusal) }
                 }
                 Section(t("org.membersTitle", ["n": org.users.count])) {
                     if org.users.isEmpty { Text(t("org.noMembers")).foregroundStyle(.secondary) }

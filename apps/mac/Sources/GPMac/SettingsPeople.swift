@@ -185,8 +185,12 @@ struct UserDetailPage: View {
     @State private var mail = false
     @State private var name = ""
     @State private var email = ""
+    @FocusState private var naming: Bool
+    @FocusState private var addressing: Bool
     @State private var link: String?
     @State private var removing = false
+    @State private var deletingLogin: LoginEntry?
+    @State private var deletingInvite = false
     @State private var message: String?
 
     private var me: Bool { model.session?.me.userId == id }
@@ -196,8 +200,14 @@ struct UserDetailPage: View {
             if let user, let rules = model.userRules([user])[user.id] {
                 Section {
                     if rules.canEdit {
-                        TextField(t("users.name"), text: $name).onSubmit { patch(["name": name.trimmingCharacters(in: .whitespaces)]) }
-                        TextField(t("users.email"), text: $email).onSubmit { let e = email.trimmingCharacters(in: .whitespaces); patch(["email": e.isEmpty ? NSNull() : e]) }
+                        TextField(t("users.name"), text: $name).savedWhenLeft($naming) {
+                            let v = name.trimmingCharacters(in: .whitespaces)
+                            if v != user.name { patch(["name": v]) }
+                        }
+                        TextField(t("users.email"), text: $email).savedWhenLeft($addressing) {
+                            let e = email.trimmingCharacters(in: .whitespaces)
+                            if e != (user.email ?? "") { patch(["email": e.isEmpty ? NSNull() : e]) }
+                        }
                     } else {
                         LabeledContent(t("users.name"), value: user.name)
                         LabeledContent(t("users.email"), value: user.email ?? "–")
@@ -216,9 +226,7 @@ struct UserDetailPage: View {
                             Text(l.name ?? t("userDetail.provider.\(l.provider)"))
                             Spacer()
                             if rules.canAccount {
-                                Button(t("userDetail.deleteLogin"), role: .destructive) {
-                                    Task { message = await model.api("DELETE", "/api/users/\(id)/logins/\(l.provider)/\(l.id)").error.map(hostRefusal); await load() }
-                                }.buttonStyle(.borderless)
+                                Button(t("userDetail.deleteLogin"), role: .destructive) { deletingLogin = l }.buttonStyle(.borderless)
                             }
                         }
                     }
@@ -226,7 +234,7 @@ struct UserDetailPage: View {
                 Section(t("userDetail.inviteLink")) {
                     if let i = user.invite {
                         LabeledContent(i.expired ? t("userDetail.expired") : t("userDetail.active"), value: i.expired ? "" : t("userDetail.expiresIn", ["time": relative(i.expiresAt)]))
-                        if rules.canAccount { Button(t("userDetail.deleteInvite"), role: .destructive) { Task { message = await model.api("DELETE", "/api/users/\(id)/invites").error.map(hostRefusal); await load() } } }
+                        if rules.canAccount { Button(t("userDetail.deleteInvite"), role: .destructive) { deletingInvite = true } }
                     }
                     if rules.canAccount { Button(t(user.invite == nil ? "userDetail.createInvite" : "userDetail.newLink")) { Task { await createInvite(replacing: user.invite != nil) } } }
                     if mail, rules.canAccount, let e = user.email {
@@ -247,6 +255,18 @@ struct UserDetailPage: View {
                 Task { if let e = await model.api("DELETE", "/api/users/\(id)").error { message = hostRefusal(e) } else { dismiss() } }
             }
         } message: { Text(t("users.removeConfirm", ["name": user?.name ?? ""])) }
+        // A login and the invite link are removed only once asked, as the web asks: a passkey or Google login removed
+        // cannot be had back.
+        .confirmationDialog(t("userDetail.deleteLogin"), isPresented: Binding(get: { deletingLogin != nil }, set: { if !$0 { deletingLogin = nil } }), presenting: deletingLogin) { l in
+            Button(t("common.delete"), role: .destructive) {
+                Task { message = await model.api("DELETE", "/api/users/\(id)/logins/\(l.provider)/\(l.id)").error.map(hostRefusal); await load() }
+            }
+        } message: { l in Text(t("userDetail.confirmDeleteLogin", ["provider": l.name ?? t("userDetail.provider.\(l.provider)")])) }
+        .confirmationDialog(t("userDetail.deleteInvite"), isPresented: $deletingInvite) {
+            Button(t("common.delete"), role: .destructive) {
+                Task { message = await model.api("DELETE", "/api/users/\(id)/invites").error.map(hostRefusal); await load() }
+            }
+        } message: { Text(t("userDetail.confirmDeleteInvite")) }
         .refusal($message)
     }
 

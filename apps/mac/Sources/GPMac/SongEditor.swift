@@ -90,6 +90,12 @@ struct SongEditorPage: View {
     private func save(_ value: String, _ args: (String) -> [String: Any]) {
         let v = value.trimmingCharacters(in: .whitespaces)
         if args(v)["name"] != nil, v.isEmpty { return }
+        // Only a change: the fields filled from the song on appearing are no edit, and updateSong renames the song's
+        // items (resetting a title of their own) and is pushed each time.
+        if let s = page?.song, let key = args(v).keys.first {
+            let stored = ["name": s.name, "author": s.author ?? "", "publisher": s.publisher ?? "", "year": s.year.map(String.init) ?? "", "ccli": s.ccli ?? ""]
+            if stored[key] == v { return }
+        }
         message = change(model, "updateSong", args(v).merging(["id": id]) { a, _ in a })
     }
 }
@@ -189,6 +195,7 @@ struct ArrangementPage: View {
     @Environment(\.dismiss) private var dismiss
     let songId: String, id: String
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var removing = false
     @State private var message: String?
 
@@ -197,7 +204,10 @@ struct ArrangementPage: View {
         let a = page?.arrangements.first { $0.id == id }
         Form {
             if let page, let a {
-                TextField(t("song.name"), text: $name).onSubmit { message = change(model, "updateArrangement", ["id": id, "name": name.trimmingCharacters(in: .whitespaces)]) }
+                TextField(t("song.name"), text: $name).savedWhenLeft($naming) {
+                    let v = name.trimmingCharacters(in: .whitespaces)
+                    if v != (a.name ?? "") { message = change(model, "updateArrangement", ["id": id, "name": v]) }
+                }
                 Section(t("song.arrangementParts")) {
                     ForEach(Array(a.ids.enumerated()), id: \.offset) { i, part in
                         HStack {
@@ -305,7 +315,7 @@ struct MaterialsPage: View {
     /// The file under its title and type's extension, as Quick Look names and shares it.
     private func named(_ file: URL, _ m: Material) -> URL {
         let ext = m.contentType == "application/pdf" ? "pdf" : (UTType(mimeType: m.contentType ?? "")?.preferredFilenameExtension ?? "m4a")
-        let copy = FileManager.default.temporaryDirectory.appending(path: "\(m.title).\(ext)")
+        let copy = FileManager.default.temporaryDirectory.appending(path: "\(m.title.fileSafe).\(ext)")
         try? FileManager.default.removeItem(at: copy)
         return (try? FileManager.default.copyItem(at: file, to: copy)) != nil ? copy : file
     }

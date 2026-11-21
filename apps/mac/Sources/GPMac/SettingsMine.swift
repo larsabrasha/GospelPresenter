@@ -35,6 +35,7 @@ struct MySettingsPage: View {
     @State private var me: FullMe?
     @State private var mail = false
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var changingEmail = false
     @State private var message: String?
     @State private var language = Texts.language
@@ -64,7 +65,7 @@ struct MySettingsPage: View {
     @ViewBuilder private func row(_ r: MineRow) -> some View {
         switch r.kind {
         case "field":
-            TextField(t(r.text), text: $name).onSubmit { Task { await saveName() } }
+            TextField(t(r.text), text: $name).savedWhenLeft($naming) { Task { await saveName() } }
                 .disabled(model.session == nil)
         case "value":
             LabeledContent(t(r.text)) {

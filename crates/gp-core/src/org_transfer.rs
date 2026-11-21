@@ -25,6 +25,15 @@ fn file_safe(name: &str) -> String {
     if t.is_empty() { "organisation".into() } else { t }
 }
 
+/// The Bible texts an export holds, each with the row that names it: one per text, as orgExport.ts's Map, as two
+/// translations may share one (the same text under two abbreviations).
+fn bible_texts(rows: &Value) -> Vec<(String, String)> {
+    let mut seen = std::collections::HashSet::new();
+    rows["bibles"].as_array().map(Vec::as_slice).unwrap_or_default().iter()
+        .filter_map(|b| Some((b["content_hash"].as_str()?.to_string(), format!("bibles {}", b["id"].as_str().unwrap_or("")))))
+        .filter(|(h, _)| seen.insert(h.clone())).collect()
+}
+
 /// `exportPlanView` {orgName, today, now, rows (exportRowsView's JSON text), users (`GET /api/users`)}: the export
 /// zip's entries in order (orgExport.ts's `exportOrg`): the manifest and the users (those with an address, as the
 /// import invites them) as JSON, a file of rows per table, then the files to fetch (`path`) under their names, sorted;
@@ -40,11 +49,9 @@ pub fn export_plan(a: &Obj) -> R<Value> {
         .filter(|u| u["email"].as_str().is_some_and(|e| !e.is_empty()))
         .map(|u| json!({ "name": u["name"], "email": u["email"], "role": u["role"], "google": [] })).collect();
     let mut named: Vec<(String, String)> = blobs["named"].as_array().unwrap().iter().filter_map(|n| Some((n[0].as_str()?.to_string(), n[1].as_str()?.to_string()))).collect();
-    named.dedup_by(|a, b| a.0 == b.0);
     let mut seen = std::collections::HashSet::new();
     named.retain(|(h, _)| seen.insert(h.clone()));
-    let texts: Vec<(String, String)> = rows["bibles"].as_array().cloned().unwrap_or_default().iter()
-        .filter_map(|b| Some((b["content_hash"].as_str()?.to_string(), format!("bibles {}", b["id"].as_str().unwrap_or(""))))).collect();
+    let texts = bible_texts(&rows);
     let mut files: Vec<Value> = named.iter().map(|(h, row)| json!({ "name": format!("blobs/{h}"), "path": format!("/api/media/{h}"), "row": row }))
         .chain(texts.iter().map(|(h, row)| json!({ "name": format!("bibles/{h}.json"), "path": format!("/api/bibles/{h}"), "row": row }))).collect();
     files.sort_by(|x, y| x["name"].as_str().unwrap_or("").cmp(y["name"].as_str().unwrap_or("")));
@@ -88,16 +95,29 @@ pub fn import_plan(a: &Obj) -> R<Value> {
     let text = upgraded.as_str().ok_or("invalid-rows")?.to_string();
     let users: Value = a.get("users").and_then(Value::as_str).and_then(|t| serde_json::from_str(t).ok()).ok_or("not-export")?;
     let list = users.as_array().filter(|u| u.len() <= 1000).ok_or("not-export")?;
-    let email_ok = |e: &str| { let e = e.trim(); e.len() <= 320 && e.split_once('@').is_some_and(|(l, d)| !l.is_empty() && d.contains('.') && !d.starts_with('.') && !d.ends_with('.')) && !e.contains(char::is_whitespace) };
+    // emailSchema: trimmed, lowercased, at most 320 characters, /^[^@\s]+@[^@\s]+\.[^@\s]+$/ (one @, and a dot in the
+    // domain with something on each side of it).
+    let email = |e: &str| -> Option<String> {
+        let e = e.trim().to_lowercase();
+        let (l, d) = e.split_once('@')?;
+        let plain = |s: &str| !s.is_empty() && !s.contains('@') && !s.contains(char::is_whitespace);
+        let dotted = d.char_indices().any(|(i, c)| c == '.' && i > 0 && i + 1 < d.len());
+        (e.chars().count() <= 320 && plain(l) && plain(d) && dotted).then_some(e.clone())
+    };
+    let mut kept = Vec::new();
     for u in list {
         let name = u["name"].as_str().map(str::trim).unwrap_or("");
         let google_ok = u["google"].as_array().is_some_and(|g| g.len() <= 10 && g.iter().all(|s| s.as_str().is_some_and(|s| (1..=255).contains(&s.chars().count()))));
-        if name.is_empty() || name.chars().count() > 200 || !u["email"].as_str().is_some_and(email_ok) || !["user", "admin"].contains(&u["role"].as_str().unwrap_or("")) || !google_ok {
+        let role = u["role"].as_str().unwrap_or("");
+        let Some(address) = u["email"].as_str().and_then(email) else { return Err("not-export".into()) };
+        if name.is_empty() || name.chars().count() > 200 || !["user", "admin"].contains(&role) || !google_ok {
             return Err("not-export".into());
         }
+        // As the web sends legacyUsersSchema's output: the name trimmed, the address trimmed and lowercased.
+        kept.push(json!({ "name": name, "email": address, "role": role, "google": u["google"] }));
     }
     let videos = crate::legacy::blobs_view(json!({ "rows": text }).as_object().unwrap())?["videos"].clone();
-    Ok(json!({ "rows": text, "users": users, "videos": videos }))
+    Ok(json!({ "rows": text, "users": kept, "videos": videos }))
 }
 
 #[cfg(test)]
@@ -138,5 +158,32 @@ mod tests {
         let r = import_plan(&args(json!({ "format": 8, "rows": rows, "users": r#"[{"name":"","email":"a@b.se","role":"user","google":[]}]"# })));
 
         assert_eq!(r.unwrap_err(), "not-export");
+    }
+
+    #[test]
+    fn users_go_to_the_server_trimmed_and_lowercased() {
+        let rows: Value = serde_json::from_str(&empty_rows()).unwrap();
+
+        let p = import_plan(&args(json!({ "format": 8, "rows": rows, "users": r#"[{"name":" Anna ","email":" Anna@Kyrkan.SE ","role":"user","google":[]}]"# }))).unwrap();
+
+        assert_eq!((p["users"][0]["name"].clone(), p["users"][0]["email"].clone()), (json!("Anna"), json!("anna@kyrkan.se")));
+    }
+
+    #[test]
+    fn an_address_with_two_ats_is_refused_as_the_web_refuses_it() {
+        let rows: Value = serde_json::from_str(&empty_rows()).unwrap();
+
+        let r = import_plan(&args(json!({ "format": 8, "rows": rows, "users": r#"[{"name":"A","email":"a@b@c.se","role":"user","google":[]}]"# })));
+
+        assert_eq!(r.unwrap_err(), "not-export");
+    }
+
+    #[test]
+    fn two_translations_sharing_a_text_give_one_file() {
+        let rows = json!({ "bibles": [{ "id": "b1", "content_hash": "h" }, { "id": "b2", "content_hash": "h" }] });
+
+        let texts = bible_texts(&rows);
+
+        assert_eq!(texts, vec![("h".to_string(), "bibles b1".to_string())]);
     }
 }

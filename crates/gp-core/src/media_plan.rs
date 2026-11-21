@@ -223,7 +223,8 @@ pub async fn uploads_view(a: &Obj) -> R<Value> {
 pub async fn storage_view(a: &Obj) -> R<Value> {
     let p = policy(a)?;
     let mut sizes: Map<String, Value> = Map::new();
-    if a.contains_key("held") {
+    // A list, as held() reads it; a held of null is the web's (no folder), not an empty folder.
+    if a.get("held").and_then(Value::as_array).is_some() {
         for (hash, size, _) in held(a).await { sizes.insert(hash, json!(size)); }
     } else {
         for r in sql("SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL", vec![]).await { sizes.insert(s(&r[0]), json!(int_of(&r[1]))); }
