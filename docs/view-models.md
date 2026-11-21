@@ -127,7 +127,8 @@ after Släck either, on both, as the scenario showed that → would then start t
 ## Ids
 
 Every button and action a view lays out has an id of the core's (`pageButtonsView`'s `back`, `start`, `end`, `new`,
-`add`, `fold`, `black`; `presentationActionsView`'s and `itemActionsView`'s entries), and each shell names its control
+`add`, `fold`, `black`; `presentationActionsView`'s and `itemActionsView`'s entries; Inställningar's `libraryPageView`
+`add`, `extra`, `picked` and `row`, `themesPageView`'s actions and `mySettingsView`'s rows), and each shell names its control
 by it (Lars, 2026-11-21): SwiftUI's `accessibilityIdentifier`, the web's `data-testid`, WinUI's `AutomationId`, GTK's
 accessible id. A test, or an assistive tool, then finds the same button on every platform. A choice under a button is
 named by both, `add.song` (or `addAfter.song` under the item menu's Lägg till efter); a column's fold and its way back

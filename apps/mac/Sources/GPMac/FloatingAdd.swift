@@ -24,7 +24,8 @@ extension View {
     }
 
     /// A page's + floating at its bottom right, and its second action beside it; the content scrolls clear of them.
-    func floatingAdd(_ text: String, shown: Bool = true, add: @escaping () -> Void, extra: FloatingAction? = nil) -> some View {
+    /// Each named by the core's id where it gives one (`id`, `FloatingAction.id`; docs/view-models.md, "Ids").
+    func floatingAdd(_ text: String, id: String? = nil, shown: Bool = true, add: @escaping () -> Void, extra: FloatingAction? = nil) -> some View {
         let size = FloatingSize.current
         return contentMargins(.bottom, shown ? size.plus + 2 * size.margin : 0, for: .scrollContent)
             .overlay(alignment: .bottomTrailing) {
@@ -39,6 +40,7 @@ extension View {
                             }
                             .buttonStyle(.plain)
                             .floatingPill()
+                            .accessibilityIdentifier(extra.id ?? "")
                         }
                         Button(action: add) {
                             Image(systemName: "plus").font(size.symbol).foregroundStyle(.white)
@@ -47,6 +49,7 @@ extension View {
                         .buttonStyle(.plain)
                         .floatingGlass()
                         .accessibilityLabel(text)
+                        .accessibilityIdentifier(id ?? "")
                     }
                     .padding(size.margin)
                 }
@@ -64,7 +67,9 @@ private struct FloatingSize {
     #endif
 }
 
-/// The second floating action: its text, its symbol and what it does.
+/// The second floating action: its text, its symbol, the core's id where it gives one, and what it does.
 struct FloatingAction {
-    let text: String, icon: String, action: () -> Void
+    let text: String, icon: String
+    var id: String?
+    let action: () -> Void
 }

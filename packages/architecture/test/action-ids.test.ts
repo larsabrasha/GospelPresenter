@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOT } from './source.ts';
 
 /** The views whose entries are controls named by the core's ids. */
-const ACTION_VIEWS = ['pageButtonsView', 'presentationActionsView', 'itemActionsView'];
+const ACTION_VIEWS = ['pageButtonsView', 'presentationActionsView', 'itemActionsView', 'libraryPageView', 'themesPageView', 'mySettingsView'];
 
 const swift = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z', 'apps/mac/Sources'], { cwd: ROOT, encoding: 'utf8' })
   .split('\0')

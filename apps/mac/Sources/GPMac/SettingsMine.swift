@@ -52,7 +52,8 @@ struct MySettingsPage: View {
         Form {
             ForEach(groups) { g in
                 Section {
-                    ForEach(g.rows) { r in row(r) }
+                    // Each row's control named by the core's id, as every platform names it (docs/view-models.md, "Ids").
+                    ForEach(g.rows) { r in row(r).accessibilityIdentifier(r.id) }
                 } header: { g.title.map { Text(t($0)) } } footer: { g.footer.map { Text(t($0)) } }
             }
         }

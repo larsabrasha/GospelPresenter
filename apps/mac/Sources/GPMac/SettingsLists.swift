@@ -431,6 +431,8 @@ extension ThemesPage {
                 default: break
                 }
             }
+            // The core's id, as every platform names it (docs/view-models.md, "Ids").
+            .accessibilityIdentifier(a.id)
         }
     }
 

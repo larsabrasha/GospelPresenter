@@ -27,7 +27,9 @@ struct ActionButtons: View {
 
     var body: some View {
         ForEach(actions.filter { $0.when.map(has) ?? true }, id: \.self) { a in
+            // Named by the core's id, as every platform names it (docs/view-models.md, "Ids").
             Button(t(a.text), systemImage: Self.symbol(a.id), role: a.destructive ? .destructive : nil) { perform(a.id) }
+                .accessibilityIdentifier(a.id)
         }
     }
 
@@ -48,8 +50,8 @@ struct ActionButtons: View {
 extension View {
     /// The page's + and the action beside it, as the core gives them; none where it gives none.
     func floatingAdd(_ page: LibraryPage?, shown: Bool = true, add: @escaping () -> Void, extra: @escaping () -> Void = {}) -> some View {
-        floatingAdd(page?.add.map { t($0.text) } ?? "", shown: shown && page?.add != nil, add: add,
-                    extra: page?.extra.map { FloatingAction(text: t($0.text), icon: "square.and.arrow.down", action: extra) })
+        floatingAdd(page?.add.map { t($0.text) } ?? "", id: page?.add?.id, shown: shown && page?.add != nil, add: add,
+                    extra: page?.extra.map { FloatingAction(text: t($0.text), icon: "square.and.arrow.down", id: $0.id, action: extra) })
     }
 }
 
