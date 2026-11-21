@@ -345,20 +345,16 @@ struct OrgsPage: View {
         }
         .overlay { if orgs.isEmpty { ContentUnavailableView(message ?? t("orgs.empty"), systemImage: "square.grid.2x2") } }
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(t("orgs.createTitle"), systemImage: "plus") {
-                    prompt = TextPrompt(title: t("orgs.createTitle"), label: t("orgs.name"), text: "", rule: FieldRule(required: true, max: 200)) { name in
-                        Task {
-                            struct Made: Decodable { let id: String }
-                            switch await model.api("POST", "/api/orgs", ["name": name.trimmingCharacters(in: .whitespaces)], as: Made.self) {
-                            case let .refused(e): refusal = hostRefusal(e)
-                            // Into the new organisation, as the web's switchOrg, its users the next thing to set up.
-                            case let .ok(m): if let e = await model.app.switchOrg(m.id) { refusal = hostRefusal(e) }
-                            }
-                            await load()
-                        }
+        .floatingAdd(model.libraryPage("orgs")) {
+            prompt = TextPrompt(title: t("orgs.createTitle"), label: t("orgs.name"), text: "", rule: FieldRule(required: true, max: 200)) { name in
+                Task {
+                    struct Made: Decodable { let id: String }
+                    switch await model.api("POST", "/api/orgs", ["name": name.trimmingCharacters(in: .whitespaces)], as: Made.self) {
+                    case let .refused(e): refusal = hostRefusal(e)
+                    // Into the new organisation, as the web's switchOrg, its users the next thing to set up.
+                    case let .ok(m): if let e = await model.app.switchOrg(m.id) { refusal = hostRefusal(e) }
                     }
+                    await load()
                 }
             }
         }

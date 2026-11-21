@@ -38,7 +38,8 @@ struct TrashPage: View {
 
     var body: some View {
         let page = page
-        List {
+        let entries = page?.entries ?? []
+        List(selection: listSelection($picking)) {
             if let page, page.kinds.count > 1 {
                 Picker(t("trash.title"), selection: $kind) {
                     Text(t("trash.all")).tag(String?.none)
@@ -49,7 +50,13 @@ struct TrashPage: View {
             if let page {
                 Section {
                     ForEach(page.entries) { e in
-                        if picking.on { PickRow(picking: $picking, id: e.key) { row(e) } } else { row(e) }
+                        LibraryRow(picking: $picking, id: e.key, label: row(e)) { label in
+                            label
+                                .contextMenu { ActionButtons(actions: lib?.row ?? []) { act($0, e) } }
+                                .swipeActions(edge: .trailing) {
+                                    ActionButtons(actions: (lib?.row ?? []).reversed()) { act($0, e) }.tint(Color.sky)
+                                }
+                        }
                     }
                 } footer: {
                     if page.total > 0 { Text(page.entries.count == 1 ? t("trash.countOne") : t("trash.countMany", ["n": page.entries.count])) }
@@ -59,6 +66,10 @@ struct TrashPage: View {
                 }
             }
         }
+        // On a Mac: Återställ and Radera permanent for the rows picked; nothing to open, a double click restores none.
+        .libraryPicking(picking, open: { _ in }, remove: { purgingMany = true }) { ids in
+            ActionButtons(actions: lib?.picked ?? []) { id in picking.ids = ids; actPicked(id, entries) }
+        }
         .overlay {
             if page?.total == 0 { ContentUnavailableView(t("trash.emptyTitle"), systemImage: "trash") }
             else if page?.entries.isEmpty == true { ContentUnavailableView(t("trash.noMatch"), systemImage: "magnifyingglass") }
@@ -66,13 +77,8 @@ struct TrashPage: View {
         .searchable(text: $query, prompt: t("trash.search"))
         .toolbar {
             if page?.total ?? 0 > 0 {
-                PickingToolbar(picking: $picking) {
-                    Button(t("common.restore"), systemImage: "arrow.uturn.backward") {
-                        let picked = (page?.entries ?? []).filter { picking.ids.contains($0.key) }
-                        for e in picked { message = change(model, e.restore, ["id": e.id]) ?? message }
-                        picking.end()
-                    }
-                    Button(t("common.delete"), systemImage: "trash", role: .destructive) { purgingMany = true }
+                PickingToolbar(picking: $picking, shown: lib?.pick ?? false) {
+                    ActionButtons(actions: lib?.picked ?? []) { actPicked($0, entries) }
                 }
             }
         }
@@ -111,14 +117,20 @@ struct TrashPage: View {
             Button(t("common.restore")) { restore(e) }
             #endif
         }
-        .contextMenu {
-            Button(t("common.restore"), systemImage: "arrow.uturn.backward") { restore(e) }
-            Button(t("trash.purge"), systemImage: "trash", role: .destructive) { purging = e }
-        }
-        .swipeActions(edge: .trailing) {
-            Button(t("trash.purge"), role: .destructive) { purging = e }
-            Button(t("common.restore")) { restore(e) }.tint(Color.sky)
-        }
+    }
+
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("trash") }
+
+    private func act(_ id: String, _ e: TrashEntry) {
+        if id == "restore" { restore(e) } else if id == "purge" { purging = e }
+    }
+
+    /// Återställ the picked at once; Radera asks first.
+    private func actPicked(_ id: String, _ entries: [TrashEntry]) {
+        guard id == "restore" else { return purgingMany = true }
+        for e in entries where picking.ids.contains(e.key) { message = change(model, e.restore, ["id": e.id]) ?? message }
+        picking.end()
     }
 
     private func restore(_ e: TrashEntry) {

@@ -75,6 +75,22 @@ timing specs go flaky under load).
 - `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
   imports; an exception in `knip.jsonc` says why.
 
+## The native apps (apps/mac)
+
+Most bugs found after the fact were in the Swift glue, not the core: focus and saving in fields, keys while
+typing, where a value is read from (the session's role, a launch argument's type), scene and Info.plist setup.
+The core's views have parity tests against the TS; the glue has only what is run (Lars, 2026-11-21).
+
+- Before building a page or flow, list its edge cases from the web's code (when it saves, what Esc, ⌘Z and ↵ do,
+  which role or state it reads, what it asks before) and have them confirmed; then build them all.
+- A rule the web decides in TS goes into the core with a parity test, not into Swift.
+- A behaviour is done when it has been run, not when it builds: a test in `apps/mac/ios/UITests`
+  (`apps/mac/apple.sh uitest`) for what a user does (type, leave the field, undo, close), or, where a test cannot
+  reach it, a run in the simulator with a screenshot. The test stays; "not checked by hand" means not done.
+- Before reporting done, review the diff (`/code-review`) and fix what it finds; the report names what the review
+  found.
+- Keep a round small: a few pages or one flow at a time, each with its tests, not a whole area at once.
+
 ## The old app: the reference
 
 The Blazor app at the tag `v1-final` (the last of the C# app, before the rewrite replaced it on `main`) is what

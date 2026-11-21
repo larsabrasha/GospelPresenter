@@ -136,6 +136,29 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   (Swedish when it is neither). The few the web has no use for (the host's address and certificate, the demo) are in
   `Texts.swift`, as i18n.ts may hold only keys the web's code uses.
 
+### Each platform's own patterns
+
+A page's behaviour is the core's: what a list is, what it adds, which rows may be picked and what is done to them
+(`libraryPageView`, docs/view-models.md). How that is done on a platform is the shell's, as the platform's own apps do
+it (Lars, 2026-11-21: "Vi vill följa Apples mönster"; asked of each step on a Mac, "hur hade Apple gjort?"). The Mac
+and iOS columns are built and tried; Windows and Linux are proposals from WinUI's and GNOME's guidelines, for those
+shells to check before building.
+
+| What the core says | Web | Mac | iOS, iPadOS | Windows (WinUI) | Linux (GTK, libadwaita) |
+| --- | --- | --- | --- | --- | --- |
+| A **collection** (`open: "collection"`: Sånger, Biblar, Bilder, Ljud, Videor, Bildspel, Överlägg, Etiketter, Teman, Papperskorg) | a tap opens; Välj picks | a click picks, ⌘- and ⇧-click more, a double click or ↵ opens; no Välj | a tap opens; Välj picks, Klar ends it | a click picks, Ctrl- and Shift-click more, a double click or Enter opens | a click opens; a selection mode (a check button in the header bar) picks |
+| A **list of pages** (`open: "navigate"`: Användare, Enheter, Organisationer, Inställningar' own list) | a click opens | a click opens, a chevron on a page's form rows | a tap opens, a chevron | a click opens, a chevron | an activatable row with a chevron |
+| The actions for the **picked** rows | in the bar while Välj is on | in the bar while any are picked; the right-click menu; ⌫ asks to remove | in the bar while Välj is on | the command bar while any are picked; Delete | the selection mode's bar |
+| A **row's menu** (Byt namn, Ersätt, Radera) | ⋯ and the right click | the right click, for every row picked | a long press, and a swipe for Radera | the right click | the right click and a long press |
+| The page's **add** and its **second** action (Ny sång, Importera) | floating at the bottom right | floating at the bottom right, a pointer's size (40 pt) | floating at the bottom right, a finger's size (56 pt) | floating at the bottom right | floating at the bottom right |
+| The **order** (`sorts`) | a menu | a menu behind ↑↓ | a menu behind ↑↓ | a menu behind its icon | a menu button |
+| **Search** | a field over the list | the bar's field, which macOS folds into a magnifier when narrow | the system's (at the bottom on iOS 26) | an AutoSuggestBox in the bar | a search button that opens a search bar |
+| Inställningar' **list** | a sidebar | a sidebar that cannot be hidden, as System Settings'; a group without a title as rows after a gap (a header-less section draws a picked row's top corners square, and an empty header joins the row under it) | the list, a page pushed over it | a NavigationView's pane | a sidebar (AdwNavigationSplitView) |
+| An **icon** (`icon`, a name of the app's) and its **colour** (`colour`) | Heroicons; the colour as Tailwind's | SF Symbols (`Look.swift`); the colour's hex | SF Symbols; the colour's hex | Segoe Fluent Icons; the colour's hex | the theme's symbolic icons; the colour's hex |
+
+The web's floating + is kept on a Mac, though Apple's apps put + in the bar: it is seen and known from the web (Lars,
+2026-11-21).
+
 What each page shows comes from the core's views, and what it offers from the core's view models
 (`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
 Swift only draws them; an action the app has not built yet (Material, Spara som mall, Redigera, Markera) is left out

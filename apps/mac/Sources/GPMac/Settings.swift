@@ -46,8 +46,10 @@ struct SettingsIcon: View {
     var size: CGFloat = 26
 
     var body: some View {
+        // Fitted inside 60 % of the square, wide symbols (a picture, a film) as tall ones, as Apple's have room around.
         Image(systemName: Look.settingsSymbol(row.icon))
-            .font(.system(size: size * 0.55, weight: .medium)).foregroundStyle(.white)
+            .resizable().scaledToFit().fontWeight(.medium).foregroundStyle(.white)
+            .frame(width: size * 0.6, height: size * 0.6)
             .frame(width: size, height: size)
             .background(Look.hexColor(row.colour.hex), in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
     }
@@ -79,20 +81,43 @@ struct SettingsView: View {
         return model.view("settingsSearchView", ["role": model.role, "host": host, "query": query, "texts": texts], as: [SettingsRow].self) ?? []
     }
 
+    /// The list's sections: the core's groups, where on a Mac a group without a title (Papperskorg, Om) joins the
+    /// section above after a gap (nil), a whole row high as every row of a sidebar is (Lars accepted, 2026-11-21, over
+    /// an AppKit sidebar). A Mac's sidebar draws a header-less section's picked row as if it went on from the section
+    /// above, its top corners square, and joins an empty header into the row below it, so there is none.
+    private var sections: [(id: String, title: String?, rows: [SettingsRow?])] {
+        var out: [(id: String, title: String?, rows: [SettingsRow?])] = []
+        for g in groups {
+            #if os(macOS)
+            if g.title == nil, !out.isEmpty { out[out.count - 1].rows += [nil] + g.rows; continue }
+            #endif
+            out.append((g.id, g.title, g.rows))
+        }
+        return out
+    }
+
+    private func rows(_ rows: [SettingsRow?]) -> some View {
+        ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
+            if let r {
+                PageRow(id: r.id) { SettingsRowLabel(row: r) }
+            } else {
+                Color.clear.selectionDisabled().accessibilityHidden(true)
+            }
+        }
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $visibility) {
             List(selection: $chosen) {
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Section { ProfileCell().tag("settings") }
-                    ForEach(groups, id: \.id) { g in
-                        Section(g.title.map { t($0) } ?? "") {
-                            ForEach(g.rows) { r in SettingsRowLabel(row: r).tag(r.id) }
-                        }
+                    Section { PageRow(id: "settings") { ProfileCell() } }
+                    ForEach(sections, id: \.id) { s in
+                        if let title = s.title { Section(t(title)) { rows(s.rows) } } else { Section { rows(s.rows) } }
                     }
                 } else if found.isEmpty {
                     Text(t("search.none", ["query": query.trimmingCharacters(in: .whitespaces)])).foregroundStyle(.secondary)
                 } else {
-                    ForEach(found, id: \.key) { r in SettingsRowLabel(row: r).tag(r.id) }
+                    ForEach(found, id: \.key) { r in PageRow(id: r.id) { SettingsRowLabel(row: r) } }
                 }
             }
             .searchable(text: $query, placement: .sidebar, prompt: t("search.field"))
@@ -103,6 +128,8 @@ struct SettingsView: View {
             #endif
             #if os(macOS)
             .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
+            // Always there, as System Settings' list: no button to hide it.
+            .toolbar(removing: .sidebarToggle)
             #endif
         } detail: {
             NavigationStack {
@@ -110,13 +137,48 @@ struct SettingsView: View {
             }
             // The editors' ⌘X, ⌘C, ⌘V and ⌘Z leave the sidebar's search field alone while it is typed in.
             .environment(\.settingsSearching, searching)
+            #if os(macOS)
+            .toolbar { ToolbarHold() }
+            #endif
         }
         #if os(iOS)
         // A phone starts at the list, as iOS's Settings; a computer with Mina inställningar beside it.
         .onAppear { if UIDevice.current.userInterfaceIdiom == .phone, SettingsView.launchPage == "settings" { chosen = nil } }
+        #else
+        // Nor dragged shut by its edge.
+        .onChange(of: visibility) { _, now in if now != .all { visibility = .all } }
         #endif
     }
 }
+
+/// A row of the list choosing its page's id. On iOS a link, so a phone draws its chevron as iOS's Settings; on a Mac a
+/// tagged row, a sidebar's (as links there, the rows were drawn twice and out of place after a scroll).
+private struct PageRow<Label: View>: View {
+    let id: String
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        #if os(iOS)
+        NavigationLink(value: id, label: label)
+        #else
+        label().tag(id)
+        #endif
+    }
+}
+
+#if os(macOS)
+/// Something in the toolbar on every page, seen or not: a page without buttons of its own would otherwise get the short
+/// title bar, and the window's top, its traffic lights with it, would move between pages. System Settings' does not.
+private struct ToolbarHold: ToolbarContent {
+    var body: some ToolbarContent {
+        if #available(macOS 26, *) {
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        } else {
+            ToolbarItem(placement: .primaryAction) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+        }
+    }
+}
+#endif
 
 /// A row: its icon square and its name, under it where a search result from Mina inställningar lives.
 struct SettingsRowLabel: View {

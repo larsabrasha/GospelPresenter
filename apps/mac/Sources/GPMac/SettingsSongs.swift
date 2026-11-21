@@ -35,12 +35,20 @@ struct SongsPage: View {
         let sections: [SongList.Section] = q.isEmpty ? list?.sections ?? [] : [SongList.Section(letter: nil, rows: model.view("searchSongsView", ["query": q, "locale": Texts.language], as: [SongRow].self) ?? [])]
         let songs = sections.flatMap(\.rows)
         ScrollViewReader { proxy in
-            List {
+            List(selection: listSelection($picking)) {
                 ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                     Section(section.letter ?? "") {
                         ForEach(section.rows) { s in songRow(s) }
                     }
                     .id(section.letter ?? "")
+                }
+            }
+            .libraryPicking(picking, open: { opened = $0 }, remove: { trashingMany = true }) { ids in
+                if ids.count == 1, let s = songs.first(where: { ids.contains($0.id) }) {
+                    Button(t("palette.open"), systemImage: "arrow.up.forward.square") { opened = s.id }
+                    ActionButtons(actions: lib?.row ?? []) { act($0, s) }
+                } else {
+                    ActionButtons(actions: lib?.picked ?? []) { _ in picking.ids = ids; trashingMany = true }
                 }
             }
             #if os(iOS)
@@ -52,6 +60,8 @@ struct SongsPage: View {
             }
             #endif
         }
+        // Ny sång and Importera floating at the bottom right, as the web's song list has them.
+        .floatingAdd(lib, shown: !picking.on, add: { create(all) }, extra: { importing = true })
         .navigationDestination(for: String.self) { id in SongEditorPage(id: id) }
         .navigationDestination(item: $opened) { id in SongEditorPage(id: id) }
         .overlay {
@@ -61,21 +71,10 @@ struct SongsPage: View {
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
         .toolbar {
             if !picking.on {
-                ToolbarItem(placement: .primaryAction) {
-                    Picker(t("library.sortBy", ["order": ""]), selection: $sort) {
-                        ForEach(list?.sorts ?? [], id: \.self) { s in Text(t(s.text)).tag(s.id) }
-                    }
-                    .pickerStyle(.menu)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button(t("songs.emptyNew"), systemImage: "plus") { create(all) }
-                        Button(t("songs.import.menu"), systemImage: "square.and.arrow.down") { importing = true }
-                    } label: { Label(t("songs.new"), systemImage: "plus") } primaryAction: { create(all) }
-                }
+                ToolbarItem(placement: .primaryAction) { SortMenu(sorts: (list?.sorts ?? []).map { ($0.id, $0.text) }, selection: $sort) }
             }
-            PickingToolbar(picking: $picking) {
-                Button(t("common.delete"), systemImage: "trash", role: .destructive) { trashingMany = true }
+            PickingToolbar(picking: $picking, shown: lib?.pick ?? false) {
+                ActionButtons(actions: lib?.picked ?? []) { _ in trashingMany = true }
             }
         }
         .confirmationDialog(t("common.delete"), isPresented: $trashingMany) {
@@ -102,15 +101,22 @@ struct SongsPage: View {
             Text(s.name)
             if let a = s.author, !a.isEmpty { Text(a).font(.caption).foregroundStyle(.secondary) }
         }
-        if picking.on {
-            PickRow(picking: $picking, id: s.id) { label }
-        } else {
+        LibraryRow(picking: $picking, id: s.id, label: label) { label in
             NavigationLink(value: s.id) { label }
-                .contextMenu {
-                    Button(t("library.rename"), systemImage: "pencil") { rename(s) }
-                    Button(t("song.trash"), systemImage: "trash", role: .destructive) { trashing = s }
-                }
-                .swipeActions { Button(t("song.trash"), role: .destructive) { trashing = s } }
+                .contextMenu { ActionButtons(actions: lib?.row ?? []) { act($0, s) } }
+                .swipeActions { ActionButtons(actions: (lib?.row ?? []).filter(\.destructive)) { act($0, s) } }
+        }
+    }
+
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("songs") }
+
+    /// A row's action by the core's id.
+    private func act(_ id: String, _ s: SongRow) {
+        switch id {
+        case "rename": rename(s)
+        case "delete": trashing = s
+        default: break
         }
     }
 

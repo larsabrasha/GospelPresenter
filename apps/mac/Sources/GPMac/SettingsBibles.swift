@@ -18,12 +18,16 @@ struct BiblesPage: View {
     @State private var message: String?
     @State private var picking = Picking()
     @State private var deletingMany = false
+    /// The Bible opened by a double click on a Mac.
+    @State private var opened: String?
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("bibles") }
 
     var body: some View {
         let all = model.view("biblesView", ["locale": Texts.language], as: [BibleRow].self) ?? []
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         let bibles = q.isEmpty ? all : all.filter { $0.name.lowercased().contains(q) || $0.abbreviation.lowercased().contains(q) }
-        List {
+        List(selection: listSelection($picking)) {
             if busy { Text(t("bibles.processing")).foregroundStyle(.secondary) }
             Section {
                 ForEach(bibles) { b in
@@ -31,21 +35,24 @@ struct BiblesPage: View {
                         Text(b.name)
                         Text(t("bibles.row", ["abbreviation": b.abbreviation, "n": b.verseCount])).font(.caption).foregroundStyle(.secondary)
                     }
-                    if picking.on {
-                        PickRow(picking: $picking, id: b.id) { label }
-                    } else {
+                    LibraryRow(picking: $picking, id: b.id, label: label) { label in
                         NavigationLink { BibleDetailPage(id: b.id) } label: { label }
-                            .contextMenu { Button(t("bibles.delete"), systemImage: "trash", role: .destructive) { deleting = b } }
-                            .swipeActions { Button(t("bibles.delete"), role: .destructive) { deleting = b } }
+                            .contextMenu { ActionButtons(actions: lib?.row ?? []) { _ in deleting = b } }
+                            .swipeActions { ActionButtons(actions: (lib?.row ?? []).filter(\.destructive)) { _ in deleting = b } }
                     }
                 }
             } footer: { Text(t("bibles.importText")) }
         }
+        .libraryPicking(picking, open: { opened = $0 }, remove: { deletingMany = true }) { ids in
+            if ids.count == 1, let id = ids.first { Button(t("palette.open"), systemImage: "arrow.up.forward.square") { opened = id } }
+            ActionButtons(actions: lib?.picked ?? []) { _ in picking.ids = ids; deletingMany = true }
+        }
+        .navigationDestination(item: $opened) { id in BibleDetailPage(id: id) }
         .overlay { if all.isEmpty { ContentUnavailableView(t("bibles.empty"), systemImage: "book", description: Text(t("bibles.emptyText"))) } }
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
+        .floatingAdd(lib, shown: !picking.on) { importing = true }
         .toolbar {
-            if !picking.on { ToolbarItem(placement: .primaryAction) { Button(t("bibles.emptyImport"), systemImage: "plus") { importing = true } } }
-            PickingToolbar(picking: $picking) { Button(t("bibles.delete"), systemImage: "trash", role: .destructive) { deletingMany = true } }
+            PickingToolbar(picking: $picking, shown: lib?.pick ?? false) { ActionButtons(actions: lib?.picked ?? []) { _ in deletingMany = true } }
         }
         .confirmationDialog(t("bibles.delete"), isPresented: $deletingMany) {
             Button(t("bibles.delete"), role: .destructive) {
@@ -185,7 +192,7 @@ struct CustomSlidesPage: View {
         let args: [String: Any] = ["kind": "customSlides", "query": query, "locale": Texts.language, "sort": sort ?? ""]
         let ordered = model.view("libraryOrderView", args, as: Ordered.self)
         let slides = ordered?.rows ?? []
-        List {
+        List(selection: listSelection($picking)) {
             if busy { Text(t("slides.importing")).foregroundStyle(.secondary) }
             ForEach(slides) { s in
                 let label = HStack(spacing: 12) {
@@ -195,42 +202,33 @@ struct CustomSlidesPage: View {
                         Text(t(s.pageCount == 1 ? "customSlides.pagesOne" : "customSlides.pages", ["n": s.pageCount])).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                if picking.on {
-                    PickRow(picking: $picking, id: s.id) { label }
-                } else {
+                LibraryRow(picking: $picking, id: s.id, label: label) { label in
                     NavigationLink(value: s.id) { label }
-                    .contextMenu {
-                        Button(t("library.rename"), systemImage: "pencil") { rename(s) }
-                        // Only for a deck's pages: what was laid on them goes with them.
-                        if s.fromDeck {
-                            Button(t("slideDecks.replace"), systemImage: "arrow.triangle.2.circlepath") { replacing = s }
-                        }
-                        Button(t("common.delete"), systemImage: "trash", role: .destructive) { trashing = s }
-                    }
-                    .swipeActions { Button(t("common.delete"), role: .destructive) { trashing = s } }
+                        .contextMenu { menu(s) }
+                        .swipeActions { ActionButtons(actions: (lib?.row ?? []).filter(\.destructive)) { act($0, s) } }
                 }
+            }
+        }
+        .libraryPicking(picking, open: { opened = $0 }, remove: { trashingMany = true }) { ids in
+            if ids.count == 1, let s = slides.first(where: { ids.contains($0.id) }) {
+                Button(t("palette.open"), systemImage: "arrow.up.forward.square") { opened = s.id }
+                menu(s)
+            } else {
+                ActionButtons(actions: lib?.picked ?? []) { _ in picking.ids = ids; trashingMany = true }
             }
         }
         .navigationDestination(for: String.self) { id in SlideEditorPage(target: .slideshow(id)) }
         .navigationDestination(item: $opened) { id in SlideEditorPage(target: .slideshow(id)) }
         .overlay { if all.isEmpty { ContentUnavailableView(t("customSlides.empty"), systemImage: "play.rectangle", description: Text(t("customSlides.emptyText"))) } }
+        .floatingAdd(lib, shown: !picking.on, add: { create(all) }, extra: { importing = .some(nil) })
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
         .toolbar {
             if !picking.on {
                 ToolbarItem(placement: .primaryAction) {
-                    Picker(t("library.sortBy", ["order": ""]), selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 })) {
-                        ForEach(ordered?.sorts ?? [], id: \.self) { s in Text(t(s.text)).tag(s.id) }
-                    }
-                    .pickerStyle(.menu)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button(t("customSlides.emptyNew"), systemImage: "plus") { create(all) }
-                        Button(t("slides.import"), systemImage: "square.and.arrow.down") { importing = .some(nil) }
-                    } label: { Label(t("customSlides.emptyNew"), systemImage: "plus") } primaryAction: { create(all) }
+                    SortMenu(sorts: (ordered?.sorts ?? []).map { ($0.id, $0.text) }, selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 }))
                 }
             }
-            PickingToolbar(picking: $picking) { Button(t("common.delete"), systemImage: "trash", role: .destructive) { trashingMany = true } }
+            PickingToolbar(picking: $picking, shown: lib?.pick ?? false) { ActionButtons(actions: lib?.picked ?? []) { _ in trashingMany = true } }
         }
         .confirmationDialog(t("common.delete"), isPresented: $trashingMany) {
             Button(t("common.delete"), role: .destructive) {
@@ -275,6 +273,24 @@ struct CustomSlidesPage: View {
             let done = into == nil ? nil : t("slideDecks.replaced", ["name": url.lastPathComponent])
             let said = [done, charts ? t("slides.charts") : nil].compactMap { $0 }
             message = refused ?? (said.isEmpty ? nil : said.joined(separator: "\n"))
+        }
+    }
+
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("customSlides") }
+
+    /// A slideshow's menu, the core's: Ersätt for a deck's pages (what was laid on them goes with them), Byt namn,
+    /// Radera.
+    private func menu(_ s: CustomSlideRow) -> some View {
+        ActionButtons(actions: lib?.row ?? [], has: { $0 == "fromDeck" && s.fromDeck }) { act($0, s) }
+    }
+
+    private func act(_ id: String, _ s: CustomSlideRow) {
+        switch id {
+        case "replace": replacing = s
+        case "rename": rename(s)
+        case "delete": trashing = s
+        default: break
         }
     }
 

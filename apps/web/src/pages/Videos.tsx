@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { LibraryVideo, Role } from '@gp/core';
-import { can, limits } from '../db/pageCore.ts';
+import { libraryPage, limits } from '../db/pageCore.ts';
 import { useLocalUrl, useData, useDb } from '../db/react.tsx';
 import { listVideos } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -37,7 +37,8 @@ export function Videos({ role }: { role: Role }) {
   const videos = useData(listVideos, []);
   const items = useMemo(() => named(videos), [videos]);
   const imports = useVideoImport();
-  const manage = can(role, 'ManageVideos');
+  // Whether the videos are imported, picked and acted on: the core's (`libraryPageView`), as every shell's.
+  const manage = libraryPage('videos', role).pick;
   const status = imports.state;
 
   const importFiles = async (files: File[]) => {

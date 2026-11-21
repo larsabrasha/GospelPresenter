@@ -88,11 +88,7 @@ struct UsersPage: View {
         }
         .overlay { if users.isEmpty, let message { ContentUnavailableView(message, systemImage: "person.2") } }
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
-        .toolbar {
-            if model.can("ManageUsers") {
-                ToolbarItem(placement: .primaryAction) { Button(t(host ? "users.create" : "users.invite"), systemImage: "plus") { adding = true } }
-            }
-        }
+        .floatingAdd(model.libraryPage("users", host: host)) { adding = true }
         .task { await load() }
         // The link shown once the add sheet has closed: a second sheet asked for while the first is up is never shown,
         // and the link is shown only once.
@@ -344,7 +340,7 @@ struct DevicesPage: View {
             }
         }
         .overlay { if devices.isEmpty { ContentUnavailableView(message ?? t("devices.empty"), systemImage: "ipad.and.iphone") } }
-        .toolbar { ToolbarItem(placement: .primaryAction) { Button(t("devices.pair"), systemImage: "plus") { pairing = true } } }
+        .floatingAdd(model.libraryPage("devices")) { pairing = true }
         .task { await load() }
         .sheet(isPresented: $pairing) { PairSheet() }
         .confirmationDialog(t("devices.disconnect"), isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }), presenting: disconnecting) { d in

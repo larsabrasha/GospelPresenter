@@ -74,6 +74,8 @@ struct LabelsPage: View {
     #if os(iOS)
     @State private var mode: EditMode = .inactive
     #endif
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("labels") }
 
     var body: some View {
         let labels = model.view("labelsView", as: [LabelRow].self) ?? []
@@ -81,13 +83,17 @@ struct LabelsPage: View {
             IntroCard(id: "labels")
             Section {
                 ForEach(labels) { l in
-                    Button { editing = l } label: {
-                        Text(l.text).font(.callout.weight(.medium)).foregroundStyle(.white)
-                            .padding(.horizontal, 10).padding(.vertical, 4).background(cssColor(l.color), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .tag(l.id)
-                    .contextMenu { Button(t("labels.deleteOne"), systemImage: "trash", role: .destructive) { deleting = [l] } }
+                    let chip = Text(l.text).font(.callout.weight(.medium)).foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 4).background(cssColor(l.color), in: Capsule())
+                    #if os(macOS)
+                    // A row of the list's selection, as Sånger's: a double click or ↵ opens it (libraryPicking below).
+                    chip.tag(l.id)
+                    #else
+                    Button { editing = l } label: { chip }
+                        .buttonStyle(.plain)
+                        .tag(l.id)
+                        .contextMenu { Button(t("labels.deleteOne"), systemImage: "trash", role: .destructive) { deleting = [l] } }
+                    #endif
                 }
                 .onMove { from, to in
                     guard let i = from.first else { return }
@@ -96,6 +102,13 @@ struct LabelsPage: View {
                 .onDelete { at in deleting = at.map { labels[$0] } }
             }
         }
+        .libraryPicking(Picking(ids: selected), open: { id in editing = labels.first { $0.id == id } },
+                        remove: { deleting = labels.filter { selected.contains($0.id) } }) { ids in
+            if ids.count == 1, let l = labels.first(where: { ids.contains($0.id) }) {
+                Button(t("palette.open"), systemImage: "arrow.up.forward.square") { editing = l }
+            }
+            ActionButtons(actions: lib?.picked ?? []) { _ in deleting = labels.filter { ids.contains($0.id) } }
+        }
         #if os(iOS)
         .environment(\.editMode, $mode)
         #endif
@@ -103,14 +116,16 @@ struct LabelsPage: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if !selected.isEmpty {
-                    Button(t("common.delete"), systemImage: "trash", role: .destructive) { deleting = labels.filter { selected.contains($0.id) } }
+                    ActionButtons(actions: lib?.picked ?? []) { _ in deleting = labels.filter { selected.contains($0.id) } }
                 }
                 #if os(iOS)
-                Button(t(mode.isEditing ? "library.done" : "library.select")) { mode = mode.isEditing ? .inactive : .active; selected = [] }
+                if lib?.pick == true {
+                    Button(t(mode.isEditing ? "library.done" : "library.select")) { mode = mode.isEditing ? .inactive : .active; selected = [] }
+                }
                 #endif
-                Button(t("common.create"), systemImage: "plus") { adding = true }
             }
         }
+        .floatingAdd(lib, shown: selected.isEmpty) { adding = true }
         .confirmationDialog(t("labels.deleteOne"), isPresented: Binding(get: { !deleting.isEmpty }, set: { if !$0 { deleting = [] } })) {
             Button(t("common.delete"), role: .destructive) {
                 for l in deleting { message = change(model, "deleteLabel", ["id": l.id]) ?? message }
@@ -140,17 +155,22 @@ struct LabelSheet: View {
         let colours = model.view("labelColoursView", as: Colours.self)
         let swatches = (colours?.swatches ?? []).contains(color.lowercased()) ? colours?.swatches ?? [] : (colours?.swatches ?? []) + [color]
         Form {
+            // Shift+Enter, when creating, creates and empties the field for the next (SONG-A28), as the web's.
+            #if os(iOS)
+            if label == nil {
+                ShiftReturnField(placeholder: t("labels.field"), text: $text, shiftReturn: createNext).limited($text, to: 50)
+            } else {
+                TextField(t("labels.field"), text: $text).limited($text, to: 50)
+            }
+            #else
             TextField(t("labels.field"), text: $text).limited($text, to: 50)
                 .focused($typing)
-                // Shift+Enter, when creating, creates and empties the field for the next (SONG-A28), as the web's.
                 .onKeyPress(.return, phases: .down) { press in
                     guard label == nil, press.modifiers.contains(.shift) else { return .ignored }
-                    let name = text.trimmingCharacters(in: .whitespaces)
-                    guard !name.isEmpty else { return .handled }
-                    error = change(model, "createLabel", ["text": name, "color": color])
-                    if error == nil { text = ""; created = true; typing = true }
+                    createNext()
                     return .handled
                 }
+            #endif
             if created { Text(t("labels.created")).font(.caption).foregroundStyle(.secondary) }
             Section {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(32)), count: 6), spacing: 10) {
@@ -181,6 +201,14 @@ struct LabelSheet: View {
             return error == nil
         }
         .sheetSize(360, 320)
+    }
+
+    /// The label typed created, and the field emptied and kept for the next.
+    private func createNext() {
+        let name = text.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        error = change(model, "createLabel", ["text": name, "color": color])
+        if error == nil { text = ""; created = true; typing = true }
     }
 
     private func hexOf(_ c: Color) -> String {
@@ -220,23 +248,26 @@ struct OverlaysPage: View {
     var body: some View {
         let ordered = model.view("libraryOrderView", ["kind": "overlays", "query": query, "sort": sort, "locale": Texts.language], as: Ordered.self)
         let overlays = ordered?.rows ?? []
-        List {
+        List(selection: listSelection($picking)) {
             IntroCard(id: "overlays")
             ForEach(overlays) { o in
                 let label = HStack(spacing: 12) {
                     PagePreview(page: o.page).frame(width: 96, height: 54).clipShape(RoundedRectangle(cornerRadius: 4))
                     Text(o.title)
                 }
-                if picking.on {
-                    PickRow(picking: $picking, id: o.id) { label }
-                } else {
+                LibraryRow(picking: $picking, id: o.id, label: label) { label in
                     NavigationLink { SlideEditorPage(target: .overlay(o.id)) } label: { label }
-                        .contextMenu {
-                            Button(t("library.rename"), systemImage: "pencil") { rename(o) }
-                            Button(t("common.delete"), systemImage: "trash", role: .destructive) { removing = o }
-                        }
-                        .swipeActions { Button(t("common.delete"), role: .destructive) { removing = o } }
+                        .contextMenu { menu(o) }
+                        .swipeActions { ActionButtons(actions: (lib?.row ?? []).filter(\.destructive)) { act($0, o) } }
                 }
+            }
+        }
+        .libraryPicking(picking, open: { openedOverlay = $0 }, remove: { removingMany = true }) { ids in
+            if ids.count == 1, let o = overlays.first(where: { ids.contains($0.id) }) {
+                Button(t("palette.open"), systemImage: "arrow.up.forward.square") { openedOverlay = o.id }
+                menu(o)
+            } else {
+                ActionButtons(actions: lib?.picked ?? []) { _ in picking.ids = ids; removingMany = true }
             }
         }
         .overlay { if overlays.isEmpty, query.isEmpty { ContentUnavailableView(t("overlays.empty"), systemImage: "square.on.square") } }
@@ -244,22 +275,17 @@ struct OverlaysPage: View {
         .toolbar {
             if !picking.on {
                 ToolbarItem(placement: .primaryAction) {
-                    Picker(t("library.sortBy", ["order": ""]), selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 })) {
-                        ForEach(ordered?.sorts ?? [], id: \.self) { s in Text(t(s.text)).tag(s.id) }
-                    }
-                    .pickerStyle(.menu)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button(t("common.create"), systemImage: "plus") {
-                        let title = model.freshName(t("overlays.new"), taken: overlays.map(\.title))
-                        let id = UUID().uuidString.lowercased()
-                        message = change(model, "createOverlay", ["id": id, "title": title, "at": nowMs()])
-                        // Opened as it is made, as the web's.
-                        if message == nil { openedOverlay = id }
-                    }
+                    SortMenu(sorts: (ordered?.sorts ?? []).map { ($0.id, $0.text) }, selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 }))
                 }
             }
-            PickingToolbar(picking: $picking) { Button(t("common.delete"), systemImage: "trash", role: .destructive) { removingMany = true } }
+            PickingToolbar(picking: $picking, shown: lib?.pick ?? false) { ActionButtons(actions: lib?.picked ?? []) { _ in removingMany = true } }
+        }
+        .floatingAdd(lib, shown: !picking.on) {
+            let title = model.freshName(t("overlays.new"), taken: overlays.map(\.title))
+            let id = UUID().uuidString.lowercased()
+            message = change(model, "createOverlay", ["id": id, "title": title, "at": nowMs()])
+            // Opened as it is made, as the web's.
+            if message == nil { openedOverlay = id }
         }
         .confirmationDialog(t("common.delete"), isPresented: $removingMany) {
             Button(t("common.delete"), role: .destructive) {
@@ -273,6 +299,19 @@ struct OverlaysPage: View {
             Button(t("common.delete"), role: .destructive) { message = change(model, "deleteOverlay", ["id": o.id]) }
         } message: { o in Text(t("overlays.removeConfirm", ["title": o.title])) }
         .refusal($message)
+    }
+
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage("overlays") }
+
+    private func menu(_ o: OverlayEntry) -> some View { ActionButtons(actions: lib?.row ?? []) { act($0, o) } }
+
+    private func act(_ id: String, _ o: OverlayEntry) {
+        switch id {
+        case "rename": rename(o)
+        case "delete": removing = o
+        default: break
+        }
     }
 
     private func rename(_ o: OverlayEntry) {
@@ -301,14 +340,11 @@ struct ThemesPage: View {
 
     var body: some View {
         let page = model.view("themesPageView", ["role": model.role], as: ThemesPageModel.self)
-        List {
+        let themes = page?.themes ?? []
+        List(selection: listSelection($picking)) {
             IntroCard(id: "themes")
-            ForEach(page?.themes ?? []) { theme in
-                // Välj takes the own themes only, as the web's: a built-in one is never deleted.
-                if picking.on, theme.actions.contains(where: { $0.id == "delete" }) {
-                    PickRow(picking: $picking, id: theme.id) { Text(name(theme)) }
-                } else {
-                HStack {
+            ForEach(themes) { theme in
+                let row = HStack {
                     ThemePreview(id: theme.id).frame(width: 96, height: 54).clipShape(RoundedRectangle(cornerRadius: 4))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(name(theme))
@@ -320,30 +356,41 @@ struct ThemesPage: View {
                         Menu { menu(theme) } label: { Image(systemName: "ellipsis.circle") }.menuIndicator(.hidden).fixedSize()
                     }
                 }
-                .contextMenu { menu(theme) }
-                // A tap on an own theme opens it, as the web's tile.
-                .contentShape(Rectangle())
-                .onTapGesture { if theme.actions.contains(where: { $0.id == "edit" }) { editing = theme.id } }
+                #if os(macOS)
+                row.tag(theme.id)
+                #else
+                // Välj takes the own themes only, as the web's: a built-in one is never deleted.
+                if picking.on, deletable(theme) {
+                    PickRow(picking: $picking, id: theme.id) { Text(name(theme)) }
+                } else {
+                    row.contextMenu { menu(theme) }
+                        // A tap on an own theme opens it, as the web's tile.
+                        .contentShape(Rectangle())
+                        .onTapGesture { if editable(theme) { editing = theme.id } }
                 }
+                #endif
+            }
+        }
+        // On a Mac: a double click opens an own theme, ⌫ and the menu remove the own ones picked (never a built-in).
+        .libraryPicking(picking, open: { id in if themes.first(where: { $0.id == id }).map(editable) == true { editing = id } },
+                        remove: { if themes.contains(where: { picking.ids.contains($0.id) && deletable($0) }) { removingMany = true } }) { ids in
+            if ids.count == 1, let theme = themes.first(where: { ids.contains($0.id) }) {
+                menu(theme)
+            } else if themes.contains(where: { ids.contains($0.id) && deletable($0) }) {
+                ActionButtons(actions: lib?.picked ?? []) { _ in picking.ids = ids; removingMany = true }
             }
         }
         .navigationDestination(item: $editing) { id in ThemeEditorPage(id: id) }
+        .floatingAdd(lib, shown: !picking.on) { copy(from: nil, name: t("themes.new")) }
         .toolbar {
-            if page?.canAdd == true {
-                if !picking.on {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(t("themes.new"), systemImage: "plus") { copy(from: nil, name: t("themes.new")) }
-                    }
-                }
-                PickingToolbar(picking: $picking) { Button(t("themes.delete"), systemImage: "trash", role: .destructive) { removingMany = true } }
-            }
+            PickingToolbar(picking: $picking, shown: lib?.pick ?? false) { ActionButtons(actions: lib?.picked ?? []) { _ in removingMany = true } }
         }
         .confirmationDialog(t("themes.delete"), isPresented: $removingMany) {
             Button(t("themes.delete"), role: .destructive) {
-                for id in picking.ids { message = change(model, "deleteTheme", ["id": id]) ?? message }
+                for th in themes where picking.ids.contains(th.id) && deletable(th) { message = change(model, "deleteTheme", ["id": th.id]) ?? message }
                 picking.end()
             }
-        } message: { Text(t("themes.deleteMany", ["n": picking.ids.count])) }
+        } message: { Text(t("themes.deleteMany", ["n": themes.filter { picking.ids.contains($0.id) && deletable($0) }.count])) }
         .confirmationDialog(t("themes.delete"), isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), presenting: removing) { th in
             Button(t("themes.delete"), role: .destructive) { message = change(model, "deleteTheme", ["id": th.id]) }
         } message: { th in Text(t("themes.deleteAsk", ["name": name(th)])) }
@@ -351,6 +398,12 @@ struct ThemesPage: View {
     }
 
     private func name(_ theme: ThemesPageModel.Theme) -> String { theme.nameKey.map { t($0) } ?? theme.name ?? "" }
+    /// What the list can do, the core's (`libraryPageView`): + and the actions for the picked; each theme's menu is
+    /// `themesPageView`'s, as it differs by theme.
+    private var lib: LibraryPage? { model.libraryPage("themes") }
+    /// An own theme, which the core lets this role edit or delete; a built-in one never.
+    private func editable(_ theme: ThemesPageModel.Theme) -> Bool { theme.actions.contains { $0.id == "edit" } }
+    private func deletable(_ theme: ThemesPageModel.Theme) -> Bool { theme.actions.contains { $0.id == "delete" } }
 }
 
 /// A theme drawn on the theme editor's song sample, as its tile on the web shows it.

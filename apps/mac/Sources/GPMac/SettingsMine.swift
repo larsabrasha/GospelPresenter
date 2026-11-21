@@ -81,6 +81,10 @@ struct MySettingsPage: View {
         case "choice" where r.id == "theme":
             Picker(t(r.text), selection: $theme) { ForEach(r.choices ?? [], id: \.self) { c in Text(t(c.text)).tag(c.id) } }
                 .pickerStyle(.segmented)
+                #if os(iOS)
+                // On the group's ground under its heading, not in a cell of its own: a box in a box otherwise.
+                .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
+                #endif
         case "choice":
             Picker(t(r.text), selection: $language) { ForEach(r.choices ?? [], id: \.self) { c in Text(t(c.text)).tag(c.id) } }
                 .onChange(of: language) { _, now in Texts.choose(now); model.app.textsChanged() }

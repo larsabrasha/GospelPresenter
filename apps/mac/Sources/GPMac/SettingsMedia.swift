@@ -76,15 +76,21 @@ struct MediaLibraryPage: View {
                             row(f)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { tap(f) }
-                        .contextMenu { if manage { menu(f) } }
-                        .swipeActions { if manage { Button(t("common.delete"), role: .destructive) { trashing = [f] } } }
+                        .modifier(MacPicked(on: picked.contains(f.id), radius: 6))
+                        .modifier(Clicks(open: { opened = f }, tap: { tap(f) }))
+                        .contextMenu { menu(f) }
+                        .swipeActions { ActionButtons(actions: (lib?.row ?? []).filter(\.destructive)) { act($0, f) } }
                     }
                 }
             }
         }
         .overlay { if ordered?.rows.isEmpty == true, query.isEmpty { ContentUnavailableView(t(kind.emptyKey), systemImage: kind.symbol) } }
         .searchable(text: $query, prompt: t("images.searchPlaceholder"))
+        .floatingAdd(lib, shown: !selecting) { importing = true }
+        #if os(macOS)
+        // ⌫ asks to remove the files picked, as Finder's, where the core lets them be removed.
+        .onDeleteCommand { if lib?.picked.contains(where: { $0.id == "delete" }) == true, !picked.isEmpty { actPicked("delete", files) } }
+        #endif
         .toolbar { toolbar(ordered, files: files, manage: manage) }
         .fileImporter(isPresented: $importing, allowedContentTypes: kind.accepts, allowsMultipleSelection: true) { result in
             guard case let .success(urls) = result else { return }
@@ -106,35 +112,65 @@ struct MediaLibraryPage: View {
 
     @ToolbarContentBuilder private func toolbar(_ ordered: Ordered?, files: [MediaFile], manage: Bool) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            #if os(macOS)
+            // No Välj on a Mac: the actions for the files picked show while any are.
+            if !picked.isEmpty {
+                ActionButtons(actions: lib?.picked ?? []) { actPicked($0, files) }
+            }
+            viewMenu(ordered)
+            #else
             if selecting {
-                Button(t("library.download"), systemImage: "square.and.arrow.down") { Task { await download(files.filter { picked.contains($0.id) }) } }.disabled(picked.isEmpty)
-                if manage { Button(t("common.delete"), systemImage: "trash", role: .destructive) { trashing = files.filter { picked.contains($0.id) } }.disabled(picked.isEmpty) }
+                ActionButtons(actions: lib?.picked ?? []) { actPicked($0, files) }.disabled(picked.isEmpty)
                 Button(t("library.done")) { selecting = false; picked = [] }
             } else {
-                Menu {
-                    Picker(t("library.sortBy", ["order": ""]), selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 })) {
-                        ForEach(ordered?.sorts ?? [], id: \.self) { s in Text(t(s.text)).tag(s.id) }
-                    }
-                    if kind != .audio {
-                        Picker(t("library.layout"), selection: $grid) {
-                            Label(t("library.asGrid"), systemImage: "square.grid.2x2").tag(true)
-                            Label(t("library.asList"), systemImage: "list.bullet").tag(false)
-                        }
-                    }
-                } label: { Label(t("library.layout"), systemImage: "arrow.up.arrow.down") }
-                Button(t("library.select")) { selecting = true }
-                if manage { Button(t(kind.importKey), systemImage: "plus") { importing = true } }
+                viewMenu(ordered)
+                if lib?.pick == true { Button(t("library.select")) { selecting = true } }
             }
+            #endif
         }
     }
 
+    /// Visning: the order and, but for sound, grid or list, in one menu behind its symbol.
+    private func viewMenu(_ ordered: Ordered?) -> some View {
+        Menu {
+            Picker(t("library.sortBy", ["order": ""]), selection: Binding(get: { ordered?.sort ?? "" }, set: { sort = $0 })) {
+                ForEach(ordered?.sorts ?? [], id: \.self) { s in Text(t(s.text)).tag(s.id) }
+            }
+            if kind != .audio {
+                Picker(t("library.layout"), selection: $grid) {
+                    Label(t("library.asGrid"), systemImage: "square.grid.2x2").tag(true)
+                    Label(t("library.asList"), systemImage: "list.bullet").tag(false)
+                }
+            }
+        } label: { Label(t("library.layout"), systemImage: "arrow.up.arrow.down") }
+    }
+
+    /// iOS: a tap opens a file, or picks it while Välj is on. A Mac: a click picks it alone, ⌘- or ⇧-click adds it or
+    /// takes it away, as Finder's; a double click opens it (`Clicks`).
     private func tap(_ f: MediaFile) {
+        #if os(macOS)
+        if NSEvent.modifierFlags.contains(.command) || NSEvent.modifierFlags.contains(.shift) {
+            if picked.contains(f.id) { picked.remove(f.id) } else { picked.insert(f.id) }
+        } else {
+            picked = [f.id]
+        }
+        #else
         if selecting { if picked.contains(f.id) { picked.remove(f.id) } else { picked.insert(f.id) } } else { opened = f }
+        #endif
+    }
+
+    private func macPicked(_ f: MediaFile) -> Bool {
+        #if os(macOS)
+        picked.contains(f.id)
+        #else
+        false
+        #endif
     }
 
     private func tile(_ f: MediaFile, manage: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             thumbnail(f).aspectRatio(16 / 9, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.sky, lineWidth: macPicked(f) ? 3 : 0) }
                 .overlay(alignment: .topTrailing) {
                     if selecting { Image(systemName: picked.contains(f.id) ? "checkmark.circle.fill" : "circle").foregroundStyle(.white, Color.sky).padding(6) }
                 }
@@ -142,8 +178,8 @@ struct MediaLibraryPage: View {
             Text(detail(f)).font(.caption2).foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
-        .onTapGesture { tap(f) }
-        .contextMenu { if manage { menu(f) } }
+        .modifier(Clicks(open: { opened = f }, tap: { tap(f) }))
+        .contextMenu { menu(f) }
     }
 
     private func row(_ f: MediaFile) -> some View {
@@ -176,18 +212,32 @@ struct MediaLibraryPage: View {
         }
     }
 
-    @ViewBuilder private func menu(_ f: MediaFile) -> some View {
-        if kind == .image { Button(t("images.edit"), systemImage: "crop") { editing = f } }
-        if kind == .image, f.originalFullHash != nil {
-            Button(t("images.revert"), systemImage: "arrow.uturn.backward") { message = change(model, "revertImage", ["id": f.id]) }
-        }
-        Button(t("library.rename"), systemImage: "pencil") {
+    /// What the list can do, the core's (`libraryPageView`).
+    private var lib: LibraryPage? { model.libraryPage(kind.library) }
+
+    /// A file's menu, the core's: Redigera and Återgå till original (an edited picture's), Byt namn, Ladda ner, Radera.
+    private func menu(_ f: MediaFile) -> some View {
+        ActionButtons(actions: lib?.row ?? [], has: { $0 == "originalFullHash" && f.originalFullHash != nil }) { act($0, f) }
+    }
+
+    private func act(_ id: String, _ f: MediaFile) {
+        switch id {
+        case "edit": editing = f
+        case "revert": message = change(model, "revertImage", ["id": f.id])
+        case "rename":
             prompt = TextPrompt(title: t("library.renameTitle"), label: t("library.fileName"), text: f.fileName, rule: FieldRule(required: true, max: 200)) { name in
                 message = change(model, "rename\(kind.title)", ["id": f.id, "fileName": name.trimmingCharacters(in: .whitespaces)])
             }
+        case "download": Task { await download([f]) }
+        case "delete": trashing = [f]
+        default: break
         }
-        Button(t("library.download"), systemImage: "square.and.arrow.down") { Task { await download([f]) } }
-        Button(t("common.delete"), systemImage: "trash", role: .destructive) { trashing = [f] }
+    }
+
+    /// The picked files' action by the core's id: Ladda ner, or Radera asked first.
+    private func actPicked(_ id: String, _ files: [MediaFile]) {
+        let chosen = files.filter { picked.contains($0.id) }
+        if id == "download" { Task { await download(chosen) } } else if id == "delete" { trashing = chosen }
     }
 
     /// The files saved where the person chooses: a picture's or a sound's from this device (fetched first when it

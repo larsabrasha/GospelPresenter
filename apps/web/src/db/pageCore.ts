@@ -69,6 +69,30 @@ export function can(role: Role, permission: Permission): boolean {
   return theRules().permissions[role]?.includes(permission) ?? false;
 }
 
+/** An action of a list, the core's: its id, its text's key, whether it removes, the row's field it needs. */
+interface LibraryAction {
+  id: string;
+  text: string;
+  destructive: boolean;
+  when: string | null;
+}
+
+/** What one of Inställningar's lists can do (`libraryPageView`, docs/view-models.md), the same in every shell. */
+export interface LibraryPage {
+  list: 'collection' | 'pages';
+  opens: 'page' | 'preview' | 'sheet' | 'none';
+  add: { id: 'new' | 'import'; text: string } | null;
+  extra: { id: 'import'; text: string; title: string } | null;
+  pick: boolean;
+  pickOnly: 'own' | null;
+  picked: LibraryAction[];
+  row: LibraryAction[];
+}
+
+export function libraryPage(kind: string, role: Role, host = false): LibraryPage {
+  return pageCore().pure<LibraryPage>('libraryPageView', { kind, role, host });
+}
+
 /** The limits of the organisation's data, the core's: a field's length, a button hidden at the limit. */
 export const limits = () => theRules().limits;
 

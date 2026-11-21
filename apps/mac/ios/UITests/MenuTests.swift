@@ -16,7 +16,7 @@ final class MenuTests: XCTestCase {
     func testEachItemMenuOffersWhatTheCoreOffersInEveryState() throws {
         let repo = try XCTUnwrap(ProcessInfo.processInfo.environment["GP_REPO"], "run by apps/mac/apple.sh uitest")
         let expected = try JSONDecoder().decode(Expected.self, from: Data(contentsOf: URL(fileURLWithPath: "\(repo)/packages/rust-core/scenarios/sunday.expected.json")))
-        let sv = try Self.swedish("\(repo)/apps/mac/Sources/GPMac/TextTable.swift")
+        let sv = try swedishTexts(repo)
         let app = XCUIApplication()
         app.launchArguments = ["-gp.demo", "YES", "-gp.fixture", "\(repo)/packages/rust-core/scenarios/sunday.json", "-gp.open", "p1",
                                "-AppleLanguages", "(sv)", "-AppleLocale", "sv_SE"]
@@ -78,13 +78,5 @@ final class MenuTests: XCTestCase {
         default:
             break
         }
-    }
-
-    /// The app's Swedish texts, from the table apps/mac/texts.mjs writes from the web's i18n.ts.
-    private static func swedish(_ path: String) throws -> [String: String] {
-        let swift = try String(contentsOfFile: path, encoding: .utf8)
-        let json = try XCTUnwrap(swift.range(of: "#\"").flatMap { start in swift.range(of: "\"#", options: .backwards).map { swift[start.upperBound..<$0.lowerBound] } })
-        let table = try JSONDecoder().decode([String: [String: String]].self, from: Data(json.utf8))
-        return try XCTUnwrap(table["sv"])
     }
 }

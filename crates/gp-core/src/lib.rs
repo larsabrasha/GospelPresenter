@@ -10,6 +10,7 @@ mod image_edit;
 mod item_views;
 mod json;
 mod legacy;
+mod library_pages;
 mod live;
 mod live_state;
 mod lists;

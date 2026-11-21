@@ -97,6 +97,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "storageLimitsView" => Ok(crate::settings_pages::storage_limits()),
         "deckImportView" => crate::settings_pages::deck_import(a),
         "libraryOrderView" => crate::settings_pages::library_order(a).await,
+        "libraryPageView" => crate::library_pages::library_page(a),
         "videoImportView" => crate::settings_pages::video_import(a),
         "displayStatusView" => crate::settings_pages::display_status(a),
         "deckPagesView" => crate::settings_pages::deck_pages(a),

@@ -57,19 +57,6 @@ struct PhoneLayout: View {
     @State private var tapped = false
 }
 
-private extension View {
-    /// The floating +: Liquid Glass tinted in the app's blue where there is one (iOS 26, macOS 26), as the system's own
-    /// floating buttons; before, a filled blue circle with a shadow.
-    @ViewBuilder
-    func floatingGlass() -> some View {
-        if #available(iOS 26, macOS 26, *) {
-            glassEffect(.regular.tint(Color.sky).interactive(), in: Circle())
-        } else {
-            background(Color.sky, in: Circle()).shadow(radius: 4, y: 2)
-        }
-    }
-}
-
 /// A section's heading: the item's name, a red dot while it is shown, and its … with the item's menu.
 private struct ItemHeading: View {
     @Environment(Model.self) private var model

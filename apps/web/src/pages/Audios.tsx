@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Role } from '@gp/core';
-import { can, limits } from '../db/pageCore.ts';
+import { libraryPage, limits } from '../db/pageCore.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -21,7 +21,8 @@ export function Audios({ role }: { role: Role }) {
   const audios = useData(listAudios, []);
   const items = useMemo(() => named(audios), [audios]);
   const { run, progress, failures } = useMediaImport('audio');
-  const manage = can(role, 'ManageAudios');
+  // Whether the sounds are imported, picked and acted on: the core's (`libraryPageView`), as every shell's.
+  const manage = libraryPage('audios', role).pick;
 
   const importFiles = async (files: File[]) => {
     if (!manage) return;
