@@ -1,0 +1,54 @@
+// The start page (apps/mac/Sources/GPMac/StartPage.swift): what this device presents at the top ("Visas just nu"),
+// then the core's lists (startPageView: Idag, Kommande, Senast ändrade), each row the presentation's name, its date,
+// time and place, and its number of items; a row opens it. Not built yet: + (Skapa presentation, pageButtonsView's
+// `startPage`), Visa fler, the account and the sync's state.
+use crate::shell::Shell;
+use adw::prelude::*;
+use gp_tui::dates::subtitle;
+use gp_tui::texts::t;
+use gp_tui::views::PresentationRow;
+use std::rc::Rc;
+
+/// The page's content made again from the model's lists.
+pub fn fill(shell: &Rc<Shell>) {
+    let page = adw::PreferencesPage::new();
+    let m = shell.model.borrow();
+    let live = m.app.live.presentation_id.clone();
+    let rows: Vec<&PresentationRow> = m.app.rows();
+    if let Some(p) = live.as_deref().and_then(|id| rows.iter().find(|r| r.id == id)) {
+        let group = adw::PreferencesGroup::builder().title(t("remote.nowShowing", &[])).build();
+        group.add(&row(shell, p, &subtitle(p, &m.app.today, true, false), true));
+        page.add(&group);
+    }
+    for list in &m.app.lists {
+        let group = adw::PreferencesGroup::builder().title(t(&list.title, &[])).build();
+        for p in &list.rows {
+            group.add(&row(shell, p, &subtitle(p, &m.app.today, list.show_date, list.with_year), live.as_deref() == Some(p.id.as_str())));
+        }
+        page.add(&group);
+    }
+    let bar = adw::ToolbarView::new();
+    bar.add_top_bar(&adw::HeaderBar::new());
+    bar.set_content(Some(&page));
+    shell.start_page().set_child(Some(&bar));
+}
+
+/// A presentation's row: two lines, LIVE first while presented, the number of items at the right.
+fn row(shell: &Rc<Shell>, p: &PresentationRow, sub: &str, live: bool) -> adw::ActionRow {
+    let row = adw::ActionRow::builder().title(&p.name).subtitle(sub).use_markup(false).activatable(true).build();
+    if live {
+        let badge = gtk::Label::new(Some(&t("live.badge", &[])));
+        badge.add_css_class("live-badge");
+        row.add_prefix(&badge);
+    }
+    if let Some(n) = p.item_count {
+        let count = if n == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &n.to_string())]) };
+        let label = gtk::Label::new(Some(&count));
+        label.add_css_class("dim-label");
+        row.add_suffix(&label);
+    }
+    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+    let (weak, id) = (Rc::downgrade(shell), p.id.clone());
+    row.connect_activated(move |_| if let Some(s) = weak.upgrade() { s.open(&id) });
+    row
+}

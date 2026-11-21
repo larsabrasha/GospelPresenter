@@ -1,0 +1,32 @@
+[package]
+name = "gp-linux"
+version = "0.1.0"
+edition = "2021"
+description = "Gospel Presenter for Linux: GTK 4 and libadwaita over the Rust core, linked in (docs/linux-app.md)."
+
+[[bin]]
+name = "gospel-presenter"
+path = "src/main.rs"
+
+# A workspace of its own, as crates/gp-pptx is: building the core and the TUI on a Mac never needs GTK.
+[workspace]
+
+[dependencies]
+# The core with slideLayoutView (the `layout` feature), as the Mac app takes it: slides are painted here from its layout.
+gp-core = { path = "../../crates/gp-core", features = ["layout"] }
+# The terminal shell's core runner (shell.rs), its decoded views, the app's texts and its page logic (App), shared so
+# the core's events are sent and answered the same way in both; a crate of their own is a follow-up (docs/linux-app.md).
+gp-tui = { path = "../../crates/gp-tui" }
+# The key types gp-tui's keys.rs maps from; a GTK key is turned into one so the mapping is written once.
+ratatui = "0.30"
+gtk = { package = "gtk4", version = "0.10", features = ["v4_14"] }
+adw = { package = "libadwaita", version = "0.8", features = ["v1_6"] }
+# Glyphs painted by their id from the core's own faces (FreeType), the label's text with Pango.
+cairo-rs = { version = "0.21", features = ["freetype", "v1_16"] }
+freetype-rs = "0.38"
+pangocairo = "0.21"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3

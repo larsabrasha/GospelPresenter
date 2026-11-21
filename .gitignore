@@ -33,6 +33,8 @@ Thumbs.db
 /crates/gp-core-collation/target/
 # The PowerPoint drawing, a workspace of its own (crates/gp-pptx/Cargo.toml), too.
 /crates/gp-pptx/target/
+# The Linux app, a workspace of its own (docs/linux-app.md), built on Linux itself.
+/apps/linux/target/
 crates/gp-core/parity/.out/
 # The iPad 3 spike's builds (spike/ios8-ipad3/README.md)
 /spike/ios8-ipad3/.build/

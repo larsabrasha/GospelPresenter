@@ -57,6 +57,9 @@ impl App {
         app
     }
 
+    /// The core, for the views another shell over this App reads itself (the Linux app's slide layouts).
+    pub fn core(&self) -> &Core { &self.core }
+
     pub fn load_start(&mut self) {
         self.lists = self.core.view("startPageView", json!({ "today": self.today })).unwrap_or_default();
         self.cursor = self.cursor.min(self.rows().len().saturating_sub(1));
@@ -156,7 +159,8 @@ impl App {
         self.load_start();
     }
 
-    fn context(&self) -> Value {
+    /// What the core's page views take of the page and the live state (`pageEventView`, `pageModelView`).
+    pub fn context(&self) -> Value {
         let template = self.page.as_ref().and_then(|p| p.presentation.as_ref()).is_some_and(|p| p.is_template);
         json!({ "presentationId": self.open_id(), "isTemplate": template, "presenting": self.is_live(), "live": self.live })
     }
