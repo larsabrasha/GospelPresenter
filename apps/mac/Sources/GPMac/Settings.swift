@@ -64,6 +64,7 @@ struct SettingsView: View {
     static var launchPage = "settings"
     @State private var chosen: String? = SettingsView.launchPage
     @State private var query = ""
+    @FocusState private var searching: Bool
     @State private var visibility = NavigationSplitViewVisibility.all
 
     /// Whether this is the desktop host itself (the web's `/api/pair/status` host), where Enheter's endpoints answer:
@@ -95,6 +96,7 @@ struct SettingsView: View {
                 }
             }
             .searchable(text: $query, placement: .sidebar, prompt: t("search.field"))
+            .modifier(SearchFocus(searching: $searching))
             .navigationTitle(t("nav.admin"))
             #if os(iOS)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(t("common.close"), systemImage: "xmark") { model.settingsOpen = false } } }
@@ -106,6 +108,8 @@ struct SettingsView: View {
             NavigationStack {
                 if let chosen { SettingsDetail(id: chosen).id(chosen) }
             }
+            // The editors' ⌘X, ⌘C, ⌘V and ⌘Z leave the sidebar's search field alone while it is typed in.
+            .environment(\.settingsSearching, searching)
         }
         #if os(iOS)
         // A phone starts at the list, as iOS's Settings; a computer with Mina inställningar beside it.

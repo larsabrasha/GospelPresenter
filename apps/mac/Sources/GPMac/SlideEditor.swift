@@ -22,6 +22,8 @@ private struct Edited: Decodable { let pages: [JSONValue], page: Int, picked: St
 
 struct SlideEditorPage: View {
     @Environment(Model.self) private var model
+    /// The settings window's search field typed in: the page's keys are its, as for a field here.
+    @Environment(\.settingsSearching) private var searching
     let target: EditedSlides
     @State private var pages: [JSONValue] = []
     @State private var at = 0
@@ -306,7 +308,7 @@ struct SlideEditorPage: View {
 
     /// The page's key, none while a field is typed in (a toolbar button's key goes before the field's own).
     private func key(_ k: Character, _ modifiers: EventModifiers = .command) -> KeyboardShortcut? {
-        typing ? nil : KeyboardShortcut(KeyEquivalent(k), modifiers: modifiers)
+        typing || searching ? nil : KeyboardShortcut(KeyEquivalent(k), modifiers: modifiers)
     }
 
     private func changeElement(_ patch: [String: Any]) {

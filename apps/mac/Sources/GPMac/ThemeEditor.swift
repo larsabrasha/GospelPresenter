@@ -19,6 +19,8 @@ struct ThemeEditorModel: Decodable {
 
 struct ThemeEditorPage: View {
     @Environment(Model.self) private var model
+    /// The settings window's search field typed in: ⌘Z is its, as for the name field.
+    @Environment(\.settingsSearching) private var searching
     let id: String
     @State private var definition: JSONValue?
     @State private var name = ""
@@ -65,9 +67,9 @@ struct ThemeEditorPage: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button(t("slideEditor.undo"), systemImage: "arrow.uturn.backward") { step(back: true) }.disabled(past.isEmpty)
-                    .keyboardShortcut(naming ? nil : KeyboardShortcut("z", modifiers: .command))
+                    .keyboardShortcut(naming || searching ? nil : KeyboardShortcut("z", modifiers: .command))
                 Button(t("slideEditor.redo"), systemImage: "arrow.uturn.forward") { step(back: false) }.disabled(future.isEmpty)
-                    .keyboardShortcut(naming ? nil : KeyboardShortcut("z", modifiers: [.command, .shift]))
+                    .keyboardShortcut(naming || searching ? nil : KeyboardShortcut("z", modifiers: [.command, .shift]))
             }
         }
         .onAppear(perform: load)
