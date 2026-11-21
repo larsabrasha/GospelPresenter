@@ -227,20 +227,26 @@ struct ThemeEditorPage: View {
         if let picked { args["picked"] = picked }
         guard let next = model.view("themeEditView", args, as: JSONValue.self) else { return message = t("common.saveFailed") }
         guard next != definition else { return }
+        let (before, after) = (past, future)
         past.append(definition)
         future = []
-        save(next)
+        // Refused (a limit, a picture not on the server): the definition and its history as they were.
+        if !save(next) { (self.definition, past, future) = (definition, before, after) }
     }
 
     private func step(back: Bool) {
-        guard let definition, let next = back ? past.popLast() : future.popLast() else { return }
+        guard let definition else { return }
+        let (before, after) = (past, future)
+        guard let next = back ? past.popLast() : future.popLast() else { return }
         if back { future.append(definition) } else { past.append(definition) }
-        save(next)
+        if !save(next) { (self.definition, past, future) = (definition, before, after) }
     }
 
-    private func save(_ next: JSONValue) {
+    /// The definition kept and saved; false, with the refusal said, when the core refused it.
+    private func save(_ next: JSONValue) -> Bool {
         definition = next
         message = change(model, "updateTheme", ["id": id, "definition": next.any, "at": nowMs()])
+        return message == nil
     }
 }
 
@@ -253,5 +259,7 @@ func hexString(_ c: Color) -> String {
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
     UIColor(c).getRed(&r, green: &g, blue: &b, alpha: &a)
     #endif
-    return String(format: "#%02x%02x%02x", Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+    // Kept within 0…255: iOS's picker may give a wide-gamut colour outside 0…1, which the core refuses as no #rrggbb.
+    let byte = { (v: CGFloat) in min(255, max(0, Int((v * 255).rounded()))) }
+    return String(format: "#%02x%02x%02x", byte(r), byte(g), byte(b))
 }

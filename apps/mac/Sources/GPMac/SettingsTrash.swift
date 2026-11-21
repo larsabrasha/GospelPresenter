@@ -82,7 +82,8 @@ struct TrashPage: View {
                 for e in picked { message = change(model, e.purge, ["id": e.id]) ?? message }
                 picking.end()
             }
-        } message: { Text(t("trash.purgeConfirmMany", ["n": picking.ids.count])) }
+        // Counted as purged: the picked rows still shown (a search or kind filter since may hide some).
+        } message: { Text(t("trash.purgeConfirmMany", ["n": (page?.entries ?? []).filter { picking.ids.contains($0.key) }.count])) }
         .onAppear {
             // What has expired is purged on opening (PRES-R26); not asked for, so a refusal leaves the entries.
             if page?.expired == true { _ = model.app.mutate("purgeExpiredTrash", ["now": opened]) }

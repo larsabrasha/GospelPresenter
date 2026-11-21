@@ -319,9 +319,16 @@ struct SlideEditorPage: View {
         at = r.page
         picked = r.picked
         guard r.pages != pages else { return }
+        commit(r.pages)
+    }
+
+    /// New pages kept for Ångra and saved; refused (a limit, a picture not on the server), the pages and their history
+    /// as they were.
+    private func commit(_ next: [JSONValue]) {
+        let (was, before, after) = (pages, past, future)
         past.append(pages)
         future = []
-        save(r.pages)
+        if !save(next) { (pages, past, future) = (was, before, after) }
     }
 
     /// An element's words, typed on `page`, kept without moving what is shown or picked now. Dropped when Ångra or Gör
@@ -330,26 +337,27 @@ struct SlideEditorPage: View {
         guard made == steps else { return }
         let args: [String: Any] = ["op": "change", "id": element, "patch": ["text": text], "pages": pages.map(\.any), "page": page, "overlay": overlay, "picked": element]
         guard let r = model.view("slideEditView", args, as: Edited.self), r.pages != pages else { return }
-        past.append(pages)
-        future = []
-        save(r.pages)
+        commit(r.pages)
     }
 
     private func step(back: Bool) {
+        let (was, before, after) = (pages, past, future)
         guard let next = back ? past.popLast() : future.popLast() else { return }
         steps += 1
         if back { future.append(pages) } else { past.append(pages) }
         at = min(at, next.count - 1)
         picked = nil
-        save(next)
+        if !save(next) { (pages, past, future) = (was, before, after) }
     }
 
-    private func save(_ next: [JSONValue]) {
+    /// The pages kept and saved; false, with the refusal said, when the core refused them.
+    private func save(_ next: [JSONValue]) -> Bool {
         pages = next
         switch target {
         case .slideshow: message = change(model, "updateCustomSlide", ["id": id, "pages": next.map(\.any), "at": nowMs()])
         case .overlay: message = change(model, "updateOverlay", ["id": id, "page": next[0].any, "at": nowMs()])
         }
+        return message == nil
     }
 
     private func rename() {

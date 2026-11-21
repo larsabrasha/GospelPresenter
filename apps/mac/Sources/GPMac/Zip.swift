@@ -31,6 +31,9 @@ final class ZipWriter {
         out = try FileHandle(forWritingTo: url)
     }
 
+    /// The file closed though finish() was not reached (an export that failed part-way).
+    deinit { try? out.close() }
+
     private func le16(_ v: Int) -> Data { withUnsafeBytes(of: UInt16(v).littleEndian) { Data($0) } }
     private func le32(_ v: UInt32) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
 

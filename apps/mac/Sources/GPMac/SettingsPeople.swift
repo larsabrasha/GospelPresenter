@@ -42,6 +42,8 @@ struct UsersPage: View {
     @State private var invitations: [InvitationEntry] = []
     @State private var query = ""
     @State private var adding = false
+    /// The new user's invite link, shown when the add sheet has closed.
+    @State private var madeLink: String?
     @State private var withdrawing: InvitationEntry?
     @State private var link: String?
     @State private var message: String?
@@ -89,7 +91,9 @@ struct UsersPage: View {
             }
         }
         .task { await load() }
-        .sheet(isPresented: $adding) { NewUserSheet(host: host) { token in link = token; Task { await load() } } }
+        // The link shown once the add sheet has closed: a second sheet asked for while the first is up is never shown,
+        // and the link is shown only once.
+        .sheet(isPresented: $adding, onDismiss: { link = madeLink; madeLink = nil }) { NewUserSheet(host: host) { token in madeLink = token; Task { await load() } } }
         .sheet(item: Binding(get: { link.map { LinkBox(url: $0) } }, set: { link = $0?.url })) { box in InviteLinkSheet(url: box.url) }
         .confirmationDialog(t("users.withdraw"), isPresented: Binding(get: { withdrawing != nil }, set: { if !$0 { withdrawing = nil } }), presenting: withdrawing) { i in
             Button(t("users.withdraw"), role: .destructive) { Task { message = await model.api("DELETE", "/api/invitations/\(i.id)").error.map(hostRefusal); await load() } }

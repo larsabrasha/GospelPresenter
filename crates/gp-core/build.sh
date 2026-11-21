@@ -79,7 +79,8 @@ grep -E "warning: |Build complete" "$OUT/swift-build.log" || true
 SDK=$(xcrun --show-sdk-version)
 # The app as a bundle too (apps/mac/bundle.sh), as its accent lives in one; with the demo data and the slide renderer
 # among its resources, so it runs opened from Finder (the slides drawn by the web's SlideView, docs/native-apps.md).
-[ -f "$OUT/fixtures/demo.sqlite" ] || node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
+# Made each build, so the bundle carries this core's demo, not the last run's.
+node --no-warnings parity/demo-seed.mjs "$OUT/fixtures"
 (cd "$ROOT/apps/web" && pnpm exec vite build -c vite.slides.config.ts --logLevel warn)
 "$ROOT/apps/mac/bundle.sh" "$OUT/fixtures/demo.sqlite" "$ROOT/apps/web/dist-slides" >/dev/null || { echo "apps/mac/bundle.sh failed" >&2; exit 1; }
 for bin in GPMac parity; do
