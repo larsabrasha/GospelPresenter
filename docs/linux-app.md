@@ -12,7 +12,7 @@ presentation with its slides painted, presenting and stepping.
 or the TUI on a Mac never needs GTK.
 
 It takes more of the terminal shell than the core: `crates/gp-tui`'s `App` (the start page's lists, the page open and
-its own state, the app's live state, each changed only by the core's `pageEventView` and `liveChangeView`), its SQLite
+its own state, the app's live state, both changed only by the core, a key or a tap in one call, `pageStepView`), its SQLite
 runner (`shell.rs`), its decoded views, its texts (the web's `i18n.ts`) and its keys (`keys.rs`: a GTK key is made
 into the terminal's, so which key is which event is written once; ⇧↑ ⇧↓ stand for ⌘↑ ⌘↓, as there). So both shells
 send and answer the core's events alike. Those parts belong in a crate of their own for every Rust shell; not moved
@@ -20,7 +20,7 @@ yet, so `apps/linux` depends on `gp-tui` and with it on ratatui.
 
 What a page offers is the core's: `startPageView`, `presentationPageView`, `pageButtonsView` (▶ Starta, ■ Avsluta,
 Släck, with their roles), `presentationColumnsView` (the columns' widths, the live column out while presenting),
-`pageModelView`'s cue, `slideMarksView`. The colours are `lookView`'s (`apps/linux/src/look.rs`): the page's greys
+`pageStepView`'s marks, cue and whether ▶ may start. The colours are `lookView`'s (`apps/linux/src/look.rs`): the page's greys
 libadwaita's own, light and dark from the system; the accent the user's where the desktop offers one (libadwaita's
 `system-supports-accent-colors`), else the app's sky; ▶ in emerald and ■ in red.
 

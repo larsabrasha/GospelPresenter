@@ -36,12 +36,30 @@ final class Live {
         struct Changed: Decodable { let pointer: LivePointer? }
         // The overlay each item of the presentation carries, for the overlays' rules.
         let items = change["presentationId"].flatMap { $0 as? String }.flatMap(m.page)?.items ?? page?.items ?? []
-        let overlays = Dictionary(items.map { ($0.id, $0.overlayId.map { $0 as Any } ?? NSNull()) }, uniquingKeysWith: { a, _ in a })
+        let overlays = Self.overlays(items)
         guard let next = m.view("liveChangeView", ["pointer": jsonObject(state), "change": change, "overlays": overlays], as: Changed.self)?.pointer else { return false }
+        adopt(m, next)
+        return true
+    }
+
+    /// The live state as the core made it (`pageStepView`, `liveChangeView`): the presented page read when another
+    /// presentation is presented, and its marks.
+    func adopt(_ m: AppState, _ next: LivePointer) {
         if next.presentationId != state.presentationId { page = next.presentationId.flatMap(m.page) }
         state = next
         marks(m)
-        return true
+    }
+
+    /// The running order of the presented page and the overlay each of its items carries, as `pageStepView` takes
+    /// them where it is another than the open one.
+    func others(than open: String) -> [String: Any] {
+        guard let page, id != open else { return [:] }
+        return ["liveOrder": Self.order(page.items), "liveOverlays": Self.overlays(page.items)]
+    }
+
+    /// The overlay each item carries, by the item's id, for the overlays' rules.
+    static func overlays(_ items: [ItemView]) -> [String: Any] {
+        Dictionary(items.map { ($0.id, $0.overlayId.map { $0 as Any } ?? NSNull()) }, uniquingKeysWith: { a, _ in a })
     }
 
     /// Avsluta: nothing presented.

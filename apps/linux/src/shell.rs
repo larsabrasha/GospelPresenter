@@ -73,7 +73,8 @@ impl Shell {
         let weak = Rc::downgrade(self);
         keys.connect_key_pressed(move |_, key, _, state| {
             let Some(s) = weak.upgrade() else { return gtk::glib::Propagation::Proceed };
-            if s.page.borrow().is_none() { return gtk::glib::Propagation::Proceed }
+            // A dialog open over the page (Avsluta's question) takes its own keys: ↵ answers it.
+            if s.page.borrow().is_none() || s.window.visible_dialog().is_some() { return gtk::glib::Propagation::Proceed }
             match keys::key_event(key, state).and_then(page_key) {
                 Some(action) => { s.act(action); gtk::glib::Propagation::Stop }
                 None => gtk::glib::Propagation::Proceed,

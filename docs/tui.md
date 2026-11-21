@@ -19,8 +19,8 @@ What a screen shows and what a key does is the core's, read as the Mac app reads
 | Screen | From the core | Shell's own |
 | --- | --- | --- |
 | Start page | `startPageView` {today}: the lists, their order, which show a date and its year, each row's number of items | the cursor; each row in columns of one width through every list (`crates/gp-tui/src/start.rs`): ● while presented, the name, the date (Swedish through chrono's sv_SE, a day of one digit padded), the time, the place, the number of items at the right; where they do not fit, the name with the rest under it as the Mac's `subtitle` |
-| A presentation | `presentationPageView`: the running order and each item's slides; `pageEventView` for every key (the page's state: selected, made ready, typed); `pageModelView`'s cue ("Bild 2 i Tusen skäl – Enter visar") | three columns: the order, the selected item's slides (first line, label in its colour, VISAS, NÄSTA, made ready in blue), and a preview |
-| Presenting | `liveChangeView` for every change of the live state (one presentation at a time); `slideMarksView` for VISAS and NÄSTA | the preview shows VISAS and NÄSTA; Avsluta asks first, as the Mac app does |
+| A presentation | `presentationPageView`: the running order and each item's slides; `pageStepView` for every key, one call (the page's state: selected, made ready, typed; its cue, "Bild 2 i Tusen skäl – Enter visar") | three columns: the order, the selected item's slides (first line, label in its colour, VISAS, NÄSTA, made ready in blue), and a preview |
+| Presenting | the same `pageStepView`: every change of the live state (one presentation at a time, `liveChangeView`'s rules) and VISAS and NÄSTA (`slideMarksView`'s) in its answer | the preview shows VISAS and NÄSTA; Avsluta asks first, as the Mac app does |
 | Output view (`o`) | the slide shown, from the same live state | its text centred, nothing before the first slide or after Släck, one quiet status line |
 
 The texts are the app's own: `crates/gp-tui/build.rs` has Node read `apps/web/src/i18n.ts` (as `apps/mac/texts.mjs`

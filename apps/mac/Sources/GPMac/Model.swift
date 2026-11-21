@@ -116,16 +116,27 @@ final class Model {
         load()
     }
 
-    /// An event of the open page (a key, a tap, a row chosen, an addition), as the core answers it (`pageEventView`):
-    /// its state kept, its change to the live state made, and then what that change leaves the page in (`sync`).
+    /// An event of the open page (a key, a tap, a row chosen, an addition), as the core answers it.
     @discardableResult
-    func send(_ event: [String: Any]) -> PageAnswer? {
+    func send(_ event: [String: Any]) -> PageAnswer? { step(["event": event]) }
+
+    /// An event of the open page, or a change of the live state made outside its keys (`change`), carried through by
+    /// the core in one step (`pageStepView`): the page's state, the live state with the overlays' rules, and the page
+    /// as that leaves it. A change to the live state reaches every window's page; only this one's selection followed
+    /// it, the others sync (`AppState.liveChanged`).
+    @discardableResult
+    private func step(_ what: [String: Any]) -> PageAnswer? {
         guard let open = selectedPresentation, let items = current?.items else { return nil }
-        let context: [String: Any] = ["presentationId": open, "isTemplate": false, "presenting": isLive, "live": jsonObject(live.state)]
-        guard let answer = view("pageEventView", ["state": jsonObject(pageState), "context": context, "order": Live.order(items), "event": event], as: PageAnswer.self) else { return nil }
+        var args: [String: Any] = ["state": jsonObject(pageState), "context": ["presentationId": open, "isTemplate": false],
+                                   "live": jsonObject(live.state), "order": Live.order(items), "overlays": Live.overlays(items)]
+        args.merge(live.others(than: open)) { a, _ in a }
+        args.merge(what) { a, _ in a }
+        guard let answer = view("pageStepView", args, as: PageAnswer.self) else { return nil }
         if pageState != answer.state { pageState = answer.state }
-        // A change to the live state reaches every window's page; only this one's selection followed it (`pageEventView`).
-        if let change = answer.live?.any as? [String: Any], live.set(app, change) { app.liveChanged() }
+        if answer.liveChanged {
+            live.adopt(app, answer.live)
+            app.liveChanged()
+        }
         return answer
     }
 
@@ -141,13 +152,15 @@ final class Model {
         }
     }
 
-    /// An overlay turned on over what is presented, or off (nil): the core's overlays' rules (`liveChangeView`).
+    /// An overlay turned on over what is presented, or off (nil): the core's overlays' rules.
     func showOverlay(_ id: String?) {
-        if live.set(app, ["overlayId": id.map { $0 as Any } ?? NSNull()]) { app.liveChanged() }
+        let change: [String: Any] = ["overlayId": id.map { $0 as Any } ?? NSNull()]
+        if step(["change": change]) == nil, live.set(app, change) { app.liveChanged() }
     }
 
-    /// Avsluta: nothing presented, and the page as that leaves it.
+    /// Avsluta: nothing presented, and the page as that leaves it; without a page open, the live state alone.
     func endPresenting() {
+        if step(["change": ["presentationId": NSNull(), "itemId": NSNull(), "partIndex": 0, "black": false]]) != nil { return }
         live.end(app)
         app.liveChanged()
     }

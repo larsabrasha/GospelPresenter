@@ -33,8 +33,9 @@ pub struct App {
     pub live: LivePointer,
     pub live_page: Option<PresentationPage>,
     pub marks: SlideMarks,
-    /// The cue over the live picture, as `pageModelView` gives it.
+    /// The cue over the live picture, and whether ▶ may start, as the last step gave them.
     pub cue: Option<Cue>,
+    pub can_start: bool,
     /// The question to end presenting, open.
     pub ending: bool,
     /// What the core last refused, said in the footer.
@@ -50,7 +51,7 @@ impl App {
     pub fn new(core: Core, today: String) -> App {
         let mut app = App {
             core, today, screen: Screen::Start, lists: vec![], cursor: 0, page: None, state: PageState::default(),
-            live: LivePointer::default(), live_page: None, marks: SlideMarks::default(), cue: None, ending: false,
+            live: LivePointer::default(), live_page: None, marks: SlideMarks::default(), cue: None, can_start: false, ending: false,
             refusal: None, quit: false, offsets: Default::default(), follow: [true; 4],
         };
         app.load_start();
@@ -86,7 +87,7 @@ impl App {
         self.screen = Screen::Page;
         self.refusal = None;
         self.rewind();
-        self.model();
+        self.send(json!({ "type": "sync" }));
     }
 
     /// A key, as the screen it is pressed on takes it.
@@ -159,26 +160,38 @@ impl App {
         self.load_start();
     }
 
-    /// What the core's page views take of the page and the live state (`pageEventView`, `pageModelView`).
-    pub fn context(&self) -> Value {
-        let template = self.page.as_ref().and_then(|p| p.presentation.as_ref()).is_some_and(|p| p.is_template);
-        json!({ "presentationId": self.open_id(), "isTemplate": template, "presenting": self.is_live(), "live": self.live })
-    }
-
-    /// An event of the open page, as the core answers it (`pageEventView`): its state kept, its change to the live
-    /// state made, and then what that change leaves the page in (`sync`). Model.send in the Mac app.
-    pub fn send(&mut self, event: Value) -> Option<PageAnswer> {
-        let order = self.page.as_ref()?.order();
-        let args = json!({ "state": self.state, "context": self.context(), "order": order, "event": event });
-        let answer: PageAnswer = match self.core.call("pageEventView", args) {
+    /// An event of the open page (`event`), or a change of the live state made outside its keys (`change`), carried
+    /// through by the core in one step (`pageStepView`): the page's state, the live state with the overlays' rules,
+    /// the marks, the cue and whether ▶ may start, each kept as it answers.
+    fn step(&mut self, what: &str, value: Value) -> Option<PageStep> {
+        let page = self.page.as_ref()?;
+        let template = page.presentation.as_ref().is_some_and(|p| p.is_template);
+        let mut args = json!({
+            "state": self.state, "context": { "presentationId": self.open_id(), "isTemplate": template },
+            "live": self.live, "order": page.order(), "overlays": page.overlays(),
+        });
+        // The presented page, where it is another than the one open: its marks are read from its own order.
+        if let Some(other) = self.live_page.as_ref().filter(|p| p.presentation.as_ref().map(|r| r.id.as_str()) != self.open_id()) {
+            args["liveOrder"] = other.order();
+            args["liveOverlays"] = other.overlays();
+        }
+        args[what] = value;
+        let step: PageStep = match self.core.call("pageStepView", args) {
             Ok(v) => serde_json::from_value(v).ok()?,
             Err(code) => { self.refusal = Some(code); return None }
         };
-        self.state = answer.state.clone();
-        if answer.live.is_object() && self.set_live(answer.live.clone()) { self.live_changed() }
-        self.model();
-        Some(answer)
+        if let Some(refused) = &step.refused { self.refusal = Some(refused.clone()) }
+        if step.live.presentation_id != self.live.presentation_id {
+            let id = step.live.presentation_id.clone();
+            self.live_page = id.and_then(|id| if Some(id.as_str()) == self.open_id() { self.page.clone() } else { self.read_page(&id) });
+        }
+        (self.state, self.live, self.marks) = (step.state.clone(), step.live.clone(), step.marks.clone().unwrap_or_default());
+        (self.cue, self.can_start) = (step.cue.clone(), step.can_start);
+        Some(step)
     }
+
+    /// An event of the open page, as the core answers it. Model.send in the Mac app.
+    pub fn send(&mut self, event: Value) -> Option<PageStep> { self.step("event", event) }
 
     /// What the core's answer asks of the page: a move, or the question to end. Adding and removing are not in this
     /// shell yet (docs/tui.md).
@@ -201,58 +214,12 @@ impl App {
         if let Some(id) = self.live.presentation_id.clone() { self.live_page = self.read_page(&id) }
         let on_screen: Vec<Value> = self.state.selected_id.iter().map(|s| json!(s)).collect();
         self.send(json!({ "type": "changed", "itemIds": on_screen }));
-        self.marks();
-    }
-
-    /// A change of the live state as the core makes it (`liveChangeView`): false when it refused. Live.set in the Mac app.
-    pub fn set_live(&mut self, change: Value) -> bool {
-        let starting = change["presentationId"].as_str().map(String::from);
-        let fresh = starting.as_deref().filter(|id| Some(*id) != self.live.presentation_id.as_deref()).and_then(|id| self.read_page(id));
-        let items = fresh.as_ref().or(self.live_page.as_ref()).map(|p| p.items.clone()).unwrap_or_default();
-        let overlays: serde_json::Map<String, Value> = items.iter().map(|i| (i.id.clone(), json!(i.overlay_id))).collect();
-        let args = json!({ "pointer": self.live, "change": change, "overlays": overlays });
-        let Some(next) = self.core.call("liveChangeView", args).ok().and_then(|v| serde_json::from_value::<LivePointer>(v["pointer"].clone()).ok()) else {
-            self.refusal = Some("another-presented".into());
-            return false;
-        };
-        if next.presentation_id != self.live.presentation_id {
-            self.live_page = fresh.or_else(|| next.presentation_id.as_deref().and_then(|id| self.read_page(id)));
-        }
-        self.live = next;
-        self.marks();
-        true
-    }
-
-    /// The live state changed: the open page as that leaves it (presenting started or ended).
-    fn live_changed(&mut self) {
-        let order = match &self.page { Some(p) => p.order(), None => return };
-        let args = json!({ "state": self.state, "context": self.context(), "order": order, "event": { "type": "sync" } });
-        if let Some(answer) = self.core.view::<PageAnswer>("pageEventView", args) { self.state = answer.state }
     }
 
     /// Avsluta: nothing presented, and the page as that leaves it.
     pub fn end(&mut self) {
-        self.set_live(json!({ "presentationId": null, "itemId": null, "partIndex": 0, "black": false }));
-        self.live_changed();
-        self.model();
+        self.step("change", json!({ "presentationId": null, "itemId": null, "partIndex": 0, "black": false }));
         if self.screen == Screen::Output { self.screen = Screen::Page }
-    }
-
-    fn marks(&mut self) {
-        self.marks = match (&self.live.presentation_id, &self.live_page) {
-            (Some(_), Some(page)) => {
-                let shown = json!({ "itemId": self.live.item_id, "partIndex": self.live.part_index, "black": self.live.black });
-                self.core.view("slideMarksView", json!({ "order": page.order(), "shown": shown })).unwrap_or_default()
-            }
-            _ => SlideMarks::default(),
-        };
-    }
-
-    /// The cue from `pageModelView`, read after every event.
-    fn model(&mut self) {
-        let Some(order) = self.page.as_ref().map(PresentationPage::order) else { self.cue = None; return };
-        let args = json!({ "state": self.state, "context": self.context(), "order": order });
-        self.cue = self.core.view::<PageModel>("pageModelView", args).and_then(|m| m.cue);
     }
 
     /// What the outputs show: nothing before presenting, before the first slide and after Släck.

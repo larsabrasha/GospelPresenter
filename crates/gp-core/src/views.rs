@@ -75,6 +75,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "followItemOverlayView" => crate::live_state::follow_item_overlay(a),
         "pageEventView" => crate::page_state::event(a),
         "pageModelView" => crate::page_state::model(a),
+        "pageStepView" => crate::page_step::step(a),
         "addPositionView" => crate::page_models::add_position(a),
         "startPageView" => crate::page_models::start_page(a).await,
         "presentationActionsView" => crate::page_models::presentation_actions(a),

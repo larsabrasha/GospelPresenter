@@ -86,6 +86,11 @@ impl PresentationPage {
         Value::Array(self.items.iter().map(|i| serde_json::json!([i.id, self.slides_of(&i.id).len()])).collect())
     }
 
+    /// The overlay each item carries, by the item's id, for the overlays' rules.
+    pub fn overlays(&self) -> Value {
+        Value::Object(self.items.iter().map(|i| (i.id.clone(), serde_json::json!(i.overlay_id))).collect())
+    }
+
     pub fn item(&self, id: &str) -> Option<&PageItem> { self.items.iter().find(|i| i.id == id) }
 
     /// The slide at `at`, if the item has it.
@@ -131,21 +136,18 @@ pub struct PageState {
     pub followed: Option<String>,
 }
 
-/// The core's answer to a page's event: its state, a change to the live state, what the page does, and whether the
-/// event was the page's.
-#[derive(Deserialize, Clone, Debug)]
-pub struct PageAnswer {
-    pub state: PageState,
-    pub live: Value,
-    pub command: Value,
-    pub handled: bool,
-}
-
-/// What the page shows of its state (`pageModelView`): whether ▶ may start, and the cue over the live picture (a
-/// text's key, the slide's number, its item).
+/// The core's answer to one step of a page (`pageStepView`): its state, the live state after it (unchanged where
+/// `refused`), what the page does, whether the event was the page's, the marks on the presented page, whether ▶ may
+/// start, and the cue over the live picture (a text's key, the slide's number, its item).
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PageModel {
+pub struct PageStep {
+    pub state: PageState,
+    pub live: LivePointer,
+    pub refused: Option<String>,
+    pub command: Value,
+    pub handled: bool,
+    pub marks: Option<SlideMarks>,
     pub can_start: bool,
     pub cue: Option<Cue>,
 }

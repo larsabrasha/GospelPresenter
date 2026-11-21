@@ -24,6 +24,7 @@ mod media_views;
 mod mutators;
 mod page_models;
 mod page_state;
+mod page_step;
 mod ordered;
 mod org_transfer;
 mod pages;

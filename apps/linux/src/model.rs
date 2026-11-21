@@ -59,15 +59,13 @@ impl Model {
         Painted { layout, label }
     }
 
-    /// A view of the page's own: pageButtonsView for `place`, given whether ▶ may start (pageModelView's `canStart`),
-    /// whether the page has a slide, and the live state; presentationColumnsView's columns.
+    /// pageButtonsView for `place`, given whether ▶ may start (the last step's `canStart`), whether the page has a
+    /// slide, and the live state.
     pub fn buttons(&self, place: &str) -> Vec<Value> {
         let app = &self.app;
         let Some(page) = app.page.as_ref() else { return vec![] };
-        let args = json!({ "state": app.state, "context": app.context(), "order": page.order() });
-        let can_start = app.core().call("pageModelView", args).ok().and_then(|m| m["canStart"].as_bool()).unwrap_or(false);
         let has_slides = page.items.iter().any(|i| !page.slides_of(&i.id).is_empty());
-        let args = json!({ "place": place, "presenting": app.is_live(), "canStart": can_start, "hasSlides": has_slides, "black": app.live.black });
+        let args = json!({ "place": place, "presenting": app.is_live(), "canStart": app.can_start, "hasSlides": has_slides, "black": app.live.black });
         app.core().call("pageButtonsView", args).ok().and_then(|v| v["buttons"].as_array().cloned()).unwrap_or_default()
     }
 

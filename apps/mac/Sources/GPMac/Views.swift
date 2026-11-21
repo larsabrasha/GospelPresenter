@@ -226,11 +226,13 @@ struct PageState: Codable, Hashable {
     }
 }
 
-/// The core's answer to a page's event: its state, a change to the live state, what the page does, and whether the
-/// event was the page's.
+/// The core's answer to one step of a page (`pageStepView`): its state, the live state after it (unchanged where
+/// `refused`, another presentation presented), what the page does, and whether the event was the page's.
 struct PageAnswer: Decodable {
     let state: PageState
-    let live: JSONValue?
+    let live: LivePointer
+    let liveChanged: Bool
+    let refused: String?
     let command: JSONValue?
     let handled: Bool
 }
