@@ -47,6 +47,9 @@ struct UsersPage: View {
     @State private var withdrawing: InvitationEntry?
     @State private var link: String?
     @State private var message: String?
+    @State private var refusal: String?
+    /// The add sheet up, from + until its onDismiss (`adding` turns false when it starts closing).
+    @State private var addOpen = false
 
     private var host: Bool { model.session?.device != nil }
 
@@ -93,15 +96,18 @@ struct UsersPage: View {
         .task { await load() }
         // The link shown once the add sheet has closed: a second sheet asked for while the first is up is never shown,
         // and the link is shown only once.
-        .sheet(isPresented: $adding, onDismiss: { link = madeLink; madeLink = nil }) { NewUserSheet(host: host) { token in
-            // Still up: shown when it has closed; closed already (cancelled while it saved): shown now.
-            if adding { madeLink = token } else { link = token }
+        .onChange(of: adding) { _, up in if up { addOpen = true } }
+        .sheet(isPresented: $adding, onDismiss: { addOpen = false; link = madeLink; madeLink = nil }) { NewUserSheet(host: host) { token in
+            // Still up or closing: shown when it has closed; closed already (cancelled while it saved): shown now.
+            if addOpen { madeLink = token } else { link = token }
             Task { await load() }
         } }
         .sheet(item: Binding(get: { link.map { LinkBox(url: $0) } }, set: { link = $0?.url })) { box in InviteLinkSheet(url: box.url) }
         .confirmationDialog(t("users.withdraw"), isPresented: Binding(get: { withdrawing != nil }, set: { if !$0 { withdrawing = nil } }), presenting: withdrawing) { i in
-            Button(t("users.withdraw"), role: .destructive) { Task { message = await model.api("DELETE", "/api/invitations/\(i.id)").error.map(hostRefusal); await load() } }
+            Button(t("users.withdraw"), role: .destructive) { Task { refusal = await model.api("DELETE", "/api/invitations/\(i.id)").error.map(hostRefusal); await load() } }
         } message: { i in Text(t("users.withdrawConfirm", ["email": i.email])) }
+        // A refused action said in an alert; `message` is the list's own load failure, shown in place of the list.
+        .refusal($refusal)
     }
 
     private func status(_ u: UserEntry) -> String {

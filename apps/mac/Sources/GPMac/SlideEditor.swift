@@ -109,6 +109,8 @@ struct SlideEditorPage: View {
             guard let row = model.view("customSlideView", ["id": id], as: Row.self) else { missing = true; return }
             name = row.name
             pages = row.pages
+            // Read again with fewer pages (removed on another device): the page shown kept within them.
+            at = min(at, max(0, pages.count - 1))
         case .overlay:
             struct Row: Decodable { let title: String, content: String? }
             guard let row = model.view("overlayRowView", ["id": id], as: Row.self) else { missing = true; return }
@@ -175,10 +177,11 @@ struct SlideEditorPage: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button(t("slideEditor.duplicatePage")) { at = i; addPage(copy: true) }.disabled(!editor.canAddPage)
-                        Button(t("slideEditor.pageEarlier")) { at = i; edit(["op": "movePage", "to": i - 1]) }.disabled(i == 0)
-                        Button(t("slideEditor.pageLater")) { at = i; edit(["op": "movePage", "to": i + 1]) }.disabled(i == pages.count - 1)
-                        Button(t("slideEditor.removePage"), role: .destructive) { at = i; edit(["op": "removePage"]) }.disabled(!editor.canRemovePage)
+                        // On that page with nothing picked, as a tap on its tile is (a pick of another page's is none here).
+                        Button(t("slideEditor.duplicatePage")) { at = i; picked = nil; addPage(copy: true) }.disabled(!editor.canAddPage)
+                        Button(t("slideEditor.pageEarlier")) { at = i; picked = nil; edit(["op": "movePage", "to": i - 1]) }.disabled(i == 0)
+                        Button(t("slideEditor.pageLater")) { at = i; picked = nil; edit(["op": "movePage", "to": i + 1]) }.disabled(i == pages.count - 1)
+                        Button(t("slideEditor.removePage"), role: .destructive) { at = i; picked = nil; edit(["op": "removePage"]) }.disabled(!editor.canRemovePage)
                     }
                 }
                 Button(t("slideEditor.newPage"), systemImage: "plus") { addPage(copy: false) }.disabled(!editor.canAddPage)

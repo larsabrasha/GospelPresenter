@@ -17,18 +17,25 @@ struct RefusalAlert: ViewModifier {
             .alert(shown ?? "", isPresented: Binding(get: { shown != nil }, set: { if !$0 { shown = nil; message = nil } })) { Button(t("common.close")) {} }
             .onChange(of: message) { _, now in show(now) }
             .onAppear { show(message) }
-            // Gone with the page: a message it could not present does not hold the next ones back.
-            .onDisappear { shown = nil }
+            // Gone with the page: what waits to be shown is dropped, and one it could not present holds nothing back.
+            .onDisappear { latest += 1; shown = nil }
     }
 
+    /// Each show asked for, so only the latest acts (two of one text, onAppear and onChange together, a page gone).
+    @State private var latest = 0
+
     /// After a sheet's closing (about a third of a second on iOS), unless another message took its place. A success
-    /// since (`message` set back to nil by the next change) does not hide it. Cleared first, so it is a new alert.
+    /// since (`message` set back to nil by the next change) does not hide it. One on screen is closed first, and the
+    /// new one shown once that has gone, so it is a new alert.
     private func show(_ text: String?) {
         guard let text else { return }
+        latest += 1
+        let mine = latest
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            guard message == text || message == nil else { return }
+            guard mine == latest, message == text || message == nil, shown != text else { return }
+            if shown == nil { shown = text; return }
             shown = nil
-            DispatchQueue.main.async { shown = text }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { if mine == latest { shown = text } }
         }
     }
 }
