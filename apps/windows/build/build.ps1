@@ -5,7 +5,7 @@
 #   apps\windows\build\build.ps1 -Arch arm64  for ARM64 (default: this machine's)
 # Needs Rust (rustup, with Visual Studio's C++ build tools), the .NET 8 SDK or later and Node 22.18 or later (type
 # stripping unflagged; tested: 24.11.1); installs uniffi-bindgen-cs on the first run.
-param([string]$Command = "build", [string]$Arch = $(if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }))
+param([string]$Command = "build", [string]$Arch = $(if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }), [string]$Out = "")
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path "$PSScriptRoot\..\..\.."
 $Win = "$Root\apps\windows"
@@ -39,3 +39,9 @@ if (-not (Test-Path "crates\gp-core\parity\.out\fixtures\demo.sqlite")) {
 }
 Run dotnet test "$Win\Shell.Tests"
 if ($Command -eq "run") { Run dotnet run --project "$Win\App" -p:Platform=$Arch }
+if ($Command -eq "capture") {
+    Run dotnet build --nologo -v q "$Win\App" -p:Platform=$Arch
+    $exe = "$Win\App\bin\$Arch\Debug\net8.0-windows10.0.19041.0\win-$Arch\GospelPresenter.exe"
+    $picture = if ($Out) { $Out } else { "$Win\pictures\start.png" }
+    Run dotnet run --project "$Win\Capture" -- $exe $picture
+}

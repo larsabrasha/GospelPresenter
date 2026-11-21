@@ -46,21 +46,37 @@ stripping unflagged, as `texts.mjs` imports the web's `i18n.ts`; tested: 24.11.1
 the same place, or made on Windows (below):
 
 ```powershell
-apps\windowsuilduild.ps1 run               # the core, the bindings, the texts, the Shell's tests, then the app
-apps\windowsuilduild.ps1 run -Arch arm64   # the same for ARM64
+apps\windows\build\build.ps1 run               # the core, the bindings, the texts, the Shell's tests, then the app
+apps\windows\build\build.ps1 run -Arch arm64   # the same for ARM64
 ```
 
 The app builds with `dotnet` alone, without Visual Studio: `EnableMsixTooling` in `App.csproj` has the Windows App SDK
 make the resource index (`resources.pri`) itself, where its default looks for Visual Studio's AppxPackage tasks
 (MSB4062 in `MrtCore.PriGen.targets`). The Windows App SDK 1.6 and the XAML built as written on the Mac. Mica only
 from Windows 11 (`MicaController.IsSupported()`); on Windows 10 the page has the theme's background brush.
+`App/app.manifest` makes the app aware of each display's scale (PerMonitorV2): without it Windows drew it at 96 DPI and
+stretched it, blurred, to the display's 150 %.
 
 The demo data on Windows: `pnpm install`, then `crates/gp-core/build.sh`'s lines for `ts-core.mjs`, `ts-core.min.mjs`
 (the reference at 238d481b through esbuild) and `gp_core.wasm`, then
 `node parity/demo-seed.mjs <abs path>/parity/.out/fixtures` in `crates/gp-core`; in Git Bash, `pwd -W` gives the
 Windows paths esbuild and Node need.
 
-The app keeps its data in `%LOCALAPPDATA%\GospelPresenterpp.sqlite`, copied from the demo on the first start and
+## Pictures
+
+```powershell
+apps\windows\build\build.ps1 capture                       # the build, then the start page's window in apps\windows\pictures\start.png
+apps\windows\build\build.ps1 capture -Out C:\tmp\a.png     # elsewhere
+```
+
+`apps/windows/Capture/Program.cs` (gp-capture) pictures a window as the compositor draws it, through
+Windows.Graphics.Capture, in the window's own pixels: the window alone, behind other windows too and without bringing it
+forward, where a copy of the screen (CopyFromScreen) has whatever is on top. The compositor draws nothing while the display is off (the PC left alone, 5 minutes
+on Lars's), and a picture then is empty: gp-capture wakes the display first and keeps it on, and waits for the window's
+first frame; a window still one colour after 15 s is saved and said BLANK (exit code 2). A PC asleep runs nothing.
+`gp-capture --hwnd N OUT.png` pictures a window already open.
+
+The app keeps its data in `%LOCALAPPDATA%\GospelPresenter\app.sqlite`, copied from the demo on the first start and
 brought to today's schema (`migrateOrgSchema`) on each. The old app (v1) keeps its own in the same folder
 (`gospelpresenter.db`); neither touches the other's files.
 
@@ -69,7 +85,6 @@ brought to today's schema (`migrateOrgSchema`) on each. The old app (v1) keeps i
 Lars, 2026-11-21, on Windows 10 (19045, x64): `build.ps1 run` builds the core, the bindings and the texts, the Shell's
 12 tests pass against the core and the demo data, and the app starts with gp_core_ffi.dll beside it; read through UI
 Automation, its window holds the start page's list (Senast ändrade) with the demo's presentations, each row's name and
-date line. Seen on the screen as well: the list under its title on the theme's light page background, each row's name
-in bold over its date line in grey. Every capture of a WinUI window on that machine (GDI's and
-Windows.Graphics.Capture's) came out empty, Microsoft's own Photos (WinUI 3) as much as this app, so a picture of it
-is for a look at the screen. Not built: ARM64, and Windows 11 with Mica.
+date line. Seen on the screen and in gp-capture's pictures: the list under its title on the theme's light page
+background, each row's name in bold over its date line in grey, sharp at 150 %. The first pictures were empty, of
+Microsoft's Photos as much as of this app: the display had gone off. Not built: ARM64, and Windows 11 with Mica.

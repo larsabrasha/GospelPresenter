@@ -14,6 +14,8 @@
     <!-- The resource index (resources.pri) made by the Windows App SDK's own tooling: without it the build looks for
          Visual Studio's AppxPackage tasks, which `dotnet build` does not have. -->
     <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Sharp at every display scale (app.manifest says why). -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
