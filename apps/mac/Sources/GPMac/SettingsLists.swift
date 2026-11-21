@@ -5,11 +5,24 @@ import Shell
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// A refusal said in an alert, shared by these pages.
+/// A refusal or a result said in an alert, shared by the settings pages. Shown a moment after it is set: a message set
+/// from a sheet's action, while that sheet is still closing, is otherwise never presented, and the alert's binding then
+/// stays true so no later message shows either (the picture picker, the song import's duplicates, a new address).
 struct RefusalAlert: ViewModifier {
     @Binding var message: String?
+    @State private var shown: String?
+
     func body(content: Content) -> some View {
-        content.alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button(t("common.close")) {} }
+        content
+            .alert(shown ?? "", isPresented: Binding(get: { shown != nil }, set: { if !$0 { shown = nil; message = nil } })) { Button(t("common.close")) {} }
+            .onChange(of: message) { _, now in show(now) }
+            .onAppear { show(message) }
+    }
+
+    /// After a sheet's closing (about a third of a second on iOS), and only if it is still the message to say.
+    private func show(_ text: String?) {
+        guard let text else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { if message == text { shown = text } }
     }
 }
 
