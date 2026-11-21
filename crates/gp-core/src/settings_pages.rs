@@ -65,12 +65,14 @@ fn fit_within(w: f64, h: f64, max_w: f64, max_h: f64) -> Value {
     json!({ "width": (w * scale).round().max(1.0) as i64, "height": (h * scale).round().max(1.0) as i64 })
 }
 
-/// `mediaImportView` {kind, name, size, type?, width?, height?}: what an import of a file does with it, as the web's
+/// `mediaImportView` {kind, name, size, type?, width?, height?, head?}: what an import of a file does with it, as the web's
 /// media/process.ts and imports.ts decide (MEDIA-R1, R2, R4, R5, R13), so every shell takes and refuses the same files.
 /// `refused`: why not (`type`, `size`, `name`), else null. A picture (`kind` image, its decoded `width` and `height`):
 /// the type it is stored as (JPEG stays JPEG, the rest WebP; a shell that cannot write WebP stores JPEG, as the web
 /// does where the browser cannot) and its two sizes, `full` within 1920×1080 at quality 0.9 and `thumb` within 400×225
-/// at 0.8. A sound (`kind` audio): its type, by the one the platform reports or else its extension, stored as it is.
+/// at 0.8. A sound (`kind` audio): taken by the type the platform reports or, with none, its extension; its bytes kept
+/// as they are, under the type its first bytes say (`head`, at least 12 of them), bytes that are no sound refused.
+/// Checked type, then size, then name, in the web's order.
 pub fn media_import(a: &Obj) -> R<Value> {
     let kind = a.get("kind").and_then(Value::as_str).ok_or("invalid-args")?;
     let name = a.get("name").and_then(Value::as_str).unwrap_or("");

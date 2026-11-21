@@ -40,11 +40,11 @@ struct MediaPreview: View {
             case .image:
                 // Drawn once fetched (`picture`, set by load), or said when it could not be had.
                 if let image = picture.flatMap(platformImage) { image.resizable().scaledToFit() }
-                else if failed { Text(t("images.fetching")).foregroundStyle(.secondary) }
+                else if failed { Text(t("material.unavailable")).foregroundStyle(.secondary) }
                 else { ProgressView() }
             case .audio, .video:
                 if let player { VideoPlayer(player: player).frame(minHeight: kind == .audio ? 80 : 300) }
-                else if failed { Text(t("images.fetching")).foregroundStyle(.secondary) }
+                else if failed { Text(t("material.unavailable")).foregroundStyle(.secondary) }
                 else { ProgressView() }
             }
         }
