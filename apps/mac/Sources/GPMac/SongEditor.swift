@@ -244,6 +244,8 @@ struct HistoryPage: View {
     let songId: String
     @State private var restoring: Version?
     @State private var viewing: Version?
+    /// The version Återställ version was pressed for, asked about once its sheet has closed.
+    @State private var chosen: Version?
     @State private var message: String?
     struct Version: Decodable, Identifiable, Hashable { let id: String, at: Double, name: String?, author: String?, slides: [JSONValue] }
     private struct Day: Decodable { let day: String, versions: [Version] }
@@ -269,7 +271,8 @@ struct HistoryPage: View {
         }
         .overlay { if history?.days.isEmpty == true { ContentUnavailableView(t("history.empty"), systemImage: "clock") } }
         .navigationTitle(t("song.history"))
-        .sheet(item: $viewing) { v in
+        // The confirm once the sheet has closed: asked while it closes, iOS presents nothing.
+        .sheet(item: $viewing, onDismiss: { restoring = chosen; chosen = nil }) { v in
             // The version as it was, its parts as slides, with Återställ version.
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
@@ -278,7 +281,7 @@ struct HistoryPage: View {
                     ForEach(Array(v.slides.enumerated()), id: \.offset) { _, slide in
                         LiveSlide(tile: TileRequest(slide: slide, theme: history?.theme, overlay: nil, label: true)).clipShape(RoundedRectangle(cornerRadius: 6))
                     }
-                    Button(t("history.restore")) { viewing = nil; restoring = v }.role(.destructive)
+                    Button(t("history.restore")) { chosen = v; viewing = nil }.role(.destructive)
                 }
                 .padding()
             }

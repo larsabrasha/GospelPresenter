@@ -230,8 +230,10 @@ struct MediaLibraryPage: View {
 
     private func importAudio(_ url: URL) -> Bool {
         guard let data = try? Data(contentsOf: url) else { return false }
-        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? ""
-        guard let plan = model.view("mediaImportView", ["kind": "audio", "name": url.lastPathComponent, "size": data.count, "type": type], as: AudioPlan.self),
+        // No type reported (a Mac names some otherwise than a browser, audio/vnd.wave): the extension stands for it, and
+        // the type kept is what the first bytes say, as the web's readAudio sniffs it.
+        let head = data.prefix(16).map(Int.init)
+        guard let plan = model.view("mediaImportView", ["kind": "audio", "name": url.lastPathComponent, "size": data.count, "type": "", "head": head], as: AudioPlan.self),
               plan.refused == nil, let contentType = plan.contentType, let hash = keepFile(data, type: contentType, model: model) else { return false }
         return change(model, "addAudio", ["id": UUID().uuidString.lowercased(), "fileName": url.lastPathComponent, "contentType": contentType,
                                           "hash": hash, "size": data.count, "createdAt": nowMs()]) == nil

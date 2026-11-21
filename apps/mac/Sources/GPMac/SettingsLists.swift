@@ -102,6 +102,7 @@ struct LabelSheet: View {
     @State private var text = ""
     @State private var color = ""
     @State private var error: String?
+    @State private var deleting = false
     @State private var created = false
     @FocusState private var typing: Bool
     private struct Colours: Decodable { let swatches: [String], `default`: String }
@@ -134,12 +135,16 @@ struct LabelSheet: View {
             }
             if let error { Text(error).foregroundStyle(.red) }
             if let label {
-                Button(t("labels.deleteOne"), role: .destructive) {
-                    if let e = change(model, "deleteLabel", ["id": label.id]) { error = e } else { dismiss() }
-                }
+                Button(t("labels.deleteOne"), role: .destructive) { deleting = true }
             }
         }
         .formStyle(.grouped)
+        // Asked first, as the web asks: a label has no trash, and the songs' parts lose it.
+        .confirmationDialog(t("labels.deleteOne"), isPresented: $deleting) {
+            Button(t("labels.deleteOne"), role: .destructive) {
+                if let label, let e = change(model, "deleteLabel", ["id": label.id]) { error = e } else { dismiss() }
+            }
+        } message: { Text(t("labels.deleteConfirm", ["text": label?.text ?? ""])) }
         .onAppear { text = label?.text ?? ""; color = label?.color ?? colours?.default ?? "#6b7280" }
         .sheetBar(t(label == nil ? "labels.addTitle" : "labels.editTitle"), disabled: text.trimmingCharacters(in: .whitespaces).isEmpty) {
             let args: [String: Any] = ["text": text.trimmingCharacters(in: .whitespaces), "color": color]

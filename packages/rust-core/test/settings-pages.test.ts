@@ -260,4 +260,24 @@ describe('mediaImportView', () => {
   it('refuses a sound over 20 MiB', () => {
     expect(nodeRustCore().pure('mediaImportView', { kind: 'audio', name: 'a.mp3', size: 21 * 1024 * 1024 })).toEqual({ refused: 'size' });
   });
+
+  it('refuses a sound whose reported type is not a sound’s, as readAudio does', () => {
+    expect(nodeRustCore().pure('mediaImportView', { kind: 'audio', name: 'a.mp3', size: 1000, type: 'audio/x-mpeg' })).toEqual({ refused: 'type' });
+  });
+
+  it('keeps a sound as the type its first bytes say', () => {
+    const head = [...'RIFF'].map((c) => c.charCodeAt(0)).concat([0, 0, 0, 0], [...'WAVE'].map((c) => c.charCodeAt(0)));
+
+    const plan = nodeRustCore().pure('mediaImportView', { kind: 'audio', name: 'a.mp3', size: 1000, head });
+
+    expect(plan).toEqual({ refused: null, contentType: 'audio/wav' });
+  });
+
+  it('refuses a file named as a sound whose bytes are none', () => {
+    expect(nodeRustCore().pure('mediaImportView', { kind: 'audio', name: 'a.mp3', size: 1000, head: [1, 2, 3, 4] })).toEqual({ refused: 'type' });
+  });
+
+  it('says a wrong type before a long name, in the web’s order', () => {
+    expect(nodeRustCore().pure('mediaImportView', { kind: 'image', name: `${'a'.repeat(250)}.txt`, size: 10, type: 'text/plain' })).toEqual({ refused: 'type' });
+  });
 });

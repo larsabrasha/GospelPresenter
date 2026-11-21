@@ -32,12 +32,15 @@ struct MediaPreview: View {
     let file: MediaFile
     @State private var player: AVPlayer?
     @State private var failed = false
+    @State private var picture: URL?
 
     var body: some View {
         Group {
             switch kind {
             case .image:
-                if let h = file.fullHash ?? file.thumbHash, let image = platformImage(AppScheme.mediaDir.appending(path: h)) { image.resizable().scaledToFit() }
+                // Drawn once fetched (`picture`, set by load), or said when it could not be had.
+                if let image = picture.flatMap(platformImage) { image.resizable().scaledToFit() }
+                else if failed { Text(t("images.fetching")).foregroundStyle(.secondary) }
                 else { ProgressView() }
             case .audio, .video:
                 if let player { VideoPlayer(player: player).frame(minHeight: kind == .audio ? 80 : 300) }
@@ -54,7 +57,11 @@ struct MediaPreview: View {
 
     private func load() async {
         switch kind {
-        case .image: _ = await MediaFiles.file(file.fullHash ?? "", store: model.store)
+        case .image:
+            // The full picture, else the thumbnail where the full one is not to be had.
+            if let url = await MediaFiles.file(file.fullHash ?? "", store: model.store) { picture = url }
+            else if let h = file.thumbHash, let url = await MediaFiles.file(h, store: model.store) { picture = url }
+            else { failed = true }
         case .audio:
             guard let url = await MediaFiles.file(file.hash ?? "", store: model.store) else { failed = true; return }
             player = AVPlayer(url: url)

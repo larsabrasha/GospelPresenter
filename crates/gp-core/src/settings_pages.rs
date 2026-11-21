@@ -79,7 +79,8 @@ pub fn media_import(a: &Obj) -> R<Value> {
     let ext = name.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_default();
     const MIB: f64 = 1024.0 * 1024.0;
     let refuse = |why: &str| Ok(json!({ "refused": why }));
-    if name.chars().count() > crate::mutators::FILE_NAME_LIMIT { return refuse("name") }
+    // Type, then size, then the name, in the web's order (checkPicked, readAudio): the reason said is the same.
+    let long = name.chars().count() > crate::mutators::FILE_NAME_LIMIT;
     match kind {
         "image" => {
             const PICKABLE: [&str; 4] = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -87,6 +88,7 @@ pub fn media_import(a: &Obj) -> R<Value> {
             let picked = if PICKABLE.contains(&reported) { reported } else if reported.is_empty() { by_ext } else { "" };
             if picked.is_empty() { return refuse("type") }
             if size <= 0.0 || size > 10.0 * MIB { return refuse("size") }
+            if long { return refuse("name") }
             let (w, h) = (a.get("width").and_then(Value::as_f64).unwrap_or(1.0), a.get("height").and_then(Value::as_f64).unwrap_or(1.0));
             let mut full = fit_within(w, h, 1920.0, 1080.0);
             full["quality"] = json!(0.9);
@@ -97,13 +99,33 @@ pub fn media_import(a: &Obj) -> R<Value> {
         "audio" => {
             const TYPES: [&str; 6] = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/x-m4a"];
             let by_ext = match ext.as_str() { "mp3" => "audio/mpeg", "wav" => "audio/wav", "ogg" => "audio/ogg", "m4a" => "audio/x-m4a", "mp4" | "m4b" => "audio/mp4", "webm" => "audio/webm", _ => "" };
-            let t = if TYPES.contains(&reported) { reported } else { by_ext };
+            // As readAudio: the type reported, else (none reported) the extension's; one reported and not a sound's
+            // is refused. A shell whose platform names types otherwise (a Mac's audio/vnd.wave) reports none.
+            let t = if TYPES.contains(&reported) { reported } else if reported.is_empty() { by_ext } else { "" };
             if t.is_empty() { return refuse("type") }
             if size <= 0.0 || size > 20.0 * MIB { return refuse("size") }
-            Ok(json!({ "refused": null, "contentType": t }))
+            if long { return refuse("name") }
+            // The type stored is what the bytes say (`head`, the file's first bytes); bytes that are no sound refused.
+            let Some(head) = a.get("head").and_then(Value::as_array) else { return Ok(json!({ "refused": null, "contentType": t })) };
+            let bytes: Vec<u8> = head.iter().map(|b| b.as_u64().unwrap_or(0).min(255) as u8).collect();
+            match sniff_audio(&bytes) {
+                Some(sniffed) => Ok(json!({ "refused": null, "contentType": sniffed })),
+                None => refuse("type"),
+            }
         }
         _ => Err("invalid-args".into()),
     }
+}
+
+/// A sound's type by its first bytes (packages/core's media.ts `sniffAudio`), or none: no sound the server takes.
+fn sniff_audio(b: &[u8]) -> Option<&'static str> {
+    let ascii = |from: usize, text: &str| b.len() >= from + text.len() && &b[from..from + text.len()] == text.as_bytes();
+    if ascii(0, "ID3") || (b.len() >= 2 && b[0] == 0xff && b[1] & 0xe0 == 0xe0) { return Some("audio/mpeg") }
+    if ascii(0, "RIFF") && ascii(8, "WAVE") { return Some("audio/wav") }
+    if ascii(0, "OggS") { return Some("audio/ogg") }
+    if ascii(4, "ftyp") { return Some(if ascii(8, "M4A ") { "audio/x-m4a" } else { "audio/mp4" }) }
+    if b.len() >= 4 && b[..4] == [0x1a, 0x45, 0xdf, 0xa3] { return Some("audio/webm") }
+    None
 }
 
 /// `deckImportView` {name, size, type?}: what a slideshow's import does with a file (the web's media/slides.ts

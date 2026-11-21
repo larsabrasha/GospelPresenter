@@ -80,7 +80,8 @@ struct BiblesPage: View {
             guard case let .synced(client) = model.store else { return message = hostRefusal("no-server") }
             guard client.keepImported(b.id, hash: b.hash, json: b.json) else { return message = t("bibles.error.no-verses") }
             var args: [String: Any] = ["name": b.name, "abbreviation": b.abbreviation, "contentHash": b.hash]
-            if let language = b.language { args["language"] = language }
+            // Always given, null when the Bible names none, as the web sends it (importBible requires the key).
+            args["language"] = b.language ?? NSNull()
             if let e = change(model, "importBible", args) { return message = e }
             message = t(replaced.contains { $0.id == b.id } ? "bibles.updated" : "bibles.imported", ["name": b.name, "n": b.verses])
         }

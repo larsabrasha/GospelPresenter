@@ -224,8 +224,9 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   (Inställningar's pictures, sounds, a song's notes) is kept in the media folder by its hash and recorded in
   `media_blobs` with a one-byte mark for its bytes (the core reads none; `mediaUploadsView` asks `bytes IS NOT NULL`),
   and before a push `SyncClient.uploadBeforePush` sends what `mediaUploadsView` and `bibleUploadsView` list
-  (`PUT /api/media/{hash}`, `PUT /api/bibles/{hash}`); the first that fails is the push's limit. Not checked against
-  a real server yet. Not done: presentations kept offline but by hand (Lagring), a refused Bible import queued again.
+  (`PUT /api/media/{hash}`, `PUT /api/bibles/{hash}`), as the web's uploads do: the first that gets no answer or a
+  5xx is the push's limit; a refused one (4xx) or a file not here is not sent again that push. Checked against a real
+  server by apps/server/test/native-settings.test.ts. Not done: presentations kept offline but by hand (Lagring), a refused Bible import queued again.
 - **Bible texts** (Lars, 2026-11-21; `Shell/BibleTexts.swift`, `BibleSync.swift`): as the web's syncBibleTexts, the
   core's `bibleTextPlanView` says which texts to drop and fetch (those of the translations kept, `kept_bibles`) and
   `bibleTextStoreView` whether one fetched is what its hash names, and how it is kept; after every change and pull.

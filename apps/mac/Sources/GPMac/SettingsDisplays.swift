@@ -87,8 +87,12 @@ struct DisplayLinkSheet: View {
     private var current: DisplayRow { (model.view("displaysView", ["locale": Texts.language], as: [DisplayRow].self) ?? []).first { $0.id == display.id } ?? display }
     private var url: String {
         let server = model.session?.server ?? ""
-        let name = current.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return current.kind == "screen" ? "\(server)/display/\(current.code)?name=\(name)" : "\(server)/watch/\(current.code)"
+        guard current.kind == "screen" else { return "\(server)/watch/\(current.code)" }
+        // As the web's router writes it: /display?id=<code>&name=<name>, each encoded as a query value (a name may
+        // hold & or =).
+        // Only the unreserved characters left as they are (URLComponents would leave & and = in a value).
+        let value = { (s: String) in s.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? "" }
+        return "\(server)/display?id=\(value(current.code))&name=\(value(current.name))"
     }
 
     var body: some View {
