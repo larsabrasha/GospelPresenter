@@ -49,6 +49,8 @@ struct PhoneLayout: View {
                     .foregroundStyle(.white).floatingGlass()
             }
             .accessibilityLabel(t("live.add"))
+            // The core's id of Lägg till (`pageButtonsView`), as every platform names it (docs/view-models.md, "Ids").
+            .accessibilityIdentifier("add")
             .padding(20)
         }
         .environment(\.phoneTapped, { tapped = true })

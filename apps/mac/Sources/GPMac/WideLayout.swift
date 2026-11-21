@@ -79,7 +79,8 @@ struct WideLayout: View {
 /// A folded column's way back: its round button at the slides' foot on its side, clear of the slides' scrollbar, which
 /// runs down the trailing edge to the foot (14 pt from the edge it stood over the scrollbar's foot, Lars, 2026-11-21).
 private func unfoldButton(_ symbol: String, _ label: String, _ act: @escaping () -> Void) -> some View {
-    FoldButton(symbol: symbol, label: label) { withAnimation { act() } }.padding(14).padding(.trailing, symbol == "sidebar.right" ? 16 : 0)
+    let column = symbol == "sidebar.right" ? "liveColumn" : "runningOrder"
+    return FoldButton(id: "\(column).unfold", symbol: symbol, label: label) { withAnimation { act() } }.padding(14).padding(.trailing, symbol == "sidebar.right" ? 16 : 0)
 }
 
 #if os(macOS)
@@ -133,13 +134,16 @@ struct Columns: Decodable {
 
 /// A column's fold, at its foot, and a folded one's way back: the same round button of clear glass on both sides.
 struct FoldButton: View {
+    /// Its name for tests and assistive tools: the column's place (`pageButtonsView`'s `runningOrder`, `liveColumn`)
+    /// and `fold` or `unfold`, as every platform names it (docs/view-models.md, "Ids").
+    let id: String
     let symbol: String, label: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) { Image(systemName: symbol).font(.body).frame(width: 36, height: 36).contentShape(Circle()) }
             .buttonStyle(.plain).foregroundStyle(.primary).clearGlassCircle()
-            .help(t(label)).accessibilityLabel(t(label))
+            .help(t(label)).accessibilityLabel(t(label)).accessibilityIdentifier(id)
     }
 }
 
@@ -155,6 +159,8 @@ private struct AddMenu: View {
                 .padding(.horizontal, 16).padding(.vertical, 8).filledCapsule(Color.sky)
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        // The core's id of Lägg till (`pageButtonsView`), as every platform names it (docs/view-models.md, "Ids").
+        .accessibilityIdentifier("add")
     }
 }
 
@@ -213,7 +219,7 @@ private struct RunningOrderColumn: View {
             .animation(.easeOut(duration: 0.15), value: addInView)
             .coordinateSpace(.named("order"))
             if let fold {
-                ColumnFoot(foot: ["fold"], symbol: "sidebar.left", label: "presentation.hideSidebar", fold: fold).padding(12)
+                ColumnFoot(column: "runningOrder", foot: ["fold"], symbol: "sidebar.left", label: "presentation.hideSidebar", fold: fold).padding(12)
             }
         }
         // A Mac's sidebar is the system's glass; an iPad's column its own grey.
@@ -398,7 +404,7 @@ private struct LiveColumn: View {
                 }
             }
             Spacer()
-            ColumnFoot(foot: column?.foot ?? ["fold"], symbol: "sidebar.right", label: "presentation.hideLiveColumn", side: .trailing, fold: fold)
+            ColumnFoot(column: "liveColumn", foot: column?.foot ?? ["fold"], symbol: "sidebar.right", label: "presentation.hideLiveColumn", side: .trailing, fold: fold)
         }
         .padding(16)
         .background(Color.surface)
@@ -407,6 +413,8 @@ private struct LiveColumn: View {
 
 /// A column's foot as the core lays it (`presentationColumnsView`'s `foot`): its fold at its edge.
 private struct ColumnFoot: View {
+    /// The column's place (`pageButtonsView`), naming its fold.
+    let column: String
     let foot: [String]
     let symbol: String, label: String
     /// The column's side of the window; its fold stands at its inner edge, beside the slides (`presentationColumnsView`'s
@@ -417,7 +425,7 @@ private struct ColumnFoot: View {
     var body: some View {
         HStack {
             if side == .leading { Spacer() }
-            if foot.contains("fold") { FoldButton(symbol: symbol, label: label, action: fold) }
+            if foot.contains("fold") { FoldButton(id: "\(column).fold", symbol: symbol, label: label, action: fold) }
             if side == .trailing { Spacer() }
         }
     }

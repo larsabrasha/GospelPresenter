@@ -28,6 +28,7 @@ struct PresentationScreen: View {
                     ToolbarItem(placement: .navigation) {
                         Button { model.path = [] } label: { Label(t("nav.backToPresentations"), systemImage: Look.symbol("back")) }
                             .help(t("nav.backToPresentations")).keyboardShortcut("[", modifiers: .command)
+                            .accessibilityIdentifier("back")
                     }
                     #endif
                     #if os(iOS)
@@ -71,11 +72,15 @@ struct PresentationScreen: View {
         ForEach(groups, id: \.id) { group in
             Section {
                 ForEach(group.actions, id: \.id) { a in
-                    switch a.id {
-                    case "editDetails": Button(t(a.text), systemImage: Look.symbol(a.icon)) { editing = true }
-                    case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }
-                    default: EmptyView()
+                    Group {
+                        switch a.id {
+                        case "editDetails": Button(t(a.text), systemImage: Look.symbol(a.icon)) { editing = true }
+                        case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }
+                        default: EmptyView()
+                        }
                     }
+                    // Named by the core's id, the same on every platform (docs/view-models.md, "Ids").
+                    .accessibilityIdentifier(a.id)
                 }
             }
         }

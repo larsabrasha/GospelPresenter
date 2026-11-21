@@ -124,6 +124,18 @@ after Släck either, on both, as the scenario showed that → would then start t
    compared only within one shell, before and after a change (`docs/look.md`), never across shells, whose components
    differ on purpose.
 
+## Ids
+
+Every button and action a view lays out has an id of the core's (`pageButtonsView`'s `back`, `start`, `end`, `new`,
+`add`, `fold`, `black`; `presentationActionsView`'s and `itemActionsView`'s entries), and each shell names its control
+by it (Lars, 2026-11-21): SwiftUI's `accessibilityIdentifier`, the web's `data-testid`, WinUI's `AutomationId`, GTK's
+accessible id. A test, or an assistive tool, then finds the same button on every platform. A choice under a button is
+named by both, `add.song` (or `addAfter.song` under the item menu's Lägg till efter); a column's fold and its way back
+by the column's place, `runningOrder.fold`, `liveColumn.unfold`. Rows of a list are named by their data's id, not by
+these. For the Mac and iOS app, `packages/architecture/test/action-ids.test.ts` checks only this much: a Swift file that
+reads one of those views sets an identifier somewhere (it does not see a second control left unnamed), and `back`,
+`new`, `add` and `black` are each set by name. The web's controls are not named by them yet.
+
 ## Next
 
 Each further view model is a step of the loop in `docs/rust-core.md`: write it in the core, check it, switch the web to

@@ -42,6 +42,7 @@ struct StartPage: View {
                     Button { creating = true } label: { Image(systemName: "plus").font(.title3.weight(.semibold)) }
                         .role("add").buttonBorderShape(.circle).controlSize(.large)
                         .accessibilityLabel(t("presentations.new")).help(t("presentations.new"))
+                        .accessibilityIdentifier("new")
                 }
                 .padding(.bottom, 4)
             }
@@ -95,7 +96,7 @@ struct StartPage: View {
                         // Color.primary, not the hierarchical .primary, which a section's heading tones down.
                         Text(t("nav.presentations")).font(.largeTitle.bold()).foregroundStyle(Color.primary)
                         Spacer()
-                        AddButton(label: t("presentations.new")) { creating = true }.controlSize(.large)
+                        AddButton(label: t("presentations.new")) { creating = true }.controlSize(.large).accessibilityIdentifier("new")
                     }
                     .textCase(nil)
                     .padding(.horizontal, -20)
@@ -128,7 +129,7 @@ struct StartPage: View {
                 ToolbarItem(placement: .primaryAction) { AccountMenu() }
             } else {
                 ToolbarItem(placement: .navigation) { AccountMenu() }
-                ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true } }
+                ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true }.accessibilityIdentifier("new") }
             }
         }
         .sheet(isPresented: $creating) { DetailsSheet(presentationId: nil) }

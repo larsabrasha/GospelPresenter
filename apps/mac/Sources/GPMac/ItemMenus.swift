@@ -14,7 +14,8 @@ struct ItemMenu: View {
     var body: some View {
         ForEach(model.itemActions(item), id: \.id) { group in
             Section {
-                ForEach(group.actions.filter { Self.drawn.contains($0.id) }, id: \.id) { entry($0) }
+                // Each entry named by the core's id, the same on every platform (docs/view-models.md, "Ids").
+                ForEach(group.actions.filter { Self.drawn.contains($0.id) }, id: \.id) { entry($0).accessibilityIdentifier($0.id) }
             }
         }
         // Each entry with its icon, as the web's menu has them; a Mac's menu shows the title alone unless asked.
@@ -54,7 +55,7 @@ struct ItemMenu: View {
                 .pickerStyle(.inline)
             }
         case "addAfter":
-            Menu(t(a.text), systemImage: Look.symbol(a.icon)) { AddChoices(chosen: item.id) }
+            Menu(t(a.text), systemImage: Look.symbol(a.icon)) { AddChoices(chosen: item.id, button: a.id) }
         case "delete":
             Button(t(a.text), systemImage: Look.symbol(a.icon), role: a.destructive ? .destructive : nil) { model.removing = item }
                 .disabled(!a.enabled)
@@ -70,6 +71,9 @@ struct ItemMenu: View {
 struct AddChoices: View {
     @Environment(Model.self) private var model
     let chosen: String?
+    /// The id of the button or entry these are the choices of (`add`, or the item menu's `addAfter`), naming each
+    /// choice with its own: `add.song`, `addAfter.song` (docs/view-models.md, "Ids").
+    var button = "add"
 
     /// The kinds this app can add.
     private static let drawn: Set = ["song", "header"]
@@ -79,7 +83,8 @@ struct AddChoices: View {
             .filter { Self.drawn.contains($0.id) }
         ForEach(kinds, id: \.id) { k in
             if k.apart == true { Divider() }
-            Button(t(k.text ?? k.id), systemImage: Look.symbol(k.icon)) { add(k.id) }
+            // A choice named by its button's id and its own (docs/view-models.md, "Ids").
+            Button(t(k.text ?? k.id), systemImage: Look.symbol(k.icon)) { add(k.id) }.accessibilityIdentifier("\(button).\(k.id)")
         }
         .labelStyle(.titleAndIcon)
     }
