@@ -17,12 +17,19 @@ struct RefusalAlert: ViewModifier {
             .alert(shown ?? "", isPresented: Binding(get: { shown != nil }, set: { if !$0 { shown = nil; message = nil } })) { Button(t("common.close")) {} }
             .onChange(of: message) { _, now in show(now) }
             .onAppear { show(message) }
+            // Gone with the page: a message it could not present does not hold the next ones back.
+            .onDisappear { shown = nil }
     }
 
-    /// After a sheet's closing (about a third of a second on iOS), and only if it is still the message to say.
+    /// After a sheet's closing (about a third of a second on iOS), unless another message took its place. A success
+    /// since (`message` set back to nil by the next change) does not hide it. Cleared first, so it is a new alert.
     private func show(_ text: String?) {
         guard let text else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { if message == text { shown = text } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard message == text || message == nil else { return }
+            shown = nil
+            DispatchQueue.main.async { shown = text }
+        }
     }
 }
 

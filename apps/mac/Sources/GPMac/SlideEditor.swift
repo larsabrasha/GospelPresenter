@@ -316,19 +316,22 @@ struct SlideEditorPage: View {
         var args = op.merging(["pages": pages.map(\.any), "page": at, "overlay": overlay]) { a, _ in a }
         if let picked { args["picked"] = picked }
         guard let r = model.view("slideEditView", args, as: Edited.self) else { return message = t("common.saveFailed") }
+        let (wasAt, wasPicked) = (at, picked)
         at = r.page
         picked = r.picked
         guard r.pages != pages else { return }
-        commit(r.pages)
+        // Refused, the page shown and the pick as they were too: a new last page refused left `at` past the end.
+        if !commit(r.pages) { (at, picked) = (wasAt, wasPicked) }
     }
 
     /// New pages kept for Ångra and saved; refused (a limit, a picture not on the server), the pages and their history
     /// as they were.
-    private func commit(_ next: [JSONValue]) {
+    @discardableResult private func commit(_ next: [JSONValue]) -> Bool {
         let (was, before, after) = (pages, past, future)
         past.append(pages)
         future = []
-        if !save(next) { (pages, past, future) = (was, before, after) }
+        guard save(next) else { (pages, past, future) = (was, before, after); return false }
+        return true
     }
 
     /// An element's words, typed on `page`, kept without moving what is shown or picked now. Dropped when Ångra or Gör
@@ -341,13 +344,14 @@ struct SlideEditorPage: View {
     }
 
     private func step(back: Bool) {
-        let (was, before, after) = (pages, past, future)
+        let (was, before, after, wasAt, wasPicked) = (pages, past, future, at, picked)
         guard let next = back ? past.popLast() : future.popLast() else { return }
         steps += 1
         if back { future.append(pages) } else { past.append(pages) }
         at = min(at, next.count - 1)
         picked = nil
-        if !save(next) { (pages, past, future) = (was, before, after) }
+        // Refused, all as it was, `steps` too: nothing was undone, so words typed before it are still to be saved.
+        if !save(next) { (pages, past, future, at, picked) = (was, before, after, wasAt, wasPicked); steps -= 1 }
     }
 
     /// The pages kept and saved; false, with the refusal said, when the core refused them.
