@@ -56,3 +56,9 @@ apps/mac/Sources/GPCoreFFI/gp_core_ffi.h
 apps/mac/Sources/GPMac/TextTable.swift
 apps/mac/Sources/GPMac/LookTable.swift
 apps/web/dist-slides/
+# The Windows app's builds, the core's C# bindings and native libraries, and its texts (apps/windows/build/core.sh)
+apps/windows/**/bin/
+apps/windows/**/obj/
+apps/windows/native/
+apps/windows/Shell/Ffi/
+apps/windows/Shell/texts.json

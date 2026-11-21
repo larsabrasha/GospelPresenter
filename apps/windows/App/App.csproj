@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Windows app: WinUI 3 (Windows App SDK) over the Shell library and the Rust core (docs/windows-app.md).
+       Unpackaged for now: built and run with `dotnet run` on Windows, no MSIX, no signing. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>GospelPresenter.App</RootNamespace>
+    <AssemblyName>GospelPresenter</AssemblyName>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <!-- The platform from the runtime when only one is given (`dotnet run -r win-arm64`), else this machine's. -->
+  <PropertyGroup Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">
+    <Platform Condition="'$(RuntimeIdentifier)' == 'win-arm64' Or ('$(RuntimeIdentifier)' == '' And '$(PROCESSOR_ARCHITECTURE)' == 'ARM64')">ARM64</Platform>
+    <Platform Condition="'$(Platform)' != 'ARM64'">x64</Platform>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$(Platform.ToLowerInvariant())</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Shell/Shell.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The core for the platform built (build/build.ps1 or build/core.sh puts it there), and the demo data. -->
+    <None Include="../native/$(RuntimeIdentifier)/gp_core_ffi.dll" Link="gp_core_ffi.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../crates/gp-core/parity/.out/fixtures/demo.sqlite" Link="demo.sqlite" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('../../../crates/gp-core/parity/.out/fixtures/demo.sqlite')" />
+  </ItemGroup>
+</Project>

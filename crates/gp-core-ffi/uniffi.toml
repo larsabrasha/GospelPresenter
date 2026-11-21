@@ -5,3 +5,10 @@ module_name = "Shell"
 ffi_module_name = "GPCoreFFI"
 ffi_module_filename = "gp_core_ffi"
 generate_module_map = false
+
+# The C# bindings (uniffi-bindgen-cs) go into apps/windows's Shell library; the DLL they load is gp_core_ffi.dll
+# (libgp_core_ffi.dylib on a Mac, where the library's tests run).
+[bindings.csharp]
+namespace = "GospelPresenter.Shell.Ffi"
+cdylib_name = "gp_core_ffi"
+access_modifier = "public"
