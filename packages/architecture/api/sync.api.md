@@ -1,5 +1,6 @@
 ## @gp/sync/client
 BibleKeeping (type)
+BibleTextStore (type)
 BibleTextSync (type)
 BibleTextUpload (type)
 BibleTextUploads (class)

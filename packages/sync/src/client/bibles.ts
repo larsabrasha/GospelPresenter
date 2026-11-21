@@ -1,16 +1,10 @@
 // Bible texts on a client (docs/bibles-and-themes.md, "Bibles"): a translation's verses are an
 // immutable text named by its hash, kept in tables that do not sync. Only the
 // `bibles` row syncs; this fetches the text of each translation the device
-// keeps once and keeps it, and drops texts it no longer keeps.
-import {
-  bibleTextHash,
-  bibleTextSchema,
-  joinBibleText,
-  LOAD_BIBLE_TEXT_SQL,
-  serializeBibleText,
-  storeBibleTextSql,
-  type BibleBookText,
-} from '@gp/core';
+// keeps once and keeps it, and drops texts it no longer keeps. Which texts, and whether one fetched is what its hash
+// names, the core says (crates/gp-core/src/bible_texts.rs: `bibleTextPlanView`, `bibleTextStoreView`,
+// `bibleTextJsonView`, `bibleUploadsView`); this moves the texts.
+import { bibleTextHash, LOAD_BIBLE_TEXT_SQL, serializeBibleText, storeBibleTextSql, type BibleBookText } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 /**
@@ -51,11 +45,13 @@ export interface BibleTextSync {
  */
 export type BibleKeeping = 'all' | 'chosen';
 
+/** The statements that keep a text: a row a book, then the marker that it is whole (`storeBibleTextSql`). */
+export type BibleTextStore = { sql: string; params: unknown[] }[];
+
 /**
- * Downloads every text a kept translation names that this device lacks, then
- * removes texts no kept translation names (keeping any a queued `importBible`
- * names). `download` returns the text's JSON, or null if the server has none.
- * Callers serialise this with their own imports.
+ * Removes the texts no kept translation names (keeping any a queued `importBible` names), then downloads every
+ * text a kept translation names that this device lacks, as the core's `bibleTextPlanView` says. `download` returns
+ * the text's JSON, or null if the server has none. Callers serialise this with their own imports.
  */
 export async function syncBibleTexts(
   client: SyncClient,
@@ -63,32 +59,25 @@ export async function syncBibleTexts(
   keeping: BibleKeeping = 'all',
 ): Promise<BibleTextSync> {
   const result: BibleTextSync = { downloaded: [], missing: [], removed: 0 };
-  const kept = keeping === 'all' ? 'SELECT content_hash FROM bibles' : 'SELECT content_hash FROM bibles WHERE id IN (SELECT id FROM kept_bibles)';
-  const wanted = (await client.query(`SELECT DISTINCT content_hash AS hash FROM (${kept}) WHERE content_hash NOT IN (SELECT hash FROM bible_blobs)`)) as {
-    hash: string;
-  }[];
-  for (const { hash } of wanted) {
-    const books = await fetchBibleText(download, hash);
-    if (!books) {
-      result.missing.push(hash);
-      continue;
-    }
-    await client.localWrite(storeBibleTextSql(hash, books));
-    result.downloaded.push(hash);
-  }
-
-  const queued = (await client.pending()).filter((m) => m.name === 'importBible').map((m) => String(JSON.parse(m.args).contentHash));
-  const unused = (await client.query(`SELECT hash FROM bible_blobs WHERE hash NOT IN (${kept})`)) as { hash: string }[];
-  const drop = unused.map((u) => u.hash).filter((h) => !queued.includes(h));
-  if (drop.length) {
+  const plan = await client.view<{ fetch: string[]; drop: string[] }>('bibleTextPlanView', { keeping });
+  if (plan.drop.length) {
     await client.localWrite(
-      drop.flatMap((h) => [
+      plan.drop.flatMap((h) => [
         { sql: 'DELETE FROM bible_texts WHERE hash = ?', params: [h] },
         { sql: 'DELETE FROM bible_blobs WHERE hash = ?', params: [h] },
       ]),
     );
   }
-  result.removed = drop.length;
+  for (const hash of plan.fetch) {
+    const store = await fetchBibleText(client, download, hash);
+    if (!store) {
+      result.missing.push(hash);
+      continue;
+    }
+    await client.localWrite(store);
+    result.downloaded.push(hash);
+  }
+  result.removed = plan.drop.length;
   return result;
 }
 
@@ -125,31 +114,17 @@ export async function dropBible(client: SyncClient, bibleId: string, download: (
 }
 
 /**
- * A text fetched with `download` and checked against its hash, without
- * storing it: what a page uses for a translation this device does not keep.
- * Null if it cannot be had.
+ * A text fetched with `download` and checked by the core against its hash (`bibleTextStoreView`), as the statements
+ * that keep it; not run here: what a page uses for a translation this device does not keep. Null if it cannot be had.
  */
-export async function fetchBibleText(download: (hash: string) => Promise<string | null>, hash: string): Promise<BibleBookText[] | null> {
+export async function fetchBibleText(client: SyncClient, download: (hash: string) => Promise<string | null>, hash: string): Promise<BibleTextStore | null> {
   let json: string | null = null;
   try {
     json = await download(hash);
   } catch {
     json = null;
   }
-  return json === null ? null : verified(json, hash);
-}
-
-/** The text, if it parses and is what `hash` names. */
-async function verified(json: string, hash: string): Promise<BibleBookText[] | null> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    return null;
-  }
-  const text = bibleTextSchema.safeParse(parsed);
-  if (!text.success) return null;
-  return (await bibleTextHash(serializeBibleText(text.data.books))) === hash ? text.data.books : null;
+  return json === null ? null : (await client.view<{ store: BibleTextStore | null }>('bibleTextStoreView', { hash, json })).store;
 }
 
 /**
@@ -181,22 +156,23 @@ export class BibleTextUploads {
   constructor(private upload: BibleTextUpload) {}
 
   beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
-    for (const [i, m] of pending.entries()) {
-      if (m.name !== 'importBible') continue;
-      const args = JSON.parse(m.args) as { contentHash?: unknown };
-      this.imports.set(m.id, args);
-      const hash = String(args.contentHash);
-      if (this.uploaded.has(hash)) continue;
-      const json = await storedTextJson(client, hash);
+    // Each queued import, in order, with its place in the queue (`bibleUploadsView`); only those of the changes this
+    // push was given: one queued since is not in `pending`, and its place is beyond it.
+    type Upload = { index: number; id: number; args: unknown; hash: string; uploaded: boolean };
+    const { uploads } = await client.view<{ uploads: Upload[] }>('bibleUploadsView', { uploaded: [...this.uploaded] });
+    for (const u of uploads.filter((x) => x.index < pending.length)) {
+      this.imports.set(u.id, u.args);
+      if (u.uploaded || this.uploaded.has(u.hash)) continue;
+      const { json } = await client.view<{ json: string | null }>('bibleTextJsonView', { hash: u.hash });
       if (json === null) continue; // nothing to send: the server refuses the import
       let status: number;
       try {
-        status = await this.upload(hash, json);
+        status = await this.upload(u.hash, json);
       } catch {
-        return i; // unreachable: this import and what follows wait
+        return u.index; // unreachable: this import and what follows wait
       }
-      if (status >= 500) return i;
-      if (status < 300) this.uploaded.add(hash);
+      if (status >= 500) return u.index;
+      if (status < 300) this.uploaded.add(u.hash);
     }
     return undefined;
   };
@@ -225,10 +201,4 @@ export class BibleTextUploads {
     }
     return n;
   }
-}
-
-/** A stored text's canonical JSON, exactly as hashed, or null if this device lacks it. */
-async function storedTextJson(client: SyncClient, hash: string): Promise<string | null> {
-  if (!(await hasBibleText(client, hash))) return null;
-  return joinBibleText((await client.query(LOAD_BIBLE_TEXT_SQL, [hash])) as { code: string; chunk: string }[]);
 }

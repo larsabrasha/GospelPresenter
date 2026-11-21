@@ -25,6 +25,8 @@ zerovec = "0.11"
 parley = { version = "0.13", default-features = false, features = ["std"], optional = true }
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
+# A Bible text is named by the SHA-256 of its canonical JSON (bible_texts.rs), checked in the core for every shell.
+sha2 = { version = "0.10", default-features = false }
 unicode-normalization = "0.1"
 
 [features]

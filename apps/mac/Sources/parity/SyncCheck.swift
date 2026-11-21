@@ -71,6 +71,27 @@ enum SyncCheck {
             let missing = await bob.media(String(repeating: "0", count: 64), to: URL(filePath: dir).appending(path: "missing"))
             check("a media file the server lacks is not kept", !missing && !FileManager.default.fileExists(atPath: "\(dir)/missing"))
 
+            // A Bible text: up from one device with its import, kept on the other when chosen, and dropped again.
+            let text = #"{"v":1,"books":[{"code":"JHN","verses":[[3,16,"Så älskade Gud världen"]]}]}"#
+            let textHash = SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+            var putText = URLRequest(url: URL(string: "\(a.server)/api/bibles/\(textHash)")!)
+            putText.httpMethod = "PUT"
+            putText.setValue("Bearer \(a.token)", forHTTPHeaderField: "authorization")
+            putText.setValue("application/json", forHTTPHeaderField: "content-type")
+            let textStatus = ((try? await URLSession.shared.upload(for: putText, from: Data(text.utf8)))?.1 as? HTTPURLResponse)?.statusCode ?? 0
+            check("a text not what its hash names is not kept", !alice.storeBibleText(String(repeating: "0", count: 64), json: text))
+            _ = alice.storeBibleText(textHash, json: text)
+            let imported = alice.mutate("importBible", ["name": "Svenska", "abbreviation": "SV", "language": "sv", "contentHash": textHash])
+            let bibleId = "bible:sv"
+            let arrived = await wait(5) { (try? bob.core.db.query("SELECT 1 FROM bibles WHERE id = ?", [.text(value: bibleId)]))?.isEmpty == false }
+            check("a translation imported reaches the other device (\(textStatus), \(imported.map(\.code) ?? "taken"))", arrived != nil)
+            let held = { (try? bob.core.db.query("SELECT verse_count FROM bible_blobs WHERE hash = ?", [.text(value: textHash)]))?.first?.first }
+            check("its text is not fetched while not kept", held() == nil)
+            let kept = await bob.keepBible(bibleId, true)
+            check("kept, its text is fetched and checked", kept && held() == .integer(value: 1))
+            _ = await bob.keepBible(bibleId, false)
+            check("and dropped when no longer kept", held() == nil)
+
             alice.close()
             check("closing closes the socket", await wait(2) { !alice.connected } != nil)
             bob.close()

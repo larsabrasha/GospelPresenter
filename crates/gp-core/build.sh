@@ -38,6 +38,12 @@ MEDIA_REFERENCE=bb87c4aa
 git -C "$ROOT" show "$MEDIA_REFERENCE:packages/sync/src/client/media.ts" > "$OUT/ref-media.ts"
 "$ESBUILD" "$OUT/ref-media.ts" --bundle --format=esm --platform=node --outfile="$OUT/sync-media.mjs" --log-level=warning \
   --alias:@gp/core="$ROOT/packages/core/src/index.ts"
+# Which Bible texts a device fetches, keeps, drops and uploads (views/bible-texts.mjs), as the web's bibles.ts had it
+# when it moved to the core, at 3d061fc9, taken from git.
+BIBLE_REFERENCE=3d061fc9
+git -C "$ROOT" show "$BIBLE_REFERENCE:packages/sync/src/client/bibles.ts" > "$OUT/ref-bibles.ts"
+"$ESBUILD" "$OUT/ref-bibles.ts" --bundle --format=esm --platform=node --outfile="$OUT/sync-bibles.mjs" --log-level=warning \
+  --alias:@gp/core="$ROOT/packages/core/src/index.ts"
 # The ProPresenter import's duplicates (parity/views/song-import.mjs) against the web's songImport.ts there too.
 "$ESBUILD" "$REF_LEGACY/apps/web/src/pages/songImport.ts" --bundle --format=esm --platform=node --outfile="$OUT/song-import.mjs" --log-level=warning
 # The TS SyncClient as it was before the switch to the core's sync (the reference), the one on the core, and the

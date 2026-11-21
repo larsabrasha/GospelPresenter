@@ -3,7 +3,7 @@
 // change log; only its `bibles` row syncs. Also measures one full-size
 // (generated) translation for docs/bibles-and-themes.md.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, type BibleBookText } from '@gp/core';
+import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, storeBibleTextSql, type BibleBookText } from '@gp/core';
 import { BibleTextUploads, dropBible, fetchBibleText, keepBible, loadBibleText, setBibleKept, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
@@ -224,18 +224,18 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     it('a text fetched for a page is checked against its hash and not stored', async () => {
       const { web } = await twoTranslations();
 
-      const books = await fetchBibleText(downloader(h, org, 'bob'), web);
+      const store = await fetchBibleText(bob.client, downloader(h, org, 'bob'), web);
 
-      expect(books).toEqual(SAMPLE);
+      expect(store).toEqual(storeBibleTextSql(web, SAMPLE));
       expect(await loadBibleText(bob.client, web)).toBeNull();
     });
 
     it('a fetched text that does not match its hash is refused', async () => {
       const { web } = await twoTranslations();
 
-      const books = await fetchBibleText(async () => serializeBibleText(KJ), web);
+      const store = await fetchBibleText(bob.client, async () => serializeBibleText(KJ), web);
 
-      expect(books).toBeNull();
+      expect(store).toBeNull();
     });
   });
 

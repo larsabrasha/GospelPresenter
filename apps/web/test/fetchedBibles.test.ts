@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { BibleBookText } from '@gp/core';
+import { storeBibleTextSql } from '@gp/core';
+import type { BibleTextStore } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { fetchedBibleText } from '../src/db/fetchedBibles.ts';
 
 // A device that keeps no Bible text: every translation comes from `fetch`, into a database in memory of its own.
 function countingFetch() {
   const fetched: string[] = [];
-  const fetch = async (hash: string): Promise<BibleBookText[] | null> => {
+  const fetch = async (hash: string): Promise<BibleTextStore | null> => {
     fetched.push(hash);
-    return hash.startsWith('none') ? null : [{ code: 'GEN', verses: [[1, 1, `I begynnelsen (${hash})`]] }];
+    return hash.startsWith('none') ? null : storeBibleTextSql(hash, [{ code: 'GEN', verses: [[1, 1, `I begynnelsen (${hash})`]] }]);
   };
   return { fetched, fetch };
 }

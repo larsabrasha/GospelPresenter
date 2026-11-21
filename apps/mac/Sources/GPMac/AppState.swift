@@ -36,6 +36,8 @@ final class AppState {
     var mediaGeneration = 0
     @ObservationIgnored var mediaRunning = false
     @ObservationIgnored var mediaAgain = false
+    @ObservationIgnored var bibleRunning = false
+    @ObservationIgnored var bibleAgain = false
     /// The sync's grace (the core's `syncStatusView`): whether changes waiting or no connection have held long enough to
     /// count as a problem, and the timer that says so.
     @ObservationIgnored private var waitedLong = false
@@ -113,7 +115,7 @@ final class AppState {
             let client = try SyncClient(path: "\(Self.home)/org-\(session.me.orgId).sqlite", session: session)
             client.onChange = { [weak self] _ in self?.changed() }
             client.onStatus = { [weak self] in self?.noteSync() }
-            client.onMedia = { [weak self] in self?.syncMedia() }
+            client.onMedia = { [weak self] in self?.syncMedia(); self?.syncBibles() }
             store = .synced(client)
             Keychain.session = session
             client.start()
@@ -247,6 +249,7 @@ final class AppState {
         windows = windows.filter { $0.model != nil }
         for w in windows { w.model?.load() }
         syncMedia()
+        syncBibles()
     }
 
     /// The live state changed: each window's page as that leaves it (presenting started or ended); another item shown

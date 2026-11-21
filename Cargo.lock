@@ -739,6 +739,7 @@ dependencies = [
  "miniz_oxide",
  "parley",
  "serde_json",
+ "sha2",
  "unicode-normalization",
  "zerovec",
 ]

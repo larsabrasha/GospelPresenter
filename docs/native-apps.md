@@ -222,6 +222,13 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   arrives draws the tiles with pictures again (`TileRequest.media`). Checked against a real server by `parity sync`
   (a file fetched is the one uploaded, one the server lacks is not kept). Not done: presentations kept offline,
   uploads (the app imports no files yet).
+- **Bible texts** (Lars, 2026-11-21; `Shell/BibleTexts.swift`, `BibleSync.swift`): as the web's syncBibleTexts, the
+  core's `bibleTextPlanView` says which texts to drop and fetch (those of the translations kept, `kept_bibles`) and
+  `bibleTextStoreView` whether one fetched is what its hash names, and how it is kept; after every change and pull.
+  `keepBible` keeps a translation and fetches its text now, or drops it. Checked against a real server by `parity
+  sync` (an import reaches the other device, its text fetched only once kept, dropped when no longer kept, a text
+  not what its hash names not kept). Not done: anything that shows them; the app has no sheet to add a reading
+  yet, nor a way to choose a translation to keep, nor imports of its own.
 - **Rows and previews as the web's** (`ItemPreview.swift`, `PhoneLayout.swift`): on a phone a picture, a video and a
   slideshow's page show small in their row, an audio file's with its speaker and its name beside (the web's SlideRow
   and AudioMark), a song's or reading's part by its words or number; a tile of an audio item has the speaker and the

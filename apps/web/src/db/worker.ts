@@ -98,7 +98,7 @@ async function rustCore(): Promise<RustCore> {
 async function view(name: string, args: unknown): Promise<unknown> {
   const answer = await client!.view(name, args);
   if (name !== 'bibleView' || answer !== null) return answer;
-  const rows = await fetchedBibleText((args as { hash: string }).hash, (hash) => fetchBibleText(downloadBibleText, hash), openMemory);
+  const rows = await fetchedBibleText((args as { hash: string }).hash, (hash) => fetchBibleText(client!, downloadBibleText, hash), openMemory);
   return rows && (await rustCore()).view('bibleView', args, rows);
 }
 

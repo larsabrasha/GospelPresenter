@@ -26,7 +26,7 @@ fn names_blobs(m: &str) -> bool {
 fn is_hash(h: &str) -> bool { h.len() == 64 && h.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) }
 
 /// JavaScript's `String(v)` of a field that may be missing, as the web named a blob ("undefined" when it is).
-fn js_string(v: Option<&Value>) -> String {
+pub(crate) fn js_string(v: Option<&Value>) -> String {
     match v {
         None => "undefined".into(),
         Some(Value::String(t)) => t.clone(),
