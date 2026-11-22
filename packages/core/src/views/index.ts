@@ -3,6 +3,7 @@
 import * as live from './live.ts';
 import type { PureView, View } from './sql.ts';
 import { slidesPureViews, slidesViews } from './slides.ts';
+import { startPageView } from './start-page.ts';
 import { audiosView, customSlidesView, customSlideView, imagesView, overlayRowView, overlaysView, videosView } from './lists-media.ts';
 import { libraryPageView, settingsListView, settingsSearchView } from './lists-pages.ts';
 import { biblesView, ccliReportView, coreInfoView, defaultThemeIdView, freshNameView, ownThemesView, ownThemeView, rulesView, themesPageView } from './lists-settings.ts';
@@ -16,6 +17,7 @@ export const views: Record<string, View> = {
   imagesView, audiosView, videosView, customSlidesView, customSlideView, overlaysView, overlayRowView,
   songsView, songSearchPrepare, songSearchView, songView, songPageView, songPresentationsView, songHistoryView, songMaterialsView,
   biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView, themesPageView,
+  startPageView,
 };
 export const pureViews: Record<string, PureView> = {
   ...live.pureViews,
