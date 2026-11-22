@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The start page: the core's lists (startPageView), each under its title, a row's name over its date, time and
+     place. WinUI's own ListView, in the system's light or dark theme. -->
+<Window
+    x:Class="GospelPresenter.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:GospelPresenter.App"
+    Title="Gospel Presenter">
+    <!-- Mica where Windows has it (11), set in code; on Windows 10 the theme's page background. -->
+    <Grid x:Name="Page" Padding="24,16" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <InfoBar x:Name="Problem" Severity="Error" IsClosable="False" />
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl x:Name="Lists" x:FieldModifier="private">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:ListModel">
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource SubtitleTextBlockStyle}" Margin="12,0,0,8" />
+                            <ListView ItemsSource="{x:Bind Rows}" SelectionMode="Single">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:RowModel">
+                                        <StackPanel Padding="0,8">
+                                            <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock Text="{x:Bind Subtitle}" Style="{StaticResource CaptionTextBlockStyle}"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       Visibility="{x:Bind HasSubtitle}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

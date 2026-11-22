@@ -4,10 +4,12 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { brotliCompressSync } from 'node:zlib';
 import { performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
 import { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } from './.out/ts-core.mjs';
 import { SEED_SQL } from './seed-sql.mjs';
 
-const dir = new URL('.', import.meta.url).pathname;
+// A path, not a URL's: on Windows a URL's pathname is /C:/….
+const dir = fileURLToPath(new URL('.', import.meta.url));
 const OPS = Number(process.argv[2] ?? 3000);
 const SEEDS = Number(process.argv[3] ?? 5);
 
@@ -167,7 +169,7 @@ export function generator(random, db) {
   };
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
 // ---------------------------------------------------------------- run
 
 const kb = (n) => (n / 1024).toFixed(1) + ' kB';
