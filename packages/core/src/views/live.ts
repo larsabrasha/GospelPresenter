@@ -196,7 +196,7 @@ function presentationActionsView(args: unknown) {
 }
 
 /** Whether an item may be removed: not the one on the outputs (`shown`, black or not). */
-export const removable = (item: string, shown: string | undefined) => shown !== item;
+const removable = (item: string, shown: string | undefined) => shown !== item;
 
 /**
  * `itemActionsView` {item, song, arrangements, overlays, shownId}: an item's menu (the web's ItemContextMenu.tsx), the

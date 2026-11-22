@@ -64,3 +64,6 @@ apps/windows/Shell/Ffi/
 apps/windows/Shell/texts.json
 # Pictures of the Windows app's window (apps/windows/build/build.ps1 capture)
 apps/windows/pictures/
+
+# Worktrees of Claude Code agents
+.claude/worktrees/
