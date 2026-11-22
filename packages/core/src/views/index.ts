@@ -5,6 +5,7 @@ import type { PureView, View } from './sql.ts';
 import { slidesPureViews, slidesViews } from './slides.ts';
 import { startPageView } from './start-page.ts';
 import { pagePureViews, pageViews } from './page.ts';
+import { filesPureViews, filesViews } from './files.ts';
 import { audiosView, customSlidesView, customSlideView, imagesView, overlayRowView, overlaysView, videosView } from './lists-media.ts';
 import { libraryPageView, settingsListView, settingsSearchView } from './lists-pages.ts';
 import { biblesView, ccliReportView, coreInfoView, defaultThemeIdView, freshNameView, ownThemesView, ownThemeView, rulesView, themesPageView } from './lists-settings.ts';
@@ -20,6 +21,7 @@ export const views: Record<string, View> = {
   biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView, themesPageView,
   startPageView,
   ...pageViews,
+  ...filesViews,
 };
 export const pureViews: Record<string, PureView> = {
   ...live.pureViews,
@@ -27,4 +29,5 @@ export const pureViews: Record<string, PureView> = {
   // lists (wave 4)
   settingsListView, settingsSearchView, freshNameView, libraryPageView, rulesView, coreInfoView,
   ...pagePureViews,
+  ...filesPureViews,
 };
