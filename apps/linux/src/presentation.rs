@@ -34,6 +34,8 @@ pub struct Page {
     slides: gtk::Box,
     live_column: gtk::Box,
     live_picture: gtk::DrawingArea,
+    /// A video or audio item's controls under the picture (player_bar.rs).
+    player_bar: crate::player_bar::PlayerBar,
     live_buttons: gtk::Box,
     cue: gtk::Label,
     /// Överlägg, a switch each, at most one on (the core's), under the cue.
@@ -174,8 +176,9 @@ impl Page {
         fit_grid(shell, &slides_scroll, flows, tiles.iter().map(|(_, t)| t.clone()).collect());
 
         // The live column: the picture, then Släck; the cue under them.
-        let live_picture = tiles::live_picture(shell, true);
-        let frame = gtk::AspectFrame::builder().ratio(16.0 / 9.0).obey_child(false).child(&live_picture).build();
+        let (live_view, live_picture) = tiles::live_picture(shell, true);
+        let frame = gtk::AspectFrame::builder().ratio(16.0 / 9.0).obey_child(false).child(&live_view).build();
+        let player_bar = crate::player_bar::PlayerBar::build(shell);
         let live_buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         live_buttons.set_halign(gtk::Align::Center);
         let cue = gtk::Label::builder().wrap(true).css_classes(["dim-label"]).build();
@@ -184,6 +187,7 @@ impl Page {
         let live_column = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(12).width_request(live_width).hexpand(false)
             .margin_top(12).margin_bottom(12).margin_start(12).margin_end(12).build();
         live_column.append(&frame);
+        live_column.append(&player_bar.root);
         live_column.append(&live_buttons);
         live_column.append(&cue);
         let overlays = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -224,9 +228,12 @@ impl Page {
         bar.add_top_bar(&banner);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue, overlays, outputs, banner,
+        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, player_bar, live_buttons, cue, overlays, outputs, banner,
             description_card, description, order_side, unfold }
     }
+
+    /// The player's controls as it now stands.
+    pub fn refresh_player(&self, shell: &Rc<Shell>) { self.player_bar.update(shell) }
 
     /// Överlägg while presenting: a switch for each of the presentation's overlays, the one shown on; switching one
     /// changes the live state as Visning does (the core's overlay rules: one at a time, black ended).
@@ -305,6 +312,7 @@ impl Page {
         if out {
             replace(&self.live_buttons, m.buttons("liveColumn").iter().filter_map(|b| button(shell, b)).collect());
             self.live_picture.queue_draw();
+            self.player_bar.update(shell);
         }
         self.banner.set_revealed(app.remote);
         let cue = app.cue.as_ref().map(|c| {

@@ -750,6 +750,28 @@
       ],
       "type": "object"
     },
+    "FadeStep": {
+      "description": "Tona ut at a moment (`fadeOutView`): the volume now, whether it is done, and when to ask again.",
+      "properties": {
+        "done": {
+          "type": "boolean"
+        },
+        "nextMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "volume": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "volume",
+        "done",
+        "nextMs"
+      ],
+      "type": "object"
+    },
     "LinePart": {
       "description": "A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.",
       "properties": {
@@ -1604,6 +1626,63 @@
       ],
       "type": "object"
     },
+    "PlayerControls": {
+      "description": "A played file's controls (`playerControlsView`): the toggle's icon (`play`, `pause`) and its label, the slider's\nlabel and its end in seconds, the time (`m:ss / m:ss`), and an audio file's Tona ut.",
+      "properties": {
+        "end": {
+          "format": "double",
+          "type": "number"
+        },
+        "fade": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlayerFade"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "icon": {
+          "type": "string"
+        },
+        "seek": {
+          "description": "The slider's label, a text key.",
+          "type": "string"
+        },
+        "time": {
+          "type": "string"
+        },
+        "toggle": {
+          "description": "The toggle's label, a text key.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "icon",
+        "toggle",
+        "seek",
+        "end",
+        "time"
+      ],
+      "type": "object"
+    },
+    "PlayerFade": {
+      "description": "Tona ut's button: its text key, and whether it may be pressed.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "enabled"
+      ],
+      "type": "object"
+    },
     "PresentationRow": {
       "description": "A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).",
       "properties": {
@@ -1766,6 +1845,9 @@
     "details_step": {
       "$ref": "#/$defs/DetailsStep"
     },
+    "fade_step": {
+      "$ref": "#/$defs/FadeStep"
+    },
     "live_event": {
       "$ref": "#/$defs/LiveEvent"
     },
@@ -1777,6 +1859,9 @@
     },
     "pair_step": {
       "$ref": "#/$defs/PairStep"
+    },
+    "player_controls": {
+      "$ref": "#/$defs/PlayerControls"
     },
     "qr": {
       "$ref": "#/$defs/QrCode"
@@ -1799,7 +1884,9 @@
     "auto_save_event",
     "pair_step",
     "pair_event",
-    "qr"
+    "qr",
+    "player_controls",
+    "fade_step"
   ],
   "title": "Views",
   "type": "object"

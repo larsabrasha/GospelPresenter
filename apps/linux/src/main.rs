@@ -21,6 +21,8 @@ mod outputs;
 mod pair_screen;
 mod painter;
 mod palette;
+mod player;
+mod player_bar;
 mod presentation;
 mod presentation_menu;
 mod shell;

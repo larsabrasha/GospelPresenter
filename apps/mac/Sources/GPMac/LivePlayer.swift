@@ -85,19 +85,18 @@ final class MediaPlayer {
         position = seconds
     }
 
-    /// Tona ut: the volume down over 5 s, easing out (a cubic), then paused, back at the start, at full volume again
-    /// (spec 04 §1b).
-    func fadeOut() {
+    /// Tona ut: the volume as the core says while it runs (`fadeOutView`, asked through `step` with the volume it
+    /// began from and the ms since), then paused, back at the start, at full volume again (spec 04 §1b).
+    func fadeOut(_ step: @escaping (Double, Int) -> FadeStep?) {
         guard fade == nil, player.timeControlStatus != .paused else { return }
         fading = true
-        let from = player.volume
+        let from = Double(player.volume)
+        let began = Date()
         fade = Task { @MainActor in
-            let steps = 100
-            for n in 1...steps {
-                try? await Task.sleep(for: .milliseconds(50)) // 100 steps of 50 ms: the spec's 5 000 ms
+            while let now = step(from, Int(Date().timeIntervalSince(began) * 1000)), !now.done {
+                player.volume = Float(now.volume)
+                try? await Task.sleep(for: .milliseconds(now.nextMs)) // the core's tick, 50 ms
                 if Task.isCancelled { return }
-                let k = Double(n) / Double(steps)
-                player.volume = from * Float(1 - (1 - pow(1 - k, 3)))
             }
             player.pause()
             await player.seek(to: .zero)

@@ -221,7 +221,15 @@ Its base, from docs/linux-app.md's "Not built":
   native-linux-media.test.ts in Docker: a picture's thumbnail fetched once signed in and not its full picture, the full
   picture once presented; a picture of the tile drawn from it looked at. Not built: Lagring (the 2 GiB budget and
   keeping coming presentations offline are fixed), a video's still for the player, uploads
-- [ ] Audio and video played
+- [x] Audio and video played (2026-11-22, player.rs, player_bar.rs): `playbackStepView` followed as the Mac's
+  LivePlayer does, one GTK media stream (GStreamer), the file fetched when not here and the next video in advance; the
+  video between the slide and its overlay in every live picture, black under Släck; the controls and Tona ut the
+  core's new `playerControlsView` and `fadeOutView` (player_controls.rs, 9 tests), which the Mac and iOS app now read
+  too (MediaControls, `MediaPlayer.fadeOut`). native-linux-media.test.ts (a video fetched once shown) and its pictures
+  looked at: playing, black and paused by Släck, playing on, paused by hand and staying paused through Släck; audio
+  and Tona ut in the demo with files under its hashes (paused at 0:00 after). The Mac's GP_MAC_PLAYTEST run again
+  with the core's fade (0.13 at 2.5 s, paused at its start after 5 s). Not tried: the output window's video, a video
+  item made live under Släck, a file that fails to play (said on stderr only); the web keeps its own fade and clock
 - [ ] Inställningar, every page the Mac has
 - [ ] A phone's one column
 

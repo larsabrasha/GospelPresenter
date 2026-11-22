@@ -265,6 +265,13 @@ impl Shell {
         if let Some(problem) = self.model.borrow_mut().app.refusal.take() { eprintln!("gospel-presenter: refused: {problem}") }
         // Presenting another presentation fetches its files at once.
         crate::media::follow(self);
+        // The player does what the live state now asks of it.
+        crate::player::follow(self);
+    }
+
+    /// The player's controls drawn again (player_bar.rs).
+    pub fn refresh_player(self: &Rc<Self>) {
+        if let Some(page) = self.page.borrow().as_ref() { page.refresh_player(self) }
     }
 
     /// Avsluta presentation, asked first as the Mac app asks.

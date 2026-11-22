@@ -32,7 +32,7 @@ private struct AudioPreview: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(file.fileName).font(.subheadline.weight(.medium)).lineLimit(1)
             switch here {
-            case true?: PlayerControls(media: media, kind: "audio")
+            case true?: MediaControls(media: media, kind: "audio")
             case false?: Text(t("common.error")).font(.subheadline).foregroundStyle(Color.quiet)
             case nil: Text(t("presentation.audioFetching")).font(.subheadline).foregroundStyle(Color.quiet)
             }

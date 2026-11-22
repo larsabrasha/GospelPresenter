@@ -9,5 +9,9 @@ RUN pacman -Syu --noconfirm --needed \
       base-devel rust gtk4 libadwaita nodejs pkgconf fontconfig cantarell-fonts ttf-dejavu adwaita-icon-theme \
       xorg-server-xvfb xdotool imagemagick \
     && pacman -Scc --noconfirm
+# Audio and video (player.rs): GTK's media streams play through GStreamer, its decoders as Arch packs them. A layer of
+# its own, so the one above stays cached.
+RUN pacman -Sy --noconfirm --needed gst-plugins-base gst-plugins-good gst-plugins-bad gst-libav \
+    && pacman -Scc --noconfirm
 ENV CARGO_HOME=/cargo CARGO_TARGET_DIR=/target
 WORKDIR /src

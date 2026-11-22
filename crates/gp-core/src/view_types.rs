@@ -428,6 +428,40 @@ pub struct AutoSaveStep {
     pub effects: Vec<AutoSaveEffect>,
 }
 
+/// A played file's controls (`playerControlsView`): the toggle's icon (`play`, `pause`) and its label, the slider's
+/// label and its end in seconds, the time (`m:ss / m:ss`), and an audio file's Tona ut.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerControls {
+    pub icon: String,
+    /// The toggle's label, a text key.
+    pub toggle: String,
+    /// The slider's label, a text key.
+    pub seek: String,
+    pub end: f64,
+    pub time: String,
+    pub fade: Option<PlayerFade>,
+}
+
+/// Tona ut's button: its text key, and whether it may be pressed.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct PlayerFade {
+    pub text: String,
+    pub enabled: bool,
+}
+
+/// Tona ut at a moment (`fadeOutView`): the volume now, whether it is done, and when to ask again.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct FadeStep {
+    pub volume: f64,
+    pub done: bool,
+    pub next_ms: i64,
+}
+
 /// A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
@@ -518,7 +552,7 @@ pub struct PairStep {
 pub fn schema() -> serde_json::Value {
     #[derive(JsonSchema)]
     #[allow(dead_code)]
-    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent, auto_save_step: AutoSaveStep, auto_save_event: AutoSaveEvent, pair_step: PairStep, pair_event: PairEvent, qr: QrCode }
+    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent, auto_save_step: AutoSaveStep, auto_save_event: AutoSaveEvent, pair_step: PairStep, pair_event: PairEvent, qr: QrCode, player_controls: PlayerControls, fade_step: FadeStep }
     serde_json::to_value(schemars::schema_for!(Views)).unwrap_or_default()
 }
 

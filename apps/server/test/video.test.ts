@@ -12,8 +12,9 @@ import { DEFAULT_MEDIA_POLICY, presentationOfflineState, setPinned, storageRepor
 import { streamBytes } from '../src/media.ts';
 import { parseRange } from '../src/video-routes.ts';
 import { diskStorage } from '../src/media-disk.ts';
-import { api, device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
+import { api, device, serverDump, setRole, startAdapter, type AdapterName, type Device, type Harness } from './harness.ts';
 import { ownState, Window } from './live-window.ts';
+import { auth, finish, putPart, start, upload } from './video-fixtures.ts';
 import { Viewer } from './sse-viewer.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -29,33 +30,6 @@ function twoParts(): Uint8Array {
   new DataView(out.buffer).setUint32(video.length, pad, false);
   out.set([0x66, 0x72, 0x65, 0x65], video.length + 4); // 'free'
   return out;
-}
-
-type Started = { done: boolean; partBytes: number; received: number };
-type Finished = { done?: boolean; type?: string; codec?: string; error?: string; problem?: string; entry?: string };
-
-const auth = (h: Harness, org: string, user: string) => ({ authorization: `Bearer ${tokenOf(h, org, user)}` });
-
-function start(h: Harness, org: string, user: string, hash: string, size: number) {
-  return api<Started & { error?: string }>(h, 'POST', `/api/media/${hash}/upload`, { user, org, body: { size } });
-}
-
-async function putPart(h: Harness, org: string, user: string, hash: string, part: number, bytes: Uint8Array) {
-  const res = await fetch(`${h.url}/api/media/${hash}/upload/${part}`, { method: 'PUT', headers: auth(h, org, user), body: bytes as BodyInit });
-  return { status: res.status, body: (await res.json()) as { received?: number; error?: string } };
-}
-
-const finish = (h: Harness, org: string, user: string, hash: string) => api<Finished>(h, 'POST', `/api/media/${hash}/upload/finish`, { user, org });
-
-/** The whole upload, from where the server is: start, the parts left, finish. */
-async function upload(h: Harness, org: string, user: string, bytes: Uint8Array): Promise<{ hash: string; status: number; body: Finished }> {
-  const hash = await sha256HexBytes(bytes);
-  const s = await start(h, org, user, hash, bytes.length);
-  expect(s.status).toBe(200);
-  for (let at = s.body.received; at < bytes.length; at += s.body.partBytes) {
-    expect((await putPart(h, org, user, hash, at / s.body.partBytes + 1, bytes.subarray(at, at + s.body.partBytes))).status).toBe(200);
-  }
-  return { hash, ...(await finish(h, org, user, hash)) };
 }
 
 const get = (h: Harness, path: string, headers: Record<string, string> = {}) => fetch(h.url + path, { headers });

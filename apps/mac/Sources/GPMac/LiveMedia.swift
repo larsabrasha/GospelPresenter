@@ -76,37 +76,35 @@ struct PlayerBar: View {
 
     var body: some View {
         let live = model.app.player
-        if let kind = live.kind, live.itemId == model.live.state.itemId { PlayerControls(media: live.media, kind: kind) }
+        if let kind = live.kind, live.itemId == model.live.state.itemId { MediaControls(media: live.media, kind: kind) }
     }
 }
 
 /// A file's controls: play or pause, the position to drag, the time, and an audio file's Tona ut (the web's
-/// PlayerControls and AudioPlayer).
-struct PlayerControls: View {
+/// PlayerControls and AudioPlayer), each as the core says (`playerControlsView`, `fadeOutView`).
+struct MediaControls: View {
+    @Environment(Model.self) private var model
     let media: MediaPlayer
     let kind: String
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button { media.toggle() } label: {
-                Image(systemName: media.playing ? "pause.fill" : "play.fill").frame(width: 28, height: 28)
+        let args: [String: Any] = ["kind": kind, "playing": media.playing, "position": media.position, "duration": media.duration, "fading": media.fading]
+        if let c = model.view("playerControlsView", args, as: PlayerControls.self) {
+            HStack(spacing: 12) {
+                Button { media.toggle() } label: {
+                    Image(systemName: c.icon == "pause" ? "pause.fill" : "play.fill").frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(t(c.toggle))
+                Slider(value: Binding(get: { media.position }, set: { media.seek($0) }), in: 0...c.end)
+                    .accessibilityLabel(t(c.seek))
+                Text(c.time).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                if let fade = c.fade {
+                    Button(t(fade.text)) { media.fadeOut { model.view("fadeOutView", ["from": $0, "elapsedMs": $1], as: FadeStep.self) } }
+                        .disabled(!fade.enabled)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(t(media.playing ? "\(kind).pause" : "\(kind).play"))
-            Slider(value: Binding(get: { media.position }, set: { media.seek($0) }), in: 0...max(media.duration, 0.1))
-                .accessibilityLabel(t("\(kind).seek"))
-            Text("\(clock(media.position)) / \(clock(media.duration))").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-            if kind == "audio" {
-                Button(t("audio.fade")) { media.fadeOut() }
-                    .disabled(media.fading || !media.playing)
-            }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
-    }
-
-    /// m:ss, as the web's player shows a time.
-    private func clock(_ s: Double) -> String {
-        let n = Int(s.isFinite ? max(0, s) : 0)
-        return String(format: "%d:%02d", n / 60, n % 60)
     }
 }

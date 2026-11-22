@@ -24,25 +24,35 @@ fn set(cr: &Context, c: Rgba) { cr.set_source_rgba(c.0, c.1, c.2, c.3) }
 
 fn colour(text: Option<&str>, or: Rgba) -> Rgba { text.and_then(css_colour).unwrap_or(or) }
 
+/// Which parts of a slide are painted: all of it, or the slide alone and its overlay alone, with a video between them
+/// (the Mac app's SlidePainter `Part`; SlideView's `slide-image` under `.slide-overlay`).
+#[derive(Clone, Copy, PartialEq)]
+pub enum Part { All, Slide, Overlay }
+
 /// The slide in a box of `w` × `h`: the stage scaled to fit and centred, as SlideView's. A tile shows the label and no
 /// credits, the live picture the credits and no label (apps/web/src/slides/main.tsx).
-pub fn paint(cr: &Context, l: &SlideLayout, label: Option<&Label>, w: f64, h: f64) {
+pub fn paint(cr: &Context, l: &SlideLayout, label: Option<&Label>, w: f64, h: f64) { paint_part(cr, l, label, w, h, Part::All) }
+
+/// `paint`, of the part named.
+pub fn paint_part(cr: &Context, l: &SlideLayout, label: Option<&Label>, w: f64, h: f64, part: Part) {
     let scale = (w / STAGE.0).min(h / STAGE.1);
     let _ = cr.save();
     cr.translate(((w - STAGE.0 * scale) / 2.0).round(), ((h - STAGE.1 * scale) / 2.0).round());
     cr.scale(scale, scale);
     cr.rectangle(0.0, 0.0, STAGE.0, STAGE.1);
     cr.clip();
-    if let Some(ground) = &l.background {
-        set(cr, colour(ground.color.as_deref(), BLACK));
-        let _ = cr.paint();
-        theme_picture(cr, ground);
+    if part != Part::Overlay {
+        if let Some(ground) = &l.background {
+            set(cr, colour(ground.color.as_deref(), BLACK));
+            let _ = cr.paint();
+            theme_picture(cr, ground);
+        }
+        items(cr, &l.items);
+        for t in l.texts.iter().filter(|t| label.is_none() || t.role != "credits") { text(cr, t) }
+        // The label over the slide (`z-[1]`), an overlay over both (`.slide-overlay`, z-index 2).
+        if let Some(label) = label { pill(cr, label) }
     }
-    items(cr, &l.items);
-    for t in l.texts.iter().filter(|t| label.is_none() || t.role != "credits") { text(cr, t) }
-    // The label over the slide (`z-[1]`), an overlay over both (`.slide-overlay`, z-index 2).
-    if let Some(label) = label { pill(cr, label) }
-    items(cr, &l.overlay);
+    if part != Part::Slide { items(cr, &l.overlay) }
     let _ = cr.restore();
     if let Err(e) = cr.status() { eprintln!("gospel-presenter: a slide not painted: {e}") }
 }
@@ -50,7 +60,7 @@ pub fn paint(cr: &Context, l: &SlideLayout, label: Option<&Label>, w: f64, h: f6
 /// Where this device keeps media files by their hash: GP_MEDIA, else `media` beside a database named, else in the
 /// app's data folder.
 pub fn media_dir() -> PathBuf {
-    std::env::var_os("GP_MEDIA").map(PathBuf::from)
+    std::env::var_os("GP_MEDIA").filter(|v| !v.is_empty()).map(PathBuf::from)
         .or_else(|| crate::db_given().map(|p| p.with_file_name("media")))
         .unwrap_or_else(|| crate::net::data_dir().join("media"))
 }

@@ -347,6 +347,9 @@ public sealed record DetailsStep([property: JsonPropertyName("effects")] IReadOn
 /// <summary>What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most characters.</summary>
 public sealed record DetailsView([property: JsonPropertyName("actions")] IReadOnlyList<DetailsAction> Actions, [property: JsonPropertyName("descriptionMax")] long DescriptionMax, [property: JsonPropertyName("groups")] IReadOnlyList<IReadOnlyList<DetailsField>> Groups, [property: JsonPropertyName("locationMax")] long LocationMax, [property: JsonPropertyName("nameMax")] long NameMax, [property: JsonPropertyName("title")] string Title);
 
+/// <summary>Tona ut at a moment (`fadeOutView`): the volume now, whether it is done, and when to ask again.</summary>
+public sealed record FadeStep([property: JsonPropertyName("done")] bool Done, [property: JsonPropertyName("nextMs")] long NextMs, [property: JsonPropertyName("volume")] double Volume);
+
 /// <summary>A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.</summary>
 public sealed record LinePart([property: JsonPropertyName("key")] string? Key, [property: JsonPropertyName("of")] string Of, [property: JsonPropertyName("text")] string? Text);
 
@@ -733,6 +736,12 @@ public sealed record PairState([property: JsonPropertyName("base")] string Base,
 
 /// <summary>`pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.</summary>
 public sealed record PairStep([property: JsonPropertyName("address")] string Address, [property: JsonPropertyName("effects")] IReadOnlyList<PairEffect> Effects, [property: JsonPropertyName("link")] string? Link, [property: JsonPropertyName("state")] PairState State);
+
+/// <summary>A played file's controls (`playerControlsView`): the toggle's icon (`play`, `pause`) and its label, the slider's label and its end in seconds, the time (`m:ss / m:ss`), and an audio file's Tona ut.</summary>
+public sealed record PlayerControls([property: JsonPropertyName("end")] double End, [property: JsonPropertyName("fade")] PlayerFade? Fade, [property: JsonPropertyName("icon")] string Icon, [property: JsonPropertyName("seek")] string Seek, [property: JsonPropertyName("time")] string Time, [property: JsonPropertyName("toggle")] string Toggle);
+
+/// <summary>Tona ut's button: its text key, and whether it may be pressed.</summary>
+public sealed record PlayerFade([property: JsonPropertyName("enabled")] bool Enabled, [property: JsonPropertyName("text")] string Text);
 
 /// <summary>A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).</summary>
 public sealed record PresentationRow([property: JsonPropertyName("deletedAt")] long? DeletedAt, [property: JsonPropertyName("description")] string? Description, [property: JsonPropertyName("eventDate")] string? EventDate, [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("isTemplate")] bool IsTemplate, [property: JsonPropertyName("itemCount")] long? ItemCount, [property: JsonPropertyName("lastUsedAt")] long? LastUsedAt, [property: JsonPropertyName("line")] IReadOnlyList<LinePart>? Line, [property: JsonPropertyName("location")] string? Location, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("themeId")] string? ThemeId, [property: JsonPropertyName("time")] string? Time, [property: JsonPropertyName("updatedAt")] long? UpdatedAt, [property: JsonPropertyName("weekday")] long? Weekday);

@@ -157,6 +157,13 @@ export interface DetailsView {
   title: string;
 }
 
+// Tona ut at a moment (`fadeOutView`): the volume now, whether it is done, and when to ask again.
+export interface FadeStep {
+  done: boolean;
+  nextMs: number;
+  volume: number;
+}
+
 // A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.
 export interface LinePart {
   key?: string | null;
@@ -306,6 +313,25 @@ export interface PairStep {
   // The display page's link with the token, for the QR code; none until there is a token.
   link?: string | null;
   state: PairState;
+}
+
+// A played file's controls (`playerControlsView`): the toggle's icon (`play`, `pause`) and its label, the slider's
+// label and its end in seconds, the time (`m:ss / m:ss`), and an audio file's Tona ut.
+export interface PlayerControls {
+  end: number;
+  fade?: PlayerFade | null;
+  icon: string;
+  // The slider's label, a text key.
+  seek: string;
+  time: string;
+  // The toggle's label, a text key.
+  toggle: string;
+}
+
+// Tona ut's button: its text key, and whether it may be pressed.
+export interface PlayerFade {
+  enabled: boolean;
+  text: string;
 }
 
 // A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).

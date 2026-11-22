@@ -360,6 +360,13 @@ public struct DetailsView: Codable, Hashable, Sendable {
     public let title: String
 }
 
+/// Tona ut at a moment (`fadeOutView`): the volume now, whether it is done, and when to ask again.
+public struct FadeStep: Codable, Hashable, Sendable {
+    public let done: Bool
+    public let nextMs: Int
+    public let volume: Double
+}
+
 /// A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.
 public struct LinePart: Codable, Hashable, Sendable {
     public let key: String?
@@ -749,6 +756,25 @@ public struct PairStep: Codable, Hashable, Sendable {
     /// The display page's link with the token, for the QR code; none until there is a token.
     public let link: String?
     public let state: PairState
+}
+
+/// A played file's controls (`playerControlsView`): the toggle's icon (`play`, `pause`) and its label, the slider's
+/// label and its end in seconds, the time (`m:ss / m:ss`), and an audio file's Tona ut.
+public struct PlayerControls: Codable, Hashable, Sendable {
+    public let end: Double
+    public let fade: PlayerFade?
+    public let icon: String
+    /// The slider's label, a text key.
+    public let seek: String
+    public let time: String
+    /// The toggle's label, a text key.
+    public let toggle: String
+}
+
+/// Tona ut's button: its text key, and whether it may be pressed.
+public struct PlayerFade: Codable, Hashable, Sendable {
+    public let enabled: Bool
+    public let text: String
 }
 
 /// A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).

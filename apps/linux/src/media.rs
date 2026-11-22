@@ -9,6 +9,7 @@ use crate::shell::Shell;
 use serde::Deserialize;
 use serde_json::json;
 use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 /// The most bytes kept of files nothing wants now: MEDIA-R14's 2 GiB, as on the web (no Lagring page here yet).
@@ -32,8 +33,12 @@ fn held() -> Vec<serde_json::Value> {
     let Ok(entries) = std::fs::read_dir(media_dir()) else { return vec![] };
     entries.filter_map(Result::ok).filter_map(|e| {
         let name = e.file_name().into_string().ok()?;
-        // A download cut off (the app closed meanwhile): no fetch runs while the folder is listed.
-        if name.ends_with(".part") { let _ = std::fs::remove_file(e.path()); return None }
+        // A download cut off (the app closed meanwhile): an hour old, so not one the player is fetching now.
+        if name.contains(".part") {
+            let old = e.metadata().ok()?.modified().ok()?.elapsed().is_ok_and(|d| d.as_secs() > 3600);
+            if old { let _ = std::fs::remove_file(e.path()); }
+            return None
+        }
         if name.len() != 64 || !name.bytes().all(|b| b.is_ascii_hexdigit()) { return None }
         let meta = e.metadata().ok()?;
         let at = meta.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis() as i64;
@@ -59,7 +64,7 @@ pub fn sync(shell: &Rc<Shell>) {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64);
         let policy = json!({
             "presenting": presenting, "persistent": true, "keepComing": false, "today": today, "days": 7,
-            "budget": BUDGET, "now": now, "held": held, "inUse": [],
+            "budget": BUDGET, "now": now, "held": held, "inUse": crate::player::in_use(),
         });
         let plan = shell.model.borrow().app.core().call("mediaPlanView", policy).ok().and_then(|v| serde_json::from_value::<Plan>(v).ok());
         let Some(plan) = plan else { return done(shell) };
@@ -80,6 +85,18 @@ fn fetch(shell: &Rc<Shell>, mut wanted: Vec<String>) {
         if arrived > 0 { shell.refresh() }
         fetch(shell, rest);
     });
+}
+
+/// A file the player needs, by its hash: at once where it is here, else fetched from the host first (None when it
+/// cannot be: no host, or not on it).
+pub fn file(shell: &Rc<Shell>, hash: &str, then: impl FnOnce(&Rc<Shell>, Option<PathBuf>) + 'static) {
+    let path = media_dir().join(hash);
+    if path.exists() { return then(shell, Some(path)) }
+    let Some((server, session)) = shell.sync.borrow().as_ref().map(|s| s.server_and_session()) else { return then(shell, None) };
+    let hash = hash.to_string();
+    let _ = std::fs::create_dir_all(media_dir());
+    crate::sync::in_background(move || server.download(&format!("/api/media/{hash}"), &session, &path, &hash).then_some(path),
+        move |shell, got| then(shell, got));
 }
 
 /// This run ended: another if one was asked for meanwhile.

@@ -43,7 +43,7 @@ enum PlayTest {
         model.send(["type": "show", "itemId": "pres-main-i5", "partIndex": 0])
         await wait(2)
         note("audio shown, 2 s on")
-        media.fadeOut()
+        media.fadeOut { model.view("fadeOutView", ["from": $0, "elapsedMs": $1], as: FadeStep.self) }
         await wait(2.5)
         note("Tona ut, 2.5 s on")
         await wait(3)

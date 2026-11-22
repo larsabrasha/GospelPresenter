@@ -2,7 +2,8 @@
 // layout with its label, VISAS or NÄSTA at its top left, its number at its bottom right, rounded; the slide made ready
 // ringed in the accent, the one shown in red. A tap is the core's `show` (shown while presenting, else made ready).
 // The live picture is the same slide painted as the outputs draw it: no label, the credits, black when nothing shows.
-use crate::painter;
+use crate::painter::{self, Part};
+use crate::player;
 use crate::shell::Shell;
 use adw::prelude::*;
 use gp_tui::keys::Action;
@@ -91,20 +92,36 @@ pub fn tile(shell: &Rc<Shell>, pid: &str, at: SlideAt, n: usize) -> gtk::Drawing
     area
 }
 
-/// The live picture: the slide presented as the outputs draw it, black before the first slide and after Släck.
-pub fn live_picture(shell: &Rc<Shell>, rounded_corners: bool) -> gtk::DrawingArea {
-    let area = gtk::DrawingArea::new();
-    let weak = Rc::downgrade(shell);
-    area.set_draw_func(move |_, cr, w, h| {
-        let (w, h) = (f64::from(w), f64::from(h));
-        let Some(s) = weak.upgrade() else { return };
-        if rounded_corners {
-            rounded(cr, 0.0, 0.0, w, h, 12.0);
-            cr.clip();
-        }
-        painter::empty(cr, w, h);
-        let shown = s.model.borrow_mut().shown();
-        if let Some(l) = shown.and_then(|p| p.layout) { painter::paint(cr, &l, None, w, h) }
-    });
-    area
+/// The live picture: the slide presented as the outputs draw it, black before the first slide and after Släck; a video
+/// playing for it between the slide and its overlay (player.rs). Its slide layer is returned too, to draw again.
+pub fn live_picture(shell: &Rc<Shell>, rounded_corners: bool) -> (gtk::Overlay, gtk::DrawingArea) {
+    let layer = |part: Part| {
+        let area = gtk::DrawingArea::builder().can_target(false).build();
+        let weak = Rc::downgrade(shell);
+        area.set_draw_func(move |_, cr, w, h| {
+            let (w, h) = (f64::from(w), f64::from(h));
+            let Some(s) = weak.upgrade() else { return };
+            let video = player::video_for(player::shown_item(&s).as_deref()).is_some();
+            if part == Part::Slide { painter::empty(cr, w, h) }
+            let shown = s.model.borrow_mut().shown();
+            let Some(l) = shown.and_then(|p| p.layout) else { return };
+            match (part, video) {
+                (Part::Slide, false) => painter::paint(cr, &l, None, w, h),
+                (Part::Slide, true) => painter::paint_part(cr, &l, None, w, h, Part::Slide),
+                (_, true) => painter::paint_part(cr, &l, None, w, h, Part::Overlay),
+                _ => {}
+            }
+        });
+        area
+    };
+    let slide = layer(Part::Slide);
+    let overlay = layer(Part::Overlay);
+    // The video fitted to the stage, as `object-fit: contain`; hidden while none plays for the slide shown.
+    let video = gtk::Picture::builder().content_fit(gtk::ContentFit::Contain).can_target(false).visible(false).build();
+    let stack = gtk::Overlay::builder().child(&slide).overflow(gtk::Overflow::Hidden).build();
+    if rounded_corners { stack.add_css_class("live-picture") }
+    stack.add_overlay(&video);
+    stack.add_overlay(&overlay);
+    player::add_screen(&video, &overlay);
+    (stack, slide)
 }

@@ -34,7 +34,7 @@ case "${1:-build}" in
     [ -f "$here/crates/gp-core/parity/.out/fixtures/$demo" ] || { echo "no demo data: run crates/gp-core/build.sh" >&2; exit 1; }
     config=${GP_CONFIG:+$(cd "$GP_CONFIG" && pwd)}
     in_docker -v "$out":/out ${config:+-v "$config":/cfg/gospel-presenter} -e GP_SIGNED_IN="${config:+1}" \
-      --add-host=host.docker.internal:host-gateway -e GP_DEMO="$demo" -e GP_OPEN="${GP_OPEN:-}" -e GP_LANG="${GP_LANG:-}" \
+      --add-host=host.docker.internal:host-gateway -e GP_DEMO="$demo" -e GP_OPEN="${GP_OPEN:-}" -e GP_LANG="${GP_LANG:-}" -e GP_MEDIA="${GP_MEDIA:-}" \
       -e ADW_DEBUG_COLOR_SCHEME="${ADW_DEBUG_COLOR_SCHEME:-default}" -e STEPS="${3:-wait 8; shot app}" "$image" sh -c '
       mkdir -p /run/gp && cp "/src/crates/gp-core/parity/.out/fixtures/$GP_DEMO" /run/gp/demo.sqlite
       Xvfb :9 -screen 0 1440x900x24 >/dev/null 2>&1 &

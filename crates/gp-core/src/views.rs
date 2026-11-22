@@ -69,6 +69,8 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "liveStepView" => crate::live_driver::view(a).await,
         "syncStatusView" => crate::sync_status::view(a),
         "playbackStepView" => crate::playback::view(a),
+        "playerControlsView" => crate::player_controls::controls(a),
+        "fadeOutView" => crate::player_controls::fade(a),
         "ccliUseView" => crate::live_views::ccli_use(a).await,
         "displaysView" => crate::live_views::displays(a).await,
         "remoteControlView" => crate::live_views::remote_control().await,

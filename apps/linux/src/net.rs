@@ -156,7 +156,9 @@ impl Server {
         if let Some(d) = &session.device { req = req.set("x-gp-device", d) }
         let Ok(answer) = req.call() else { return false };
         if answer.status() != 200 { return false }
-        let part = to.with_extension("part");
+        // A part of its own: the media sync and the player may fetch the same file at once.
+        static PARTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let part = to.with_extension(format!("part{}", PARTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
         let fetched = (|| -> std::io::Result<String> {
             let (mut from, mut file, mut hasher, mut block) = (answer.into_reader(), std::fs::File::create(&part)?, Sha256::new(), vec![0u8; 1 << 16]);
             loop {

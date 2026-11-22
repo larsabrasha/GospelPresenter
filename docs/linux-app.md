@@ -87,8 +87,9 @@ Skapa presentation and templates (templates.rs; 2026-11-22): + on the start page
 the header's menu, Spara som mall in a presentation's menu.
 
 Signing in pairs the device with a desktop host and syncs as the Mac app does (connect.rs, net.rs, sync.rs), its
-media files fetched as the core plans them (media.rs, into GP_MEDIA, else `media` in the app's data folder); a
+media files fetched as the core plans them (media.rs, into GP_MEDIA, else `media` in the app's data folder); audio
+and video played while presenting as the core says (player.rs, player_bar.rs; GStreamer through GTK's media streams); a
 database named as the first argument or in GP_DB is opened as the demo, without a sign-in. Not built: importing
 files, Redigera of a song or a slideshow in the menu, resizing the columns, the sync line at the running order's foot,
-audio and video, Inställningar, a phone's
+Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

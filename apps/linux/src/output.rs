@@ -16,8 +16,8 @@ pub struct Output {
 
 impl Output {
     pub fn open(shell: &Rc<Shell>) -> Output {
-        let picture = tiles::live_picture(shell, false);
-        let window = gtk::Window::builder().title(t("live.badge", &[])).default_width(960).default_height(540).child(&picture).build();
+        let (view, picture) = tiles::live_picture(shell, false);
+        let window = gtk::Window::builder().title(t("live.badge", &[])).default_width(960).default_height(540).child(&view).build();
         window.set_transient_for(Some(&shell.window));
         let keys = gtk::EventControllerKey::new();
         let weak = Rc::downgrade(shell);

@@ -31,6 +31,7 @@ mod bible_texts;
 mod look;
 mod media_wanted;
 mod playback;
+mod player_controls;
 mod media_views;
 mod mutators;
 mod page_models;
