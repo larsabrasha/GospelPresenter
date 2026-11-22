@@ -112,7 +112,7 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   opens); the user's picture holds the name, the sync's state only while it has a problem (Synka nu) and Logga ut.
 - **A presentation** opened from it is pushed on the same `NavigationStack`, with ‹ back; presenting goes on when one
   goes back (`Live.swift`). Its bar: the title and under it when and where (LIVE first while presented); a tap on the
-  title opens the presentation's menu (Redigera detaljer…, Radera presentation when not presented, asked first); ▶ or
+  title opens the presentation's menu (Redigera detaljer…, Noter och länkar (`presentationMaterialsView`, a sheet), Radera presentation when not presented, asked first); ▶ or
   ■ at the far right, ■ asking first. From about 1 000 pt wide (`WideLayout.swift`: a computer, an iPad lying down, a
   13-inch iPad upright) the running order at the left with the description card at its top, the slides of every item
   in the middle (sections with sticky headings, tiles 384 shrinking to 340 pt), and while presenting the live column
@@ -162,7 +162,7 @@ The web's floating + is kept on a Mac, though Apple's apps put + in the bar: it 
 
 What each page shows comes from the core's views, and what it offers from the core's view models
 (`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
-Swift only draws them; an action the app has not built yet (Material, Spara som mall) is left out
+Swift only draws them; an action the app has not built yet (Spara som mall) is left out
 where the menu is drawn.
 
 | Page | Views | State |

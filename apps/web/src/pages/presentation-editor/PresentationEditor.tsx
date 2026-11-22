@@ -413,7 +413,7 @@ export function PresentationEditor({
           ))}
         {savingAsTemplate && <SaveAsTemplateDialog presentation={presentation} items={items} onClose={() => setSavingAsTemplate(false)} />}
         {keepingOffline && <OfflineDialog presentation={presentation} onClose={() => setKeepingOffline(false)} />}
-        {showingMaterials && <PresentationMaterials items={items} onClose={() => setShowingMaterials(false)} />}
+        {showingMaterials && <PresentationMaterials presentationId={id} onClose={() => setShowingMaterials(false)} />}
       </section>
     </div>
   );

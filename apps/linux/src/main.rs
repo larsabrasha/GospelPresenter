@@ -11,6 +11,7 @@ mod model;
 mod output;
 mod painter;
 mod presentation;
+mod presentation_menu;
 mod shell;
 mod start_page;
 mod ticking;

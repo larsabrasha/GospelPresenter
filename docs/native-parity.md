@@ -44,7 +44,8 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 2 Markera: `tickView` (crates/gp-core/src/ticking.rs, 18 tests); the web's RunningOrder reads it
 - [x] 3 Redigera: `itemActionsView`'s `opens` says where Redigera leads (a song's page, a custom slideshow's editor,
   an image item's pictures; 3 tests in packages/rust-core/test/page-models.test.ts); the web reads it (`editRoute`)
-- [ ] 4 Noter och länkar
+- [x] 4 Noter och länkar: `presentationMaterialsView` (crates/gp-core/src/song_page.rs; 4 tests in
+  packages/rust-core/test/views.test.ts); the web's PresentationMaterials reads it
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar
@@ -66,7 +67,9 @@ is shared; each platform's part is checked off in its own section below.
   (Inställningar's own), an image item's pictures (moved, removed after a question; ItemEditing.swift). `EditTests`
   (3) and MenuTests with Redigera drawn on an iPhone 17 Pro Max. Not yet: adding more pictures (round 5); a move of a
   picture not tried in a test
-- [ ] 4 Noter och länkar
+- [x] 4 Noter och länkar: in the presentation's menu, a sheet of the songs' materials; a link opens in the browser, a
+  file in Quick Look (PresentationMaterials.swift). `MaterialsTests` on an iPhone 17 Pro Max with its own data
+  (UITests/materials.json). Not tried: a file opened from it
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar
@@ -82,7 +85,7 @@ the rounds above need it.
 Its base, from docs/linux-app.md's "Not built":
 
 - [ ] Signing in to a host and sync (the app opens a database file as the demo's caller now)
-- [ ] Skapa presentation, the presentation's menu (Redigera detaljer, Radera)
+- [ ] Skapa presentation, the presentation's menu's Redigera detaljer (the menu itself and Radera: round 4)
 - [ ] + with Sång and Programpunkt
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
@@ -101,7 +104,11 @@ The rounds:
   pictures light and dark of the menu, the dialog, the question and the picture gone. Gap: Redigera of a song or a
   custom slideshow is left out of the menu until the Linux app has a song's page and a slide editor (its base,
   Inställningar)
-- [ ] 4 Noter och länkar
+- [x] 4 Noter och länkar: the presentation's menu at last (its title a menu button, GNOME's popover menu from
+  `presentationActionsView`: Noter och länkar, Radera presentation asked first; presentation_menu.rs), the materials
+  in a dialog, a link opened by the desktop's browser. Pictures light and dark of the menu, a song's link and the
+  empty page. Not tried: a link opened (no browser in the image), Radera presentation in pictures; a file is listed
+  but not opened (media files are the base's)
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar

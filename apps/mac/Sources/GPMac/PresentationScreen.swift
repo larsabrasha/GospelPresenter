@@ -41,6 +41,7 @@ struct PresentationScreen: View {
                 // Redigera from an item's menu: the song's page, the slideshow's editor or the item's pictures, over
                 // the page, which it returns to when closed.
                 .sheet(item: Bindable(model).editing) { target in ItemEditing(target: target, p: p) }
+                .sheet(isPresented: Bindable(model).showingMaterials) { PresentationMaterials(presentationId: p.id) }
                 // Markera on a phone: the running order ticked in a sheet; in columns it ticks in place.
                 .sheet(isPresented: Binding(get: { model.ticking != nil && geo.size.width < Size.columns }, set: { if !$0 { model.ticking = nil } })) {
                     NavigationStack { TickList(p: p).navigationTitle(t("presentation.tick")) }
@@ -71,7 +72,7 @@ struct PresentationScreen: View {
     }
 
     /// The presentation's menu, from a tap on its title: what it offers is the core's (`presentationActionsView`), the
-    /// trash only when not presented. Not here yet, so left out: Material, Spara som mall.
+    /// trash only when not presented. Not here yet, so left out: Spara som mall.
     @ViewBuilder
     private func titleMenu(_ p: PresentationView) -> some View {
         let groups = model.view("presentationActionsView", ["isTemplate": false, "presenting": model.isLive, "role": model.role], as: MenuGroups.self)?.groups ?? []
@@ -80,6 +81,7 @@ struct PresentationScreen: View {
                 ForEach(group.actions, id: \.id) { a in
                     switch a.id {
                     case "editDetails": Button(t(a.text), systemImage: Look.symbol(a.icon)) { editing = true }
+                    case "materials": Button(t(a.text), systemImage: Look.symbol(a.icon)) { model.showingMaterials = true }
                     case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }
                     default: EmptyView()
                     }

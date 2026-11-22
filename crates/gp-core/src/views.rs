@@ -49,6 +49,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "songHistoryView" => crate::song_page::history(a).await,
         "songHistoryPageView" => crate::song_page::history_page(a).await,
         "songMaterialsView" => crate::song_page::materials(a).await,
+        "presentationMaterialsView" => crate::song_page::presentation_materials(a).await,
         "songSearchPrepare" => crate::song_views::prepare(a).await,
         "songSearchView" => crate::song_views::search_view(a),
         "itemOverlaysView" => crate::live_views::item_overlays(a).await,

@@ -1,0 +1,13 @@
+{
+  "about": "A presentation whose song has a link, for MaterialsTests.swift: Noter och länkar lists the song with its link; the other song has none.",
+  "setup": [
+    ["createSong", { "id": "s1", "name": "Härlig är jorden" }],
+    ["addSongPart", { "id": "s1-v", "songId": "s1", "labelText": null, "content": "Härlig är jorden" }],
+    ["addSongLink", { "id": "m1", "songId": "s1", "title": "Spotify", "url": "https://open.spotify.com/track/x", "createdAt": 1000 }],
+    ["createSong", { "id": "s2", "name": "Gammal sång" }],
+    ["addSongPart", { "id": "s2-v", "songId": "s2", "labelText": null, "content": "En gång" }],
+    ["createPresentation", { "id": "p1", "name": "Söndag" }],
+    ["addSongToPresentation", { "itemId": "i0", "presentationId": "p1", "songId": "s2", "arrangementId": null }],
+    ["addSongToPresentation", { "itemId": "i1", "presentationId": "p1", "songId": "s1", "arrangementId": null }]
+  ]
+}

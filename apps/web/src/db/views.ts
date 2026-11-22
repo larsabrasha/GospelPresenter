@@ -127,5 +127,10 @@ export const songHistory = (db: ReadDb, id: string) => db.view<{ song: Song | nu
 /** The sheet music, recordings and links of songs, each song's in its order (songMaterialsView). */
 export const songMaterialsOf = (db: ReadDb, songIds: string[]) => db.view<SongMaterial[]>('songMaterialsView', { songIds });
 
+/** A presentation's Noter och länkar (presentationMaterialsView): its songs with materials, in the running order, each
+ * once; `empty` the text's key when there are none. */
+export const presentationMaterials = (db: ReadDb, presentationId: string) =>
+  db.view<{ songs: { songId: string; title: string; materials: SongMaterial[] }[]; empty: 'material.presentationEmpty' | null }>('presentationMaterialsView', { presentationId });
+
 /** The core the database's worker runs (coreInfoView): its crate's name and version, for Om Gospel Presenter. */
 export const coreInfo = (db: ReadDb) => db.view<{ name: string; version: string }>('coreInfoView', {});

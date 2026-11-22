@@ -84,3 +84,28 @@ pub async fn materials(a: &Obj) -> R<Value> {
     let marks = vec!["?"; ids.len()].join(", ");
     Ok(all(MATERIAL, &format!("song_materials WHERE song_id IN ({marks}) ORDER BY sort, id"), ids).await)
 }
+
+/// `presentationMaterialsView` {presentationId}: Noter och länkar for a presentation (spec 02 "Song material"; the web's
+/// PresentationMaterials.tsx): its songs' sheet music, recordings and links, in the running order, so the band finds
+/// all it plays in one place. A song twice in the order is listed once, where it first comes, under the item's title;
+/// a song with none is left out. {songs: [{songId, title, materials}], empty: the text's key when there are none, else
+/// null}. Read only: materials are added under the song.
+pub async fn presentation_materials(a: &Obj) -> R<Value> {
+    let pid = id(a, "presentationId")?;
+    let items = sql("SELECT source_id, title FROM presentation_items WHERE presentation_id = ? AND type = 'song' ORDER BY sort, id", vec![json!(pid)]).await;
+    let mut firsts: Vec<(String, String)> = vec![];
+    for r in &items {
+        let (song, title) = (r[0].as_str().unwrap_or_default().to_string(), r[1].as_str().unwrap_or_default().to_string());
+        if !firsts.iter().any(|(s, _)| *s == song) { firsts.push((song, title)) }
+    }
+    let ids: Vec<Value> = firsts.iter().map(|(s, _)| json!(s)).collect();
+    let materials = materials(&json!({ "songIds": ids }).as_object().cloned().unwrap_or_default()).await?;
+    let list = materials.as_array().cloned().unwrap_or_default();
+    let songs: Vec<Value> = firsts.into_iter().filter_map(|(song, title)| {
+        let own: Vec<Value> = list.iter().filter(|m| m["songId"] == json!(song)).cloned().collect();
+        (!own.is_empty()).then(|| json!({ "songId": song, "title": title, "materials": own }))
+    }).collect();
+    let empty = if songs.is_empty() { json!("material.presentationEmpty") } else { Value::Null };
+    Ok(json!({ "songs": songs, "empty": empty }))
+}
+

@@ -174,6 +174,12 @@ impl Shell {
         *self.page.borrow_mut() = Some(page);
     }
 
+    /// The open presentation put in the trash (Radera presentation, asked first), and back to the start page.
+    pub fn trash_presentation(self: &Rc<Self>, id: &str, at: i64) {
+        let done = self.model.borrow_mut().app.run("trashPresentation", json!({ "id": id, "at": at }));
+        if done { self.nav.pop(); } else { self.refresh() }
+    }
+
     /// Markera chosen in an item's menu: select mode begun with it ticked.
     pub fn start_ticking(self: &Rc<Self>, item_id: &str) {
         self.model.borrow_mut().tick(Some(json!({ "type": "start", "first": item_id })));

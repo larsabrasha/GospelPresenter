@@ -316,7 +316,7 @@ struct MaterialsPage: View {
     @State private var message: String?
 
     /// The file under its title and type's extension, as Quick Look names and shares it.
-    private func named(_ file: URL, _ m: Material) -> URL {
+    static func named(_ file: URL, _ m: Material) -> URL {
         let ext = m.contentType == "application/pdf" ? "pdf" : (UTType(mimeType: m.contentType ?? "")?.preferredFilenameExtension ?? "m4a")
         let copy = FileManager.default.temporaryDirectory.appending(path: "\(m.title.fileSafe).\(ext)")
         try? FileManager.default.removeItem(at: copy)
@@ -333,7 +333,7 @@ struct MaterialsPage: View {
                         if let u = m.url.flatMap(URL.init(string:)) { Link(t("material.openInBrowser"), destination: u) }
                         // A PDF or a recording looked at here, as the web's viewer, and shared from there.
                         if let hash = m.hash {
-                            Button(t("material.title"), systemImage: "eye") { Task { viewing = await MediaFiles.file(hash, store: model.store).map { named($0, m) } } }
+                            Button(t("material.title"), systemImage: "eye") { Task { viewing = await MediaFiles.file(hash, store: model.store).map { Self.named($0, m) } } }
                         }
                         Button(t("library.rename"), systemImage: "pencil") {
                             prompt = TextPrompt(title: t("library.renameTitle"), label: t("displays.name"), text: m.title, rule: FieldRule(required: true, max: 200)) { title in

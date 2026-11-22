@@ -58,7 +58,8 @@ GP_OPEN=pres-main apps/linux/docker.sh shoot /tmp/shots "wait 20; shot page; cli
 ```
 
 `shoot` runs the app in a virtual X server (Xvfb, the X11 backend), carries out the steps and saves the pictures;
-`ADW_DEBUG_COLOR_SCHEME=prefer-dark` shows it dark. GTK's Broadway backend (the app in a browser) was tried first: under
+`ADW_DEBUG_COLOR_SCHEME=prefer-dark` shows it dark, and `GP_DEMO=<file>` opens another database from the fixtures'
+folder (one with a song's link, made by hand with sqlite3, for Noter och länkar). GTK's Broadway backend (the app in a browser) was tried first: under
 Docker Desktop's emulation it drew the first frame and then no more (`gdk_frame_timings_submitted` warned), so it is
 not used. Not tried yet: Wayland itself, Hyprland, Omarchy.
 
@@ -74,7 +75,8 @@ seen. Checked by `cargo test` (12) and clippy.
 Built 2026-11-22: an item's menu on its row (a right click, a long press) and its heading's ⋯, GNOME's popover menu
 from the core's `itemActionsView` (Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera asked first), and
 Markera's select mode (`tickView`, a check on each row, Markera alla, Klar, the ticked removed after a question), and
-Redigera bilder (an image item's pictures moved and removed, image_items.rs); the page is built again when its items
+Redigera bilder (an image item's pictures moved and removed, image_items.rs); the presentation's menu on its title
+(Noter och länkar in a dialog, Radera presentation asked first; presentation_menu.rs); the page is built again when its items
 change.
 
 Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, Lägg till

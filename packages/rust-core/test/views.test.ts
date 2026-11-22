@@ -43,6 +43,49 @@ describe('RustCore.view', () => {
   });
 });
 
+describe('presentationMaterialsView', () => {
+  /** A presentation with `songs` (song ids) in its running order, and materials on s1 and s2. */
+  function withMaterials(songs: string[]) {
+    const db = new DatabaseSync(':memory:');
+    const all = (sql: string, params: unknown[]) => {
+      const st = db.prepare(sql);
+      st.setReturnArrays(true);
+      return st.all(...(params as never[])) as unknown as Rows;
+    };
+    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, all);
+    db.exec(`INSERT INTO songs (id, name) VALUES ('s1', 'Ett'), ('s2', 'Två'), ('s3', 'Tre')`);
+    db.exec(`INSERT INTO presentations (id, name) VALUES ('p1', 'Söndag')`);
+    songs.forEach((s, i) => db.exec(`INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort) VALUES ('i${i}', 'p1', 'song', 'Sång ${s}', '${s}', ${i})`));
+    db.exec(`INSERT INTO song_materials (id, song_id, sort, kind, title, url, created_at) VALUES ('m1', 's1', 0, 'link', 'Spotify', 'https://x', 1), ('m2', 's2', 0, 'link', 'Noter', 'https://y', 1)`);
+    return async (sql: string, params: unknown[]) => all(sql, params);
+  }
+  type Answer = { songs: { songId: string; title: string; materials: { id: string }[] }[]; empty: string | null };
+
+  it("lists the songs' materials in the running order", async () => {
+    const out = await nodeRustCore().view<Answer>('presentationMaterialsView', { presentationId: 'p1' }, withMaterials(['s2', 's1']));
+
+    expect(out.songs.map((s) => s.songId)).toEqual(['s2', 's1']);
+  });
+
+  it('lists a song twice in the order once, where it first comes', async () => {
+    const out = await nodeRustCore().view<Answer>('presentationMaterialsView', { presentationId: 'p1' }, withMaterials(['s1', 's2', 's1']));
+
+    expect(out.songs.map((s) => s.title)).toEqual(['Sång s1', 'Sång s2']);
+  });
+
+  it('leaves out a song without materials', async () => {
+    const out = await nodeRustCore().view<Answer>('presentationMaterialsView', { presentationId: 'p1' }, withMaterials(['s3', 's1']));
+
+    expect(out.songs.map((s) => s.songId)).toEqual(['s1']);
+  });
+
+  it('says so when no song has any', async () => {
+    const out = await nodeRustCore().view<Answer>('presentationMaterialsView', { presentationId: 'p1' }, withMaterials(['s3']));
+
+    expect(out).toEqual({ songs: [], empty: 'material.presentationEmpty' });
+  });
+});
+
 describe('RustCore.pure', () => {
   const order = [['i1', 2]];
 

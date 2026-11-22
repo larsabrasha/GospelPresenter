@@ -6,7 +6,7 @@
 // and Markera's select mode in the running order (ticking.rs). Not built yet: Lägg till, the description card, folding
 // and resizing the columns, the outputs and overlays in the live column, dragging.
 use crate::shell::Shell;
-use crate::{item_menu, ticking, tiles};
+use crate::{item_menu, presentation_menu, ticking, tiles};
 use adw::prelude::*;
 use gp_tui::dates::subtitle;
 use gp_tui::keys::Action;
@@ -18,6 +18,8 @@ use std::rc::Rc;
 pub struct Page {
     pub nav_page: adw::NavigationPage,
     title: adw::WindowTitle,
+    /// The title as a button, its menu the presentation's (presentation_menu.rs).
+    title_menu: gtk::MenuButton,
     bar_buttons: gtk::Box,
     rows: Vec<(String, gtk::ListBoxRow)>,
     /// The running order, or in select mode its ticks (`ticks`).
@@ -78,7 +80,8 @@ impl Page {
         let p = page.presentation.clone().expect("a presentation");
         let title = adw::WindowTitle::new(&p.name, "");
         let header = adw::HeaderBar::new();
-        header.set_title_widget(Some(&title));
+        let title_menu = gtk::MenuButton::builder().child(&title).css_classes(["flat"]).build();
+        header.set_title_widget(Some(&title_menu));
         let bar_buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         header.pack_end(&bar_buttons);
 
@@ -158,7 +161,7 @@ impl Page {
         bar.add_top_bar(&header);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue }
+        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue }
     }
 
     /// Whether the page was built for these items, in this order with these titles: else it is built again.
@@ -188,6 +191,7 @@ impl Page {
             let line = if app.is_live() { [t("live.badge", &[]), when].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" · ") } else { when };
             self.title.set_subtitle(&line);
         }
+        presentation_menu::attach(shell, &self.title_menu);
         replace(&self.bar_buttons, m.buttons("presentationBar").iter().filter_map(|b| button(shell, b)).collect());
         for (id, row) in &self.rows {
             if app.state.selected_id.as_deref() == Some(id.as_str()) { row.add_css_class("selected-item") } else { row.remove_css_class("selected-item") }

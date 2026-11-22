@@ -7,7 +7,8 @@
 #                                             steps carried out in order and pictures saved in <dir>
 # Steps, separated by ';': `wait <s>`, `shot <name>` (<dir>/<name>.png), `click <x> <y>`, `rclick <x> <y>` (the right
 # button), `key <xdotool keys>`.
-# GP_OPEN=<presentation id> opens one at the start; GP_LANG=en in English; ADW_DEBUG_COLOR_SCHEME=prefer-dark dark, as
+# GP_OPEN=<presentation id> opens one at the start; GP_DEMO=<file under crates/gp-core/parity/.out/fixtures> another
+# database than demo.sqlite; GP_LANG=en in English; ADW_DEBUG_COLOR_SCHEME=prefer-dark dark, as
 # the system's dark mode makes it. GTK's Broadway backend was tried first: it
 # stopped drawing after its first frame under Docker Desktop's x86_64 emulation, so the app is looked at through X.
 set -eu
@@ -28,10 +29,11 @@ case "${1:-build}" in
     ;;
   shoot)
     out=$(cd "${2:?a folder for the pictures}" && pwd)
-    [ -f "$here/crates/gp-core/parity/.out/fixtures/demo.sqlite" ] || { echo "no demo data: run crates/gp-core/build.sh" >&2; exit 1; }
-    in_docker -v "$out":/out -e GP_OPEN="${GP_OPEN:-}" -e GP_LANG="${GP_LANG:-}" \
+    demo=${GP_DEMO:-demo.sqlite}
+    [ -f "$here/crates/gp-core/parity/.out/fixtures/$demo" ] || { echo "no demo data: run crates/gp-core/build.sh" >&2; exit 1; }
+    in_docker -v "$out":/out -e GP_DEMO="$demo" -e GP_OPEN="${GP_OPEN:-}" -e GP_LANG="${GP_LANG:-}" \
       -e ADW_DEBUG_COLOR_SCHEME="${ADW_DEBUG_COLOR_SCHEME:-default}" -e STEPS="${3:-wait 8; shot app}" "$image" sh -c '
-      mkdir -p /run/gp && cp /src/crates/gp-core/parity/.out/fixtures/demo.sqlite /run/gp/demo.sqlite
+      mkdir -p /run/gp && cp "/src/crates/gp-core/parity/.out/fixtures/$GP_DEMO" /run/gp/demo.sqlite
       Xvfb :9 -screen 0 1440x900x24 >/dev/null 2>&1 &
       sleep 1   # Xvfb opens its socket
       DISPLAY=:9 GDK_BACKEND=x11 /target/debug/gospel-presenter /run/gp/demo.sqlite 2>/out/app.log &
