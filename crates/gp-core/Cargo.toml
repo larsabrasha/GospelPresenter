@@ -39,6 +39,10 @@ layout = ["dep:parley"]
 # The views' JSON Schema (examples/schema.rs writes it), for the shells' generated types.
 schema = ["dep:schemars"]
 
+[dev-dependencies]
+# The view types' schema in every `cargo test`, which checks schema/views.json follows them (view_types.rs).
+schemars = "1.2"
+
 # Only with the `schema` feature: a plain build or test leaves it out.
 [[example]]
 name = "schema"

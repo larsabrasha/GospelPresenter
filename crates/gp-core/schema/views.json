@@ -1,41 +1,22 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Views",
-  "type": "object",
-  "properties": {
-    "date_line": {
-      "$ref": "#/$defs/DateLine"
-    },
-    "start_page": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/StartList"
-      }
-    }
-  },
-  "required": [
-    "start_page",
-    "date_line"
-  ],
   "$defs": {
     "DateLine": {
       "description": "`dateLineView`'s answer.",
-      "type": "object",
       "properties": {
         "parts": {
-          "type": "array",
           "items": {
             "$ref": "#/$defs/LinePart"
-          }
+          },
+          "type": "array"
         }
       },
       "required": [
         "parts"
-      ]
+      ],
+      "type": "object"
     },
     "LinePart": {
       "description": "A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.",
-      "type": "object",
       "properties": {
         "key": {
           "type": [
@@ -56,18 +37,566 @@
       },
       "required": [
         "of"
+      ],
+      "type": "object"
+    },
+    "LiveControl": {
+      "description": "The session driven from here.",
+      "properties": {
+        "pending": {
+          "description": "The command sent and not yet echoed."
+        },
+        "sessionId": {
+          "description": "Its id.",
+          "type": "string"
+        },
+        "warned": {
+          "description": "\"Not confirmed\" was said.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sessionId",
+        "pending",
+        "warned"
+      ],
+      "type": "object"
+    },
+    "LiveEffect": {
+      "description": "What the shell does after a `liveStepView` step, in order.",
+      "oneOf": [
+        {
+          "description": "Open the socket (`/api/live/socket`, the credentials as subprotocols); its first send gone, tell `socketOpened`.",
+          "properties": {
+            "type": {
+              "const": "openSocket",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Close it, and tell `socketClosed`.",
+          "properties": {
+            "type": {
+              "const": "closeSocket",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Send this message as JSON text.",
+          "properties": {
+            "message": true,
+            "type": {
+              "const": "send",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "message"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "After `ms`, tell `timer` with this name; one of the same name set before is replaced.",
+          "properties": {
+            "ms": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "ms"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A controller's command taken: change this device's live state by it, as a change of its own.",
+          "properties": {
+            "change": true,
+            "type": {
+              "const": "apply",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "change"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A controller's audio command for what this device plays.",
+          "properties": {
+            "command": true,
+            "type": {
+              "const": "audio",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A controller's video command for what this device plays.",
+          "properties": {
+            "command": true,
+            "type": {
+              "const": "video",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "command"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Show the session driven from here at this live state.",
+          "properties": {
+            "pointer": true,
+            "type": {
+              "const": "mirror",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pointer"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The session driven from here is gone: stop driving it.",
+          "properties": {
+            "type": {
+              "const": "lost",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A command was not confirmed in 2 s: say so, once.",
+          "properties": {
+            "type": {
+              "const": "unconfirmed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
       ]
+    },
+    "LiveEvent": {
+      "description": "What happened to a device's live socket (`liveStepView`'s `event`), as the shell tells it. Its time is `now` beside\nit (ms), at the top or in the event.",
+      "oneOf": [
+        {
+          "description": "Signed in: the socket wanted.",
+          "properties": {
+            "type": {
+              "const": "start",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Signed out: the socket closed, not opened again.",
+          "properties": {
+            "type": {
+              "const": "stop",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The socket opened (its first send went out).",
+          "properties": {
+            "type": {
+              "const": "socketOpened",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The socket closed or could not open.",
+          "properties": {
+            "type": {
+              "const": "socketClosed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A message the server sent, as it came.",
+          "properties": {
+            "message": true,
+            "type": {
+              "const": "message",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "message"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timer the core set ran out.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The app's live state changed; null when nothing is presented.",
+          "properties": {
+            "pointer": true,
+            "type": {
+              "const": "follow",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pointer"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Tillåt fjärrstyrning switched.",
+          "properties": {
+            "on": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "remote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "on"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An output switched, taking it over from another presentation (asked first) with `take`.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "on": {
+              "type": "boolean"
+            },
+            "take": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "output",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "on"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "What the app's player plays, for controllers to mirror, and the video's place for the outputs.",
+          "properties": {
+            "audio": true,
+            "type": {
+              "const": "playback",
+              "type": "string"
+            },
+            "video": true,
+            "videoLive": true
+          },
+          "required": [
+            "type",
+            "audio",
+            "video",
+            "videoLive"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The data changed: what the outputs show is reported again.",
+          "properties": {
+            "type": {
+              "const": "changed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Ta kontroll: the session elsewhere driven from here.",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            },
+            "type": {
+              "const": "control",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "sessionId"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Driving a session elsewhere ended.",
+          "properties": {
+            "type": {
+              "const": "release",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A change of the page sent to the session driven from here.",
+          "properties": {
+            "change": true,
+            "type": {
+              "const": "set",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "change"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "LiveState": {
+      "description": "A device's live socket as the core keeps it between steps; the shell gives it back whole, and reads what it shows.",
+      "properties": {
+        "attempt": {
+          "description": "Failed tries since it was last open.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "audio": {
+          "description": "What its player plays, for controllers to mirror."
+        },
+        "chosen": {
+          "description": "The outputs this session sends to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "connected": {
+          "description": "The socket is open.",
+          "type": "boolean"
+        },
+        "control": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiveControl"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The session driven from here, while one is."
+        },
+        "controllable": {
+          "description": "The sessions a member may drive (Ta kontroll).",
+          "items": true,
+          "type": "array"
+        },
+        "deviceName": {
+          "description": "Its name as members see it.",
+          "type": "string"
+        },
+        "heard": {
+          "description": "When the socket last heard anything (ms).",
+          "format": "int64",
+          "type": "integer"
+        },
+        "lastSent": {
+          "description": "The report last sent: only a new one goes.",
+          "type": "string"
+        },
+        "online": {
+          "description": "The outputs with a page open.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pinged": {
+          "description": "A ping is out.",
+          "type": "boolean"
+        },
+        "pointer": {
+          "description": "What this device presents (the live state), null when nothing."
+        },
+        "remote": {
+          "description": "Tillåt fjärrstyrning.",
+          "type": "boolean"
+        },
+        "screens": {
+          "description": "The temporary screens paired with the organisation.",
+          "items": true,
+          "type": "array"
+        },
+        "seen": {
+          "description": "The screens seen online or paired (one gone after is switched off).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sessionId": {
+          "description": "This device's session.",
+          "type": "string"
+        },
+        "sessions": {
+          "description": "The organisation's sessions (`LiveSessionInfo`).",
+          "items": true,
+          "type": "array"
+        },
+        "started": {
+          "description": "Signed in: the socket wanted.",
+          "type": "boolean"
+        },
+        "takeOver": {
+          "description": "Outputs taken over from another presentation, until the server lists them as this one's.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "video": true,
+        "videoLive": {
+          "description": "The video's place, for the outputs."
+        }
+      },
+      "required": [
+        "sessionId",
+        "deviceName",
+        "started",
+        "connected",
+        "attempt",
+        "heard",
+        "pinged",
+        "lastSent",
+        "remote",
+        "chosen",
+        "takeOver",
+        "seen",
+        "pointer",
+        "audio",
+        "video",
+        "videoLive",
+        "sessions",
+        "online",
+        "screens",
+        "controllable"
+      ],
+      "type": "object"
+    },
+    "LiveStep": {
+      "description": "`liveStepView`'s answer: the state to give back, and what to do, in order.",
+      "properties": {
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/LiveEffect"
+          },
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/LiveState"
+        }
+      },
+      "required": [
+        "state",
+        "effects"
+      ],
+      "type": "object"
     },
     "PresentationRow": {
       "description": "A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).",
-      "type": "object",
       "properties": {
         "deletedAt": {
+          "format": "int64",
           "type": [
             "integer",
             "null"
-          ],
-          "format": "int64"
+          ]
         },
         "description": {
           "type": [
@@ -88,24 +617,24 @@
           "type": "boolean"
         },
         "itemCount": {
-          "type": "integer",
+          "default": 0,
           "format": "int64",
-          "default": 0
+          "type": "integer"
         },
         "lastUsedAt": {
+          "format": "int64",
           "type": [
             "integer",
             "null"
-          ],
-          "format": "int64"
+          ]
         },
         "line": {
-          "description": "Its date line as its list shows it.",
-          "type": "array",
           "default": [],
+          "description": "Its date line as its list shows it.",
           "items": {
             "$ref": "#/$defs/LinePart"
-          }
+          },
+          "type": "array"
         },
         "location": {
           "type": [
@@ -129,38 +658,38 @@
           ]
         },
         "updatedAt": {
+          "format": "int64",
           "type": [
             "integer",
             "null"
-          ],
-          "format": "int64"
+          ]
         },
         "weekday": {
+          "format": "int64",
           "type": [
             "integer",
             "null"
-          ],
-          "format": "int64"
+          ]
         }
       },
       "required": [
         "id",
         "name",
         "isTemplate"
-      ]
+      ],
+      "type": "object"
     },
     "StartList": {
       "description": "One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether\nits rows show their date and its year.",
-      "type": "object",
       "properties": {
         "id": {
           "type": "string"
         },
         "rows": {
-          "type": "array",
           "items": {
             "$ref": "#/$defs/PresentationRow"
-          }
+          },
+          "type": "array"
         },
         "showDate": {
           "type": "boolean"
@@ -178,7 +707,34 @@
         "showDate",
         "withYear",
         "rows"
-      ]
+      ],
+      "type": "object"
     }
-  }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "date_line": {
+      "$ref": "#/$defs/DateLine"
+    },
+    "live_event": {
+      "$ref": "#/$defs/LiveEvent"
+    },
+    "live_step": {
+      "$ref": "#/$defs/LiveStep"
+    },
+    "start_page": {
+      "items": {
+        "$ref": "#/$defs/StartList"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "start_page",
+    "date_line",
+    "live_step",
+    "live_event"
+  ],
+  "title": "Views",
+  "type": "object"
 }

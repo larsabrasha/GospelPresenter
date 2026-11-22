@@ -10,22 +10,24 @@ import Observation
 @MainActor
 @Observable
 public final class LiveStatus {
+    /// The core's state between steps (`LiveState`, generated from the core's type); what the pages read comes from it.
+    public private(set) var state: LiveState?
     /// The sessions as the server last told them (`LiveSessionInfo`, JSON's values), the outputs with a page open, and
     /// the temporary screens paired with the organisation (`LiveScreen`).
-    public private(set) var sessions: [Any] = []
-    public private(set) var online: [String] = []
-    public private(set) var screens: [Any] = []
-    public private(set) var connected = false
+    public var sessions: [Any] { state?.sessions.map(\.plain) ?? [] }
+    public var online: [String] { state?.online ?? [] }
+    public var screens: [Any] { state?.screens.map(\.plain) ?? [] }
+    public var connected: Bool { state?.connected ?? false }
     /// The outputs this session sends to, and those taken from another presentation until the server says so.
-    public private(set) var chosen: [String] = []
-    public private(set) var takeOver: [String] = []
+    public var chosen: [String] { state?.chosen ?? [] }
+    public var takeOver: [String] { state?.takeOver ?? [] }
     /// The session driven from here, while one is, and those elsewhere a member may drive (Ta kontroll, LIVE-A27).
-    public private(set) var controlling: String?
-    public private(set) var controllable: [[String: Any]] = []
+    public var controlling: String? { state?.control?.sessionId }
+    public var controllable: [[String: Any]] { state?.controllable.compactMap { $0.plain as? [String: Any] } ?? [] }
     /// This device's session, for as long as the app runs.
     public let sessionId = UUID().uuidString.lowercased()
     /// "Tillåt fjärrstyrning" (LIVE-R39).
-    public var remote = false { didSet { if remote != oldValue { step(["type": "remote", "on": remote]) } } }
+    public var remote = false { didSet { if remote != oldValue { step(.remote(on: remote)) } } }
     /// A controller's command taken: the app applies it to its own live state as its own change (`liveChangeView`).
     @ObservationIgnored public var onApply: (([String: Any]) -> Void)?
     /// What the session driven from here shows now (the live state as a page reads it), and that it is gone.
@@ -35,78 +37,67 @@ public final class LiveStatus {
     @ObservationIgnored public var onUnconfirmed: (() -> Void)?
 
     @ObservationIgnored private let client: SyncClient
-    @ObservationIgnored private var state: Any = NSNull()
     @ObservationIgnored private var socket: URLSessionWebSocketTask?
     @ObservationIgnored private var timers: [String: Task<Void, Never>] = [:]
 
     public init(client: SyncClient, deviceName: String) {
         self.client = client
-        let first = client.view("liveStepView", ["init": ["sessionId": sessionId, "deviceName": deviceName]], as: AnyJSON.self)?.value
-        state = (first as? [String: Any])?["state"] ?? NSNull()
+        state = client.view("liveStepView", ["init": ["sessionId": sessionId, "deviceName": deviceName]], as: LiveStep.self)?.state
     }
 
     /// Listens while signed in; connected again after a drop, until `stop`.
-    public func start() { step(["type": "start"]) }
+    public func start() { step(.start) }
     public func stop() {
-        step(["type": "stop"])
+        step(.stop)
         timers.values.forEach { $0.cancel() }
         timers = [:]
     }
 
     /// The app's live state changed (JSON's values; nil when nothing is presented): reported; a session that ends, ended.
-    public func follow(_ pointer: [String: Any]?) { step(["type": "follow", "pointer": pointer ?? NSNull()]) }
+    public func follow(_ pointer: [String: Any]?) { step(.follow(pointer: JSONValue(any: pointer ?? NSNull()))) }
     /// An output switched; taking one from another presentation (asked first) with `take`.
-    public func setOutput(_ id: String, on: Bool, take: Bool = false) { step(["type": "output", "id": id, "on": on, "take": take]) }
+    public func setOutput(_ id: String, on: Bool, take: Bool = false) { step(.output(id: id, on: on, take: take)) }
     /// The data changed: what the outputs show is reported again.
-    public func changed() { step(["type": "changed"]) }
+    public func changed() { step(.changed) }
     /// Ta kontroll: the session elsewhere driven from here; `release` lets go of it.
-    public func control(_ id: String) { step(["type": "control", "sessionId": id]) }
-    public func release() { step(["type": "release"]) }
+    public func control(_ id: String) { step(.control(sessionId: id)) }
+    public func release() { step(.release) }
     /// A change of the page sent to the session driven from here, shown at once.
-    public func set(_ change: [String: Any]) { step(["type": "set", "change": change]) }
+    public func set(_ change: [String: Any]) { step(.set(change: JSONValue(any: change))) }
 
     /// Gives the core an event with the state it last gave, and does what it answers, in order.
-    private func step(_ event: [String: Any]) {
-        var e = event
-        e["now"] = Int(Date().timeIntervalSince1970 * 1000)
-        guard let out = client.view("liveStepView", ["state": state, "event": e], as: AnyJSON.self)?.value as? [String: Any],
-              let next = out["state"] as? [String: Any] else { return }
-        state = next
-        sessions = next["sessions"] as? [Any] ?? []
-        online = next["online"] as? [String] ?? []
-        screens = next["screens"] as? [Any] ?? []
-        connected = next["connected"] as? Bool ?? false
-        chosen = next["chosen"] as? [String] ?? []
-        takeOver = next["takeOver"] as? [String] ?? []
-        controlling = (next["control"] as? [String: Any])?["sessionId"] as? String
-        controllable = next["controllable"] as? [[String: Any]] ?? []
-        for effect in out["effects"] as? [[String: Any]] ?? [] { perform(effect) }
+    private func step(_ event: LiveEvent) {
+        guard let state, let s = JSONValue(encoding: state)?.any, let e = JSONValue(encoding: event)?.any else { return }
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        guard let out = client.view("liveStepView", ["state": s, "event": e, "now": now], as: LiveStep.self) else { return }
+        self.state = out.state
+        for effect in out.effects { perform(effect) }
     }
 
-    private func perform(_ effect: [String: Any]) {
-        switch effect["type"] as? String {
-        case "openSocket": open()
-        case "closeSocket":
+    private func perform(_ effect: LiveEffect) {
+        switch effect {
+        case .openSocket: open()
+        case .closeSocket:
             socket?.cancel(with: .goingAway, reason: nil)
             socket = nil
-            step(["type": "socketClosed"])
-        case "send":
-            guard let socket, let m = effect["message"], let data = try? JSONSerialization.data(withJSONObject: m) else { return }
-            Task { try? await socket.send(.string(String(decoding: data, as: UTF8.self))) }
-        case "timer":
-            guard let name = effect["name"] as? String, let ms = (effect["ms"] as? NSNumber)?.intValue else { return }
+            step(.socketClosed)
+        case let .send(message):
+            guard let socket else { return }
+            Task { try? await socket.send(.string(message.text)) }
+        case let .timer(ms, name):
             timers[name]?.cancel()
             timers[name] = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(ms))
                 guard !Task.isCancelled, let self else { return }
                 timers[name] = nil
-                step(["type": "timer", "name": name])
+                step(.timer(name: name))
             }
-        case "apply": if let change = effect["change"] as? [String: Any] { onApply?(change) }
-        case "mirror": if let pointer = effect["pointer"] as? [String: Any] { onMirror?(pointer) }
-        case "lost": onLost?()
-        case "unconfirmed": onUnconfirmed?()
-        default: break // audio and video commands: the Mac app plays its media where it presents (not relayed yet)
+        case let .apply(change): if let change = change.plain as? [String: Any] { onApply?(change) }
+        case let .mirror(pointer): if let pointer = pointer.plain as? [String: Any] { onMirror?(pointer) }
+        case .lost: onLost?()
+        case .unconfirmed: onUnconfirmed?()
+        // Audio and video commands: the Mac app plays its media where it presents (not relayed yet); a newer core's.
+        case .audio, .video, .unknown: break
         }
     }
 
@@ -120,32 +111,18 @@ public final class LiveStatus {
                 // Open once the first send goes (the live socket answers a ping of its own kind, not a WebSocket ping).
                 try await ws.send(.string(#"{"type":"ping"}"#))
                 guard let self, socket === ws else { return }
-                step(["type": "socketOpened"])
+                step(.socketOpened)
                 while true {
                     let message = try await ws.receive()
                     guard socket === ws else { return }
                     guard case let .string(text) = message, let m = try? JSONSerialization.jsonObject(with: Data(text.utf8)) else { continue }
-                    step(["type": "message", "message": m])
+                    step(.message(message: JSONValue(any: m)))
                 }
             } catch {
                 guard let self, socket === ws else { return }
                 socket = nil
-                step(["type": "socketClosed"])
+                step(.socketClosed)
             }
         }
-    }
-}
-
-/// Any JSON a view answers, as JSONSerialization's values.
-public struct AnyJSON: Decodable {
-    public let value: Any
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if c.decodeNil() { value = NSNull() }
-        else if let b = try? c.decode(Bool.self) { value = b }
-        else if let n = try? c.decode(Double.self) { value = n == n.rounded() && abs(n) < 1e15 ? Int(n) as Any : n }
-        else if let s = try? c.decode(String.self) { value = s }
-        else if let a = try? c.decode([AnyJSON].self) { value = a.map(\.value) }
-        else { value = try c.decode([String: AnyJSON].self).mapValues(\.value) }
     }
 }

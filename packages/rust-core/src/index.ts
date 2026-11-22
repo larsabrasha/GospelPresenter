@@ -177,6 +177,8 @@ export function runMutation(on: MutationDb, name: string, args: unknown, ctx: Mu
 }
 
 export { legacyBlobs, legacyOverlayPage, legacyRowsProblem, upgradeLegacyRows } from './legacy.ts';
+// The views' answers as the core types them (crates/gp-core/src/view_types.rs), generated (view-types.ts).
+export type * from './view-types.ts';
 
 /** A file's bytes as base64, a slice at a time, as JSON carries them to a view that reads a file (crates/gp-core/src/files.rs). */
 export function base64(bytes: Uint8Array): string {

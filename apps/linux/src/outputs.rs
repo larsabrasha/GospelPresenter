@@ -5,6 +5,7 @@
 // (`outputRowsView`); the session is the live socket's (live.rs). Only while signed in to a host.
 use crate::shell::Shell;
 use adw::prelude::*;
+use gp_core::view_types::LiveEvent;
 use gp_tui::texts::{language, t};
 use serde_json::{json, Value};
 use std::rc::Rc;
@@ -12,7 +13,10 @@ use std::rc::Rc;
 /// `into` made again from the live socket's state: the rows, then the remote switch; empty in the demo.
 pub fn fill(shell: &Rc<Shell>, into: &gtk::Box) {
     while let Some(c) = into.first_child() { into.remove(&c) }
-    let Some((sessions, online, chosen, me, remote)) = crate::live::with(|l| (l.list("sessions"), l.list("online"), l.list("chosen"), l.session_id().to_string(), l.remote())) else { return };
+    let Some((sessions, online, chosen, me, remote)) = crate::live::with(|l| {
+        let s = &l.state;
+        (s.sessions.clone(), s.online.clone(), s.chosen.clone(), s.session_id.clone(), s.remote)
+    }) else { return };
     let rows = {
         let m = shell.model.borrow();
         let core = m.app.core();
@@ -24,7 +28,7 @@ pub fn fill(shell: &Rc<Shell>, into: &gtk::Box) {
     for r in rows { group.add(&row(shell, &r)) }
     let allow = adw::SwitchRow::builder().title(t("remote.allow", &[])).active(remote).build();
     let weak = Rc::downgrade(shell);
-    allow.connect_active_notify(move |s| if let Some(sh) = weak.upgrade() { crate::live::step(&sh, json!({ "type": "remote", "on": s.is_active() })) });
+    allow.connect_active_notify(move |s| if let Some(sh) = weak.upgrade() { crate::live::step(&sh, LiveEvent::Remote { on: s.is_active() }) });
     group.add(&allow);
     into.append(&group);
 }
@@ -46,7 +50,7 @@ fn row(shell: &Rc<Shell>, r: &Value) -> adw::SwitchRow {
     row.connect_active_notify(move |s| {
         let Some(sh) = weak.upgrade() else { return };
         if s.is_active() && ask.is_object() { take_over(&sh, &id, &ask) }
-        else { crate::live::step(&sh, json!({ "type": "output", "id": id, "on": s.is_active() })) }
+        else { crate::live::step(&sh, LiveEvent::Output { id: id.clone(), on: s.is_active(), take: false }) }
     });
     row
 }
@@ -61,7 +65,7 @@ fn take_over(shell: &Rc<Shell>, id: &str, ask: &Value) {
     let (weak, id) = (Rc::downgrade(shell), id.to_string());
     dialog.connect_response(None, move |_, answer| {
         let Some(s) = weak.upgrade() else { return };
-        if answer == "take" { crate::live::step(&s, json!({ "type": "output", "id": id, "on": true, "take": true })) }
+        if answer == "take" { crate::live::step(&s, LiveEvent::Output { id: id.clone(), on: true, take: true }) }
         s.refresh();
     });
     dialog.present(Some(&shell.window));

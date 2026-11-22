@@ -139,14 +139,24 @@ after Släck either, on both, as the scenario showed that → would then start t
 ## Typed (Lars, 2026-11-22)
 
 A view's answer is a Rust type in `crates/gp-core/src/view_types.rs` (serde), field for field the JSON it was; the
-Rust shells (gp-tui, Linux) use those types themselves. With the `schema` feature, `examples/schema.rs` writes their
-JSON Schema (`crates/gp-core/schema/views.json`, schemars), and `schema/generate.mjs` writes the Swift structs from it
-(`apps/mac/Sources/GPMac/ViewTypes.swift`, Codable and Hashable); `crates/gp-core/schema/generate.sh` runs both after
-a change to the types, and `packages/architecture/test/generated.test.ts` checks the Swift is what the generator
-writes. The generator is ours, a page of code: the schema is as plain as the views (objects of named fields, each a
-string, a number, a boolean, a list, another type, or optional); quicktype was the first choice and could not be
-fetched here (2026-11-22). C# for Windows is the same generator's next language. So far typed: `startPageView`
-(`StartList`, `PresentationRow`) and `dateLineView` (`DateLine`, `LinePart`); the rest still answer `json!`.
+Rust shells (gp-tui, Linux) use those types themselves. `view_types::schema()` is their JSON Schema (schemars), kept in
+`crates/gp-core/schema/views.json`; a test in gp-core fails when that file no longer follows the types. From it
+`schema/generate.mjs` writes the Swift (`apps/mac/Sources/Shell/ViewTypes.swift`: structs, string enums, and a union
+tagged by `type` as an enum with a case per tag and `unknown` for a tag a newer core sends); `schema/generate.sh` runs
+both after a change, and `packages/architecture/test/generated.test.ts` checks the Swift is what the generator writes.
+It writes C# for the Windows app too (`crates/gp-core/schema/csharp/ViewTypes.cs`: records for System.Text.Json on
+.NET 8, a union as an abstract record with a case per tag and `Unknown`, read and written by a converter of its own,
+as .NET 8's polymorphism throws on a tag it does not know; `schema/csharp-check` compiles it and reads a step back,
+run by generate.sh where dotnet is), and TypeScript for the web (`packages/rust-core/src/view-types.ts`, exported by
+`@gp/rust-core`: interfaces and unions by `type`). The generator is ours, a page of code, for as long as the schema
+stays this plain (objects of named fields; a string, a number, a boolean, any JSON, a list, another type, optional; a
+set of strings; a union tagged by `type`); quicktype was weighed (heavier output and dependency) and is the way out if
+the schema outgrows it.
+
+Typed so far: `startPageView` (`StartList`, `PresentationRow`), `dateLineView` (`DateLine`, `LinePart`), and the live
+socket's reducer `liveStepView` (`LiveStep`: `LiveState` and its `LiveEffect`s; its `LiveEvent`s), which the Mac's
+LiveStatus and Linux's live.rs read and build as types. `now` goes beside the event (`{state, event, now}`; in the event
+still taken). The rest still answer `json!`.
 
 ## Next
 

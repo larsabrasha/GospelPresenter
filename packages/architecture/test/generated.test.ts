@@ -8,10 +8,19 @@ import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
-describe('generated view types', () => {
-  it("are the Swift the generator writes from the core's schema", () => {
-    const fresh = execFileSync('node', ['crates/gp-core/schema/generate.mjs', 'crates/gp-core/schema/views.json', 'swift'], { cwd: root, encoding: 'utf8' });
+/** Each language the generator writes, and where its output is checked in. */
+const OUTPUTS = [
+  ['swift', 'apps/mac/Sources/Shell/ViewTypes.swift'],
+  ['csharp', 'crates/gp-core/schema/csharp/ViewTypes.cs'],
+  ['typescript', 'packages/rust-core/src/view-types.ts'],
+] as const;
 
-    expect(readFileSync(`${root}apps/mac/Sources/GPMac/ViewTypes.swift`, 'utf8')).toBe(fresh);
-  });
+describe('generated view types', () => {
+  for (const [lang, path] of OUTPUTS) {
+    it(`are the ${lang} the generator writes from the core's schema`, () => {
+      const fresh = execFileSync('node', ['crates/gp-core/schema/generate.mjs', 'crates/gp-core/schema/views.json', lang], { cwd: root, encoding: 'utf8' });
+
+      expect(readFileSync(`${root}${path}`, 'utf8')).toBe(fresh);
+    });
+  }
 });

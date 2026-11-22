@@ -6,6 +6,7 @@ use crate::output::Output;
 use crate::presentation::Page;
 use crate::{faces, keys, look, start_page};
 use adw::prelude::*;
+use gp_core::view_types::LiveEvent;
 use gp_tui::app::App;
 use gp_tui::dates::local_today;
 use gp_tui::keys::{page_key, Action};
@@ -253,11 +254,11 @@ impl Shell {
             let mut m = self.model.borrow_mut();
             (m.app.live.clone(), m.app.outbox.take(), m.app.remote)
         };
-        if let Some(change) = outbox { crate::live::step(self, json!({ "type": "set", "change": change })) }
+        if let Some(change) = outbox { crate::live::step(self, LiveEvent::Set { change }) }
         if !remote && self.followed.borrow().as_ref() != Some(&live) {
             *self.followed.borrow_mut() = Some(live.clone());
             let pointer = if live.presentation_id.is_some() { serde_json::to_value(&live).unwrap_or_default() } else { serde_json::Value::Null };
-            crate::live::step(self, json!({ "type": "follow", "pointer": pointer }));
+            crate::live::step(self, LiveEvent::Follow { pointer });
         }
         if let Some(page) = self.page.borrow().as_ref() { page.refresh(self) }
         if let Some(out) = self.output.borrow().as_ref() { out.refresh() }
@@ -330,7 +331,7 @@ impl Shell {
         }
         if self.model.borrow().app.page.is_none() && self.page.borrow().is_some() { self.nav.pop(); }
         // An edit to what is showing, or a new theme, reaches the public outputs and the controllers too.
-        crate::live::step(self, json!({ "type": "changed" }));
+        crate::live::step(self, LiveEvent::Changed);
         self.rebuild();
         start_page::fill(self);
         self.refresh();
@@ -353,7 +354,7 @@ impl Shell {
     pub fn take_control(self: &Rc<Self>, session_id: &str, presentation_id: &str) {
         if self.model.borrow().app.live.presentation_id.is_some() { return }
         self.model.borrow_mut().app.remote = true;
-        crate::live::step(self, json!({ "type": "control", "sessionId": session_id }));
+        crate::live::step(self, LiveEvent::Control { session_id: session_id.into() });
         self.open(presentation_id);
         // Its presentation not here yet (not synced): nothing to drive it from, so let go rather than stay remote.
         if self.page.borrow().is_none() { self.stop_controlling() }
@@ -362,7 +363,7 @@ impl Shell {
     /// Driving a session elsewhere ended (■, the page left, the session gone): nothing presented here.
     pub fn stop_controlling(self: &Rc<Self>) {
         if !self.model.borrow().app.remote { return }
-        crate::live::step(self, json!({ "type": "release" }));
+        crate::live::step(self, LiveEvent::Release);
         {
             let mut m = self.model.borrow_mut();
             m.app.remote = false;

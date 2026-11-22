@@ -1,0 +1,14 @@
+<!-- The generated C# (../csharp/ViewTypes.cs) compiled and read back on .NET 8, as the Windows app takes it:
+     dotnet run in this folder; crates/gp-core/schema/generate.sh runs it where dotnet is. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../csharp/ViewTypes.cs" />
+  </ItemGroup>
+</Project>

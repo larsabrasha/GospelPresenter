@@ -6,6 +6,7 @@
 // this change to its own live state, show this pointer of the session it drives. The socket and the timers are the
 // shell's; what is reported, taken, switched off and shown is decided here.
 use crate::args::*;
+use crate::view_types::{LiveEffect as Do, LiveEvent, LiveState, LiveStep};
 use serde_json::{json, Map, Value};
 
 /// A ping every 20 s; nothing heard for 30 s and the socket is taken for dead (LIVE_PING_MS, LIVE_PONG_MS).
@@ -23,7 +24,7 @@ fn presenting(p: &Value) -> Option<&str> { p["presentationId"].as_str().filter(|
 /// The state a device starts from: {sessionId, deviceName} of `init`.
 fn fresh(init: &Obj) -> Value {
     json!({
-        "sessionId": init.get("sessionId").cloned().unwrap_or(Value::Null),
+        "sessionId": init.get("sessionId").cloned().unwrap_or(json!("")),
         "deviceName": init.get("deviceName").cloned().unwrap_or(json!("")),
         "started": false, "connected": false, "attempt": 0, "heard": 0, "pinged": false, "lastSent": "",
         "remote": false, "chosen": [], "takeOver": [], "seen": [], "pointer": null, "audio": null, "video": null, "videoLive": null,
@@ -31,12 +32,12 @@ fn fresh(init: &Obj) -> Value {
     })
 }
 
-struct Step { st: Value, out: Vec<Value>, now: i64 }
+struct Step { st: Value, out: Vec<Do>, now: i64 }
 
 impl Step {
-    fn put(&mut self, effect: Value) { self.out.push(effect) }
-    fn send(&mut self, message: Value) { if self.st["connected"] == json!(true) { self.put(json!({ "type": "send", "message": message })) } }
-    fn timer(&mut self, name: &str, ms: i64) { self.put(json!({ "type": "timer", "name": name, "ms": ms })) }
+    fn put(&mut self, effect: Do) { self.out.push(effect) }
+    fn send(&mut self, message: Value) { if self.st["connected"] == json!(true) { self.put(Do::Send { message }) } }
+    fn timer(&mut self, name: &str, ms: i64) { self.put(Do::Timer { name: name.into(), ms }) }
     fn chosen(&self) -> Vec<String> { strings(&self.st["chosen"]) }
     fn set_list(&mut self, k: &str, v: Vec<String>) { self.st[k] = json!(v) }
 
@@ -102,7 +103,7 @@ impl Step {
         let Ok(there) = crate::live_views::targets(ask.as_object().unwrap_or(&Map::new())).await else { return };
         let args = json!({ "pointer": p, "command": change, "item": there["item"], "overlay": there["overlay"] });
         let take = crate::remote_control::take(args.as_object().unwrap_or(&Map::new())).map(|t| t["take"] == json!(true)).unwrap_or(false);
-        if take { self.put(json!({ "type": "apply", "change": change })) }
+        if take { self.put(Do::Apply { change: change.clone() }) }
     }
 
     /// The organisation's sessions listed anew: the outputs taken over settled; chosen screens that went away
@@ -159,10 +160,10 @@ impl Step {
         if self.st["control"].is_null() { return }
         let Some(shown) = self.shown() else {
             self.st["control"] = Value::Null;
-            return self.put(json!({ "type": "lost" }));
+            return self.put(Do::Lost);
         };
         if shown["confirmed"] == json!(true) { self.st["control"]["pending"] = Value::Null }
-        self.put(json!({ "type": "mirror", "pointer": shown["pointer"] }));
+        self.put(Do::Mirror { pointer: shown["pointer"].clone() });
     }
 
     /// A change of the page sent on to the session driven from here as the command its owner takes
@@ -185,7 +186,7 @@ impl Step {
         let confirmed = self.shown().is_some_and(|s| s["confirmed"] == json!(true));
         if !confirmed && self.st["control"]["warned"] != json!(true) {
             self.st["control"]["warned"] = json!(true);
-            self.put(json!({ "type": "unconfirmed" }));
+            self.put(Do::Unconfirmed);
         }
         self.st["control"]["pending"] = Value::Null;
         self.mirror();
@@ -204,8 +205,8 @@ impl Step {
                 self.sessions().await;
             }
             Some("command") if m["sessionId"] == me => self.command(&m["change"]).await,
-            Some("audio-command") if m["sessionId"] == me && presenting => self.put(json!({ "type": "audio", "command": m["command"] })),
-            Some("video-command") if m["sessionId"] == me && presenting => self.put(json!({ "type": "video", "command": m["command"] })),
+            Some("audio-command") if m["sessionId"] == me && presenting => self.put(Do::Audio { command: m["command"].clone() }),
+            Some("video-command") if m["sessionId"] == me && presenting => self.put(Do::Video { command: m["command"].clone() }),
             Some("released") if m["sessionId"] == me => {
                 for id in strings(&m["outputs"]) { self.output(&id, false, false) }
                 self.report().await;
@@ -222,37 +223,35 @@ impl Step {
     }
 }
 
-/// `liveStepView` {state, event} (or {init: {sessionId, deviceName}} first): the state after the event, and what the
-/// shell does, in order. Events, each with `now` (ms): start, stop, socketOpened, socketClosed, message {message},
-/// timer {name}, follow {pointer} (the live state, null when nothing is presented), remote {on}, output {id, on,
-/// take}, playback {audio, video, videoLive}, changed (the data), control {sessionId}, release, set {change}. Effects:
-/// openSocket, closeSocket, send {message}, timer {name, ms}, apply {change}, audio {command}, video {command},
-/// mirror {pointer}, lost, unconfirmed.
+/// `liveStepView` {state, event, now} (or {init: {sessionId, deviceName}} first): the state after the event, and what the
+/// shell does, in order (`LiveStep`; the events `LiveEvent` and the effects `LiveEffect` of view_types.rs, whose
+/// comments say each). `now` (ms) beside the event, or in it.
 pub async fn view(a: &Obj) -> R<Value> {
     let st = match a.get("state") {
         Some(v) if v.is_object() => v.clone(),
         _ => fresh(a.get("init").and_then(Value::as_object).unwrap_or(&Map::new())),
     };
-    let Some(ev) = a.get("event").and_then(Value::as_object) else { return Ok(json!({ "state": st, "effects": [] })) };
-    let mut s = Step { st, out: vec![], now: ev.get("now").and_then(Value::as_i64).unwrap_or(0) };
-    let get = |k: &str| ev.get(k).cloned().unwrap_or(Value::Null);
-    match ev.get("type").and_then(Value::as_str).ok_or("invalid-args")? {
-        "start" => if s.st["started"] != json!(true) {
+    let Some(raw) = a.get("event") else { return answer(st, vec![]) };
+    let now = a.get("now").or_else(|| raw.get("now")).and_then(Value::as_i64).unwrap_or(0);
+    let event: LiveEvent = serde_json::from_value(raw.clone()).map_err(|_| "invalid-args".to_string())?;
+    let mut s = Step { st, out: vec![], now };
+    match event {
+        LiveEvent::Start => if s.st["started"] != json!(true) {
             s.st["started"] = json!(true);
-            s.put(json!({ "type": "openSocket" }));
+            s.put(Do::OpenSocket);
         },
-        "stop" => {
+        LiveEvent::Stop => {
             s.st["started"] = json!(false);
             s.st["connected"] = json!(false);
-            s.put(json!({ "type": "closeSocket" }));
+            s.put(Do::CloseSocket);
         }
-        "socketOpened" => {
+        LiveEvent::SocketOpened => {
             for (k, v) in [("connected", json!(true)), ("attempt", json!(0)), ("heard", json!(s.now)), ("pinged", json!(false)), ("lastSent", json!(""))] { s.st[k] = v }
             s.timer("ping", PING_MS);
             // The whole state again on every reconnect (LIVE-R47).
             s.report().await;
         }
-        "socketClosed" => {
+        LiveEvent::SocketClosed => {
             s.st["connected"] = json!(false);
             if s.st["started"] == json!(true) {
                 let attempt = s.st["attempt"].as_i64().unwrap_or(0);
@@ -260,32 +259,36 @@ pub async fn view(a: &Obj) -> R<Value> {
                 s.timer("reconnect", reconnect_delay(attempt));
             }
         }
-        "message" => s.heard(&get("message")).await,
-        "timer" => match ev.get("name").and_then(Value::as_str) {
-            Some("reconnect") if s.st["started"] == json!(true) && s.st["connected"] != json!(true) => s.put(json!({ "type": "openSocket" })),
-            Some("ping") if s.st["connected"] == json!(true) => {
-                if s.now - s.st["heard"].as_i64().unwrap_or(0) > PING_MS + PONG_MS { s.put(json!({ "type": "closeSocket" })) } else {
+        LiveEvent::Message { message } => s.heard(&message).await,
+        LiveEvent::Timer { name } => match name.as_str() {
+            "reconnect" if s.st["started"] == json!(true) && s.st["connected"] != json!(true) => s.put(Do::OpenSocket),
+            "ping" if s.st["connected"] == json!(true) => {
+                if s.now - s.st["heard"].as_i64().unwrap_or(0) > PING_MS + PONG_MS { s.put(Do::CloseSocket) } else {
                     s.st["pinged"] = json!(true);
                     s.send(json!({ "type": "ping" }));
                     s.timer("ping", PING_MS);
                 }
             }
-            Some("unconfirmed") => s.unconfirmed(),
+            "unconfirmed" => s.unconfirmed(),
             _ => {}
         },
-        "follow" => s.follow(get("pointer")).await,
-        "remote" => { s.st["remote"] = json!(get("on") == json!(true)); s.report().await }
-        "output" => {
-            let id = ev.get("id").and_then(Value::as_str).ok_or("invalid-args")?.to_string();
-            s.output(&id, get("on") == json!(true), get("take") == json!(true));
-            s.report().await;
+        LiveEvent::Follow { pointer } => s.follow(pointer).await,
+        LiveEvent::Remote { on } => { s.st["remote"] = json!(on); s.report().await }
+        LiveEvent::Output { id, on, take } => { s.output(&id, on, take); s.report().await }
+        LiveEvent::Playback { audio, video, video_live } => {
+            (s.st["audio"], s.st["video"], s.st["videoLive"]) = (audio, video, video_live);
+            s.report().await
         }
-        "playback" => { for k in ["audio", "video", "videoLive"] { s.st[k] = get(k) } s.report().await }
-        "changed" => s.report().await,
-        "control" => { s.st["control"] = json!({ "sessionId": get("sessionId"), "pending": null, "warned": false }); s.mirror() }
-        "release" => s.st["control"] = Value::Null,
-        "set" => s.set(&get("change")),
-        _ => return Err("invalid-args".into()),
+        LiveEvent::Changed => s.report().await,
+        LiveEvent::Control { session_id } => { s.st["control"] = json!({ "sessionId": session_id, "pending": null, "warned": false }); s.mirror() }
+        LiveEvent::Release => s.st["control"] = Value::Null,
+        LiveEvent::Set { change } => s.set(&change),
     }
-    Ok(json!({ "state": s.st, "effects": s.out }))
+    answer(s.st, s.out)
+}
+
+/// The step as its type: a state that is not a `LiveState` is the core's mistake, refused rather than handed on.
+fn answer(st: Value, effects: Vec<Do>) -> R<Value> {
+    let state: LiveState = serde_json::from_value(st).map_err(|e| format!("invalid-state: {e}"))?;
+    serde_json::to_value(LiveStep { state, effects }).map_err(|e| e.to_string())
 }

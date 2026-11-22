@@ -4,23 +4,12 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import type { MutatorCtx } from '@gp/core';
-import type { Rows } from '../src/index.ts';
+import type { LiveState, LiveStep, Rows } from '../src/index.ts';
 import { nodeRustCore } from '../src/node.ts';
 
 const admin: MutatorCtx = { userId: 'u', role: 'admin', now: 1000 };
 
-interface Effect {
-  type: string;
-  message?: { type: string; state?: Record<string, unknown>; sessionId?: string; change?: Record<string, unknown> };
-  name?: string;
-  ms?: number;
-  change?: Record<string, unknown>;
-  pointer?: Record<string, unknown>;
-}
-interface Step {
-  state: Record<string, unknown>;
-  effects: Effect[];
-}
+type Step = LiveStep;
 
 /** A device with a presentation of two items, its live socket opened. */
 async function device() {
@@ -36,17 +25,18 @@ async function device() {
   for (const id of ['i1', 'i2']) await core.run('addHeaderToPresentation', { itemId: id, presentationId: 'P', title: id }, admin, rows);
   const step = (state: unknown, event: object) => core.view<Step>('liveStepView', { state, event: { now: 1000, ...event } }, rows);
   const after = async (events: object[], from?: unknown) => {
-    let s: Step = { state: from as Record<string, unknown>, effects: [] };
+    let s: Step = { state: from as LiveState, effects: [] };
     for (const e of events) s = await step(s.state, e);
     return s;
   };
   const { state } = await core.view<Step>('liveStepView', { init: { sessionId: 's1', deviceName: 'Mac' } }, rows);
   const online = (await after([{ type: 'start' }, { type: 'socketOpened' }], state)).state;
-  return { step, after, state, online };
+  return { core, rows, step, after, state, online };
 }
 
 const pointer = (itemId: string | null, partIndex = 0) => ({ presentationId: 'P', itemId, partIndex, black: false, overlayId: null, rev: 1 });
-const sent = (s: Step) => s.effects.filter((e) => e.type === 'send').map((e) => e.message!);
+/** The messages a step sends, as the server reads them. */
+const sent = (s: Step) => s.effects.flatMap((e) => (e.type === 'send' ? [e.message as { type: string } & Record<string, unknown>] : []));
 const sessions = (list: object[], extra: object = {}) => ({ type: 'message', message: { type: 'sessions', sessions: list, online: [], screens: [], ...extra } });
 
 describe('liveStepView, the socket', () => {
@@ -81,6 +71,22 @@ describe('liveStepView, the socket', () => {
     const out = await step(online, { type: 'timer', name: 'ping', now: 1000 + 20_000 });
 
     expect(sent(out)).toEqual([{ type: 'ping' }]);
+  });
+});
+
+describe('liveStepView, its event', () => {
+  it('takes the time beside the event', async () => {
+    const { core, rows, online } = await device();
+
+    const out = await core.view<Step>('liveStepView', { state: online, event: { type: 'timer', name: 'ping' }, now: 1000 + 31_000 }, rows);
+
+    expect(out.effects).toEqual([{ type: 'closeSocket' }]);
+  });
+
+  it('refuses an event it does not know', async () => {
+    const { core, rows, online } = await device();
+
+    await expect(core.view('liveStepView', { state: online, event: { type: 'teleport' }, now: 1000 }, rows)).rejects.toThrow('invalid-args');
   });
 });
 

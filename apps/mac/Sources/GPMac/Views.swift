@@ -2,6 +2,8 @@
 // (`startPageView`), a presentation's page (`presentationPageView`), presenting's keys and marks (`presentingKeyView`,
 // `slideMarksView`), and what a page offers (docs/view-models.md). Only the fields this app shows are decoded.
 import Foundation
+// The shell module seen from every file of the app: the core's generated view types and JSONValue are there.
+@_exported import Shell
 
 // PresentationRow, StartList and LinePart are the core's, generated (ViewTypes.swift).
 extension PresentationRow: Identifiable {}
@@ -16,56 +18,6 @@ func written(_ parts: [LinePart]?) -> String {
 func localToday(_ now: Date = Date()) -> String {
     let c = Calendar.current.dateComponents([.year, .month, .day], from: now)
     return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
-}
-
-/// Any JSON, kept as the core gave it: a slide, a theme and an overlay go on to the web's `SlideView` unchanged.
-enum JSONValue: Codable, Hashable {
-    case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue])
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if c.decodeNil() { self = .null }
-        else if let b = try? c.decode(Bool.self) { self = .bool(b) }
-        else if let n = try? c.decode(Double.self) { self = .number(n) }
-        else if let s = try? c.decode(String.self) { self = .string(s) }
-        else if let a = try? c.decode([JSONValue].self) { self = .array(a) }
-        else { self = .object(try c.decode([String: JSONValue].self)) }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.singleValueContainer()
-        switch self {
-        case .null: try c.encodeNil()
-        case let .bool(b): try c.encode(b)
-        case let .number(n): try c.encode(n)
-        case let .string(s): try c.encode(s)
-        case let .array(a): try c.encode(a)
-        case let .object(o): try c.encode(o)
-        }
-    }
-
-    subscript(_ key: String) -> JSONValue? { if case let .object(o) = self { o[key] } else { nil } }
-    var string: String? { if case let .string(s) = self { s } else { nil } }
-    var number: Double? { if case let .number(n) = self { n } else { nil } }
-
-    /// As JSONSerialization takes it: the value handed back to the core in a view's arguments.
-    var any: Any {
-        switch self {
-        case .null: NSNull()
-        case let .bool(b): b
-        case let .number(n): n
-        case let .string(s): s
-        case let .array(a): a.map(\.any)
-        case let .object(o): o.mapValues(\.any)
-        }
-    }
-
-    /// Its JSON text, keys sorted, so the same value is the same text (a cache key).
-    var text: String {
-        let e = JSONEncoder()
-        e.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return (try? e.encode(self)).map { String(decoding: $0, as: UTF8.self) } ?? "null"
-    }
 }
 
 struct SlideLabel: Decodable, Hashable { let text: String, color: String }

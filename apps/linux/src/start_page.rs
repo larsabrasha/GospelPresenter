@@ -22,7 +22,7 @@ pub fn fill(shell: &Rc<Shell>) {
         page.add(&group);
     }
     // Visas just nu elsewhere: sessions that allow remote control, each with Ta kontroll (none while presenting here).
-    let drivable = if live.is_some() { vec![] } else { crate::live::with(|l| l.list("controllable")).and_then(|v| v.as_array().cloned()).unwrap_or_default() };
+    let drivable = if live.is_some() { vec![] } else { crate::live::with(|l| l.state.controllable.clone()).unwrap_or_default() };
     if !drivable.is_empty() {
         let group = adw::PreferencesGroup::builder().title(t("remote.nowShowing", &[])).build();
         for s in &drivable { group.add(&drivable_row(shell, s)) }
