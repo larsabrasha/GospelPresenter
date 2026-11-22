@@ -65,12 +65,11 @@ fn row(shell: &Rc<Shell>, p: &PresentationRow, sub: &str, live: bool) -> adw::Ac
         badge.add_css_class("live-badge");
         row.add_prefix(&badge);
     }
-    if let Some(n) = p.item_count {
-        let count = if n == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &n.to_string())]) };
-        let label = gtk::Label::new(Some(&count));
-        label.add_css_class("dim-label");
-        row.add_suffix(&label);
-    }
+    let n = p.item_count;
+    let count = if n == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &n.to_string())]) };
+    let label = gtk::Label::new(Some(&count));
+    label.add_css_class("dim-label");
+    row.add_suffix(&label);
     row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
     let (weak, id) = (Rc::downgrade(shell), p.id.clone());
     row.connect_activated(move |_| if let Some(s) = weak.upgrade() { s.open(&id) });

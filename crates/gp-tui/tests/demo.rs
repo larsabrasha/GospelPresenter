@@ -13,7 +13,7 @@ fn the_start_page_lists_the_demos_presentations() {
 
     // Assert
     let main = app.rows().into_iter().find(|r| r.id == "pres-main").cloned().unwrap();
-    assert_eq!(main.item_count, Some(15));
+    assert_eq!(main.item_count, 15);
 }
 
 #[test]

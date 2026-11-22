@@ -24,7 +24,7 @@ pub fn page(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
     let lists: Vec<(String, Vec<Cells>)> = app.lists.iter().map(|list| {
         let cells = list.rows.iter().map(|row| {
             let [date, time, place] = ["date", "time", "place"].map(|of| part(&row.line, of));
-            let count = row.item_count.unwrap_or(0);
+            let count = row.item_count;
             let items = if count == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &count.to_string())]) };
             Cells { live: app.live.presentation_id.as_deref() == Some(row.id.as_str()), name: row.name.clone(), date, time, place, items }
         }).collect();

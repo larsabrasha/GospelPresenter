@@ -269,9 +269,16 @@ pub async fn start_page(a: &Obj) -> R<Value> {
     rest.sort_by(|a, b| by_changed(a, b).then_with(|| by_id(a, b)));
     let lists = [("today", "presentations.today", false, false, day), ("upcoming", "presentations.upcoming", true, false, upcoming), ("recent", "presentations.recent", true, true, rest)];
     let en = crate::date_line::english(a);
-    Ok(Value::Array(lists.into_iter().filter(|l| !l.4.is_empty()).map(|(id, title, show_date, with_year, mut rows)| {
-        // Each row's second line as its list shows it (`dateLineView`'s parts).
-        for p in rows.iter_mut() { p["line"] = crate::date_line::parts(p, &today, show_date, with_year, en, false) }
-        json!({ "id": id, "title": title, "showDate": show_date, "withYear": with_year, "rows": rows })
-    }).collect()))
+    let mut out = vec![];
+    for (id, title, show_date, with_year, rows) in lists.into_iter().filter(|l| !l.4.is_empty()) {
+        // Each row typed (view_types.rs), with its second line as its list shows it (`dateLineView`'s parts).
+        let mut typed: Vec<crate::view_types::PresentationRow> = Vec::with_capacity(rows.len());
+        for p in rows {
+            let mut row: crate::view_types::PresentationRow = serde_json::from_value(p).map_err(|e| format!("invalid-row: {e}"))?;
+            row.line = crate::date_line::line(row.event_date.as_deref(), row.time.as_deref(), row.location.as_deref(), &today, show_date, with_year, en, false);
+            typed.push(row);
+        }
+        out.push(crate::view_types::StartList { id: id.into(), title: title.into(), show_date, with_year, rows: typed });
+    }
+    serde_json::to_value(out).map_err(|e| e.to_string())
 }

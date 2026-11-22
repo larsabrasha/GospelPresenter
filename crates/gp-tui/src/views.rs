@@ -1,49 +1,14 @@
 // The core's views as this shell reads them (crates/gp-core/src/views.rs), decoded: the start page (`startPageView`),
 // a presentation's page (`presentationPageView`), the app's live state (`liveChangeView`), a page's own state
 // (`pageEventView`) and the marks VISAS and NÄSTA (`slideMarksView`). Only the fields this shell shows are decoded;
-// apps/mac/Sources/GPMac/Views.swift is the same for Swift.
+// those the core has typed are its own (view_types.rs).
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// A presentation as a list shows it, with its number of items where the view gives it.
-#[derive(Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PresentationRow {
-    pub id: String,
-    pub name: String,
-    pub event_date: Option<String>,
-    pub time: Option<String>,
-    pub location: Option<String>,
-    #[serde(default)]
-    pub is_template: bool,
-    pub item_count: Option<i64>,
-    /// Its date line as its list shows it (`startPageView`: `dateLineView`'s parts).
-    #[serde(default)]
-    pub line: Vec<LinePart>,
-}
-
-/// A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is;
-/// `of` what it is (live, date, time, place).
-#[derive(Deserialize, Clone, Debug, PartialEq, Default)]
-pub struct LinePart {
-    pub key: Option<String>,
-    pub text: Option<String>,
-    #[serde(default)]
-    pub of: String,
-}
-
-/// One of the start page's lists as the core groups them: Idag, Kommande or Senast ändrade, in their order, an empty
-/// one left out; its title a text's key; whether its rows show their date and its year.
-#[derive(Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct StartList {
-    pub id: String,
-    pub title: String,
-    pub show_date: bool,
-    pub with_year: bool,
-    pub rows: Vec<PresentationRow>,
-}
+// A presentation as a list shows it, a part of its date line, and one of the start page's lists: the core's own types
+// (crates/gp-core/src/view_types.rs), as every shell's are generated from them.
+pub use gp_core::view_types::{LinePart, PresentationRow, StartList};
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 pub struct SlideLabel {

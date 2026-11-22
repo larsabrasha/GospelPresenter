@@ -3,29 +3,13 @@
 // `slideMarksView`), and what a page offers (docs/view-models.md). Only the fields this app shows are decoded.
 import Foundation
 
-/// A presentation as a list shows it (`Presentation`), with its number of items where the view gives it.
-struct PresentationRow: Decodable, Identifiable, Hashable {
-    let id: String, name: String, eventDate: String?, time: String?, location: String?, description: String?, updatedAt: Double?
-    var itemCount: Int? = nil
-    /// Its date line as its list shows it (`startPageView`, `paletteView`: `dateLineView`'s parts).
-    var line: [LinePart]? = nil
-    /// A template's page is opened as a presentation's (spec 03 "Template"): never presented, its own details and trash.
-    var isTemplate: Bool? = nil
-}
-
-/// A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.
-struct LinePart: Decodable, Hashable { let key: String?, text: String? }
+// PresentationRow, StartList and LinePart are the core's, generated (ViewTypes.swift).
+extension PresentationRow: Identifiable {}
+extension StartList: Identifiable {}
 
 /// A date line written: each part in the app's words, joined with " · ".
 func written(_ parts: [LinePart]?) -> String {
     (parts ?? []).map { $0.key.map { t($0) } ?? $0.text ?? "" }.filter { !$0.isEmpty }.joined(separator: " · ")
-}
-
-/// One of the start page's lists as the core groups them for every shell (`startPageView`, docs/view-models.md):
-/// Idag, Kommande or Senast ändrade, in their order, an empty one left out, and whether its rows show their date and
-/// its year.
-struct StartList: Decodable, Identifiable, Hashable {
-    let id: String, title: String, showDate: Bool, withYear: Bool, rows: [PresentationRow]
 }
 
 /// Today's date on this device, `YYYY-MM-DD`, as event dates are stored (`localToday`).

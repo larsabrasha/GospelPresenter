@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Views",
+  "type": "object",
+  "properties": {
+    "date_line": {
+      "$ref": "#/$defs/DateLine"
+    },
+    "start_page": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StartList"
+      }
+    }
+  },
+  "required": [
+    "start_page",
+    "date_line"
+  ],
+  "$defs": {
+    "DateLine": {
+      "description": "`dateLineView`'s answer.",
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinePart"
+          }
+        }
+      },
+      "required": [
+        "parts"
+      ]
+    },
+    "LinePart": {
+      "description": "A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "of": {
+          "description": "What it is: live, date, time or place.",
+          "type": "string"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "of"
+      ]
+    },
+    "PresentationRow": {
+      "description": "A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).",
+      "type": "object",
+      "properties": {
+        "deletedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "eventDate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "isTemplate": {
+          "type": "boolean"
+        },
+        "itemCount": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "lastUsedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "line": {
+          "description": "Its date line as its list shows it.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LinePart"
+          }
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "themeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "weekday": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "isTemplate"
+      ]
+    },
+    "StartList": {
+      "description": "One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether\nits rows show their date and its year.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PresentationRow"
+          }
+        },
+        "showDate": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
+        "withYear": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "showDate",
+        "withYear",
+        "rows"
+      ]
+    }
+  }
+}

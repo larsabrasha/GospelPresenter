@@ -136,6 +136,18 @@ after Släck either, on both, as the scenario showed that → would then start t
    compared only within one shell, before and after a change (`docs/look.md`), never across shells, whose components
    differ on purpose.
 
+## Typed (Lars, 2026-11-22)
+
+A view's answer is a Rust type in `crates/gp-core/src/view_types.rs` (serde), field for field the JSON it was; the
+Rust shells (gp-tui, Linux) use those types themselves. With the `schema` feature, `examples/schema.rs` writes their
+JSON Schema (`crates/gp-core/schema/views.json`, schemars), and `schema/generate.mjs` writes the Swift structs from it
+(`apps/mac/Sources/GPMac/ViewTypes.swift`, Codable and Hashable); `crates/gp-core/schema/generate.sh` runs both after
+a change to the types, and `packages/architecture/test/generated.test.ts` checks the Swift is what the generator
+writes. The generator is ours, a page of code: the schema is as plain as the views (objects of named fields, each a
+string, a number, a boolean, a list, another type, or optional); quicktype was the first choice and could not be
+fetched here (2026-11-22). C# for Windows is the same generator's next language. So far typed: `startPageView`
+(`StartList`, `PresentationRow`) and `dateLineView` (`DateLine`, `LinePart`); the rest still answer `json!`.
+
 ## Next
 
 Each further view model is a step of the loop in `docs/rust-core.md`: write it in the core, check it, switch the web to

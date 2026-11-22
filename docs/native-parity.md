@@ -21,8 +21,12 @@ Linux app in the same round; it is done when both read the core's view and neith
 1. [x] Signing in and sync on Linux (5afa60f9).
 2. [x] The live session (`liveStepView`): the Mac's LiveOwner and LiveController gone into the core's reducer, and
    Linux's rounds 7 and 8 built on it from the start (below).
-3. [ ] Typed view models: the core describes its view models and events as types, and the Swift and Rust types are
-   generated, so the shells stop decoding JSON by hand.
+3. [~] Typed view models: the core describes its view models and events as types, and the Swift and Rust types are
+   generated, so the shells stop decoding JSON by hand. Begun 2026-11-22 (docs/view-models.md, "Typed"):
+   `startPageView` and `dateLineView` are types in view_types.rs; the Swift is generated from their schema, gp-tui and
+   Linux use the Rust types. Next: the page's views, the reducers' states and events, and C# for Windows. Question:
+   our own generator in place of quicktype, which could not be fetched here; is that the way, or should quicktype
+   (Swift, C#, TypeScript) come in as a devDependency?
 4. [x] The date line (2026-11-22): `dateLineView` (crates/gp-core/src/date_line.rs, 12 tests; every day of 2027 and
    2028 the same as the web's Intl in Swedish and English, packages/rust-core/test/date-line.test.ts): its parts, each
    a text's key or a text and what it is (live, date, time, place); `startPageView`'s rows and `paletteView`'s

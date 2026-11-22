@@ -4,6 +4,7 @@
 // key where the web has one (Idag, Imorgon, LIVE), and a day's and a month's names here, in Swedish or English, as the
 // web's Intl writes them (packages/rust-core/test/date-line.test.ts).
 use crate::args::*;
+use crate::view_types::{DateLine, LinePart};
 use serde_json::{json, Value};
 
 const WEEKDAYS_SV: [&str; 7] = ["sön", "mån", "tis", "ons", "tors", "fre", "lör"];
@@ -48,15 +49,25 @@ pub fn date_label(iso: &str, today: &str, with_year: bool, en: bool) -> Value {
 /// The line's parts, in order, each {key} or {text} and what it is (`of`: live, date, time, place), what is not set
 /// left out: LIVE first while presented here, the date where shown, the time, the place. The shell writes each (a key
 /// as the app's text) and joins them with " · ", or sets them in columns by `of`.
-pub fn parts(p: &Value, today: &str, show_date: bool, with_year: bool, en: bool, live: bool) -> Value {
-    let of = |mut v: Value, k: &str| { v["of"] = json!(k); v };
+#[allow(clippy::too_many_arguments)]
+pub fn line(date: Option<&str>, time: Option<&str>, place: Option<&str>, today: &str, show_date: bool, with_year: bool, en: bool, live: bool) -> Vec<LinePart> {
+    let text = |t: &str, of: &str| LinePart { key: None, text: Some(t.to_string()), of: of.into() };
     let mut out = vec![];
-    if live { out.push(of(json!({ "key": "live.badge" }), "live")) }
-    if let Some(d) = p["eventDate"].as_str().filter(|d| show_date && !d.is_empty()) { out.push(of(date_label(d, today, with_year, en), "date")) }
-    for (k, name) in [("time", "time"), ("location", "place")] {
-        if let Some(v) = p[k].as_str().filter(|v| !v.trim().is_empty()) { out.push(of(json!({ "text": v }), name)) }
+    if live { out.push(LinePart { key: Some("live.badge".into()), text: None, of: "live".into() }) }
+    if let Some(d) = date.filter(|d| show_date && !d.is_empty()) {
+        let label = date_label(d, today, with_year, en);
+        out.push(LinePart { key: label["key"].as_str().map(String::from), text: label["text"].as_str().map(String::from), of: "date".into() });
     }
-    Value::Array(out)
+    for (v, of) in [(time, "time"), (place, "place")] {
+        if let Some(v) = v.filter(|v| !v.trim().is_empty()) { out.push(text(v, of)) }
+    }
+    out
+}
+
+/// `line` of a presentation as JSON gives it, as JSON.
+pub fn parts(p: &Value, today: &str, show_date: bool, with_year: bool, en: bool, live: bool) -> Value {
+    let s = |k: &str| p[k].as_str();
+    serde_json::to_value(line(s("eventDate"), s("time"), s("location"), today, show_date, with_year, en, live)).unwrap_or(Value::Null)
 }
 
 /// English where the locale says so, else Swedish, as the web's default.
@@ -68,8 +79,9 @@ pub fn english(a: &Obj) -> bool { a.get("locale").and_then(Value::as_str).is_som
 pub fn view(a: &Obj) -> R<Value> {
     let today = a.get("today").and_then(Value::as_str).ok_or("invalid-args")?;
     let flag = |k: &str, or: bool| a.get(k).and_then(Value::as_bool).unwrap_or(or);
-    let p = Value::Object(a.clone());
-    Ok(json!({ "parts": parts(&p, today, flag("showDate", true), flag("withYear", false), english(a), flag("live", false)) }))
+    let s = |k: &str| a.get(k).and_then(Value::as_str);
+    let parts = line(s("eventDate"), s("time"), s("location"), today, flag("showDate", true), flag("withYear", false), english(a), flag("live", false));
+    serde_json::to_value(DateLine { parts }).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

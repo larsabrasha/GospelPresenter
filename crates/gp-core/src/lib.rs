@@ -16,6 +16,7 @@ mod legacy;
 mod library_pages;
 mod live;
 mod live_report;
+pub mod view_types;
 mod date_line;
 mod live_driver;
 mod live_state;
