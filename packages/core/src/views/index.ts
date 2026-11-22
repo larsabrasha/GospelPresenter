@@ -2,6 +2,9 @@
 // a group adds its views here. commands.ts answers each name here, RustCore sends the rest to the WASM.
 import * as live from './live.ts';
 import type { PureView, View } from './sql.ts';
+import { slidesPureViews, slidesViews } from './slides.ts';
 
 export const views: Record<string, View> = {};
 export const pureViews: Record<string, PureView> = { ...live.pureViews };
+Object.assign(views, slidesViews);
+Object.assign(pureViews, slidesPureViews);
