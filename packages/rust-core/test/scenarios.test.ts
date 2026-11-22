@@ -8,6 +8,10 @@ import { madeScenario as made, readScenario as scenario, type ScenarioItem as It
 
 interface Shown { itemId: string | null; partIndex: number; black: boolean }
 
+/** A value with every object's keys in order, as the Rust core wrote its answers: the file is the same whichever core answers. */
+const sorted = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, sorted(x)])) : v;
+
 /** The running order's slides as presenting's views take them: [itemId, its number of slides]. */
 const slideOrder = (p: Page) => p.items.map((i) => [i.id, p.slides[i.id]?.slides.length ?? 0]);
 
@@ -32,7 +36,8 @@ function menuOf(core: ReturnType<typeof nodeRustCore>, p: Page, item: Item, show
  */
 async function played(name: string) {
   const s = scenario(name);
-  const { core, page } = await made(s);
+  const { core: madeCore, page } = await made(s);
+  const core = { pure: <T>(view: string, args: unknown) => sorted(madeCore.pure<T>(view, args)) as T } as ReturnType<typeof nodeRustCore>;
   const p = await page();
   const other = await page(s.other);
   const order = p.items.map((i) => i.id);
