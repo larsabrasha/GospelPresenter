@@ -355,6 +355,8 @@ impl Shell {
         self.model.borrow_mut().app.remote = true;
         crate::live::step(self, json!({ "type": "control", "sessionId": session_id }));
         self.open(presentation_id);
+        // Its presentation not here yet (not synced): nothing to drive it from, so let go rather than stay remote.
+        if self.page.borrow().is_none() { self.stop_controlling() }
     }
 
     /// Driving a session elsewhere ended (■, the page left, the session gone): nothing presented here.
