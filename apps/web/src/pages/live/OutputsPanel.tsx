@@ -49,7 +49,7 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
         ))}
         {!sheet && <SoundOutputRow />}
         <ul className={sheet ? SHEET_LIST : GROUP_LIST} aria-label={t('live.outputs')}>
-          {rows.map(({ display: d, chosen, sending, offline, elsewhere, viewers, toggle }) => (
+          {rows.map(({ display: d, sending, offline, line, toggle }) => (
             <li key={d.id}>
               <ToggleRow
                 cell
@@ -65,14 +65,11 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
                     <DesktopIcon off={offline} className={`size-4 shrink-0 ${sending ? 'text-green-500' : offline ? 'text-stone-300 dark:text-stone-500' : 'text-stone-500 dark:text-stone-400'}`} />
                   )
                 }
-                // An output gone says so on its own row, in orange while it is one chosen for this presentation.
-                sub={offline ? t('screens.offline') : elsewhere !== null ? t('displays.sending', { name: elsewhere }) : undefined}
-                warn={offline && chosen}
-                extra={
-                  d.kind === 'public' &&
-                  sending &&
-                  viewers !== undefined && <span className={`text-[11px] ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</span>
-                }
+                // The line under it is the core's (`outputRowsView`): offline (in orange while chosen), another
+                // presentation's, or how many watch.
+                sub={line && 'text' in line ? t(line.text, line.args) : undefined}
+                warn={!!line && 'warn' in line && line.warn}
+                extra={line && 'viewers' in line && <span className={`text-[11px] ${line.viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(line.viewers)}</span>}
               />
             </li>
           ))}

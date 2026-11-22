@@ -193,7 +193,7 @@ struct LiveBlock: View {
             VStack(spacing: 10) {
                 BlackButton()
                 // Visning while there are overlays, or outputs to switch (this device presenting to a host).
-                let display = !overlays.isEmpty || model.app.liveOwner != nil
+                let display = !overlays.isEmpty || model.app.liveLink != nil
                 if description != nil || display {
                     HStack {
                         if description != nil { RoundButton(text: t("presentation.description"), symbol: "doc.text") { open = .description } }
@@ -302,7 +302,7 @@ private struct DisplaySheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if model.app.liveOwner != nil { Section { OutputsGroup() } footer: { Text(t("live.outputsHint")) } }
+                if model.app.liveLink != nil { Section { OutputsGroup() } footer: { Text(t("live.outputsHint")) } }
                 Section {
                     ForEach(overlays.compactMap(OverlayRow.init), id: \.id) { $0 }
                 } header: { Text(t("overlays.title")) } footer: { Text(t("live.overlaysHint")) }

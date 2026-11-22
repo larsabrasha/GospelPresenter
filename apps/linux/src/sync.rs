@@ -105,6 +105,8 @@ pub fn open(shell: &Rc<Shell>, session: Session) -> Result<(), String> {
     net::save_session(Some(&session));
     *shell.sync.borrow_mut() = Some(Sync { session, server, client_id, state, pages: vec![], timers: HashMap::new(), socket: None });
     send(shell, json!({ "type": "start" }), None);
+    let session = shell.sync.borrow().as_ref().map(|s| s.session.clone());
+    if let Some(session) = session { crate::live::start(shell, &session) }
     Ok(())
 }
 

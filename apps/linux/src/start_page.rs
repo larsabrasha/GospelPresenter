@@ -21,6 +21,13 @@ pub fn fill(shell: &Rc<Shell>) {
         group.add(&row(shell, p, &subtitle(p, &m.app.today, true, false), true));
         page.add(&group);
     }
+    // Visas just nu elsewhere: sessions that allow remote control, each with Ta kontroll (none while presenting here).
+    let drivable = if live.is_some() { vec![] } else { crate::live::with(|l| l.list("controllable")).and_then(|v| v.as_array().cloned()).unwrap_or_default() };
+    if !drivable.is_empty() {
+        let group = adw::PreferencesGroup::builder().title(t("remote.nowShowing", &[])).build();
+        for s in &drivable { group.add(&drivable_row(shell, s)) }
+        page.add(&group);
+    }
     for list in &m.app.lists {
         let group = adw::PreferencesGroup::builder().title(t(&list.title, &[])).build();
         for p in &list.rows {
@@ -99,4 +106,14 @@ fn account(shell: &Rc<Shell>) -> Option<gtk::MenuButton> {
     let button = gtk::MenuButton::builder().child(&letter).menu_model(&menu).tooltip_text(&name).css_classes(["flat", "circular"]).build();
     button.insert_action_group("account", Some(&actions));
     Some(button)
+}
+
+/// A session presented elsewhere: its presentation and device, and Ta kontroll.
+fn drivable_row(shell: &Rc<Shell>, s: &serde_json::Value) -> adw::ActionRow {
+    let row = adw::ActionRow::builder().title(s["presentationName"].as_str().unwrap_or("")).subtitle(s["deviceName"].as_str().unwrap_or("")).use_markup(false).build();
+    let take = gtk::Button::builder().label(t("remote.takeControl", &[])).valign(gtk::Align::Center).css_classes(["suggested-action"]).build();
+    let (weak, id, pid) = (Rc::downgrade(shell), s["id"].as_str().unwrap_or("").to_string(), s["presentationId"].as_str().unwrap_or("").to_string());
+    take.connect_clicked(move |_| if let Some(sh) = weak.upgrade() { sh.take_control(&id, &pid) });
+    row.add_suffix(&take);
+    row
 }

@@ -3,7 +3,7 @@ import type { Display } from '@gp/core';
 import { pageCore } from '../../db/pageCore.ts';
 import { useData } from '../../db/react.tsx';
 import { listDisplays } from '../../db/queries.ts';
-import { t } from '../../i18n.ts';
+import { t, type TextKey } from '../../i18n.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput } from '../../live/owner.ts';
 import { useLiveSessions, type LiveLink } from '../../live/remote.ts';
 import { rememberOutput } from '../../live/autoOutputs.ts';
@@ -13,6 +13,11 @@ import { useToast } from '../../ui/Toast.tsx';
 
 /** The texts `outputRowsView` asks a take-over with, written out so each is known to be used (packages/architecture). */
 const TAKE_OVER = ['live.takeOverTitle', 'live.takeOverText', 'live.takeOverTextUnknown', 'live.takeOver'] as const;
+/** The texts the line under a row may say. */
+const LINES = ['screens.offline', 'displays.sending'] as const satisfies readonly TextKey[];
+
+/** What is written under a row (the core's): a text, in orange when `warn`; or how many watch. */
+type OutputLine = { text: (typeof LINES)[number]; args: Record<string, string>; warn: boolean } | { viewers: number } | null;
 
 /** A row as the core answers it. */
 interface CoreRow {
@@ -22,6 +27,7 @@ interface CoreRow {
   offline: boolean;
   elsewhere: string | null;
   viewers: number | null;
+  line: OutputLine;
   takeOver: { title: (typeof TAKE_OVER)[number]; text: (typeof TAKE_OVER)[number]; args: Record<string, string>; confirm: (typeof TAKE_OVER)[number] } | null;
 }
 
@@ -34,10 +40,8 @@ interface OutputRow {
   sending: boolean;
   /** A saved screen whose page is not open: it cannot be switched on (LIVE-A21). */
   offline: boolean;
-  /** Another presentation's name, when that one sends to it. */
-  elsewhere: string | null;
-  /** How many watch a public output this window sends to. */
-  viewers: number | undefined;
+  /** What is written under it. */
+  line: OutputLine;
   /** Switches it; taking it from another presentation asks first (LIVE-R23). */
   toggle: (on: boolean) => Promise<void>;
 }
@@ -85,8 +89,7 @@ export function useOutputs(link: LiveLink, sessionId: string) {
       chosen: r.chosen,
       sending: r.sending,
       offline: r.offline,
-      elsewhere: r.elsewhere,
-      viewers: r.viewers ?? undefined,
+      line: r.line,
       toggle: async (on: boolean) => {
         if (on && r.takeOver) {
           const ok = await ask({ title: t(r.takeOver.title), text: t(r.takeOver.text, r.takeOver.args), confirm: t(r.takeOver.confirm) });

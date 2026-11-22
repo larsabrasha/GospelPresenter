@@ -1,6 +1,6 @@
 // `parity settings`'s second half (SettingsCheck.swift calls it): a real video, PDF and PowerPoint deck imported by the
 // shell's own import (Shell/MediaImports.swift) against the server, and Utgångar's live status while a session is
-// presented and watched (Shell/LiveStatus.swift, the core's `displayStatusView`).
+// presented and watched (Shell/LiveStatus.swift over `liveStepView`, the core's `displayStatusView`).
 import AVFoundation
 import CoreGraphics
 import Foundation
@@ -88,8 +88,8 @@ enum SettingsMediaCheck {
         let (watchSession, screenSession) = (URLSession(configuration: .ephemeral), URLSession(configuration: .ephemeral))
         let watcher = Task { _ = try? await watchSession.bytes(from: URL(string: "\(base)/api/watch/hjkmnpq/stream?v=0123456789abcdef")!).0.lines.reduce(0) { n, _ in n + 1 } }
         let screen = Task { _ = try? await screenSession.bytes(from: URL(string: "\(base)/api/display/abcdefg/stream?v=fedcba9876543210")!).0.lines.reduce(0) { n, _ in n + 1 } }
-        let live = LiveStatus()
-        live.start(alice.session)
+        let live = LiveStatus(client: alice, deviceName: "Macen")
+        live.start()
         struct Status: Decodable { let status: String?, n: Int?, sending: String?, live: Bool }
         var status: [String: Status] = [:]
         let seen = await wait(10) {

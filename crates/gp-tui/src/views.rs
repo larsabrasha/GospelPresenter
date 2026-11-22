@@ -150,6 +150,9 @@ pub struct PageStep {
     pub marks: Option<SlideMarks>,
     pub can_start: bool,
     pub cue: Option<Cue>,
+    /// The change the step made or, driving a session elsewhere (`remote`), would make: the command to send on.
+    #[serde(default)]
+    pub change: Value,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]

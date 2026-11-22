@@ -113,8 +113,9 @@ pub fn view(a: &Obj) -> R<Value> {
 /// `outputRowsView` {displays, sessions, online, chosen, sessionId}: Utgångar's saved screens and public outputs
 /// (spec 04 §1; the web's useOutputs.ts), the screens first, each in the order made: whether this session chose it,
 /// sends to it (chosen, online, no other session on it), is offline (a saved screen with no page open: it cannot be
-/// switched on, LIVE-A21), the name of another presentation sending to it, how many watch it; and `takeOver`, the
-/// question before taking it from that presentation (LIVE-R23), its texts' keys and their values.
+/// switched on, LIVE-A21), the name of another presentation sending to it, how many watch it; `line`, what is written
+/// under it ({text, args, warn} a text's key, or {viewers}, or null); and `takeOver`, the question before taking it
+/// from that presentation (LIVE-R23), its texts' keys and their values.
 pub fn output_rows(a: &Obj) -> R<Value> {
     let list = |k: &str| a.get(k).and_then(Value::as_array).cloned().unwrap_or_default();
     let has = |k: &str, id: &str| list(k).iter().any(|v| v.as_str() == Some(id));
@@ -136,8 +137,14 @@ pub fn output_rows(a: &Obj) -> R<Value> {
             Some(p) => json!({ "title": "live.takeOverTitle", "text": "live.takeOverText", "args": { "output": name, "presentation": p }, "confirm": "live.takeOver" }),
             None => json!({ "title": "live.takeOverTitle", "text": "live.takeOverTextUnknown", "args": { "output": name }, "confirm": "live.takeOver" }),
         });
+        let sending = chosen && elsewhere.is_none() && !offline;
+        // The line under the row: offline (a warning while chosen), another presentation's, or how many watch.
+        let line = if offline { json!({ "text": "screens.offline", "args": {}, "warn": chosen }) }
+            else if let Some(s) = elsewhere { json!({ "text": "displays.sending", "args": { "name": s["presentationName"].as_str().unwrap_or("") }, "warn": false }) }
+            else if d["kind"] == json!("public") && sending && viewers.as_ref().is_some_and(|v| v.is_number()) { json!({ "viewers": viewers }) }
+            else { Value::Null };
         json!({
-            "id": id, "name": name, "kind": d["kind"], "chosen": chosen, "sending": chosen && elsewhere.is_none() && !offline,
+            "id": id, "name": name, "kind": d["kind"], "chosen": chosen, "sending": sending, "line": line,
             "offline": offline, "elsewhere": elsewhere.map(|s| s["presentationName"].as_str().unwrap_or("")), "viewers": viewers, "takeOver": take_over,
         })
     }).collect();

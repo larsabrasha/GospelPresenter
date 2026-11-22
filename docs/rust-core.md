@@ -178,6 +178,28 @@ For each function or view, in the order below:
 
 A difference the check finds is the core's to fix, unless the reference is wrong; then Lars decides.
 
+## Thin shells (Lars, 2026-11-22)
+
+Native apps on every platform, smaller and quicker than Electron; to be bearable, each shell is as thin as it can be:
+
+1. The core decides what happens and what is shown; the shell decides how it looks. Logic that is neither look nor
+   platform is not in Swift, GTK or C#.
+2. A page or a flow with a state of its own gets a reducer in the core, as `pageStepView`, `tickView`, `syncStepView`
+   and `liveStepView`: `xStepView {state, event, …}` answers `{state, effects}`. The effects are what the shell does
+   (send a message, set a timer, open a dialog, run a change); the shell keeps the state, does the effects and draws,
+   and decides nothing. A view that only reads data stays as it is.
+3. Edge cases are tested in the core: when a field saves, what Esc, ⌘Z and ↵ do, which role is read, what is asked
+   first. A test per behaviour.
+4. A rule is never written again from one shell into another. About to do so, it moves into the core instead, the
+   first shell reads it from there and its own code goes.
+5. A move is a round: the reducer in the core with its tests, then the Mac and iOS and Linux in the same round (Linux
+   is the check that the rule holds), then Windows. A round is done when the shells' code has shrunk, not only when
+   the core has grown; its commit says how much they shrank, and whether JSON a shell already reads changed.
+
+No transport in gp-core: it runs as WASM in the web, and the Mac and iOS keep URLSession (the system's proxies and
+certificates). Linux's transport (apps/linux/src/net.rs) moves later to a crate of its own, `crates/gp-net`.
+The order of the moves, and where each stands: docs/native-parity.md.
+
 ## In order
 
 0. The core in workerd and in the web's worker, proved there before anything is switched.

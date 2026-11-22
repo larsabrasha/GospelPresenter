@@ -1,6 +1,6 @@
 // `parity present <sessions.json> <dir> <seconds>`: another computer presenting, for the UI test of remote control
 // (apps/server/test/native-remote-ui.test.ts): Alice makes a presentation of a song and presents it with remote control
-// allowed (Shell's LiveOwner), takes every command as her own change, and writes each to <dir>/applied.txt, for
+// allowed (Shell's LiveStatus), takes every command as her own change, and writes each to <dir>/applied.txt, for
 // `seconds`; then ends.
 import Foundation
 import Shell
@@ -25,9 +25,10 @@ enum PresentCheck {
         ] as [(String, [String: Any])] { alice.mutate(name, args) }
         let start = Date()
         while alice.pendingCount > 0, Date().timeIntervalSince(start) < 10 { try? await Task.sleep(for: .milliseconds(50)) }
-        let owner = LiveOwner(client: alice, session: a, deviceName: "Kyrkans dator")
+        let owner = LiveStatus(client: alice, deviceName: "Kyrkans dator")
+        owner.start()
         var rev = 1
-        owner.onCommand = { change in
+        owner.onApply = { change in
             rev += 1
             owner.follow(["presentationId": "p1", "itemId": change["itemId"] ?? NSNull(), "partIndex": change["partIndex"] ?? 0,
                           "black": change["black"] ?? false, "overlayId": NSNull(), "rev": rev])

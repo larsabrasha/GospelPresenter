@@ -148,7 +148,7 @@ impl Server {
     }
 
     /// A socket (`/api/sync/poke`, `/api/live/socket`): the credentials as subprotocols, so they stay out of the address
-    /// and logs, as the web's `socketProtocols` sends them. Reads wait at most a second, so its thread can be stopped.
+    /// and logs, as the web's `socketProtocols` sends them. Reads wait at most 150 ms, so its thread can be stopped and can send between them.
     pub fn socket(&self, path: &str, client_id: &str, s: &Session) -> Result<Socket, Failure> {
         use tungstenite::client::IntoClientRequest;
         let url = format!("{}{path}?clientId={client_id}", self.base.replacen("https://", "wss://", 1).replacen("http://", "ws://", 1));
@@ -164,7 +164,8 @@ impl Server {
         let connector = tungstenite::Connector::Rustls(self.tls.clone());
         let (socket, _) = tungstenite::client_tls_with_config(request, stream.try_clone().map_err(|e| self.failed(e))?, None, Some(connector))
             .map_err(|e| self.failed(e))?;
-        let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
+        // Short, so a thread both reads and sends what waits (the live socket's reports) without holding them long.
+        let _ = stream.set_read_timeout(Some(Duration::from_millis(150)));
         Ok(socket)
     }
 }

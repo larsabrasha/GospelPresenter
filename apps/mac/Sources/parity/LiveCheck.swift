@@ -1,5 +1,5 @@
 // `parity live <sessions.json> <dir>`: the native app as the owner of a live session against a real server, run by
-// apps/server/test/native-live.test.ts. Alice presents a song with a public output chosen (Shell's LiveOwner): Bob, a
+// apps/server/test/native-live.test.ts. Alice presents a song with a public output chosen (Shell's LiveStatus): Bob, a
 // member, sees her session with its pointer and output; a viewer of the public output gets the slide's words; Bob's
 // command, with remote control allowed, is taken and applied; Avsluta ends the session. One line a step, "ok" or
 // "FAIL"; the exit code is the failures.
@@ -45,16 +45,20 @@ enum LiveCheck {
             }
             check("pushed", await wait(10) { alice.pendingCount == 0 && !alice.busy && alice.rejected.isEmpty })
 
-            let owner = LiveOwner(client: alice, session: a, deviceName: "Macen")
+            let owner = LiveStatus(client: alice, deviceName: "Macen")
             var applied: [[String: Any]] = []
-            owner.onCommand = { applied.append($0) }
+            owner.onApply = { applied.append($0) }
+            owner.start()
             owner.setOutput("d1", on: true)
             owner.follow(["presentationId": "p1", "itemId": "i1", "partIndex": 0, "black": false, "overlayId": NSNull(), "rev": 1])
 
-            let bob = LiveStatus()
-            var bobHeard: [[String: Any]] = []
-            bob.onMessage = { bobHeard.append($0) }
-            bob.start(b)
+            let bobClient = try SyncClient(path: "\(dir)/bob.sqlite", session: b)
+            let bob = LiveStatus(client: bobClient, deviceName: "Bobs telefon")
+            var shown: [String: Any] = [:]
+            var unconfirmed = 0
+            bob.onMirror = { shown = $0 }
+            bob.onUnconfirmed = { unconfirmed += 1 }
+            bob.start()
             let mine = { () -> [String: Any]? in bob.sessions.compactMap { $0 as? [String: Any] }.first { $0["id"] as? String == owner.sessionId } }
             check("a member sees the session with its pointer and output", await wait(10) {
                 guard let s = mine(), let p = s["pointer"] as? [String: Any] else { return false }
@@ -75,34 +79,31 @@ enum LiveCheck {
             check("the public output shows the slide's words", await wait(10) { heard.contains("Härlig är jorden") })
             viewer.cancel()
 
-            // Remote control allowed: Bob drives it (Shell's LiveController), his click shown at once, the owner takes the
-            // command and applies it as its own change, and the echo confirms it.
+            // Remote control allowed: Bob drives it (Shell's LiveStatus over `liveStepView`), his click shown at once, the
+            // owner takes the command and applies it as its own change, and the echo confirms it.
             owner.remote = true
             check("the session allows remote control", await wait(5) { mine()?["remote"] as? Bool == true })
-            owner.onCommand = { change in
+            owner.onApply = { change in
                 applied.append(change)
                 owner.follow(["presentationId": "p1", "itemId": change["itemId"] ?? NSNull(), "partIndex": change["partIndex"] ?? 0,
                               "black": change["black"] ?? false, "overlayId": NSNull(), "rev": 2])
             }
-            let bobClient = try SyncClient(path: "\(dir)/bob.sqlite", session: b)
-            let control = LiveController(link: bob, sessionId: owner.sessionId, client: bobClient)
-            var unconfirmed = 0
-            control.onUnconfirmed = { unconfirmed += 1 }
-            control.set(["partIndex": 1])
-            check("a controller's click shows at once", control.shown().pointer["partIndex"] as? Int == 1)
+            bob.control(owner.sessionId)
+            bob.set(["partIndex": 1])
+            check("a controller's click shows at once", shown["partIndex"] as? Int == 1)
             check("the owner takes the command", await wait(5) { applied.first?["partIndex"] as? Int == 1 })
-            check("the owner's echo confirms it", await wait(5) { control.shown().confirmed || (mine()?["pointer"] as? [String: Any])?["partIndex"] as? Int == 1 })
+            check("the owner's echo confirms it", await wait(5) { (mine()?["pointer"] as? [String: Any])?["partIndex"] as? Int == 1 })
             // Remote control off: a command is not taken, and after 2 s the controller says so once.
             owner.remote = false
             check("remote control off", await wait(5) { mine()?["remote"] as? Bool == false })
-            control.set(["partIndex": 0])
+            bob.set(["partIndex": 0])
             check("a command not taken is said once after 2 s", await wait(4) { unconfirmed == 1 })
             check("and not applied", applied.count == 1)
 
             owner.follow(nil)
             check("Avsluta ends the session", await wait(5) { mine() == nil })
             bob.stop()
-            owner.link.stop()
+            owner.stop()
             _ = server
         } catch {
             check("set up (\(error))", false)

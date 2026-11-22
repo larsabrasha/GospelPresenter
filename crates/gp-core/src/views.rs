@@ -66,6 +66,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "bibleUploadsView" => crate::bible_texts::uploads_view(a).await,
         "bibleImportTextView" => crate::bible_texts::import_text_view(a),
         "syncStepView" => crate::sync_driver::view(a).await,
+        "liveStepView" => crate::live_driver::view(a).await,
         "syncStatusView" => crate::sync_status::view(a),
         "playbackStepView" => crate::playback::view(a),
         "ccliUseView" => crate::live_views::ccli_use(a).await,

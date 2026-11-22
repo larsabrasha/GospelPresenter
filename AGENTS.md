@@ -75,7 +75,14 @@ timing specs go flaky under load).
 - `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
   imports; an exception in `knip.jsonc` says why.
 
-## The native apps (apps/mac)
+## The native apps (apps/mac, apps/linux)
+
+Thin shells (Lars, 2026-11-22; docs/rust-core.md, "Thin shells"): the core decides what happens and what is shown, the
+shell how it looks. A page or flow with a state of its own is a reducer in the core (`xStepView {state, event}` →
+`{state, effects}`, as `pageStepView`, `syncStepView`, `liveStepView`); the shell keeps the state, does the effects and
+draws. Never write a rule again from one shell into another: move it into the core, with a test per behaviour, and let
+both read it. A round is the core with its tests, then Mac/iOS and Linux together, and is done when the shells' code
+has shrunk; the commit says by how much, and whether JSON a shell reads changed.
 
 Most bugs found after the fact were in the Swift glue, not the core: focus and saving in fields, keys while
 typing, where a value is read from (the session's role, a launch argument's type), scene and Info.plist setup.

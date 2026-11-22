@@ -14,14 +14,15 @@ struct DisplaysPage: View {
     @State private var prompt: TextPrompt?
     @State private var showing: DisplayRow?
     @State private var message: String?
-    @State private var live = LiveStatus()
 
     private struct Status: Decodable { let status: String?, n: Int?, sending: String?, live: Bool }
 
     var body: some View {
         let displays = model.view("displaysView", ["locale": Texts.language], as: [DisplayRow].self) ?? []
-        let status = model.view("displayStatusView", ["displays": displays.map { ["id": $0.id, "kind": $0.kind] }, "sessions": live.sessions,
-                                                      "online": live.online, "connected": live.connected], as: [String: Status].self) ?? [:]
+        // The app's live socket (none in the demo): who presents to each output and who watches.
+        let live = model.app.startLiveLink()
+        let status = model.view("displayStatusView", ["displays": displays.map { ["id": $0.id, "kind": $0.kind] }, "sessions": live?.sessions ?? [],
+                                                      "online": live?.online ?? [], "connected": live?.connected ?? false], as: [String: Status].self) ?? [:]
         List {
             IntroCard(id: "displays")
             Section(t("screens.title")) {
@@ -33,8 +34,6 @@ struct DisplaysPage: View {
                 Button(t("displays.create"), systemImage: "plus") { prompt = addPrompt("public") }
             }
         }
-        .onAppear { live.start(model.session) }
-        .onDisappear { live.stop() }
         // Made once when + is pressed, kept in state: one made at each render (the live status renders the page every
         // ping) is a new prompt, and its field was emptied while typed in.
         .textPrompt($prompt)

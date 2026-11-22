@@ -16,7 +16,7 @@ struct PresentationScreen: View {
             if let p = model.current {
                 VStack(spacing: 0) {
                     // Driving a session elsewhere: said over the page (the web's RemoteBanner).
-                    if model.app.controller != nil {
+                    if model.app.controlling != nil {
                         Text(t("remote.banner")).font(.footnote.weight(.medium)).frame(maxWidth: .infinity).padding(.vertical, 6)
                             .background(Color.orange.opacity(0.85)).foregroundStyle(.white).accessibilityIdentifier("remote-banner")
                     }

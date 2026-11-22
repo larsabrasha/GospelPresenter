@@ -19,7 +19,7 @@ final class Model {
         didSet {
             guard oldValue.last != path.last else { return }
             // Leaving the page of a session driven from here lets go of it (the web's remote page, left).
-            if let controlled = app.controller?.session?["presentationId"] as? String, path.last != controlled { app.stopControlling() }
+            if let controlled = app.controlledPresentation, path.last != controlled { app.stopControlling() }
             if let id = path.last, let other = app.window(showing: id, except: self) {
                 path = oldValue
                 other.bringForward()
@@ -149,7 +149,7 @@ final class Model {
         args.merge(live.others(than: open)) { a, _ in a }
         args.merge(what) { a, _ in a }
         // Driving a session elsewhere: the step leaves the live state alone and answers the change to send on.
-        let remote = app.controller != nil
+        let remote = app.controlling != nil
         if remote { args["remote"] = true }
         guard let answer = view("pageStepView", args, as: PageAnswer.self) else { return nil }
         if pageState != answer.state { pageState = answer.state }
@@ -185,7 +185,7 @@ final class Model {
     /// Avsluta: nothing presented, and the page as that leaves it; without a page open, the live state alone.
     func endPresenting() {
         // Driving a session elsewhere: only the computer presenting can stop it; ■ lets go of it here.
-        if app.controller != nil { app.stopControlling(); return }
+        if app.controlling != nil { app.stopControlling(); return }
         if step(["change": ["presentationId": NSNull(), "itemId": NSNull(), "partIndex": 0, "black": false]]) != nil { return }
         live.end(app)
         app.liveChanged()

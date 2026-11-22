@@ -41,6 +41,10 @@ pub struct App {
     /// What the core last refused, said in the footer.
     pub refusal: Option<String>,
     pub quit: bool,
+    /// Driving a session presented elsewhere (remote control): the page's steps leave the live state to its owner, and
+    /// each change waits in `outbox` for the shell to send on.
+    pub remote: bool,
+    pub outbox: Option<Value>,
     /// Where each list stands, by `Pane` (panes.rs): set by drawing while it follows its focus, by the wheel otherwise.
     pub offsets: [Cell<u16>; 4],
     /// Whether each list follows its focus: until the wheel moves it, and again from the next key or click.
@@ -52,7 +56,7 @@ impl App {
         let mut app = App {
             core, today, screen: Screen::Start, lists: vec![], cursor: 0, page: None, state: PageState::default(),
             live: LivePointer::default(), live_page: None, marks: SlideMarks::default(), cue: None, can_start: false, ending: false,
-            refusal: None, quit: false, offsets: Default::default(), follow: [true; 4],
+            refusal: None, quit: false, remote: false, outbox: None, offsets: Default::default(), follow: [true; 4],
         };
         app.load_start();
         app
@@ -176,6 +180,7 @@ impl App {
             args["liveOverlays"] = other.overlays();
         }
         args[what] = value;
+        if self.remote { args["remote"] = json!(true) }
         let step: PageStep = match self.core.call("pageStepView", args) {
             Ok(v) => serde_json::from_value(v).ok()?,
             Err(code) => { self.refusal = Some(code); return None }
@@ -187,7 +192,31 @@ impl App {
         }
         (self.state, self.live, self.marks) = (step.state.clone(), step.live.clone(), step.marks.clone().unwrap_or_default());
         (self.cue, self.can_start) = (step.cue.clone(), step.can_start);
+        if self.remote && step.change.is_object() { self.outbox = Some(step.change.clone()) }
         Some(step)
+    }
+
+    /// A controller's command taken (the live socket's `apply`): the live state changed by it as by a change of this
+    /// device's own, through the page when one is open (its marks follow), else by `liveChangeView` alone.
+    pub fn apply(&mut self, change: Value) {
+        if self.page.is_some() {
+            self.step("change", change);
+            return;
+        }
+        let overlays = self.live_page.as_ref().map(|p| p.overlays()).unwrap_or(json!({}));
+        let answer = self.core.call("liveChangeView", json!({ "pointer": self.live, "change": change, "overlays": overlays }));
+        if let Some(pointer) = answer.ok().and_then(|a| serde_json::from_value::<LivePointer>(a["pointer"].clone()).ok()) { self.live = pointer }
+    }
+
+    /// The session driven from here, as the live socket shows it (`mirror`): its live state taken as this device's, the
+    /// page's marks following.
+    pub fn adopt(&mut self, live: LivePointer) {
+        if live == self.live { return }
+        if live.presentation_id != self.live.presentation_id {
+            self.live_page = live.presentation_id.as_deref().and_then(|id| if Some(id) == self.open_id() { self.page.clone() } else { self.read_page(id) });
+        }
+        self.live = live;
+        if self.page.is_some() { self.send(json!({ "type": "sync" })); }
     }
 
     /// An event of the open page, as the core answers it. Model.send in the Mac app.

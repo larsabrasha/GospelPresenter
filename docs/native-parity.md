@@ -12,6 +12,24 @@ committed on its own branch, not pushed.
 
 Legend: `[x]` done and checked as above, `[~]` done with a known gap (said on the line), `[ ]` not done.
 
+## The plan from here (Lars, 2026-11-22)
+
+The rule is docs/rust-core.md's "Thin shells": logic that is neither look nor platform is the core's, and a page or a
+flow with a state of its own is a reducer there. Each round is the core with its tests, then the Mac/iOS app and the
+Linux app in the same round; it is done when both read the core's view and neither has logic of its own for it.
+
+1. [x] Signing in and sync on Linux (5afa60f9).
+2. [x] The live session (`liveStepView`): the Mac's LiveOwner and LiveController gone into the core's reducer, and
+   Linux's rounds 7 and 8 built on it from the start (below).
+3. [ ] Typed view models: the core describes its view models and events as types, and the Swift and Rust types are
+   generated, so the shells stop decoding JSON by hand.
+4. [ ] The date line (gp_tui::dates::subtitle and the Swift one) into the core.
+5. [ ] The forms, one at a time: Redigera detaljer and a song's fields first.
+6. [ ] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till.
+7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
+
+Windows waits until the core's views and the types have settled (below, "Windows").
+
 ## The rounds
 
 Each is what docs/native-apps.md lists as not built in a presentation, in the order they are taken. The core's part
@@ -53,10 +71,17 @@ is shared; each platform's part is checked off in its own section below.
   8 tests) and `templatesView`'s `recent` (the picker's ten last used, 2 tests in views.test.ts); the web's
   templates.ts and recentTemplates read them
 - [x] 7 Utgångar: `shownOnOutputsView` (what a session's public outputs and screens get, live_report.rs, 12 parity
-  cases against the TS it replaced) and `outputRowsView` (Utgångar's rows and the take-over question, 5 tests); the
-  web's owner.ts and useOutputs.ts read them
+  cases against the TS it replaced) and `outputRowsView` (Utgångar's rows, the line under each, and the take-over
+  question, 9 tests); the web's owner.ts, useOutputs.ts and OutputsPanel read them
 - [x] 8 Fjärrstyrning: the rules were the core's already (`remoteCommandView`, `remotePointerView`, `remoteTakeView`,
-  `pageStepView` with `remote`); the native shells now use them
+  `pageStepView` with `remote`)
+- [x] 7 and 8, the live socket as one reducer (2026-11-22): `liveStepView` (crates/gp-core/src/live_driver.rs; 23
+  tests in packages/rust-core/test/live-driver.test.ts): the socket's opening, reconnects (LIVE-R51) and pings; the
+  owner's report, only what changed (LIVE-R47), ended when presenting stops; a command taken (LIVE-R49); outputs
+  released, refused (`output-taken`) or gone switched off; the take-overs settled; the sessions a member may drive;
+  and a session driven from here, a click shown at once, unconfirmed said once after 2 s, lost when it goes. The Mac's
+  Shell/LiveStatus.swift and Linux's live.rs do its effects. The web's LiveLink, owner.ts and RemoteControl still
+  decide for themselves (the same rules; a follow-up)
 - [x] 9 ⌘K: `paletteView`, the presentations a search finds (name, place, the date as the shell writes it), the
   coming first, a few (crates/gp-core/src/palette.rs; 4 tests in views.test.ts); the web's CommandPalette reads it
 - [x] 10 Phone lying down: `pageLayoutView` (columns from 1 000 points, else one column, and lying down while
@@ -103,8 +128,8 @@ is shared; each platform's part is checked off in its own section below.
   picture with Släck under it at the right (PhoneLayout.swift from `pageLayoutView`, which also decides columns);
   in Markera's select mode a row is held and moved (Ticking.swift). `PhoneTests` (3) on an iPhone 17 Pro Max, a
   picture of it lying down looked at. Not tried: an iPad mini lying down (columns by the core's 1 000 points)
-- [x] 7 Utgångar: this device the owner of its live session while signed in to a host (Shell's LiveOwner over the live
-  socket: its report whole on every change and reconnect, the public slide and the screens' canvas from the core);
+- [x] 7 Utgångar: this device the owner of its live session while signed in to a host (Shell's LiveStatus over the
+  core's `liveStepView`, 2026-11-22; LiveOwner.swift and LiveController.swift gone: its report whole on every change and reconnect, the public slide and the screens' canvas from the core);
   Utgångar's saved screens and public outputs switched in the live column and the phone's Visning (Outputs.swift),
   taking one over asked first. Checked against a real server by `parity live` (apps/server/test/native-live.test.ts:
   a member sees the session, a public output's stream gets the slide's words) and in the simulator by
@@ -171,14 +196,29 @@ The rounds:
   mall in its menu), Spara som mall in a presentation's menu. Pictures light and dark of the details, Mallar, Skapa
   mall, a template's page and menu, the picker with it, a presentation made from it. Gaps: the date and time are typed
   as text (no pickers), a template's Redigera detaljer is not built (the details dialog is the base's)
-- [ ] 7 Utgångar: waits on the base's sign-in and sync (the Linux app has no server to report to)
-- [ ] 8 Fjärrstyrning: waits on the same
+- [x] 7 Utgångar (2026-11-22): the live socket over the core's `liveStepView` (live.rs), this device the owner while
+  it presents; Utgångar in the live column, each row, its line and the take-over question the core's
+  (`outputRowsView`, outputs.rs), and Tillåt fjärrstyrning. apps/server/test/native-linux-live.test.ts runs it in
+  Docker: Linux presents with the public output and remote control switched on, a member sees the session with them,
+  and the member's command moves what Linux shows (pictures looked at). Gaps: temporary screens; the viewers' 👁 has no
+  font in the container
+- [x] 8 Fjärrstyrning, both ways (2026-11-22): driven (above), and driving: Visas just nu with Ta kontroll on the start
+  page (the core's `controllable`), the page opened with the banner, its steps sent with `remote` (gp-tui's
+  `App::remote`, `apply` and `adopt`, 4 tests in crates/gp-tui/tests/live.rs), ■ and leaving the page let go. The same
+  test file drives a session the Mac's `parity present` presents: Linux's tap taken there (`i1/1`)
 - [~] 9 ⌘K as Ctrl+K on every page (palette.rs): the presentation's likeliest actions, + 's kinds by their words,
   songs added to the open presentation, presentations found and opened. Pictures light and dark of the blank
   search, a song found and added, a presentation found and opened. Gaps: no song page nor Inställningar to go to
   (the Linux app has neither), no ↑↓ ↵ through the hits
 - [ ] 10 Phone lying down, moving on a phone: waits on the base's "A phone's one column" (the Linux app has only
   columns); on a computer an item moves by Alt+↑ ↓ (the core's `move`)
+
+## Windows
+
+Paused 2026-11-22 on claude/windows-winui-1593b1: WinUI 3 (C#) over gp-core-ffi's C# bindings; the start page's lists
+on the demo data, built and seen on Windows 10 x64. Next: the core's date line in place of Shell/Dates.cs
+(TEMPORARY(core)), a FlaUI test harness, the presentation's page, live through the core's reducer
+(`liveStepView`). docs/windows-app.md on that branch.
 
 ## Questions
 
@@ -190,7 +230,8 @@ Where a choice was not clear, the one most like the web was taken and the questi
   swish.jpg: ✕ on the one shown removes the gone one). The native apps send the place from the slide's key
   (`image{n}`). Should the web do the same? Not changed, as it changes the web's behaviour.
 
-- The network twice (Lars, 2026-11-22, asked to think about it): Linux's net.rs and sync.rs do what the Mac's
+- The network twice, answered (Lars, 2026-11-22): no transport in gp-core; Linux's moves to `crates/gp-net` later
+  (the plan, 7). The question as it was put: Linux's net.rs and sync.rs do what the Mac's
   Server.swift and Sync.swift do. What syncing decides is the core's already (`syncStepView`, `syncMutate`,
   `syncRebase`); what is left in each shell is the transport (HTTP, a socket, TLS and a pinned certificate, timers) and
   the loop that does the driver's effects. The core is also WASM, where the web has fetch and no sockets of its own, so

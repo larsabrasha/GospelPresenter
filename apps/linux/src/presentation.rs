@@ -33,6 +33,10 @@ pub struct Page {
     live_picture: gtk::DrawingArea,
     live_buttons: gtk::Box,
     cue: gtk::Label,
+    /// Utgångar and Tillåt fjärrstyrning (outputs.rs), under the cue.
+    outputs: gtk::Box,
+    /// Driving a session elsewhere: said over the page.
+    banner: adw::Banner,
 }
 
 /// The GNOME symbolic icon for a button's icon of the core's (`icon`), where it has one.
@@ -157,11 +161,14 @@ impl Page {
         live_buttons.set_halign(gtk::Align::Center);
         let cue = gtk::Label::builder().wrap(true).css_classes(["dim-label"]).build();
         let (_, live_width) = m.column("live");
-        let live_column = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(12).width_request(live_width)
+        // Its width the column's: Utgångar's rows do not widen it.
+        let live_column = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(12).width_request(live_width).hexpand(false)
             .margin_top(12).margin_bottom(12).margin_start(12).margin_end(12).build();
         live_column.append(&frame);
         live_column.append(&live_buttons);
         live_column.append(&cue);
+        let outputs = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        live_column.append(&outputs);
 
         let content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         content.append(&order_stack);
@@ -170,9 +177,11 @@ impl Page {
         content.append(&live_column);
         let bar = adw::ToolbarView::new();
         bar.add_top_bar(&header);
+        let banner = adw::Banner::new(&t("remote.banner", &[]));
+        bar.add_top_bar(&banner);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue }
+        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue, outputs, banner }
     }
 
     /// Whether the page was built for these items, in this order with these titles: else it is built again.
@@ -221,11 +230,15 @@ impl Page {
             replace(&self.live_buttons, m.buttons("liveColumn").iter().filter_map(|b| button(shell, b)).collect());
             self.live_picture.queue_draw();
         }
+        self.banner.set_revealed(app.remote);
         let cue = app.cue.as_ref().map(|c| {
             let item = page.item(&c.item_id).map_or(String::new(), |i| i.title.clone());
             t(&c.text, &[("n", &c.n.to_string()), ("item", &item)])
         });
         self.cue.set_label(cue.as_deref().unwrap_or(""));
+        let presenting_here = out && !app.remote;
+        drop(m);
+        if presenting_here { crate::outputs::fill(shell, &self.outputs) } else { while let Some(c) = self.outputs.first_child() { self.outputs.remove(&c) } }
     }
 }
 

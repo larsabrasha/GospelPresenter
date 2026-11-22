@@ -30,12 +30,9 @@ final class AppState {
     var status = ""
     /// What is presented, the same for every window; it goes on while another page is open (Live.swift).
     private(set) var live = Live()
-    /// This device's live session while it presents to a host (`reportLive`).
-    private(set) var liveOwner: LiveOwner?
-    /// The app's live socket while signed in to a host: the organisation's sessions, this device's reports and commands.
+    /// The app's live socket while signed in to a host: the organisation's sessions, this device's session as their
+    /// owner, and a session elsewhere driven from here (Ta kontroll), its pointer mirrored in `live` (`mirrorRemote`).
     private(set) var liveLink: LiveStatus?
-    /// A session elsewhere driven from here (Ta kontroll), its pointer mirrored in `live` (`mirrorRemote`).
-    private(set) var controller: LiveController?
     /// The owner did not confirm a command within 2 s (spec 04 §2): said once.
     var remoteUnconfirmed = false
     /// The audio and video of what is presented, played on this device (LivePlayer.swift).
@@ -222,11 +219,9 @@ final class AppState {
     /// on the start page.
     func signOut() {
         if case let .synced(client) = store { client.close() }
-        liveOwner?.follow(nil)
+        liveLink?.follow(nil)
         liveLink?.stop()
-        liveOwner = nil
         liveLink = nil
-        controller = nil
         Keychain.session = nil
         store = nil
         live = Live()
@@ -316,6 +311,8 @@ final class AppState {
         live.reload(self)
         windows = windows.filter { $0.model != nil }
         for w in windows { w.model?.load() }
+        // An edit to what is showing, or a new theme, reaches the public outputs and the controllers too.
+        liveLink?.changed()
         syncMedia()
         syncBibles()
     }
@@ -329,69 +326,62 @@ final class AppState {
         syncMedia()
     }
 
-    /// This device as its live session's owner while signed in to a host (Shell's LiveOwner, the web's live/owner.ts):
-    /// what it presents reported, its outputs switched, a controller's command applied as its own change.
+    /// This device as its live session's owner while signed in to a host (Shell's LiveStatus over the core's
+    /// `liveStepView`): what it presents reported, its outputs switched, a controller's command applied as its own change.
     func reportLive() {
-        guard controller == nil, case let .synced(client) = store, let session, let link = startLiveLink() else { return }
-        if liveOwner == nil {
-            let owner = LiveOwner(client: client, session: session, deviceName: BrowserSignIn.deviceName, link: link)
-            owner.onCommand = { [weak self] change in
-                guard let self, self.live.set(self, change) else { return }
-                self.liveChanged()
-            }
-            liveOwner = owner
-        }
-        liveOwner?.follow(live.on ? jsonObject(live.state) as? [String: Any] : nil)
+        guard controlling == nil, let link = startLiveLink() else { return }
+        link.follow(live.on ? jsonObject(live.state) as? [String: Any] : nil)
     }
 
     /// The live socket, opened once signed in to a host; the organisation's sessions listed through it.
     @discardableResult
     func startLiveLink() -> LiveStatus? {
-        guard case .synced = store, let session else { return nil }
+        guard case let .synced(client) = store else { return nil }
         if let liveLink { return liveLink }
-        let link = LiveStatus()
-        link.onSessions = { [weak self] in self?.mirrorRemote() }
-        link.start(session)
+        let link = LiveStatus(client: client, deviceName: BrowserSignIn.deviceName)
+        link.onApply = { [weak self] change in
+            guard let self, self.live.set(self, change) else { return }
+            self.liveChanged()
+        }
+        link.onMirror = { [weak self] pointer in self?.mirrorRemote(pointer) }
+        link.onLost = { [weak self] in self?.stopControlling() }
+        link.onUnconfirmed = { [weak self] in self?.remoteUnconfirmed = true }
+        link.start()
         liveLink = link
         return link
     }
 
-    /// The sessions elsewhere that allow remote control, for the start page's Ta kontroll (LIVE-A27): never this
-    /// device's own, its owner online.
-    var controllable: [[String: Any]] {
-        let own = liveOwner?.sessionId
-        return (liveLink?.sessions ?? []).compactMap { $0 as? [String: Any] }
-            .filter { $0["remote"] as? Bool == true && $0["ownerOnline"] as? Bool != false && $0["id"] as? String != own }
+    /// The session elsewhere driven from here, while one is.
+    var controlling: String? { liveLink?.controlling }
+
+    /// The presentation of the session driven from here.
+    var controlledPresentation: String? {
+        (liveLink?.sessions ?? []).compactMap { $0 as? [String: Any] }.first { $0["id"] as? String == controlling }?["presentationId"] as? String
     }
+
+    /// The sessions elsewhere a member may drive, for the start page's Ta kontroll (the core's, `liveStepView`).
+    var controllable: [[String: Any]] { liveLink?.controllable ?? [] }
 
     /// Ta kontroll: the session driven from here, its presentation shown as if presented here.
     func takeControl(_ sessionId: String) {
-        guard case let .synced(client) = store, let link = startLiveLink(), !live.on else { return }
-        let c = LiveController(link: link, sessionId: sessionId, client: client)
-        c.onUnconfirmed = { [weak self] in self?.remoteUnconfirmed = true }
-        controller = c
-        mirrorRemote()
+        guard let link = startLiveLink(), !live.on else { return }
+        link.control(sessionId)
     }
 
     /// Driving a session elsewhere ended: the live state this device's own again (nothing presented).
     func stopControlling() {
-        guard controller != nil else { return }
-        controller = nil
+        liveLink?.release()
+        guard live.on else { return }
         live = Live()
         liveChanged()
     }
 
-    /// A change of the page sent on to the session driven from here, and shown at once.
-    func sendRemote(_ change: [String: Any]) {
-        controller?.set(change)
-        mirrorRemote()
-    }
+    /// A change of the page sent on to the session driven from here, shown at once (`mirrorRemote`).
+    func sendRemote(_ change: [String: Any]) { liveLink?.set(change) }
 
     /// The session driven from here as the page reads the live state: what its owner reported, a click at once.
-    func mirrorRemote() {
-        guard let controller else { return }
-        guard controller.session != nil, let data = try? JSONSerialization.data(withJSONObject: controller.shown().pointer),
-              let pointer = try? JSONDecoder().decode(LivePointer.self, from: data) else { return stopControlling() }
+    private func mirrorRemote(_ shown: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: shown), let pointer = try? JSONDecoder().decode(LivePointer.self, from: data) else { return }
         if pointer != live.state {
             live.adopt(self, pointer)
             for w in windows { w.model?.send(["type": "sync"]) }

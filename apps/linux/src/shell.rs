@@ -24,6 +24,8 @@ pub struct Shell {
     output: RefCell<Option<Output>>,
     /// Signed in to a host: the organisation's sync (sync.rs); none in the demo.
     pub sync: RefCell<Option<crate::sync::Sync>>,
+    /// The live state last told to the live socket (live.rs), so it hears each change once.
+    followed: RefCell<Option<gp_tui::views::LivePointer>>,
 }
 
 impl Shell {
@@ -58,6 +60,7 @@ impl Shell {
             page: RefCell::new(None),
             output: RefCell::new(None),
             sync: RefCell::new(None),
+            followed: RefCell::new(None),
         });
         crate::sync::listen(&shell);
         let session = if given.is_some() { None } else { crate::net::saved_session() };
@@ -151,6 +154,8 @@ impl Shell {
     /// The presentation's page left: the start page read again.
     fn left(self: &Rc<Self>) {
         if self.page.borrow_mut().take().is_none() { return }
+        // Leaving the page of a session driven from here lets go of it (the web's remote page, left).
+        self.stop_controlling();
         self.model.borrow_mut().ticking = None;
         self.model.borrow_mut().app.act(Action::Back);
         start_page::fill(self);
@@ -172,6 +177,12 @@ impl Shell {
         }
         // Esc that the page did not take sends the terminal back to its start page; here the window pops it.
         if self.model.borrow().app.page.is_none() && self.page.borrow().is_some() { self.nav.pop(); return }
+        // Avsluta while driving a session elsewhere: only the computer presenting ends it; here it lets go of it.
+        if self.model.borrow().app.ending && self.model.borrow().app.remote {
+            self.model.borrow_mut().app.ending = false;
+            self.stop_controlling();
+            return;
+        }
         if self.model.borrow().app.ending { self.ask_to_end() }
         self.refresh();
     }
@@ -235,8 +246,19 @@ impl Shell {
         for id in ids { self.run("removeItem", json!({ "itemId": id })) }
     }
 
-    /// The page, the output window and the start page as the model now has them.
+    /// The page, the output window and the start page as the model now has them; the live socket told of a new live
+    /// state, or sent the change made while driving a session elsewhere.
     pub fn refresh(self: &Rc<Self>) {
+        let (live, outbox, remote) = {
+            let mut m = self.model.borrow_mut();
+            (m.app.live.clone(), m.app.outbox.take(), m.app.remote)
+        };
+        if let Some(change) = outbox { crate::live::step(self, json!({ "type": "set", "change": change })) }
+        if !remote && self.followed.borrow().as_ref() != Some(&live) {
+            *self.followed.borrow_mut() = Some(live.clone());
+            let pointer = if live.presentation_id.is_some() { serde_json::to_value(&live).unwrap_or_default() } else { serde_json::Value::Null };
+            crate::live::step(self, json!({ "type": "follow", "pointer": pointer }));
+        }
         if let Some(page) = self.page.borrow().as_ref() { page.refresh(self) }
         if let Some(out) = self.output.borrow().as_ref() { out.refresh() }
         if let Some(problem) = self.model.borrow_mut().app.refusal.take() { eprintln!("gospel-presenter: refused: {problem}") }
@@ -287,6 +309,8 @@ impl Shell {
 
     /// Logga ut: syncing ended, the session forgotten, and the page that connects again.
     pub fn sign_out(self: &Rc<Self>) {
+        self.stop_controlling();
+        crate::live::stop(self);
         crate::sync::close(self);
         self.leave();
         if let Ok(core) = Core::open(":memory:", Caller { user_id: "demo".into(), role: "admin".into() }) {
@@ -305,9 +329,59 @@ impl Shell {
             m.tick(None);
         }
         if self.model.borrow().app.page.is_none() && self.page.borrow().is_some() { self.nav.pop(); }
+        // An edit to what is showing, or a new theme, reaches the public outputs and the controllers too.
+        crate::live::step(self, json!({ "type": "changed" }));
         self.rebuild();
         start_page::fill(self);
         self.refresh();
+    }
+
+    /// A controller's command taken (live.rs): the live state changed by it as by this device's own change.
+    pub fn live_apply(self: &Rc<Self>, change: serde_json::Value) {
+        self.model.borrow_mut().app.apply(change);
+        self.refresh();
+    }
+
+    /// The session driven from here as its owner reports it, a click at once: shown as if presented here.
+    pub fn live_mirror(self: &Rc<Self>, pointer: gp_tui::views::LivePointer) {
+        self.model.borrow_mut().app.adopt(pointer);
+        self.refresh();
+        start_page::fill(self);
+    }
+
+    /// Ta kontroll (the start page's Visas just nu): the session elsewhere driven from here, its presentation opened.
+    pub fn take_control(self: &Rc<Self>, session_id: &str, presentation_id: &str) {
+        if self.model.borrow().app.live.presentation_id.is_some() { return }
+        self.model.borrow_mut().app.remote = true;
+        crate::live::step(self, json!({ "type": "control", "sessionId": session_id }));
+        self.open(presentation_id);
+    }
+
+    /// Driving a session elsewhere ended (■, the page left, the session gone): nothing presented here.
+    pub fn stop_controlling(self: &Rc<Self>) {
+        if !self.model.borrow().app.remote { return }
+        crate::live::step(self, json!({ "type": "release" }));
+        {
+            let mut m = self.model.borrow_mut();
+            m.app.remote = false;
+            m.app.adopt(gp_tui::views::LivePointer::default());
+        }
+        *self.followed.borrow_mut() = None;
+        self.refresh();
+        start_page::fill(self);
+    }
+
+    /// The live socket's lists changed: Utgångar and Visas just nu drawn again.
+    pub fn live_listed(self: &Rc<Self>) {
+        if let Some(page) = self.page.borrow().as_ref() { page.refresh(self) }
+        if self.page.borrow().is_none() { start_page::fill(self) }
+    }
+
+    /// The owner did not confirm a command within 2 s: said once (spec 04 §2).
+    pub fn remote_unconfirmed(self: &Rc<Self>) {
+        let dialog = adw::AlertDialog::new(Some(&t("remote.unconfirmed", &[])), None);
+        dialog.add_response("ok", "OK");
+        dialog.present(Some(&self.window));
     }
 
     /// The sync's state changed (connected, stopped): the account's menu says so.
