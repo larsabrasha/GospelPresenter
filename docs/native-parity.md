@@ -230,7 +230,17 @@ Its base, from docs/linux-app.md's "Not built":
   and Tona ut in the demo with files under its hashes (paused at 0:00 after). The Mac's GP_MAC_PLAYTEST run again
   with the core's fade (0.13 at 2.5 s, paused at its start after 5 s). Not tried: the output window's video, a video
   item made live under Släck, a file that fails to play (said on stderr only); the web keeps its own fade and clock
-- [ ] Inställningar, every page the Mac has
+- [~] Inställningar, every page the Mac has. Round 1 (2026-11-22, settings.rs, settings_mine.rs, prefs.rs): a window as
+  GNOME Settings, Ctrl+, or the start page's menu; the list from `settingsListView` (Mina inställningar as a profile
+  cell at the top), the search through `settingsSearchView` (typing anywhere in the window searches), a phone's width
+  the list alone. Mina inställningar from `mySettingsView`: the name saved when applied or left (only changed and not
+  empty), the address with its badge, Bekräfta e-post, Byt e-postadress in a dialog; the colour theme and the language
+  kept on this device (prefs.json) and applied at once, the language opening Inställningar again. Om Gospel Presenter.
+  native-linux-settings.test.ts in Docker (a name applied reaches the server) and its pictures in English and dark
+  looked at. Left out of the list until built: every other page (the library's, Överlägg, Etiketter, Skärmar, Teman,
+  CCLI, Användare, Enheter, Organisation, Papperskorg), and in Mina inställningar Superadminläge, Slå på utgångar
+  automatiskt, Lagring, Inloggningar and Mina felrapporter. Not tried in pictures: Byt e-postadress, Bekräfta e-post;
+  the profile cell keeps the old name until Inställningar is opened again
 - [ ] A phone's one column
 
 The rounds:

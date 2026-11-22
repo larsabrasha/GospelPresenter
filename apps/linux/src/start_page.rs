@@ -42,11 +42,16 @@ pub fn fill(shell: &Rc<Shell>) {
     header.pack_start(&add);
     let menu = gtk::gio::Menu::new();
     menu.append(Some(&t("nav.templates", &[])), Some("start.templates"));
+    menu.append(Some(&t("nav.admin", &[])), Some("start.settings"));
     let actions = gtk::gio::SimpleActionGroup::new();
     let templates = gtk::gio::SimpleAction::new("templates", None);
     let weak = Rc::downgrade(shell);
     templates.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::templates::list(&s) });
     actions.add_action(&templates);
+    let settings = gtk::gio::SimpleAction::new("settings", None);
+    let weak = Rc::downgrade(shell);
+    settings.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::settings::open(&s) });
+    actions.add_action(&settings);
     let more = gtk::MenuButton::builder().icon_name("open-menu-symbolic").menu_model(&menu).build();
     more.insert_action_group("start", Some(&actions));
     header.pack_end(&more);

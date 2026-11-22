@@ -88,7 +88,9 @@ the header's menu, Spara som mall in a presentation's menu.
 
 Signing in pairs the device with a desktop host and syncs as the Mac app does (connect.rs, net.rs, sync.rs), its
 media files fetched as the core plans them (media.rs, into GP_MEDIA, else `media` in the app's data folder); audio
-and video played while presenting as the core says (player.rs, player_bar.rs; GStreamer through GTK's media streams); a
+and video played while presenting as the core says (player.rs, player_bar.rs; GStreamer through GTK's media streams);
+Inställningar by Ctrl+, with Mina inställningar and Om Gospel Presenter so far (settings.rs, settings_mine.rs; the
+theme and language this device's own, prefs.rs); a
 database named as the first argument or in GP_DB is opened as the demo, without a sign-in. Not built: importing
 files, Redigera of a song or a slideshow in the menu, resizing the columns, the sync line at the running order's foot,
 Inställningar, a phone's

@@ -34,6 +34,8 @@ impl Shell {
         faces::prepare();
         let look = look::read();
         look::apply(look.clone());
+        // This device's theme and language, as chosen under Mina inställningar.
+        crate::prefs::apply(&crate::prefs::load());
         // A database named (an argument, GP_DB) is opened as the demo is; else the organisation signed in to, or the
         // page that connects to a host, over an empty database until then.
         let given = crate::db_given();
@@ -64,6 +66,12 @@ impl Shell {
             followed: RefCell::new(None),
         });
         crate::sync::listen(&shell);
+        // Inställningar by Ctrl+, as GNOME's apps open their preferences.
+        let settings = gtk::gio::SimpleAction::new("settings", None);
+        let weak = Rc::downgrade(&shell);
+        settings.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::settings::open(&s) });
+        app.add_action(&settings);
+        app.set_accels_for_action("app.settings", &["<Control>comma"]);
         let session = if given.is_some() { None } else { crate::net::saved_session() };
         match session {
             _ if given.is_some() => start_page::fill(&shell),
