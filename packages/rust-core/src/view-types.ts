@@ -206,6 +206,14 @@ export type LiveEvent =
   | { type: 'release' }
   | { type: 'set'; change: unknown };
 
+// A temporary screen paired with the organisation (`LiveScreen`): its id and its number.
+export interface LiveScreen {
+  // Its id.
+  id: string;
+  // Its number, as it says on the TV.
+  n: number;
+}
+
 // A device's live socket as the core keeps it between steps; the shell gives it back whole, and reads what it shows.
 export interface LiveState {
   // Failed tries since it was last open.
@@ -257,6 +265,49 @@ export interface LiveStep {
   state: LiveState;
 }
 
+// What the shell does after a pairing step, in order.
+export type PairEffect =
+  | { type: 'request'; body?: unknown; method: string; path: string; request: string; token?: string | null }
+  | { type: 'timer'; ms: number; name: string }
+  | { type: 'cancelTimers' }
+  | { type: 'output'; id: string };
+
+// What happened in "Anslut tillfällig skärm".
+export type PairEvent =
+  | { type: 'open' }
+  | { type: 'answer'; body: unknown; request: string; token?: string | null }
+  | { type: 'timer'; name: string }
+  | { type: 'submit'; pin: string }
+  | { type: 'close' };
+
+// "Anslut tillfällig skärm" as the core keeps it between steps.
+export interface PairState {
+  // The server's address, for the display page's link.
+  base: string;
+  // A code typed is being checked.
+  busy: boolean;
+  // The screen paired, once one is.
+  paired?: LiveScreen | null;
+  // The live session the screen is taken into.
+  sessionId: string;
+  // The dialog is closed: a screen that comes now is switched on all the same.
+  stopped: boolean;
+  // The token the QR code shows, while there is one.
+  token?: string | null;
+  // How many codes typed were wrong (each empties the boxes).
+  wrong: number;
+}
+
+// `pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.
+export interface PairStep {
+  // The display page's address, to open on a TV and type the code shown there.
+  address: string;
+  effects: PairEffect[];
+  // The display page's link with the token, for the QR code; none until there is a token.
+  link?: string | null;
+  state: PairState;
+}
+
 // A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).
 export interface PresentationRow {
   deletedAt?: number | null;
@@ -274,6 +325,14 @@ export interface PresentationRow {
   time?: string | null;
   updatedAt?: number | null;
   weekday?: number | null;
+}
+
+// A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.
+export interface QrCode {
+  // Its rows, top first.
+  rows: string[];
+  // Its width and height in modules, the border's included.
+  size: number;
 }
 
 // One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether

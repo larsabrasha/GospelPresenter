@@ -54,7 +54,16 @@ Linux app in the same round; it is done when both read the core's view and neith
    read again each second for a sync); pictures of a rename saved on leaving the field, light and dark. Not on Linux's
    song page yet: a part's label, moving and removing parts, arrangements, history, notes and links, the trash. The
    web still has its own AutoSaveField.
-6. [ ] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till.
+6. [~] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till. Temporary
+   screens, 2026-11-22: `pairScreenStepView` (crates/gp-core/src/pair_screen.rs, 12 tests), the web's
+   PairScreenDialog as a reducer: a QR token made on open, renewed every eight minutes, asked about every two seconds,
+   let go on close (a TV that used it meanwhile taken in all the same), the four digits a TV shows claimed instead, a
+   wrong one counted; `qrView` (qr.rs, qrcodegen) the QR code's modules for every shell; `outputRowsView`'s
+   `temporary`, the screens this session paired, each let go with ✕. apps/server/test/pair-screen-core.test.ts runs
+   the reducer against a server (4). Linux: pair_screen.rs and the rows in outputs.rs, paired by a TV's code in
+   native-linux-live.test.ts (Docker), pictures looked at. The Mac and iOS app: PairScreen.swift draws it; the code's
+   field does not take the typing in the iOS UI test yet (RemoteTests, under way). Not yet: this computer's own
+   screens' rows, the sheets of Lägg till.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
 
 Windows waits until the core's views and the types have settled (below, "Windows").

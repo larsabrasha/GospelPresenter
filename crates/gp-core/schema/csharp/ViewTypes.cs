@@ -584,14 +584,161 @@ public sealed class LiveEventConverter : JsonConverter<LiveEvent>
     }
 }
 
+/// <summary>A temporary screen paired with the organisation (`LiveScreen`): its id and its number.</summary>
+public sealed record LiveScreen([property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("n")] long N);
+
 /// <summary>A device's live socket as the core keeps it between steps; the shell gives it back whole, and reads what it shows.</summary>
 public sealed record LiveState([property: JsonPropertyName("attempt")] long Attempt, [property: JsonPropertyName("audio")] JsonElement Audio, [property: JsonPropertyName("chosen")] IReadOnlyList<string> Chosen, [property: JsonPropertyName("connected")] bool Connected, [property: JsonPropertyName("control")] LiveControl? Control, [property: JsonPropertyName("controllable")] IReadOnlyList<JsonElement> Controllable, [property: JsonPropertyName("deviceName")] string DeviceName, [property: JsonPropertyName("heard")] long Heard, [property: JsonPropertyName("lastSent")] string LastSent, [property: JsonPropertyName("online")] IReadOnlyList<string> Online, [property: JsonPropertyName("pinged")] bool Pinged, [property: JsonPropertyName("pointer")] JsonElement Pointer, [property: JsonPropertyName("remote")] bool Remote, [property: JsonPropertyName("screens")] IReadOnlyList<JsonElement> Screens, [property: JsonPropertyName("seen")] IReadOnlyList<string> Seen, [property: JsonPropertyName("sessionId")] string SessionId, [property: JsonPropertyName("sessions")] IReadOnlyList<JsonElement> Sessions, [property: JsonPropertyName("started")] bool Started, [property: JsonPropertyName("takeOver")] IReadOnlyList<string> TakeOver, [property: JsonPropertyName("video")] JsonElement Video, [property: JsonPropertyName("videoLive")] JsonElement VideoLive);
 
 /// <summary>`liveStepView`'s answer: the state to give back, and what to do, in order.</summary>
 public sealed record LiveStep([property: JsonPropertyName("effects")] IReadOnlyList<LiveEffect> Effects, [property: JsonPropertyName("state")] LiveState State);
 
+/// <summary>What the shell does after a pairing step, in order.</summary>
+[JsonConverter(typeof(PairEffectConverter))]
+public abstract record PairEffect
+{
+    /// <summary>Ask the server (as the signed-in device), then tell `answer` with this request's name and token.</summary>
+    public sealed record Request([property: JsonPropertyName("body")] JsonElement? Body, [property: JsonPropertyName("method")] string Method, [property: JsonPropertyName("path")] string Path, [property: JsonPropertyName("request")] string RequestValue, [property: JsonPropertyName("token")] string? Token) : PairEffect;
+    /// <summary>After `ms`, tell `timer` with this name; one of the same name set before is replaced.</summary>
+    public sealed record Timer([property: JsonPropertyName("ms")] long Ms, [property: JsonPropertyName("name")] string Name) : PairEffect;
+    /// <summary>No timer is wanted any more.</summary>
+    public sealed record CancelTimers() : PairEffect;
+    /// <summary>Switch this screen on for the session (the live socket's `output`).</summary>
+    public sealed record Output([property: JsonPropertyName("id")] string Id) : PairEffect;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : PairEffect;
+}
+
+public sealed class PairEffectConverter : JsonConverter<PairEffect>
+{
+    public override PairEffect Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "request" => new PairEffect.Request(ViewJson.Field<JsonElement?>(e, "body", options), ViewJson.Field<string>(e, "method", options)!, ViewJson.Field<string>(e, "path", options)!, ViewJson.Field<string>(e, "request", options)!, ViewJson.Field<string?>(e, "token", options)),
+            "timer" => new PairEffect.Timer(ViewJson.Field<long>(e, "ms", options)!, ViewJson.Field<string>(e, "name", options)!),
+            "cancelTimers" => new PairEffect.CancelTimers(),
+            "output" => new PairEffect.Output(ViewJson.Field<string>(e, "id", options)!),
+            _ => new PairEffect.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, PairEffect value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case PairEffect.Request x:
+                writer.WriteString("type", "request");
+                ViewJson.Write(writer, "body", x.Body, options);
+                ViewJson.Write(writer, "method", x.Method, options);
+                ViewJson.Write(writer, "path", x.Path, options);
+                ViewJson.Write(writer, "request", x.RequestValue, options);
+                ViewJson.Write(writer, "token", x.Token, options);
+                break;
+            case PairEffect.Timer x:
+                writer.WriteString("type", "timer");
+                ViewJson.Write(writer, "ms", x.Ms, options);
+                ViewJson.Write(writer, "name", x.Name, options);
+                break;
+            case PairEffect.CancelTimers x:
+                writer.WriteString("type", "cancelTimers");
+                break;
+            case PairEffect.Output x:
+                writer.WriteString("type", "output");
+                ViewJson.Write(writer, "id", x.Id, options);
+                break;
+            case PairEffect.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>What happened in "Anslut tillfällig skärm".</summary>
+[JsonConverter(typeof(PairEventConverter))]
+public abstract record PairEvent
+{
+    /// <summary>The dialog opened.</summary>
+    public sealed record Open() : PairEvent;
+    /// <summary>The server answered a request the core asked for: its name, the token it was about, and the answer's body.</summary>
+    public sealed record Answer([property: JsonPropertyName("body")] JsonElement Body, [property: JsonPropertyName("request")] string Request, [property: JsonPropertyName("token")] string? Token) : PairEvent;
+    /// <summary>A timer the core set ran out.</summary>
+    public sealed record Timer([property: JsonPropertyName("name")] string Name) : PairEvent;
+    /// <summary>The four digits the TV shows, typed.</summary>
+    public sealed record Submit([property: JsonPropertyName("pin")] string Pin) : PairEvent;
+    /// <summary>The dialog closed.</summary>
+    public sealed record Close() : PairEvent;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : PairEvent;
+}
+
+public sealed class PairEventConverter : JsonConverter<PairEvent>
+{
+    public override PairEvent Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "open" => new PairEvent.Open(),
+            "answer" => new PairEvent.Answer(ViewJson.Field<JsonElement>(e, "body", options)!, ViewJson.Field<string>(e, "request", options)!, ViewJson.Field<string?>(e, "token", options)),
+            "timer" => new PairEvent.Timer(ViewJson.Field<string>(e, "name", options)!),
+            "submit" => new PairEvent.Submit(ViewJson.Field<string>(e, "pin", options)!),
+            "close" => new PairEvent.Close(),
+            _ => new PairEvent.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, PairEvent value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case PairEvent.Open x:
+                writer.WriteString("type", "open");
+                break;
+            case PairEvent.Answer x:
+                writer.WriteString("type", "answer");
+                ViewJson.Write(writer, "body", x.Body, options);
+                ViewJson.Write(writer, "request", x.Request, options);
+                ViewJson.Write(writer, "token", x.Token, options);
+                break;
+            case PairEvent.Timer x:
+                writer.WriteString("type", "timer");
+                ViewJson.Write(writer, "name", x.Name, options);
+                break;
+            case PairEvent.Submit x:
+                writer.WriteString("type", "submit");
+                ViewJson.Write(writer, "pin", x.Pin, options);
+                break;
+            case PairEvent.Close x:
+                writer.WriteString("type", "close");
+                break;
+            case PairEvent.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>"Anslut tillfällig skärm" as the core keeps it between steps.</summary>
+public sealed record PairState([property: JsonPropertyName("base")] string Base, [property: JsonPropertyName("busy")] bool Busy, [property: JsonPropertyName("paired")] LiveScreen? Paired, [property: JsonPropertyName("sessionId")] string SessionId, [property: JsonPropertyName("stopped")] bool Stopped, [property: JsonPropertyName("token")] string? Token, [property: JsonPropertyName("wrong")] long Wrong);
+
+/// <summary>`pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.</summary>
+public sealed record PairStep([property: JsonPropertyName("address")] string Address, [property: JsonPropertyName("effects")] IReadOnlyList<PairEffect> Effects, [property: JsonPropertyName("link")] string? Link, [property: JsonPropertyName("state")] PairState State);
+
 /// <summary>A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).</summary>
 public sealed record PresentationRow([property: JsonPropertyName("deletedAt")] long? DeletedAt, [property: JsonPropertyName("description")] string? Description, [property: JsonPropertyName("eventDate")] string? EventDate, [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("isTemplate")] bool IsTemplate, [property: JsonPropertyName("itemCount")] long? ItemCount, [property: JsonPropertyName("lastUsedAt")] long? LastUsedAt, [property: JsonPropertyName("line")] IReadOnlyList<LinePart>? Line, [property: JsonPropertyName("location")] string? Location, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("themeId")] string? ThemeId, [property: JsonPropertyName("time")] string? Time, [property: JsonPropertyName("updatedAt")] long? UpdatedAt, [property: JsonPropertyName("weekday")] long? Weekday);
+
+/// <summary>A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.</summary>
+public sealed record QrCode([property: JsonPropertyName("rows")] IReadOnlyList<string> Rows, [property: JsonPropertyName("size")] long Size);
 
 /// <summary>One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether its rows show their date and its year.</summary>
 public sealed record StartList([property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("rows")] IReadOnlyList<PresentationRow> Rows, [property: JsonPropertyName("showDate")] bool ShowDate, [property: JsonPropertyName("title")] string Title, [property: JsonPropertyName("withYear")] bool WithYear);

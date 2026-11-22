@@ -428,12 +428,97 @@ pub struct AutoSaveStep {
     pub effects: Vec<AutoSaveEffect>,
 }
 
+/// A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct QrCode {
+    /// Its width and height in modules, the border's included.
+    pub size: i64,
+    /// Its rows, top first.
+    pub rows: Vec<String>,
+}
+
+/// A temporary screen paired with the organisation (`LiveScreen`): its id and its number.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct LiveScreen {
+    /// Its id.
+    pub id: String,
+    /// Its number, as it says on the TV.
+    pub n: i64,
+}
+
+/// "Anslut tillfällig skärm" as the core keeps it between steps.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PairState {
+    /// The live session the screen is taken into.
+    pub session_id: String,
+    /// The server's address, for the display page's link.
+    pub base: String,
+    /// The token the QR code shows, while there is one.
+    pub token: Option<String>,
+    /// The screen paired, once one is.
+    pub paired: Option<LiveScreen>,
+    /// How many codes typed were wrong (each empties the boxes).
+    pub wrong: i64,
+    /// A code typed is being checked.
+    pub busy: bool,
+    /// The dialog is closed: a screen that comes now is switched on all the same.
+    pub stopped: bool,
+}
+
+/// What happened in "Anslut tillfällig skärm".
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum PairEvent {
+    /// The dialog opened.
+    Open,
+    /// The server answered a request the core asked for: its name, the token it was about, and the answer's body.
+    Answer { request: String, token: Option<String>, body: serde_json::Value },
+    /// A timer the core set ran out.
+    Timer { name: String },
+    /// The four digits the TV shows, typed.
+    Submit { pin: String },
+    /// The dialog closed.
+    Close,
+}
+
+/// What the shell does after a pairing step, in order.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum PairEffect {
+    /// Ask the server (as the signed-in device), then tell `answer` with this request's name and token.
+    Request { request: String, token: Option<String>, method: String, path: String, body: Option<serde_json::Value> },
+    /// After `ms`, tell `timer` with this name; one of the same name set before is replaced.
+    Timer { name: String, ms: i64 },
+    /// No timer is wanted any more.
+    CancelTimers,
+    /// Switch this screen on for the session (the live socket's `output`).
+    Output { id: String },
+}
+
+/// `pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct PairStep {
+    pub state: PairState,
+    /// The display page's link with the token, for the QR code; none until there is a token.
+    pub link: Option<String>,
+    /// The display page's address, to open on a TV and type the code shown there.
+    pub address: String,
+    pub effects: Vec<PairEffect>,
+}
+
 /// Every type a shell reads, in one JSON Schema (schema/views.json; its `$defs` are the types).
 #[cfg(any(test, feature = "schema"))]
 pub fn schema() -> serde_json::Value {
     #[derive(JsonSchema)]
     #[allow(dead_code)]
-    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent, auto_save_step: AutoSaveStep, auto_save_event: AutoSaveEvent }
+    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent, auto_save_step: AutoSaveStep, auto_save_event: AutoSaveEvent, pair_step: PairStep, pair_event: PairEvent, qr: QrCode }
     serde_json::to_value(schemars::schema_for!(Views)).unwrap_or_default()
 }
 

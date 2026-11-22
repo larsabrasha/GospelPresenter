@@ -442,6 +442,7 @@ private struct LiveColumn: View {
         }
         .padding(16)
         .background(Color.surface)
+        .pairingSheet(model)
     }
 }
 

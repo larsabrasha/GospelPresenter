@@ -99,6 +99,8 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "detailsDialogView" => crate::page_models::details_dialog(a),
         "detailsStepView" => crate::details_form::view(a).await,
         "autoSaveStepView" => crate::autosave::view(a),
+        "pairScreenStepView" => crate::pair_screen::view(a),
+        "qrView" => crate::qr::view(a),
         "pageButtonsView" => crate::page_models::page_buttons(a),
         "presentationColumnsView" => crate::page_models::presentation_columns(a),
         "lookView" => Ok(crate::look::view()),

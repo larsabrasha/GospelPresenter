@@ -17,6 +17,7 @@ mod model;
 mod net;
 mod output;
 mod outputs;
+mod pair_screen;
 mod painter;
 mod palette;
 mod presentation;

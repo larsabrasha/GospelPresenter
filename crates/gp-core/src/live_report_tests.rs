@@ -85,3 +85,12 @@ fn a_screen_online_and_not_chosen_has_no_line() {
 
     assert_eq!(out[0]["line"], Value::Null);
 }
+
+#[test]
+fn the_temporary_screens_are_those_this_session_chose() {
+    let a = json!({ "displays": [], "sessions": [], "online": [], "chosen": ["t2"], "sessionId": "me", "screens": [{ "id": "t1", "n": 1 }, { "id": "t2", "n": 2 }] });
+
+    let out = output_rows(a.as_object().unwrap()).unwrap();
+
+    assert_eq!(out["temporary"], json!([{ "id": "t2", "n": 2 }]));
+}

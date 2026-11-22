@@ -32,6 +32,8 @@ schemars = { version = "1.2", optional = true }
 # A Bible text is named by the SHA-256 of its canonical JSON (bible_texts.rs), checked in the core for every shell.
 sha2 = { version = "0.10", default-features = false }
 unicode-normalization = "0.1"
+# QR codes for links (qr.rs): a display's address to scan, in every shell alike; no dependencies of its own.
+qrcodegen = "1.8"
 
 [features]
 # slideLayoutView (slide_layout.rs): crates/gp-core-ffi turns it on for the native shells; the WASM goes without.

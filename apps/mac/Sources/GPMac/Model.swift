@@ -64,6 +64,9 @@ final class Model {
     var removing: ItemView?
     /// ⌘K open (Palette.swift).
     var paletteOpen = false
+    /// Anslut tillfällig skärm's sheet, presented where Utgångar is (the live column, Visning), not from its own row:
+    /// a list's row drawn again at each live change took the code field's focus with it.
+    var pairingScreen = false
     /// Inställningar to open on this page (the palette's), and on a Mac its window asked for.
     var settingsPage: String?
     var openSettingsWindow = false

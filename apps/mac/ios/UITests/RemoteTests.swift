@@ -53,6 +53,21 @@ extension RemoteTests {
 
         let on = expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: output)
         wait(for: [on], timeout: 10) // the server lists it as this session's, so it reads as sent to
+
+        // Anslut tillfällig utgång: a TV's code (made by the server test, GP_PIN) typed, the screen paired and listed.
+        guard let pin = ProcessInfo.processInfo.environment["GP_PIN"] else { return }
+        app.buttons["pair-screen"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["pair-qr"].firstMatch.waitForExistence(timeout: 10), "the QR code")
+        let code = app.textFields["pair-code"].firstMatch
+        XCTAssertTrue(code.waitForExistence(timeout: 5), "the code's field")
+        code.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "the keyboard up for the code")
+        code.typeText(pin)
+        XCTAssertEqual(code.value as? String, pin, "the code typed")
+        let done = app.staticTexts["pair-done"].firstMatch.waitForExistence(timeout: 10)
+        XCTAssertTrue(done, "paired; shown: \(app.staticTexts.allElementsBoundByIndex.prefix(30).map(\.label))")
+        app.buttons[sv["common.close"]!].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["temporary-1"].firstMatch.waitForExistence(timeout: 10), "listed as a temporary screen")
     }
 }
 

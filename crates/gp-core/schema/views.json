@@ -1174,6 +1174,25 @@
         }
       ]
     },
+    "LiveScreen": {
+      "description": "A temporary screen paired with the organisation (`LiveScreen`): its id and its number.",
+      "properties": {
+        "id": {
+          "description": "Its id.",
+          "type": "string"
+        },
+        "n": {
+          "description": "Its number, as it says on the TV.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "n"
+      ],
+      "type": "object"
+    },
     "LiveState": {
       "description": "A device's live socket as the core keeps it between steps; the shell gives it back whole, and reads what it shows.",
       "properties": {
@@ -1323,6 +1342,268 @@
       ],
       "type": "object"
     },
+    "PairEffect": {
+      "description": "What the shell does after a pairing step, in order.",
+      "oneOf": [
+        {
+          "description": "Ask the server (as the signed-in device), then tell `answer` with this request's name and token.",
+          "properties": {
+            "body": true,
+            "method": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "request": {
+              "type": "string"
+            },
+            "token": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "request",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "request",
+            "method",
+            "path"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "After `ms`, tell `timer` with this name; one of the same name set before is replaced.",
+          "properties": {
+            "ms": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "ms"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "No timer is wanted any more.",
+          "properties": {
+            "type": {
+              "const": "cancelTimers",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Switch this screen on for the session (the live socket's `output`).",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "const": "output",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PairEvent": {
+      "description": "What happened in \"Anslut tillfällig skärm\".",
+      "oneOf": [
+        {
+          "description": "The dialog opened.",
+          "properties": {
+            "type": {
+              "const": "open",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The server answered a request the core asked for: its name, the token it was about, and the answer's body.",
+          "properties": {
+            "body": true,
+            "request": {
+              "type": "string"
+            },
+            "token": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "answer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "request",
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timer the core set ran out.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The four digits the TV shows, typed.",
+          "properties": {
+            "pin": {
+              "type": "string"
+            },
+            "type": {
+              "const": "submit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pin"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The dialog closed.",
+          "properties": {
+            "type": {
+              "const": "close",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PairState": {
+      "description": "\"Anslut tillfällig skärm\" as the core keeps it between steps.",
+      "properties": {
+        "base": {
+          "description": "The server's address, for the display page's link.",
+          "type": "string"
+        },
+        "busy": {
+          "description": "A code typed is being checked.",
+          "type": "boolean"
+        },
+        "paired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiveScreen"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The screen paired, once one is."
+        },
+        "sessionId": {
+          "description": "The live session the screen is taken into.",
+          "type": "string"
+        },
+        "stopped": {
+          "description": "The dialog is closed: a screen that comes now is switched on all the same.",
+          "type": "boolean"
+        },
+        "token": {
+          "description": "The token the QR code shows, while there is one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wrong": {
+          "description": "How many codes typed were wrong (each empties the boxes).",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sessionId",
+        "base",
+        "wrong",
+        "busy",
+        "stopped"
+      ],
+      "type": "object"
+    },
+    "PairStep": {
+      "description": "`pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.",
+      "properties": {
+        "address": {
+          "description": "The display page's address, to open on a TV and type the code shown there.",
+          "type": "string"
+        },
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/PairEffect"
+          },
+          "type": "array"
+        },
+        "link": {
+          "description": "The display page's link with the token, for the QR code; none until there is a token.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/PairState"
+        }
+      },
+      "required": [
+        "state",
+        "address",
+        "effects"
+      ],
+      "type": "object"
+    },
     "PresentationRow": {
       "description": "A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).",
       "properties": {
@@ -1414,6 +1695,28 @@
       ],
       "type": "object"
     },
+    "QrCode": {
+      "description": "A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.",
+      "properties": {
+        "rows": {
+          "description": "Its rows, top first.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size": {
+          "description": "Its width and height in modules, the border's included.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size",
+        "rows"
+      ],
+      "type": "object"
+    },
     "StartList": {
       "description": "One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether\nits rows show their date and its year.",
       "properties": {
@@ -1469,6 +1772,15 @@
     "live_step": {
       "$ref": "#/$defs/LiveStep"
     },
+    "pair_event": {
+      "$ref": "#/$defs/PairEvent"
+    },
+    "pair_step": {
+      "$ref": "#/$defs/PairStep"
+    },
+    "qr": {
+      "$ref": "#/$defs/QrCode"
+    },
     "start_page": {
       "items": {
         "$ref": "#/$defs/StartList"
@@ -1484,7 +1796,10 @@
     "details_step",
     "details_event",
     "auto_save_step",
-    "auto_save_event"
+    "auto_save_event",
+    "pair_step",
+    "pair_event",
+    "qr"
   ],
   "title": "Views",
   "type": "object"

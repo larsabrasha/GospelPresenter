@@ -1,6 +1,6 @@
 // The Linux app's live session against this server, in Docker (apps/linux/docker.sh shoot): it presents with a public
-// output switched on and remote control allowed (Utgångar, the core's `liveStepView`), a member sees it, and a
-// member's command moves what it shows; and it drives a session the Mac's `parity present` presents. Only with GP_NATIVE_LINUX=1 and the app built (apps/linux/docker.sh build);
+// output switched on and remote control allowed (Utgångar, the core's `liveStepView`), a TV paired by its code
+// (`pairScreenStepView`), a member sees it with them, and a member's command moves what it shows; and it drives a session the Mac's `parity present` presents. Only with GP_NATIVE_LINUX=1 and the app built (apps/linux/docker.sh build);
 // its pictures are kept in GP_NATIVE_LINUX_SHOTS, else a temporary folder.
 import { execFile, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,15 +9,16 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { device, setRole, startAdapter, type Harness } from './harness.ts';
+import { api, device, setRole, startAdapter, type Harness } from './harness.ts';
 import { Window } from './live-window.ts';
 
 const docker = fileURLToPath(new URL('../../linux/docker.sh', import.meta.url));
 const run = process.env.GP_NATIVE_LINUX === '1';
 // The presentation opened from the start page and started; the public output and Tillåt fjärrstyrning switched on in
 // the live column; then a while for the member's command. Places in a 1440 × 900 window.
-const STEPS = process.env.GP_NATIVE_LINUX_STEPS
-  ?? 'wait 20; click 720 141; wait 4; click 1224 27; wait 4; shot presenting; click 500 190; wait 2; click 1385 425; wait 2; click 1385 480; wait 3; shot outputs; wait 15; shot commanded';
+// Then Anslut tillfällig utgång, the TV's code typed (`pin`), and a while for the member's command.
+const STEPS = (pin: string) => process.env.GP_NATIVE_LINUX_STEPS
+  ?? `wait 25; click 720 141; wait 4; click 1224 27; wait 4; shot presenting; click 500 190; wait 2; click 1385 425; wait 2; click 1385 525; wait 3; shot outputs; click 1250 475; wait 4; click 720 584; type ${pin}; wait 5; shot paired; key Escape; wait 15; shot commanded`;
 
 // Visas just nu's Ta kontroll, the slide tapped on the page driven, and a while for the command to reach the presenter.
 const DRIVE = process.env.GP_NATIVE_LINUX_DRIVE ?? 'wait 25; shot drivable; click 940 141; wait 6; shot driving; click 876 190; wait 6; shot driven';
@@ -54,8 +55,11 @@ describe.runIf(run)('the Linux app presenting to a host', () => {
     }));
     const member = await Window.open(h, org, 'alice');
 
-    const shooting = promisify(execFile)(docker, ['shoot', shots, STEPS], { env: { ...process.env, GP_CONFIG: config }, maxBuffer: 16 << 20 });
+    // A TV showing its code, which the Linux app types under Anslut tillfällig utgång.
+    const shown = await api<{ id: string; pin: string }>(h, 'POST', '/api/screen', { body: {} });
+    const shooting = promisify(execFile)(docker, ['shoot', shots, STEPS(shown.body.pin)], { env: { ...process.env, GP_CONFIG: config }, maxBuffer: 16 << 20 });
     const listed = await waitFor(member, (s) => s.presentationId === 'p1' && s.remote === true && s.outputs.some((o) => o.id === 'd1'));
+    const paired = await waitFor(member, (s) => s.id === listed.id && s.outputs.some((o) => o.id === shown.body.id));
     member.send({ type: 'set', sessionId: listed.id, change: { itemId: 'i1', partIndex: 1, black: false } });
     const moved = await waitFor(member, (s) => s.id === listed.id && s.pointer.partIndex === 1);
     await shooting;
@@ -64,6 +68,7 @@ describe.runIf(run)('the Linux app presenting to a host', () => {
 
     expect(listed.deviceName).not.toBe('');
     expect(moved.pointer.itemId).toBe('i1');
+    expect(paired.outputs.map((o) => o.id)).toContain(shown.body.id);
   }, 300_000);
 });
 

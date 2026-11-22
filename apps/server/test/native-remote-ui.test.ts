@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { setRole, startAdapter, type Harness } from './harness.ts';
+import { api, setRole, startAdapter, type Harness } from './harness.ts';
 
 const binary = fileURLToPath(new URL('../../mac/.build/release/parity', import.meta.url));
 const mac = fileURLToPath(new URL('../../mac', import.meta.url));
@@ -38,11 +38,13 @@ describe.runIf(run)('the iOS app driving a session elsewhere', () => {
     writeFileSync(join(dir, 'sessions.json'), JSON.stringify({ alice: await session('alice', 'admin') }));
     const presenter = spawn(binary, ['present', join(dir, 'sessions.json'), dir, '240'], { stdio: 'inherit' });
 
+    // A TV showing its code, which the app pairs under Anslut tillfällig utgång.
+    const shown = await api<{ pin: string }>(h, 'POST', '/api/screen', { body: {} });
     const out = await promisify(execFile)(
       'xcodebuild',
       ['-project', 'ios/GPiOS.xcodeproj', '-scheme', 'GPiOS', '-configuration', 'Debug', '-derivedDataPath', 'build/derived',
         '-destination', `platform=iOS Simulator,id=${simulator}`, 'test', '-only-testing:GPiOSUITests/RemoteTests'],
-      { cwd: mac, env: { ...process.env, TEST_RUNNER_GP_REPO: fileURLToPath(new URL('../../..', import.meta.url)), TEST_RUNNER_GP_SESSION: Buffer.from(JSON.stringify(bob)).toString('base64') }, maxBuffer: 64 << 20 },
+      { cwd: mac, env: { ...process.env, TEST_RUNNER_GP_REPO: fileURLToPath(new URL('../../..', import.meta.url)), TEST_RUNNER_GP_SESSION: Buffer.from(JSON.stringify(bob)).toString('base64'), TEST_RUNNER_GP_PIN: shown.body.pin }, maxBuffer: 64 << 20 },
     ).then((r) => r.stdout, (e: { stdout?: string }) => e.stdout ?? String(e));
     presenter.kill();
     const applied = existsSync(join(dir, 'applied.txt')) ? readFileSync(join(dir, 'applied.txt'), 'utf8') : '';

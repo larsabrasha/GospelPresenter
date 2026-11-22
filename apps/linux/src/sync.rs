@@ -79,6 +79,8 @@ pub struct Sync {
 }
 
 impl Sync {
+    /// The server and the session, for a request of the window's own (Anslut tillfällig skärm).
+    pub fn server_and_session(&self) -> (Server, Session) { (self.server.clone(), self.session.clone()) }
     pub fn stopped(&self) -> Option<String> { self.state["stopped"].as_str().map(String::from) }
     pub fn connected(&self) -> bool { self.state["connected"].as_bool().unwrap_or(false) }
 }

@@ -16,6 +16,8 @@ mod legacy;
 mod library_pages;
 mod live;
 mod live_report;
+mod pair_screen;
+mod qr;
 mod autosave;
 mod details_form;
 pub mod view_types;

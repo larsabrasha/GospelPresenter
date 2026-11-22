@@ -562,6 +562,14 @@ public enum LiveEvent: Codable, Hashable, Sendable {
     }
 }
 
+/// A temporary screen paired with the organisation (`LiveScreen`): its id and its number.
+public struct LiveScreen: Codable, Hashable, Sendable {
+    /// Its id.
+    public let id: String
+    /// Its number, as it says on the TV.
+    public let n: Int
+}
+
 /// A device's live socket as the core keeps it between steps; the shell gives it back whole, and reads what it shows.
 public struct LiveState: Codable, Hashable, Sendable {
     /// Failed tries since it was last open.
@@ -613,6 +621,136 @@ public struct LiveStep: Codable, Hashable, Sendable {
     public let state: LiveState
 }
 
+/// What the shell does after a pairing step, in order.
+public enum PairEffect: Codable, Hashable, Sendable {
+    /// Ask the server (as the signed-in device), then tell `answer` with this request's name and token.
+    case request(body: JSONValue?, method: String, path: String, request: String, token: String?)
+    /// After `ms`, tell `timer` with this name; one of the same name set before is replaced.
+    case timer(ms: Int, name: String)
+    /// No timer is wanted any more.
+    case cancelTimers
+    /// Switch this screen on for the session (the live socket's `output`).
+    case output(id: String)
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, body, method, path, request, token, ms, name, id }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "request": self = .request(body: try c.decodeIfPresent(JSONValue.self, forKey: .body), method: try c.decode(String.self, forKey: .method), path: try c.decode(String.self, forKey: .path), request: try c.decode(String.self, forKey: .request), token: try c.decodeIfPresent(String.self, forKey: .token))
+        case "timer": self = .timer(ms: try c.decode(Int.self, forKey: .ms), name: try c.decode(String.self, forKey: .name))
+        case "cancelTimers": self = .cancelTimers
+        case "output": self = .output(id: try c.decode(String.self, forKey: .id))
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .request(body, method, path, request, token):
+            try c.encode("request", forKey: .type)
+            try c.encodeIfPresent(body, forKey: .body)
+            try c.encode(method, forKey: .method)
+            try c.encode(path, forKey: .path)
+            try c.encode(request, forKey: .request)
+            try c.encodeIfPresent(token, forKey: .token)
+        case let .timer(ms, name):
+            try c.encode("timer", forKey: .type)
+            try c.encode(ms, forKey: .ms)
+            try c.encode(name, forKey: .name)
+        case .cancelTimers:
+            try c.encode("cancelTimers", forKey: .type)
+        case let .output(id):
+            try c.encode("output", forKey: .type)
+            try c.encode(id, forKey: .id)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// What happened in "Anslut tillfällig skärm".
+public enum PairEvent: Codable, Hashable, Sendable {
+    /// The dialog opened.
+    case open
+    /// The server answered a request the core asked for: its name, the token it was about, and the answer's body.
+    case answer(body: JSONValue, request: String, token: String?)
+    /// A timer the core set ran out.
+    case timer(name: String)
+    /// The four digits the TV shows, typed.
+    case submit(pin: String)
+    /// The dialog closed.
+    case close
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, body, request, token, name, pin }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "open": self = .open
+        case "answer": self = .answer(body: try c.decode(JSONValue.self, forKey: .body), request: try c.decode(String.self, forKey: .request), token: try c.decodeIfPresent(String.self, forKey: .token))
+        case "timer": self = .timer(name: try c.decode(String.self, forKey: .name))
+        case "submit": self = .submit(pin: try c.decode(String.self, forKey: .pin))
+        case "close": self = .close
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .open:
+            try c.encode("open", forKey: .type)
+        case let .answer(body, request, token):
+            try c.encode("answer", forKey: .type)
+            try c.encode(body, forKey: .body)
+            try c.encode(request, forKey: .request)
+            try c.encodeIfPresent(token, forKey: .token)
+        case let .timer(name):
+            try c.encode("timer", forKey: .type)
+            try c.encode(name, forKey: .name)
+        case let .submit(pin):
+            try c.encode("submit", forKey: .type)
+            try c.encode(pin, forKey: .pin)
+        case .close:
+            try c.encode("close", forKey: .type)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// "Anslut tillfällig skärm" as the core keeps it between steps.
+public struct PairState: Codable, Hashable, Sendable {
+    /// The server's address, for the display page's link.
+    public let base: String
+    /// A code typed is being checked.
+    public let busy: Bool
+    /// The screen paired, once one is.
+    public let paired: LiveScreen?
+    /// The live session the screen is taken into.
+    public let sessionId: String
+    /// The dialog is closed: a screen that comes now is switched on all the same.
+    public let stopped: Bool
+    /// The token the QR code shows, while there is one.
+    public let token: String?
+    /// How many codes typed were wrong (each empties the boxes).
+    public let wrong: Int
+}
+
+/// `pairScreenStepView`'s answer: the state to give back, the link the QR code shows, and what to do.
+public struct PairStep: Codable, Hashable, Sendable {
+    /// The display page's address, to open on a TV and type the code shown there.
+    public let address: String
+    public let effects: [PairEffect]
+    /// The display page's link with the token, for the QR code; none until there is a token.
+    public let link: String?
+    public let state: PairState
+}
+
 /// A presentation as the start page lists it (`Presentation` of packages/core, with its number of items and its line).
 public struct PresentationRow: Codable, Hashable, Sendable {
     public let deletedAt: Int?
@@ -630,6 +768,14 @@ public struct PresentationRow: Codable, Hashable, Sendable {
     public let time: String?
     public let updatedAt: Int?
     public let weekday: Int?
+}
+
+/// A QR code (`qrView`): its rows of modules, each a text of `1` (dark) and `0` (light), with a light border of two.
+public struct QrCode: Codable, Hashable, Sendable {
+    /// Its rows, top first.
+    public let rows: [String]
+    /// Its width and height in modules, the border's included.
+    public let size: Int
 }
 
 /// One of the start page's lists (`startPageView`): Idag, Kommande or Senast ändrade, its title a text's key, whether

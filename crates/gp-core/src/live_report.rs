@@ -110,12 +110,13 @@ pub fn view(a: &Obj) -> R<Value> {
     Ok(json!({ "slide": public, "canvas": canvas }))
 }
 
-/// `outputRowsView` {displays, sessions, online, chosen, sessionId}: Utgångar's saved screens and public outputs
+/// `outputRowsView` {displays, sessions, online, chosen, sessionId, screens?}: Utgångar's saved screens and public outputs
 /// (spec 04 §1; the web's useOutputs.ts), the screens first, each in the order made: whether this session chose it,
 /// sends to it (chosen, online, no other session on it), is offline (a saved screen with no page open: it cannot be
 /// switched on, LIVE-A21), the name of another presentation sending to it, how many watch it; `line`, what is written
 /// under it ({text, args, warn} a text's key, or {viewers}, or null); and `takeOver`, the question before taking it
-/// from that presentation (LIVE-R23), its texts' keys and their values.
+/// from that presentation (LIVE-R23), its texts' keys and their values; and `temporary`, the paired screens this
+/// session chose (`LiveScreen`s of `screens`).
 pub fn output_rows(a: &Obj) -> R<Value> {
     let list = |k: &str| a.get(k).and_then(Value::as_array).cloned().unwrap_or_default();
     let has = |k: &str, id: &str| list(k).iter().any(|v| v.as_str() == Some(id));
@@ -148,7 +149,9 @@ pub fn output_rows(a: &Obj) -> R<Value> {
             "offline": offline, "elsewhere": elsewhere.map(|s| s["presentationName"].as_str().unwrap_or("")), "viewers": viewers, "takeOver": take_over,
         })
     }).collect();
-    Ok(json!({ "rows": rows }))
+    // The temporary screens paired from here (chosen by this session), each with its number, to let go with ✕.
+    let temporary: Vec<Value> = list("screens").into_iter().filter(|x| x["id"].as_str().is_some_and(|id| has("chosen", id))).collect();
+    Ok(json!({ "rows": rows, "temporary": temporary }))
 }
 
 #[cfg(test)]

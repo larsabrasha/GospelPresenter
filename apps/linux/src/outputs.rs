@@ -13,19 +13,35 @@ use std::rc::Rc;
 /// `into` made again from the live socket's state: the rows, then the remote switch; empty in the demo.
 pub fn fill(shell: &Rc<Shell>, into: &gtk::Box) {
     while let Some(c) = into.first_child() { into.remove(&c) }
-    let Some((sessions, online, chosen, me, remote)) = crate::live::with(|l| {
+    let Some((sessions, online, chosen, me, remote, screens)) = crate::live::with(|l| {
         let s = &l.state;
-        (s.sessions.clone(), s.online.clone(), s.chosen.clone(), s.session_id.clone(), s.remote)
+        (s.sessions.clone(), s.online.clone(), s.chosen.clone(), s.session_id.clone(), s.remote, s.screens.clone())
     }) else { return };
-    let rows = {
+    let answer = {
         let m = shell.model.borrow();
         let core = m.app.core();
         let displays = core.call("displaysView", json!({ "locale": language() })).unwrap_or(json!([]));
-        core.call("outputRowsView", json!({ "displays": displays, "sessions": sessions, "online": online, "chosen": chosen, "sessionId": me }))
-            .map(|v| v["rows"].as_array().cloned().unwrap_or_default()).unwrap_or_default()
+        core.call("outputRowsView", json!({ "displays": displays, "sessions": sessions, "online": online, "chosen": chosen, "sessionId": me, "screens": screens }))
+            .unwrap_or_default()
     };
     let group = adw::PreferencesGroup::builder().title(t("live.outputs", &[])).description(t("live.remoteHint", &[])).build();
-    for r in rows { group.add(&row(shell, &r)) }
+    for r in answer["rows"].as_array().into_iter().flatten() { group.add(&row(shell, r)) }
+    // The temporary screens paired from here, each let go with ✕; then Anslut tillfällig skärm.
+    for screen in answer["temporary"].as_array().into_iter().flatten() {
+        let n = screen["n"].as_i64().unwrap_or(0).to_string();
+        let r = adw::ActionRow::builder().title(t("screens.temporary", &[("n", &n)])).build();
+        r.add_prefix(&gtk::Image::from_icon_name("video-display-symbolic"));
+        let x = gtk::Button::builder().icon_name("window-close-symbolic").css_classes(["flat", "circular"]).valign(gtk::Align::Center)
+            .tooltip_text(t("screens.disconnect", &[("n", &n)])).build();
+        let (weak, id) = (Rc::downgrade(shell), screen["id"].as_str().unwrap_or("").to_string());
+        x.connect_clicked(move |_| if let Some(s) = weak.upgrade() { crate::live::step(&s, LiveEvent::Output { id: id.clone(), on: false, take: false }) });
+        r.add_suffix(&x);
+        group.add(&r);
+    }
+    let pair = adw::ButtonRow::builder().title(t("pairScreen.title", &[])).start_icon_name("list-add-symbolic").build();
+    let weak = Rc::downgrade(shell);
+    pair.connect_activated(move |_| if let Some(s) = weak.upgrade() { crate::pair_screen::open(&s) });
+    group.add(&pair);
     let allow = adw::SwitchRow::builder().title(t("remote.allow", &[])).active(remote).build();
     let weak = Rc::downgrade(shell);
     allow.connect_active_notify(move |s| if let Some(sh) = weak.upgrade() { crate::live::step(&sh, LiveEvent::Remote { on: s.is_active() }) });

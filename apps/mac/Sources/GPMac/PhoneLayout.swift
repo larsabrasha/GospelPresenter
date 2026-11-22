@@ -308,6 +308,7 @@ private struct DisplaySheet: View {
                 } header: { Text(t("overlays.title")) } footer: { Text(t("live.overlaysHint")) }
             }
             .closeBar(t("live.display"))
+            .pairingSheet(model)
         }
         .presentationDetents([.medium, .large])
     }

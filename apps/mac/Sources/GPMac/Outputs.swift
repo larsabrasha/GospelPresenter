@@ -12,6 +12,8 @@ private struct OutputRows: Decodable {
     struct Line: Decodable { let text: String?, args: [String: String]?, warn: Bool?, viewers: Int? }
     struct Row: Decodable, Identifiable { let id: String, name: String, kind: String, chosen: Bool, sending: Bool, offline: Bool, line: Line?, takeOver: Ask? }
     let rows: [Row]
+    /// The temporary screens paired from here, each let go with ✕.
+    let temporary: [LiveScreen]?
 }
 
 struct OutputsGroup: View {
@@ -21,8 +23,9 @@ struct OutputsGroup: View {
     var body: some View {
         if let owner = model.app.liveLink {
             let displays = model.view("displaysView", ["locale": Texts.language], as: [JSONValue].self)?.map(\.any) ?? []
-            let args: [String: Any] = ["displays": displays, "sessions": owner.sessions, "online": owner.online, "chosen": owner.chosen, "sessionId": owner.sessionId]
-            let rows = model.view("outputRowsView", args, as: OutputRows.self)?.rows ?? []
+            let args: [String: Any] = ["displays": displays, "sessions": owner.sessions, "online": owner.online, "chosen": owner.chosen, "sessionId": owner.sessionId, "screens": owner.screens]
+            let answer = model.view("outputRowsView", args, as: OutputRows.self)
+            let rows = answer?.rows ?? []
             VStack(alignment: .leading, spacing: 8) {
                 Text(t("live.outputs")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.quiet)
                 ForEach(rows) { r in
@@ -40,6 +43,16 @@ struct OutputsGroup: View {
                     .disabled(r.offline)
                     .accessibilityIdentifier("output-\(r.id)")
                 }
+                ForEach(answer?.temporary ?? [], id: \.id) { screen in
+                    HStack {
+                        Label(t("screens.temporary", ["n": screen.n]), systemImage: "tv.badge.wifi")
+                        Spacer()
+                        Button(t("screens.disconnect", ["n": screen.n]), systemImage: "xmark.circle.fill") { owner.setOutput(screen.id, on: false) }
+                            .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("temporary-\(screen.n)")
+                }
+                Button(t("pairScreen.title"), systemImage: "plus.viewfinder") { model.pairingScreen = true }.accessibilityIdentifier("pair-screen")
                 Toggle(t("remote.allow"), isOn: Binding(get: { owner.remote }, set: { owner.remote = $0 }))
                     .accessibilityIdentifier("remote-allow")
                 Text(t("live.remoteHint")).font(.caption).foregroundStyle(.secondary)
@@ -47,6 +60,15 @@ struct OutputsGroup: View {
             .confirmationDialog(asking.map { t($0.takeOver!.title) } ?? "", isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } }), titleVisibility: .visible, presenting: asking) { r in
                 Button(t(r.takeOver!.confirm)) { owner.setOutput(r.id, on: true, take: true) }
             } message: { r in Text(t(r.takeOver!.text, r.takeOver!.args)) }
+        }
+    }
+}
+
+extension View {
+    /// Anslut tillfällig skärm's sheet, while `model.pairingScreen`, for this device's live session.
+    func pairingSheet(_ model: Model) -> some View {
+        sheet(isPresented: Bindable(model).pairingScreen) {
+            if let owner = model.app.liveLink { PairScreenSheet(sessionId: owner.sessionId) { owner.setOutput($0, on: true) } }
         }
     }
 }
