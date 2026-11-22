@@ -15,9 +15,13 @@ did.
 | 1, one interface, two cores | done (2026-11-22): `packages/core/src/commands.ts` behind `RustCore` |
 | Wave 1, the data's rules | done and switched (2026-11-22): 0 different |
 | Wave 2, sync's client | done and switched (2026-11-22): 0 different |
-| Waves 3 to 5 | not started |
+| Wave 3, slides, presenting and live | done and switched (2026-11-22): 0 different |
+| Wave 4, the pages' views | done and switched (2026-11-22): 0 different |
+| Wave 5, imports, exports and files | done and switched (2026-11-22): 0 different |
+| Step 3, the switch | done: the app sends nothing to the WASM (`GP_CORE_TRACE=1`) |
+| Step 4, removal | waits, as planned, for the TS core to have run a real Sunday |
 
-The checks of the way back run with `crates/gp-core/parity/port.sh` (`build`, `mutations`, `sync`): the Rust core is the
+The checks of the way back run with `crates/gp-core/parity/port.sh` (`build`, `mutations`, `sync`, `views`): the Rust core is the
 reference, the working tree's TS core the candidate (`GP_TS=tree`). In the sync checks' output the reference is
 labelled Rust and the TS core TS.
 
@@ -198,6 +202,40 @@ With them, likely whole modules: `slide_layout.rs` and `slide_items.rs` (glyph l
 `collation.rs` and `crates/gp-core-collation` (`Intl.Collator`), `playback.rs` (the web has its own),
 `slide_editor.rs`, `theme_editor.rs`, `image_edit.rs`. Each is checked again when its wave comes: a module some
 ported view calls into is ported as far as that view needs.
+
+### The views, waves 3 to 5 (done, 2026-11-22)
+
+Ported into `packages/core/src/views/`, one group a file or a few, gathered in `views/index.ts`, and proved by
+`port.sh views`: each group's `port-views/<group>.mjs` sends its cases through an all-Rust core and the core as the app
+has it, on the demo data (`views/fixture.mjs`) and on databases made for the case, and compares the answers as JSON.
+Each group was checked once with a fault planted.
+
+| Group | Views | Cases, 0 different |
+|---|---|---|
+| `live` | liveChangeView, followItemOverlayView, addPositionView, presentationActionsView, itemActionsView, detailsDialogView | 13 076 |
+| `slides` | itemSlidesView, bibleView, themeView, bibleSlidesView, verseSearchPlanView, bibleBookNamesView, presentingKeyView, slideMarksView, highlightView | 13 373 |
+| `page` | pageEventView, pageModelView, liveSlideView, overlayView, itemOverlaysView, liveTargetsView, livePlaybackView, itemAudioView, ccliUseView, displaysView, remoteControlView, presentationPageView | 32 427 |
+| `start-page` | startPageView | 326 |
+| `lists` | presentationListView, templatesView, itemsView, labelsView, songPartsView, pinnedView, trashEntriesView, imagesView, audiosView, videosView, customSlidesView, customSlideView, overlaysView, overlayRowView, songsView, songSearchPrepare, songSearchView, songView, songPageView, songPresentationsView, songHistoryView, songMaterialsView, biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView, themesPageView, settingsListView, settingsSearchView, freshNameView, libraryPageView, rulesView, coreInfoView | 15 921 |
+| `files` | proPresenterSongView, songNamesakesView, songImportDuplicatesView, bibleImportView, legacyUpgradeView, legacyBlobsView, legacyRowsProblemView, legacyOverlayPageView, exportRowsView, bibleTextPlanView, bibleTextStoreView, bibleTextJsonView, bibleUploadsView, wantedMediaView, mediaPlanView, mediaUploadsView, mediaStorageView | 13 525 |
+| `sync-status` | syncStatusView | 649 |
+
+Where Rust is matched rather than simplified, for now (step 5 may simplify): lengths and strings by code point where
+Rust counted them so (slideshow pages, theme definitions, highlights); JSON text read as serde_json read it
+(`views/serde.ts`, `files-json.ts`: half a surrogate pair, numbers past a double, 128 levels deep refused); a
+`partIndex` wrapped to 32 bits as `usize` on WASM did; Rust's insertion sort for a Bible book of 20 verses or fewer;
+a DEFLATE decoder of its own (`files-inflate.ts`) that takes and refuses what miniz_oxide did.
+
+Not matched, each where the Rust core trapped (panicked), so there was no answer: `legacyOverlayPageView` with a
+picture lacking `full` or `thumb`, a Bible book of more than 20 verses whose chapter is not a number, a typed number
+of non-ASCII text in a page's state, an argument holding half a UTF-16 pair. The TS core answers or refuses there.
+`files-json.ts` keeps a number's text as written through `JSON.parse`'s `context.source` (Node 22, Chromium 114):
+in an engine without it only unusual number literals in a queued change's arguments differ.
+
+Found on the way, for later: the mutators check text lengths with zod, by UTF-16 unit, where the Rust mutators
+counted code points (an element's text of 2 000, an id of 1 to 40): text near those limits made of astral
+characters (emoji) is refused a little earlier in TS. `coreInfoView` still answers `gp-core 0.1.0`, which "Om Gospel
+Presenter" shows as the core it runs on.
 
 ## Step 3: the switch
 
