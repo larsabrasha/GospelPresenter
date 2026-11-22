@@ -25,6 +25,13 @@ adw = { package = "libadwaita", version = "0.8", features = ["v1_6"] }
 cairo-rs = { version = "0.21", features = ["freetype", "v1_16"] }
 freetype-rs = "0.38"
 pangocairo = "0.21"
+# A host over the LAN (net.rs): HTTP and its sockets on threads, TLS by rustls with the ring provider (no C toolchain
+# beyond the core's), the Mozilla roots, and a host's own certificate pinned by its SHA-256.
+ureq = { version = "2.12", default-features = false, features = ["tls"] }
+tungstenite = { version = "0.26", default-features = false, features = ["handshake", "__rustls-tls"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+webpki-roots = "0.26"
+sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

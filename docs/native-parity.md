@@ -126,7 +126,16 @@ the rounds above need it.
 
 Its base, from docs/linux-app.md's "Not built":
 
-- [ ] Signing in to a host and sync (the app opens a database file as the demo's caller now)
+- [x] Signing in to a host and sync (2026-11-22): paired with a desktop host by its address and code, or none on a
+  GP_DEV_PAIR host, a host's own certificate accepted by its fingerprint (connect.rs, net.rs); the session kept in
+  ~/.config/gospel-presenter (0600, the Mac's Keychain), the organisation's database in ~/.local/share; every change
+  queued through `syncMutate` (gp-tui's `Core::mutate`, 4 tests in crates/gp-tui/tests/sync.rs), the core's
+  `syncStepView` driven with the poke socket and timers (sync.rs); the account's letter with Synka nu and Logga ut.
+  apps/server/test/native-linux.test.ts (GP_NATIVE_LINUX=1) runs it in Docker against a server: what the web made
+  shown, a presentation made in Linux on the server, and one the web made while the app was up shown; pictures of
+  those and of the connect page light and dark looked at. Not tried: pairing with a code or a certificate against a
+  real host (the test starts signed in), Logga ut, the sync's problem shown. No uploads before a push (Linux imports
+  nothing yet)
 - [~] Skapa presentation (round 6); the presentation's menu's Redigera detaljer not built
 - [x] + with Sång and Programpunkt (round 5)
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
@@ -180,6 +189,14 @@ Where a choice was not clear, the one most like the web was taken and the questi
   keeps a picture whose file is gone. With one gone before it, the web removes the wrong picture (the demo's
   swish.jpg: ✕ on the one shown removes the gone one). The native apps send the place from the slide's key
   (`image{n}`). Should the web do the same? Not changed, as it changes the web's behaviour.
+
+- The network twice (Lars, 2026-11-22, asked to think about it): Linux's net.rs and sync.rs do what the Mac's
+  Server.swift and Sync.swift do. What syncing decides is the core's already (`syncStepView`, `syncMutate`,
+  `syncRebase`); what is left in each shell is the transport (HTTP, a socket, TLS and a pinned certificate, timers) and
+  the loop that does the driver's effects. The core is also WASM, where the web has fetch and no sockets of its own, so
+  the transport cannot be in gp-core itself. Proposed: the effects loop as it stands is short and each shell's; the
+  Rust transport (net.rs) moved to a crate of its own (`crates/gp-net`) that Linux, the TUI and Windows (over FFI)
+  share, while the Mac and iOS keep URLSession (the system's trust, proxies and power). Not done until Lars says.
 
 ## Seen in passing, not this list's
 

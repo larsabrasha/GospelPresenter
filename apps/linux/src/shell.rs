@@ -22,6 +22,8 @@ pub struct Shell {
     start: adw::NavigationPage,
     page: RefCell<Option<Page>>,
     output: RefCell<Option<Output>>,
+    /// Signed in to a host: the organisation's sync (sync.rs); none in the demo.
+    pub sync: RefCell<Option<crate::sync::Sync>>,
 }
 
 impl Shell {
@@ -29,8 +31,10 @@ impl Shell {
         faces::prepare();
         let look = look::read();
         look::apply(look.clone());
-        let path = crate::db_path();
-        // The demo's caller, as the Mac app's demo runs: no sign-in yet (docs/linux-app.md, "Not built").
+        // A database named (an argument, GP_DB) is opened as the demo is; else the organisation signed in to, or the
+        // page that connects to a host, over an empty database until then.
+        let given = crate::db_given();
+        let path = given.clone().unwrap_or_else(|| ":memory:".into());
         let core = match Core::open(&path.to_string_lossy(), Caller { user_id: "demo".into(), role: "admin".into() }) {
             Ok(core) => core,
             Err(e) => {
@@ -53,8 +57,18 @@ impl Shell {
             window, nav, start,
             page: RefCell::new(None),
             output: RefCell::new(None),
+            sync: RefCell::new(None),
         });
-        start_page::fill(&shell);
+        crate::sync::listen(&shell);
+        let session = if given.is_some() { None } else { crate::net::saved_session() };
+        match session {
+            _ if given.is_some() => start_page::fill(&shell),
+            Some(session) => match crate::sync::open(&shell, session) {
+                Ok(()) => start_page::fill(&shell),
+                Err(e) => { eprintln!("gospel-presenter: {e}"); crate::connect::show(&shell) }
+            },
+            None => crate::connect::show(&shell),
+        }
         shell.nav.add(&shell.start);
         let weak = Rc::downgrade(&shell);
         // ‹ back, or Esc the page did not take: the start page again, what is presented going on.
@@ -254,4 +268,48 @@ impl Shell {
     pub fn output_closed(&self) { self.output.borrow_mut().take(); }
 
     pub fn start_page(&self) -> &adw::NavigationPage { &self.start }
+
+    /// Visa demodata: the demo's database (demo.sqlite beside the app) on this device alone.
+    pub fn open_demo(self: &Rc<Self>) {
+        let path = crate::db_given().unwrap_or_else(|| "demo.sqlite".into());
+        match Core::open(&path.to_string_lossy(), Caller { user_id: "demo".into(), role: "admin".into() }) {
+            Ok(core) => {
+                self.model.borrow_mut().app = App::new(core, local_today());
+                self.model.borrow_mut().forget();
+                start_page::fill(self);
+            }
+            Err(e) => eprintln!("gospel-presenter: {e}"),
+        }
+    }
+
+    /// Signed in: the organisation's start page.
+    pub fn signed_in(self: &Rc<Self>) { start_page::fill(self) }
+
+    /// Logga ut: syncing ended, the session forgotten, and the page that connects again.
+    pub fn sign_out(self: &Rc<Self>) {
+        crate::sync::close(self);
+        self.leave();
+        if let Ok(core) = Core::open(":memory:", Caller { user_id: "demo".into(), role: "admin".into() }) {
+            self.model.borrow_mut().app = App::new(core, local_today());
+        }
+        crate::connect::show(self);
+    }
+
+    /// What the server sent applied: the lists and the open page read again and drawn, built again where its items
+    /// changed; a presentation removed elsewhere left.
+    pub fn pulled(self: &Rc<Self>) {
+        {
+            let mut m = self.model.borrow_mut();
+            m.app.pulled();
+            m.forget();
+            m.tick(None);
+        }
+        if self.model.borrow().app.page.is_none() && self.page.borrow().is_some() { self.nav.pop(); }
+        self.rebuild();
+        start_page::fill(self);
+        self.refresh();
+    }
+
+    /// The sync's state changed (connected, stopped): the account's menu says so.
+    pub fn sync_status(self: &Rc<Self>) { start_page::fill(self) }
 }

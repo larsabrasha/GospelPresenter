@@ -3,6 +3,7 @@
 // (crates/gp-tui/src/app.rs); this draws it with GTK's own widgets and paints slides from the core's layout.
 mod adding;
 mod adding_bible;
+mod connect;
 mod faces;
 mod image_items;
 mod item_menu;
@@ -10,6 +11,7 @@ mod keys;
 mod layout;
 mod look;
 mod model;
+mod net;
 mod output;
 mod painter;
 mod palette;
@@ -17,6 +19,7 @@ mod presentation;
 mod presentation_menu;
 mod shell;
 mod start_page;
+mod sync;
 mod templates;
 mod ticking;
 mod tiles;
@@ -24,10 +27,9 @@ mod tiles;
 use adw::prelude::*;
 use std::path::PathBuf;
 
-/// The organisation's database: the first argument, else GP_DB, else the demo's beside the working directory.
-pub fn db_path() -> PathBuf {
-    std::env::args().nth(1).or_else(|| std::env::var("GP_DB").ok()).map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("demo.sqlite"))
+/// A database named to open as the demo is: the first argument, else GP_DB; none, and the app signs in to a host.
+pub fn db_given() -> Option<PathBuf> {
+    std::env::args().nth(1).or_else(|| std::env::var("GP_DB").ok()).filter(|p| !p.is_empty()).map(PathBuf::from)
 }
 
 fn main() -> gtk::glib::ExitCode {

@@ -199,7 +199,7 @@ impl App {
         match command["type"].as_str() {
             Some("move") => {
                 let args = json!({ "itemId": command["itemId"], "by": command["by"] });
-                if let Err(code) = self.core.command("moveItem", args) { self.refusal = Some(code) }
+                if let Err(code) = self.core.mutate("moveItem", args) { self.refusal = Some(code) }
                 self.changed();
             }
             Some("end") => self.ending = true,
@@ -209,12 +209,18 @@ impl App {
 
     /// A command of the core's (a mutation), then the pages read again; whether it was done, its refusal kept.
     pub fn run(&mut self, name: &str, args: Value) -> bool {
-        let done = match self.core.command(name, args) {
+        let done = match self.core.mutate(name, args) {
             Ok(_) => true,
             Err(code) => { self.refusal = Some(code); false }
         };
         self.changed();
         done
+    }
+
+    /// What the server sent applied here (a sync's pull): the start page's lists, the page and the live page read again.
+    pub fn pulled(&mut self) {
+        self.load_start();
+        self.changed();
     }
 
     /// The page and the live page read again after a change; the page told it was read again (`changed`), with the

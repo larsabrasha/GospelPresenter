@@ -1,7 +1,8 @@
 // The start page (apps/mac/Sources/GPMac/StartPage.swift): what this device presents at the top ("Visas just nu"),
 // then the core's lists (startPageView: Idag, Kommande, Senast ändrade), each row the presentation's name, its date,
 // time and place, and its number of items; a row opens it. + makes a presentation (templates.rs, from a template or
-// blank), the header's menu has Mallar. Not built yet: Visa fler, the account and the sync's state.
+// blank), the header's menu has Mallar; signed in to a host, the user's letter is the account's menu (the sync's
+// problem while it has one, Synka nu, Logga ut). Not built yet: Visa fler.
 use crate::shell::Shell;
 use adw::prelude::*;
 use gp_tui::dates::subtitle;
@@ -42,6 +43,7 @@ pub fn fill(shell: &Rc<Shell>) {
     let more = gtk::MenuButton::builder().icon_name("open-menu-symbolic").menu_model(&menu).build();
     more.insert_action_group("start", Some(&actions));
     header.pack_end(&more);
+    if let Some(account) = account(shell) { header.pack_end(&account) }
     let bar = adw::ToolbarView::new();
     bar.add_top_bar(&header);
     bar.set_content(Some(&page));
@@ -66,4 +68,35 @@ fn row(shell: &Rc<Shell>, p: &PresentationRow, sub: &str, live: bool) -> adw::Ac
     let (weak, id) = (Rc::downgrade(shell), p.id.clone());
     row.connect_activated(move |_| if let Some(s) = weak.upgrade() { s.open(&id) });
     row
+}
+
+/// Signed in: the user's letter, its menu the name, the sync's problem while it has one (a dot on the letter), Synka nu
+/// and Logga ut (the Mac app's AccountMenu).
+fn account(shell: &Rc<Shell>) -> Option<gtk::MenuButton> {
+    let name = shell.sync.borrow().as_ref()?.session.me.name.clone();
+    let problem = crate::sync::problem(shell);
+    let menu = gtk::gio::Menu::new();
+    let section = gtk::gio::Menu::new();
+    if let Some(p) = &problem { section.append(Some(p), Some("account.none")) }
+    section.append(Some(&t("status.syncNow", &[])), Some("account.sync"));
+    section.append(Some(&t("auth.signOut", &[])), Some("account.signOut"));
+    menu.append_section(Some(&name), &section);
+    let actions = gtk::gio::SimpleActionGroup::new();
+    let none = gtk::gio::SimpleAction::new("none", None);
+    none.set_enabled(false);
+    actions.add_action(&none);
+    let sync = gtk::gio::SimpleAction::new("sync", None);
+    let weak = Rc::downgrade(shell);
+    sync.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::sync::request(&s) });
+    actions.add_action(&sync);
+    let sign_out = gtk::gio::SimpleAction::new("signOut", None);
+    let weak = Rc::downgrade(shell);
+    sign_out.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { s.sign_out() });
+    actions.add_action(&sign_out);
+    let letter = gtk::Label::new(Some(&name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default()));
+    letter.add_css_class("account-letter");
+    if problem.is_some() { letter.add_css_class("account-problem") }
+    let button = gtk::MenuButton::builder().child(&letter).menu_model(&menu).tooltip_text(&name).css_classes(["flat", "circular"]).build();
+    button.insert_action_group("account", Some(&actions));
+    Some(button)
 }

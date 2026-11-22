@@ -47,9 +47,12 @@ pub fn paint(cr: &Context, l: &SlideLayout, label: Option<&Label>, w: f64, h: f6
     if let Err(e) = cr.status() { eprintln!("gospel-presenter: a slide not painted: {e}") }
 }
 
-/// Where this device keeps media files by their hash: GP_MEDIA, else `media` beside the database.
+/// Where this device keeps media files by their hash: GP_MEDIA, else `media` beside a database named, else in the
+/// app's data folder.
 pub fn media_dir() -> PathBuf {
-    std::env::var_os("GP_MEDIA").map(PathBuf::from).unwrap_or_else(|| crate::db_path().with_file_name("media"))
+    std::env::var_os("GP_MEDIA").map(PathBuf::from)
+        .or_else(|| crate::db_given().map(|p| p.with_file_name("media")))
+        .unwrap_or_else(|| crate::net::data_dir().join("media"))
 }
 
 /// A picture this device keeps, by its full file's hash, else its thumbnail's.

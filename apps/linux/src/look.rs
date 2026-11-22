@@ -43,6 +43,9 @@ pub fn css(look: &Value, dark: bool, user_accent: bool) -> String {
     css += ".slide-heading { font-weight: bold; margin: 12px 6px 4px 6px; }\n";
     // The slides' grid spaces its tiles itself (presentation.rs, the core's slideGridView).
     css += "flowbox.slide-grid > flowboxchild { padding: 0; }\n";
+    // The account's letter on indigo, as the Mac's; orange-ringed while the sync has a problem.
+    css += ".account-letter { background: #6366f1; color: white; border-radius: 15px; min-width: 30px; min-height: 30px; font-weight: 600; }\n";
+    css += ".account-problem { box-shadow: 0 0 0 2px #f97316; }\n";
     css += ".live-picture { background-color: black; border-radius: 12px; }\n";
     css
 }

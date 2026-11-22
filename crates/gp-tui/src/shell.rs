@@ -17,6 +17,10 @@ pub struct Caller {
 pub struct Core {
     db: Connection,
     caller: Caller,
+    /// Changes go through sync's queue (`syncMutate`), not straight to the tables: a device signed in to a host.
+    synced: std::cell::Cell<bool>,
+    /// Called after each change queued: the shell syncs.
+    on_change: std::cell::RefCell<Option<Box<dyn Fn()>>>,
 }
 
 impl Core {
@@ -25,7 +29,7 @@ impl Core {
     pub fn open(path: &str, caller: Caller) -> Result<Core, String> {
         let db = Connection::open(path).map_err(|e| format!("{path}: {e}"))?;
         db.query_row("PRAGMA journal_mode = WAL", [], |_| Ok(())).map_err(|e| e.to_string())?;
-        let core = Core { db, caller };
+        let core = Core { db, caller, synced: std::cell::Cell::new(false), on_change: std::cell::RefCell::new(None) };
         core.command("migrateOrgSchema", json!({}))?;
         Ok(core)
     }
@@ -52,6 +56,27 @@ impl Core {
         if done.is_err() { let _ = self.db.execute_batch("ROLLBACK"); }
         done
     }
+
+    /// From now on every change queued for the server (`syncMutate`) as the web's SyncClient queues it, with foreign
+    /// keys on as the Mac's SyncClient opens its database (outside a transaction, where SQLite takes the PRAGMA).
+    pub fn queue_changes(&self) -> Result<(), String> {
+        self.db.execute_batch("PRAGMA foreign_keys = ON").map_err(|e| format!("sql-error: {e}"))?;
+        self.synced.set(true);
+        Ok(())
+    }
+
+    /// A change of the data: queued for the server when signed in to one (its arguments as their JSON text, as the
+    /// queue keeps them), else run on the tables; either way in a transaction of its own. What it wrote: the tables'
+    /// names when queued.
+    pub fn mutate(&self, name: &str, args: Value) -> Result<Value, String> {
+        if !self.synced.get() { return self.command(name, args) }
+        let done = self.command("syncMutate", json!({ "mutator": name, "args": args.to_string() }))?;
+        if let Some(f) = self.on_change.borrow().as_ref() { f() }
+        Ok(done)
+    }
+
+    /// What to do after each change queued for the server (the shell's sync).
+    pub fn on_change(&self, f: Box<dyn Fn()>) { *self.on_change.borrow_mut() = Some(f) }
 
     /// A view's answer, decoded; None when the core refuses or the answer does not decode as `T`.
     pub fn view<T: serde::de::DeserializeOwned>(&self, name: &str, args: Value) -> Option<T> {
