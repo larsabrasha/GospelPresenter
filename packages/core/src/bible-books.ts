@@ -125,6 +125,11 @@ export function compareBooks(x: string, y: string): number {
   return ox - oy || x.localeCompare(y);
 }
 
+/** A code's place in the 66 books' canonical order (BIBLE-R9), any case; null for a book outside them. */
+export function canonIndex(code: string): number | null {
+  return byCode.get(code.toUpperCase())?.order ?? null;
+}
+
 /** The 39 Protestant Old Testament books; everything else counts as the New (BIBLE-R10). */
 export function isOldTestament(code: string): boolean {
   return OLD_TESTAMENT.has(code.toUpperCase());
