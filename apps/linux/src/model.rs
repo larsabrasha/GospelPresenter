@@ -14,6 +14,11 @@ pub struct Model {
     pub app: App,
     /// Markera's select mode while it is on, as the core answers it (`tickView`).
     pub ticking: Option<Value>,
+    /// The side columns folded away, the running order's and the live column's (the shell's own, as the Mac's).
+    pub folded: [bool; 2],
+    /// Whether the live column was out at the last refresh: a start brings it out again. Kept here, not on the page,
+    /// which is built again as its items change.
+    pub was_live: bool,
     /// presentationPageView's answer whole, by the presentation's id.
     pages: HashMap<String, Value>,
     /// slideLayoutView's answer by the slide's place (presentation, item, part); None where the core refused it.
@@ -27,7 +32,7 @@ pub struct Painted {
 }
 
 impl Model {
-    pub fn new(app: App) -> Model { Model { app, ticking: None, pages: HashMap::new(), layouts: HashMap::new() } }
+    pub fn new(app: App) -> Model { Model { app, ticking: None, folded: [false, false], was_live: false, pages: HashMap::new(), layouts: HashMap::new() } }
 
     /// Every page and layout read again from the core when next painted: after a change of the data.
     pub fn forget(&mut self) {

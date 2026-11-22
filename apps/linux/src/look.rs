@@ -47,6 +47,9 @@ pub fn css(look: &Value, dark: bool, user_accent: bool) -> String {
     css += ".account-letter { background: #6366f1; color: white; border-radius: 15px; min-width: 30px; min-height: 30px; font-weight: 600; }\n";
     css += ".account-problem { box-shadow: 0 0 0 2px #f97316; }\n";
     css += ".live-picture { background-color: black; border-radius: 12px; }\n";
+    // The description's card, flat as the web's, its mer in the accent.
+    css += ".description { padding: 10px 14px; box-shadow: none; }\n";
+    css += "button.description-more { color: var(--accent-color); padding: 0 4px; min-height: 0; font-weight: 500; }\n";
     css
 }
 

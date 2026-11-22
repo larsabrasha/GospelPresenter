@@ -206,7 +206,14 @@ Its base, from docs/linux-app.md's "Not built":
 - [x] + with Sång and Programpunkt (round 5)
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
-- [ ] The description card; folding the columns
+- [x] The description card; folding the columns (2026-11-22): the card at the top of the running order, three lines
+  (cut at the third line's foot: pango's `lines` counts each paragraph, and a description is often a list) and mer
+  when there is more (Visa mindre folds it again), as the web's Description.tsx; each side column folded by
+  its button at its foot's inner end (the core's `presentationColumnsView` foot, pageButtonsView's `fold` text) and
+  brought back by a round button at the slides' foot on its side; the live column out again at each start
+  (`outOnStart`). The folds are the shell's own and not kept between launches (the Mac keeps them). Pictures looked
+  at: the card folded and open (a long text, and the demo's list), each column folded, both, and one back, light
+  and dark. Not built: the sync line at the running order's foot, resizing the columns
 - [x] The overlays in the live column (2026-11-22): a switch each while presenting, at most one on (the core's overlay rules through `pageStepView`'s change); pictures of one switched on, then another, looked at (a copy of the demo with two overlays: the demo has none)
 - [ ] Media files fetched; audio and video played
 - [ ] Inställningar, every page the Mac has
