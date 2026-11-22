@@ -39,9 +39,7 @@ export const listPresentations = (db: ReadDb): Promise<Presentation[]> => db.vie
 export const listTemplates = (db: ReadDb): Promise<Presentation[]> => db.view<Presentation[]>('templatesView', { locale: locale() });
 
 /** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then last changed. */
-export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
-  return (await listTemplates(db)).toSorted((a, b) => (b.lastUsedAt ?? -1) - (a.lastUsedAt ?? -1)).slice(0, 10);
-}
+export const recentTemplates = (db: ReadDb): Promise<Presentation[]> => db.view<Presentation[]>('templatesView', { locale: locale(), recent: true });
 
 export interface TrashEntry {
   kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';

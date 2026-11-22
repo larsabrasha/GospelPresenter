@@ -128,6 +128,9 @@ struct AccountMenu: View {
                         Text(t("role.admin")).tag("admin")
                     }
                 }
+                if model.can("ManageTemplates") {
+                    Button(t("nav.templates"), systemImage: "doc.on.doc") { model.templatesOpen = true }
+                }
                 Button(t("nav.admin"), systemImage: "gearshape") { openSettings() }
                 Button(t("auth.signOut"), systemImage: "rectangle.portrait.and.arrow.right") { model.signOut() }
             }

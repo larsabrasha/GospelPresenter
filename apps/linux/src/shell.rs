@@ -175,8 +175,9 @@ impl Shell {
     }
 
     /// The open presentation put in the trash (Radera presentation, asked first), and back to the start page.
-    pub fn trash_presentation(self: &Rc<Self>, id: &str, at: i64) {
-        let done = self.model.borrow_mut().app.run("trashPresentation", json!({ "id": id, "at": at }));
+    pub fn trash_presentation(self: &Rc<Self>, id: &str, at: i64, template: bool) {
+        let command = if template { "trashTemplate" } else { "trashPresentation" };
+        let done = self.model.borrow_mut().app.run(command, json!({ "id": id, "at": at }));
         if done { self.nav.pop(); } else { self.refresh() }
     }
 

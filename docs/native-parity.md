@@ -49,7 +49,9 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 5 Lägg till, every kind: `bibleBrowseView` (the Bible tab's browse, crates/gp-core/src/bible_browse.rs, 9 tests)
   and `addPickView` (a library's pick and the command that adds it, add_pick.rs, 10 tests); the web's BibleTab and
   ImageTab read them
-- [ ] 6 Mallar and Spara som mall
+- [x] 6 Mallar and Spara som mall: `templateView` (a template's slot and next date, crates/gp-core/src/template_view.rs,
+  8 tests) and `templatesView`'s `recent` (the picker's ten last used, 2 tests in views.test.ts); the web's
+  templates.ts and recentTemplates read them
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
 - [ ] 9 ⌘K
@@ -78,7 +80,11 @@ is shared; each platform's part is checked off in its own section below.
   translation in UITests/adding.json (the fixture loader's `importBibleZip`). Gaps: the library sheets keep iOS's
   search, which hides the bar's Lägg till while typing (as Lägg till sång's does); several pictures at once not tried
   in a test (the demo has one; the core's test covers the title); a translation fetched from a host not tried
-- [ ] 6 Mallar and Spara som mall
+- [x] 6 Mallar and Spara som mall: Skapa presentation offers a blank one or a template (its name, next date, time and
+  place, a copy of its items); Mallar in the account menu and the picker's Hantera mallar (list with the slot, Skapa
+  mall, a template opened as a page with its own details and Radera mall); Spara som mall in a presentation's menu
+  (Templates.swift). `TemplatesTests` (4) on an iPhone 17 Pro Max with UITests/templates.json. Not tried: a
+  template's Redigera detaljer in a test
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
 - [ ] 9 ⌘K
@@ -92,7 +98,7 @@ the rounds above need it.
 Its base, from docs/linux-app.md's "Not built":
 
 - [ ] Signing in to a host and sync (the app opens a database file as the demo's caller now)
-- [ ] Skapa presentation, the presentation's menu's Redigera detaljer (the menu itself and Radera: round 4)
+- [~] Skapa presentation (round 6); the presentation's menu's Redigera detaljer not built
 - [x] + with Sång and Programpunkt (round 5)
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
@@ -122,7 +128,11 @@ The rounds:
   dark of the kinds, Joh 3:16 searched and added, 3:16–18 browsed, a song and a picture added. Gaps: no Importera (the
   app has no media files of its own yet), a translation not kept on this device is not offered (no sync), more than
   500 verses are cut without the question
-- [ ] 6 Mallar and Spara som mall
+- [x] 6 Mallar and Spara som mall: + on the start page at last (templates.rs: blank or a template, the details
+  prefilled, made and opened), Mallar in the header's menu (list with the slot, Skapa mall opened as a page, Radera
+  mall in its menu), Spara som mall in a presentation's menu. Pictures light and dark of the details, Mallar, Skapa
+  mall, a template's page and menu, the picker with it, a presentation made from it. Gaps: the date and time are typed
+  as text (no pickers), a template's Redigera detaljer is not built (the details dialog is the base's)
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
 - [ ] 9 ⌘K

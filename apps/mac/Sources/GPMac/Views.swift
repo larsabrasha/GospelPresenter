@@ -7,6 +7,8 @@ import Foundation
 struct PresentationRow: Decodable, Identifiable, Hashable {
     let id: String, name: String, eventDate: String?, time: String?, location: String?, description: String?, updatedAt: Double?
     var itemCount: Int? = nil
+    /// A template's page is opened as a presentation's (spec 03 "Template"): never presented, its own details and trash.
+    var isTemplate: Bool? = nil
 }
 
 /// One of the start page's lists as the core groups them for every shell (`startPageView`, docs/view-models.md):
@@ -165,6 +167,7 @@ struct ItemView: Identifiable, Hashable {
 /// A presentation's page, as the columns show it.
 struct PresentationView {
     let id: String, name: String, eventDate: String?, time: String?, location: String?, description: String?
+    var isTemplate = false
     var items: [ItemView]
     /// The presentation's theme as the core resolves it (its own, or the organisation's default).
     let theme: JSONValue?
@@ -174,6 +177,7 @@ struct PresentationView {
     init?(_ page: PresentationPage) {
         guard let p = page.presentation else { return nil }
         (id, name, eventDate, time, location, description, theme, overlays) = (p.id, p.name, p.eventDate, p.time, p.location, p.description, page.theme, page.overlays)
+        isTemplate = p.isTemplate ?? false
         items = page.items.map { i in
             let shown = page.slides[i.id]
             let song = i.type == "song" ? page.songs.first { $0["id"]?.string == i.sourceId } : nil

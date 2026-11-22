@@ -86,6 +86,37 @@ describe('presentationMaterialsView', () => {
   });
 });
 
+describe('templatesView', () => {
+  /** Twelve templates, t0 to t11, used at their number's time except t5 and t6, never used. */
+  function templates() {
+    const db = new DatabaseSync(':memory:');
+    const all = (sql: string, params: unknown[]) => {
+      const st = db.prepare(sql);
+      st.setReturnArrays(true);
+      return st.all(...(params as never[])) as unknown as Rows;
+    };
+    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, all);
+    for (let i = 0; i < 12; i++) {
+      const used = i === 5 || i === 6 ? 'NULL' : String(i * 1000);
+      db.exec(`INSERT INTO presentations (id, name, is_template, last_used_at, updated_at) VALUES ('t${i}', 'Mall ${i}', 1, ${used}, ${i})`);
+    }
+    return async (sql: string, params: unknown[]) => all(sql, params);
+  }
+
+  it('offers the picker the ten last used, never-used ones last', async () => {
+    const out = await nodeRustCore().view<{ id: string }[]>('templatesView', { locale: 'sv', recent: true }, templates());
+
+    expect(out.map((t) => t.id)).toEqual(['t11', 't10', 't9', 't8', 't7', 't4', 't3', 't2', 't1', 't0']);
+  });
+
+  it('lists every template, last changed first, without recent', async () => {
+    const out = await nodeRustCore().view<{ id: string }[]>('templatesView', { locale: 'sv' }, templates());
+
+    expect(out).toHaveLength(12);
+    expect(out[0]!.id).toBe('t11');
+  });
+});
+
 describe('RustCore.pure', () => {
   const order = [['i1', 2]];
 

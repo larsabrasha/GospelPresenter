@@ -83,7 +83,10 @@ Lägg till and Lägg till efter › with every kind (adding.rs, adding_bible.rs;
 Bible text searched or browsed, a library's pictures, sounds, videos or slideshows; `GP_DEMO=demo-bible.sqlite` is the
 demo with the sample translation of packages/rust-core/test/bible-fixtures.ts, made by hand for the pictures.
 
-Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, importing
+Skapa presentation and templates (templates.rs; 2026-11-22): + on the start page, blank or from a template, Mallar in
+the header's menu, Spara som mall in a presentation's menu.
+
+Not built: signing in and sync (the app opens a database file as the demo's caller), Redigera detaljer, importing
 files, Redigera of a song or a slideshow in the menu, the description card, folding and resizing the columns, the outputs and overlays in the live column,
 media files (pictures show where the folder beside the database holds them), audio and video, Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

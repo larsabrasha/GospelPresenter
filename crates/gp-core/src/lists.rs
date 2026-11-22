@@ -17,11 +17,18 @@ pub async fn presentations() -> R<Value> {
     Ok(Value::Array(sql(&q, vec![]).await.iter().map(|r| map(r, PRESENTATION)).collect()))
 }
 
-/// `templatesView` {locale}: the templates, last changed first, then by name in the page's language and by id
-/// (`listTemplates`).
+/// `templatesView` {locale, recent?}: the templates, last changed first, then by name in the page's language and by id
+/// (`listTemplates`); with `recent`, those the "Skapa presentation" picker offers (PRES-R32): the 10 last used,
+/// never-used ones last (03 Q7), then in that order.
 pub async fn templates(a: &Obj) -> R<Value> {
     let mut rows: Vec<Value> = sql(&rows_of(PRESENTATION, "presentations WHERE deleted_at IS NULL AND is_template = 1"), vec![]).await.iter().map(|r| map(r, PRESENTATION)).collect();
     sort(lang(a), &mut rows, &[Key::Last("updatedAt"), Key::Name("name"), Key::Id("id")]);
+    if a.get("recent").and_then(Value::as_bool) == Some(true) {
+        let used = |r: &Value| r["lastUsedAt"].as_f64().unwrap_or(-1.0);
+        // A stable sort, so templates used alike keep the order above, as the web's toSorted kept it.
+        rows.sort_by(|x, y| used(y).total_cmp(&used(x)));
+        rows.truncate(10);
+    }
     Ok(Value::Array(rows))
 }
 

@@ -108,8 +108,8 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
 
 - **The start page** (`apps/mac/Sources/GPMac/StartPage.swift`) is a list of its own at every width: what this device
   presents at the top ("Visas just nu"), then Idag, Kommande and Senast ändrade (20 at a time, Visa fler), each row
-  two lines with its number of items; the round blue + in the bar makes a presentation ("Skapa presentation", then it
-  opens); the user's picture holds the name, the sync's state only while it has a problem (Synka nu) and Logga ut.
+  two lines with its number of items; the round blue + in the bar makes a presentation ("Skapa presentation", from a template or blank,
+  Templates.swift, then it opens); Mallar in the account menu; the user's picture holds the name, the sync's state only while it has a problem (Synka nu) and Logga ut.
 - **A presentation** opened from it is pushed on the same `NavigationStack`, with ‹ back; presenting goes on when one
   goes back (`Live.swift`). Its bar: the title and under it when and where (LIVE first while presented); a tap on the
   title opens the presentation's menu (Redigera detaljer…, Noter och länkar (`presentationMaterialsView`, a sheet), Radera presentation when not presented, asked first); ▶ or
@@ -163,7 +163,7 @@ The web's floating + is kept on a Mac, though Apple's apps put + in the bar: it 
 
 What each page shows comes from the core's views, and what it offers from the core's view models
 (`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
-Swift only draws them; an action the app has not built yet (Spara som mall) is left out
+Swift only draws them; an action the app has not built yet is left out
 where the menu is drawn.
 
 | Page | Views | State |
@@ -173,7 +173,7 @@ where the menu is drawn.
 | Presenting: Starta (not while another presentation is presented), a slide tapped (before presenting, made ready and its item selected, on a phone too), the web's keys where a keyboard is (in columns: arrows, PageUp PageDown, ↵, Space, Esc, b, a, Delete, digits, ⌘ and ⌥ with the arrows) and Släck, VISAS and NÄSTA | `liveChangeView` (the app's live state, `Live`), `pageEventView` and `pageModelView` (the page's state, `Model.send`), `slideMarksView` | built; ↑ ↓ go to the slide above and below as the tiles stand (`slideAcrossView`); on the Mac an output window, on iOS an external display (a cable, or AirPlay as a second screen) in a scene of its own (ExternalOutput.swift), switched from Utgångar in the bar; both come on by themselves under Slå på utgångar automatiskt (`autoOutputsView`) |
 | Inställningar (Lars, 2026-11-21): on a Mac a window of its own (⌘, and the account menu), on iOS a sheet; the list and its search, Mina inställningar, Lagring, Inloggningsmetoder, Mina felrapporter; Sånger with the song's page, arrangements, history and notes and links and the ProPresenter import; Biblar (import, offline, rename, delete); Bilder and Ljud (import, rename, trash, revert), Videor (rename, trash); Bildspel and Överlägg (make, rename, delete); Etiketter; Utgångar (QR, new code); Teman (default, duplicate, delete); CCLI-rapport; Användare and their page; Enheter; Organisation (remote control); Alla organisationer; Felrapporter; Papperskorg; Om | `settingsListView`, `settingsSearchView`, `mySettingsView`, `trashPageView`, `ccliPageView`, `themesPageView` and the small ones (docs/view-models.md), the library views, and the server's endpoints for what is its (HostAPI.swift) | built, the theme editor (`themeEditorView`, `themeEditView`), the slide editor for slideshows and overlays (`slideEditorView`, `slideEditView`, `slideHitView`, `editorSlideView`), a PDF (PDFKit) or PowerPoint (the host's `POST /api/slides/pptx`) imported or replacing a slideshow's pages (`deckImportView`, `deckPagesView`), the picture editor (`imageEditView`, `imageDrawView`, checked against the web's `imageEdit.ts` on 500 random cases), a library's order, grid, Välj and download (`libraryOrderView`), a video's import in parts (`videoImportView`, AVFoundation), the export and the import from 1.x (`exportPlanView`, `importManifestView`, `importPlanView`, Zip.swift), Utgångar's live status (`displayStatusView` over the live socket), a passkey or Google account added through the system's sign-in window, a bug report's screenshot, steps and state; checked against a real server by `parity settings` (`apps/server/test/native-settings.test.ts`) |
 
-Not built in a presentation: Utgångar, Fjärrstyrning, Spara som mall, a phone lying down in two columns, a template's page, and
+Not built in a presentation: Utgångar, Fjärrstyrning, a phone lying down in two columns, a template's page, and
 moving an item on a phone. Media files are fetched as the web's sync fetches them (below, "Media files").
 
 **Wanted, not built: App Intents and Shortcuts** (Lars, 2026-11-18). Presenting reached without the app in front:

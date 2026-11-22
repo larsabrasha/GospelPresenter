@@ -55,7 +55,7 @@ const ITEM_IMAGES: &str = "SELECT p.presentation_id, p.source_id AS image_id FRO
 pub(crate) struct Policy { pub(crate) presenting: Option<String>, persistent: bool, keep_coming: bool, today: String, days: i64, fetch: bool }
 
 /// `addDays`: a plain date `YYYY-MM-DD` plus `days`, in the calendar.
-fn add_days(date: &str, days: i64) -> String {
+pub(crate) fn add_days(date: &str, days: i64) -> String {
     let n: Vec<i64> = date.split('-').map(|p| p.parse().unwrap_or(0)).collect();
     let (y, m, d) = (n.first().copied().unwrap_or(1970), n.get(1).copied().unwrap_or(1), n.get(2).copied().unwrap_or(1));
     // Days from 1970-01-01 to a civil date, and back (Howard Hinnant's algorithms), as Date.UTC counts them.

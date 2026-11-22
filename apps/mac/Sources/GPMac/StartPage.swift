@@ -13,6 +13,10 @@ struct StartPage: View {
     @State private var wide = false
 
     var body: some View {
+        page.sheet(isPresented: Bindable(model).templatesOpen) { TemplatesPage() }
+    }
+
+    @ViewBuilder private var page: some View {
         #if os(macOS)
         mac(today: localToday())
             // The window keeps its name (Window menu, Mission Control); the page's heading row says it on the page.
@@ -20,7 +24,7 @@ struct StartPage: View {
             .titleOnlyInWindow()
             // At the toolbar's far end, as the web's bar has it; without the title, a flexible space keeps it there.
             .toolbar { ToolbarItemGroup { Spacer(); AccountMenu() } }
-            .sheet(isPresented: $creating) { DetailsSheet(presentationId: nil) }
+            .sheet(isPresented: $creating) { CreateSheet() }
             // GP_MAC_CREATE: Skapa presentation open at the start, for pictures of it (GP_MAC_SNAPSHOT).
             .onAppear { if ProcessInfo.processInfo.environment["GP_MAC_CREATE"] != nil { creating = true } }
         #else
@@ -131,7 +135,7 @@ struct StartPage: View {
                 ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true } }
             }
         }
-        .sheet(isPresented: $creating) { DetailsSheet(presentationId: nil) }
+        .sheet(isPresented: $creating) { CreateSheet() }
     }
 
     @ViewBuilder

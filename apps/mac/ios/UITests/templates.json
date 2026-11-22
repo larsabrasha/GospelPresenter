@@ -1,0 +1,56 @@
+{
+  "about": "A template with a slot and a song, for TemplatesTests.swift: Skapa presentation from it, and Mallar.",
+  "setup": [
+    [
+      "createSong",
+      {
+        "id": "s1",
+        "name": "Härlig är jorden"
+      }
+    ],
+    [
+      "addSongPart",
+      {
+        "id": "s1-v",
+        "songId": "s1",
+        "labelText": null,
+        "content": "Härlig är jorden"
+      }
+    ],
+    [
+      "createTemplate",
+      {
+        "id": "t1",
+        "name": "Gudstjänst",
+        "weekday": 0,
+        "time": "11:00",
+        "location": "Kyrkan"
+      }
+    ],
+    [
+      "addSongToPresentation",
+      {
+        "itemId": "ti1",
+        "presentationId": "t1",
+        "songId": "s1",
+        "arrangementId": null
+      }
+    ],
+    [
+      "createPresentation",
+      {
+        "id": "p1",
+        "name": "Söndag"
+      }
+    ],
+    [
+      "addSongToPresentation",
+      {
+        "itemId": "pi1",
+        "presentationId": "p1",
+        "songId": "s1",
+        "arrangementId": null
+      }
+    ]
+  ]
+}

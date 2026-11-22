@@ -1,7 +1,7 @@
 // The start page (apps/mac/Sources/GPMac/StartPage.swift): what this device presents at the top ("Visas just nu"),
 // then the core's lists (startPageView: Idag, Kommande, Senast ändrade), each row the presentation's name, its date,
-// time and place, and its number of items; a row opens it. Not built yet: + (Skapa presentation, pageButtonsView's
-// `startPage`), Visa fler, the account and the sync's state.
+// time and place, and its number of items; a row opens it. + makes a presentation (templates.rs, from a template or
+// blank), the header's menu has Mallar. Not built yet: Visa fler, the account and the sync's state.
 use crate::shell::Shell;
 use adw::prelude::*;
 use gp_tui::dates::subtitle;
@@ -27,8 +27,23 @@ pub fn fill(shell: &Rc<Shell>) {
         }
         page.add(&group);
     }
+    let header = adw::HeaderBar::new();
+    let add = gtk::Button::builder().icon_name("list-add-symbolic").tooltip_text(t("presentations.new", &[])).build();
+    let weak = Rc::downgrade(shell);
+    add.connect_clicked(move |_| if let Some(s) = weak.upgrade() { crate::templates::create(&s) });
+    header.pack_start(&add);
+    let menu = gtk::gio::Menu::new();
+    menu.append(Some(&t("nav.templates", &[])), Some("start.templates"));
+    let actions = gtk::gio::SimpleActionGroup::new();
+    let templates = gtk::gio::SimpleAction::new("templates", None);
+    let weak = Rc::downgrade(shell);
+    templates.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::templates::list(&s) });
+    actions.add_action(&templates);
+    let more = gtk::MenuButton::builder().icon_name("open-menu-symbolic").menu_model(&menu).build();
+    more.insert_action_group("start", Some(&actions));
+    header.pack_end(&more);
     let bar = adw::ToolbarView::new();
-    bar.add_top_bar(&adw::HeaderBar::new());
+    bar.add_top_bar(&header);
     bar.set_content(Some(&page));
     shell.start_page().set_child(Some(&bar));
 }

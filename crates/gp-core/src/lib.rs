@@ -57,6 +57,7 @@ mod sync_status;
 mod sync_wire;
 mod theme_def;
 mod theme_editor;
+mod template_view;
 mod themes;
 mod ticking;
 mod views;

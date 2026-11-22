@@ -9,6 +9,7 @@ struct PresentationScreen: View {
     @State private var editing = false
     @State private var trashing = false
     @State private var ending = false
+    @State private var savedAsTemplate = false
 
     var body: some View {
         GeometryReader { geo in
@@ -36,7 +37,10 @@ struct PresentationScreen: View {
                     #endif
                     ToolbarItem(placement: .primaryAction) { startStop(wide: geo.size.width >= Size.columns) }
                 }
-                .sheet(isPresented: $editing) { DetailsSheet(presentationId: p.id) }
+                .sheet(isPresented: $editing) {
+                    if p.isTemplate { TemplateDetailsSheet(templateId: p.id) } else { DetailsSheet(presentationId: p.id) }
+                }
+                .alert(t("templates.savedAs"), isPresented: $savedAsTemplate) {}
                 .sheet(item: Bindable(model).addingSong) { at in AddSongSheet(at: at) }
                 .sheet(item: Bindable(model).addingKind) { at in
                     if at.kind == "bible" { BibleSheet(at: at) } else { AddLibrarySheet(at: at) }
@@ -54,11 +58,12 @@ struct PresentationScreen: View {
                     Button(t("common.cancel"), role: .cancel) {}
                     Button(t("live.end"), role: .destructive) { model.endPresenting() }
                 } message: { Text(t("live.endText")) }
-                .confirmationDialog(t("presentation.trash"), isPresented: $trashing, titleVisibility: .visible) {
-                    Button(t("presentation.trash"), role: .destructive) {
-                        if model.run("trashPresentation", ["id": p.id, "at": Int(Date().timeIntervalSince1970 * 1000)]) == "ok" { model.path = [] }
+                .confirmationDialog(t(p.isTemplate ? "templates.trash" : "presentation.trash"), isPresented: $trashing, titleVisibility: .visible) {
+                    Button(t(p.isTemplate ? "templates.trash" : "presentation.trash"), role: .destructive) {
+                        let command = p.isTemplate ? "trashTemplate" : "trashPresentation"
+                        if model.run(command, ["id": p.id, "at": Int(Date().timeIntervalSince1970 * 1000)]) == "ok" { model.path = [] }
                     }
-                } message: { Text(t("presentation.trashConfirm", ["name": p.name])) }
+                } message: { Text(t(p.isTemplate ? "templates.trashConfirm" : "presentation.trashConfirm", ["name": p.name])) }
             } else {
                 ContentUnavailableView(t("presentation.notFound"), systemImage: "questionmark.square.dashed")
             }
@@ -75,17 +80,23 @@ struct PresentationScreen: View {
     }
 
     /// The presentation's menu, from a tap on its title: what it offers is the core's (`presentationActionsView`), the
-    /// trash only when not presented. Not here yet, so left out: Spara som mall.
+    /// trash only when not presented; a template's its own details and Radera mall; Spara som mall asks for a name.
     @ViewBuilder
     private func titleMenu(_ p: PresentationView) -> some View {
-        let groups = model.view("presentationActionsView", ["isTemplate": false, "presenting": model.isLive, "role": model.role], as: MenuGroups.self)?.groups ?? []
+        let groups = model.view("presentationActionsView", ["isTemplate": p.isTemplate, "presenting": model.isLive, "role": model.role], as: MenuGroups.self)?.groups ?? []
         ForEach(groups, id: \.id) { group in
             Section {
                 ForEach(group.actions, id: \.id) { a in
                     switch a.id {
                     case "editDetails": Button(t(a.text), systemImage: Look.symbol(a.icon)) { editing = true }
                     case "materials": Button(t(a.text), systemImage: Look.symbol(a.icon)) { model.showingMaterials = true }
-                    case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }
+                    case "saveAsTemplate":
+                        Button(t(a.text), systemImage: Look.symbol(a.icon)) {
+                            model.prompt = TextPrompt(title: t("templates.saveAs"), label: t("presentation.name"), text: p.name, rule: model.rule("presentationName")) {
+                                if model.saveAsTemplate($0) { savedAsTemplate = true }
+                            }
+                        }
+                    case "trash": Button(t(a.text), systemImage: Look.symbol(a.icon), role: .destructive) { trashing = true }.accessibilityIdentifier("trash-presentation")
                     default: EmptyView()
                     }
                 }

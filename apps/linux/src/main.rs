@@ -16,6 +16,7 @@ mod presentation;
 mod presentation_menu;
 mod shell;
 mod start_page;
+mod templates;
 mod ticking;
 mod tiles;
 

@@ -81,6 +81,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "tickView" => crate::ticking::view(a),
         "bibleBrowseView" => crate::bible_browse::view(a),
         "addPickView" => crate::add_pick::view(a),
+        "templateView" => crate::template_view::view(a),
         "remoteCommandView" => crate::remote_control::command(a),
         "remotePointerView" => crate::remote_control::pointer(a),
         "remoteTakeView" => crate::remote_control::take(a),

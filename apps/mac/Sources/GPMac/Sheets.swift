@@ -121,6 +121,8 @@ private struct SheetBar: ViewModifier {
 struct DetailsSheet: View {
     @Environment(Model.self) private var model
     let presentationId: String?
+    /// Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.
+    var template: TemplateRow? = nil
     @State private var name = t("presentations.defaultName")
     @State private var hasDate = false
     @State private var date = Date()
@@ -179,6 +181,17 @@ struct DetailsSheet: View {
     }
 
     private func fill() {
+        if let template {
+            name = template.name
+            if let d = model.nextDate(template).flatMap(Self.day.date(from:)) { hasDate = true; date = d }
+            if let t = template.time.flatMap(Self.clock.date(from:)) {
+                hasTime = true
+                let c = Calendar.current.dateComponents([.hour, .minute], from: t)
+                time = Calendar.current.date(bySettingHour: c.hour ?? 0, minute: c.minute ?? 0, second: 0, of: Date()) ?? time
+            }
+            location = template.location ?? ""
+            return
+        }
         guard let presentationId, let p = model.view("presentationPageView", ["id": presentationId], as: PresentationPage.self)?.presentation else { return }
         name = p.name
         if let d = p.eventDate.flatMap(Self.day.date(from:)) { hasDate = true; date = d }
@@ -193,12 +206,22 @@ struct DetailsSheet: View {
 
     private func save() -> Bool {
         let id = presentationId ?? model.newId()
-        let args: [String: Any] = [
+        var args: [String: Any] = [
             "id": id, "name": name,
             "eventDate": hasDate ? Self.day.string(from: date) : NSNull(),
             "time": hasTime ? Self.clock.string(from: time) : NSNull(), "location": location, "description": description,
         ]
-        guard model.run(presentationId == nil ? "createPresentation" : "updatePresentation", args) == "ok" else { return false }
+        var command = presentationId == nil ? "createPresentation" : "updatePresentation"
+        if presentationId == nil, let template {
+            // From a template: its items as they are now, each copy with an id of its own.
+            struct Item: Decodable { let id: String }
+            let items = model.view("itemsView", ["presentationId": template.id], as: [Item].self) ?? []
+            args["templateId"] = template.id
+            args["items"] = items.map { ["from": $0.id, "id": model.newId()] }
+            args["at"] = nowMs()
+            command = "createFromTemplate"
+        }
+        guard model.run(command, args) == "ok" else { return false }
         if presentationId == nil { model.path = [id] }
         return true
     }

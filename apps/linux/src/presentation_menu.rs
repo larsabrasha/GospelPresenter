@@ -1,7 +1,8 @@
 // The presentation's menu behind its title (the web's PresentationMenu.tsx, the Mac app's title menu): what it offers
 // is the core's (`presentationActionsView`), drawn as GNOME's popover menu. Noter och länkar opens the songs' sheet
 // music, recordings and links (`presentationMaterialsView`); Radera presentation, asked first, puts it in the trash and
-// goes back to the start page. Not here yet, so left out: Redigera detaljer (the details dialog), Spara som mall.
+// goes back to the start page (a template's Radera mall); Spara som mall asks for a name (templates.rs). Not here yet,
+// so left out: Redigera detaljer (the details dialog).
 use crate::shell::Shell;
 use adw::prelude::*;
 use gp_tui::texts::t;
@@ -10,17 +11,18 @@ use serde_json::{json, Value};
 use std::rc::Rc;
 
 /// The entries this app draws.
-const DRAWN: [&str; 2] = ["materials", "trash"];
+const DRAWN: [&str; 3] = ["materials", "saveAsTemplate", "trash"];
 
 /// The menu's model and its actions (`presentation.*`) for the open presentation, set on `button`.
 pub fn attach(shell: &Rc<Shell>, button: &gtk::MenuButton) {
-    let (pid, name, live) = {
+    let (pid, name, live, template) = {
         let m = shell.model.borrow();
         let p = m.app.page.as_ref().and_then(|p| p.presentation.clone());
-        (p.as_ref().map(|p| p.id.clone()).unwrap_or_default(), p.map(|p| p.name).unwrap_or_default(), m.app.is_live())
+        let template = p.as_ref().is_some_and(|p| p.is_template);
+        (p.as_ref().map(|p| p.id.clone()).unwrap_or_default(), p.map(|p| p.name).unwrap_or_default(), m.app.is_live(), template)
     };
     // The role the app opens the database as (Shell::start's caller, the demo's admin) until it signs in to a host.
-    let args = json!({ "isTemplate": false, "presenting": live, "role": "admin" });
+    let args = json!({ "isTemplate": template, "presenting": live, "role": "admin" });
     let groups = shell.model.borrow().app.core().call("presentationActionsView", args).ok()
         .and_then(|v| v["groups"].as_array().cloned()).unwrap_or_default();
     let menu = gio::Menu::new();
@@ -35,7 +37,11 @@ pub fn attach(shell: &Rc<Shell>, button: &gtk::MenuButton) {
             let (weak, pid, name, id) = (Rc::downgrade(shell), pid.clone(), name.clone(), id.to_string());
             action.connect_activate(move |_, _| {
                 let Some(s) = weak.upgrade() else { return };
-                if id == "materials" { materials(&s, &pid) } else { ask_trash(&s, &pid, &name) }
+                match id.as_str() {
+                    "materials" => materials(&s, &pid),
+                    "saveAsTemplate" => crate::templates::save_as(&s),
+                    _ => ask_trash(&s, &pid, &name, template),
+                }
             });
             actions.add_action(&action);
         }
@@ -77,10 +83,11 @@ fn materials(shell: &Rc<Shell>, pid: &str) {
     dialog.present(Some(&shell.window));
 }
 
-/// Radera presentation, asked first (`presentation.trashConfirm`); then back to the start page.
-fn ask_trash(shell: &Rc<Shell>, pid: &str, name: &str) {
-    let dialog = adw::AlertDialog::new(Some(&t("presentation.trash", &[])), Some(&t("presentation.trashConfirm", &[("name", name)])));
-    dialog.add_responses(&[("cancel", &t("common.cancel", &[])), ("trash", &t("presentation.trash", &[]))]);
+/// Radera presentation (or mall), asked first; then back to the start page.
+fn ask_trash(shell: &Rc<Shell>, pid: &str, name: &str, template: bool) {
+    let (title, confirm) = if template { ("templates.trash", "templates.trashConfirm") } else { ("presentation.trash", "presentation.trashConfirm") };
+    let dialog = adw::AlertDialog::new(Some(&t(title, &[])), Some(&t(confirm, &[("name", name)])));
+    dialog.add_responses(&[("cancel", &t("common.cancel", &[])), ("trash", &t(title, &[]))]);
     dialog.set_response_appearance("trash", adw::ResponseAppearance::Destructive);
     dialog.set_close_response("cancel");
     let (weak, pid) = (Rc::downgrade(shell), pid.to_string());
@@ -88,7 +95,7 @@ fn ask_trash(shell: &Rc<Shell>, pid: &str, name: &str) {
         if response != "trash" { return }
         let Some(s) = weak.upgrade() else { return };
         let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64);
-        s.trash_presentation(&pid, at);
+        s.trash_presentation(&pid, at, template);
     });
     dialog.present(Some(&shell.window));
 }

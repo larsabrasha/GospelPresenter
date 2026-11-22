@@ -60,6 +60,8 @@ final class Model {
     var addingKind: AddKindAt?
     /// An item whose removal asks first.
     var removing: ItemView?
+    /// Mallar open over the start page (Templates.swift).
+    var templatesOpen = false
     /// Noter och länkar open over the page (PresentationMaterials.swift).
     var showingMaterials = false
     /// What an item's Redigera opened over the page (ItemEditing.swift).
@@ -135,7 +137,7 @@ final class Model {
     @discardableResult
     private func step(_ what: [String: Any]) -> PageAnswer? {
         guard let open = selectedPresentation, let items = current?.items else { return nil }
-        var args: [String: Any] = ["state": jsonObject(pageState), "context": ["presentationId": open, "isTemplate": false],
+        var args: [String: Any] = ["state": jsonObject(pageState), "context": ["presentationId": open, "isTemplate": current?.isTemplate ?? false],
                                    "live": jsonObject(live.state), "order": Live.order(items), "overlays": Live.overlays(items)]
         args.merge(live.others(than: open)) { a, _ in a }
         args.merge(what) { a, _ in a }
@@ -176,7 +178,7 @@ final class Model {
     /// Whether ▶ may start: not while another presentation is presented (`pageModelView`).
     var canStart: Bool {
         guard let open = selectedPresentation, let items = current?.items else { return false }
-        let context: [String: Any] = ["presentationId": open, "isTemplate": false, "presenting": isLive, "live": jsonObject(live.state)]
+        let context: [String: Any] = ["presentationId": open, "isTemplate": current?.isTemplate ?? false, "presenting": isLive, "live": jsonObject(live.state)]
         return view("pageModelView", ["state": jsonObject(pageState), "context": context, "order": Live.order(items)], as: PageModel.self)?.canStart ?? false
     }
 
