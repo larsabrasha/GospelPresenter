@@ -60,6 +60,11 @@ final class Model {
     var addingKind: AddKindAt?
     /// An item whose removal asks first.
     var removing: ItemView?
+    /// ⌘K open (Palette.swift).
+    var paletteOpen = false
+    /// Inställningar to open on this page (the palette's), and on a Mac its window asked for.
+    var settingsPage: String?
+    var openSettingsWindow = false
     /// Mallar open over the start page (Templates.swift).
     var templatesOpen = false
     /// Noter och länkar open over the page (PresentationMaterials.swift).

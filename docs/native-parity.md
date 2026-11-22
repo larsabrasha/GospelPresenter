@@ -54,7 +54,8 @@ is shared; each platform's part is checked off in its own section below.
   templates.ts and recentTemplates read them
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
-- [ ] 9 ⌘K
+- [x] 9 ⌘K: `paletteView`, the presentations a search finds (name, place, the date as the shell writes it), the
+  coming first, a few (crates/gp-core/src/palette.rs; 4 tests in views.test.ts); the web's CommandPalette reads it
 - [ ] 10 Phone lying down, moving on a phone
 
 ## Mac and iOS
@@ -87,7 +88,11 @@ is shared; each platform's part is checked off in its own section below.
   template's Redigera detaljer in a test
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
-- [ ] 9 ⌘K
+- [x] 9 ⌘K: anywhere a window is (a hidden ⌘K button) and the start page's magnifier (Palette.swift): the open
+  presentation's likeliest actions, songs (their page; in a presentation Lägg till, shown while presenting),
+  presentations, the commands (Gå till … and Ny sång open Inställningar there), Inställningar's pages.
+  `PaletteTests` (3) on an iPhone 17 Pro Max, opened by `-gp.palette` where the test cannot press ⌘K. Gaps: no ↑↓ and
+  ↵ through the hits, no preview beside them, no ⌘↵; ⌘K by a hardware keyboard not tried
 - [ ] 10 Phone lying down, moving on a phone
 
 ## Linux
@@ -135,7 +140,10 @@ The rounds:
   as text (no pickers), a template's Redigera detaljer is not built (the details dialog is the base's)
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
-- [ ] 9 ⌘K
+- [~] 9 ⌘K as Ctrl+K on every page (palette.rs): the presentation's likeliest actions, + 's kinds by their words,
+  songs added to the open presentation, presentations found and opened. Pictures light and dark of the blank
+  search, a song found and added, a presentation found and opened. Gaps: no song page nor Inställningar to go to
+  (the Linux app has neither), no ↑↓ ↵ through the hits
 - [ ] 10 Phone lying down, moving on a phone
 
 ## Questions
@@ -147,6 +155,11 @@ Where a choice was not clear, the one most like the web was taken and the questi
   keeps a picture whose file is gone. With one gone before it, the web removes the wrong picture (the demo's
   swish.jpg: ✕ on the one shown removes the gone one). The native apps send the place from the slide's key
   (`image{n}`). Should the web do the same? Not changed, as it changes the web's behaviour.
+
+## Seen in passing, not this list's
+
+- The Linux app shows an item's problem by its raw key (`song-trashed`) instead of its text
+  (`presentation.songTrashed`); presentation.rs passes the problem to `t` as if it were a key.
 
 ## Standing still
 

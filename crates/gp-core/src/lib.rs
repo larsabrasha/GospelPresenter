@@ -32,6 +32,7 @@ mod remote_control;
 mod ordered;
 mod org_transfer;
 mod pages;
+mod palette;
 mod presentation_page;
 mod presenting;
 mod propresenter;

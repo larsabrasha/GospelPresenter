@@ -74,6 +74,11 @@ impl Shell {
         let weak = Rc::downgrade(self);
         keys.connect_key_pressed(move |_, key, _, state| {
             let Some(s) = weak.upgrade() else { return gtk::glib::Propagation::Proceed };
+            // Ctrl+K, the search of everything, on every page (palette.rs).
+            if s.window.visible_dialog().is_none() && state.contains(gtk::gdk::ModifierType::CONTROL_MASK) && key.to_lower() == gtk::gdk::Key::k {
+                crate::palette::open(&s);
+                return gtk::glib::Propagation::Stop;
+            }
             // A dialog open over the page (Avsluta's question) takes its own keys: ↵ answers it.
             if s.page.borrow().is_none() || s.window.visible_dialog().is_some() { return gtk::glib::Propagation::Proceed }
             // ↑ ↓ alone: the slide above or below as the tiles stand, not the one before or after.
@@ -119,6 +124,14 @@ impl Shell {
         self.nav.push(&page.nav_page);
         *self.page.borrow_mut() = Some(page);
         self.refresh();
+    }
+
+    /// Back to the start page, from a presentation's page if one is open (another is opened from the search).
+    pub fn leave(self: &Rc<Self>) {
+        if self.page.borrow().is_none() { return }
+        // At once, not popped with its animation: the page opened next would be taken for the one left.
+        self.left();
+        self.nav.replace(std::slice::from_ref(&self.start));
     }
 
     /// The presentation's page left: the start page read again.

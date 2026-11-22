@@ -117,6 +117,48 @@ describe('templatesView', () => {
   });
 });
 
+describe('paletteView', () => {
+  /** Presentations around 2026-11-22: two coming, two past, one undated. */
+  function presentations() {
+    const db = new DatabaseSync(':memory:');
+    const all = (sql: string, params: unknown[]) => {
+      const st = db.prepare(sql);
+      st.setReturnArrays(true);
+      return st.all(...(params as never[])) as unknown as Rows;
+    };
+    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, all);
+    db.exec(`INSERT INTO presentations (id, name, event_date, location) VALUES
+      ('past', 'Gudstjänst', '2026-11-15', NULL), ('older', 'Gudstjänst', '2026-11-01', NULL),
+      ('soon', 'Gudstjänst', '2026-11-22', 'Kyrkan'), ('later', 'Kvällsmöte', '2026-11-29', NULL), ('none', 'Utkast', NULL, NULL)`);
+    return async (sql: string, params: unknown[]) => all(sql, params);
+  }
+  type Found = { presentations: { id: string }[] };
+
+  it('finds the coming first, soonest first, then the past, latest first', async () => {
+    const out = await nodeRustCore().view<Found>('paletteView', { query: 'gudstjänst', today: '2026-11-22' }, presentations());
+
+    expect(out.presentations.map((p) => p.id)).toEqual(['soon', 'past', 'older']);
+  });
+
+  it('finds a presentation by its place', async () => {
+    const out = await nodeRustCore().view<Found>('paletteView', { query: 'kyrk', today: '2026-11-22' }, presentations());
+
+    expect(out.presentations.map((p) => p.id)).toEqual(['soon']);
+  });
+
+  it('finds a presentation by its date as the shell writes it', async () => {
+    const out = await nodeRustCore().view<Found>('paletteView', { query: '29 nov', today: '2026-11-22', labels: { later: 'sön 29 november' } }, presentations());
+
+    expect(out.presentations.map((p) => p.id)).toEqual(['later']);
+  });
+
+  it('offers three with nothing typed, the coming first', async () => {
+    const out = await nodeRustCore().view<Found>('paletteView', { query: '', today: '2026-11-22' }, presentations());
+
+    expect(out.presentations.map((p) => p.id)).toEqual(['soon', 'later', 'past']);
+  });
+});
+
 describe('RustCore.pure', () => {
   const order = [['i1', 2]];
 

@@ -121,6 +121,9 @@ struct SettingsView: View {
                 }
             }
             .searchable(text: $query, placement: .sidebar, prompt: t("search.field"))
+            // A page asked for from elsewhere (⌘K): opened, the ask let go.
+            .onAppear { if let page = model.settingsPage { chosen = page; model.settingsPage = nil } }
+            .onChange(of: model.settingsPage) { _, page in if let page { chosen = page; model.settingsPage = nil } }
             .modifier(SearchFocus(searching: $searching))
             .navigationTitle(t("nav.admin"))
             #if os(iOS)

@@ -82,6 +82,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "bibleBrowseView" => crate::bible_browse::view(a),
         "addPickView" => crate::add_pick::view(a),
         "templateView" => crate::template_view::view(a),
+        "paletteView" => crate::palette::view(a).await,
         "remoteCommandView" => crate::remote_control::command(a),
         "remotePointerView" => crate::remote_control::pointer(a),
         "remoteTakeView" => crate::remote_control::take(a),

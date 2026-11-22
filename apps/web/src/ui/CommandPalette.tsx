@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Me, Presentation, Song } from '@gp/core';
-import { useData, useSongSearch } from '../db/react.tsx';
+import { useData, useDataReading, useSongSearch } from '../db/react.tsx';
 import { listPresentations } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { dateLabel, localToday } from '../pages/dashboard.ts';
@@ -108,12 +108,18 @@ const COMMANDS: { text: () => string; icon: ReactNode; command: AppCommand; keys
   { text: () => t('shortcuts.settings'), icon: <CogIcon className="size-4" />, command: 'settings', keys: [','], desktop: 'Ctrl+,' },
 ];
 
-/** The presentations a search finds: by name, place or date as the start page writes it, the coming ones first. */
-function foundPresentations(all: Presentation[], query: string, today: string): Presentation[] {
-  const coming = (p: Presentation) => !!p.eventDate && p.eventDate >= today;
-  return all
-    .filter((p) => matches(query, p.name, p.location, p.eventDate, p.eventDate ? dateLabel(p.eventDate, today, true) : null))
-    .toSorted((a, b) => Number(coming(b)) - Number(coming(a)) || (coming(a) ? a.eventDate!.localeCompare(b.eventDate!) : (b.eventDate ?? '').localeCompare(a.eventDate ?? '')));
+/**
+ * The presentations a search finds, by name, place or date as the start page writes it, the coming ones first, a few
+ * (`paletteView`, the core's rule for every shell): the dates are given as this page writes them.
+ */
+function usePresentationsFound(query: string, today: string): Presentation[] | undefined {
+  const all = useData(listPresentations, []);
+  const labels = Object.fromEntries((all ?? []).flatMap((p) => (p.eventDate ? [[p.id, dateLabel(p.eventDate, today, true)]] : [])));
+  return useDataReading(
+    (d) => d.view<{ presentations: Presentation[] }>('paletteView', { query, today, labels }).then((r) => r.presentations),
+    [query, today, all],
+    ['presentations'],
+  );
 }
 
 function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => void }) {
@@ -122,8 +128,8 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
   const [at, setAt] = useState(0);
   const listId = useId();
   const { shown: songs, shownQuery } = useSongSearch(query);
-  const presentations = useData(listPresentations, []);
   const today = localToday();
+  const presentations = usePresentationsFound(query.trim() ? query : '', today);
   const blank = !query.trim();
   // Over a presentation's page, not over Inställningar: there a song is added, else opened.
   const adding = target && !document.querySelector('[data-page-dialog]') ? target : null;
@@ -164,9 +170,7 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
         : undefined,
       preview: { kind: 'song', id: s.id, title: s.name },
     }));
-    const presentationHits: Hit[] = foundPresentations(presentations ?? [], blank ? '' : query, today)
-      .slice(0, blank ? 3 : PER_GROUP)
-      .map((p) => ({
+    const presentationHits: Hit[] = (presentations ?? []).map((p) => ({
         key: `p:${p.id}`,
         icon: <CalendarIcon className="size-4" />,
         title: p.name,

@@ -46,7 +46,7 @@ pub fn kinds_actions(shell: &Rc<Shell>, chosen: Option<&str>) -> gio::SimpleActi
 }
 
 /// Where the next addition goes: after `chosen`, else as the core's one rule says (`addPositionView`).
-fn after_for(shell: &Rc<Shell>, chosen: Option<&str>) -> Value {
+pub fn after(shell: &Rc<Shell>, chosen: Option<&str>) -> Value {
     let m = shell.model.borrow();
     let app = &m.app;
     let order: Vec<String> = app.page.as_ref().map(|p| p.items.iter().map(|i| i.id.clone()).collect()).unwrap_or_default();
@@ -57,7 +57,7 @@ fn after_for(shell: &Rc<Shell>, chosen: Option<&str>) -> Value {
 
 /// A kind chosen: its dialog, or for Programpunkt its name asked.
 pub fn choose(shell: &Rc<Shell>, kind: &str, chosen: Option<&str>) {
-    let after = after_for(shell, chosen);
+    let after = after(shell, chosen);
     match kind {
         "header" => header(shell, after),
         "song" => song(shell, after),

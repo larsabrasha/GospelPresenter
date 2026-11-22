@@ -23,7 +23,7 @@ struct StartPage: View {
             .navigationTitle(t("nav.presentations"))
             .titleOnlyInWindow()
             // At the toolbar's far end, as the web's bar has it; without the title, a flexible space keeps it there.
-            .toolbar { ToolbarItemGroup { Spacer(); AccountMenu() } }
+            .toolbar { ToolbarItemGroup { Spacer(); Button(t("palette.title"), systemImage: "magnifyingglass") { model.paletteOpen = true }.help(t("palette.title")); AccountMenu() } }
             .sheet(isPresented: $creating) { CreateSheet() }
             // GP_MAC_CREATE: Skapa presentation open at the start, for pictures of it (GP_MAC_SNAPSHOT).
             .onAppear { if ProcessInfo.processInfo.environment["GP_MAC_CREATE"] != nil { creating = true } }
@@ -133,6 +133,9 @@ struct StartPage: View {
             } else {
                 ToolbarItem(placement: .navigation) { AccountMenu() }
                 ToolbarItem(placement: .primaryAction) { AddButton(label: t("presentations.new")) { creating = true } }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(t("palette.title"), systemImage: "magnifyingglass") { model.paletteOpen = true }.accessibilityIdentifier("palette-open")
+                }
             }
         }
         .sheet(isPresented: $creating) { CreateSheet() }

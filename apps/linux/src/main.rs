@@ -12,6 +12,7 @@ mod look;
 mod model;
 mod output;
 mod painter;
+mod palette;
 mod presentation;
 mod presentation_menu;
 mod shell;

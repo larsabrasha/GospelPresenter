@@ -111,6 +111,15 @@ struct RootView: View {
                 #endif
             }
         }
+        // ⌘K, the search of everything, anywhere a window is (Palette.swift).
+        .background {
+            Button("") { model.paletteOpen = true }.keyboardShortcut("k", modifiers: .command)
+                .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true)
+        }
+        .sheet(isPresented: $model.paletteOpen) { Palette() }
+        #if os(macOS)
+        .onChange(of: model.openSettingsWindow) { _, open in if open { openWindow(id: "settings"); model.openSettingsWindow = false } }
+        #endif
         #if os(iOS)
         .sheet(isPresented: $model.settingsOpen) { SettingsView().environment(model) }
         // `-gp.settings <page>`: Inställningar open on that page, for pictures (GP_MAC_SETTINGS on a Mac).
@@ -120,6 +129,12 @@ struct RootView: View {
             model.settingsOpen = true
         }
         #endif
+        // `-gp.palette YES`: ⌘K open once the page stands, for the UI tests, whose typeKey reaches no hardware ⌘K on iOS.
+        .task {
+            guard UserDefaults.standard.bool(forKey: "gp.palette") else { return }
+            try? await Task.sleep(for: .seconds(1)) // the page opened by -gp.open first
+            model.paletteOpen = true
+        }
         // `-gp.secondWindow YES`: a second window, once, for the UI test of two windows.
         .task { if model.app.takeSecondWindow() { openWindow(id: "main") } }
         .onChange(of: phase) { _, now in
