@@ -52,7 +52,9 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 6 Mallar and Spara som mall: `templateView` (a template's slot and next date, crates/gp-core/src/template_view.rs,
   8 tests) and `templatesView`'s `recent` (the picker's ten last used, 2 tests in views.test.ts); the web's
   templates.ts and recentTemplates read them
-- [ ] 7 Utgångar
+- [~] 7 Utgångar: `shownOnOutputsView` (what a session's public outputs and screens get, live_report.rs, 12 parity
+  cases against the TS it replaced) and `outputRowsView` (Utgångar's rows and the take-over question, 5 tests); the
+  web's owner.ts and useOutputs.ts read them. Left: the shells' live socket as owner (below)
 - [ ] 8 Fjärrstyrning
 - [x] 9 ⌘K: `paletteView`, the presentations a search finds (name, place, the date as the shell writes it), the
   coming first, a few (crates/gp-core/src/palette.rs; 4 tests in views.test.ts); the web's CommandPalette reads it

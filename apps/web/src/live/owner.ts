@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { customPageText, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { pageCore } from '../db/pageCore.ts';
 import { listDisplays } from '../db/queries.ts';
@@ -102,16 +102,8 @@ type Shown = Awaited<ReturnType<typeof liveSlide>>;
  * included; null is black.
  */
 function shownOnOutputs(p: LivePointer, shown: Shown, video: PlaybackVideo): { slide: PublicSlide | null; canvas: Canvas | null } {
-  if (!p.presentationId || p.black) return { slide: null, canvas: null };
-  const { slide, overlay, theme } = shown;
-  const overlayText = (overlay && customPageText(overlay)) || null;
-  if (!slide && !overlay?.elements.length) return { slide: null, canvas: null };
-  return {
-    // An overlay with nothing selected is shown on its own, as the projector shows it.
-    slide: slide || overlayText ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme, overlayText) : null,
-    // A video slide carries where the video is, for the paired screens to follow; the public outputs get its still.
-    canvas: toCanvas(slide, theme, overlay, slide?.video ? (video.live() ?? { ...slide.video, playing: false, position: 0, at: Date.now() }) : null),
-  };
+  // The core's rule (`shownOnOutputsView`), the same in every shell that presents; a video's place is this window's.
+  return pageCore().pure('shownOnOutputsView', { pointer: p, shown, video: video.live() ?? null, now: Date.now() });
 }
 
 /** The video as a controller sees it: the item, playing or not, where and how long. */

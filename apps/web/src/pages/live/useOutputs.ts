@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Display } from '@gp/core';
+import { pageCore } from '../../db/pageCore.ts';
 import { useData } from '../../db/react.tsx';
 import { listDisplays } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
@@ -9,6 +10,20 @@ import { rememberOutput } from '../../live/autoOutputs.ts';
 import { OUTPUT_WINDOW, outputWindow, type OutputDisplay } from '../../live/outputWindow.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
+
+/** The texts `outputRowsView` asks a take-over with, written out so each is known to be used (packages/architecture). */
+const TAKE_OVER = ['live.takeOverTitle', 'live.takeOverText', 'live.takeOverTextUnknown', 'live.takeOver'] as const;
+
+/** A row as the core answers it. */
+interface CoreRow {
+  id: string;
+  chosen: boolean;
+  sending: boolean;
+  offline: boolean;
+  elsewhere: string | null;
+  viewers: number | null;
+  takeOver: { title: (typeof TAKE_OVER)[number]; text: (typeof TAKE_OVER)[number]; args: Record<string, string>; confirm: (typeof TAKE_OVER)[number] } | null;
+}
 
 /** A saved screen or a public output, as the outputs show it while presenting. */
 interface OutputRow {
@@ -58,33 +73,30 @@ export function useOutputs(link: LiveLink, sessionId: string) {
     addEventListener(REMOTE_CHANGED, on);
     return () => removeEventListener(REMOTE_CHANGED, on);
   }, []);
-  const mine = sessions.find((s) => s.id === sessionId);
-  const rows: OutputRow[] = (displays ?? [])
-    .toSorted((a, b) => (a.kind === b.kind ? 0 : a.kind === 'screen' ? -1 : 1))
-    .map((d) => {
-      const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));
-      const offline = d.kind === 'screen' && !online.includes(d.id);
-      return {
-        display: d,
-        chosen: chosen.includes(d.id),
-        sending: chosen.includes(d.id) && !elsewhere && !offline,
-        offline,
-        elsewhere: elsewhere ? (elsewhere.presentationName ?? '') : null,
-        viewers: mine?.outputs.find((o) => o.id === d.id)?.viewers,
-        toggle: async (on: boolean) => {
-          if (on && elsewhere) {
-            const ok = await ask({
-              title: t('live.takeOverTitle'),
-              text: elsewhere.presentationName ? t('live.takeOverText', { output: d.name, presentation: elsewhere.presentationName }) : t('live.takeOverTextUnknown', { output: d.name }),
-              confirm: t('live.takeOver'),
-            });
-            if (ok) setOutput(d.id, true, true);
-            return;
-          }
-          setOutput(d.id, on);
-        },
-      };
-    });
+  // Which are sent to, offline or another presentation's, and the question before taking one over: the core's
+  // (`outputRowsView`), the same in every shell.
+  const answer = pageCore().pure<{ rows: CoreRow[] }>('outputRowsView', { displays: displays ?? [], sessions, online, chosen, sessionId });
+  const byId = new Map((displays ?? []).map((d) => [d.id, d]));
+  const rows: OutputRow[] = answer.rows.flatMap((r) => {
+    const display = byId.get(r.id);
+    if (!display) return [];
+    return [{
+      display,
+      chosen: r.chosen,
+      sending: r.sending,
+      offline: r.offline,
+      elsewhere: r.elsewhere,
+      viewers: r.viewers ?? undefined,
+      toggle: async (on: boolean) => {
+        if (on && r.takeOver) {
+          const ok = await ask({ title: t(r.takeOver.title), text: t(r.takeOver.text, r.takeOver.args), confirm: t(r.takeOver.confirm) });
+          if (ok) setOutput(r.id, true, true);
+          return;
+        }
+        setOutput(r.id, on);
+      },
+    }];
+  });
   return {
     dialog,
     /** This computer's own outputs, each switched on its own; turning one on says so when the browser would not open it. */
