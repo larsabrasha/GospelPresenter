@@ -4,6 +4,7 @@
 mod adding;
 mod adding_bible;
 mod connect;
+mod details;
 mod faces;
 mod image_items;
 mod item_menu;

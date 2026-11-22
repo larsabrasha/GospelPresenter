@@ -116,20 +116,16 @@ private struct SheetBar: ViewModifier {
     private func done() { if confirm() { dismiss() } }
 }
 
-/// The details of a presentation (spec 03): "Redigera detaljer", or with no id "Skapa presentation", which makes it and
-/// opens it (as the web's CreatePresentationDialog). Every field sent; the core checks them.
+/// The details of a presentation (spec 03): "Redigera detaljer", or with no id "Skapa presentation", blank or from a
+/// template, which makes it and opens it. What the fields hold, when Spara may be pressed, what ↵ does and the change
+/// to run are the core's (`detailsStepView`); this draws the fields and does what it answers.
 struct DetailsSheet: View {
     @Environment(Model.self) private var model
+    @Environment(\.dismiss) private var dismiss
     let presentationId: String?
     /// Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.
     var template: TemplateRow? = nil
-    @State private var name = t("presentations.defaultName")
-    @State private var hasDate = false
-    @State private var date = Date()
-    @State private var hasTime = false
-    @State private var time = Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: Date())!
-    @State private var location = ""
-    @State private var description = ""
+    @State private var step: DetailsStep?
 
     private static func formatter(_ format: String) -> DateFormatter {
         let f = DateFormatter()
@@ -137,92 +133,93 @@ struct DetailsSheet: View {
         f.locale = Locale(identifier: "en_US_POSIX")
         return f
     }
-    /// As the core stores them: `YYYY-MM-DD` and `HH:MM`.
+    /// As the core keeps them: `YYYY-MM-DD` and `HH:MM`.
     private static let day = formatter("yyyy-MM-dd"), clock = formatter("HH:mm")
 
-    /// `detailsDialogView`: the title, the fields in their groups, the buttons and their texts, as every shell has them.
-    private struct View_: Decodable {
-        struct Action: Decodable { let id: String, text: String, role: String }
-        let title: String, groups: [[String]], actions: [Action]
-    }
-
     var body: some View {
-        let view = model.view("detailsDialogView", ["isNew": presentationId == nil], as: View_.self)
-        let text = { (role: String, fallback: String) in t(view?.actions.first { $0.role == role }?.text ?? fallback) }
+        let view = step?.view
+        let confirm = view?.actions.first { $0.role == "confirm" }
         Form {
-            // The core's groups in its order; the theme is not chosen in this app yet, so its group is left out.
-            ForEach(view?.groups.filter { $0 != ["theme"] } ?? [], id: \.self) { group in
+            // The core's groups in its order; the theme is not chosen in this app yet, so its field is left out.
+            ForEach(view?.groups.map { $0.filter { $0 != .themeId } }.filter { !$0.isEmpty } ?? [], id: \.self) { group in
                 Section { ForEach(group, id: \.self) { field($0) } }
             }
         }
         .formStyle(.grouped)
-        .sheetBar(t(view?.title ?? "presentation.editDetails"), cancel: text("cancel", "common.cancel"), confirm: text("confirm", "common.save"),
-                  disabled: model.rule("presentationName").blocks(name), save)
+        .sheetBar(t(view?.title ?? "presentation.editDetails"), cancel: t(view?.actions.first { $0.role == "cancel" }?.text ?? "common.cancel"),
+                  confirm: t(confirm?.text ?? "common.save"), disabled: confirm?.enabled != true) { send(.save(id: model.newId())) }
         .macWidth(440)
-        .onAppear(perform: fill)
+        .onAppear(perform: open)
     }
 
-    /// A field of the core's groups, by its name.
-    @ViewBuilder private func field(_ name: String) -> some View {
-        switch name {
-        case "name": TextField(t("presentation.name"), text: $name).limited($name, to: model.rule("presentationName").max)
-        case "location": TextField(t("presentation.location"), text: $location).limited($location, to: model.rule("location").max)
-        case "date":
-            Toggle(t("presentation.date"), isOn: $hasDate.animation())
-            if hasDate { DatePicker(t("presentation.date"), selection: $date, displayedComponents: .date).labelsHidden().environment(\.locale, Texts.locale) }
-        case "time":
-            Toggle(t("presentation.time"), isOn: $hasTime.animation())
-            if hasTime { DatePicker(t("presentation.time"), selection: $time, displayedComponents: .hourAndMinute).labelsHidden().environment(\.locale, Texts.locale) }
-        case "description":
-            TextField(t("presentation.description"), text: $description, axis: .vertical).lineLimit(4...8)
-                .limited($description, to: model.rule("description").max)
-        default: EmptyView()
+    /// A field's text as the core keeps it, and what is typed sent to it.
+    private func text(_ f: DetailsField) -> Binding<String> {
+        Binding(get: { value(f) }, set: { _ = send(.set(field: f, value: $0)) })
+    }
+
+    private func value(_ f: DetailsField) -> String {
+        guard let s = step?.state else { return "" }
+        switch f {
+        case .name: return s.name
+        case .eventDate: return s.eventDate
+        case .time: return s.time
+        case .location: return s.location
+        case .description: return s.description
+        case .themeId: return s.themeId
         }
     }
 
-    private func fill() {
-        if let template {
-            name = template.name
-            if let d = model.nextDate(template).flatMap(Self.day.date(from:)) { hasDate = true; date = d }
-            if let t = template.time.flatMap(Self.clock.date(from:)) {
-                hasTime = true
-                let c = Calendar.current.dateComponents([.hour, .minute], from: t)
-                time = Calendar.current.date(bySettingHour: c.hour ?? 0, minute: c.minute ?? 0, second: 0, of: Date()) ?? time
+    /// A date or a time: a switch for whether it has one (today, or 11:00, when switched on), and the system's picker.
+    private func when(_ f: DetailsField, _ format: DateFormatter, _ fallback: @escaping () -> Date) -> (has: Binding<Bool>, at: Binding<Date>) {
+        (Binding(get: { !value(f).isEmpty }, set: { on in _ = send(.set(field: f, value: on ? format.string(from: fallback()) : "")) }),
+         Binding(get: { format.date(from: value(f)) ?? fallback() }, set: { _ = send(.set(field: f, value: format.string(from: $0))) }))
+    }
+
+    /// A field of the core's groups.
+    @ViewBuilder private func field(_ f: DetailsField) -> some View {
+        switch f {
+        case .name:
+            // ↵ in the name saves, as the confirming button (the core's).
+            TextField(t("presentation.name"), text: text(.name)).onSubmit { if send(.enter(field: .name, id: model.newId())) { dismiss() } }
+        case .location: TextField(t("presentation.location"), text: text(.location))
+        case .eventDate:
+            let date = when(.eventDate, Self.day) { Date() }
+            Toggle(t("presentation.date"), isOn: date.has.animation())
+            if date.has.wrappedValue { DatePicker(t("presentation.date"), selection: date.at, displayedComponents: .date).labelsHidden().environment(\.locale, Texts.locale) }
+        case .time:
+            let time = when(.time, Self.clock) { Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: Date())! }
+            Toggle(t("presentation.time"), isOn: time.has.animation())
+            if time.has.wrappedValue { DatePicker(t("presentation.time"), selection: time.at, displayedComponents: .hourAndMinute).labelsHidden().environment(\.locale, Texts.locale) }
+        case .description: TextField(t("presentation.description"), text: text(.description), axis: .vertical).lineLimit(4...8)
+        case .themeId: EmptyView()
+        }
+    }
+
+    /// The dialog's first state: the presentation's, the template's, or a blank one named as the app says it.
+    private func open() {
+        var initial: [String: Any] = ["defaultName": t("presentations.defaultName")]
+        if let presentationId { initial = ["presentationId": presentationId] }
+        else if let template { initial = ["templateId": template.id, "today": localToday(), "now": Self.clock.string(from: Date())] }
+        step = model.view("detailsStepView", ["init": initial], as: DetailsStep.self)
+    }
+
+    /// An event to the core, and what it answers done: a change run (and the core told how it went), the dialog
+    /// closed, the presentation made opened. Whether the dialog is to close.
+    private func send(_ event: DetailsEvent) -> Bool {
+        guard let state = step?.state, let s = JSONValue(encoding: state)?.plain, let e = JSONValue(encoding: event)?.plain,
+              let next = model.view("detailsStepView", ["state": s, "event": e, "now": nowMs()], as: DetailsStep.self) else { return false }
+        step = next
+        var close = false
+        for effect in next.effects {
+            switch effect {
+            case let .run(args, command):
+                let ok = model.run(command, args.plain as? [String: Any] ?? [:]) == "ok"
+                if send(.done(ok: ok)) { close = true }
+            case .close: close = true
+            case let .open(id): model.path = [id]
+            case .unknown: break
             }
-            location = template.location ?? ""
-            return
         }
-        guard let presentationId, let p = model.view("presentationPageView", ["id": presentationId], as: PresentationPage.self)?.presentation else { return }
-        name = p.name
-        if let d = p.eventDate.flatMap(Self.day.date(from:)) { hasDate = true; date = d }
-        if let t = p.time.flatMap(Self.clock.date(from:)) {
-            hasTime = true
-            let c = Calendar.current.dateComponents([.hour, .minute], from: t)
-            time = Calendar.current.date(bySettingHour: c.hour ?? 0, minute: c.minute ?? 0, second: 0, of: Date()) ?? time
-        }
-        location = p.location ?? ""
-        description = p.description ?? ""
-    }
-
-    private func save() -> Bool {
-        let id = presentationId ?? model.newId()
-        var args: [String: Any] = [
-            "id": id, "name": name,
-            "eventDate": hasDate ? Self.day.string(from: date) : NSNull(),
-            "time": hasTime ? Self.clock.string(from: time) : NSNull(), "location": location, "description": description,
-        ]
-        var command = presentationId == nil ? "createPresentation" : "updatePresentation"
-        if presentationId == nil, let template {
-            // From a template: its items as they are now, each copy with an id of its own.
-            struct Item: Decodable { let id: String }
-            let items = model.view("itemsView", ["presentationId": template.id], as: [Item].self) ?? []
-            args["templateId"] = template.id
-            args["items"] = items.map { ["from": $0.id, "id": model.newId()] }
-            args["at"] = nowMs()
-            command = "createFromTemplate"
-        }
-        guard model.run(command, args) == "ok" else { return false }
-        if presentationId == nil { model.path = [id] }
-        return true
+        return close
     }
 }

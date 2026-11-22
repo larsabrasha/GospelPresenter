@@ -190,12 +190,146 @@ pub struct LiveState {
 #[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
 pub struct LiveStep { pub state: LiveState, pub effects: Vec<LiveEffect> }
 
+/// What a presentation's details dialog is for.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum DetailsMode {
+    /// Redigera detaljer of a presentation there.
+    #[default]
+    Edit,
+    /// Skapa presentation, blank.
+    Create,
+    /// Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.
+    Template,
+}
+
+/// A field of the details dialog, by the name its mutators take.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum DetailsField {
+    /// The presentation's name.
+    Name,
+    /// Its date, `YYYY-MM-DD`, empty for none.
+    EventDate,
+    /// Its time, `HH:MM`, empty for none.
+    Time,
+    /// Where it is.
+    Location,
+    /// What it is about.
+    Description,
+    /// Its theme's id, empty for the default.
+    ThemeId,
+}
+
+/// The details dialog as the core keeps it between steps: each field as typed, empty for cleared.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DetailsState {
+    /// What the dialog is for.
+    pub mode: DetailsMode,
+    /// The presentation edited (Redigera detaljer).
+    pub presentation_id: Option<String>,
+    /// The template a new one is made from.
+    pub template_id: Option<String>,
+    /// The name.
+    pub name: String,
+    /// The date, `YYYY-MM-DD`, empty for none.
+    pub event_date: String,
+    /// The time, `HH:MM`, empty for none.
+    pub time: String,
+    /// The place.
+    pub location: String,
+    /// The description.
+    pub description: String,
+    /// The theme's id, empty for the default.
+    pub theme_id: String,
+    /// The theme it had: only a theme changed is sent, so a shell without the theme's field never clears it.
+    pub initial_theme_id: String,
+    /// A new one is being made: the button says so, and nothing is sent twice.
+    pub saving: bool,
+}
+
+/// What happened in the details dialog.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum DetailsEvent {
+    /// A field typed in or chosen: kept, cut to its most characters.
+    Set { field: DetailsField, value: String },
+    /// ↵ in a field: in the name it saves, as the confirming button (`id` as Save's).
+    Enter { field: DetailsField, #[serde(default)] id: Option<String> },
+    /// The confirming button (Spara, Skapa). `id`: a new id from the shell, for a presentation made.
+    Save { id: Option<String> },
+    /// Avbryt, ✕ or Esc: closed, nothing sent.
+    Cancel,
+    /// The change the step asked for ran: `ok`, or refused (the dialog stays, for another try).
+    Done { ok: bool },
+}
+
+/// What the shell does after a details step, in order.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum DetailsEffect {
+    /// Run this change (a mutator and its arguments), then tell `done` how it went.
+    Run { command: String, args: serde_json::Value },
+    /// Close the dialog.
+    Close,
+    /// Open this presentation's page (one just made).
+    Open { presentation_id: String },
+}
+
+/// A button of the dialog: its id, its text's key, its role (cancel or confirm), its text's key while it works.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DetailsAction {
+    /// What it is: cancel or save.
+    pub id: String,
+    /// Its text's key.
+    pub text: String,
+    /// Its role: cancel or confirm.
+    pub role: String,
+    /// Its text's key while it works, where it says so.
+    pub busy_text: Option<String>,
+    /// Whether it may be pressed now.
+    pub enabled: bool,
+}
+
+/// What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most
+/// characters.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DetailsView {
+    /// The title's key.
+    pub title: String,
+    /// The fields in their groups, in order.
+    pub groups: Vec<Vec<DetailsField>>,
+    /// The buttons, Avbryt then the confirming one.
+    pub actions: Vec<DetailsAction>,
+    /// The name's most characters.
+    pub name_max: i64,
+    /// The place's most characters.
+    pub location_max: i64,
+    /// The description's most characters.
+    pub description_max: i64,
+}
+
+/// `detailsStepView`'s answer: the state to give back, what the dialog shows, and what to do.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct DetailsStep { pub state: DetailsState, pub view: DetailsView, pub effects: Vec<DetailsEffect> }
+
 /// Every type a shell reads, in one JSON Schema (schema/views.json; its `$defs` are the types).
 #[cfg(any(test, feature = "schema"))]
 pub fn schema() -> serde_json::Value {
     #[derive(JsonSchema)]
     #[allow(dead_code)]
-    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent }
+    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent }
     serde_json::to_value(schemars::schema_for!(Views)).unwrap_or_default()
 }
 

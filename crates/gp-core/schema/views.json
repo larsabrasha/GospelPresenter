@@ -15,6 +15,389 @@
       ],
       "type": "object"
     },
+    "DetailsAction": {
+      "description": "A button of the dialog: its id, its text's key, its role (cancel or confirm), its text's key while it works.",
+      "properties": {
+        "busyText": {
+          "description": "Its text's key while it works, where it says so.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled": {
+          "description": "Whether it may be pressed now.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "What it is: cancel or save.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Its role: cancel or confirm.",
+          "type": "string"
+        },
+        "text": {
+          "description": "Its text's key.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "role",
+        "enabled"
+      ],
+      "type": "object"
+    },
+    "DetailsEffect": {
+      "description": "What the shell does after a details step, in order.",
+      "oneOf": [
+        {
+          "description": "Run this change (a mutator and its arguments), then tell `done` how it went.",
+          "properties": {
+            "args": true,
+            "command": {
+              "type": "string"
+            },
+            "type": {
+              "const": "run",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "command",
+            "args"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Close the dialog.",
+          "properties": {
+            "type": {
+              "const": "close",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this presentation's page (one just made).",
+          "properties": {
+            "presentationId": {
+              "type": "string"
+            },
+            "type": {
+              "const": "open",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "presentationId"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DetailsEvent": {
+      "description": "What happened in the details dialog.",
+      "oneOf": [
+        {
+          "description": "A field typed in or chosen: kept, cut to its most characters.",
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/DetailsField"
+            },
+            "type": {
+              "const": "set",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "field",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "↵ in a field: in the name it saves, as the confirming button (`id` as Save's).",
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/DetailsField"
+            },
+            "id": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "enter",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The confirming button (Spara, Skapa). `id`: a new id from the shell, for a presentation made.",
+          "properties": {
+            "id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "save",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Avbryt, ✕ or Esc: closed, nothing sent.",
+          "properties": {
+            "type": {
+              "const": "cancel",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The change the step asked for ran: `ok`, or refused (the dialog stays, for another try).",
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "done",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ok"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DetailsField": {
+      "description": "A field of the details dialog, by the name its mutators take.",
+      "oneOf": [
+        {
+          "const": "name",
+          "description": "The presentation's name.",
+          "type": "string"
+        },
+        {
+          "const": "eventDate",
+          "description": "Its date, `YYYY-MM-DD`, empty for none.",
+          "type": "string"
+        },
+        {
+          "const": "time",
+          "description": "Its time, `HH:MM`, empty for none.",
+          "type": "string"
+        },
+        {
+          "const": "location",
+          "description": "Where it is.",
+          "type": "string"
+        },
+        {
+          "const": "description",
+          "description": "What it is about.",
+          "type": "string"
+        },
+        {
+          "const": "themeId",
+          "description": "Its theme's id, empty for the default.",
+          "type": "string"
+        }
+      ]
+    },
+    "DetailsMode": {
+      "description": "What a presentation's details dialog is for.",
+      "oneOf": [
+        {
+          "const": "edit",
+          "description": "Redigera detaljer of a presentation there.",
+          "type": "string"
+        },
+        {
+          "const": "create",
+          "description": "Skapa presentation, blank.",
+          "type": "string"
+        },
+        {
+          "const": "template",
+          "description": "Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.",
+          "type": "string"
+        }
+      ]
+    },
+    "DetailsState": {
+      "description": "The details dialog as the core keeps it between steps: each field as typed, empty for cleared.",
+      "properties": {
+        "description": {
+          "description": "The description.",
+          "type": "string"
+        },
+        "eventDate": {
+          "description": "The date, `YYYY-MM-DD`, empty for none.",
+          "type": "string"
+        },
+        "initialThemeId": {
+          "description": "The theme it had: only a theme changed is sent, so a shell without the theme's field never clears it.",
+          "type": "string"
+        },
+        "location": {
+          "description": "The place.",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/DetailsMode",
+          "description": "What the dialog is for."
+        },
+        "name": {
+          "description": "The name.",
+          "type": "string"
+        },
+        "presentationId": {
+          "description": "The presentation edited (Redigera detaljer).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "saving": {
+          "description": "A new one is being made: the button says so, and nothing is sent twice.",
+          "type": "boolean"
+        },
+        "templateId": {
+          "description": "The template a new one is made from.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "themeId": {
+          "description": "The theme's id, empty for the default.",
+          "type": "string"
+        },
+        "time": {
+          "description": "The time, `HH:MM`, empty for none.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "name",
+        "eventDate",
+        "time",
+        "location",
+        "description",
+        "themeId",
+        "initialThemeId",
+        "saving"
+      ],
+      "type": "object"
+    },
+    "DetailsStep": {
+      "description": "`detailsStepView`'s answer: the state to give back, what the dialog shows, and what to do.",
+      "properties": {
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/DetailsEffect"
+          },
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/DetailsState"
+        },
+        "view": {
+          "$ref": "#/$defs/DetailsView"
+        }
+      },
+      "required": [
+        "state",
+        "view",
+        "effects"
+      ],
+      "type": "object"
+    },
+    "DetailsView": {
+      "description": "What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most\ncharacters.",
+      "properties": {
+        "actions": {
+          "description": "The buttons, Avbryt then the confirming one.",
+          "items": {
+            "$ref": "#/$defs/DetailsAction"
+          },
+          "type": "array"
+        },
+        "descriptionMax": {
+          "description": "The description's most characters.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "groups": {
+          "description": "The fields in their groups, in order.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/DetailsField"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "locationMax": {
+          "description": "The place's most characters.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "nameMax": {
+          "description": "The name's most characters.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "title": {
+          "description": "The title's key.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "groups",
+        "actions",
+        "nameMax",
+        "locationMax",
+        "descriptionMax"
+      ],
+      "type": "object"
+    },
     "LinePart": {
       "description": "A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.",
       "properties": {
@@ -716,6 +1099,12 @@
     "date_line": {
       "$ref": "#/$defs/DateLine"
     },
+    "details_event": {
+      "$ref": "#/$defs/DetailsEvent"
+    },
+    "details_step": {
+      "$ref": "#/$defs/DetailsStep"
+    },
     "live_event": {
       "$ref": "#/$defs/LiveEvent"
     },
@@ -733,7 +1122,9 @@
     "start_page",
     "date_line",
     "live_step",
-    "live_event"
+    "live_event",
+    "details_step",
+    "details_event"
   ],
   "title": "Views",
   "type": "object"

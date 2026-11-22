@@ -13,7 +13,6 @@ fn core(shell: &Rc<Shell>, view: &str, args: Value) -> Value { shell.model.borro
 
 fn new_id() -> String { gtk::glib::uuid_string_random().to_string() }
 
-fn now_ms() -> i64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64) }
 
 /// The templates, every one or the picker's last used.
 fn templates(shell: &Rc<Shell>, recent: bool) -> Vec<Value> {
@@ -55,7 +54,7 @@ fn template_row(shell: &Rc<Shell>, tp: &Value) -> adw::ActionRow {
 /// Skapa presentation: the templates to start from, or the details at once when there are none.
 pub fn create(shell: &Rc<Shell>) {
     let recent = templates(shell, true);
-    if recent.is_empty() { return details(shell, None) }
+    if recent.is_empty() { return crate::details::create(shell, None) }
     let page = adw::PreferencesPage::new();
     let blank_group = adw::PreferencesGroup::new();
     let blank = adw::ActionRow::builder().title(t("templates.blank", &[])).activatable(true).build();
@@ -68,55 +67,16 @@ pub fn create(shell: &Rc<Shell>) {
     let dialog = dialog(&t("presentations.createTitle", &[]), &page, None);
     dialog.set_content_height(520);
     let (weak, d) = (Rc::downgrade(shell), dialog.clone());
-    blank.connect_activated(move |_| if let Some(s) = weak.upgrade() { d.close(); details(&s, None) });
+    blank.connect_activated(move |_| if let Some(s) = weak.upgrade() { d.close(); crate::details::create(&s, None) });
     for tp in recent {
         let row = template_row(shell, &tp);
         let (weak, d) = (Rc::downgrade(shell), dialog.clone());
-        row.connect_activated(move |_| if let Some(s) = weak.upgrade() { d.close(); details(&s, Some(tp.clone())) });
+        let id = tp["id"].as_str().unwrap_or("").to_string();
+        row.connect_activated(move |_| if let Some(s) = weak.upgrade() { d.close(); crate::details::create(&s, Some(&id)) });
         group.add(&row);
     }
     let (weak, d) = (Rc::downgrade(shell), dialog.clone());
     manage.connect_clicked(move |_| if let Some(s) = weak.upgrade() { d.close(); list(&s) });
-    dialog.present(Some(&shell.window));
-}
-
-/// The details of a new presentation, from a template prefilled; made and opened.
-fn details(shell: &Rc<Shell>, template: Option<Value>) {
-    let next = template.as_ref().map(|tp| slot(shell, tp)["nextDate"].as_str().unwrap_or("").to_string()).unwrap_or_default();
-    let name = adw::EntryRow::builder().title(t("presentation.name", &[])).text(template.as_ref().and_then(|tp| tp["name"].as_str()).unwrap_or(&t("presentations.defaultName", &[]))).build();
-    let date = adw::EntryRow::builder().title(t("presentation.date", &[])).text(&next).build();
-    let time = adw::EntryRow::builder().title(t("presentation.time", &[])).text(template.as_ref().and_then(|tp| tp["time"].as_str()).unwrap_or("")).build();
-    let place = adw::EntryRow::builder().title(t("presentation.location", &[])).text(template.as_ref().and_then(|tp| tp["location"].as_str()).unwrap_or("")).build();
-    let group = adw::PreferencesGroup::new();
-    for r in [&name, &date, &time, &place] { group.add(r) }
-    let page = adw::PreferencesPage::new();
-    page.add(&group);
-    let create = gtk::Button::builder().label(t("common.create", &[])).build();
-    let dialog = dialog(&t("presentations.createTitle", &[]), &page, Some(&create));
-    dialog.set_content_height(420);
-    let (weak, d) = (Rc::downgrade(shell), dialog.clone());
-    create.connect_clicked(move |_| {
-        let Some(s) = weak.upgrade() else { return };
-        let text = |e: &adw::EntryRow| { let v = e.text().trim().to_string(); if v.is_empty() { Value::Null } else { json!(v) } };
-        let id = new_id();
-        let mut args = json!({ "id": id, "name": name.text().to_string(), "eventDate": text(&date), "time": text(&time), "location": place.text().to_string(), "description": "" });
-        let command = match &template {
-            Some(tp) => {
-                let items = core(&s, "itemsView", json!({ "presentationId": tp["id"] }));
-                args["templateId"] = tp["id"].clone();
-                args["items"] = json!(items.as_array().into_iter().flatten().map(|i| json!({ "from": i["id"], "id": new_id() })).collect::<Vec<_>>());
-                args["at"] = json!(now_ms());
-                "createFromTemplate"
-            }
-            None => "createPresentation",
-        };
-        if s.model.borrow_mut().app.run(command, args) {
-            d.close();
-            s.open(&id);
-        } else {
-            s.refresh();
-        }
-    });
     dialog.present(Some(&shell.window));
 }
 

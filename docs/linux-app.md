@@ -87,7 +87,7 @@ Skapa presentation and templates (templates.rs; 2026-11-22): + on the start page
 the header's menu, Spara som mall in a presentation's menu.
 
 Signing in pairs the device with a desktop host and syncs as the Mac app does (connect.rs, net.rs, sync.rs); a
-database named as the first argument or in GP_DB is opened as the demo, without a sign-in. Not built: Redigera detaljer, importing
+database named as the first argument or in GP_DB is opened as the demo, without a sign-in. Not built: importing
 files, Redigera of a song or a slideshow in the menu, the description card, folding and resizing the columns, the outputs and overlays in the live column,
 media files (pictures show where the folder beside the database holds them), audio and video, Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

@@ -6,6 +6,90 @@ export interface DateLine {
   parts: LinePart[];
 }
 
+// A button of the dialog: its id, its text's key, its role (cancel or confirm), its text's key while it works.
+export interface DetailsAction {
+  // Its text's key while it works, where it says so.
+  busyText?: string | null;
+  // Whether it may be pressed now.
+  enabled: boolean;
+  // What it is: cancel or save.
+  id: string;
+  // Its role: cancel or confirm.
+  role: string;
+  // Its text's key.
+  text: string;
+}
+
+// What the shell does after a details step, in order.
+export type DetailsEffect =
+  | { type: 'run'; args: unknown; command: string }
+  | { type: 'close' }
+  | { type: 'open'; presentationId: string };
+
+// What happened in the details dialog.
+export type DetailsEvent =
+  | { type: 'set'; field: DetailsField; value: string }
+  | { type: 'enter'; field: DetailsField; id?: string | null }
+  | { type: 'save'; id?: string | null }
+  | { type: 'cancel' }
+  | { type: 'done'; ok: boolean };
+
+// A field of the details dialog, by the name its mutators take.
+export type DetailsField = 'name' | 'eventDate' | 'time' | 'location' | 'description' | 'themeId';
+
+// What a presentation's details dialog is for.
+export type DetailsMode = 'edit' | 'create' | 'template';
+
+// The details dialog as the core keeps it between steps: each field as typed, empty for cleared.
+export interface DetailsState {
+  // The description.
+  description: string;
+  // The date, `YYYY-MM-DD`, empty for none.
+  eventDate: string;
+  // The theme it had: only a theme changed is sent, so a shell without the theme's field never clears it.
+  initialThemeId: string;
+  // The place.
+  location: string;
+  // What the dialog is for.
+  mode: DetailsMode;
+  // The name.
+  name: string;
+  // The presentation edited (Redigera detaljer).
+  presentationId?: string | null;
+  // A new one is being made: the button says so, and nothing is sent twice.
+  saving: boolean;
+  // The template a new one is made from.
+  templateId?: string | null;
+  // The theme's id, empty for the default.
+  themeId: string;
+  // The time, `HH:MM`, empty for none.
+  time: string;
+}
+
+// `detailsStepView`'s answer: the state to give back, what the dialog shows, and what to do.
+export interface DetailsStep {
+  effects: DetailsEffect[];
+  state: DetailsState;
+  view: DetailsView;
+}
+
+// What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most
+// characters.
+export interface DetailsView {
+  // The buttons, Avbryt then the confirming one.
+  actions: DetailsAction[];
+  // The description's most characters.
+  descriptionMax: number;
+  // The fields in their groups, in order.
+  groups: DetailsField[][];
+  // The place's most characters.
+  locationMax: number;
+  // The name's most characters.
+  nameMax: number;
+  // The title's key.
+  title: string;
+}
+
 // A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.
 export interface LinePart {
   key?: string | null;

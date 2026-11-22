@@ -153,7 +153,8 @@ stays this plain (objects of named fields; a string, a number, a boolean, any JS
 set of strings; a union tagged by `type`); quicktype was weighed (heavier output and dependency) and is the way out if
 the schema outgrows it.
 
-Typed so far: `startPageView` (`StartList`, `PresentationRow`), `dateLineView` (`DateLine`, `LinePart`), and the live
+Typed so far: `startPageView` (`StartList`, `PresentationRow`), `dateLineView` (`DateLine`, `LinePart`), the details
+dialog's reducer `detailsStepView` (`DetailsStep`, `DetailsEvent`, `DetailsEffect`; typed inside the core too), and the live
 socket's reducer `liveStepView` (`LiveStep`: `LiveState` and its `LiveEffect`s; its `LiveEvent`s), which the Mac's
 LiveStatus and Linux's live.rs read and build as types. `now` goes beside the event (`{state, event, now}`; in the event
 still taken). The rest still answer `json!`.

@@ -33,7 +33,15 @@ Linux app in the same round; it is done when both read the core's view and neith
    it; Swift's dateLabel and subtitle and gp-tui's date_label, subtitle and parts gone. Linux's title under a
    presentation now leaves out the year, as the Mac's. The web's dashboard.ts still writes its own (the same words, by
    the test)
-5. [ ] The forms, one at a time: Redigera detaljer and a song's fields first.
+5. [~] The forms, one at a time: Redigera detaljer and a song's fields first. Redigera detaljer and Skapa presentation
+   (blank and from a template), 2026-11-22: `detailsStepView` (crates/gp-core/src/details_form.rs, typed through and
+   through; 16 tests in packages/rust-core/test/details-form.test.ts): the fields as typed, each cut to its length,
+   Spara only with a name and not while one is being made, ↵ in the name saves, the change trimmed with an empty field
+   null and the theme only when it changed, Redigera closing at once, Skapa waiting for its change and opening the one
+   made, a refused one leaving the dialog for another try. The Mac's DetailsSheet and Linux's details.rs draw it
+   (Linux's own Skapa form in templates.rs gone; Redigera detaljer in its menu at last). `DetailsTests` (4) on an
+   iPhone 17 Pro Max; Linux pictures looked at. The web still has its own (PresentationDetailsDialog). Gaps: the theme
+   is not chosen natively; Linux's description is one line (GNOME's entry row). Next: a song's fields.
 6. [ ] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
 
@@ -170,7 +178,7 @@ Its base, from docs/linux-app.md's "Not built":
   those and of the connect page light and dark looked at. Not tried: pairing with a code or a certificate against a
   real host (the test starts signed in), Logga ut, the sync's problem shown. No uploads before a push (Linux imports
   nothing yet)
-- [~] Skapa presentation (round 6); the presentation's menu's Redigera detaljer not built
+- [x] Skapa presentation (round 6) and Redigera detaljer (2026-11-22, the core's `detailsStepView`, details.rs)
 - [x] + with Sång and Programpunkt (round 5)
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures

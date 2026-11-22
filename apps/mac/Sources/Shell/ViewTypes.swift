@@ -7,6 +7,189 @@ public struct DateLine: Codable, Hashable, Sendable {
     public let parts: [LinePart]
 }
 
+/// A button of the dialog: its id, its text's key, its role (cancel or confirm), its text's key while it works.
+public struct DetailsAction: Codable, Hashable, Sendable {
+    /// Its text's key while it works, where it says so.
+    public let busyText: String?
+    /// Whether it may be pressed now.
+    public let enabled: Bool
+    /// What it is: cancel or save.
+    public let id: String
+    /// Its role: cancel or confirm.
+    public let role: String
+    /// Its text's key.
+    public let text: String
+}
+
+/// What the shell does after a details step, in order.
+public enum DetailsEffect: Codable, Hashable, Sendable {
+    /// Run this change (a mutator and its arguments), then tell `done` how it went.
+    case run(args: JSONValue, command: String)
+    /// Close the dialog.
+    case close
+    /// Open this presentation's page (one just made).
+    case open(presentationId: String)
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, args, command, presentationId }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "run": self = .run(args: try c.decode(JSONValue.self, forKey: .args), command: try c.decode(String.self, forKey: .command))
+        case "close": self = .close
+        case "open": self = .open(presentationId: try c.decode(String.self, forKey: .presentationId))
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .run(args, command):
+            try c.encode("run", forKey: .type)
+            try c.encode(args, forKey: .args)
+            try c.encode(command, forKey: .command)
+        case .close:
+            try c.encode("close", forKey: .type)
+        case let .open(presentationId):
+            try c.encode("open", forKey: .type)
+            try c.encode(presentationId, forKey: .presentationId)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// What happened in the details dialog.
+public enum DetailsEvent: Codable, Hashable, Sendable {
+    /// A field typed in or chosen: kept, cut to its most characters.
+    case set(field: DetailsField, value: String)
+    /// ↵ in a field: in the name it saves, as the confirming button (`id` as Save's).
+    case enter(field: DetailsField, id: String?)
+    /// The confirming button (Spara, Skapa). `id`: a new id from the shell, for a presentation made.
+    case save(id: String?)
+    /// Avbryt, ✕ or Esc: closed, nothing sent.
+    case cancel
+    /// The change the step asked for ran: `ok`, or refused (the dialog stays, for another try).
+    case done(ok: Bool)
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, field, value, id, ok }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "set": self = .set(field: try c.decode(DetailsField.self, forKey: .field), value: try c.decode(String.self, forKey: .value))
+        case "enter": self = .enter(field: try c.decode(DetailsField.self, forKey: .field), id: try c.decodeIfPresent(String.self, forKey: .id))
+        case "save": self = .save(id: try c.decodeIfPresent(String.self, forKey: .id))
+        case "cancel": self = .cancel
+        case "done": self = .done(ok: try c.decode(Bool.self, forKey: .ok))
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .set(field, value):
+            try c.encode("set", forKey: .type)
+            try c.encode(field, forKey: .field)
+            try c.encode(value, forKey: .value)
+        case let .enter(field, id):
+            try c.encode("enter", forKey: .type)
+            try c.encode(field, forKey: .field)
+            try c.encodeIfPresent(id, forKey: .id)
+        case let .save(id):
+            try c.encode("save", forKey: .type)
+            try c.encodeIfPresent(id, forKey: .id)
+        case .cancel:
+            try c.encode("cancel", forKey: .type)
+        case let .done(ok):
+            try c.encode("done", forKey: .type)
+            try c.encode(ok, forKey: .ok)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// A field of the details dialog, by the name its mutators take.
+public enum DetailsField: String, Codable, Hashable, Sendable {
+    /// The presentation's name.
+    case name = "name"
+    /// Its date, `YYYY-MM-DD`, empty for none.
+    case eventDate = "eventDate"
+    /// Its time, `HH:MM`, empty for none.
+    case time = "time"
+    /// Where it is.
+    case location = "location"
+    /// What it is about.
+    case description = "description"
+    /// Its theme's id, empty for the default.
+    case themeId = "themeId"
+}
+
+/// What a presentation's details dialog is for.
+public enum DetailsMode: String, Codable, Hashable, Sendable {
+    /// Redigera detaljer of a presentation there.
+    case edit = "edit"
+    /// Skapa presentation, blank.
+    case create = "create"
+    /// Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.
+    case template = "template"
+}
+
+/// The details dialog as the core keeps it between steps: each field as typed, empty for cleared.
+public struct DetailsState: Codable, Hashable, Sendable {
+    /// The description.
+    public let description: String
+    /// The date, `YYYY-MM-DD`, empty for none.
+    public let eventDate: String
+    /// The theme it had: only a theme changed is sent, so a shell without the theme's field never clears it.
+    public let initialThemeId: String
+    /// The place.
+    public let location: String
+    /// What the dialog is for.
+    public let mode: DetailsMode
+    /// The name.
+    public let name: String
+    /// The presentation edited (Redigera detaljer).
+    public let presentationId: String?
+    /// A new one is being made: the button says so, and nothing is sent twice.
+    public let saving: Bool
+    /// The template a new one is made from.
+    public let templateId: String?
+    /// The theme's id, empty for the default.
+    public let themeId: String
+    /// The time, `HH:MM`, empty for none.
+    public let time: String
+}
+
+/// `detailsStepView`'s answer: the state to give back, what the dialog shows, and what to do.
+public struct DetailsStep: Codable, Hashable, Sendable {
+    public let effects: [DetailsEffect]
+    public let state: DetailsState
+    public let view: DetailsView
+}
+
+/// What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most
+/// characters.
+public struct DetailsView: Codable, Hashable, Sendable {
+    /// The buttons, Avbryt then the confirming one.
+    public let actions: [DetailsAction]
+    /// The description's most characters.
+    public let descriptionMax: Int
+    /// The fields in their groups, in order.
+    public let groups: [[DetailsField]]
+    /// The place's most characters.
+    public let locationMax: Int
+    /// The name's most characters.
+    public let nameMax: Int
+    /// The title's key.
+    public let title: String
+}
+
 /// A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.
 public struct LinePart: Codable, Hashable, Sendable {
     public let key: String?

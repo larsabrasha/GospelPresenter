@@ -207,7 +207,8 @@ impl Page {
         let app = &m.app;
         let Some(page) = app.page.as_ref() else { return };
         if let Some(p) = &page.presentation {
-            // The core's date line, LIVE first while presented here (`dateLineView`).
+            // Its name as it now is (Redigera detaljer renames it), and the core's date line, LIVE first while presented here.
+            if self.title.title() != p.name { self.title.set_title(&p.name); self.nav_page.set_title(&p.name) }
             self.title.set_subtitle(&written(&line(app.core(), p, &app.today, app.is_live())));
         }
         presentation_menu::attach(shell, &self.title_menu);

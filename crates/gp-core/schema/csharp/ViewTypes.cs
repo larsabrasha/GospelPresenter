@@ -10,6 +10,173 @@ namespace GospelPresenter.Core;
 /// <summary>`dateLineView`'s answer.</summary>
 public sealed record DateLine([property: JsonPropertyName("parts")] IReadOnlyList<LinePart> Parts);
 
+/// <summary>A button of the dialog: its id, its text's key, its role (cancel or confirm), its text's key while it works.</summary>
+public sealed record DetailsAction([property: JsonPropertyName("busyText")] string? BusyText, [property: JsonPropertyName("enabled")] bool Enabled, [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("role")] string Role, [property: JsonPropertyName("text")] string Text);
+
+/// <summary>What the shell does after a details step, in order.</summary>
+[JsonConverter(typeof(DetailsEffectConverter))]
+public abstract record DetailsEffect
+{
+    /// <summary>Run this change (a mutator and its arguments), then tell `done` how it went.</summary>
+    public sealed record Run([property: JsonPropertyName("args")] JsonElement Args, [property: JsonPropertyName("command")] string Command) : DetailsEffect;
+    /// <summary>Close the dialog.</summary>
+    public sealed record Close() : DetailsEffect;
+    /// <summary>Open this presentation's page (one just made).</summary>
+    public sealed record Open([property: JsonPropertyName("presentationId")] string PresentationId) : DetailsEffect;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : DetailsEffect;
+}
+
+public sealed class DetailsEffectConverter : JsonConverter<DetailsEffect>
+{
+    public override DetailsEffect Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "run" => new DetailsEffect.Run(ViewJson.Field<JsonElement>(e, "args", options)!, ViewJson.Field<string>(e, "command", options)!),
+            "close" => new DetailsEffect.Close(),
+            "open" => new DetailsEffect.Open(ViewJson.Field<string>(e, "presentationId", options)!),
+            _ => new DetailsEffect.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, DetailsEffect value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case DetailsEffect.Run x:
+                writer.WriteString("type", "run");
+                ViewJson.Write(writer, "args", x.Args, options);
+                ViewJson.Write(writer, "command", x.Command, options);
+                break;
+            case DetailsEffect.Close x:
+                writer.WriteString("type", "close");
+                break;
+            case DetailsEffect.Open x:
+                writer.WriteString("type", "open");
+                ViewJson.Write(writer, "presentationId", x.PresentationId, options);
+                break;
+            case DetailsEffect.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>What happened in the details dialog.</summary>
+[JsonConverter(typeof(DetailsEventConverter))]
+public abstract record DetailsEvent
+{
+    /// <summary>A field typed in or chosen: kept, cut to its most characters.</summary>
+    public sealed record Set([property: JsonPropertyName("field")] DetailsField Field, [property: JsonPropertyName("value")] string Value) : DetailsEvent;
+    /// <summary>↵ in a field: in the name it saves, as the confirming button (`id` as Save's).</summary>
+    public sealed record Enter([property: JsonPropertyName("field")] DetailsField Field, [property: JsonPropertyName("id")] string? Id) : DetailsEvent;
+    /// <summary>The confirming button (Spara, Skapa). `id`: a new id from the shell, for a presentation made.</summary>
+    public sealed record Save([property: JsonPropertyName("id")] string? Id) : DetailsEvent;
+    /// <summary>Avbryt, ✕ or Esc: closed, nothing sent.</summary>
+    public sealed record Cancel() : DetailsEvent;
+    /// <summary>The change the step asked for ran: `ok`, or refused (the dialog stays, for another try).</summary>
+    public sealed record Done([property: JsonPropertyName("ok")] bool Ok) : DetailsEvent;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : DetailsEvent;
+}
+
+public sealed class DetailsEventConverter : JsonConverter<DetailsEvent>
+{
+    public override DetailsEvent Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "set" => new DetailsEvent.Set(ViewJson.Field<DetailsField>(e, "field", options)!, ViewJson.Field<string>(e, "value", options)!),
+            "enter" => new DetailsEvent.Enter(ViewJson.Field<DetailsField>(e, "field", options)!, ViewJson.Field<string?>(e, "id", options)),
+            "save" => new DetailsEvent.Save(ViewJson.Field<string?>(e, "id", options)),
+            "cancel" => new DetailsEvent.Cancel(),
+            "done" => new DetailsEvent.Done(ViewJson.Field<bool>(e, "ok", options)!),
+            _ => new DetailsEvent.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, DetailsEvent value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case DetailsEvent.Set x:
+                writer.WriteString("type", "set");
+                ViewJson.Write(writer, "field", x.Field, options);
+                ViewJson.Write(writer, "value", x.Value, options);
+                break;
+            case DetailsEvent.Enter x:
+                writer.WriteString("type", "enter");
+                ViewJson.Write(writer, "field", x.Field, options);
+                ViewJson.Write(writer, "id", x.Id, options);
+                break;
+            case DetailsEvent.Save x:
+                writer.WriteString("type", "save");
+                ViewJson.Write(writer, "id", x.Id, options);
+                break;
+            case DetailsEvent.Cancel x:
+                writer.WriteString("type", "cancel");
+                break;
+            case DetailsEvent.Done x:
+                writer.WriteString("type", "done");
+                ViewJson.Write(writer, "ok", x.Ok, options);
+                break;
+            case DetailsEvent.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>A field of the details dialog, by the name its mutators take.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<DetailsField>))]
+public enum DetailsField
+{
+    /// <summary>The presentation's name.</summary>
+    name,
+    /// <summary>Its date, `YYYY-MM-DD`, empty for none.</summary>
+    eventDate,
+    /// <summary>Its time, `HH:MM`, empty for none.</summary>
+    time,
+    /// <summary>Where it is.</summary>
+    location,
+    /// <summary>What it is about.</summary>
+    description,
+    /// <summary>Its theme's id, empty for the default.</summary>
+    themeId,
+}
+
+/// <summary>What a presentation's details dialog is for.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<DetailsMode>))]
+public enum DetailsMode
+{
+    /// <summary>Redigera detaljer of a presentation there.</summary>
+    edit,
+    /// <summary>Skapa presentation, blank.</summary>
+    create,
+    /// <summary>Skapa presentation from a template: its name, next date, time and place prefilled, its items copied.</summary>
+    template,
+}
+
+/// <summary>The details dialog as the core keeps it between steps: each field as typed, empty for cleared.</summary>
+public sealed record DetailsState([property: JsonPropertyName("description")] string Description, [property: JsonPropertyName("eventDate")] string EventDate, [property: JsonPropertyName("initialThemeId")] string InitialThemeId, [property: JsonPropertyName("location")] string Location, [property: JsonPropertyName("mode")] DetailsMode Mode, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("presentationId")] string? PresentationId, [property: JsonPropertyName("saving")] bool Saving, [property: JsonPropertyName("templateId")] string? TemplateId, [property: JsonPropertyName("themeId")] string ThemeId, [property: JsonPropertyName("time")] string Time);
+
+/// <summary>`detailsStepView`'s answer: the state to give back, what the dialog shows, and what to do.</summary>
+public sealed record DetailsStep([property: JsonPropertyName("effects")] IReadOnlyList<DetailsEffect> Effects, [property: JsonPropertyName("state")] DetailsState State, [property: JsonPropertyName("view")] DetailsView View);
+
+/// <summary>What the details dialog shows: its title's key, its fields in their groups, its buttons, and each field's most characters.</summary>
+public sealed record DetailsView([property: JsonPropertyName("actions")] IReadOnlyList<DetailsAction> Actions, [property: JsonPropertyName("descriptionMax")] long DescriptionMax, [property: JsonPropertyName("groups")] IReadOnlyList<IReadOnlyList<DetailsField>> Groups, [property: JsonPropertyName("locationMax")] long LocationMax, [property: JsonPropertyName("nameMax")] long NameMax, [property: JsonPropertyName("title")] string Title);
+
 /// <summary>A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is.</summary>
 public sealed record LinePart([property: JsonPropertyName("key")] string? Key, [property: JsonPropertyName("of")] string Of, [property: JsonPropertyName("text")] string? Text);
 

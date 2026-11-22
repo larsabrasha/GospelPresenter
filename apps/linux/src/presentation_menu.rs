@@ -1,8 +1,8 @@
 // The presentation's menu behind its title (the web's PresentationMenu.tsx, the Mac app's title menu): what it offers
 // is the core's (`presentationActionsView`), drawn as GNOME's popover menu. Noter och länkar opens the songs' sheet
 // music, recordings and links (`presentationMaterialsView`); Radera presentation, asked first, puts it in the trash and
-// goes back to the start page (a template's Radera mall); Spara som mall asks for a name (templates.rs). Not here yet,
-// so left out: Redigera detaljer (the details dialog).
+// goes back to the start page (a template's Radera mall); Spara som mall asks for a name (templates.rs); Redigera
+// detaljer opens the details (details.rs).
 use crate::shell::Shell;
 use adw::prelude::*;
 use gp_tui::texts::t;
@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use std::rc::Rc;
 
 /// The entries this app draws.
-const DRAWN: [&str; 3] = ["materials", "saveAsTemplate", "trash"];
+const DRAWN: [&str; 4] = ["editDetails", "materials", "saveAsTemplate", "trash"];
 
 /// The menu's model and its actions (`presentation.*`) for the open presentation, set on `button`.
 pub fn attach(shell: &Rc<Shell>, button: &gtk::MenuButton) {
@@ -38,6 +38,7 @@ pub fn attach(shell: &Rc<Shell>, button: &gtk::MenuButton) {
             action.connect_activate(move |_, _| {
                 let Some(s) = weak.upgrade() else { return };
                 match id.as_str() {
+                    "editDetails" => crate::details::edit(&s, &pid),
                     "materials" => materials(&s, &pid),
                     "saveAsTemplate" => crate::templates::save_as(&s),
                     _ => ask_trash(&s, &pid, &name, template),

@@ -14,7 +14,7 @@ const docker = fileURLToPath(new URL('../../linux/docker.sh', import.meta.url));
 const run = process.env.GP_NATIVE_LINUX === '1';
 // The start page once pulled; then + (no templates: the blank form at once), the name typed (ASCII: xdotool drops å in Xvfb), Skapa, and a moment for
 // the push. Places in a 1440 × 900 window.
-const STEPS = 'wait 20; shot pulled; click 28 27; wait 3; click 700 344; key ctrl+a; type Gjord i Linux; wait 1; shot named; click 863 262; wait 8; shot pushed; click 28 27; wait 10; shot poked';
+const STEPS = 'wait 30; shot pulled; click 28 27; wait 3; click 700 294; key ctrl+a; type Gjord i Linux; wait 1; shot named; click 874 212; wait 8; shot pushed; click 28 27; wait 10; shot poked';
 
 describe.runIf(run)('the Linux app signed in to a host', () => {
   let h: Harness;
