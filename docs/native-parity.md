@@ -41,7 +41,19 @@ Linux app in the same round; it is done when both read the core's view and neith
    made, a refused one leaving the dialog for another try. The Mac's DetailsSheet and Linux's details.rs draw it
    (Linux's own Skapa form in templates.rs gone; Redigera detaljer in its menu at last). `DetailsTests` (4) on an
    iPhone 17 Pro Max; Linux pictures looked at. The web still has its own (PresentationDetailsDialog). Gaps: the theme
-   is not chosen natively; Linux's description is one line (GNOME's entry row). Next: a song's fields.
+   is not chosen natively; Linux's description is one line (GNOME's entry row).
+   A song's fields, 2026-11-22: `autoSaveStepView` (crates/gp-core/src/autosave.rs, 19 tests), the web's AutoSaveField
+   as a reducer for any field saved as it is typed: written half a second after the last key and at once when left;
+   nothing written when typed back to what is stored or was last written (a refused write written again); a blank
+   name and a year that is not one never written, the stored value shown again once left; cut to the field's length;
+   the stored value followed while the user is not typing; with `warnOnClash` (a part's text, D18) another device's
+   change while typing stops the writing and asks Behåll min text or Använd deras. The Mac's AutoSaveField.swift draws
+   it; the song's name, credits and each part's text use it (the page's own saving, which wrote a year that was not
+   one as none and never showed a sync while open, gone). `SongFieldsTests` (3). Linux: autosave.rs draws it, and
+   Redigera of a song's item opens a song page at last (song_page.rs: the name, the credits and each part's text,
+   read again each second for a sync); pictures of a rename saved on leaving the field, light and dark. Not on Linux's
+   song page yet: a part's label, moving and removing parts, arrangements, history, notes and links, the trash. The
+   web still has its own AutoSaveField.
 6. [ ] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
 

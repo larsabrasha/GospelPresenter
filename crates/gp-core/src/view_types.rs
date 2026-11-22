@@ -324,12 +324,116 @@ pub struct DetailsView {
 #[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
 pub struct DetailsStep { pub state: DetailsState, pub view: DetailsView, pub effects: Vec<DetailsEffect> }
 
+/// What an autosaved field holds, and so what is written of it.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum AutoSaveKind {
+    /// Any text, an empty one too.
+    #[default]
+    Text,
+    /// A text that may not be left blank (a name): a blank one is not written.
+    Required,
+    /// A year, 0 to 9999, written as a number; empty is none; anything else is not written.
+    Year,
+}
+
+/// A field saved as it is typed (the web's AutoSaveField): what it writes to, its rule, and where its typing stands.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct AutoSaveState {
+    /// The change that writes it, and its arguments but the field's (the row's id).
+    pub command: String,
+    pub args: serde_json::Value,
+    /// The argument the field's value goes in.
+    pub field: String,
+    /// What it holds.
+    pub kind: AutoSaveKind,
+    /// Its most characters.
+    pub max: i64,
+    /// Another device's change while typing is a clash to choose over (a song part's text, D18).
+    pub warn_on_clash: bool,
+    /// The value as stored, last told.
+    pub stored: String,
+    /// What the user has typed, shown in place of the stored value; none shows the stored one.
+    pub draft: Option<String>,
+    /// The field has the focus.
+    pub focused: bool,
+    /// Typed in since it got the focus.
+    pub typed: bool,
+    /// A value waiting for its half second, to be written.
+    pub pending: Option<String>,
+    /// The value last written and the stored one it was written over: typed back to it, nothing is written.
+    pub last_written: Option<String>,
+    /// The stored value the last write was made over.
+    pub last_over: Option<String>,
+    /// The values written since the focus came: coming back as the stored value, they are no clash.
+    pub own: Vec<String>,
+    /// The other device's text while a clash waits for the user's choice.
+    pub clash: Option<String>,
+    /// The last value was not to be written (a blank name): shown as stored again once left.
+    pub refused: bool,
+}
+
+/// What happened to an autosaved field.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum AutoSaveEvent {
+    /// It got the focus.
+    Focus,
+    /// Typed in: its whole value now.
+    Input { value: String },
+    /// It lost the focus (or the page closes): what waits is written now.
+    Blur,
+    /// The half second after the last key ran out.
+    Timer,
+    /// The stored value as now read (after a write, a sync, each time the page reads it).
+    Stored { value: String },
+    /// The write the step asked for ran: `ok`, or refused.
+    Done { ok: bool },
+    /// A clash chosen: the user's own text kept, and written.
+    KeepMine,
+    /// A clash chosen: the other device's text taken.
+    TakeTheirs,
+}
+
+/// What the shell does after an autosave step, in order.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum AutoSaveEffect {
+    /// Run this change, then tell `done` how it went.
+    Run { command: String, args: serde_json::Value },
+    /// After `ms`, tell `timer`; one set before is replaced.
+    Timer { ms: i64 },
+    /// The timer set before is not wanted.
+    CancelTimer,
+    /// Say "Sparad".
+    Saved,
+    /// Say "Kunde inte spara".
+    Failed,
+}
+
+/// `autoSaveStepView`'s answer: the state to give back, the text to show, the clash to ask about, what to do.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(any(test, feature = "schema"), derive(JsonSchema))]
+pub struct AutoSaveStep {
+    pub state: AutoSaveState,
+    /// The field's text now.
+    pub shown: String,
+    /// The other device's text, while the user is asked to keep theirs or take it.
+    pub clash: Option<String>,
+    pub effects: Vec<AutoSaveEffect>,
+}
+
 /// Every type a shell reads, in one JSON Schema (schema/views.json; its `$defs` are the types).
 #[cfg(any(test, feature = "schema"))]
 pub fn schema() -> serde_json::Value {
     #[derive(JsonSchema)]
     #[allow(dead_code)]
-    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent }
+    struct Views { start_page: Vec<StartList>, date_line: DateLine, live_step: LiveStep, live_event: LiveEvent, details_step: DetailsStep, details_event: DetailsEvent, auto_save_step: AutoSaveStep, auto_save_event: AutoSaveEvent }
     serde_json::to_value(schemars::schema_for!(Views)).unwrap_or_default()
 }
 

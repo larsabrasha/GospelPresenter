@@ -3,6 +3,7 @@
 // (crates/gp-tui/src/app.rs); this draws it with GTK's own widgets and paints slides from the core's layout.
 mod adding;
 mod adding_bible;
+mod autosave;
 mod connect;
 mod details;
 mod faces;
@@ -22,6 +23,7 @@ mod presentation;
 mod presentation_menu;
 mod shell;
 mod start_page;
+mod song_page;
 mod sync;
 mod templates;
 mod ticking;

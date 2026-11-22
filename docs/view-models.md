@@ -154,7 +154,8 @@ set of strings; a union tagged by `type`); quicktype was weighed (heavier output
 the schema outgrows it.
 
 Typed so far: `startPageView` (`StartList`, `PresentationRow`), `dateLineView` (`DateLine`, `LinePart`), the details
-dialog's reducer `detailsStepView` (`DetailsStep`, `DetailsEvent`, `DetailsEffect`; typed inside the core too), and the live
+dialog's reducer `detailsStepView` (`DetailsStep`, `DetailsEvent`, `DetailsEffect`; typed inside the core too), the
+autosaved field's `autoSaveStepView` (`AutoSaveStep`, `AutoSaveEvent`, `AutoSaveEffect`), and the live
 socket's reducer `liveStepView` (`LiveStep`: `LiveState` and its `LiveEffect`s; its `LiveEvent`s), which the Mac's
 LiveStatus and Linux's live.rs read and build as types. `now` goes beside the event (`{state, event, now}`; in the event
 still taken). The rest still answer `json!`.

@@ -16,6 +16,7 @@ mod legacy;
 mod library_pages;
 mod live;
 mod live_report;
+mod autosave;
 mod details_form;
 pub mod view_types;
 mod date_line;

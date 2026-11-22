@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use std::rc::Rc;
 
 /// The entries this app draws; the core's others wait for their pages.
-const DRAWN: [&str; 8] = ["rename", "editImages", "note", "arrangement", "overlay", "addAfter", "tick", "delete"];
+const DRAWN: [&str; 9] = ["rename", "edit", "editImages", "note", "arrangement", "overlay", "addAfter", "tick", "delete"];
 
 /// The menu of `item_id`, popped up over `anchor`: GTK's own popover menu, each entry an action of a group of its own
 /// on the anchor (`item.*`), disabled as the core says; Arrangemang › and Överlägg › submenus of radio entries.
@@ -34,6 +34,15 @@ pub fn pop_up(shell: &Rc<Shell>, item_id: &str, anchor: &impl IsA<gtk::Widget>) 
                 "arrangement" | "overlay" => {
                     section.append_submenu(Some(&text), &choices(a, id));
                     actions.add_action(&choice_action(shell, item_id, a, id));
+                }
+                // Redigera: a song's page (a custom slideshow's editor is not in this app yet).
+                "edit" if a["opens"]["page"] != json!("song") => {}
+                "edit" => {
+                    section.append(Some(&text), Some("item.edit"));
+                    let action = gio::SimpleAction::new("edit", None);
+                    let (weak, song) = (Rc::downgrade(shell), a["opens"]["id"].as_str().unwrap_or("").to_string());
+                    action.connect_activate(move |_, _| if let Some(s) = weak.upgrade() { crate::song_page::open(&s, &song) });
+                    actions.add_action(&action);
                 }
                 _ => {
                     section.append(Some(&text), Some(&format!("item.{id}")));

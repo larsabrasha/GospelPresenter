@@ -1,7 +1,7 @@
 // A song's page (the web's SongEditor.tsx, SongArrangements.tsx, SongArrangement.tsx, SongHistory.tsx and
 // song-materials/SongMaterials.tsx), as `songPageView` gives it: its name and credits, its parts (a label, the text,
 // moved and removed), its arrangements, its history to restore from, its notes and links, and the trash. Every
-// field is saved as it is left, as the web's autosave; each change a mutation through the core.
+// field is saved as it is typed by the core's rules (AutoSaveField.swift, `autoSaveStepView`).
 import QuickLook
 import SwiftUI
 import UniformTypeIdentifiers
@@ -16,11 +16,6 @@ struct SongEditorPage: View {
     @Environment(Model.self) private var model
     @Environment(\.dismiss) private var dismiss
     let id: String
-    @State private var name = ""
-    @State private var author = ""
-    @State private var publisher = ""
-    @State private var year = ""
-    @State private var ccli = ""
     @State private var trashing = false
     @State private var removingPart: SongPartRow?
     @State private var message: String?
@@ -31,12 +26,14 @@ struct SongEditorPage: View {
         let page = page
         Form {
             if let song = page?.song {
+                // Each saved as it is typed, by the core's rules (`autoSaveStepView`): a blank name and a year that is
+                // not one are not written.
                 Section {
-                    field(t("song.name"), $name, 200) { ["name": $0] }
-                    field(t("song.author"), $author, 200) { ["author": $0] }
-                    field(t("song.publisher"), $publisher, 200) { ["publisher": $0] }
-                    field(t("song.year"), $year, 4) { v in ["year": Int(v).map { $0 as Any } ?? NSNull()] }
-                    field(t("song.ccli"), $ccli, 20) { ["ccli": $0] }
+                    field("name", t("song.name"), song.name, .required, 200)
+                    field("author", t("song.author"), song.author ?? "", .text, 200)
+                    field("publisher", t("song.publisher"), song.publisher ?? "", .text, 200)
+                    field("year", t("song.year"), song.year.map(String.init) ?? "", .year, 4)
+                    field("ccli", t("song.ccli"), song.ccli ?? "", .text, 20)
                 }
                 let parts = page?.parts ?? []
                 ForEach(Array(parts.enumerated()), id: \.element.id) { i, part in
@@ -57,16 +54,12 @@ struct SongEditorPage: View {
         }
         .formStyle(.grouped)
         .navigationTitle(page?.song?.name ?? "")
-        .onAppear {
-            guard let s = page?.song else { return }
-            (name, author, publisher, year, ccli) = (s.name, s.author ?? "", s.publisher ?? "", s.year.map(String.init) ?? "", s.ccli ?? "")
-        }
         .confirmationDialog(t("song.trash"), isPresented: $trashing) {
             Button(t("song.trash"), role: .destructive) { if let e = change(model, "trashSong", ["id": id, "at": nowMs()]) { message = e } else { dismiss() } }
         } message: {
             // With the presentations that show it, as the web's song page asks.
             let used = (model.view("songPresentationsView", ["songId": id], as: [PresentationRow].self) ?? []).map(\.name)
-            Text([t("song.trashConfirm", ["name": name]), used.isEmpty ? "" : t("song.usedIn", ["names": used.joined(separator: ", ")])].filter { !$0.isEmpty }.joined(separator: " "))
+            Text([t("song.trashConfirm", ["name": page?.song?.name ?? ""]), used.isEmpty ? "" : t("song.usedIn", ["names": used.joined(separator: ", ")])].filter { !$0.isEmpty }.joined(separator: " "))
         }
         .confirmationDialog(t("song.removePart"), isPresented: Binding(get: { removingPart != nil }, set: { if !$0 { removingPart = nil } }), presenting: removingPart) { p in
             Button(t("song.removePart"), role: .destructive) { message = change(model, "removeSongPart", ["id": p.id]) }
@@ -74,29 +67,9 @@ struct SongEditorPage: View {
         .refusal($message)
     }
 
-    /// A field saved when it is left or ↵ is pressed, as the web's AutoSaveField; the name may not be left empty.
-    private func field(_ label: String, _ text: Binding<String>, _ max: Int, _ args: @escaping (String) -> [String: Any]) -> some View {
-        // Its name beside it, as a grouped form's row, so a filled field still says what it is.
-        LabeledContent(label) { TextField(label, text: text).labelsHidden().multilineTextAlignment(.trailing) }
-            .limited(text, to: max)
-            .onSubmit { save(text.wrappedValue, args) }
-            .onChange(of: text.wrappedValue) { _, v in
-                // Saved half a second after the last key, as the web's autosave waits.
-                let now = v
-                Task { try? await Task.sleep(for: .milliseconds(600)); if text.wrappedValue == now { save(now, args) } }
-            }
-    }
-
-    private func save(_ value: String, _ args: (String) -> [String: Any]) {
-        let v = value.trimmingCharacters(in: .whitespaces)
-        if args(v)["name"] != nil, v.isEmpty { return }
-        // Only a change: the fields filled from the song on appearing are no edit, and updateSong renames the song's
-        // items (resetting a title of their own) and is pushed each time.
-        if let s = page?.song, let key = args(v).keys.first {
-            let stored = ["name": s.name, "author": s.author ?? "", "publisher": s.publisher ?? "", "year": s.year.map(String.init) ?? "", "ccli": s.ccli ?? ""]
-            if stored[key] == v { return }
-        }
-        message = change(model, "updateSong", args(v).merging(["id": id]) { a, _ in a })
+    /// A field of the song's, saved as it is typed.
+    private func field(_ name: String, _ label: String, _ stored: String, _ kind: AutoSaveKind, _ max: Int) -> some View {
+        AutoSaveField(command: "updateSong", args: ["id": id], field: name, kind: kind, max: max, label: label, stored: stored) { message = $0 }
     }
 }
 
@@ -106,7 +79,6 @@ struct PartEditor: View {
     let part: SongPartRow, labels: [LabelRow], first: Bool, last: Bool
     @Binding var message: String?
     @Binding var removing: SongPartRow?
-    @State private var text = ""
 
     var body: some View {
         HStack {
@@ -125,12 +97,9 @@ struct PartEditor: View {
                 Button(t("song.removePart"), systemImage: "trash", role: .destructive) { removing = part }
             } label: { Image(systemName: "ellipsis.circle") }.menuIndicator(.hidden).fixedSize()
         }
-        TextEditor(text: $text).frame(minHeight: 90).font(.body)
-            .onAppear { text = part.content }
-            .onChange(of: text) { _, v in
-                let now = v
-                Task { try? await Task.sleep(for: .milliseconds(600)); if text == now, now != part.content { message = change(model, "updateSongPart", ["id": part.id, "content": now]) } }
-            }
+        // Saved as it is typed; another device's change meanwhile asks first (D18, the core's `autoSaveStepView`).
+        AutoSaveField(command: "updateSongPart", args: ["id": part.id], field: "content", max: 5000, warnOnClash: true, multiline: true,
+                      label: t("song.parts"), stored: part.content) { message = $0 }
     }
 
     private func move(_ by: Int) {

@@ -2,6 +2,176 @@
 // Do not edit: change the Rust type and run crates/gp-core/schema/generate.sh.
 import Foundation
 
+/// What the shell does after an autosave step, in order.
+public enum AutoSaveEffect: Codable, Hashable, Sendable {
+    /// Run this change, then tell `done` how it went.
+    case run(args: JSONValue, command: String)
+    /// After `ms`, tell `timer`; one set before is replaced.
+    case timer(ms: Int)
+    /// The timer set before is not wanted.
+    case cancelTimer
+    /// Say "Sparad".
+    case saved
+    /// Say "Kunde inte spara".
+    case failed
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, args, command, ms }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "run": self = .run(args: try c.decode(JSONValue.self, forKey: .args), command: try c.decode(String.self, forKey: .command))
+        case "timer": self = .timer(ms: try c.decode(Int.self, forKey: .ms))
+        case "cancelTimer": self = .cancelTimer
+        case "saved": self = .saved
+        case "failed": self = .failed
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .run(args, command):
+            try c.encode("run", forKey: .type)
+            try c.encode(args, forKey: .args)
+            try c.encode(command, forKey: .command)
+        case let .timer(ms):
+            try c.encode("timer", forKey: .type)
+            try c.encode(ms, forKey: .ms)
+        case .cancelTimer:
+            try c.encode("cancelTimer", forKey: .type)
+        case .saved:
+            try c.encode("saved", forKey: .type)
+        case .failed:
+            try c.encode("failed", forKey: .type)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// What happened to an autosaved field.
+public enum AutoSaveEvent: Codable, Hashable, Sendable {
+    /// It got the focus.
+    case focus
+    /// Typed in: its whole value now.
+    case input(value: String)
+    /// It lost the focus (or the page closes): what waits is written now.
+    case blur
+    /// The half second after the last key ran out.
+    case timer
+    /// The stored value as now read (after a write, a sync, each time the page reads it).
+    case stored(value: String)
+    /// The write the step asked for ran: `ok`, or refused.
+    case done(ok: Bool)
+    /// A clash chosen: the user's own text kept, and written.
+    case keepMine
+    /// A clash chosen: the other device's text taken.
+    case takeTheirs
+    /// A case this app does not know (a newer core's): its tag, to be left alone.
+    case unknown(String)
+
+    private enum CodingKeys: String, CodingKey { case type, value, ok }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .type) {
+        case "focus": self = .focus
+        case "input": self = .input(value: try c.decode(String.self, forKey: .value))
+        case "blur": self = .blur
+        case "timer": self = .timer
+        case "stored": self = .stored(value: try c.decode(String.self, forKey: .value))
+        case "done": self = .done(ok: try c.decode(Bool.self, forKey: .ok))
+        case "keepMine": self = .keepMine
+        case "takeTheirs": self = .takeTheirs
+        case let other: self = .unknown(other)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .focus:
+            try c.encode("focus", forKey: .type)
+        case let .input(value):
+            try c.encode("input", forKey: .type)
+            try c.encode(value, forKey: .value)
+        case .blur:
+            try c.encode("blur", forKey: .type)
+        case .timer:
+            try c.encode("timer", forKey: .type)
+        case let .stored(value):
+            try c.encode("stored", forKey: .type)
+            try c.encode(value, forKey: .value)
+        case let .done(ok):
+            try c.encode("done", forKey: .type)
+            try c.encode(ok, forKey: .ok)
+        case .keepMine:
+            try c.encode("keepMine", forKey: .type)
+        case .takeTheirs:
+            try c.encode("takeTheirs", forKey: .type)
+        case let .unknown(tag): try c.encode(tag, forKey: .type)
+        }
+    }
+}
+
+/// What an autosaved field holds, and so what is written of it.
+public enum AutoSaveKind: String, Codable, Hashable, Sendable {
+    /// Any text, an empty one too.
+    case text = "text"
+    /// A text that may not be left blank (a name): a blank one is not written.
+    case required = "required"
+    /// A year, 0 to 9999, written as a number; empty is none; anything else is not written.
+    case year = "year"
+}
+
+/// A field saved as it is typed (the web's AutoSaveField): what it writes to, its rule, and where its typing stands.
+public struct AutoSaveState: Codable, Hashable, Sendable {
+    public let args: JSONValue
+    /// The other device's text while a clash waits for the user's choice.
+    public let clash: String?
+    /// The change that writes it, and its arguments but the field's (the row's id).
+    public let command: String
+    /// What the user has typed, shown in place of the stored value; none shows the stored one.
+    public let draft: String?
+    /// The argument the field's value goes in.
+    public let field: String
+    /// The field has the focus.
+    public let focused: Bool
+    /// What it holds.
+    public let kind: AutoSaveKind
+    /// The stored value the last write was made over.
+    public let lastOver: String?
+    /// The value last written and the stored one it was written over: typed back to it, nothing is written.
+    public let lastWritten: String?
+    /// Its most characters.
+    public let max: Int
+    /// The values written since the focus came: coming back as the stored value, they are no clash.
+    public let own: [String]
+    /// A value waiting for its half second, to be written.
+    public let pending: String?
+    /// The last value was not to be written (a blank name): shown as stored again once left.
+    public let refused: Bool
+    /// The value as stored, last told.
+    public let stored: String
+    /// Typed in since it got the focus.
+    public let typed: Bool
+    /// Another device's change while typing is a clash to choose over (a song part's text, D18).
+    public let warnOnClash: Bool
+}
+
+/// `autoSaveStepView`'s answer: the state to give back, the text to show, the clash to ask about, what to do.
+public struct AutoSaveStep: Codable, Hashable, Sendable {
+    /// The other device's text, while the user is asked to keep theirs or take it.
+    public let clash: String?
+    public let effects: [AutoSaveEffect]
+    /// The field's text now.
+    public let shown: String
+    public let state: AutoSaveState
+}
+
 /// `dateLineView`'s answer.
 public struct DateLine: Codable, Hashable, Sendable {
     public let parts: [LinePart]

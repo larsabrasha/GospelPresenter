@@ -1,5 +1,357 @@
 {
   "$defs": {
+    "AutoSaveEffect": {
+      "description": "What the shell does after an autosave step, in order.",
+      "oneOf": [
+        {
+          "description": "Run this change, then tell `done` how it went.",
+          "properties": {
+            "args": true,
+            "command": {
+              "type": "string"
+            },
+            "type": {
+              "const": "run",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "command",
+            "args"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "After `ms`, tell `timer`; one set before is replaced.",
+          "properties": {
+            "ms": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ms"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The timer set before is not wanted.",
+          "properties": {
+            "type": {
+              "const": "cancelTimer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Say \"Sparad\".",
+          "properties": {
+            "type": {
+              "const": "saved",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Say \"Kunde inte spara\".",
+          "properties": {
+            "type": {
+              "const": "failed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AutoSaveEvent": {
+      "description": "What happened to an autosaved field.",
+      "oneOf": [
+        {
+          "description": "It got the focus.",
+          "properties": {
+            "type": {
+              "const": "focus",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Typed in: its whole value now.",
+          "properties": {
+            "type": {
+              "const": "input",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "It lost the focus (or the page closes): what waits is written now.",
+          "properties": {
+            "type": {
+              "const": "blur",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The half second after the last key ran out.",
+          "properties": {
+            "type": {
+              "const": "timer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The stored value as now read (after a write, a sync, each time the page reads it).",
+          "properties": {
+            "type": {
+              "const": "stored",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The write the step asked for ran: `ok`, or refused.",
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "done",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ok"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A clash chosen: the user's own text kept, and written.",
+          "properties": {
+            "type": {
+              "const": "keepMine",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A clash chosen: the other device's text taken.",
+          "properties": {
+            "type": {
+              "const": "takeTheirs",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AutoSaveKind": {
+      "description": "What an autosaved field holds, and so what is written of it.",
+      "oneOf": [
+        {
+          "const": "text",
+          "description": "Any text, an empty one too.",
+          "type": "string"
+        },
+        {
+          "const": "required",
+          "description": "A text that may not be left blank (a name): a blank one is not written.",
+          "type": "string"
+        },
+        {
+          "const": "year",
+          "description": "A year, 0 to 9999, written as a number; empty is none; anything else is not written.",
+          "type": "string"
+        }
+      ]
+    },
+    "AutoSaveState": {
+      "description": "A field saved as it is typed (the web's AutoSaveField): what it writes to, its rule, and where its typing stands.",
+      "properties": {
+        "args": true,
+        "clash": {
+          "description": "The other device's text while a clash waits for the user's choice.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "command": {
+          "description": "The change that writes it, and its arguments but the field's (the row's id).",
+          "type": "string"
+        },
+        "draft": {
+          "description": "What the user has typed, shown in place of the stored value; none shows the stored one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "field": {
+          "description": "The argument the field's value goes in.",
+          "type": "string"
+        },
+        "focused": {
+          "description": "The field has the focus.",
+          "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutoSaveKind",
+          "description": "What it holds."
+        },
+        "lastOver": {
+          "description": "The stored value the last write was made over.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastWritten": {
+          "description": "The value last written and the stored one it was written over: typed back to it, nothing is written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max": {
+          "description": "Its most characters.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "own": {
+          "description": "The values written since the focus came: coming back as the stored value, they are no clash.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pending": {
+          "description": "A value waiting for its half second, to be written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "refused": {
+          "description": "The last value was not to be written (a blank name): shown as stored again once left.",
+          "type": "boolean"
+        },
+        "stored": {
+          "description": "The value as stored, last told.",
+          "type": "string"
+        },
+        "typed": {
+          "description": "Typed in since it got the focus.",
+          "type": "boolean"
+        },
+        "warnOnClash": {
+          "description": "Another device's change while typing is a clash to choose over (a song part's text, D18).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "command",
+        "args",
+        "field",
+        "kind",
+        "max",
+        "warnOnClash",
+        "stored",
+        "focused",
+        "typed",
+        "own",
+        "refused"
+      ],
+      "type": "object"
+    },
+    "AutoSaveStep": {
+      "description": "`autoSaveStepView`'s answer: the state to give back, the text to show, the clash to ask about, what to do.",
+      "properties": {
+        "clash": {
+          "description": "The other device's text, while the user is asked to keep theirs or take it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/AutoSaveEffect"
+          },
+          "type": "array"
+        },
+        "shown": {
+          "description": "The field's text now.",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AutoSaveState"
+        }
+      },
+      "required": [
+        "state",
+        "shown",
+        "effects"
+      ],
+      "type": "object"
+    },
     "DateLine": {
       "description": "`dateLineView`'s answer.",
       "properties": {
@@ -1096,6 +1448,12 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "auto_save_event": {
+      "$ref": "#/$defs/AutoSaveEvent"
+    },
+    "auto_save_step": {
+      "$ref": "#/$defs/AutoSaveStep"
+    },
     "date_line": {
       "$ref": "#/$defs/DateLine"
     },
@@ -1124,7 +1482,9 @@
     "live_step",
     "live_event",
     "details_step",
-    "details_event"
+    "details_event",
+    "auto_save_step",
+    "auto_save_event"
   ],
   "title": "Views",
   "type": "object"

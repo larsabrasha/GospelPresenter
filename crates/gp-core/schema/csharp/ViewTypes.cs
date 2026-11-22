@@ -7,6 +7,176 @@ using System.Text.Json.Serialization;
 
 namespace GospelPresenter.Core;
 
+/// <summary>What the shell does after an autosave step, in order.</summary>
+[JsonConverter(typeof(AutoSaveEffectConverter))]
+public abstract record AutoSaveEffect
+{
+    /// <summary>Run this change, then tell `done` how it went.</summary>
+    public sealed record Run([property: JsonPropertyName("args")] JsonElement Args, [property: JsonPropertyName("command")] string Command) : AutoSaveEffect;
+    /// <summary>After `ms`, tell `timer`; one set before is replaced.</summary>
+    public sealed record Timer([property: JsonPropertyName("ms")] long Ms) : AutoSaveEffect;
+    /// <summary>The timer set before is not wanted.</summary>
+    public sealed record CancelTimer() : AutoSaveEffect;
+    /// <summary>Say "Sparad".</summary>
+    public sealed record Saved() : AutoSaveEffect;
+    /// <summary>Say "Kunde inte spara".</summary>
+    public sealed record Failed() : AutoSaveEffect;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : AutoSaveEffect;
+}
+
+public sealed class AutoSaveEffectConverter : JsonConverter<AutoSaveEffect>
+{
+    public override AutoSaveEffect Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "run" => new AutoSaveEffect.Run(ViewJson.Field<JsonElement>(e, "args", options)!, ViewJson.Field<string>(e, "command", options)!),
+            "timer" => new AutoSaveEffect.Timer(ViewJson.Field<long>(e, "ms", options)!),
+            "cancelTimer" => new AutoSaveEffect.CancelTimer(),
+            "saved" => new AutoSaveEffect.Saved(),
+            "failed" => new AutoSaveEffect.Failed(),
+            _ => new AutoSaveEffect.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, AutoSaveEffect value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case AutoSaveEffect.Run x:
+                writer.WriteString("type", "run");
+                ViewJson.Write(writer, "args", x.Args, options);
+                ViewJson.Write(writer, "command", x.Command, options);
+                break;
+            case AutoSaveEffect.Timer x:
+                writer.WriteString("type", "timer");
+                ViewJson.Write(writer, "ms", x.Ms, options);
+                break;
+            case AutoSaveEffect.CancelTimer x:
+                writer.WriteString("type", "cancelTimer");
+                break;
+            case AutoSaveEffect.Saved x:
+                writer.WriteString("type", "saved");
+                break;
+            case AutoSaveEffect.Failed x:
+                writer.WriteString("type", "failed");
+                break;
+            case AutoSaveEffect.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>What happened to an autosaved field.</summary>
+[JsonConverter(typeof(AutoSaveEventConverter))]
+public abstract record AutoSaveEvent
+{
+    /// <summary>It got the focus.</summary>
+    public sealed record Focus() : AutoSaveEvent;
+    /// <summary>Typed in: its whole value now.</summary>
+    public sealed record Input([property: JsonPropertyName("value")] string Value) : AutoSaveEvent;
+    /// <summary>It lost the focus (or the page closes): what waits is written now.</summary>
+    public sealed record Blur() : AutoSaveEvent;
+    /// <summary>The half second after the last key ran out.</summary>
+    public sealed record Timer() : AutoSaveEvent;
+    /// <summary>The stored value as now read (after a write, a sync, each time the page reads it).</summary>
+    public sealed record Stored([property: JsonPropertyName("value")] string Value) : AutoSaveEvent;
+    /// <summary>The write the step asked for ran: `ok`, or refused.</summary>
+    public sealed record Done([property: JsonPropertyName("ok")] bool Ok) : AutoSaveEvent;
+    /// <summary>A clash chosen: the user's own text kept, and written.</summary>
+    public sealed record KeepMine() : AutoSaveEvent;
+    /// <summary>A clash chosen: the other device's text taken.</summary>
+    public sealed record TakeTheirs() : AutoSaveEvent;
+    /// <summary>A case this app does not know (a newer core's): its tag, to be left alone.</summary>
+    public sealed record Unknown(string Type) : AutoSaveEvent;
+}
+
+public sealed class AutoSaveEventConverter : JsonConverter<AutoSaveEvent>
+{
+    public override AutoSaveEvent Read(ref Utf8JsonReader reader, System.Type type, JsonSerializerOptions options)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var e = doc.RootElement;
+        var tag = e.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        return tag switch
+        {
+            "focus" => new AutoSaveEvent.Focus(),
+            "input" => new AutoSaveEvent.Input(ViewJson.Field<string>(e, "value", options)!),
+            "blur" => new AutoSaveEvent.Blur(),
+            "timer" => new AutoSaveEvent.Timer(),
+            "stored" => new AutoSaveEvent.Stored(ViewJson.Field<string>(e, "value", options)!),
+            "done" => new AutoSaveEvent.Done(ViewJson.Field<bool>(e, "ok", options)!),
+            "keepMine" => new AutoSaveEvent.KeepMine(),
+            "takeTheirs" => new AutoSaveEvent.TakeTheirs(),
+            _ => new AutoSaveEvent.Unknown(tag),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, AutoSaveEvent value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        switch (value)
+        {
+            case AutoSaveEvent.Focus x:
+                writer.WriteString("type", "focus");
+                break;
+            case AutoSaveEvent.Input x:
+                writer.WriteString("type", "input");
+                ViewJson.Write(writer, "value", x.Value, options);
+                break;
+            case AutoSaveEvent.Blur x:
+                writer.WriteString("type", "blur");
+                break;
+            case AutoSaveEvent.Timer x:
+                writer.WriteString("type", "timer");
+                break;
+            case AutoSaveEvent.Stored x:
+                writer.WriteString("type", "stored");
+                ViewJson.Write(writer, "value", x.Value, options);
+                break;
+            case AutoSaveEvent.Done x:
+                writer.WriteString("type", "done");
+                ViewJson.Write(writer, "ok", x.Ok, options);
+                break;
+            case AutoSaveEvent.KeepMine x:
+                writer.WriteString("type", "keepMine");
+                break;
+            case AutoSaveEvent.TakeTheirs x:
+                writer.WriteString("type", "takeTheirs");
+                break;
+            case AutoSaveEvent.Unknown x:
+                writer.WriteString("type", x.Type);
+                break;
+        }
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>What an autosaved field holds, and so what is written of it.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<AutoSaveKind>))]
+public enum AutoSaveKind
+{
+    /// <summary>Any text, an empty one too.</summary>
+    text,
+    /// <summary>A text that may not be left blank (a name): a blank one is not written.</summary>
+    required,
+    /// <summary>A year, 0 to 9999, written as a number; empty is none; anything else is not written.</summary>
+    year,
+}
+
+/// <summary>A field saved as it is typed (the web's AutoSaveField): what it writes to, its rule, and where its typing stands.</summary>
+public sealed record AutoSaveState([property: JsonPropertyName("args")] JsonElement Args, [property: JsonPropertyName("clash")] string? Clash, [property: JsonPropertyName("command")] string Command, [property: JsonPropertyName("draft")] string? Draft, [property: JsonPropertyName("field")] string Field, [property: JsonPropertyName("focused")] bool Focused, [property: JsonPropertyName("kind")] AutoSaveKind Kind, [property: JsonPropertyName("lastOver")] string? LastOver, [property: JsonPropertyName("lastWritten")] string? LastWritten, [property: JsonPropertyName("max")] long Max, [property: JsonPropertyName("own")] IReadOnlyList<string> Own, [property: JsonPropertyName("pending")] string? Pending, [property: JsonPropertyName("refused")] bool Refused, [property: JsonPropertyName("stored")] string Stored, [property: JsonPropertyName("typed")] bool Typed, [property: JsonPropertyName("warnOnClash")] bool WarnOnClash);
+
+/// <summary>`autoSaveStepView`'s answer: the state to give back, the text to show, the clash to ask about, what to do.</summary>
+public sealed record AutoSaveStep([property: JsonPropertyName("clash")] string? Clash, [property: JsonPropertyName("effects")] IReadOnlyList<AutoSaveEffect> Effects, [property: JsonPropertyName("shown")] string Shown, [property: JsonPropertyName("state")] AutoSaveState State);
+
 /// <summary>`dateLineView`'s answer.</summary>
 public sealed record DateLine([property: JsonPropertyName("parts")] IReadOnlyList<LinePart> Parts);
 
