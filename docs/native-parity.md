@@ -237,8 +237,13 @@ Its base, from docs/linux-app.md's "Not built":
   empty), the address with its badge, Bekräfta e-post, Byt e-postadress in a dialog; the colour theme and the language
   kept on this device (prefs.json) and applied at once, the language opening Inställningar again. Om Gospel Presenter.
   native-linux-settings.test.ts in Docker (a name applied reaches the server) and its pictures in English and dark
-  looked at. Left out of the list until built: every other page (the library's, Överlägg, Etiketter, Skärmar, Teman,
-  CCLI, Användare, Enheter, Organisation, Papperskorg), and in Mina inställningar Superadminläge, Slå på utgångar
+  looked at. Round 2 (2026-11-22, settings_trash.rs): Papperskorg from `trashPageView`, which now words each row's days
+  left (`left`, Raderas snart at none), marks a day or less `urgent` and counts the rows (`count`), read by the Mac and
+  iOS app too; a kind's tab where there are two or more, a search, Återställ on each row, Radera permanent in its menu
+  and Töm papperskorgen asked first, what expired purged on opening. Pictures light and dark of the trash, restored,
+  the question, purged, emptied; an iOS UI test (a song put in the trash shows 30 dagar kvar). Picking several rows is
+  not built here. Left out of the list until built: every other page (the library's, Överlägg, Etiketter, Skärmar,
+  Teman, CCLI, Användare, Enheter, Organisation), and in Mina inställningar Superadminläge, Slå på utgångar
   automatiskt, Lagring, Inloggningar and Mina felrapporter. Not tried in pictures: Byt e-postadress, Bekräfta e-post;
   the profile cell keeps the old name until Inställningar is opened again
 - [ ] A phone's one column

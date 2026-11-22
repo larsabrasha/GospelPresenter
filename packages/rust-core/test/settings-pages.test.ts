@@ -21,8 +21,11 @@ function org(sql = '') {
   return async (q: string, params: unknown[]) => all(q, params);
 }
 
+type Words = { key: string; n: number };
+
 interface TrashPage {
-  entries: { kind: string; id: string; daysLeft: number; restore: string; purge: string }[];
+  entries: { kind: string; id: string; daysLeft: number; restore: string; purge: string; left: Words; urgent: boolean }[];
+  count: Words;
   kinds: string[];
   kind: string | null;
   total: number;
@@ -71,6 +74,27 @@ describe('trashPageView', () => {
     const page = await nodeRustCore().view<TrashPage>('trashPageView', { role: 'admin', now: NOW, query: 'INGEMANN' }, rows);
 
     expect(page.entries.map((e) => e.id)).toEqual(['s1']);
+  });
+
+  it('words the days left, Raderas snart when none are, and marks a day or less as urgent', async () => {
+    const rows = org(TRASH);
+
+    const page = await nodeRustCore().view<TrashPage>('trashPageView', { role: 'admin', now: NOW }, rows);
+
+    expect(page.entries.map((e) => [e.id, e.left, e.urgent])).toEqual([
+      ['i1', { key: 'trash.days', n: 29 }, false],
+      ['s1', { key: 'trash.days', n: 28 }, false],
+      ['t1', { key: 'trash.days', n: 27 }, false],
+      ['s2', { key: 'trash.soon', n: 0 }, true],
+    ]);
+  });
+
+  it('counts the rows shown', async () => {
+    const rows = org(TRASH);
+
+    const page = await nodeRustCore().view<TrashPage>('trashPageView', { role: 'admin', now: NOW, query: 'INGEMANN' }, rows);
+
+    expect(page.count).toEqual({ key: 'trash.countOne', n: 1 });
   });
 
   it('says when something is past its 30 days', async () => {

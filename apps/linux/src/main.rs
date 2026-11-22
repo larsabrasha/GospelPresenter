@@ -28,6 +28,7 @@ mod presentation_menu;
 mod prefs;
 mod settings;
 mod settings_mine;
+mod settings_trash;
 mod shell;
 mod start_page;
 mod song_page;

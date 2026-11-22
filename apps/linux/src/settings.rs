@@ -1,7 +1,7 @@
 // Inställningar (the Mac app's Settings.swift, docs/layout-2-0.md): a window of its own as GNOME Settings, the list at
 // the left (the core's `settingsListView`, Mina inställningar as a profile cell at its top, a search above it through
 // `settingsSearchView`) and the page chosen at the right. A shell draws the pages it has: Mina inställningar
-// (settings_mine.rs) and Om Gospel Presenter here; the list's other rows are left out until their pages are built
+// (settings_mine.rs), Papperskorg (settings_trash.rs) and Om Gospel Presenter here; the list's other rows are left out until their pages are built
 // (docs/native-parity.md).
 use crate::shell::Shell;
 use adw::prelude::*;
@@ -11,7 +11,7 @@ use serde_json::json;
 use std::rc::Rc;
 
 /// The pages this shell has.
-const BUILT: &[&str] = &["settings", "about"];
+const BUILT: &[&str] = &["settings", "trash", "about"];
 
 #[derive(Deserialize, Clone)]
 pub struct Shade { pub name: String, pub hex: String }
@@ -101,8 +101,9 @@ impl Window {
             for g in groups {
                 let rows: Vec<_> = g.rows.into_iter().filter(|r| BUILT.contains(&r.id.as_str())).collect();
                 if rows.is_empty() { continue }
+                // A group without a title (Papperskorg, Om) follows on after a gap, as the Mac's list.
                 let head = gtk::Label::builder().label(g.title.map(|k| t(&k, &[])).unwrap_or_default()).xalign(0.0)
-                    .css_classes(["heading", "dim-label"]).margin_top(12).margin_start(6).build();
+                    .css_classes(["heading", "dim-label"]).margin_top(6).margin_start(6).build();
                 let header = gtk::ListBoxRow::builder().child(&head).activatable(false).selectable(false).build();
                 self.list.append(&header);
                 ids.push(String::new());
@@ -138,6 +139,11 @@ impl Window {
                 let (page, state) = crate::settings_mine::page(&self.shell);
                 *self.shown.borrow_mut() = Some(state);
                 (t("nav.settings", &[]), page.upcast())
+            }
+            "trash" => {
+                let (page, state) = crate::settings_trash::page(&self.shell);
+                *self.shown.borrow_mut() = Some(state);
+                (t("trash.title", &[]), page.upcast())
             }
             "about" => (t("nav.about", &[]), about(&self.shell).upcast()),
             _ => return,

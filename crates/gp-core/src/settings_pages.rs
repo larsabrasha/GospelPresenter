@@ -326,7 +326,9 @@ fn fold(s: &str) -> String { s.trim().to_lowercase() }
 /// order, for the tabs (a tab that always says nothing is noise; a shell shows them when there are two or more);
 /// `kind`: the one chosen, null when it became empty (PRES-E16); `total`: how many the role manages, which Töm
 /// papperskorgen empties; `expired`: whether something is past its 30 days, so opening the page purges
-/// (`purgeExpiredTrash`, PRES-R26).
+/// (`purgeExpiredTrash`, PRES-R26). As every shell words them: each entry's `left`, its days left as a text's key and
+/// `n` (Raderas snart at none), `urgent` at a day or less (said in red), and `count`, the rows shown as a text's key and
+/// `n`.
 pub async fn trash_page(a: &Obj) -> R<Value> {
     let role = a.get("role").and_then(Value::as_str).ok_or("invalid-args")?;
     let now = a.get("now").and_then(Value::as_f64).ok_or("invalid-args")?;
@@ -336,6 +338,9 @@ pub async fn trash_page(a: &Obj) -> R<Value> {
         let mut e = e.clone();
         let deleted = e["deletedAt"].as_f64().unwrap_or(now);
         e["daysLeft"] = json!(days_left(deleted, now));
+        let left = days_left(deleted, now);
+        e["left"] = match left { 0 => json!({ "key": "trash.soon", "n": 0 }), 1 => json!({ "key": "trash.oneDay", "n": 1 }), n => json!({ "key": "trash.days", "n": n }) };
+        e["urgent"] = json!(left <= 1);
         e["restore"] = json!(k.2);
         e["purge"] = json!(k.3);
         e
@@ -354,5 +359,6 @@ pub async fn trash_page(a: &Obj) -> R<Value> {
         .filter(|e| chosen.is_none_or(|k| e["kind"] == k))
         .filter(|e| q.is_empty() || holds(&e["name"]) || (e["kind"] == "Song" && holds(&e["detail"])))
         .collect();
-    Ok(json!({ "entries": entries, "kinds": kinds, "kind": chosen, "total": total, "expired": expired }))
+    let count = if entries.len() == 1 { json!({ "key": "trash.countOne", "n": 1 }) } else { json!({ "key": "trash.countMany", "n": entries.len() }) };
+    Ok(json!({ "entries": entries, "kinds": kinds, "kind": chosen, "total": total, "expired": expired, "count": count }))
 }

@@ -51,7 +51,8 @@ pub fn said(shell: &Rc<Shell>, text: &str) {
     dialog.present(Some(&shell.window));
 }
 
-fn refusal(code: &str) -> String {
+/// A refusal's code in the app's words, the offline text where it has none.
+pub fn refusal(code: &str) -> String {
     let key = format!("error.{code}");
     let text = t(&key, &[]);
     if text == key { t("error.offline", &[]) } else { text }

@@ -1,6 +1,6 @@
 // Inställningar as someone uses them, where the code reviews found bugs that no build shows (AGENTS.md, "The native
 // apps"): a field saved only when changed, Sånger's letter index, Shift+Enter in Etiketter, a question before a song
-// goes to the trash, and Slå på utgångar automatiskt kept. Over UITests/settings.json made afresh at each launch; run
+// goes to the trash, its days left in the trash, and Slå på utgångar automatiskt kept. Over UITests/settings.json made afresh at each launch; run
 // by `apps/mac/apple.sh uitest`, on a phone (the settings pushed page by page).
 import XCTest
 
@@ -119,6 +119,24 @@ final class SettingsTests: XCTestCase {
 
         XCTAssertTrue(question.waitForNonExistence(timeout: 3))
         XCTAssertTrue(row.exists, "the song still there")
+    }
+
+    func testASongPutInTheTrashShowsTheDaysItHasLeftInTheCoresWords() {
+        open("songs")
+        song("Härlig är jorden").swipeLeft()
+        app.buttons[sv["images.remove"]!].firstMatch.tap()
+        let question = app.sheets.firstMatch
+        XCTAssertTrue(question.waitForExistence(timeout: 3))
+        app.buttons[sv["song.trash"]!].firstMatch.tap()
+
+        back()
+        // Papperskorg near the list's foot: scrolled to, a list drawing only the rows in sight.
+        let trash = app.staticTexts[sv["nav.trash"]!].firstMatch
+        for _ in 0..<4 where !trash.isHittable { app.swipeUp() }
+        trash.tap()
+
+        let left = sv["trash.days"]!.replacingOccurrences(of: "{n}", with: "30")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", left)).firstMatch.waitForExistence(timeout: 3), "\(left) on the song's row")
     }
 
     func testTurningOutputsOnAutomaticallyOffIsKeptAfterARestart() {

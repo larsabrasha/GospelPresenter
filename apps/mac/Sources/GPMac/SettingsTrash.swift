@@ -3,12 +3,17 @@
 // papperskorgen last, in red. Opening it purges what has passed its 30 days, as the web's does.
 import SwiftUI
 
+/// A text of the app's by its key and the number it says (the core's words for days left and a count).
+struct Words: Decodable, Hashable { let key: String, n: Int }
+
 struct TrashEntry: Decodable, Identifiable, Hashable {
     let kind: String, id: String, name: String, detail: String?, deletedAt: Double, daysLeft: Int, restore: String, purge: String
+    /// The days left in words, and whether a day or less is (said in red): the core's.
+    let left: Words, urgent: Bool
     var key: String { "\(kind):\(id)" }
 }
 
-struct TrashPageModel: Decodable { let entries: [TrashEntry], kinds: [String], kind: String?, total: Int, expired: Bool }
+struct TrashPageModel: Decodable { let entries: [TrashEntry], kinds: [String], kind: String?, total: Int, expired: Bool, count: Words }
 
 /// Now in milliseconds, as the mutators' `at` and `now`.
 func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
@@ -59,7 +64,7 @@ struct TrashPage: View {
                         }
                     }
                 } footer: {
-                    if page.total > 0 { Text(page.entries.count == 1 ? t("trash.countOne") : t("trash.countMany", ["n": page.entries.count])) }
+                    if page.total > 0 { Text(t(page.count.key, ["n": page.count.n])) }
                 }
                 if page.total > 0 {
                     Section { Button(t("trash.empty"), role: .destructive) { emptying = true } }
@@ -109,7 +114,7 @@ struct TrashPage: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(e.name).lineLimit(1)
                 (Text([t("trash.one.\(e.kind)"), e.detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") + " · ")
-                 + Text(days(e.daysLeft)).foregroundStyle(e.daysLeft <= 1 ? .red : .secondary))
+                 + Text(t(e.left.key, ["n": e.left.n])).foregroundStyle(e.urgent ? .red : .secondary))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
@@ -137,8 +142,6 @@ struct TrashPage: View {
         // The row leaving the list says it is back, as a Mac's Finder says nothing more; a refusal is said.
         message = change(model, e.restore, ["id": e.id])
     }
-
-    private func days(_ n: Int) -> String { n == 0 ? t("trash.soon") : n == 1 ? t("trash.oneDay") : t("trash.days", ["n": n]) }
 
     private func icon(_ kind: String) -> String {
         switch kind {
