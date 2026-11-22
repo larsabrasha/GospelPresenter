@@ -11,6 +11,8 @@ import { runCommand, runCommandSync, runPureView, runView, tsHasPureView, tsHasV
  * again, for a comparison or as a way back while the port is new.
  */
 let everythingInRust = typeof process !== 'undefined' && process.env?.GP_CORE === 'rust';
+const tracing = typeof process !== 'undefined' && process.env?.GP_CORE_TRACE === '1';
+const traced = new Set<string>();
 export function rustOnly(on: boolean): void {
   everythingInRust = on;
 }
@@ -94,6 +96,11 @@ export class RustCore {
    * or throws the refusal.
    */
   private *call(name: string, args: unknown, ctx: MutatorCtx | undefined): Generator<Ask, string, Rows | { error: string }> {
+    // What still reaches the WASM, named once each (`GP_CORE_TRACE=1`): the port's way to see what is left (ADR 0008).
+    if (tracing && !this.onlyRust && !traced.has(name)) {
+      traced.add(name);
+      console.warn(`gp-core: ${name} ran in the Rust core`);
+    }
     try {
       const who = ctx && { userId: ctx.userId, role: ctx.role, now: ctx.now };
       let status = this.core.gp_start(...this.pass(json({ name, args, ctx: who ?? {} })));
