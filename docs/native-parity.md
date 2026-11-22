@@ -94,8 +94,6 @@ is shared; each platform's part is checked off in its own section below.
   mall, a template opened as a page with its own details and Radera mall); Spara som mall in a presentation's menu
   (Templates.swift). `TemplatesTests` (4) on an iPhone 17 Pro Max with UITests/templates.json. Not tried: a
   template's Redigera detaljer in a test
-- [ ] 7 Utgångar
-- [ ] 8 Fjärrstyrning
 - [x] 9 ⌘K: anywhere a window is (a hidden ⌘K button) and the start page's magnifier (Palette.swift): the open
   presentation's likeliest actions, songs (their page; in a presentation Lägg till, shown while presenting),
   presentations, the commands (Gå till … and Ny sång open Inställningar there), Inställningar's pages.
