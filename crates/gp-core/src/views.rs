@@ -76,6 +76,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "pageEventView" => crate::page_state::event(a),
         "pageModelView" => crate::page_state::model(a),
         "pageStepView" => crate::page_step::step(a),
+        "slideAcrossView" => crate::grid_nav::view(a),
         "remoteCommandView" => crate::remote_control::command(a),
         "remotePointerView" => crate::remote_control::pointer(a),
         "remoteTakeView" => crate::remote_control::take(a),

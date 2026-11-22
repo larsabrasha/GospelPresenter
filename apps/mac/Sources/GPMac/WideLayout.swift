@@ -303,30 +303,57 @@ private struct SlideColumn: View {
         .focusable().focused($focused).focusEffectDisabled()
         .onAppear { focused = true }
         // The keys of spec 03 and 04, the web's: each key is its event, and what it does is the core's (`Model.send`,
-        // `pageEventView`). ↑ ↓ step as → ←: this grid does not yet say which slide stands above another.
-        .onKeyPress(phases: .down) { press in
-            let command = press.modifiers.contains(.command)
-            let event: [String: Any]? = switch press.key {
-            case .rightArrow where command, .downArrow where command: ["type": "item", "delta": 1]
-            case .leftArrow where command, .upArrow where command: ["type": "item", "delta": -1]
-            case .upArrow where press.modifiers.contains(.option): ["type": "move", "delta": -1]
-            case .downArrow where press.modifiers.contains(.option): ["type": "move", "delta": 1]
-            case .rightArrow, .downArrow: ["type": "pick", "delta": 1]
-            case .leftArrow, .upArrow: ["type": "pick", "delta": -1]
-            case .pageDown: ["type": "clicker", "delta": 1]
-            case .pageUp: ["type": "clicker", "delta": -1]
-            case .return: ["type": "enter", "onPage": true]
-            case .space: ["type": "step", "delta": 1]
-            case .escape: ["type": "escape"]
-            case .delete, .deleteForward: ["type": "delete"]
-            case "b", "B", ".": ["type": "black"]
-            case "a": ["type": "add"]
-            default: press.characters.count == 1 && press.characters.first!.isWholeNumber ? ["type": "digit", "digit": Int(press.characters)!] : nil
-            }
-            guard let event, let answer = model.send(event) else { return .ignored }
-            if let command = answer.command { model.perform(command) }
-            return answer.handled ? .handled : .ignored
+        // `pageEventView`). ↑ ↓ go to the slide above or below as the tiles stand (`across`).
+        .onKeyPress(phases: .down) { press in key(press.key, press.modifiers, press.characters) ? .handled : .ignored }
+        // `-gp.keys down,up,…`: those keys pressed once the grid stands, through the same way as a keyboard's, for
+        // the UI tests, whose typeKey reaches only the on-screen keyboard on iOS (ios/UITests/GridKeysTests.swift).
+        .task(id: p.id) {
+            guard let keys = UserDefaults.standard.string(forKey: "gp.keys") else { return }
+            let named: [String: KeyEquivalent] = ["down": .downArrow, "up": .upArrow, "right": .rightArrow, "left": .leftArrow]
+            try? await Task.sleep(for: .seconds(1)) // the headings measured, so the tiles stand where they are drawn
+            for name in keys.split(separator: ",") { if let k = named[String(name)] { _ = key(k, [], "") } }
         }
+    }
+
+    /// A key on the grid: its event, and the core's answer done (`Model.send`, `pageEventView`); whether it was the
+    /// page's.
+    private func key(_ key: KeyEquivalent, _ modifiers: EventModifiers, _ characters: String) -> Bool {
+        let command = modifiers.contains(.command)
+        let option = modifiers.contains(.option)
+        let event: [String: Any]? = switch key {
+        case .rightArrow where command, .downArrow where command: ["type": "item", "delta": 1]
+        case .leftArrow where command, .upArrow where command: ["type": "item", "delta": -1]
+        case .upArrow where option: ["type": "move", "delta": -1]
+        case .downArrow where option: ["type": "move", "delta": 1]
+        case .downArrow where !modifiers.contains(.shift): across(1)
+        case .upArrow where !modifiers.contains(.shift): across(-1)
+        case .rightArrow: ["type": "pick", "delta": 1]
+        case .leftArrow: ["type": "pick", "delta": -1]
+        case .pageDown: ["type": "clicker", "delta": 1]
+        case .pageUp: ["type": "clicker", "delta": -1]
+        case .return: ["type": "enter", "onPage": true]
+        case .space: ["type": "step", "delta": 1]
+        case .escape: ["type": "escape"]
+        case .delete, .deleteForward: ["type": "delete"]
+        case "b", "B", ".": ["type": "black"]
+        case "a": ["type": "add"]
+        default: characters.count == 1 && characters.first!.isWholeNumber ? ["type": "digit", "digit": Int(characters)!] : nil
+        }
+        // Past the first or last row, the key is still the page's; with Shift it is not (the web's useEditorKeys).
+        if key == .downArrow || key == .upArrow, event == nil { return !modifiers.contains(.shift) }
+        guard let event, let answer = model.send(event) else { return false }
+        if let command = answer.command { model.perform(command) }
+        return answer.handled
+    }
+
+    /// ↑ ↓: the slide above (-1) or below (1) the one made ready, else the one shown, as the tiles stand (the core's
+    /// `slideAcrossView`, the web's slideGridNav.ts); none past the first or last row.
+    private func across(_ dir: Int) -> [String: Any]? {
+        let from = model.pageState.picked ?? (model.isLive ? model.live.state.itemId.map { SlideAt(itemId: $0, partIndex: model.live.state.partIndex) } : nil)
+        let args: [String: Any] = ["tiles": layout.tiles(p.items.map(\.id)), "from": from.map { "\($0.itemId)/\($0.partIndex)" } ?? NSNull(), "dir": dir]
+        guard let key = model.view("slideAcrossView", args, as: SlideKey.self)?.key, let cut = key.lastIndex(of: "/"),
+              let part = Int(key[key.index(after: cut)...]) else { return nil }
+        return ["type": "pickAt", "itemId": String(key[..<cut]), "partIndex": part]
     }
 
     /// An item's slides in rows of the grid's number, each slide its width (SlideGridLayout's heights).

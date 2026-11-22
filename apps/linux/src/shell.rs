@@ -11,6 +11,7 @@ use gp_tui::dates::local_today;
 use gp_tui::keys::{page_key, Action};
 use gp_tui::shell::{Caller, Core};
 use gp_tui::texts::t;
+use serde_json::json;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -75,12 +76,36 @@ impl Shell {
             let Some(s) = weak.upgrade() else { return gtk::glib::Propagation::Proceed };
             // A dialog open over the page (Avsluta's question) takes its own keys: ↵ answers it.
             if s.page.borrow().is_none() || s.window.visible_dialog().is_some() { return gtk::glib::Propagation::Proceed }
+            // ↑ ↓ alone: the slide above or below as the tiles stand, not the one before or after.
+            use gtk::gdk::ModifierType as M;
+            let held = M::SHIFT_MASK | M::CONTROL_MASK | M::ALT_MASK | M::SUPER_MASK | M::META_MASK;
+            if !state.intersects(held) && (key == gtk::gdk::Key::Up || key == gtk::gdk::Key::Down) {
+                s.across(if key == gtk::gdk::Key::Down { 1 } else { -1 });
+                return gtk::glib::Propagation::Stop;
+            }
             match keys::key_event(key, state).and_then(page_key) {
                 Some(action) => { s.act(action); gtk::glib::Propagation::Stop }
                 None => gtk::glib::Propagation::Proceed,
             }
         });
         self.window.add_controller(keys);
+    }
+
+    /// ↑ ↓: the slide above (-1) or below (1) the one made ready, else the one shown, made ready (the core's
+    /// `slideAcrossView`, the web's slideGridNav.ts); none past the first or last row.
+    fn across(self: &Rc<Self>, dir: i64) {
+        let tiles = match self.page.borrow().as_ref() { Some(page) => page.placed(), None => return };
+        let key = {
+            let m = self.model.borrow();
+            let app = &m.app;
+            let shown = app.is_live().then(|| app.live.item_id.clone().map(|i| format!("{i}/{}", app.live.part_index))).flatten();
+            let from = app.state.picked.as_ref().map(|p| format!("{}/{}", p.item_id, p.part_index)).or(shown);
+            app.core().view::<serde_json::Value>("slideAcrossView", json!({ "tiles": tiles, "from": from, "dir": dir }))
+                .and_then(|v| v["key"].as_str().map(String::from))
+        };
+        let Some((item, part)) = key.as_deref().and_then(|k| k.rsplit_once('/')) else { return };
+        let Ok(part) = part.parse::<i64>() else { return };
+        self.act(Action::Event(json!({ "type": "pickAt", "itemId": item, "partIndex": part })));
     }
 
     /// A presentation opened: its page pushed over the start page.

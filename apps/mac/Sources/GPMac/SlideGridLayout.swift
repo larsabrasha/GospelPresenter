@@ -27,6 +27,18 @@ struct SlideGridLayout {
     /// Where an item's heading starts, in the content.
     func top(_ i: Int) -> CGFloat { Self.padding + (0..<i).reduce(0) { $0 + height($1) } }
 
+    /// Every slide's tile as it stands in the content, for ↑ ↓ (the core's `slideAcrossView`): its key
+    /// (`itemId/part`) and its box, items given in the running order with their ids.
+    func tiles(_ ids: [String]) -> [[String: Any]] {
+        ids.indices.flatMap { i in
+            (0..<counts[i]).map { n -> [String: Any] in
+                let left = Self.padding + CGFloat(n % columns) * (tileWidth + Self.spacing)
+                let top = top(i) + headings[i] + CGFloat(n / columns) * rowStep
+                return ["key": "\(ids[i])/\(n)", "left": left, "top": top, "right": left + tileWidth, "bottom": top + tileHeight]
+            }
+        }
+    }
+
     /// A place in the slides: the item, the first slide of the row (nil in its heading), and how far into that row or
     /// heading, as a share of its height.
     struct Anchor: Equatable { let item: Int, slide: Int?, share: CGFloat }

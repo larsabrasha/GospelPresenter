@@ -40,7 +40,7 @@ is shared; each platform's part is checked off in its own section below.
 
 ## Core
 
-- [ ] 1 ↑↓ in the grid
+- [x] 1 ↑↓ in the grid: `slideAcrossView` (crates/gp-core/src/grid_nav.rs, 12 tests); the web reads it
 - [ ] 2 Markera
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar
@@ -53,7 +53,11 @@ is shared; each platform's part is checked off in its own section below.
 
 ## Mac and iOS
 
-- [ ] 1 ↑↓ in the grid
+- [~] 1 ↑↓ in the grid: the tiles' places from `SlideGridLayout.tiles`; `GridKeysTests` on an iPad 13" (↓ to the
+  slide under, ↑ back, → still the next). Gap: the keys are pressed through `-gp.keys` into the grid's own handler, as
+  XCUITest's typeKey reaches only the on-screen keyboard on iOS; a hardware key reaching the grid is not tested (nor
+  on the Mac, where no UI test runs). Seen: MenuTests fails on that iPad when it scrolls to Släck, not on the iPhone;
+  not looked into
 - [ ] 2 Markera
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar
@@ -82,7 +86,7 @@ Its base, from docs/linux-app.md's "Not built":
 
 The rounds:
 
-- [ ] 1 ↑↓ in the grid
+- [x] 1 ↑↓ in the grid: `Page::placed` measures the tiles; pictures (light) of ↓ from slide 1 to 4 and back
 - [ ] 2 Markera
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar

@@ -6,6 +6,7 @@ mod bible_view;
 mod bridge;
 mod collation;
 mod files;
+mod grid_nav;
 mod image_edit;
 mod item_views;
 mod json;

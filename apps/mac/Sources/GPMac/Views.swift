@@ -226,6 +226,9 @@ struct PageState: Codable, Hashable {
     }
 }
 
+/// The slide above or below another (`slideAcrossView`): its key, `itemId/part`, or none.
+struct SlideKey: Decodable { let key: String? }
+
 /// The core's answer to one step of a page (`pageStepView`): its state, the live state after it (unchanged where
 /// `refused`, another presentation presented), what the page does, and whether the event was the page's.
 struct PageAnswer: Decodable {

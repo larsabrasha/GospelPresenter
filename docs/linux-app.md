@@ -67,7 +67,7 @@ not used. Not tried yet: Wayland itself, Hyprland, Omarchy.
 Built and seen in pictures (2026-11-21, the demo data, light and dark): the start page's lists (startPageView, with
 "Visas just nu" while presenting); a presentation opened, its running order and every item's slides as painted tiles
 with their labels and numbers; ▶ Starta, the live column with the picture as the outputs draw it (credits, no label),
-Släck and the cue; Space, the arrows, ↵ and b as the core answers them, with VISAS, NÄSTA and the ring of the slide
+Släck and the cue; Space, the arrows, ↵ and b as the core answers them (↑ ↓ to the tile above and below, `slideAcrossView` over the tiles' places), with VISAS, NÄSTA and the ring of the slide
 made ready; ■ Avsluta asked first; an output window (o or Tab), full screen on a second monitor where there is one, not
 seen. Checked by `cargo test` (12) and clippy.
 

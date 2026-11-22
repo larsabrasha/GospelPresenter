@@ -19,7 +19,10 @@ pub struct Page {
     title: adw::WindowTitle,
     bar_buttons: gtk::Box,
     rows: Vec<(String, gtk::ListBoxRow)>,
-    tiles: Vec<gtk::DrawingArea>,
+    /// Every slide's tile, by its key (`itemId/part`), in the order of the page.
+    tiles: Vec<(String, gtk::DrawingArea)>,
+    /// The tiles' container, where their places are measured for ↑ ↓ (`placed`).
+    slides: gtk::Box,
     live_column: gtk::Box,
     live_picture: gtk::DrawingArea,
     live_buttons: gtk::Box,
@@ -111,7 +114,7 @@ impl Page {
             for n in 0..page.slides_of(&item.id).len() {
                 let tile = tiles::tile(shell, &p.id, SlideAt { item_id: item.id.clone(), part_index: n as i64 }, n + 1);
                 flow.append(&tile);
-                tiles.push(tile);
+                tiles.push((format!("{}/{n}", item.id), tile));
             }
             slides.append(&flow);
         }
@@ -139,7 +142,16 @@ impl Page {
         bar.add_top_bar(&header);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, bar_buttons, rows, tiles, live_column, live_picture, live_buttons, cue }
+        Page { nav_page, title, bar_buttons, rows, tiles, slides, live_column, live_picture, live_buttons, cue }
+    }
+
+    /// Every tile as it stands now, for ↑ ↓ (the core's `slideAcrossView`): its key and its box in the slides'
+    /// column; a tile not laid out yet is left out.
+    pub fn placed(&self) -> Vec<Value> {
+        self.tiles.iter().filter_map(|(key, tile)| {
+            let r = tile.compute_bounds(&self.slides)?;
+            Some(json!({ "key": key, "left": r.x(), "top": r.y(), "right": r.x() + r.width(), "bottom": r.y() + r.height() }))
+        }).collect()
     }
 
     /// What the model now has: the title's line, the bar's button, the item selected, every tile's marks, the live
@@ -157,7 +169,7 @@ impl Page {
         for (id, row) in &self.rows {
             if app.state.selected_id.as_deref() == Some(id.as_str()) { row.add_css_class("selected-item") } else { row.remove_css_class("selected-item") }
         }
-        for tile in &self.tiles { tile.queue_draw() }
+        for (_, tile) in &self.tiles { tile.queue_draw() }
         let (out, _) = m.column("live");
         self.live_column.set_visible(out);
         if out {
