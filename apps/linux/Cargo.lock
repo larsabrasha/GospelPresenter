@@ -837,6 +837,7 @@ dependencies = [
  "icu_provider",
  "miniz_oxide",
  "parley",
+ "serde",
  "serde_json",
  "sha2",
  "unicode-normalization",
