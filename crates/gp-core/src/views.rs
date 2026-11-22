@@ -133,7 +133,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "slideEditorView" => crate::slide_editor::view(a),
         "slideHitView" => crate::slide_editor::hit(a),
         "editorSlideView" => crate::slide_editor::slide(a),
-        "labelColoursView" => Ok(crate::settings_pages::label_colours()),
+        "labelColoursView" => Ok(crate::settings_pages::label_colours(a)),
         "slideMarksView" => crate::presenting::marks(a),
         "coreInfoView" => Ok(core_info()),
         "rulesView" => Ok(crate::mutators::rules()),

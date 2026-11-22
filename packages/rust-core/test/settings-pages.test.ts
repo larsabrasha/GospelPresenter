@@ -38,6 +38,29 @@ const TRASH = `
     VALUES ('i1', 'kors.jpg', 'image/jpeg', 'a', 'b', 10, 10, 0, ${NOW - DAY});
   INSERT INTO presentations (id, name, is_template, deleted_at, updated_at) VALUES ('t1', 'Mall', 1, ${NOW - 3 * DAY}, 0);`;
 
+describe('labelColoursView', () => {
+  type Colours = { swatches: string[]; chosen: string; maxLength: number };
+  const colours = (args: object) => nodeRustCore().pure<Colours>('labelColoursView', args);
+
+  it("adds a label's own colour as a last swatch when it is none of them", () => {
+    const out = colours({ color: '#123456' });
+
+    expect([out.swatches.length, out.swatches.at(-1), out.chosen]).toEqual([13, '#123456', '#123456']);
+  });
+
+  it('keeps the swatches as they are for one of theirs, in any case', () => {
+    const out = colours({ color: '#DC2626' });
+
+    expect(out.swatches.length).toBe(12);
+  });
+
+  it('chooses the default grey for a new label, and a text of at most 50', () => {
+    const out = colours({});
+
+    expect([out.chosen, out.maxLength]).toEqual(['#6b7280', 50]);
+  });
+});
+
 describe('trashPageView', () => {
   it('lists the kinds the role manages, newest deletion first, with days left and their mutators', async () => {
     const rows = org(TRASH);

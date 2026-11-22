@@ -242,8 +242,12 @@ Its base, from docs/linux-app.md's "Not built":
   iOS app too; a kind's tab where there are two or more, a search, Återställ on each row, Radera permanent in its menu
   and Töm papperskorgen asked first, what expired purged on opening. Pictures light and dark of the trash, restored,
   the question, purged, emptied; an iOS UI test (a song put in the trash shows 30 dagar kvar). Picking several rows is
-  not built here. Left out of the list until built: every other page (the library's, Överlägg, Etiketter, Skärmar,
-  Teman, CCLI, Användare, Enheter, Organisation), and in Mina inställningar Superadminläge, Slå på utgångar
+  not built here. Round 3 (2026-11-22, settings_labels.rs, not finished): Etiketter as chips in their order, the
+  intro, moved up or down and Radera (asked first) from a chip's menu, + and a click open a dialog with the text, the
+  swatches and a colour of its own, Shift+Enter making the next; `labelColoursView` now gives the swatches with a
+  label's own colour, the one chosen and the text's limit, read by the Mac too. Only a picture of the list looked at:
+  the dialog, moving, Radera and Shift+Enter not tried on Linux, nor a UI test on iOS. Left out of the list until
+  built: every other page (the library's, Överlägg, Skärmar, Teman, CCLI, Användare, Enheter, Organisation), and in Mina inställningar Superadminläge, Slå på utgångar
   automatiskt, Lagring, Inloggningar and Mina felrapporter. Not tried in pictures: Byt e-postadress, Bekräfta e-post;
   the profile cell keeps the old name until Inställningar is opened again
 - [ ] A phone's one column

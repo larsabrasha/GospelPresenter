@@ -149,21 +149,23 @@ struct LabelSheet: View {
     @State private var deleting = false
     @State private var created = false
     @FocusState private var typing: Bool
-    private struct Colours: Decodable { let swatches: [String], `default`: String }
+    private struct Colours: Decodable { let swatches: [String], chosen: String, maxLength: Int }
 
     var body: some View {
-        let colours = model.view("labelColoursView", as: Colours.self)
-        let swatches = (colours?.swatches ?? []).contains(color.lowercased()) ? colours?.swatches ?? [] : (colours?.swatches ?? []) + [color]
+        // The swatches with this label's own colour where it is none of them, and the text's limit: the core's.
+        let colours = model.view("labelColoursView", color.isEmpty ? [:] : ["color": color], as: Colours.self)
+        let swatches = colours?.swatches ?? []
+        let limit = colours?.maxLength ?? 50
         Form {
             // Shift+Enter, when creating, creates and empties the field for the next (SONG-A28), as the web's.
             #if os(iOS)
             if label == nil {
-                ShiftReturnField(placeholder: t("labels.field"), text: $text, shiftReturn: createNext).limited($text, to: 50)
+                ShiftReturnField(placeholder: t("labels.field"), text: $text, shiftReturn: createNext).limited($text, to: limit)
             } else {
-                TextField(t("labels.field"), text: $text).limited($text, to: 50)
+                TextField(t("labels.field"), text: $text).limited($text, to: limit)
             }
             #else
-            TextField(t("labels.field"), text: $text).limited($text, to: 50)
+            TextField(t("labels.field"), text: $text).limited($text, to: limit)
                 .focused($typing)
                 .onKeyPress(.return, phases: .down) { press in
                     guard label == nil, press.modifiers.contains(.shift) else { return .ignored }
@@ -194,7 +196,7 @@ struct LabelSheet: View {
                 if let label, let e = change(model, "deleteLabel", ["id": label.id]) { error = e } else { dismiss() }
             }
         } message: { Text(t("labels.deleteConfirm", ["text": label?.text ?? ""])) }
-        .onAppear { text = label?.text ?? ""; color = label?.color ?? colours?.default ?? "#6b7280" }
+        .onAppear { text = label?.text ?? ""; color = model.view("labelColoursView", label.map { ["color": $0.color] } ?? [:], as: Colours.self)?.chosen ?? "#6b7280" }
         .sheetBar(t(label == nil ? "labels.addTitle" : "labels.editTitle"), disabled: text.trimmingCharacters(in: .whitespaces).isEmpty) {
             let args: [String: Any] = ["text": text.trimmingCharacters(in: .whitespaces), "color": color]
             error = label.map { change(model, "updateLabel", args.merging(["id": $0.id]) { a, _ in a }) } ?? change(model, "createLabel", args)

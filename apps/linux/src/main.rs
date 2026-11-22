@@ -27,6 +27,7 @@ mod presentation;
 mod presentation_menu;
 mod prefs;
 mod settings;
+mod settings_labels;
 mod settings_mine;
 mod settings_trash;
 mod shell;

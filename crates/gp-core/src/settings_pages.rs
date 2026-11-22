@@ -272,11 +272,16 @@ pub fn storage_limits() -> Value {
     json!({ "limits": limits, "default": (2.0 * GIB) as i64 })
 }
 
-/// `labelColoursView`: the swatches of a label's sheet, as Reminders' colours (the web's Labels.tsx), the last the
-/// default grey a new label has; a label's own colour that is none of them is the shell's last swatch.
-pub fn label_colours() -> Value {
-    json!({ "swatches": ["#dc2626", "#ea580c", "#d97706", "#ca8a04", "#16a34a", "#0d9488", "#0284c7", "#2563eb", "#4f46e5", "#9333ea", "#db2777", "#6b7280"],
-            "default": "#6b7280" })
+const SWATCHES: [&str; 12] = ["#dc2626", "#ea580c", "#d97706", "#ca8a04", "#16a34a", "#0d9488", "#0284c7", "#2563eb", "#4f46e5", "#9333ea", "#db2777", "#6b7280"];
+
+/// `labelColoursView` {color?}: the swatches of a label's sheet, as Reminders' colours (the web's Labels.tsx), the
+/// last the default grey a new label has; `color`, the label's own, that is none of them (in any case) is a last
+/// swatch of its own. `chosen`: `color`, else the default. `maxLength`: the most characters a label's text holds.
+pub fn label_colours(a: &Obj) -> Value {
+    let color = a.get("color").and_then(Value::as_str).filter(|c| !c.is_empty());
+    let mut swatches: Vec<String> = SWATCHES.iter().map(|s| s.to_string()).collect();
+    if let Some(c) = color.filter(|c| !SWATCHES.contains(&c.to_lowercase().as_str())) { swatches.push(c.to_string()) }
+    json!({ "swatches": swatches, "default": "#6b7280", "chosen": color.unwrap_or("#6b7280"), "maxLength": 50 })
 }
 
 /// `themesPageView` {role}: Teman as the page shows it (the web's Themes.tsx `themeChoices`): the two built-in themes

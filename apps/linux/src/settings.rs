@@ -1,7 +1,7 @@
 // Inställningar (the Mac app's Settings.swift, docs/layout-2-0.md): a window of its own as GNOME Settings, the list at
 // the left (the core's `settingsListView`, Mina inställningar as a profile cell at its top, a search above it through
 // `settingsSearchView`) and the page chosen at the right. A shell draws the pages it has: Mina inställningar
-// (settings_mine.rs), Papperskorg (settings_trash.rs) and Om Gospel Presenter here; the list's other rows are left out until their pages are built
+// (settings_mine.rs), Etiketter (settings_labels.rs), Papperskorg (settings_trash.rs) and Om Gospel Presenter here; the list's other rows are left out until their pages are built
 // (docs/native-parity.md).
 use crate::shell::Shell;
 use adw::prelude::*;
@@ -11,7 +11,7 @@ use serde_json::json;
 use std::rc::Rc;
 
 /// The pages this shell has.
-const BUILT: &[&str] = &["settings", "trash", "about"];
+const BUILT: &[&str] = &["settings", "labels", "trash", "about"];
 
 #[derive(Deserialize, Clone)]
 pub struct Shade { pub name: String, pub hex: String }
@@ -139,6 +139,11 @@ impl Window {
                 let (page, state) = crate::settings_mine::page(&self.shell);
                 *self.shown.borrow_mut() = Some(state);
                 (t("nav.settings", &[]), page.upcast())
+            }
+            "labels" => {
+                let (page, state) = crate::settings_labels::page(&self.shell);
+                *self.shown.borrow_mut() = Some(state);
+                (t("nav.labels", &[]), page.upcast())
             }
             "trash" => {
                 let (page, state) = crate::settings_trash::page(&self.shell);
