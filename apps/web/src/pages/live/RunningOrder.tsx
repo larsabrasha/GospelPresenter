@@ -1,7 +1,8 @@
 import type { PresentationItem, ItemSlides } from '@gp/core';
 import { useEffect, useRef, useState } from 'react';
+import { pageCore } from '../../db/pageCore.ts';
 import { useDb } from '../../db/react.tsx';
-import { t } from '../../i18n.ts';
+import { t, type TextKey } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
@@ -15,6 +16,22 @@ import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 
+/** The texts `tickView` answers removal with, written out so each is known to be used (packages/architecture). */
+const TICK_TEXTS = ['common.delete', 'presentation.removeOne', 'presentation.removeMany', 'presentation.removedOne', 'presentation.removedMany'] as const satisfies readonly TextKey[];
+type TickText = (typeof TICK_TEXTS)[number];
+
+/** Select mode's state as the core answers it (`tickView`): what is ticked in the running order, where a range starts,
+ * and the question asked before the ticked are removed (the texts' keys), none while nothing is. */
+interface TickState {
+  ticked: string[];
+  last: string | null;
+  tickable: string[];
+  allTicked: boolean;
+  remove: { title: TickText; text: TickText; n: number; confirm: TickText; done: TickText } | null;
+}
+
+/** An event of select mode: begun (the row it was chosen on ticked), a row ticked (or a range to it), all ticked. */
+type TickEvent = { type: 'start'; first: string | null } | { type: 'tick'; itemId: string; range: boolean } | { type: 'all' };
 
 /**
  * The running order, one on a computer and a phone (Lars, 2026-11-02): on a computer or an iPad lying down the left
@@ -70,36 +87,32 @@ export function RunningOrder({
   const [lastTicked, setLastTicked] = useState<string | null>(null);
   // A new select mode starts with the row Markera was chosen on ticked, or none.
   const [first, setFirst] = useState<string | null>(null);
-  const order = items.map((i) => i.id);
-  // The item on the outputs cannot be removed, black or not (its menu's rule, `itemActionsView`), so it cannot be ticked
-  // either (docs/layout-2-0.md).
-  const kept = menuSource.shownId;
-  const tickable = order.filter((id) => id !== kept);
+  // What is ticked and may be, by the core's rule (`tickView`): the item on the outputs cannot be removed, black or not
+  // (its menu's rule, `itemActionsView`), so it cannot be ticked either (docs/layout-2-0.md).
+  const ticks = (event?: TickEvent) =>
+    pageCore().pure<TickState>('tickView', { order: items.map((i) => i.id), shownId: menuSource.shownId, ticked: [...ticked], last: lastTicked, ...(event ? { event } : {}) });
+  const now = ticks();
+  const isTicked = (id: string) => now.ticked.includes(id);
+  const apply = (next: TickState) => {
+    setTicked(new Set(next.ticked));
+    setLastTicked(next.last);
+  };
   const [wasTicking, setWasTicking] = useState(false);
   if (wasTicking !== ticking) {
     setWasTicking(ticking);
-    const start = first ?? tickFirst;
-    setTicked(new Set(ticking && start && tickable.includes(start) ? [start] : []));
-    setLastTicked(ticking ? start : null);
+    apply(ticking ? ticks({ type: 'start', first: first ?? tickFirst }) : { ticked: [], last: null, tickable: [], allTicked: false, remove: null });
     setFirst(null);
   }
-  const tick = (itemId: string, range: boolean) => {
-    const next = new Set(ticked);
-    const from = lastTicked ? items.findIndex((i) => i.id === lastTicked) : -1;
-    const to = items.findIndex((i) => i.id === itemId);
-    if (range && from >= 0 && to >= 0) for (let i = Math.min(from, to); i <= Math.max(from, to); i++) next.add(items[i]!.id);
-    else if (!next.delete(itemId)) next.add(itemId);
-    if (kept) next.delete(kept);
-    setLastTicked(itemId);
-    setTicked(next);
-  };
-  const allTicked = tickable.length > 0 && ticked.size === tickable.length;
+  const tick = (itemId: string, range: boolean) => apply(ticks({ type: 'tick', itemId, range }));
+  const allTicked = now.allTicked;
   const removeTicked = async () => {
-    const chosen = items.filter((i) => ticked.has(i.id));
+    const remove = now.remove;
+    if (!remove) return;
+    const chosen = items.filter((i) => now.ticked.includes(i.id));
     const ok = await ask({
-      title: t('common.delete'),
-      text: chosen.length === 1 ? t('presentation.removeOne') : t('presentation.removeMany', { n: chosen.length }),
-      confirm: t('common.delete'),
+      title: t(remove.title),
+      text: t(remove.text, { n: remove.n }),
+      confirm: t(remove.confirm),
       compact: true,
       run: async () => {
         try {
@@ -112,7 +125,7 @@ export function RunningOrder({
     });
     if (!ok) return;
     onTicking(false);
-    toast(chosen.length === 1 ? t('presentation.removedOne') : t('presentation.removedMany', { n: chosen.length }));
+    toast(t(remove.done, { n: remove.n }));
   };
 
   // The scrollbar keeps its room at the right, the padding there making up the rest of 20px (app.css `--beside-scrollbar`).
@@ -126,7 +139,7 @@ export function RunningOrder({
             // Its box over the rows' boxes: the row's own padding and its button's.
             className="flex items-center gap-2.5 pl-3.5 pr-1 text-sm cursor-pointer select-none text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
             aria-pressed={allTicked}
-            onClick={() => setTicked(allTicked ? new Set() : new Set(tickable))}
+            onClick={() => apply(ticks({ type: 'all' }))}
           >
             <CheckboxIcon checked={allTicked} filled className={allTicked ? 'size-5 text-sky-500' : 'size-5 text-stone-300 dark:text-stone-500'} />
             {t('presentation.tickAll')}
@@ -166,7 +179,7 @@ export function RunningOrder({
                 className={`flex items-center pl-1 pr-1.5 touch:pr-0 ${item.note ? 'rounded-2xl' : 'rounded-full'} ${
                   // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white. While ticking, as
                   // iOS's lists in edit mode, only the ticks and a light tint mark rows (Lars, 2026-11-03: the blue hid the tick).
-                  ticking ? (ticked.has(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
+                  ticking ? (isTicked(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
                   : selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10'
                 } ${dragging === i ? `shadow-lg ${selected && !ticking ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
               >
@@ -174,11 +187,11 @@ export function RunningOrder({
                   <AppButton
                     variant="plain"
                     className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
-                    aria-pressed={ticked.has(item.id)}
+                    aria-pressed={isTicked(item.id)}
                     disabled={shown}
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
-                    <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
+                    <CheckboxIcon checked={isTicked(item.id)} filled className={isTicked(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
                     <ItemIcon type={item.type} className={`size-4 shrink-0 text-stone-400 ${item.note ? 'self-start mt-0.5' : ''}`} />
                     <RowTitle item={item} />
                   </AppButton>
@@ -227,14 +240,14 @@ export function RunningOrder({
         })}
       </ol>
       <div className="sticky bottom-0 pl-5 pr-(--beside-scrollbar) py-3 bg-ground lg:bg-sidebar">
-        {ticking && ticked.size > 0 ? (
+        {ticking && now.ticked.length > 0 ? (
           <AppButton
             variant="plain"
             className="text-sm text-center w-full bg-red-500 text-white px-4 h-9 touch:h-11 rounded-full hover:bg-red-600 cursor-pointer flex items-center justify-center gap-2"
             onClick={() => void removeTicked()}
           >
             <TrashIcon className="size-4" strokeWidth={1.5} />
-            {t('presentation.removeTicked', { n: ticked.size })}
+            {t('presentation.removeTicked', { n: now.ticked.length })}
           </AppButton>
         ) : ticking ? (
           <div className="text-sm text-center text-stone-400 dark:text-stone-500 py-2.5">{t('presentation.tickHint')}</div>

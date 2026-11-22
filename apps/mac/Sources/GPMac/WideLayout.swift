@@ -169,8 +169,24 @@ private struct RunningOrderColumn: View {
     @State private var addX: CGFloat = 20
 
     var body: some View {
-        @Bindable var model = model
         VStack(spacing: 0) {
+            if model.ticking != nil { TickList(p: p) } else { order }
+            if let fold {
+                ColumnFoot(foot: ["fold"], symbol: "sidebar.left", label: "presentation.hideSidebar", fold: fold).padding(12)
+            }
+        }
+        // A Mac's sidebar is the system's glass; an iPad's column its own grey.
+        #if os(macOS)
+        .background(Color.clear)
+        #else
+        .background(Color.sidebar)
+        #endif
+    }
+
+    /// The items, each its row, and Lägg till.
+    private var order: some View {
+        @Bindable var model = model
+        return Group {
             List(selection: $model.selectedItem) {
                 if let text = p.description, !text.isEmpty {
                     Section { DescriptionCard(text: text) }
@@ -212,16 +228,7 @@ private struct RunningOrderColumn: View {
             .overlay(alignment: .bottomLeading) { if !addInView { AddMenu().padding(.leading, addX).padding(.bottom, 12).transition(.opacity) } }
             .animation(.easeOut(duration: 0.15), value: addInView)
             .coordinateSpace(.named("order"))
-            if let fold {
-                ColumnFoot(foot: ["fold"], symbol: "sidebar.left", label: "presentation.hideSidebar", fold: fold).padding(12)
-            }
         }
-        // A Mac's sidebar is the system's glass; an iPad's column its own grey.
-        #if os(macOS)
-        .background(Color.clear)
-        #else
-        .background(Color.sidebar)
-        #endif
     }
 }
 

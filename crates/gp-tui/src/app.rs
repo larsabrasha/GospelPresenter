@@ -207,6 +207,16 @@ impl App {
         }
     }
 
+    /// A command of the core's (a mutation), then the pages read again; whether it was done, its refusal kept.
+    pub fn run(&mut self, name: &str, args: Value) -> bool {
+        let done = match self.core.command(name, args) {
+            Ok(_) => true,
+            Err(code) => { self.refusal = Some(code); false }
+        };
+        self.changed();
+        done
+    }
+
     /// The page and the live page read again after a change; the page told it was read again (`changed`), with the
     /// item selected as the one on the screen.
     fn changed(&mut self) {

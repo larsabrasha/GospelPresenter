@@ -5,7 +5,8 @@
 #   apps/linux/docker.sh test                 the app's unit tests
 #   apps/linux/docker.sh shoot <dir> <steps>  the app on a fresh copy of the demo data in a virtual X server (Xvfb),
 #                                             steps carried out in order and pictures saved in <dir>
-# Steps, separated by ';': `wait <s>`, `shot <name>` (<dir>/<name>.png), `click <x> <y>`, `key <xdotool keys>`.
+# Steps, separated by ';': `wait <s>`, `shot <name>` (<dir>/<name>.png), `click <x> <y>`, `rclick <x> <y>` (the right
+# button), `key <xdotool keys>`.
 # GP_OPEN=<presentation id> opens one at the start; GP_LANG=en in English; ADW_DEBUG_COLOR_SCHEME=prefer-dark dark, as
 # the system's dark mode makes it. GTK's Broadway backend was tried first: it
 # stopped drawing after its first frame under Docker Desktop's x86_64 emulation, so the app is looked at through X.
@@ -39,6 +40,7 @@ case "${1:-build}" in
           wait) sleep "$a" ;;
           shot) DISPLAY=:9 import -window root "/out/$a.png" ;;
           click) DISPLAY=:9 xdotool mousemove "$a" "$b" click 1 ;;
+          rclick) DISPLAY=:9 xdotool mousemove "$a" "$b" click 3 ;;
           key) DISPLAY=:9 xdotool key $a $b ;;
           "") ;;
           *) echo "unknown step: $what" >&2 ;;

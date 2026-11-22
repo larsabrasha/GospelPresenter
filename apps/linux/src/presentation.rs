@@ -2,10 +2,11 @@
 // the title, when and where (LIVE first while presented) and ▶ Starta or ■ Avsluta (pageButtonsView's
 // `presentationBar`; ‹ back is the header bar's own); the running order at the left, every item's slides in the middle
 // under its heading, and while presenting the live column at the right with the picture and Släck
-// (presentationColumnsView, pageButtonsView's `liveColumn`). Not built yet: Lägg till, the description card, folding
-// and resizing the columns, the outputs and overlays in the live column, an item's menu, dragging.
+// (presentationColumnsView, pageButtonsView's `liveColumn`); an item's menu on its row and its heading (item_menu.rs),
+// and Markera's select mode in the running order (ticking.rs). Not built yet: Lägg till, the description card, folding
+// and resizing the columns, the outputs and overlays in the live column, dragging.
 use crate::shell::Shell;
-use crate::tiles;
+use crate::{item_menu, ticking, tiles};
 use adw::prelude::*;
 use gp_tui::dates::subtitle;
 use gp_tui::keys::Action;
@@ -19,6 +20,9 @@ pub struct Page {
     title: adw::WindowTitle,
     bar_buttons: gtk::Box,
     rows: Vec<(String, gtk::ListBoxRow)>,
+    /// The running order, or in select mode its ticks (`ticks`).
+    order_stack: gtk::Stack,
+    ticks: gtk::Box,
     /// Every slide's tile, by its key (`itemId/part`), in the order of the page.
     tiles: Vec<(String, gtk::DrawingArea)>,
     /// The tiles' container, where their places are measured for ↑ ↓ (`placed`).
@@ -85,6 +89,7 @@ impl Page {
             let label = gtk::Label::builder().label(&item.title).xalign(0.0).ellipsize(gtk::pango::EllipsizeMode::End)
                 .margin_top(10).margin_bottom(10).margin_start(6).build();
             let row = gtk::ListBoxRow::builder().child(&label).build();
+            menu_on(shell, &item.id, &row);
             order.append(&row);
             rows.push((item.id.clone(), row));
         }
@@ -95,7 +100,12 @@ impl Page {
             if let Some(s) = weak.upgrade() { s.act(Action::Event(json!({ "type": "select", "itemId": id }))) }
         });
         let (_, order_width) = m.column("runningOrder");
-        let order_scroll = gtk::ScrolledWindow::builder().child(&order).width_request(order_width).hscrollbar_policy(gtk::PolicyType::Never).build();
+        let order_scroll = gtk::ScrolledWindow::builder().child(&order).hscrollbar_policy(gtk::PolicyType::Never).vexpand(true).build();
+        let ticks = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        // Its width the column's, the select mode's bar (which spreads its buttons apart) not widening it.
+        let order_stack = gtk::Stack::builder().width_request(order_width).hexpand(false).build();
+        order_stack.add_named(&order_scroll, Some("order"));
+        order_stack.add_named(&ticks, Some("ticks"));
 
         // Every item's slides under its heading.
         let slides = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -104,7 +114,13 @@ impl Page {
         slides.set_margin_bottom(24);
         let mut tiles = vec![];
         for item in &page.items {
-            let heading = gtk::Label::builder().label(&item.title).xalign(0.0).css_classes(["slide-heading"]).build();
+            let heading = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+            heading.append(&gtk::Label::builder().label(&item.title).xalign(0.0).css_classes(["slide-heading"]).build());
+            let more = gtk::Button::builder().icon_name("view-more-symbolic").css_classes(["flat", "circular"]).valign(gtk::Align::Center)
+                .tooltip_text(t("live.itemMore", &[("title", &item.title)])).build();
+            let (weak, id) = (Rc::downgrade(shell), item.id.clone());
+            more.connect_clicked(move |b| if let Some(s) = weak.upgrade() { item_menu::pop_up(&s, &id, b) });
+            heading.append(&more);
             slides.append(&heading);
             if let Some(problem) = page.problem_of(&item.id) {
                 slides.append(&gtk::Label::builder().label(t(problem, &[])).xalign(0.0).css_classes(["dim-label"]).build());
@@ -134,7 +150,7 @@ impl Page {
         live_column.append(&cue);
 
         let content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        content.append(&order_scroll);
+        content.append(&order_stack);
         content.append(&gtk::Separator::new(gtk::Orientation::Vertical));
         content.append(&slides_scroll);
         content.append(&live_column);
@@ -142,7 +158,14 @@ impl Page {
         bar.add_top_bar(&header);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, bar_buttons, rows, tiles, slides, live_column, live_picture, live_buttons, cue }
+        Page { nav_page, title, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue }
+    }
+
+    /// Whether the page was built for these items, in this order with these titles: else it is built again.
+    pub fn built_for(&self, page: &gp_tui::views::PresentationPage) -> bool {
+        self.rows.len() == page.items.len() && self.rows.iter().zip(&page.items).all(|((id, row), i)| {
+            id == &i.id && row.child().and_downcast::<gtk::Label>().is_some_and(|l| l.label() == i.title)
+        })
     }
 
     /// Every tile as it stands now, for ↑ ↓ (the core's `slideAcrossView`): its key and its box in the slides'
@@ -170,6 +193,13 @@ impl Page {
             if app.state.selected_id.as_deref() == Some(id.as_str()) { row.add_css_class("selected-item") } else { row.remove_css_class("selected-item") }
         }
         for (_, tile) in &self.tiles { tile.queue_draw() }
+        match &m.ticking {
+            Some(state) => {
+                ticking::fill(shell, &self.ticks, page, state);
+                self.order_stack.set_visible_child_name("ticks");
+            }
+            None => self.order_stack.set_visible_child_name("order"),
+        }
         let (out, _) = m.column("live");
         self.live_column.set_visible(out);
         if out {
@@ -182,4 +212,16 @@ impl Page {
         });
         self.cue.set_label(cue.as_deref().unwrap_or(""));
     }
+}
+
+/// An item's menu on `widget`: a right click, or a long press on a touch screen (GNOME's lists).
+fn menu_on(shell: &Rc<Shell>, item_id: &str, widget: &impl IsA<gtk::Widget>) {
+    let click = gtk::GestureClick::builder().button(3).build();
+    let (weak, id, at) = (Rc::downgrade(shell), item_id.to_string(), widget.clone().upcast::<gtk::Widget>());
+    click.connect_pressed(move |_, _, _, _| if let Some(s) = weak.upgrade() { item_menu::pop_up(&s, &id, &at) });
+    widget.add_controller(click);
+    let press = gtk::GestureLongPress::builder().touch_only(true).build();
+    let (weak, id, at) = (Rc::downgrade(shell), item_id.to_string(), widget.clone().upcast::<gtk::Widget>());
+    press.connect_pressed(move |_, _, _| if let Some(s) = weak.upgrade() { item_menu::pop_up(&s, &id, &at) });
+    widget.add_controller(press);
 }

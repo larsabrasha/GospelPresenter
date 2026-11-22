@@ -1,7 +1,7 @@
 // An item's menu and Lägg till's, the same on its row at the left, on its heading's … and on a phone (the web's
 // pages/live/ItemContextMenu.tsx and AddChoices.tsx). What it offers, in which groups and which entries can be chosen,
 // is the core's (`itemActionsView`, docs/view-models.md); this file only draws each entry as Apple draws a menu's.
-// Not here yet, so left out: Redigera (the song's page), Redigera bilder, Markera.
+// Not here yet, so left out: Redigera (the song's page), Redigera bilder.
 import SwiftUI
 
 struct ItemMenu: View {
@@ -9,7 +9,7 @@ struct ItemMenu: View {
     let item: ItemView
 
     /// The entries this app draws; the core's others wait for their pages.
-    private static let drawn: Set = ["rename", "note", "arrangement", "overlay", "addAfter", "delete"]
+    private static let drawn: Set = ["rename", "note", "arrangement", "overlay", "addAfter", "tick", "delete"]
 
     var body: some View {
         ForEach(model.itemActions(item), id: \.id) { group in
@@ -55,6 +55,8 @@ struct ItemMenu: View {
             }
         case "addAfter":
             Menu(t(a.text), systemImage: Look.symbol(a.icon)) { AddChoices(chosen: item.id) }
+        case "tick":
+            Button(t(a.text), systemImage: Look.symbol(a.icon)) { model.startTicking(first: item.id) }
         case "delete":
             Button(t(a.text), systemImage: Look.symbol(a.icon), role: a.destructive ? .destructive : nil) { model.removing = item }
                 .disabled(!a.enabled)

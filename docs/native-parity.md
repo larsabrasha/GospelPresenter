@@ -41,7 +41,7 @@ is shared; each platform's part is checked off in its own section below.
 ## Core
 
 - [x] 1 ↑↓ in the grid: `slideAcrossView` (crates/gp-core/src/grid_nav.rs, 12 tests); the web reads it
-- [ ] 2 Markera
+- [x] 2 Markera: `tickView` (crates/gp-core/src/ticking.rs, 18 tests); the web's RunningOrder reads it
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind
@@ -58,7 +58,9 @@ is shared; each platform's part is checked off in its own section below.
   XCUITest's typeKey reaches only the on-screen keyboard on iOS; a hardware key reaching the grid is not tested (nor
   on the Mac, where no UI test runs). Seen: MenuTests fails on that iPad when it scrolls to Släck, not on the iPhone;
   not looked into
-- [ ] 2 Markera
+- [x] 2 Markera: in the item's menu; in columns the running order ticks in place, on a phone a sheet; ⇧-click a
+  range on the Mac. `TickTests` (4) on an iPhone 17 Pro Max and an iPad 13"; MenuTests with Markera drawn. No toast
+  after removing (the native apps have none); ⇧-click not tried (no Mac UI test)
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind
@@ -77,7 +79,9 @@ Its base, from docs/linux-app.md's "Not built":
 
 - [ ] Signing in to a host and sync (the app opens a database file as the demo's caller now)
 - [ ] Skapa presentation, the presentation's menu (Redigera detaljer, Radera)
-- [ ] + with Sång and Programpunkt, an item's menu (Byt namn, Kommentar, Arrangemang, Överlägg, Lägg till efter, Radera)
+- [ ] + with Sång and Programpunkt
+- [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
+  Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
 - [ ] The description card; folding the columns
 - [ ] The overlays in the live column
 - [ ] Media files fetched; audio and video played
@@ -87,7 +91,8 @@ Its base, from docs/linux-app.md's "Not built":
 The rounds:
 
 - [x] 1 ↑↓ in the grid: `Page::placed` measures the tiles; pictures (light) of ↓ from slide 1 to 4 and back
-- [ ] 2 Markera
+- [x] 2 Markera: a check on each row (GNOME's selection mode); pictures light and dark of Markera from the row's
+  menu, a second ticked, the question for 2, both removed. ⇧-click a range not tried
 - [ ] 3 Redigera
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind

@@ -12,6 +12,8 @@ use std::rc::Rc;
 
 pub struct Model {
     pub app: App,
+    /// Markera's select mode while it is on, as the core answers it (`tickView`).
+    pub ticking: Option<Value>,
     /// presentationPageView's answer whole, by the presentation's id.
     pages: HashMap<String, Value>,
     /// slideLayoutView's answer by the slide's place (presentation, item, part); None where the core refused it.
@@ -25,7 +27,7 @@ pub struct Painted {
 }
 
 impl Model {
-    pub fn new(app: App) -> Model { Model { app, pages: HashMap::new(), layouts: HashMap::new() } }
+    pub fn new(app: App) -> Model { Model { app, ticking: None, pages: HashMap::new(), layouts: HashMap::new() } }
 
     /// Every page and layout read again from the core when next painted: after a change of the data.
     pub fn forget(&mut self) {
@@ -57,6 +59,48 @@ impl Model {
         };
         self.layouts.insert(key, layout.clone());
         Painted { layout, label }
+    }
+
+    /// The item shown while the open page is presented, black or not: it cannot be removed nor ticked.
+    fn shown_id(&self) -> Value { if self.app.is_live() { json!(self.app.live.item_id) } else { Value::Null } }
+
+    /// An item's menu, the core's (`itemActionsView`): its groups, from the item, its song, the song's arrangements,
+    /// the organisation's overlays and the item shown, as the Mac app's `itemActions` gives them.
+    pub fn item_actions(&mut self, item_id: &str) -> Vec<Value> {
+        let Some(pid) = self.app.open_id().map(String::from) else { return vec![] };
+        let shown = self.shown_id();
+        let page = self.page(&pid).clone();
+        let Some(item) = page["items"].as_array().into_iter().flatten().find(|i| i["id"] == json!(item_id)).cloned() else { return vec![] };
+        let song_item = item["type"] == json!("song");
+        let song = if song_item { page["songs"].as_array().into_iter().flatten().find(|s| s["id"] == item["sourceId"]).cloned() } else { None };
+        let arrangements: Vec<Value> = if song_item {
+            page["arrangements"].as_array().into_iter().flatten().filter(|a| a["songId"] == item["sourceId"])
+                .map(|a| json!({ "id": a["id"], "name": a["name"] })).collect()
+        } else { vec![] };
+        let args = json!({
+            "item": { "id": item["id"], "type": item["type"], "arrangementId": item["arrangementId"], "overlayId": item["overlayId"] },
+            "song": song, "arrangements": arrangements, "overlays": page["overlays"], "shownId": shown,
+        });
+        self.app.core().call("itemActionsView", args).ok().and_then(|v| v["groups"].as_array().cloned()).unwrap_or_default()
+    }
+
+    /// An item's own field as the page has it (its title, its comment).
+    pub fn item_field(&mut self, item_id: &str, field: &str) -> String {
+        let Some(pid) = self.app.open_id().map(String::from) else { return String::new() };
+        let page = self.page(&pid);
+        page["items"].as_array().into_iter().flatten().find(|i| i["id"] == json!(item_id))
+            .and_then(|i| i[field].as_str()).unwrap_or_default().to_string()
+    }
+
+    /// Select mode after `event` (None: as it stands, the order or the item shown changed), by the core's rule
+    /// (`tickView`); off it stays off.
+    pub fn tick(&mut self, event: Option<Value>) {
+        let order: Vec<String> = self.app.page.as_ref().map(|p| p.items.iter().map(|i| i.id.clone()).collect()).unwrap_or_default();
+        let from = self.ticking.clone().unwrap_or(Value::Null);
+        if from.is_null() && event.as_ref().is_none_or(|e| e["type"] != json!("start")) { return }
+        let mut args = json!({ "order": order, "shownId": self.shown_id(), "ticked": from["ticked"], "last": from["last"] });
+        if let Some(event) = event { args["event"] = event }
+        self.ticking = self.app.core().call("tickView", args).ok();
     }
 
     /// pageButtonsView for `place`, given whether ▶ may start (the last step's `canStart`), whether the page has a

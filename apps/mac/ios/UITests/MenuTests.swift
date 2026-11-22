@@ -6,7 +6,7 @@ import XCTest
 
 final class MenuTests: XCTestCase {
     /// The entries the app draws (ItemMenu's `drawn`); the core's others wait for their pages.
-    private static let drawn: Set<String> = ["rename", "note", "arrangement", "overlay", "addAfter", "delete"]
+    private static let drawn: Set<String> = ["rename", "note", "arrangement", "overlay", "addAfter", "tick", "delete"]
 
     private struct Action: Decodable { let id: String, text: String, enabled: Bool }
     private struct Group: Decodable { let id: String, actions: [Action] }
@@ -60,7 +60,7 @@ final class MenuTests: XCTestCase {
     /// The texts each drawn entry may have, to look for one the core did not offer.
     private static let keys: [String: [String]] = [
         "rename": ["header.rename"], "note": ["note.title"], "arrangement": ["song.arrangements"], "overlay": ["overlays.itemOverlay"],
-        "addAfter": ["live.addAfter"], "delete": ["common.delete", "live.shownCannotRemove"],
+        "addAfter": ["live.addAfter"], "tick": ["presentation.tick"], "delete": ["common.delete", "live.shownCannotRemove"],
     ]
 
     /// The scenario's state reached as someone would reach it; its keys in sunday.json say the same: presenting started,

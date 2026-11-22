@@ -124,6 +124,7 @@ impl Shell {
     /// The presentation's page left: the start page read again.
     fn left(self: &Rc<Self>) {
         if self.page.borrow_mut().take().is_none() { return }
+        self.model.borrow_mut().ticking = None;
         self.model.borrow_mut().app.act(Action::Back);
         start_page::fill(self);
     }
@@ -139,12 +140,65 @@ impl Shell {
                 let before = m.app.page.clone();
                 m.app.act(other);
                 if m.app.page != before { m.forget() }
+                m.tick(None);
             }
         }
         // Esc that the page did not take sends the terminal back to its start page; here the window pops it.
         if self.model.borrow().app.page.is_none() && self.page.borrow().is_some() { self.nav.pop(); return }
         if self.model.borrow().app.ending { self.ask_to_end() }
         self.refresh();
+    }
+
+    /// A command of the core's (a change of the data), then the page read again and drawn; built again where its
+    /// items changed. Select mode follows the order (an item removed is let go).
+    pub fn run(self: &Rc<Self>, name: &str, args: serde_json::Value) {
+        {
+            let mut m = self.model.borrow_mut();
+            m.app.run(name, args);
+            m.forget();
+            m.tick(None);
+        }
+        self.rebuild();
+        self.refresh();
+    }
+
+    /// The page built again where its items are no longer those it was built for (one added, removed, renamed).
+    fn rebuild(self: &Rc<Self>) {
+        let stale = match (self.page.borrow().as_ref(), self.model.borrow().app.page.as_ref()) {
+            (Some(built), Some(page)) => !built.built_for(page),
+            _ => false,
+        };
+        if !stale { return }
+        let page = Page::build(self);
+        self.nav.replace(&[self.start.clone(), page.nav_page.clone()]);
+        *self.page.borrow_mut() = Some(page);
+    }
+
+    /// Markera chosen in an item's menu: select mode begun with it ticked.
+    pub fn start_ticking(self: &Rc<Self>, item_id: &str) {
+        self.model.borrow_mut().tick(Some(json!({ "type": "start", "first": item_id })));
+        self.refresh();
+    }
+
+    /// An event of select mode (a row ticked, Markera alla), as the core answers it.
+    pub fn tick(self: &Rc<Self>, event: serde_json::Value) {
+        self.model.borrow_mut().tick(Some(event));
+        self.refresh();
+    }
+
+    /// Klar: select mode ended, nothing removed.
+    pub fn stop_ticking(self: &Rc<Self>) {
+        self.model.borrow_mut().ticking = None;
+        self.refresh();
+    }
+
+    /// The ticked items removed, after the question was answered; select mode ends.
+    pub fn remove_ticked(self: &Rc<Self>) {
+        let ids: Vec<String> = self.model.borrow().ticking.as_ref()
+            .and_then(|s| s["ticked"].as_array().cloned()).unwrap_or_default()
+            .iter().filter_map(|v| v.as_str().map(String::from)).collect();
+        self.model.borrow_mut().ticking = None;
+        for id in ids { self.run("removeItem", json!({ "itemId": id })) }
     }
 
     /// The page, the output window and the start page as the model now has them.

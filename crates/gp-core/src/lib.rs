@@ -56,6 +56,7 @@ mod sync_wire;
 mod theme_def;
 mod theme_editor;
 mod themes;
+mod ticking;
 mod views;
 
 /// What a native shell calls (crates/gp-core-ffi): a command or a view started, and each statement's rows given back.

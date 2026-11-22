@@ -71,7 +71,12 @@ Släck and the cue; Space, the arrows, ↵ and b as the core answers them (↑ �
 made ready; ■ Avsluta asked first; an output window (o or Tab), full screen on a second monitor where there is one, not
 seen. Checked by `cargo test` (12) and clippy.
 
-Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, Lägg till,
-an item's menu, the description card, folding and resizing the columns, the outputs and overlays in the live column,
+Built 2026-11-22: an item's menu on its row (a right click, a long press) and its heading's ⋯, GNOME's popover menu
+from the core's `itemActionsView` (Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera asked first), and
+Markera's select mode (`tickView`, a check on each row, Markera alla, Klar, the ticked removed after a question); the
+page is built again when its items change.
+
+Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, Lägg till
+(and Lägg till efter, Redigera in the menu), the description card, folding and resizing the columns, the outputs and overlays in the live column,
 media files (pictures show where the folder beside the database holds them), audio and video, Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

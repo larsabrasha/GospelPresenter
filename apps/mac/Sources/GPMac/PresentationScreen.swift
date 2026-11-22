@@ -38,6 +38,10 @@ struct PresentationScreen: View {
                 }
                 .sheet(isPresented: $editing) { DetailsSheet(presentationId: p.id) }
                 .sheet(item: Bindable(model).addingSong) { at in AddSongSheet(at: at) }
+                // Markera on a phone: the running order ticked in a sheet; in columns it ticks in place.
+                .sheet(isPresented: Binding(get: { model.ticking != nil && geo.size.width < Size.columns }, set: { if !$0 { model.ticking = nil } })) {
+                    NavigationStack { TickList(p: p).navigationTitle(t("presentation.tick")) }
+                }
                 .textPrompt(Bindable(model).prompt)
                 .alert(t("live.end"), isPresented: $ending) {
                     Button(t("common.cancel"), role: .cancel) {}

@@ -58,6 +58,8 @@ final class Model {
     var addingSong: AddAt?
     /// An item whose removal asks first.
     var removing: ItemView?
+    /// Markera's select mode while it is on (Ticking.swift, the core's `tickView`).
+    var ticking: TickState?
     /// Inställningar open over the page (iOS; a Mac opens a window of its own).
     var settingsOpen = false
 
