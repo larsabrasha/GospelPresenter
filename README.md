@@ -13,7 +13,7 @@ and in a phone app.
 | [`apps/`](apps/), [`packages/`](packages/) | The app: TypeScript, local-first (pnpm + turbo); how to build and run it is below, and agents start with [`AGENTS.md`](AGENTS.md) |
 | [`docs/`](docs/) | How the app works, one file per topic (the table under [Docs](#docs)) |
 | [`spec/`](spec/) | What the app does, area by area: the behaviour spec the app is built from |
-| [`adr/`](adr/) | The decisions; [`adr/0007-rewrite-on-typescript-local-first.md`](adr/0007-rewrite-on-typescript-local-first.md) is the rewrite's |
+| [`adr/`](adr/) | The decisions; [`adr/0007-rewrite-on-typescript-local-first.md`](adr/0007-rewrite-on-typescript-local-first.md) is the rewrite's; [`adr/0008-one-gui-core-back-in-typescript.md`](adr/0008-one-gui-core-back-in-typescript.md) brings the core back to TypeScript, with one GUI |
 | [`website/`](website/) | The website, gospelpresenter.com (`.github/workflows/static.yml`) |
 | [`research/`](research/), [`spike/`](spike/) | What was tried before the rewrite was decided |
 | [`Assets/`](Assets/), [`scripts/`](scripts/) | The app icon's designs; the app's own scripts, and those the ADRs and the spec name |

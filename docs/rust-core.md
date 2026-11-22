@@ -1,5 +1,8 @@
 # The Rust core
 
+> Ended by ADR 0008 (Lars, 2026-11-22): the core goes back to TypeScript, and this file is the record of how it
+> came to Rust. The way back: `docs/core-back-to-typescript.md`.
+
 2.0 runs on it (Lars, 2026-11-17: 2.0 was not released yet, so the Rust core became 2.0's rather than waiting for a
 2.5). Lars, 2026-11-13: the app is made again on one core in Rust, under the web (the React UI kept, the core as
 WASM), the server (WASM in the Worker and in Node) and later native apps; MCP and a CLI come later on the same core.

@@ -1,5 +1,10 @@
 # Agent guide: the rewrite
 
+> **The core is going back to TypeScript** (ADR 0008, Lars, 2026-11-22; the plan: `docs/core-back-to-typescript.md`).
+> Until the port is done, write nothing new in `crates/gp-core`: a feature waits for the module it touches to be
+> ported, and is then written in TypeScript. The native shells (`apps/mac`, `apps/windows`, `crates/gp-tui`) are
+> stopped; do not extend them.
+
 The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web`, `apps/server`, `apps/desktop`,
 `packages/core`, `packages/sync`), on a core in Rust (`crates/gp-core`, run as WASM through `packages/rust-core`):
 the mutators, the schema, sync's queue and rebase and every page's view are the core's, and new behaviour is written

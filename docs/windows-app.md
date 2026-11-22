@@ -1,5 +1,8 @@
 # The Windows app: WinUI 3 over the Rust core
 
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
+> `native-experiment-end`.
+
 Paused (Lars, 2026-11-22): Mac/iOS and Linux go on first, a round at a time, with the rules moved into the core as
 reducers and typed view models (thin shells). Windows resumes when the live reducer and the types have settled, and is
 then mostly drawing the core's view models. Where it stands: the start page's lists on the demo data, built and seen on

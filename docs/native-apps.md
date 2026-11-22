@@ -1,5 +1,8 @@
 # The native apps: SwiftUI over the Rust core
 
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
+> `native-experiment-end`.
+
 Lars, 2026-11-17: the native iOS app is built now, SwiftUI over the Rust core (`crates/gp-core`), beside the Capacitor
 shell in `apps/mobile` (docs/phone-app.md). The Mac app is the same SwiftUI in `apps/mac`, one code for both where it
 can be; the core is the web's, so a native app shows what the web shows and syncs by the web's rules

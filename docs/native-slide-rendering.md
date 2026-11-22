@@ -1,5 +1,8 @@
 # Slides drawn without a browser
 
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
+> `native-experiment-end`.
+
 Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
 2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. The core's `slideLayoutView` is
 built, and the Mac and iOS app paint every kind of slide from it (the sections at the end).

@@ -1,5 +1,8 @@
 # The terminal shell (`crates/gp-tui`, binary `gp`)
 
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
+> `native-experiment-end`.
+
 Proposed by Lars on 2026-11-18: a TUI over the Rust core, for presenting over SSH or from a headless Raspberry Pi by
 the stage, on old machines, scriptable and testable in CI, and readable with a terminal's screen reader. First
 milestone built on 2026-11-19, on `claude/tui-7ae6fd` from `claude/native-ios-058c37`.
