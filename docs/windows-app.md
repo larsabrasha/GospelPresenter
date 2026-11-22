@@ -1,5 +1,12 @@
 # The Windows app: WinUI 3 over the Rust core
 
+Paused (Lars, 2026-11-22): Mac/iOS and Linux go on first, a round at a time, with the rules moved into the core as
+reducers and typed view models (thin shells). Windows resumes when the live reducer and the types have settled, and is
+then mostly drawing the core's view models. Where it stands: the start page's lists on the demo data, built and seen on
+Windows 10. Next then: read the start page's date line from the core's view and remove `Shell/Dates.cs`
+(`TEMPORARY(core)`); a UI test harness (FlaUI, over the UI Automation tree already read); the presentation's page;
+live through the core's reducer, with no live glue in C#.
+
 Lars, 2026-11-21: a native Windows app beside the Mac's (docs/native-apps.md), in `apps/windows`. The core is the
 Mac's, through the same interface (`crates/gp-core-ffi`), so the app shows what the web and the Mac show; the shell
 only draws, with WinUI's own controls, as the Mac's draws with SwiftUI's. Begun: the start page's lists on the demo
