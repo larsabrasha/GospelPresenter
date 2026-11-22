@@ -8,6 +8,7 @@ legacyBlobs (re-export)
 legacyOverlayPage (re-export)
 legacyRowsProblem (re-export)
 runMutation (function)
+rustOnly (function)
 upgradeLegacyRows (re-export)
 
 ## @gp/rust-core/node

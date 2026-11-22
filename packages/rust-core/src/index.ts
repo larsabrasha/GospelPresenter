@@ -3,6 +3,17 @@
 // (docs/rust-core.md, 2.5). The core never opens a database: it asks for each SQL statement and waits for the rows
 // (bridge.rs). The TS core it replaced is the reference its checks compare with, at 238d481b (docs/rust-core.md).
 import { MutationError, SerialQueue, type MutatorCtx } from '@gp/core';
+import { runCommand, runCommandSync, runPureView, runView, tsHasPureView, tsHasView, tsRuns, tsRunsSync } from '@gp/core/commands';
+
+/**
+ * The way back to TypeScript (ADR 0008, docs/core-back-to-typescript.md): a command the TS core has been ported to
+ * runs there, the rest here, until nothing is left here. `GP_CORE=rust` (or `rustOnly(true)`) runs everything here
+ * again, for a comparison or as a way back while the port is new.
+ */
+let everythingInRust = typeof process !== 'undefined' && process.env?.GP_CORE === 'rust';
+export function rustOnly(on: boolean): void {
+  everythingInRust = on;
+}
 
 /** A statement's rows as arrays, in column order. */
 export type Rows = unknown[][];
@@ -45,11 +56,20 @@ export class RustCore {
   /** A call is under way, whose statements are being answered. */
   private busy = false;
 
-  constructor(private module: WebAssembly.Module) {}
+  /** `onlyRust`: this instance runs every command here, whatever the TS core has (the port's checks, ADR 0008). */
+  constructor(
+    private module: WebAssembly.Module,
+    private onlyRust = false,
+  ) {}
 
   /** Another instance of the same core, for a view that must not wait on this one's call under way. */
   spare(): RustCore {
-    return new RustCore(this.module);
+    return new RustCore(this.module, this.onlyRust);
+  }
+
+  /** Whether the TS core runs `name` here. */
+  private inTs(name: string): boolean {
+    return !everythingInRust && !this.onlyRust && tsRuns(name);
   }
 
   private get core(): CoreExports {
@@ -98,6 +118,7 @@ export class RustCore {
    * replaying a sync queue, rolls that change back and goes on.
    */
   async run(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql): Promise<unknown> {
+    if (this.inTs(name)) return this.queue.run(() => runCommand(name, args, ctx, sql));
     const said = await this.drive(name, args, ctx, sql);
     return said ? (JSON.parse(said) as unknown) : undefined;
   }
@@ -107,6 +128,7 @@ export class RustCore {
    * database when the caller holds its lock. A refusal is thrown as MutationError with the core's code.
    */
   async view<T>(name: string, args: unknown, sql: RunSql): Promise<T> {
+    if (!everythingInRust && !this.onlyRust && tsHasView(name)) return this.queue.run(() => runView(name, args, sql)) as Promise<T>;
     return JSON.parse((await this.drive(name, args, undefined, sql)) || 'null') as T;
   }
 
@@ -143,6 +165,7 @@ export class RustCore {
    * another call is under way, whose state it would overwrite.
    */
   pure<T>(name: string, args: unknown): T {
+    if (!everythingInRust && !this.onlyRust && tsHasPureView(name)) return runPureView(name, args) as T;
     if (this.busy) throw new Error(`the Rust core is in the middle of another call: ${name} must wait`);
     const step = this.call(name, args, undefined).next();
     if (!step.done) throw new Error(`${name} reads the database: call view() instead`);
@@ -151,6 +174,7 @@ export class RustCore {
 
   /** The same, all at once, for statements answered synchronously: where the server opens a database. */
   runSync(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSqlSync): void {
+    if (!everythingInRust && !this.onlyRust && tsRunsSync(name)) return runCommandSync(name, sql);
     if (this.busy) throw new Error(`the Rust core is in the middle of another call: ${name} must wait`);
     this.busy = true;
     try {

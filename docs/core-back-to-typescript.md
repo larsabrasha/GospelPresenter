@@ -5,8 +5,26 @@ The decision and why: `adr/0008-one-gui-core-back-in-typescript.md` (Lars, 2026-
 Rust as the reference, and then removed. The same loop that took the TS core to Rust (`docs/rust-core.md`), run the
 other way.
 
-Not started. Each step below is done when its checks say 0 different; this file says where each stands, as
-`docs/rust-core.md` did.
+Each step below is done when its checks say 0 different; this file says where each stands, as `docs/rust-core.md`
+did.
+
+## Where it stands
+
+| Step | State |
+|---|---|
+| 1, one interface, two cores | done (2026-11-22): `packages/core/src/commands.ts` behind `RustCore` |
+| Wave 1, the data's rules | done and switched (2026-11-22): 0 different |
+| Wave 2, sync's client | done and switched (2026-11-22): 0 different |
+| Waves 3 to 5 | not started |
+
+The checks of the way back run with `crates/gp-core/parity/port.sh` (`build`, `mutations`, `sync`): the Rust core is the
+reference, the working tree's TS core the candidate (`GP_TS=tree`). In the sync checks' output the reference is
+labelled Rust and the TS core TS.
+
+e2e in a container without a display (Xvfb): three specs fail there whichever core runs, at the commit before the
+port (`4dfb205`) as after it: `milestone2.spec.ts:260` and `:398`, `offline.spec.ts:40` (a click waits for an element
+to be stable). `milestone2.spec.ts:181` is flaky both ways. `apps/web/test/ItemMenus.test.tsx` does not load in vitest
+there (`node:sqlite` from `@gp/rust-core/scenarios`), before the port too.
 
 ## Forward from today, not back to `238d481b`
 
@@ -71,6 +89,13 @@ build). Both cores must be loadable at once, so the parity checks can run them o
 The effect protocol (`bridge.rs`: the core asks for each statement and waits for the rows) is not ported: the TS core
 takes the database as the TS mutators did (`MutationDb`, `RunSql`), and the interface hides the difference.
 
+Done (2026-11-22): `packages/core/src/commands.ts` (`@gp/core/commands`) has the TS core's commands and views by name
+(`tsRuns`, `runCommand`, `runCommandSync`, `tsHasView`, `runView`, `runPureView`); `RustCore` in `packages/rust-core`
+sends each name the TS core has there, and the rest to the WASM. `GP_CORE=rust` (Node) or `rustOnly(true)` sends
+everything to Rust again; `new RustCore(module, true)` is one instance that does, for the checks to run both side by
+side. A statement the shell's SQLite refuses is thrown as the shell threw it, as from the Rust core (Drizzle's
+wrapper taken off).
+
 ## Step 2: the modules, in waves
 
 Each wave ends with its parity checks at 0 different and the shells switched to the TS core for it; the next wave
@@ -90,6 +115,15 @@ Check: `parity/mutations/schema-check.mjs` (every version migrated through both)
 through both, every table compared after every step), 30 000 per file, as when they went to Rust. Then
 `pnpm test` and the e2e specs that write (songs, presentations, trash, arrangements).
 
+Done (2026-11-22). The mutators, `org-schema.ts` and `labels.ts` restored from `238d481b`, and brought to what the
+Rust core does beyond them: schema 27's field times and `updateFields` (SYNC-R23), `renameItems` (a renamed
+slideshow, picture, sound or video renames its items), `keepOriginal` and Original taken by `addSongToPresentation`
+and `setItemArrangement` (SONG-R58), and a passage's slides broken where reading pauses (`splitBibleSlides`,
+BIBLE-R12). The migrations refuse with the core's codes (`schema-too-old`, `schema-too-new`). Proved: the schema
+check (every version, the label seed) and 30 000 random mutations of each of the 16 files, 0 different. The
+generators now also give `original` as an arrangement, which the first run had missed and the tests found.
+Switched: every mutator, `migrateOrgSchema` and `seedLabels`, on the clients and the server.
+
 ### Wave 2: sync's client
 
 | Rust | TS to start from |
@@ -100,6 +134,14 @@ through both, every table compared after every step), 30 000 per file, as when t
 Check: `parity/sync/check.mjs` with the roles swapped (the Rust client as the reference against a real server engine,
 the TS client given the same answers), the network losing and refusing answers; `sync_driver_random.rs`'s cases as a
 TS test; the e2e specs `journeys` and sync's.
+
+Done (2026-11-22): `packages/core/src/sync-commands.ts` (`syncOpen`, `syncMutate`, `syncPending`, `syncRebase`, with
+the client half of `sync-sql.ts` restored from `238d481b`), `sync-driver.ts` (`syncStepView`, with the wire) and
+`sync-status.ts` (`syncStatusView`). Proved: `sync/check.mjs` in the port's mode, the app's SyncClient on a core all
+Rust against the same client on the TS core, 1 500 steps of each of 10 seeds, 0 different; `sync/driver-check.mjs`,
+the driver and the status given the same random events (also malformed ones) by both cores, 30 000 events, 0
+different. Switched: the clients' sync and the bar's status. e2e: `milestone1`, `offline` (but the one that fails
+before the port too) and `song-clash` pass.
 
 ### Wave 3: slides, presenting and live
 

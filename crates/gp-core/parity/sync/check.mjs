@@ -6,7 +6,7 @@
 // ("update required", signed out), A's role changing (the server resets A's copy). After every step A's two databases
 // (every table, the queue, `_sync_meta`, `_undo`), the push A would send, the mutations the server rejected and the
 // tables each change reported, and whether the client stopped, must be the same.
-import { clock, dumpAll, openClient, openServer, replay, schemaOf, transport } from './world.mjs';
+import { clock, dumpAll, openClient, openServer, replay, schemaOf, transport, TREE } from './world.mjs';
 import { rng, tools } from '../mutations/tools.mjs';
 import { KNOWN, SEED } from '../mutations/seed.mjs';
 
@@ -71,9 +71,12 @@ async function seedRun(s) {
       if (ra !== rb || !replayed.done || stopped(A) !== stopped(R)) differ(`${kind}: TS ${ra}, Rust ${rb}${replayed.done ? '' : ', fewer requests'}`, '', '');
       // As when the app is updated or signed in again: the reference's flags cleared, and the driver's state as a new
       // client on the same database starts it (crates/gp-core/src/sync_driver.rs).
-      A.client.updateRequired = false;
-      A.client.authError = null;
-      R.client.state = { ...R.client.state, stopped: null };
+      if (TREE) for (const c of [A, R]) c.client.state = { ...c.client.state, stopped: null };
+      else {
+        A.client.updateRequired = false;
+        A.client.authError = null;
+        R.client.state = { ...R.client.state, stopped: null };
+      }
       fate = 'through';
     } else {
       kind = 'A role';
@@ -132,6 +135,16 @@ function firstDifference(x, y) {
     return `${t}: TS ${JSON.stringify(rows[k] ?? null).slice(0, 300)}\n       Rust ${JSON.stringify(other[k] ?? null).slice(0, 300)}`;
   }
   return '';
+}
+
+// In the port's mode the reference is Rust and the one under test is TS: the labels say which is which.
+if (TREE) {
+  const swap = (k) => k.replaceAll('TS ', '\u0000').replaceAll('Rust ', 'TS ').replaceAll('\u0000', 'Rust ');
+  const set = differences.set.bind(differences);
+  differences.set = (k, v) => set(swap(k), v);
+  const has = differences.has.bind(differences), get = differences.get.bind(differences);
+  differences.has = (k) => has(swap(k));
+  differences.get = (k) => get(swap(k));
 }
 
 const t0 = performance.now();

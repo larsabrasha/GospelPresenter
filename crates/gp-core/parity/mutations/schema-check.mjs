@@ -2,8 +2,9 @@
 // migration still accepts (11 to 26, with rows its data migrations change), and the ones it refuses, migrated by
 // both; then the default labels (labelSeedSql). The outcome, sqlite_master and every row compared.
 import { DatabaseSync } from 'node:sqlite';
-import { migrateOrgSchema, orgDdl, orgMigrations, orgIndexes, schemaMetaDdl, labelSeedSql } from '../.out/ts-core.mjs';
-import { dumpAll, runRust, schemaOf } from './harness.mjs';
+import { dumpAll, runRust, schemaOf, TREE } from './harness.mjs';
+// The reference at 238d481b (build.sh), or with GP_TS=tree the working tree's TS core (port.sh, ADR 0008).
+const { migrateOrgSchema, orgDdl, orgMigrations, orgIndexes, schemaMetaDdl, labelSeedSql } = await import(TREE ? '../.out/ts-tree.mjs' : '../.out/ts-core.mjs');
 import { fieldTimeMigration } from '../beyond-reference.mjs';
 
 /** Today's DDL as version 11 made it: none of the tables and columns 12 to 25 added. */
@@ -62,7 +63,7 @@ function atVersion(version) {
 const cases = [
   ['a new database', () => new DatabaseSync(':memory:')],
   ...Array.from({ length: 16 }, (_, i) => [`version ${11 + i}`, () => atVersion(11 + i)]),
-  ['version 27', () => { const db = atVersion(26); for (const s of fieldTimeMigration()) db.exec(s); return db; }],
+  ['version 27', () => { if (TREE) return atVersion(27); const db = atVersion(26); for (const s of fieldTimeMigration()) db.exec(s); return db; }],
   ['tables but no version (milestone 1)', () => { const db = new DatabaseSync(':memory:'); for (const s of v11) db.exec(s); return db; }],
   ['version 10', () => { const db = atVersion(11); db.exec('UPDATE _schema SET version = 10'); return db; }],
   ['version 28, newer than the core', () => { const db = atVersion(26); db.exec('UPDATE _schema SET version = 28'); return db; }],
@@ -70,6 +71,15 @@ const cases = [
 
 /** The reference's migration, to 26, then schema 27's field times as the core's migration adds them (beyond-reference.mjs). */
 async function migrateTs(db) {
+  if (TREE) {
+    // The tree's migration has 27 and refuses with the core's codes; the shell runs it in one transaction.
+    try {
+      await migrateOrgSchema(async (sql) => { await Promise.resolve(); return db.prepare(sql).all(); }, async (fn) => { db.exec('BEGIN'); await fn(); db.exec('COMMIT'); });
+      return 'ok';
+    } catch (e) {
+      return e.code ?? `crash: ${e.message}`;
+    }
+  }
   const version = () => (db.prepare("SELECT 1 FROM sqlite_master WHERE name = '_schema'").get() ? db.prepare('SELECT version FROM _schema').get()?.version : undefined);
   try {
     if (version() === 27) return 'ok';

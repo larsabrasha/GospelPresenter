@@ -2,8 +2,14 @@
 // and the Rust core, each on its own SQLite, the outcome and every table compared after every step.
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } from '../.out/ts-core.mjs';
 import { bibleContent, coreRules, fieldTimeMigration, fieldTimeRefusal } from '../beyond-reference.mjs';
+
+/**
+ * Which TS core: the reference at 238d481b (build.sh), with the core's rules beyond it added by beyond-reference.mjs;
+ * or, with GP_TS=tree, the working tree's packages/core being ported back (port.sh, ADR 0008), which has them itself.
+ */
+export const TREE = process.env.GP_TS === 'tree';
+const { getMutator, runMutator, migrateOrgSchemaSync, schema, drizzleProxy } = await import(TREE ? '../.out/ts-tree.mjs' : '../.out/ts-core.mjs');
 
 const out = new URL('../.out/', import.meta.url).pathname;
 
@@ -33,9 +39,9 @@ export async function query(db, sql, params) {
 export function openDb(seed = [], rules = false) {
   const db = new DatabaseSync(':memory:');
   migrateOrgSchemaSync((sql) => db.prepare(sql).all(), (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); });
-  for (const s of fieldTimeMigration()) db.exec(s);
+  if (!TREE) for (const s of fieldTimeMigration()) db.exec(s);
   for (const s of seed) db.exec(s);
-  if (rules) for (const s of coreRules()) db.exec(s);
+  if (rules && !TREE) for (const s of coreRules()) db.exec(s);
   return db;
 }
 
@@ -49,7 +55,7 @@ export async function runTs(db, { name, args, ctx }) {
   try {
     await runMutator(getMutator(name), tx, args, ctx);
     // A passage's slides broken as the core breaks them (beyond-reference.mjs).
-    if (name === 'addBibleToPresentation' && typeof args?.itemId === 'string') {
+    if (!TREE && name === 'addBibleToPresentation' && typeof args?.itemId === 'string') {
       const row = db.prepare("SELECT content FROM presentation_items WHERE id = ? AND type = 'bible'").get(args.itemId);
       if (row?.content) db.prepare('UPDATE presentation_items SET content = ? WHERE id = ?').run(bibleContent(row.content), args.itemId);
     }

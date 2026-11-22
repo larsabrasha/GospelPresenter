@@ -1,3 +1,4 @@
+import type { DriverEffect } from '@gp/core/commands';
 import {
   CHANGED_TABLES,
   randomId,
@@ -57,19 +58,7 @@ interface DriverState {
 }
 
 /** What the core's sync driver tells the shell to do, in order. */
-type Effect =
-  | { type: 'queued'; run: number }
-  | { type: 'beforePush' }
-  | { type: 'post'; path: string; body: string }
-  | { type: 'keepPage' }
-  | { type: 'rebase' }
-  | { type: 'ended'; run: number; error: string | null }
-  | { type: 'idle' }
-  | { type: 'media' }
-  | { type: 'openSocket' }
-  | { type: 'closeSocket' }
-  | { type: 'timer'; name: string; ms: number }
-  | { type: 'cancelTimers' };
+type Effect = DriverEffect;
 
 /** What a caller of `send` waits for: nothing, the end of the run its sync event starts, or the device idle. */
 type Wait = 'none' | 'run' | 'idle';

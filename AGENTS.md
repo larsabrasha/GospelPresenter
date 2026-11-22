@@ -3,7 +3,10 @@
 > **The core is going back to TypeScript** (ADR 0008, Lars, 2026-11-22; the plan: `docs/core-back-to-typescript.md`).
 > Until the port is done, write nothing new in `crates/gp-core`: a feature waits for the module it touches to be
 > ported, and is then written in TypeScript. The native shells (`apps/mac`, `apps/windows`, `crates/gp-tui`) are
-> stopped; do not extend them.
+> stopped; do not extend them. Ported and switched so far (the plan's "Where it stands"): the schema, the mutators and
+> sync's client, in `packages/core` (`src/mutators/`, `org-schema.ts`, `sync-commands.ts`, `sync-driver.ts`,
+> `sync-status.ts`, reached through `src/commands.ts`); a change to them is made there. `GP_CORE=rust` runs the Node
+> side all in Rust again.
 
 The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web`, `apps/server`, `apps/desktop`,
 `packages/core`, `packages/sync`), on a core in Rust (`crates/gp-core`, run as WASM through `packages/rust-core`):

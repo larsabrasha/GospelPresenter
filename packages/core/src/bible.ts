@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { compareBooks } from './bible-books.ts';
+import { compareBooks, resolveBook, swedishBookName } from './bible-books.ts';
 import { sha256Hex } from './platform.ts';
 
-// Bible text (spec 05 "Bibles"): a translation's text as stored, sent and imported, and what an item keeps. A
-// translation's zip is read by the Rust core (`bibleImportView`, crates/gp-core/src/bible_import.rs).
+// Bible text (spec 05 "Bibles"): references, the verses they select, and how
+// a passage becomes slides and a title. Pure functions, used by the add-item
+// picker, the mutators and the tests.
 
-/** 50 MiB, as the current app (BIBLE-R2): a larger zip is not sent to the core. */
+/** 50 MiB, as the current app (BIBLE-R2): a larger zip is not read. */
 export const BIBLE_ZIP_MAX_BYTES = 52_428_800;
 
 /** One verse: book code (USX), chapter, verse and text. */
@@ -22,9 +23,110 @@ export interface BibleBookText {
   verses: [number, number, string][];
 }
 
-// A reference read as verses (BIBLE-R11), a passage's title and label (BIBLE-R13) and its slides (BIBLE-R12) are the
-// Rust core's (crates/gp-core/src/bible_books.rs and bible.rs: verseSearchPlanView, bibleSlidesView,
-// addBibleToPresentation), one place for every app.
+// ------------------------------------------------------------------ references (BIBLE-R11)
+
+type Point = [chapter: number, verse: number];
+
+export interface VerseSearchPlan {
+  /** The books to look in, among the translation's. */
+  codes: string[];
+  from: Point;
+  to: Point;
+}
+
+const REFERENCE = /^(.+)\s+(\d+)(?::(\d+))?(?:-(\d+)(?::(\d+))?)?[-:]?$/;
+const BOOK_ONLY = /^[a-zA-ZåäöÅÄÖ0-9: ]+$/;
+const END = Number.MAX_SAFE_INTEGER;
+
+/** Trim, one space between words, and no spaces around ":" and "-" (BIBLE-R11 step 1). */
+export function normaliseReference(query: string): string {
+  return query.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/\s*([:-])\s*/g, '$1');
+}
+
+/**
+ * What a reference query selects in a translation with the books `available`
+ * (BIBLE-R11), or null when it selects nothing. A book that resolves but is
+ * not in the translation selects nothing; a reference whose book does not
+ * resolve looks in every book whose code starts with it.
+ */
+export function planVerseSearch(query: string, available: string[]): VerseSearchPlan | null {
+  const q = normaliseReference(query);
+  const m = REFERENCE.exec(q);
+  if (!m) {
+    if (!BOOK_ONLY.test(q)) return null;
+    const code = resolveBook(q);
+    return code && available.includes(code) ? { codes: [code], from: [0, 0], to: [END, END] } : null;
+  }
+  const book = m[1]!.trim();
+  const fromChapter = Number(m[2]);
+  const fromVerse = m[3] === undefined ? null : Number(m[3]);
+  const toNum = m[4] === undefined ? null : Number(m[4]);
+  const toVerse = m[5] === undefined ? null : Number(m[5]);
+
+  const code = resolveBook(book);
+  const codes = code ? available.filter((c) => c === code) : available.filter((c) => c.toUpperCase().startsWith(book.toUpperCase()));
+  if (!codes.length) return null;
+
+  const from: Point = [fromChapter, fromVerse ?? 0];
+  let to: Point;
+  if (toNum === null) {
+    // "B C:V-" runs to the end of the chapter; "B C", "B C:" and "B C-" are the whole chapter.
+    to = fromVerse !== null && !q.endsWith('-') ? [fromChapter, fromVerse] : [fromChapter, END];
+  } else if (toVerse !== null) to = [toNum, toVerse];
+  else if (fromVerse !== null && toNum >= fromVerse) to = [fromChapter, toNum]; // "3:15-17": verses of chapter 3
+  else to = [toNum, END]; // "3:15-4" and "3-4": through the whole of chapter 4
+  return { codes, from, to };
+}
+
+const atOrAfter = (c: number, v: number, p: Point) => c > p[0] || (c === p[0] && v >= p[1]);
+const atOrBefore = (c: number, v: number, p: Point) => c < p[0] || (c === p[0] && v <= p[1]);
+
+/** The verses of `book` from `from` to `to`, inclusive, in stored order. */
+export function versesInRange(book: BibleBookText, from: Point, to: Point): Verse[] {
+  return book.verses.filter(([c, v]) => atOrAfter(c, v, from) && atOrBefore(c, v, to)).map(([c, v, t]) => ({ b: book.code, c, v, t }));
+}
+
+/** Every verse a query selects among `books`, in the books' order; nothing for an invalid query. */
+export function searchVerses(query: string, books: BibleBookText[]): Verse[] {
+  const plan = planVerseSearch(
+    query,
+    books.map((b) => b.code),
+  );
+  if (!plan) return [];
+  return books.filter((b) => plan.codes.includes(b.code)).flatMap((b) => versesInRange(b, plan.from, plan.to));
+}
+
+// ------------------------------------------------------------------ titles (BIBLE-R13)
+
+/**
+ * The item title, with Swedish book names: `Johannes 3:16`, `Johannes 3:16-18`,
+ * `Johannes 3:16-4:2`, `Johannes 21:25 - Apostlagärningarna 1:2`.
+ */
+export function bibleTitle(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
+  const first = verses[0];
+  const last = verses.at(-1);
+  if (!first || !last) return '';
+  const name = swedishBookName(first.b);
+  if (first.b !== last.b) return `${name} ${first.c}:${first.v} - ${swedishBookName(last.b)} ${last.c}:${last.v}`;
+  if (first.c !== last.c) return `${name} ${first.c}:${first.v}-${last.c}:${last.v}`;
+  if (first.v !== last.v) return `${name} ${first.c}:${first.v}-${last.v}`;
+  return `${name} ${first.c}:${first.v}`;
+}
+
+/** The add button's label (spec 05 "Bibeltexter"): like the title, with spaces around a dash between chapters. */
+export function bibleLabel(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
+  const first = verses[0];
+  const last = verses.at(-1);
+  if (first && last && first.b === last.b && first.c !== last.c) return `${swedishBookName(first.b)} ${first.c}:${first.v} - ${last.c}:${last.v}`;
+  return bibleTitle(verses);
+}
+
+/** What a Bible slide shows at the bottom: the passage and its translation (spec 04 credits, D12). */
+export function bibleCredits(title: string, translation: string): string {
+  return translation ? `${title} · ${translation}` : title;
+}
+
+// ------------------------------------------------------------------ slides (BIBLE-R12)
 
 /** A run of words on a slide; `n` is the verse number when the run starts that verse. */
 export interface BibleSegment {
@@ -32,6 +134,95 @@ export interface BibleSegment {
   t: string;
 }
 export type BibleSlide = BibleSegment[];
+
+/** About this many characters fit one slide at the themes' 75px (ADR 0001 (8)). */
+export const BIBLE_CHARS_PER_SLIDE = 250;
+
+interface Word {
+  n: number | null;
+  t: string;
+}
+
+/** What a break costs (crates/gp-core/src/bible.rs, BREAK_*): before a verse, within a run, after , ; and . */
+const BREAK = { verse: 0, within: 6, comma: 3, clause: 2, sentence: 1, fragment: 4 } as const;
+/** How much a slide's length off the target costs, squared. */
+const UNEVEN = 20;
+/** No slide longer than this times the target, unless it is one word. */
+const LONGEST = 1.4;
+
+/** A word's last mark before closing quotes and brackets: 3 ends a sentence, 2 a clause, 1 a comma's, 0 none. */
+function mark(t: string): 0 | 1 | 2 | 3 {
+  const last = [...t.replace(/["'”’»)\]]+$/u, '')].at(-1);
+  if (last && '.!?…'.includes(last)) return 3;
+  if (last && ';:'.includes(last)) return 2;
+  if (last && ',–—'.includes(last)) return 1;
+  return 0;
+}
+
+const plainLength = (w: Word) => w.t.length + (w.n === null ? 0 : String(w.n).length + 1);
+
+/**
+ * Splits a passage into slides, once, when it is added (BIBLE-R12, BIBLE-A18; Lars 2026-11-19): as many as the plain
+ * text (verse numbers included) over `maxChars` rounds up to, broken where reading pauses (before a verse, after a
+ * sentence, a clause, a comma) and as even as that allows: the cheapest breaks, found word by word. A break that
+ * leaves a fragment of one or two words of a sentence costs more. An empty verse still shows its number.
+ */
+export function splitBibleSlides(verses: Pick<Verse, 'v' | 't'>[], maxChars = BIBLE_CHARS_PER_SLIDE): BibleSlide[] {
+  const words: Word[] = verses.flatMap((verse) => {
+    const parts = verse.t.split(' ').filter(Boolean);
+    return parts.length ? parts.map((t, i) => ({ n: i === 0 ? verse.v : null, t })) : [{ n: verse.v, t: '' }];
+  });
+  const count = words.length;
+  if (!count) return [];
+  const lengths = words.map(plainLength);
+  const total = lengths.reduce((a, b) => a + b, 0) + count - 1;
+  const target = total / Math.max(1, Math.ceil(total / maxChars));
+  const marks = words.map((w) => mark(w.t));
+  // The words back to the sentence's start and on to its end, each counting itself.
+  const back: number[] = [];
+  for (let i = 0; i < count; i++) back[i] = i > 0 && marks[i - 1]! < 3 ? back[i - 1]! + 1 : 1;
+  const ahead: number[] = [];
+  for (let i = count - 1; i >= 0; i--) ahead[i] = marks[i]! < 3 && i + 1 < count ? ahead[i + 1]! + 1 : 1;
+  const breakAfter = (k: number) => {
+    if (k + 1 === count) return 0;
+    const at = words[k + 1]!.n !== null ? BREAK.verse : [BREAK.within, BREAK.comma, BREAK.clause, BREAK.sentence][marks[k]!]!;
+    return at + (marks[k]! < 3 && (back[k]! <= 2 || ahead[k + 1]! <= 2) ? BREAK.fragment : 0);
+  };
+  const best: number[] = Array.from({ length: count + 1 }, () => Infinity);
+  const from: number[] = Array.from({ length: count + 1 }, () => 0);
+  best[0] = 0;
+  for (let j = 0; j < count; j++) {
+    let length = 0;
+    for (let i = j; i >= 0; i--) {
+      length += lengths[i]! + (i < j ? 1 : 0);
+      if (i < j && length > target * LONGEST) break;
+      const apart = (length - target) / target;
+      const cost = best[i]! + UNEVEN * apart * apart + breakAfter(j);
+      if (cost < best[j + 1]!) {
+        best[j + 1] = cost;
+        from[j + 1] = i;
+      }
+    }
+  }
+  const ends: number[] = [];
+  for (let j = count; j > 0; j = from[j]!) ends.unshift(j);
+  let start = 0;
+  return ends.map((end) => {
+    const segments: BibleSegment[] = [];
+    for (const w of words.slice(start, end)) {
+      const last = segments.at(-1);
+      if (last && w.n === null) last.t = last.t ? `${last.t} ${w.t}` : w.t;
+      else segments.push({ n: w.n, t: w.t });
+    }
+    start = end;
+    return segments;
+  });
+}
+
+/** A slide as plain text: "16 For God so loved…" (for search, labels and tests). */
+export function bibleSlideText(slide: BibleSlide): string {
+  return slide.map((s) => (s.n === null ? s.t : s.t ? `${s.n} ${s.t}` : String(s.n))).join(' ');
+}
 
 // ------------------------------------------------------------------ stored on an item
 

@@ -32,7 +32,7 @@ export function generator({ random, pick, maybe, idsOf, opt, fresh }) {
     return { name: 'updatePresentation', args: opt({ id: pick(pres()), name: maybe(0.4, () => pick(TEXTS)), ...event(), themeId: maybe(0.25, () => pick(['classic', 'light', 'th1', 'tx', null, ''])) }) };
   }
   if (q < 0.32) {
-    return { name: 'addSongToPresentation', args: opt({ itemId: newId('i'), presentationId: pick(pres()), songId: pick(['s1', 's2', 's3', 's4', 'sx']), arrangementId: maybe(0.5, () => pick(['a1', 'a2', 'a3', 'ax', null])), afterItemId: maybe(0.5, someItem) }) };
+    return { name: 'addSongToPresentation', args: opt({ itemId: newId('i'), presentationId: pick(pres()), songId: pick(['s1', 's2', 's3', 's4', 'sx']), arrangementId: maybe(0.5, () => pick(['a1', 'a2', 'a3', 'ax', 'original', null])), afterItemId: maybe(0.5, someItem) }) };
   }
   if (q < 0.42) {
     return {
@@ -43,7 +43,7 @@ export function generator({ random, pick, maybe, idsOf, opt, fresh }) {
   if (q < 0.48) return { name: 'addHeaderToPresentation', args: opt({ itemId: newId('h'), presentationId: pick(pres()), title: pick(TEXTS), afterItemId: maybe(0.4, someItem), beforeItemId: maybe(0.4, someItem) }) };
   if (q < 0.53) return { name: 'renameItem', args: opt({ itemId: pick(items()), title: maybe(0.95, () => pick(TEXTS)) }) };
   if (q < 0.58) return { name: 'setItemNote', args: opt({ itemId: pick(items()), note: maybe(0.9, () => pick(['Ta det lugnt', '  ', '', null, 'x'.repeat(201), 'x'.repeat(200)])) }) };
-  if (q < 0.63) return { name: 'setItemArrangement', args: opt({ itemId: pick(items()), arrangementId: maybe(0.95, () => pick(['a1', 'a2', 'a3', 'ax', null])) }) };
+  if (q < 0.63) return { name: 'setItemArrangement', args: opt({ itemId: pick(items()), arrangementId: maybe(0.95, () => pick(['a1', 'a2', 'a3', 'ax', 'original', null])) }) };
   if (q < 0.7) return { name: 'setItemOverlay', args: opt({ itemId: pick(items()), overlayId: maybe(0.95, () => pick(['o1', 'o2', 'ox', null, ''])) }) };
   if (q < 0.77) return { name: 'moveItem', args: { itemId: pick(items()), by: pick([-1, 1, -3, 5, 0, 1000, 1001, -1000, 1.5, '2', null]) } };
   if (q < 0.81) {

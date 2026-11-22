@@ -1,9 +1,9 @@
 // The adapter over the Rust core, and the schema it makes. That the core does what the TS core did is the parity
 // checks' (crates/gp-core/build.sh test, against packages/core at 238d481b, migrations among them in schema-check.mjs).
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_LABELS, MUTATOR_VERSIONS, SCHEMA_VERSION, tableInfo, type MutatorCtx } from '@gp/core';
-import { runMutation, type MutationDb, type Rows } from '../src/index.ts';
+import { runMutation, rustOnly, type MutationDb, type Rows } from '../src/index.ts';
 import { nodeRustCore } from '../src/node.ts';
 
 const admin: MutatorCtx = { userId: 'u', role: 'admin', now: 1000 };
@@ -90,6 +90,9 @@ describe('runMutation', () => {
   });
 
   it('answers the next call after a panic in the core', async () => {
+    // The WASM's own recovery: the mutators run in the TS core now (ADR 0008), so this one is sent to Rust.
+    rustOnly(true);
+    onTestFinished(() => rustOnly(false));
     const o = org();
     await runMutation(o, 'createPresentation', { id: 'p1', name: 'Söndag' }, admin);
     // No row for the count of items: the core unwraps it and traps.

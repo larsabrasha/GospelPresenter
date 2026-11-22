@@ -1,0 +1,57 @@
+import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
+import { z } from 'zod';
+import { can } from '../permissions.ts';
+import { audios, customSlides, images, presentationItems, presentations, songs, videos } from '../schema.ts';
+import { TRASH_RETENTION_MS } from '../trash.ts';
+import type { MutatorCtx, Tx } from './base.ts';
+import { deleteSongRows } from './songs.ts';
+
+// ------------------------------------------------------------------ trash
+
+export const purgeExpiredTrashArgs = z.object({ now: z.number().int() });
+/**
+ * Purges what has been in the trash longer than the retention (SONG-R28,
+ * PRES-R26), of the kinds the caller manages. Sent when the trash opens. On
+ * the server the earlier of the client's and the server's clock counts, so a
+ * client clock that runs ahead never purges early.
+ */
+export async function purgeExpiredTrash(tx: Tx, a: z.output<typeof purgeExpiredTrashArgs>, ctx: MutatorCtx) {
+  await purgeTrashedUntil(tx, Math.min(a.now, ctx.now ?? a.now) - TRASH_RETENTION_MS, ctx);
+}
+
+export const emptyTrashArgs = z.object({});
+/** "Töm papperskorgen": everything in the trash of the kinds the caller manages, in one change (Trash.razor's EmptyAsync). */
+export async function emptyTrash(tx: Tx, _a: z.output<typeof emptyTrashArgs>, ctx: MutatorCtx) {
+  await purgeTrashedUntil(tx, Number.MAX_SAFE_INTEGER, ctx);
+}
+
+/** Purges what went to the trash at or before `cutoff`, of the kinds the caller manages. */
+async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
+  if (can(ctx.role, 'ManageSongs')) {
+    const expired = await tx.select({ id: songs.id }).from(songs).where(and(isNotNull(songs.deletedAt), lte(songs.deletedAt, cutoff)));
+    for (const s of expired) await deleteSongRows(tx, s.id);
+  }
+  // Presentations and templates are separate kinds, each purged by those who manage it (PRES-R24, R28).
+  for (const [isTemplate, permission] of [
+    [false, 'ManagePresentations'],
+    [true, 'ManageTemplates'],
+  ] as const) {
+    if (!can(ctx.role, permission)) continue;
+    // A subquery, not a list of ids: a Durable Object binds at most 100 values a statement.
+    const expired = and(eq(presentations.isTemplate, isTemplate), isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff));
+    await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, tx.select({ id: presentations.id }).from(presentations).where(expired)));
+    await tx.delete(presentations).where(expired);
+  }
+  if (can(ctx.role, 'ManageImages')) {
+    await tx.delete(images).where(and(isNotNull(images.deletedAt), lte(images.deletedAt, cutoff)));
+  }
+  if (can(ctx.role, 'ManageAudios')) {
+    await tx.delete(audios).where(and(isNotNull(audios.deletedAt), lte(audios.deletedAt, cutoff)));
+  }
+  if (can(ctx.role, 'ManageVideos')) {
+    await tx.delete(videos).where(and(isNotNull(videos.deletedAt), lte(videos.deletedAt, cutoff)));
+  }
+  if (can(ctx.role, 'ManagePresentations')) {
+    await tx.delete(customSlides).where(and(isNotNull(customSlides.deletedAt), lte(customSlides.deletedAt, cutoff)));
+  }
+}

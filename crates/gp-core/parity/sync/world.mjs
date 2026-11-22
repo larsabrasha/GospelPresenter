@@ -3,11 +3,18 @@
 // SyncClient on the Rust core's sync commands, on a database of its own, given the very answers the reference got.
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import {
+import { fieldTimeMigration } from '../beyond-reference.mjs';
+
+/**
+ * Which pair: the SyncClient on the Rust core against the TS SyncClient as it was before the switch (build.sh); or,
+ * with GP_TS=tree (port.sh, ADR 0008), the app's SyncClient on a core that runs everything in Rust as the reference,
+ * against the same SyncClient on the core as the app has it, the TS core's commands first.
+ */
+export const TREE = process.env.GP_TS === 'tree';
+const {
   SyncClient, ReferenceSyncClient, handlePush, handlePull, RustCore, serverSyncDdl, serverChangeTriggers, migrateOrgSchemaSync, labelSeedSql,
   schema, drizzleProxy,
-} from '../.out/ts-sync.mjs';
-import { fieldTimeMigration } from '../beyond-reference.mjs';
+} = await import(TREE ? '../.out/ts-sync-tree.mjs' : '../.out/ts-sync.mjs');
 
 const out = new URL('../.out/', import.meta.url).pathname;
 /** The core the reference client and the server run their mutators on: always the core as built, never a planted fault. */
@@ -27,10 +34,10 @@ export function openServer(seed) {
   const rows = (sql, params = []) => { const st = db.prepare(sql); st.setReturnArrays(true); return st.all(...params); };
   migrateOrgSchemaSync(query, (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); });
   // The reference's tables, then schema 27's field times, as the server's core makes them (beyond-reference.mjs).
-  for (const s of [...fieldTimeMigration(), ...serverSyncDdl, ...serverChangeTriggers(), ...seed, ...labelSeedSql]) db.exec(s);
+  for (const s of [...(TREE ? [] : fieldTimeMigration()), ...serverSyncDdl, ...serverChangeTriggers(), ...seed, ...labelSeedSql]) db.exec(s);
   const store = {
     db: drizzleProxy(async (sql, params, method) => { const all = rows(sql, params); return { rows: method === 'get' ? all[0] : all }; }, { schema }),
-    query, rows, core: new RustCore(appModule),
+    query, rows, core: new RustCore(appModule, TREE),
     async transaction(fn) {
       db.exec('BEGIN');
       try { const r = await fn(); db.exec('COMMIT'); return r; } catch (e) { if (db.isTransaction) db.exec('ROLLBACK'); throw e; }
@@ -110,7 +117,8 @@ export async function openClient({ reference, transport: t, ctx, clientId }) {
   const changes = [];
   const { db, sqlite } = clientSqlite();
   const Client = reference ? ReferenceSyncClient : SyncClient;
-  const client = await Client.open(sqlite, { transport: t, ctx, core: new RustCore(reference ? appModule : testedModule), clientId });
+  const core = TREE ? new RustCore(appModule, reference) : new RustCore(reference ? appModule : testedModule);
+  const client = await Client.open(sqlite, { transport: t, ctx, core, clientId });
   client.onChange((tables) => changes.push([...tables].toSorted()));
   return { client, changes, db };
 }
