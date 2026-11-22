@@ -1,6 +1,6 @@
 // Markera, the running order's select mode (the web's RunningOrder.tsx): an item's menu begins it with that item
-// ticked, rows are ticked (⇧-click ticks a range on a Mac), Markera alla, Klar ends it, and the ticked are removed
-// together after a question. What is ticked and may be, and the question's texts, are the core's (`tickView`); the item
+// ticked, rows are ticked (⇧-click ticks a range on a Mac) and moved by holding them (the phone's way to move), Markera
+// alla, Klar ends it, and the ticked are removed together after a question. What is ticked and may be, and the question's texts, are the core's (`tickView`); the item
 // on the outputs cannot be ticked. In columns the running order itself ticks; on a phone a sheet of it does.
 import SwiftUI
 
@@ -68,7 +68,13 @@ struct TickList: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
             List {
+                // A finger moves a row by holding it, as the web's ≡ (RunningOrder.tsx): on a phone the way to move.
                 ForEach(p.items) { item in row(item, state) }
+                    .onMove { from, to in
+                        var ids = p.items.map(\.id)
+                        ids.move(fromOffsets: from, toOffset: to)
+                        model.run("reorderItems", ["presentationId": p.id, "itemIds": ids])
+                    }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -97,6 +103,7 @@ struct TickList: View {
                     .foregroundStyle(ticked ? Color.sky : .secondary).font(.title3)
                 Label(item.title, systemImage: icon(item.type)).lineLimit(1)
                 Spacer(minLength: 0)
+                Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .frame(minHeight: 36)

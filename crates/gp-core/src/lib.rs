@@ -31,6 +31,7 @@ mod page_step;
 mod remote_control;
 mod ordered;
 mod org_transfer;
+mod page_layout;
 mod pages;
 mod palette;
 mod presentation_page;

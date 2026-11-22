@@ -7,10 +7,17 @@ import SwiftUI
 struct PhoneLayout: View {
     @Environment(Model.self) private var model
     let p: PresentationView
+    /// The page's size: lying down, while presenting, the picture stands at the right (the core's `pageLayoutView`).
+    var size: CGSize = .zero
+
+    private struct Layout: Decodable { let live: String?, liveShare: Double? }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if model.isLive { LiveBlock().padding(.horizontal, 16).padding(.vertical, 10) }
+        let layout = model.view("pageLayoutView", ["width": size.width, "height": size.height, "presenting": model.isLive], as: Layout.self)
+        let beside = layout?.live == "trailing"
+        let side = size.width * (layout?.liveShare ?? 0)
+        AnyLayout(beside ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))) {
+            if layout?.live == "top" { LiveBlock().padding(.horizontal, 16).padding(.vertical, 10) }
             ScrollViewReader { proxy in
                 List {
                     if !model.isLive, let text = p.description, !text.isEmpty {
@@ -42,6 +49,8 @@ struct PhoneLayout: View {
                     tapped = false
                 }
             }
+            // Lying down, two columns: the running order at the left, the picture and its buttons at the right.
+            if beside { ScrollView { LiveBlock(stacked: true).padding(12) }.frame(width: side).accessibilityIdentifier("live-beside") }
         }
         .overlay(alignment: .bottomTrailing) {
             Menu { AddChoices(chosen: nil) } label: {
@@ -50,6 +59,8 @@ struct PhoneLayout: View {
             }
             .accessibilityLabel(t("live.add"))
             .padding(20)
+            // Lying down, at the running order's foot, not over the picture.
+            .padding(.trailing, beside ? side : 0)
         }
         .environment(\.phoneTapped, { tapped = true })
     }
@@ -168,6 +179,8 @@ struct DescriptionCard: View {
 /// end when there are overlays (no outputs on iOS yet), each opening its sheet.
 struct LiveBlock: View {
     @Environment(Model.self) private var model
+    /// Lying down, in a column of its own: the buttons under the picture, not beside it.
+    var stacked = false
     @State private var open: Open?
 
     enum Open: String, Identifiable { case description, display; var id: String { rawValue } }
@@ -175,7 +188,7 @@ struct LiveBlock: View {
     var body: some View {
         let description = model.current?.description.flatMap { $0.isEmpty ? nil : $0 }
         let overlays = model.current?.overlays ?? []
-        HStack(alignment: .top, spacing: 12) {
+        AnyLayout(stacked ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))) {
             LivePicture().frame(maxWidth: .infinity)
             VStack(spacing: 10) {
                 BlackButton()

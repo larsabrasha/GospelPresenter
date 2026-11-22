@@ -56,7 +56,9 @@ is shared; each platform's part is checked off in its own section below.
 - [ ] 8 Fjärrstyrning
 - [x] 9 ⌘K: `paletteView`, the presentations a search finds (name, place, the date as the shell writes it), the
   coming first, a few (crates/gp-core/src/palette.rs; 4 tests in views.test.ts); the web's CommandPalette reads it
-- [ ] 10 Phone lying down, moving on a phone
+- [x] 10 Phone lying down: `pageLayoutView` (columns from 1 000 points, else one column, and lying down while
+  presenting the picture at the right, 45 %; crates/gp-core/src/page_layout.rs, 5 tests). The web keeps its CSS
+  (`lg` and `landscape:`), which says the same; moving is reorderItems as before
 
 ## Mac and iOS
 
@@ -93,7 +95,10 @@ is shared; each platform's part is checked off in its own section below.
   presentations, the commands (Gå till … and Ny sång open Inställningar there), Inställningar's pages.
   `PaletteTests` (3) on an iPhone 17 Pro Max, opened by `-gp.palette` where the test cannot press ⌘K. Gaps: no ↑↓ and
   ↵ through the hits, no preview beside them, no ⌘↵; ⌘K by a hardware keyboard not tried
-- [ ] 10 Phone lying down, moving on a phone
+- [x] 10 Phone lying down, moving on a phone: lying down while presenting, the running order at the left and the
+  picture with Släck under it at the right (PhoneLayout.swift from `pageLayoutView`, which also decides columns);
+  in Markera's select mode a row is held and moved (Ticking.swift). `PhoneTests` (3) on an iPhone 17 Pro Max, a
+  picture of it lying down looked at. Not tried: an iPad mini lying down (columns by the core's 1 000 points)
 
 ## Linux
 
@@ -144,7 +149,8 @@ The rounds:
   songs added to the open presentation, presentations found and opened. Pictures light and dark of the blank
   search, a song found and added, a presentation found and opened. Gaps: no song page nor Inställningar to go to
   (the Linux app has neither), no ↑↓ ↵ through the hits
-- [ ] 10 Phone lying down, moving on a phone
+- [ ] 10 Phone lying down, moving on a phone: waits on the base's "A phone's one column" (the Linux app has only
+  columns); on a computer an item moves by Alt+↑ ↓ (the core's `move`)
 
 ## Questions
 

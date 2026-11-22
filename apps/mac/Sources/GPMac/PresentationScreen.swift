@@ -15,7 +15,7 @@ struct PresentationScreen: View {
         GeometryReader { geo in
             if let p = model.current {
                 Group {
-                    if geo.size.width >= Size.columns { WideLayout(p: p) } else { PhoneLayout(p: p) }
+                    if columns(geo.size) { WideLayout(p: p) } else { PhoneLayout(p: p, size: geo.size) }
                 }
                 .navigationTitle(p.name)
                 .modifier(Subtitle(text: when(p)))
@@ -35,7 +35,7 @@ struct PresentationScreen: View {
                     // Utgångar while an external display is connected: its output on or off by hand.
                     ToolbarItem(placement: .primaryAction) { ExternalOutputsMenu() }
                     #endif
-                    ToolbarItem(placement: .primaryAction) { startStop(wide: geo.size.width >= Size.columns) }
+                    ToolbarItem(placement: .primaryAction) { startStop(wide: columns(geo.size)) }
                 }
                 .sheet(isPresented: $editing) {
                     if p.isTemplate { TemplateDetailsSheet(templateId: p.id) } else { DetailsSheet(presentationId: p.id) }
@@ -50,7 +50,7 @@ struct PresentationScreen: View {
                 .sheet(item: Bindable(model).editing) { target in ItemEditing(target: target, p: p) }
                 .sheet(isPresented: Bindable(model).showingMaterials) { PresentationMaterials(presentationId: p.id) }
                 // Markera on a phone: the running order ticked in a sheet; in columns it ticks in place.
-                .sheet(isPresented: Binding(get: { model.ticking != nil && geo.size.width < Size.columns }, set: { if !$0 { model.ticking = nil } })) {
+                .sheet(isPresented: Binding(get: { model.ticking != nil && !columns(geo.size) }, set: { if !$0 { model.ticking = nil } })) {
                     NavigationStack { TickList(p: p).navigationTitle(t("presentation.tick")) }
                 }
                 .textPrompt(Bindable(model).prompt)
@@ -70,6 +70,13 @@ struct PresentationScreen: View {
         }
         .background(Color.ground)
         .alert(model.refusal ?? "", isPresented: Binding(get: { model.refusal != nil }, set: { if !$0 { model.refusal = nil } })) {}
+    }
+
+    /// Whether the page has columns at this size (the core's `pageLayoutView`).
+    private func columns(_ size: CGSize) -> Bool {
+        struct Layout: Decodable { let layout: String }
+        let args: [String: Any] = ["width": size.width, "height": size.height, "presenting": model.isLive]
+        return (model.view("pageLayoutView", args, as: Layout.self)?.layout ?? (size.width >= Size.columns ? "columns" : "one")) == "columns"
     }
 
     /// "sön 8 november · 11:00 · Kyrksalen" under the title; LIVE first while this device presents it.
