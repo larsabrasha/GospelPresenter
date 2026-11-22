@@ -114,8 +114,8 @@ const byName = (lang: string) => collator(lang, true).compare;
 /** Ids compared as `localeCompare` without options does: case and accents too. */
 const byId = (lang: string) => collator(lang, false).compare;
 
-/** A key rows are ordered by: a name, an id (or a date), one the other way, or a number (missing as -1), largest first. */
-export type Key = ['name' | 'id' | 'desc' | 'last', string];
+/** A key rows are ordered by: a name, an id (or a date), one the other way, or a number (missing as -1), smallest or largest first. */
+export type Key = ['name' | 'id' | 'desc' | 'asc' | 'last', string];
 
 /** A field as String() has it: a string itself, a number written, else "null". */
 const keyText = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : 'null');
@@ -127,7 +127,7 @@ export function sortRows(lang: string, rows: Args[], keys: Key[]): Args[] {
   return rows.toSorted((a, b) => {
     for (const [kind, k] of keys) {
       const o =
-        kind === 'name' ? names(keyText(a[k]), keyText(b[k])) : kind === 'id' ? ids(keyText(a[k]), keyText(b[k])) : kind === 'desc' ? ids(keyText(b[k]), keyText(a[k])) : keyNumber(b[k]) - keyNumber(a[k]);
+        kind === 'name' ? names(keyText(a[k]), keyText(b[k])) : kind === 'id' ? ids(keyText(a[k]), keyText(b[k])) : kind === 'desc' ? ids(keyText(b[k]), keyText(a[k])) : kind === 'asc' ? keyNumber(a[k]) - keyNumber(b[k]) : keyNumber(b[k]) - keyNumber(a[k]);
       if (o) return o;
     }
     return 0;

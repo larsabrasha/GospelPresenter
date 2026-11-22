@@ -1,6 +1,6 @@
 // What each item of a running order shows (ADR 0008; ported back from crates/gp-core/src/slides.rs and item_views.rs):
 // readItemSlides's slides, the same objects, reading the library through the shell. The live views and the
-// presentation page are to read a running order's slides through `itemsSlides` (exported once they import it).
+// presentation page read a running order's slides through `itemsSlides`.
 import type { RunSql } from './sql.ts';
 import { argsObj, asF64, asI64, asStr, byCodePoint, charsAtMost, idOf, invalidArgs, isObj, parseJson, type Obj } from './serde.ts';
 
@@ -219,7 +219,7 @@ function itemSlides(item: SlideItem, labels: Map<string, unknown>, songs: Songs,
 }
 
 /** Every item's slides and why one has none, in the items' order (`readItemSlides`): the songs read together, once. */
-async function itemsSlides(items: SlideItem[], sql: RunSql): Promise<ItemShown[]> {
+export async function itemsSlides(items: SlideItem[], sql: RunSql): Promise<ItemShown[]> {
   const labels = await labelsOf(sql);
   const songs = await songsOf(sql, [...new Set(items.filter((i) => i.kind === 'song').map((i) => i.sourceId))]);
   const out: ItemShown[] = [];

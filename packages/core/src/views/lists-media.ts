@@ -34,7 +34,7 @@ export const videosView = async (args: unknown, sql: RunSql) => (argsOf(args), (
 // ------------------------------------------------------------------ a slideshow's pages (pages.rs)
 
 /** A page's reading failed: the slideshow shows one blank page. */
-class Unread extends Error {}
+export class Unread extends Error {}
 const fail = (): never => {
   throw new Unread();
 };
@@ -68,7 +68,7 @@ function element(v: unknown): Args {
   return { ...box, fill: color(o, 'fill'), stroke: color(o, 'stroke'), strokeWidth: num(o, 'strokeWidth', 0, 100), radius: num(o, 'radius', 0, 540) };
 }
 
-function page(v: unknown): Args {
+export function page(v: unknown): Args {
   const o = obj(v);
   const background = Object.hasOwn(o, 'background') ? color(o, 'background') : fail();
   const [backgroundPicture, backgroundPage] = [optPicture(o, 'backgroundPicture'), optPicture(o, 'backgroundPage')];
