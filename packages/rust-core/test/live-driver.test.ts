@@ -109,6 +109,22 @@ describe('liveStepView, the owner', () => {
     expect(sent(out).map((m) => m.type)).toEqual(['own']);
   });
 
+  it('sends a refused report again though nothing changed', async () => {
+    const { after, online } = await device();
+
+    const out = await after([{ type: 'follow', pointer: pointer('i1') }, { type: 'message', message: { error: 'invalid-message' } }, { type: 'changed' }], online);
+
+    expect(sent(out).map((m) => m.type)).toEqual(['own']);
+  });
+
+  it('takes an old server refusing a ping as its answer, not as a refused report', async () => {
+    const { after, online } = await device();
+
+    const out = await after([{ type: 'follow', pointer: pointer('i1') }, { type: 'timer', name: 'ping', now: 1000 + 20_000 }, { type: 'message', message: { error: 'invalid-message' } }, { type: 'changed' }], online);
+
+    expect(sent(out)).toEqual([]);
+  });
+
   it('ends the session when it stops presenting', async () => {
     const { after, online } = await device();
 

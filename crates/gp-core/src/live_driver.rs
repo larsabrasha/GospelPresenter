@@ -194,6 +194,7 @@ impl Step {
     /// A message the server sent.
     async fn heard(&mut self, m: &Value) {
         self.st["heard"] = json!(self.now);
+        let answered = self.st["pinged"] == json!(true);
         self.st["pinged"] = json!(false);
         let me = self.st["sessionId"].clone();
         let presenting = presenting(&self.st["pointer"]).is_some();
@@ -210,8 +211,9 @@ impl Step {
                 self.report().await;
             }
             Some("pong" | "command" | "audio-command" | "video-command" | "released") => {}
+            // An older server knows no ping and refuses it: that answer is a pong, and no error.
+            _ if answered && m["error"] == "invalid-message" => {}
             // A refused report is not what the server holds: the next one goes even if it is the same.
-            _ if m["error"] == "invalid-message" => {}
             _ => {
                 self.st["lastSent"] = json!("");
                 if m["error"] == "output-taken" { self.refused().await }
