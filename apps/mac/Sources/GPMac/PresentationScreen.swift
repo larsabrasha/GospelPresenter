@@ -38,6 +38,9 @@ struct PresentationScreen: View {
                 }
                 .sheet(isPresented: $editing) { DetailsSheet(presentationId: p.id) }
                 .sheet(item: Bindable(model).addingSong) { at in AddSongSheet(at: at) }
+                // Redigera from an item's menu: the song's page, the slideshow's editor or the item's pictures, over
+                // the page, which it returns to when closed.
+                .sheet(item: Bindable(model).editing) { target in ItemEditing(target: target, p: p) }
                 // Markera on a phone: the running order ticked in a sheet; in columns it ticks in place.
                 .sheet(isPresented: Binding(get: { model.ticking != nil && geo.size.width < Size.columns }, set: { if !$0 { model.ticking = nil } })) {
                     NavigationStack { TickList(p: p).navigationTitle(t("presentation.tick")) }

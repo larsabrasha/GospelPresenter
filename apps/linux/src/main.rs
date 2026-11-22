@@ -2,6 +2,7 @@
 // core decides what each page shows and what each key and tap does, through the terminal shell's App
 // (crates/gp-tui/src/app.rs); this draws it with GTK's own widgets and paints slides from the core's layout.
 mod faces;
+mod image_items;
 mod item_menu;
 mod keys;
 mod layout;

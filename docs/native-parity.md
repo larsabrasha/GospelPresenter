@@ -42,7 +42,8 @@ is shared; each platform's part is checked off in its own section below.
 
 - [x] 1 ↑↓ in the grid: `slideAcrossView` (crates/gp-core/src/grid_nav.rs, 12 tests); the web reads it
 - [x] 2 Markera: `tickView` (crates/gp-core/src/ticking.rs, 18 tests); the web's RunningOrder reads it
-- [ ] 3 Redigera
+- [x] 3 Redigera: `itemActionsView`'s `opens` says where Redigera leads (a song's page, a custom slideshow's editor,
+  an image item's pictures; 3 tests in packages/rust-core/test/page-models.test.ts); the web reads it (`editRoute`)
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
@@ -61,7 +62,10 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 2 Markera: in the item's menu; in columns the running order ticks in place, on a phone a sheet; ⇧-click a
   range on the Mac. `TickTests` (4) on an iPhone 17 Pro Max and an iPad 13"; MenuTests with Markera drawn. No toast
   after removing (the native apps have none); ⇧-click not tried (no Mac UI test)
-- [ ] 3 Redigera
+- [x] 3 Redigera: in a sheet over the presentation, closed back to it: the song's page, the slideshow's editor
+  (Inställningar's own), an image item's pictures (moved, removed after a question; ItemEditing.swift). `EditTests`
+  (3) and MenuTests with Redigera drawn on an iPhone 17 Pro Max. Not yet: adding more pictures (round 5); a move of a
+  picture not tried in a test
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
@@ -93,7 +97,10 @@ The rounds:
 - [x] 1 ↑↓ in the grid: `Page::placed` measures the tiles; pictures (light) of ↓ from slide 1 to 4 and back
 - [x] 2 Markera: a check on each row (GNOME's selection mode); pictures light and dark of Markera from the row's
   menu, a second ticked, the question for 2, both removed. ⇧-click a range not tried
-- [ ] 3 Redigera
+- [~] 3 Redigera: an image item's pictures in a dialog (moved up or down, removed after a question; image_items.rs),
+  pictures light and dark of the menu, the dialog, the question and the picture gone. Gap: Redigera of a song or a
+  custom slideshow is left out of the menu until the Linux app has a song's page and a slide editor (its base,
+  Inställningar)
 - [ ] 4 Noter och länkar
 - [ ] 5 Lägg till, every kind
 - [ ] 6 Mallar and Spara som mall
@@ -105,6 +112,12 @@ The rounds:
 ## Questions
 
 Where a choice was not clear, the one most like the web was taken and the question written here for Lars.
+
+- Round 3, the web's Redigera bilder: removing or moving a picture sends its place among the pictures shown
+  (ItemParts.tsx `index: i`), but the mutators (`removeItemImage`, `moveItemImage`) count the item's own list, which
+  keeps a picture whose file is gone. With one gone before it, the web removes the wrong picture (the demo's
+  swish.jpg: ✕ on the one shown removes the gone one). The native apps send the place from the slide's key
+  (`image{n}`). Should the web do the same? Not changed, as it changes the web's behaviour.
 
 ## Standing still
 

@@ -126,7 +126,8 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   `List(selection:)`: a list's selection is one kind in the system's colour, does not answer a tap on the row already
   chosen (after Släck that tap shows it again) and moves itself with the arrows, which are the core's.
 - **An item's menu** (`ItemMenus.swift`), the same on its row and its heading's …: Byt namn for a programme item,
-  Kommentar; Arrangemang ›, Överlägg › (Ingen or one of the organisation's, `setItemOverlay`); Lägg till efter ›; Markera (select mode, `tickView`: in columns the running order ticks in place, on a phone a sheet of it; the ticked removed together after a question; Ticking.swift); Radera last, in red, asked first, and
+  Kommentar; Arrangemang ›, Överlägg › (Ingen or one of the organisation's, `setItemOverlay`); Lägg till efter ›; Redigera (where the core's `opens` says: the song's page, the slideshow's editor, the item's pictures, in a sheet;
+  ItemEditing.swift); Markera (select mode, `tickView`: in columns the running order ticks in place, on a phone a sheet of it; the ticked removed together after a question; Ticking.swift); Radera last, in red, asked first, and
   disabled for the item on the outputs, black or not. **+** offers Sång, then under a line Programpunkt.
   `apps/mac/apple.sh uitest` checks these menus against the core's answers for a scenario (docs/view-models.md).
 - **Colours and sizes** (`Look.swift`): the warm grey `stone` by role (ground, surface, raised, sidebar), sky-500 as
@@ -161,7 +162,7 @@ The web's floating + is kept on a Mac, though Apple's apps put + in the bar: it 
 
 What each page shows comes from the core's views, and what it offers from the core's view models
 (`docs/view-models.md`): the start page's lists, the title's and an item's menus, where + adds and each field's rule.
-Swift only draws them; an action the app has not built yet (Material, Spara som mall, Redigera) is left out
+Swift only draws them; an action the app has not built yet (Material, Spara som mall) is left out
 where the menu is drawn.
 
 | Page | Views | State |
@@ -171,7 +172,7 @@ where the menu is drawn.
 | Presenting: Starta (not while another presentation is presented), a slide tapped (before presenting, made ready and its item selected, on a phone too), the web's keys where a keyboard is (in columns: arrows, PageUp PageDown, ↵, Space, Esc, b, a, Delete, digits, ⌘ and ⌥ with the arrows) and Släck, VISAS and NÄSTA | `liveChangeView` (the app's live state, `Live`), `pageEventView` and `pageModelView` (the page's state, `Model.send`), `slideMarksView` | built; ↑ ↓ go to the slide above and below as the tiles stand (`slideAcrossView`); on the Mac an output window, on iOS an external display (a cable, or AirPlay as a second screen) in a scene of its own (ExternalOutput.swift), switched from Utgångar in the bar; both come on by themselves under Slå på utgångar automatiskt (`autoOutputsView`) |
 | Inställningar (Lars, 2026-11-21): on a Mac a window of its own (⌘, and the account menu), on iOS a sheet; the list and its search, Mina inställningar, Lagring, Inloggningsmetoder, Mina felrapporter; Sånger with the song's page, arrangements, history and notes and links and the ProPresenter import; Biblar (import, offline, rename, delete); Bilder and Ljud (import, rename, trash, revert), Videor (rename, trash); Bildspel and Överlägg (make, rename, delete); Etiketter; Utgångar (QR, new code); Teman (default, duplicate, delete); CCLI-rapport; Användare and their page; Enheter; Organisation (remote control); Alla organisationer; Felrapporter; Papperskorg; Om | `settingsListView`, `settingsSearchView`, `mySettingsView`, `trashPageView`, `ccliPageView`, `themesPageView` and the small ones (docs/view-models.md), the library views, and the server's endpoints for what is its (HostAPI.swift) | built, the theme editor (`themeEditorView`, `themeEditView`), the slide editor for slideshows and overlays (`slideEditorView`, `slideEditView`, `slideHitView`, `editorSlideView`), a PDF (PDFKit) or PowerPoint (the host's `POST /api/slides/pptx`) imported or replacing a slideshow's pages (`deckImportView`, `deckPagesView`), the picture editor (`imageEditView`, `imageDrawView`, checked against the web's `imageEdit.ts` on 500 random cases), a library's order, grid, Välj and download (`libraryOrderView`), a video's import in parts (`videoImportView`, AVFoundation), the export and the import from 1.x (`exportPlanView`, `importManifestView`, `importPlanView`, Zip.swift), Utgångar's live status (`displayStatusView` over the live socket), a passkey or Google account added through the system's sign-in window, a bug report's screenshot, steps and state; checked against a real server by `parity settings` (`apps/server/test/native-settings.test.ts`) |
 
-Not built in a presentation: Redigera (a song's page), Utgångar, Fjärrstyrning, the kinds but
+Not built in a presentation: Utgångar, Fjärrstyrning, the kinds but
 Sång and Programpunkt, Noter och länkar, Spara som mall, a phone lying down in two columns, a template's page, and
 moving an item on a phone. Media files are fetched as the web's sync fetches them (below, "Media files").
 

@@ -66,7 +66,7 @@ describe('startPageView', () => {
 });
 
 interface Groups {
-  groups: { id: string; actions: { id: string; text: string; enabled: boolean; choices?: { id: string; name?: string | null; n?: number }[]; chosen?: string }[] }[];
+  groups: { id: string; actions: { id: string; text: string; enabled: boolean; choices?: { id: string; name?: string | null; n?: number }[]; chosen?: string; opens?: { page: string; id: string } }[] }[];
 }
 const ids = (g: Groups) => g.groups.map((x) => [x.id, x.actions.map((a) => a.id)]);
 
@@ -107,6 +107,24 @@ describe('itemActionsView', () => {
     expect(ids(menu)).toEqual([['open', ['edit', 'note']], ['show', ['arrangement']], ['list', ['addAfter', 'tick']], ['remove', ['delete']]]);
     expect(menu.groups[1]!.actions[0]!.choices).toEqual([{ id: 'original', text: 'song.original' }, { id: 'a1', name: null, n: 1 }, { id: 'a2', name: 'Kort', n: 2 }]);
     expect(menu.groups[1]!.actions[0]!.chosen).toBe('a1');
+  });
+
+  it("leads Redigera of a song to the song's page", () => {
+    const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: song, song: { deletedAt: null }, arrangements: [], overlays: [], shownId: null });
+
+    expect(menu.groups[0]!.actions[0]!.opens).toEqual({ page: 'song', id: 's1' });
+  });
+
+  it("leads Redigera of a custom slideshow to its editor", () => {
+    const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: { ...song, type: 'custom', sourceId: 'c1' }, song: null, arrangements: [], overlays: [], shownId: null });
+
+    expect(menu.groups[0]!.actions[0]!.opens).toEqual({ page: 'customSlide', id: 'c1' });
+  });
+
+  it("leads Redigera bilder to the item's own pictures", () => {
+    const menu = nodeRustCore().pure<Groups>('itemActionsView', { item: { ...song, type: 'image' }, song: null, arrangements: [], overlays: [], shownId: null });
+
+    expect(menu.groups[0]!.actions[0]).toMatchObject({ id: 'editImages', opens: { page: 'images', id: 'i1' } });
   });
 
   it('offers neither the page nor the arrangements of a song in the trash', () => {

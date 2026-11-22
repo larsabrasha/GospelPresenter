@@ -87,7 +87,6 @@ describe.each(answers.states)('the $state state of the sunday scenario', ({ stat
       arrangements: page.arrangements as unknown as SongArrangement[],
       overlays: page.overlays as unknown as Overlay[],
       shownId,
-      editHref: () => '#song',
       onEditImages: () => {},
       onAddAfter: () => {},
       onRename: () => {},

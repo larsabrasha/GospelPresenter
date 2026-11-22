@@ -119,6 +119,8 @@ export interface Action {
   /** A submenu's choices: an arrangement's (`name` null: "Arrangemang {n}"), an overlay's (`text` for Ingen). */
   choices?: { id: string; name?: string | null; n?: number; text?: string }[];
   chosen?: string;
+  /** Where Redigera leads: a song's page, a custom slideshow's editor, an image item's pictures (`id` the item). */
+  opens?: { page: 'song' | 'customSlide' | 'images'; id: string };
 }
 interface ActionGroups {
   groups: { id: string; actions: Action[] }[];

@@ -5,7 +5,7 @@ import { CheckSquareIcon, CommentIcon, PencilIcon, PlusIcon, TrashIcon } from '.
 import { navigate } from '../../../ui/router.ts';
 import { Sheet } from '../../../ui/Sheet.tsx';
 import { ItemSettings } from '../../presentation-editor/ItemParts.tsx';
-import { songPage } from '../songPage.ts';
+import { editRoute } from '../songPage.ts';
 import { MenuGroup, MenuRow } from './MenuRows.tsx';
 
 /** What the item's sheet does, its parent's: the dialogs it opens and the list's select mode. */
@@ -36,7 +36,7 @@ export function ItemSheet({ item, songs, arrangements, overlays, shownId, on, on
 }) {
   const song = item.type === 'song' ? (songs.get(item.sourceId) ?? null) : null;
   const offered = itemActions({ item, song, arrangements: sortedArrangements(arrangements, item.sourceId), overlays, shownId });
-  const page = offered.has('edit') ? songPage(item, songs) : undefined;
+  const page = editRoute(offered.get('edit'));
   const remove = offered.get('delete');
   return (
     <Sheet title={item.title} onClose={onClose}>

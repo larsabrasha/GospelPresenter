@@ -10,10 +10,8 @@ import { AppButton } from '../../../ui/AppButton.tsx';
 import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
 import { PointIcon, PencilIcon, PlusIcon } from '../../../ui/icons.tsx';
-import { href } from '../../../ui/router.ts';
 import { Sheet } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
-import { songPage } from '../songPage.ts';
 import { LivePicture } from '../LivePicture.tsx';
 import { AddItemDialog, addKinds, type AddChoice, type AddKind } from '../../presentation-editor/AddItemDialog.tsx';
 import { useItemTexts } from '../../presentation-editor/HeaderDialog.tsx';
@@ -206,10 +204,6 @@ export function PhoneLive({
             arrangements,
             overlays,
             shownId: presenting ? pointer.itemId : null,
-            editHref: (item) => {
-              const route = songPage(item, songs);
-              return route && href(route);
-            },
             onEditImages: (item) => setOpen({ images: item }),
             onAddAfter: (item, choice) => choose(item.id, choice),
             ...texts.menu,

@@ -132,6 +132,10 @@ struct MenuAction: Decodable, Hashable {
     let icon: String?
     let choices: [Choice]?
     let chosen: String?
+    /// Where Redigera leads: a song's page (`song`), a custom slideshow's editor (`customSlide`), an image item's
+    /// pictures (`images`, `id` the item).
+    struct Opens: Decodable, Hashable { let page: String, id: String }
+    let opens: Opens?
 }
 
 /// A menu's sections, each a group of the core's.
@@ -153,6 +157,8 @@ struct ItemView: Identifiable, Hashable {
     /// An audio or video item's file, for its preview before presenting.
     var audio: AudioFile? = nil
     var video: VideoFile? = nil
+    /// What it shows: its song, custom slideshow, file (the item's `sourceId`).
+    var sourceId: String? = nil
 }
 
 /// A presentation's page, as the columns show it.
@@ -173,7 +179,7 @@ struct PresentationView {
             let arrangements = i.type == "song" ? page.arrangements.filter { $0.songId == i.sourceId }.map { Arrangement(id: $0.id, name: $0.name) } : []
             return ItemView(id: i.id, type: i.type ?? "song", title: i.title, note: i.note, slides: shown?.slides ?? [],
                             arrangementId: i.arrangementId, arrangements: arrangements, problem: shown?.problem, overlayId: i.overlayId, song: song,
-                            audio: shown?.audio, video: shown?.video)
+                            audio: shown?.audio, video: shown?.video, sourceId: i.sourceId)
         }
     }
 }

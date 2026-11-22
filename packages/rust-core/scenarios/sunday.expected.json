@@ -127,6 +127,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s3",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {
@@ -246,6 +250,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s1",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {
@@ -779,6 +787,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s3",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {
@@ -898,6 +910,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s1",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {
@@ -1422,6 +1438,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s3",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {
@@ -1541,6 +1561,10 @@
                 "enabled": true,
                 "icon": "edit",
                 "id": "edit",
+                "opens": {
+                  "id": "s1",
+                  "page": "song"
+                },
                 "text": "presentation.editSong"
               },
               {

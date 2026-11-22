@@ -1,7 +1,7 @@
 // An item's menu, the same on its row in the running order (a right click or a long press, as GNOME's lists) and on
 // its heading's ⋯ (the web's ItemContextMenu.tsx, the Mac app's ItemMenus.swift). What it offers, in which groups and
 // which can be chosen, is the core's (`itemActionsView`); this draws it as GNOME's popover menu, a group a section.
-// Not here yet, so left out: Redigera and Redigera bilder (their pages), Lägg till efter (adding).
+// Not here yet, so left out: Redigera of a song or a slideshow (their pages), Lägg till efter (adding).
 use crate::shell::Shell;
 use adw::prelude::*;
 use gtk::gio;
@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use std::rc::Rc;
 
 /// The entries this app draws; the core's others wait for their pages.
-const DRAWN: [&str; 6] = ["rename", "note", "arrangement", "overlay", "tick", "delete"];
+const DRAWN: [&str; 7] = ["rename", "editImages", "note", "arrangement", "overlay", "tick", "delete"];
 
 /// The menu of `item_id`, popped up over `anchor`: GTK's own popover menu, each entry an action of a group of its own
 /// on the anchor (`item.*`), disabled as the core says; Arrangemang › and Överlägg › submenus of radio entries.
@@ -55,6 +55,7 @@ fn chosen(shell: &Rc<Shell>, item_id: &str, id: &str) {
         "rename" => ask_text(shell, &t("header.rename", &[]), item_id, "title", "renameItem", "title"),
         "note" => ask_text(shell, &t("note.title", &[]), item_id, "note", "setItemNote", "note"),
         "tick" => shell.start_ticking(item_id),
+        "editImages" => crate::image_items::open(shell, item_id),
         "delete" => ask_remove(shell, item_id),
         _ => {}
     }

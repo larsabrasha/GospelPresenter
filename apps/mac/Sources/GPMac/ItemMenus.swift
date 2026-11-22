@@ -1,7 +1,6 @@
 // An item's menu and Lägg till's, the same on its row at the left, on its heading's … and on a phone (the web's
 // pages/live/ItemContextMenu.tsx and AddChoices.tsx). What it offers, in which groups and which entries can be chosen,
 // is the core's (`itemActionsView`, docs/view-models.md); this file only draws each entry as Apple draws a menu's.
-// Not here yet, so left out: Redigera (the song's page), Redigera bilder.
 import SwiftUI
 
 struct ItemMenu: View {
@@ -9,7 +8,7 @@ struct ItemMenu: View {
     let item: ItemView
 
     /// The entries this app draws; the core's others wait for their pages.
-    private static let drawn: Set = ["rename", "note", "arrangement", "overlay", "addAfter", "tick", "delete"]
+    private static let drawn: Set = ["rename", "edit", "editImages", "note", "arrangement", "overlay", "addAfter", "tick", "delete"]
 
     var body: some View {
         ForEach(model.itemActions(item), id: \.id) { group in
@@ -27,6 +26,9 @@ struct ItemMenu: View {
             Button(t(a.text), systemImage: Look.symbol(a.icon)) {
                 model.prompt = TextPrompt(title: t(a.text), label: t("header.name"), text: item.title, rule: model.rule("itemTitle")) { model.run("renameItem", ["itemId": item.id, "title": $0]) }
             }
+        case "edit", "editImages":
+            // Where it leads is the core's (`opens`): the song's page, the slideshow's editor, the item's pictures.
+            if let opens = a.opens { Button(t(a.text), systemImage: Look.symbol(a.icon)) { model.editing = EditTarget(opens) } }
         case "note":
             Button(t(a.text), systemImage: Look.symbol(a.icon)) {
                 model.prompt = TextPrompt(title: t(a.text), label: t(a.text), text: item.note ?? "", rule: model.rule("itemNote")) { model.run("setItemNote", ["itemId": item.id, "note": $0]) }
@@ -115,7 +117,7 @@ extension Model {
     /// the item on the outputs, black or not, which cannot be removed.
     func itemActions(_ item: ItemView) -> [MenuGroups.Group] {
         let shown: Any = (isLive ? live.state.itemId : nil) ?? NSNull()
-        let itemArgs: [String: Any] = ["id": item.id, "type": item.type, "arrangementId": item.arrangementId ?? NSNull(), "overlayId": item.overlayId ?? NSNull()]
+        let itemArgs: [String: Any] = ["id": item.id, "type": item.type, "sourceId": item.sourceId ?? NSNull(), "arrangementId": item.arrangementId ?? NSNull(), "overlayId": item.overlayId ?? NSNull()]
         let args: [String: Any] = [
             "item": itemArgs,
             "song": item.song?.any ?? NSNull(),

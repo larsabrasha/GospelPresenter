@@ -78,7 +78,7 @@ impl Model {
                 .map(|a| json!({ "id": a["id"], "name": a["name"] })).collect()
         } else { vec![] };
         let args = json!({
-            "item": { "id": item["id"], "type": item["type"], "arrangementId": item["arrangementId"], "overlayId": item["overlayId"] },
+            "item": { "id": item["id"], "type": item["type"], "sourceId": item["sourceId"], "arrangementId": item["arrangementId"], "overlayId": item["overlayId"] },
             "song": song, "arrangements": arrangements, "overlays": page["overlays"], "shownId": shown,
         });
         self.app.core().call("itemActionsView", args).ok().and_then(|v| v["groups"].as_array().cloned()).unwrap_or_default()

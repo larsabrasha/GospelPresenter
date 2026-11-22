@@ -10,8 +10,7 @@ import { usePageState, type PageCommand } from '../../live/pageState.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../../ui/Dialog.tsx';
-import { backToTemplates, href, navigate } from '../../ui/router.ts';
-import { songPage } from '../live/songPage.ts';
+import { backToTemplates, navigate } from '../../ui/router.ts';
 import { newId } from '../../ids.ts';
 import { runCommand, useAppCommand } from '../../ui/appKeys.ts';
 import { useShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -252,10 +251,6 @@ export function PresentationEditor({
     overlays,
     // The item on the outputs, black or not: removed after Släck, the next → would start the order over (Lars, 2026-11-18).
     shownId: liveItemId,
-    editHref: (item) => {
-      const route = songPage(item, songs);
-      return route && href(route);
-    },
     onEditImages: (item) => setEditingImages(item.id),
     onAddAfter: (item, choice) => choose(item.id, choice),
     ...texts.menu,

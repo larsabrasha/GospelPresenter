@@ -89,9 +89,9 @@ pub fn presentation_actions(a: &Obj) -> R<Value> {
     Ok(json!({ "groups": groups }))
 }
 
-/// `itemActionsView` {item, song, arrangements, overlays, shownId}: an item's menu (the web's ItemContextMenu.tsx), the
+/// `itemActionsView` {item: {id, type, sourceId, arrangementId, overlayId}, song, arrangements, overlays, shownId}: an item's menu (the web's ItemContextMenu.tsx), the
 /// same on its row, its heading's … and a phone's sheet: opening it (Byt namn for a programme item; Redigera for a song
-/// not in the trash or a custom slide, the pictures for a picture item) and Kommentar; Arrangemang › with two or more,
+/// not in the trash or a custom slide, the pictures for a picture item, each with where it `opens`) and Kommentar; Arrangemang › with two or more,
 /// for a song not in the trash, and Överlägg › while there are overlays, for anything but a programme item; Lägg till
 /// efter › and Markera (no "Ny programpunkt ovanför": Lars, 2026-11-18, spec 03 2d); and Radera, not for the item on the outputs. `song` is the item's song
 /// (or null), `arrangements` its arrangements in their order, `overlays` the organisation's, `shownId` the item on the
@@ -105,8 +105,19 @@ pub fn item_actions(a: &Obj) -> R<Value> {
     let list = |k: &str| a.get(k).and_then(Value::as_array).cloned().unwrap_or_default();
     let mut open = vec![];
     if kind == "header" { open.push(action("rename", "header.rename")) }
-    if kind == "custom" || song_here { open.push(action("edit", "presentation.editSong")) }
-    if kind == "image" { open.push(action("editImages", "presentation.editImages")) }
+    // Where each leads (`opens`): a song's page, a custom slideshow's editor (docs/custom-slides.md), an image item's
+    // pictures; `id` the song or slideshow (the item's `sourceId`) or the item.
+    let source = item.get("sourceId").cloned().unwrap_or(Value::Null);
+    if kind == "custom" || song_here {
+        let mut edit = action("edit", "presentation.editSong");
+        edit["opens"] = json!({ "page": if kind == "custom" { "customSlide" } else { "song" }, "id": source });
+        open.push(edit);
+    }
+    if kind == "image" {
+        let mut edit = action("editImages", "presentation.editImages");
+        edit["opens"] = json!({ "page": "images", "id": id });
+        open.push(edit);
+    }
     open.push(action("note", "note.title"));
     let mut show = vec![];
     if kind != "header" {

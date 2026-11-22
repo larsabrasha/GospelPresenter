@@ -11,6 +11,8 @@ import { afterWrite } from '../../ui/debounce.ts';
 import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
 import { CheckIcon, CheckSquareIcon, ChevronRightIcon, CommentIcon, PencilIcon, PlusIcon, QueueListIcon, SquaresOverlapOutlineIcon, TrashIcon } from '../../ui/icons.tsx';
+import { href } from '../../ui/router.ts';
+import { editRoute } from './songPage.ts';
 
 /** What an item's menu needs from the page it is on, the same wherever it opens. */
 export interface ItemMenuSource {
@@ -19,8 +21,6 @@ export interface ItemMenuSource {
   overlays: Overlay[];
   /** The item on the outputs while presenting, black or not, which cannot be removed nor ticked. */
   shownId: string | null;
-  /** A song's page, opened alone in Inställningar. */
-  editHref: (item: PresentationItem) => string | undefined;
   /** A picture item's order and removal, in place. */
   onEditImages?: (item: PresentationItem) => void;
   /** Lägg till efter: a kind from the dialog, or a heading, after this item. */
@@ -130,7 +130,8 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   // What the menu offers is the core's, the same for every shell (`itemActionsView`, docs/view-models.md); this draws it.
   const song = item.type === 'song' ? (source.songs.get(item.sourceId) ?? null) : null;
   const offered = itemActions({ item, song, arrangements: sortedArrangements(source.arrangements, item.sourceId), overlays: source.overlays, shownId: source.shownId });
-  const songHref = offered.has('edit') ? source.editHref(item) : undefined;
+  const edit = editRoute(offered.get('edit'));
+  const songHref = edit && href(edit);
   const arrangement = offered.get('arrangement');
   const arrangementList = arrangementChoices(arrangement);
   const arrangementId = arrangement?.chosen ?? '';
