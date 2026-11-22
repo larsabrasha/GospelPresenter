@@ -94,7 +94,7 @@ extension SyncClient {
     }
 
     /// A JSON value as SQLite takes it: a whole number as an integer.
-    nonisolated static func sqlValue(_ v: Any) -> SqlValue {
+    nonisolated public static func sqlValue(_ v: Any) -> SqlValue {
         switch v {
         case let s as String: .text(value: s)
         case let n as NSNumber where CFNumberIsFloatType(n): .real(value: n.doubleValue)

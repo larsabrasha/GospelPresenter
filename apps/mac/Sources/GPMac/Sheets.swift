@@ -81,8 +81,8 @@ private struct SheetBar: ViewModifier {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { cancelButton }
-                    ToolbarItem(placement: .confirmationAction) { confirmButton.disabled(disabled) }
+                    ToolbarItem(placement: .cancellationAction) { cancelButton.accessibilityIdentifier("sheet-cancel") }
+                    ToolbarItem(placement: .confirmationAction) { confirmButton.disabled(disabled).accessibilityIdentifier("sheet-confirm") }
                 }
         }
     }

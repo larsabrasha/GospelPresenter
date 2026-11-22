@@ -1,6 +1,6 @@
 import type { Theme, Verse } from '@gp/core';
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { bibleSlides, bookInfo, limits, verseSearchPlan } from '../db/pageCore.ts';
+import { bibleSlides, bookInfo, limits, pageCore, verseSearchPlan } from '../db/pageCore.ts';
 import { useData, useDataReading, useDb } from '../db/react.tsx';
 import { listBibles } from '../db/queries.ts';
 import { language, t } from '../i18n.ts';
@@ -44,9 +44,22 @@ interface BibleRead {
 /** What a translation's text is read again after: it arriving, or going. */
 const TEXT_TABLES = ['bible_texts', 'bible_blobs'];
 
+/** The browse after `event`, and what follows from it, by the core's rule (`bibleBrowseView`): the step's prompt, the
+ * chapter whose verses are shown, which of them are picked, and what bibleView is asked. */
+interface Browsed {
+  browse: Browse;
+  prompt: (typeof PROMPTS)[number];
+  verseChapter: number | null;
+  picked: { from: number; to: number | null } | null;
+  ask: { book: string; chapter?: number; passage?: { books: string[]; from: [number, number]; to: [number, number] } };
+}
+type BrowseEvent = { type: 'book'; book: string } | { type: 'chapter' | 'verse'; n: number } | { type: 'step'; step: Step };
+/** The prompts `bibleBrowseView` answers with, written out so each is known to be used (packages/architecture). */
+const PROMPTS = ['bible.pickBook', 'bible.pickStartChapter', 'bible.pickStartVerse', 'bible.pickEndChapter', 'bible.pickEndVerse'] as const;
+const browsed = (browse: Browse | null, event?: BrowseEvent) => pageCore().pure<Browsed>('bibleBrowseView', { browse, ...(event ? { event } : {}) });
+
 /** A book's name in the page's language (spec 05: Swedish under sv, else English). */
 const bookName = (code: string) => (language() === 'sv' ? bookInfo(code).sv : bookInfo(code).en);
-const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 /** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
 const CELL = 'rounded-lg bg-raised/70 dark:bg-raised/50 hover:bg-raised-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
@@ -142,41 +155,21 @@ function BrowsePicker({
     <AppButton
       variant="plain"
       className={`px-2.5 py-1 rounded-full cursor-pointer ${step === target ? 'text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10' : 'text-sky-500 hover:text-sky-600 hover:bg-sky-500/10'}`}
-      onClick={() => setBrowse({ ...browse, step: target })}
+      onClick={() => go({ type: 'step', step: target })}
     >
       {label}
     </AppButton>
   );
   const blank = <span className="text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10 px-2 py-1 rounded-md">_</span>;
   const colon = <span className="text-stone-400">:</span>;
-  const prompt = {
-    book: t('bible.pickBook'),
-    startChapter: t('bible.pickStartChapter'),
-    startVerse: t('bible.pickStartVerse'),
-    endChapter: t('bible.pickEndChapter'),
-    endVerse: t('bible.pickEndVerse'),
-  }[step];
-
-  const pickChapter = (n: number) => {
-    if (step === 'startChapter') setBrowse({ ...browse, start: [n, 0], end: null, endChapter: null, step: 'startVerse' });
-    else setBrowse({ ...browse, endChapter: n, end: null, step: 'endVerse' });
-  };
-  const pickVerse = (n: number) => {
-    // The end chapter starts as the start's; the end is then picked in it.
-    if (step === 'startVerse') return setBrowse({ ...browse, start: [start![0], n], end: null, endChapter: start![0], step: 'endVerse' });
-    // An end before the start swaps them.
-    const picked: [number, number] = [browse.endChapter!, n];
-    if (start && before(picked, start)) setBrowse({ ...browse, start: picked, end: start, endChapter: start[0] });
-    else setBrowse({ ...browse, end: picked });
-  };
-  // Whether a verse of `chapter` is in the chosen range: the start alone until there is an end.
-  const pickedIn = (chapter: number) => (v: number) => {
-    if (!start || start[1] === 0) return false;
-    if (!end) return chapter === start[0] && v === start[1];
-    const p: [number, number] = [chapter, v];
-    return !before(p, start) && !before(end, p);
-  };
-  const verseChapter = verseChapterOf(browse);
+  const now = browsed(browse);
+  const prompt = t(now.prompt);
+  const go = (event: BrowseEvent) => setBrowse(browsed(browse, event).browse);
+  const pickChapter = (n: number) => go({ type: 'chapter', n });
+  const pickVerse = (n: number) => go({ type: 'verse', n });
+  // Whether a verse of the chapter shown is in the chosen range: the start alone until there is an end.
+  const pickedIn = (v: number) => !!now.picked && v >= now.picked.from && (now.picked.to === null || v <= now.picked.to);
+  const verseChapter = now.verseChapter;
   const hasStartVerse = !!start && start[1] > 0;
 
   return (
@@ -218,16 +211,13 @@ function BrowsePicker({
         <p className="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">{prompt}</p>
       </div>
       <div className="mt-3 flex-1 min-h-0 flex flex-col">
-        {step === 'book' && <BookPicker books={books} onPick={(b) => setBrowse({ book: b, step: 'startChapter', start: null, end: null, endChapter: null })} />}
+        {step === 'book' && <BookPicker books={books} onPick={(b) => go({ type: 'book', book: b })} />}
         {(step === 'startChapter' || step === 'endChapter') && read?.chapters && <ChapterPicker key={step} chapters={read.chapters} label={prompt} onPick={pickChapter} />}
-        {verseChapter !== null && read?.verses && <VersePicker key={`${step}${verseChapter}`} verses={read.verses} label={prompt} picked={pickedIn(verseChapter)} onPick={pickVerse} />}
+        {verseChapter !== null && read?.verses && <VersePicker key={`${step}${verseChapter}`} verses={read.verses} label={prompt} picked={pickedIn} onPick={pickVerse} />}
       </div>
     </div>
   );
 }
-
-/** The chapter whose verses a browse shows, if it shows a chapter's verses. */
-const verseChapterOf = (b: Browse) => (b.step === 'startVerse' ? b.start![0] : b.step === 'endVerse' ? b.endChapter : null);
 
 /**
  * What the tab asks the core's bibleView besides the books: a browsed book's chapters, the chapter's verses and the
@@ -235,11 +225,7 @@ const verseChapterOf = (b: Browse) => (b.step === 'startVerse' ? b.start![0] : b
  * the translation's books (BIBLE-R11). Null when it needs nothing more.
  */
 function bibleAsk(browse: Browse | null, query: string, books: string[] | null | undefined) {
-  if (browse) {
-    const chapter = verseChapterOf(browse);
-    const picked = browse.start && browse.start[1] > 0;
-    return { book: browse.book, ...(chapter !== null && { chapter }), ...(picked && { passage: { books: [browse.book], from: browse.start, to: browse.end ?? browse.start } }) };
-  }
+  if (browse) return browsed(browse).ask;
   const plan = books && query.trim() ? verseSearchPlan(query, books) : null;
   return plan && { passage: { books: plan.codes, from: plan.from, to: plan.to } };
 }
@@ -421,7 +407,7 @@ export function BibleTab({
               {found.length > shown.length && <p className="text-center text-stone-400 text-xs py-1">{t('bible.showing', { n: shown.length, total: found.length })}</p>}
             </div>
           )}
-          {books && !query.trim() && !browse && <BookPicker books={books} onPick={(book) => setBrowse({ book, step: 'startChapter', start: null, end: null, endChapter: null })} />}
+          {books && !query.trim() && !browse && <BookPicker books={books} onPick={(book) => setBrowse(browsed(null, { type: 'book', book }).browse)} />}
           {books && !query.trim() && browse && <BrowsePicker browse={browse} books={books} read={read} setBrowse={setBrowse} onBack={() => setBrowse(null)} />}
         </div>
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3 pt-3 md:pt-0">

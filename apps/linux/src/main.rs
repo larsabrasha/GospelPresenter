@@ -1,6 +1,8 @@
 // Gospel Presenter for Linux (docs/linux-app.md): GTK 4 and libadwaita over the Rust core, linked in as a crate. The
 // core decides what each page shows and what each key and tap does, through the terminal shell's App
 // (crates/gp-tui/src/app.rs); this draws it with GTK's own widgets and paints slides from the core's layout.
+mod adding;
+mod adding_bible;
 mod faces;
 mod image_items;
 mod item_menu;

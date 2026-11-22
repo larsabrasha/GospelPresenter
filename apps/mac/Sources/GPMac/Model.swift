@@ -56,6 +56,8 @@ final class Model {
     /// A one-line question open (a programme item's name, a comment), and Lägg till sång open, after which item.
     var prompt: TextPrompt?
     var addingSong: AddAt?
+    /// Lägg till of another kind open (a Bible text, a library's file or slideshow; AddSheets.swift, BibleSheet.swift).
+    var addingKind: AddKindAt?
     /// An item whose removal asks first.
     var removing: ItemView?
     /// Noter och länkar open over the page (PresentationMaterials.swift).

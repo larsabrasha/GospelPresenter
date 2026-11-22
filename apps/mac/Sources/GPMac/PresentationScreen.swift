@@ -38,6 +38,9 @@ struct PresentationScreen: View {
                 }
                 .sheet(isPresented: $editing) { DetailsSheet(presentationId: p.id) }
                 .sheet(item: Bindable(model).addingSong) { at in AddSongSheet(at: at) }
+                .sheet(item: Bindable(model).addingKind) { at in
+                    if at.kind == "bible" { BibleSheet(at: at) } else { AddLibrarySheet(at: at) }
+                }
                 // Redigera from an item's menu: the song's page, the slideshow's editor or the item's pictures, over
                 // the page, which it returns to when closed.
                 .sheet(item: Bindable(model).editing) { target in ItemEditing(target: target, p: p) }

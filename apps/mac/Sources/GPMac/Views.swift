@@ -50,6 +50,7 @@ enum JSONValue: Codable, Hashable {
 
     subscript(_ key: String) -> JSONValue? { if case let .object(o) = self { o[key] } else { nil } }
     var string: String? { if case let .string(s) = self { s } else { nil } }
+    var number: Double? { if case let .number(n) = self { n } else { nil } }
 
     /// As JSONSerialization takes it: the value handed back to the core in a view's arguments.
     var any: Any {

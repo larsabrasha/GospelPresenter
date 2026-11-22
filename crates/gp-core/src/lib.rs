@@ -1,5 +1,7 @@
+mod add_pick;
 mod args;
 mod bible;
+mod bible_browse;
 mod bible_books;
 mod bible_import;
 mod bible_view;

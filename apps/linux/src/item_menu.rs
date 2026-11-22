@@ -1,7 +1,7 @@
 // An item's menu, the same on its row in the running order (a right click or a long press, as GNOME's lists) and on
 // its heading's ⋯ (the web's ItemContextMenu.tsx, the Mac app's ItemMenus.swift). What it offers, in which groups and
 // which can be chosen, is the core's (`itemActionsView`); this draws it as GNOME's popover menu, a group a section.
-// Not here yet, so left out: Redigera of a song or a slideshow (their pages), Lägg till efter (adding).
+// Not here yet, so left out: Redigera of a song or a slideshow (their pages).
 use crate::shell::Shell;
 use adw::prelude::*;
 use gtk::gio;
@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use std::rc::Rc;
 
 /// The entries this app draws; the core's others wait for their pages.
-const DRAWN: [&str; 7] = ["rename", "editImages", "note", "arrangement", "overlay", "tick", "delete"];
+const DRAWN: [&str; 8] = ["rename", "editImages", "note", "arrangement", "overlay", "addAfter", "tick", "delete"];
 
 /// The menu of `item_id`, popped up over `anchor`: GTK's own popover menu, each entry an action of a group of its own
 /// on the anchor (`item.*`), disabled as the core says; Arrangemang › and Överlägg › submenus of radio entries.
@@ -18,6 +18,7 @@ pub fn pop_up(shell: &Rc<Shell>, item_id: &str, anchor: &impl IsA<gtk::Widget>) 
     let groups = shell.model.borrow_mut().item_actions(item_id);
     let menu = gio::Menu::new();
     let actions = gio::SimpleActionGroup::new();
+    let mut anchor_after = false;
     for group in &groups {
         let section = gio::Menu::new();
         for a in group["actions"].as_array().into_iter().flatten() {
@@ -25,6 +26,11 @@ pub fn pop_up(shell: &Rc<Shell>, item_id: &str, anchor: &impl IsA<gtk::Widget>) 
             if !DRAWN.contains(&id) { continue }
             let text = t(a["text"].as_str().unwrap_or(""), &[]);
             match id {
+                "addAfter" => {
+                    // Lägg till efter ›: the kinds, each added after this item (adding.rs).
+                    section.append_submenu(Some(&text), &crate::adding::kinds_menu(shell, "after"));
+                    anchor_after = true;
+                }
                 "arrangement" | "overlay" => {
                     section.append_submenu(Some(&text), &choices(a, id));
                     actions.add_action(&choice_action(shell, item_id, a, id));
@@ -43,6 +49,7 @@ pub fn pop_up(shell: &Rc<Shell>, item_id: &str, anchor: &impl IsA<gtk::Widget>) 
     }
     let anchor = anchor.as_ref();
     anchor.insert_action_group("item", Some(&actions));
+    if anchor_after { anchor.insert_action_group("after", Some(&crate::adding::kinds_actions(shell, Some(item_id)))) }
     let popover = gtk::PopoverMenu::from_model(Some(&menu));
     popover.set_parent(anchor);
     popover.connect_closed(|p| { let p = p.clone(); gtk::glib::idle_add_local_once(move || p.unparent()); });

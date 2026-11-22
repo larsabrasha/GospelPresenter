@@ -6,7 +6,7 @@
 // and Markera's select mode in the running order (ticking.rs). Not built yet: Lägg till, the description card, folding
 // and resizing the columns, the outputs and overlays in the live column, dragging.
 use crate::shell::Shell;
-use crate::{item_menu, presentation_menu, ticking, tiles};
+use crate::{adding, item_menu, presentation_menu, ticking, tiles};
 use adw::prelude::*;
 use gp_tui::dates::subtitle;
 use gp_tui::keys::Action;
@@ -104,10 +104,17 @@ impl Page {
         });
         let (_, order_width) = m.column("runningOrder");
         let order_scroll = gtk::ScrolledWindow::builder().child(&order).hscrollbar_policy(gtk::PolicyType::Never).vexpand(true).build();
+        // Lägg till under the items: the kinds the core lists (adding.rs).
+        let add = gtk::MenuButton::builder().label(t("live.add", &[])).css_classes(["suggested-action", "pill"]).halign(gtk::Align::Start)
+            .margin_start(12).margin_top(8).margin_bottom(12).menu_model(&adding::kinds_menu(shell, "add")).build();
+        add.insert_action_group("add", Some(&adding::kinds_actions(shell, None)));
+        let order_column = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        order_column.append(&order_scroll);
+        order_column.append(&add);
         let ticks = gtk::Box::new(gtk::Orientation::Vertical, 0);
         // Its width the column's, the select mode's bar (which spreads its buttons apart) not widening it.
         let order_stack = gtk::Stack::builder().width_request(order_width).hexpand(false).build();
-        order_stack.add_named(&order_scroll, Some("order"));
+        order_stack.add_named(&order_column, Some("order"));
         order_stack.add_named(&ticks, Some("ticks"));
 
         // Every item's slides under its heading.

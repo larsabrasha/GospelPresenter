@@ -253,24 +253,32 @@ struct MediaLibraryPage: View {
         exporting = docs
     }
 
-    /// Each file taken as the core says, or refused with its reason; the names refused said together.
+    /// Each file taken as the core says, or refused with its reason (MediaImporter).
     private func importFiles(_ urls: [URL]) async {
+        message = await MediaImporter.run(kind, urls, model: model) { busy = $0 }
+    }
+}
+
+/// Files put in a library (Inställningar's and Lägg till's Importera), each taken as the core says (`mediaImportView`) or
+/// refused with its reason, the names refused said together.
+enum MediaImporter {
+    @MainActor static func run(_ kind: MediaKind, _ urls: [URL], model: Model, state busy: @escaping (String?) -> Void) async -> String? {
         var failed: [String] = []
         for (n, url) in urls.enumerated() {
-            busy = t("images.importing", ["i": n + 1, "n": urls.count])
+            busy(t("images.importing", ["i": n + 1, "n": urls.count]))
             let ok = url.startAccessingSecurityScopedResource()
             defer { if ok { url.stopAccessingSecurityScopedResource() } }
             switch kind {
-            case .image: if !importImage(url) { failed.append(url.lastPathComponent) }
-            case .audio: if !importAudio(url) { failed.append(url.lastPathComponent) }
-            case .video: if let why = await VideoImport.run(url, model: model, state: { busy = $0 }) { failed.append(why) }
+            case .image: if !importImage(url, model) { failed.append(url.lastPathComponent) }
+            case .audio: if !importAudio(url, model) { failed.append(url.lastPathComponent) }
+            case .video: if let why = await VideoImport.run(url, model: model, state: busy) { failed.append(why) }
             }
         }
-        busy = nil
-        if !failed.isEmpty { message = t("\(kind.library).failed", ["n": failed.count]) + "\n" + failed.joined(separator: "\n") }
+        busy(nil)
+        return failed.isEmpty ? nil : t("\(kind.library).failed", ["n": failed.count]) + "\n" + failed.joined(separator: "\n")
     }
 
-    private func importImage(_ url: URL) -> Bool {
+    @MainActor private static func importImage(_ url: URL, _ model: Model) -> Bool {
         guard let p = PictureFiles.keep(url, model: model) else { return false }
         return change(model, "addImage", ["id": UUID().uuidString.lowercased(), "fileName": url.lastPathComponent, "contentType": "image/jpeg",
                                           "fullHash": p.full, "thumbHash": p.thumb, "width": p.width, "height": p.height, "createdAt": nowMs()]) == nil
@@ -278,7 +286,7 @@ struct MediaLibraryPage: View {
 
     private struct AudioPlan: Decodable { let refused: String?, contentType: String? }
 
-    private func importAudio(_ url: URL) -> Bool {
+    @MainActor private static func importAudio(_ url: URL, _ model: Model) -> Bool {
         guard let data = try? Data(contentsOf: url) else { return false }
         // No type reported (a Mac names some otherwise than a browser, audio/vnd.wave): the extension stands for it, and
         // the type kept is what the first bytes say, as the web's readAudio sniffs it.

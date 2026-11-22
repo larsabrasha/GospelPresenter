@@ -1,8 +1,8 @@
 // Redigera from an item's menu (the web's ItemContextMenu.tsx and ItemParts.tsx): a song's page, a custom slideshow's
 // editor, or an image item's own pictures, in a sheet over the presentation, which they return to when closed. Where
 // each leads is the core's (`itemActionsView`'s `opens`). A song's page and the slideshow's editor are Inställningar's
-// own; the pictures are the item's: dragged to a new order, each removed after a question. Adding more pictures waits
-// for adding a picture (docs/native-parity.md, round 5).
+// own; the pictures are the item's: dragged to a new order, each removed after a question, more added from the library
+// (AddLibrarySheet with the item).
 import SwiftUI
 
 /// What Redigera opened: the page and its id (a song, a slideshow, an item).
@@ -44,6 +44,7 @@ struct ImageItemEditor: View {
     let itemId: String
     let p: PresentationView
     @State private var removing: Int?
+    @State private var adding: AddKindAt?
 
     /// A picture's place in the item's own list (its slide's key, `image{n}`): a picture gone is not shown, so the
     /// place among those shown may be another.
@@ -80,6 +81,12 @@ struct ImageItemEditor: View {
             }
         }
         .navigationTitle(item?.title ?? "")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(t("presentation.addMoreImages"), systemImage: "plus") { adding = AddKindAt(kind: "image", after: nil, toItemId: itemId) }
+            }
+        }
+        .sheet(item: $adding) { at in AddLibrarySheet(at: at) }
         .confirmationDialog(t("common.delete"), isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button(t("common.delete"), role: .destructive) {
                 if let n = removing { model.run("removeItemImage", ["itemId": itemId, "index": n]) }

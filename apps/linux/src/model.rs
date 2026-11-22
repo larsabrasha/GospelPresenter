@@ -61,6 +61,14 @@ impl Model {
         Painted { layout, label }
     }
 
+    /// A slide not in a page (a preview of one to add), laid out by the core in the open presentation's theme.
+    pub fn preview_layout(&mut self, slide: &Value) -> Option<Rc<SlideLayout>> {
+        let pid = self.app.open_id()?.to_string();
+        let theme = self.page(&pid)["theme"].clone();
+        self.app.core().call("slideLayoutView", json!({ "slide": slide, "theme": theme, "overlay": null })).ok()
+            .and_then(|v| serde_json::from_value(v).ok()).map(Rc::new)
+    }
+
     /// The item shown while the open page is presented, black or not: it cannot be removed nor ticked.
     fn shown_id(&self) -> Value { if self.app.is_live() { json!(self.app.live.item_id) } else { Value::Null } }
 

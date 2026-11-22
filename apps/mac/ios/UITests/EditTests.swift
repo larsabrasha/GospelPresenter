@@ -9,7 +9,7 @@ final class EditTests: XCTestCase {
         let repo = try XCTUnwrap(ProcessInfo.processInfo.environment["GP_REPO"], "run by apps/mac/apple.sh uitest")
         sv = try swedishTexts(repo)
         let app = XCUIApplication()
-        app.launchArguments = ["-gp.demo", "YES", "-gp.open", presentation, "-AppleLanguages", "(sv)", "-AppleLocale", "sv_SE"]
+        app.launchArguments = ["-gp.demo", "YES", "-gp.fresh", "YES", "-gp.open", presentation, "-AppleLanguages", "(sv)", "-AppleLocale", "sv_SE"]
         app.launch()
         return app
     }

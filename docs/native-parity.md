@@ -46,7 +46,9 @@ is shared; each platform's part is checked off in its own section below.
   an image item's pictures; 3 tests in packages/rust-core/test/page-models.test.ts); the web reads it (`editRoute`)
 - [x] 4 Noter och länkar: `presentationMaterialsView` (crates/gp-core/src/song_page.rs; 4 tests in
   packages/rust-core/test/views.test.ts); the web's PresentationMaterials reads it
-- [ ] 5 Lägg till, every kind
+- [x] 5 Lägg till, every kind: `bibleBrowseView` (the Bible tab's browse, crates/gp-core/src/bible_browse.rs, 9 tests)
+  and `addPickView` (a library's pick and the command that adds it, add_pick.rs, 10 tests); the web's BibleTab and
+  ImageTab read them
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
@@ -70,7 +72,12 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 4 Noter och länkar: in the presentation's menu, a sheet of the songs' materials; a link opens in the browser, a
   file in Quick Look (PresentationMaterials.swift). `MaterialsTests` on an iPhone 17 Pro Max with its own data
   (UITests/materials.json). Not tried: a file opened from it
-- [ ] 5 Lägg till, every kind
+- [~] 5 Lägg till, every kind: + and Lägg till efter offer every kind; Bibeltext (BibleSheet.swift: search, browse,
+  the slides previewed, a translation not kept fetched for the sheet), Bild, Ljud, Video, Bildspel (AddSheets.swift,
+  Importera for files; Redigera bilder's + adds to the item). `AddTests` (4) on an iPhone 17 Pro Max, with a sample
+  translation in UITests/adding.json (the fixture loader's `importBibleZip`). Gaps: the library sheets keep iOS's
+  search, which hides the bar's Lägg till while typing (as Lägg till sång's does); several pictures at once not tried
+  in a test (the demo has one; the core's test covers the title); a translation fetched from a host not tried
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning
@@ -86,7 +93,7 @@ Its base, from docs/linux-app.md's "Not built":
 
 - [ ] Signing in to a host and sync (the app opens a database file as the demo's caller now)
 - [ ] Skapa presentation, the presentation's menu's Redigera detaljer (the menu itself and Radera: round 4)
-- [ ] + with Sång and Programpunkt
+- [x] + with Sång and Programpunkt (round 5)
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
 - [ ] The description card; folding the columns
@@ -109,7 +116,12 @@ The rounds:
   in a dialog, a link opened by the desktop's browser. Pictures light and dark of the menu, a song's link and the
   empty page. Not tried: a link opened (no browser in the image), Radera presentation in pictures; a file is listed
   but not opened (media files are the base's)
-- [ ] 5 Lägg till, every kind
+- [~] 5 Lägg till, every kind: Lägg till under the running order and Lägg till efter › in an item's menu, the kinds
+  from `pageButtonsView` (adding.rs): Sång (searched), Programpunkt (named), Bibeltext (adding_bible.rs: searched,
+  browsed with crumbs, the slides painted), Bild, Ljud, Video, Bildspel (picked from the library). Pictures light and
+  dark of the kinds, Joh 3:16 searched and added, 3:16–18 browsed, a song and a picture added. Gaps: no Importera (the
+  app has no media files of its own yet), a translation not kept on this device is not offered (no sync), more than
+  500 verses are cut without the question
 - [ ] 6 Mallar and Spara som mall
 - [ ] 7 Utgångar
 - [ ] 8 Fjärrstyrning

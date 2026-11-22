@@ -79,7 +79,11 @@ Redigera bilder (an image item's pictures moved and removed, image_items.rs); th
 (Noter och länkar in a dialog, Radera presentation asked first; presentation_menu.rs); the page is built again when its items
 change.
 
-Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, Lägg till
-(and Lägg till efter, Redigera of a song or a slideshow in the menu), the description card, folding and resizing the columns, the outputs and overlays in the live column,
+Lägg till and Lägg till efter › with every kind (adding.rs, adding_bible.rs; 2026-11-22): a song, a programme item, a
+Bible text searched or browsed, a library's pictures, sounds, videos or slideshows; `GP_DEMO=demo-bible.sqlite` is the
+demo with the sample translation of packages/rust-core/test/bible-fixtures.ts, made by hand for the pictures.
+
+Not built: signing in and sync (the app opens a database file as the demo's caller), Skapa presentation, importing
+files, Redigera of a song or a slideshow in the menu, the description card, folding and resizing the columns, the outputs and overlays in the live column,
 media files (pictures show where the folder beside the database holds them), audio and video, Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

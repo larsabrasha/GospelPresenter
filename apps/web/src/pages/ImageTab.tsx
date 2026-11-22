@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { LibraryImage } from '@gp/core';
+import { pageCore } from '../db/pageCore.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/images.ts';
 import { t } from '../i18n.ts';
@@ -20,6 +21,13 @@ import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a file goes to the trash: this device's clock. */
 const trashedAt = () => Date.now();
+
+/** The pick and the command that adds it (`addPickView`); `title` names an item of several pictures. */
+interface AddPick {
+  picked: string[];
+  add: { name: 'addImageToPresentation' | 'addImagesToItem'; args: { itemId: string } & Record<string, unknown> } | null;
+  title: { key: 'presentation.imagesWord'; n: number } | null;
+}
 
 /**
  * The add-item modal's picture tab (AddItem/Image/ImageTab.razor): the library, where a click
@@ -57,23 +65,22 @@ export function ImageTab({
   const shown = images?.filter((i) => !q || i.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
   const chosen = (images ?? []).filter((i) => picked.includes(i.id)).toSorted((a, b) => picked.indexOf(a.id) - picked.indexOf(b.id));
   const grid = useRovingList(shown.length, 'grid');
-  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  // What a tap picks and which command adds the pick are the core's (`addPickView`), the same in every shell.
+  const pickView = (event?: { type: 'toggle'; id: string }) =>
+    pageCore().pure<AddPick>('addPickView', { kind: 'image', picked, presentationId, itemId: newId(), afterItemId, ...(toItemId ? { toItemId } : {}), ...(event ? { event } : {}) });
+  const toggle = (id: string) => setPicked(pickView({ type: 'toggle', id }).picked);
 
   const add = async () => {
     // Once at a time, as ImageTab.razor's isAdding: a held key adds one item.
     if (!chosen.length || adding.current) return;
     adding.current = true;
     try {
-      const imageIds = chosen.map((i) => i.id);
-      if (toItemId) {
-        if (!(await trySave(db.mutate('addImagesToItem', { itemId: toItemId, imageIds })))) return;
-        onAdded(toItemId);
-      } else {
-        const itemId = newId();
-        const title = chosen.length === 1 ? undefined : t('presentation.imagesWord', { n: chosen.length });
-        if (!(await trySave(db.mutate('addImageToPresentation', { itemId, presentationId, imageIds, title, afterItemId })))) return;
-        onAdded(itemId);
-      }
+      const { add: command, title } = pickView();
+      if (!command) return;
+      const args = { ...command.args, ...(title && { title: t(title.key, { n: title.n }) }) };
+      // The core's arguments for its own command, as its mutator checks them.
+      if (!(await trySave(db.mutate(command.name, args as never)))) return;
+      onAdded(args.itemId);
       toast(chosen.length === 1 ? t('presentation.added', { name: chosen[0]!.fileName }) : t('presentation.imagesAdded', { n: chosen.length }));
       setPicked([]);
     } finally {

@@ -69,18 +69,13 @@ struct ItemMenu: View {
 }
 
 /// What + adds: the kinds, their texts, icons and order the core's (`pageButtonsView`'s Lägg till, the web's), the one
-/// set apart under a line. `chosen` is the item "Lägg till efter" named, none for +. Not here yet, so left out: Bibeltext,
-/// Bild, Ljud, Video, Bildspel.
+/// set apart under a line. `chosen` is the item "Lägg till efter" named, none for +.
 struct AddChoices: View {
     @Environment(Model.self) private var model
     let chosen: String?
 
-    /// The kinds this app can add.
-    private static let drawn: Set = ["song", "header"]
-
     var body: some View {
         let kinds = (model.view("pageButtonsView", ["place": "runningOrder"], as: PageButtons.self)?.buttons.first { $0.id == "add" }?.choices ?? [])
-            .filter { Self.drawn.contains($0.id) }
         ForEach(kinds, id: \.id) { k in
             if k.apart == true { Divider() }
             Button(t(k.text ?? k.id), systemImage: Look.symbol(k.icon)) { add(k.id) }
@@ -90,7 +85,8 @@ struct AddChoices: View {
 
     private func add(_ kind: String) {
         let after = model.afterFor(chosen)
-        guard kind == "header" else { model.addingSong = AddAt(after: after); return }
+        if kind == "song" { model.addingSong = AddAt(after: after); return }
+        guard kind == "header" else { model.addingKind = AddKindAt(kind: kind, after: after); return }
         model.prompt = TextPrompt(title: t("header.new"), label: t("header.name"), text: "", rule: model.rule("itemTitle")) { title in
             let itemId = model.newId()
             var args: [String: Any] = ["itemId": itemId, "presentationId": model.selectedPresentation ?? "", "title": title]

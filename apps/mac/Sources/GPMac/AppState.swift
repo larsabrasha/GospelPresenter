@@ -148,6 +148,8 @@ final class AppState {
     func openDemo() {
         let files = FileManager.default
         let path = "\(Self.home)/app.sqlite", demo = "\(Self.home)/demo.sqlite"
+        // `-gp.fresh YES`: the demo as it was shipped, for a UI test that changes it (apps/mac/ios/UITests).
+        if UserDefaults.standard.bool(forKey: "gp.fresh") { for end in ["", "-wal", "-shm"] { try? files.removeItem(atPath: path + end) } }
         if !files.fileExists(atPath: path) {
             // Run from the repository outside build.sh run, the app has no demo of its own: said, not a crash.
             guard let source = files.fileExists(atPath: demo) ? demo : Bundle.main.path(forResource: "demo", ofType: "sqlite") else {
@@ -184,10 +186,24 @@ final class AppState {
         _ = core.command("migrateOrgSchema", json: "{}", caller: nil)
         for step in setup {
             guard step.count == 2, let name = step[0] as? String else { continue }
+            if name == "importBibleZip", let zip = (step[1] as? [String: Any])?["data"] as? String { Self.importBible(zip, into: core, db: db); continue }
             _ = core.mutate(["name": name, "args": step[1], "ctx": ["userId": "fixture", "role": "admin", "now": 1000]])
         }
         store = .demo(core)
         changed()
+    }
+
+    private struct FixtureBible: Decodable { let name: String, abbreviation: String, language: String?, hash: String, json: String }
+    private struct FixtureStore: Decodable { struct Statement: Decodable { let sql: String, params: [JSONValue] }; let store: [Statement] }
+
+    /// A fixture's Bible, a zip as Biblar's import reads it (`bibleImportTextView`), its text kept as a kept one is
+    /// (`bibleTextStoreView`) and `importBible` run: for the UI tests of Lägg till Bibeltext.
+    private static func importBible(_ zip: String, into core: Core, db: Database) {
+        guard let b = core.view("bibleImportTextView", ["data": zip], as: FixtureBible.self),
+              let store = core.view("bibleTextStoreView", ["hash": b.hash, "json": b.json], as: FixtureStore.self) else { return }
+        for st in store.store { _ = try? db.query(st.sql, st.params.map { SyncClient.sqlValue($0.any) }) }
+        let args: [String: Any] = ["name": b.name, "abbreviation": b.abbreviation, "contentHash": b.hash, "language": b.language ?? NSNull()]
+        _ = core.mutate(["name": "importBible", "args": args, "ctx": ["userId": "fixture", "role": "admin", "now": 1000]])
     }
 
     /// Back to the start: the session forgotten (the organisation's database stays for the next sign-in), every window
