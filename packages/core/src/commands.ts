@@ -16,10 +16,10 @@ import { syncStepView } from './sync-driver.ts';
 export type { DriverEffect } from './sync-driver.ts';
 import { syncStatusView } from './sync-status.ts';
 
-/** A statement's rows as arrays, in column order. */
-export type Rows = unknown[][];
-/** Runs one statement in the caller's transaction: synchronous on the server's drivers, async on wa-sqlite. */
-export type RunSql = (sql: string, params: unknown[]) => Rows | Promise<Rows>;
+import type { Rows, RunSql } from './views/sql.ts';
+import { pureViews as groupPureViews, views as groupViews } from './views/index.ts';
+
+export type { Rows, RunSql } from './views/sql.ts';
 /** The same, synchronous: the server opening a database (a Durable Object's `transactionSync`, node's drivers). */
 export type RunSqlSync = (sql: string, params: unknown[]) => Rows;
 
@@ -104,11 +104,13 @@ export function runCommandSync(name: string, sql: RunSqlSync): void {
 /** The views that read the database, through the shell's statements under its lock. */
 const views: Record<string, (args: unknown, sql: RunSql) => Promise<unknown>> = {
   syncStepView,
+  ...groupViews,
 };
 
 /** The views that read nothing but their arguments: a page calls them on its own thread, at once. */
 const pureViews: Record<string, (args: unknown) => unknown> = {
   syncStatusView,
+  ...groupPureViews,
 };
 
 /** Whether the TS core has the view `name`, and whether it reads no database. */
