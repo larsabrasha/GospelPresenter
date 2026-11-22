@@ -17,5 +17,5 @@ serde = { version = "1", features = ["derive"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 # 0.30, not 0.29: 0.29 pins unicode-width at =0.2.0, which would take the workspace's textwrap back from 0.2.3.
 ratatui = "0.30"
-# The device's date for the start page (`today`) and a date's Swedish name ("ons 19 november").
-chrono = { version = "0.4", default-features = false, features = ["clock", "unstable-locales"] }
+# The device's date for the start page (`today`); a date's words are the core's (`dateLineView`).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

@@ -8,7 +8,7 @@
 use crate::shell::Shell;
 use crate::{adding, item_menu, presentation_menu, ticking, tiles};
 use adw::prelude::*;
-use gp_tui::dates::subtitle;
+use gp_tui::dates::{line, written};
 use gp_tui::keys::Action;
 use gp_tui::texts::t;
 use gp_tui::views::SlideAt;
@@ -207,9 +207,8 @@ impl Page {
         let app = &m.app;
         let Some(page) = app.page.as_ref() else { return };
         if let Some(p) = &page.presentation {
-            let when = subtitle(p, &app.today, true, true);
-            let line = if app.is_live() { [t("live.badge", &[]), when].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" · ") } else { when };
-            self.title.set_subtitle(&line);
+            // The core's date line, LIVE first while presented here (`dateLineView`).
+            self.title.set_subtitle(&written(&line(app.core(), p, &app.today, app.is_live())));
         }
         presentation_menu::attach(shell, &self.title_menu);
         replace(&self.bar_buttons, m.buttons("presentationBar").iter().filter_map(|b| button(shell, b)).collect());

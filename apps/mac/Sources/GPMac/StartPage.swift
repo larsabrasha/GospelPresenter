@@ -18,7 +18,7 @@ struct StartPage: View {
 
     @ViewBuilder private var page: some View {
         #if os(macOS)
-        mac(today: localToday())
+        mac()
             // The window keeps its name (Window menu, Mission Control); the page's heading row says it on the page.
             .navigationTitle(t("nav.presentations"))
             .titleOnlyInWindow()
@@ -37,7 +37,7 @@ struct StartPage: View {
     /// system's grouped list, as System Settings has it, its rows two lines and › from the system, in a column of the
     /// web's page width in the middle; over it, as on the web, the heading and + at its end, a Mac's own round
     /// prominent button. What the page holds and in what order is the web's (apps/web/src/pages/Presentations.tsx).
-    private func mac(today: String) -> some View {
+    private func mac() -> some View {
         Form {
             Section {} header: {
                 HStack {
@@ -60,7 +60,7 @@ struct StartPage: View {
                     Section(t(list.title)) {
                         ForEach(rows) { p in
                             NavigationLink(value: p.id) {
-                                PresentationListRow(p: p, subtitle: p.subtitle(today: today, showDate: list.showDate, withYear: list.withYear), live: p.id == model.live.id)
+                                PresentationListRow(p: p, subtitle: written(p.line), live: p.id == model.live.id)
                                     .padding(.vertical, 4)
                             }
                         }
@@ -91,8 +91,7 @@ struct StartPage: View {
 
     /// On iOS the system's inset grouped list, in a readable column on a wide screen.
     private var list: some View {
-        let today = localToday()
-        return List {
+        List {
             // Wide, the page's heading row stands over its column, + at its end, as the web's PageHeader: the system's
             // large title would stay at the screen's edge, away from the list.
             if wide {
@@ -115,7 +114,7 @@ struct StartPage: View {
             // The core's lists as they come (`startPageView`); Senast ändrade 20 at a time, the page's own paging.
             ForEach(model.lists) { list in
                 let rows = list.id == "recent" ? Array(list.rows.prefix(restShown)) : list.rows
-                section(list.title, rows, today: today, showDate: list.showDate, withYear: list.withYear)
+                section(list.title, rows)
                 if rows.count < list.rows.count {
                     Section { Button(t("common.showMore")) { restShown += 20 }.frame(maxWidth: .infinity) }
                         .listRowBackground(Color.clear)
@@ -146,12 +145,12 @@ struct StartPage: View {
     }
 
     @ViewBuilder
-    private func section(_ title: String, _ rows: [PresentationRow], today: String, showDate: Bool, withYear: Bool) -> some View {
+    private func section(_ title: String, _ rows: [PresentationRow]) -> some View {
         if !rows.isEmpty {
             Section(t(title)) {
                 ForEach(rows) { p in
                     NavigationLink(value: p.id) {
-                        PresentationListRow(p: p, subtitle: p.subtitle(today: today, showDate: showDate, withYear: withYear), live: p.id == model.live.id)
+                        PresentationListRow(p: p, subtitle: written(p.line), live: p.id == model.live.id)
                     }
                     .listRowBackground(Color.surface)
                 }

@@ -18,6 +18,19 @@ pub struct PresentationRow {
     #[serde(default)]
     pub is_template: bool,
     pub item_count: Option<i64>,
+    /// Its date line as its list shows it (`startPageView`: `dateLineView`'s parts).
+    #[serde(default)]
+    pub line: Vec<LinePart>,
+}
+
+/// A part of a date line (`dateLineView`): one of the app's texts by key (Idag, Imorgon, LIVE), or a text as it is;
+/// `of` what it is (live, date, time, place).
+#[derive(Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct LinePart {
+    pub key: Option<String>,
+    pub text: Option<String>,
+    #[serde(default)]
+    pub of: String,
 }
 
 /// One of the start page's lists as the core groups them: Idag, Kommande or Senast ändrade, in their order, an empty

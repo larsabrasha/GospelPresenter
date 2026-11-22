@@ -93,6 +93,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "remoteTakeView" => crate::remote_control::take(a),
         "addPositionView" => crate::page_models::add_position(a),
         "startPageView" => crate::page_models::start_page(a).await,
+        "dateLineView" => crate::date_line::view(a),
         "presentationActionsView" => crate::page_models::presentation_actions(a),
         "itemActionsView" => crate::page_models::item_actions(a),
         "detailsDialogView" => crate::page_models::details_dialog(a),

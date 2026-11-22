@@ -4,7 +4,7 @@
 // presenting. Not here yet: a song's page and Inställningar, which the Linux app does not have (docs/linux-app.md).
 use crate::shell::Shell;
 use adw::prelude::*;
-use gp_tui::dates::subtitle;
+use gp_tui::dates::written;
 use gp_tui::keys::Action;
 use gp_tui::texts::t;
 use serde_json::{json, Value};
@@ -84,14 +84,12 @@ fn fill(shell: &Rc<Shell>, d: &adw::Dialog, list: &gtk::Box, query: &str) {
         }
         group(list, &t("palette.songs", &[]), songs);
     }
-    // The presentations found, the coming first (the core's), their dates as the start page writes them.
-    let rows: Vec<Value> = shell.model.borrow().app.rows().iter().map(|p| json!({ "id": p.id, "label": subtitle(p, &today, true, true) })).collect();
-    let labels: serde_json::Map<String, Value> = rows.iter().map(|r| (r["id"].as_str().unwrap_or("").to_string(), r["label"].clone())).collect();
-    let found = core(shell, "paletteView", json!({ "query": query, "today": today, "labels": labels }));
+    // The presentations found, the coming first, each with its date line (the core's).
+    let found = core(shell, "paletteView", json!({ "query": query, "today": today, "locale": gp_tui::texts::language() }));
     let mut presentations = vec![];
     for p in found["presentations"].as_array().into_iter().flatten() {
         let id = p["id"].as_str().unwrap_or("").to_string();
-        let sub = labels.get(&id).and_then(Value::as_str).unwrap_or("").to_string();
+        let sub = written(&serde_json::from_value::<Vec<gp_tui::views::LinePart>>(p["line"].clone()).unwrap_or_default());
         presentations.push(row(shell, d, p["name"].as_str().unwrap_or(""), &sub, move |s| { s.leave(); s.open(&id) }));
     }
     group(list, &t("palette.presentations", &[]), presentations);

@@ -307,7 +307,7 @@ final class AppState {
     /// Everything read again, in every window: after a change here, and after a pull that changed rows.
     func changed() {
         dataGeneration += 1
-        lists = view("startPageView", ["today": localToday()], as: [StartList].self) ?? []
+        lists = view("startPageView", ["today": localToday(), "locale": Texts.language], as: [StartList].self) ?? []
         live.reload(self)
         windows = windows.filter { $0.model != nil }
         for w in windows { w.model?.load() }

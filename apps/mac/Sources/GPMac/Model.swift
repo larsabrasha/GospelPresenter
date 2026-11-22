@@ -226,30 +226,6 @@ func refusalText(_ code: String) -> String {
     return said == "error.\(code)" ? code : said
 }
 
-extension PresentationRow {
-    /// The row's second line, as the web's start page: "Idag", "Imorgon" or the date (with the year where asked), the
-    /// time and the place, leaving out what is not set.
-    func subtitle(today: String, showDate: Bool, withYear: Bool) -> String {
-        let date = showDate ? eventDate : nil
-        let when = [date.map { dateLabel($0, today: today, withYear: withYear) }, time].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-        return [when, location ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
-    }
-}
-
-/// `dateLabel` of apps/web/src/pages/dashboard.ts: "Idag", "Imorgon", or "mån 4 maj" (and the year when asked).
-func dateLabel(_ iso: String, today: String, withYear: Bool) -> String {
-    if iso == today { return t("presentations.today") }
-    let parse = DateFormatter()
-    parse.dateFormat = "yyyy-MM-dd"
-    parse.locale = Locale(identifier: "en_US_POSIX")
-    guard let day = parse.date(from: iso) else { return iso }
-    if let next = Calendar.current.date(byAdding: .day, value: 1, to: parse.date(from: today) ?? Date()), parse.string(from: next) == iso { return t("presentations.tomorrow") }
-    let show = DateFormatter()
-    show.locale = Texts.locale
-    show.dateFormat = withYear ? "EEE d MMMM yyyy" : "EEE d MMMM"
-    return show.string(from: day).replacingOccurrences(of: ".", with: "")
-}
-
 extension Color {
     /// "#c73434", as the core gives a label's colour.
     init(hex: String) {

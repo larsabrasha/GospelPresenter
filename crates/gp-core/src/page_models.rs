@@ -241,10 +241,11 @@ fn js_cmp(a: &str, b: &str) -> Ordering { a.encode_utf16().cmp(b.encode_utf16())
 
 fn text<'a>(p: &'a Value, k: &str) -> Option<&'a str> { p[k].as_str() }
 
-/// `startPageView` {today}: the start page's lists (spec 03 screen 1, dashboard.ts's `groupPresentations`): Idag by
+/// `startPageView` {today, locale?}: the start page's lists (spec 03 screen 1, dashboard.ts's `groupPresentations`): Idag by
 /// time (no time last), Kommande soonest first, and the rest, past and undated alike, last changed first; id last, so
 /// the order is total. Each row is the presentation with its number of items (`itemCount`); each list says whether its
-/// rows show their date and its year (Idag neither, Kommande the date, the rest both). An empty list is left out.
+/// rows show their date and its year (Idag neither, Kommande the date, the rest both), and each row its second line as
+/// that list shows it (`line`, `dateLineView`'s parts, in `locale`'s words). An empty list is left out.
 /// `today` is the device's date, `YYYY-MM-DD`.
 pub async fn start_page(a: &Obj) -> R<Value> {
     let today = a.get("today").and_then(Value::as_str).ok_or("invalid-args")?.to_string();
@@ -267,7 +268,10 @@ pub async fn start_page(a: &Obj) -> R<Value> {
     let mut rest: Vec<Value> = all.into_iter().filter(|p| date(p).is_none_or(|d| d.as_str() < today.as_str())).collect();
     rest.sort_by(|a, b| by_changed(a, b).then_with(|| by_id(a, b)));
     let lists = [("today", "presentations.today", false, false, day), ("upcoming", "presentations.upcoming", true, false, upcoming), ("recent", "presentations.recent", true, true, rest)];
-    Ok(Value::Array(lists.into_iter().filter(|l| !l.4.is_empty()).map(|(id, title, show_date, with_year, rows)| {
+    let en = crate::date_line::english(a);
+    Ok(Value::Array(lists.into_iter().filter(|l| !l.4.is_empty()).map(|(id, title, show_date, with_year, mut rows)| {
+        // Each row's second line as its list shows it (`dateLineView`'s parts).
+        for p in rows.iter_mut() { p["line"] = crate::date_line::parts(p, &today, show_date, with_year, en, false) }
         json!({ "id": id, "title": title, "showDate": show_date, "withYear": with_year, "rows": rows })
     }).collect()))
 }

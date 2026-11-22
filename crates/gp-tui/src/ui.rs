@@ -4,7 +4,7 @@
 // and texts there are is the core's. Drawing also says where each row, item and slide landed (`Hits`), so a click finds
 // what it hit and the wheel the list under it.
 use crate::app::{App, Screen};
-use crate::dates::subtitle;
+use crate::dates::{line, written};
 use crate::keys::{Pane, Target};
 use crate::panes::{draw_rows, Rows};
 use crate::texts::t;
@@ -77,7 +77,7 @@ fn header(f: &mut Frame, area: Rect, app: &App, page: &PresentationPage) {
     let p = page.presentation.as_ref();
     let mut spans = vec![Span::raw(p.map_or(String::new(), |p| p.name.clone())).bold()];
     if let Some(p) = p {
-        let sub = subtitle(p, &app.today, true, false);
+        let sub = written(&line(app.core(), p, &app.today, false));
         if !sub.is_empty() { spans.push(Span::raw(format!("  {sub}")).dim()) }
     }
     if app.is_live() { spans.push(Span::raw(format!("  {} ", t("live.badge", &[]))).fg(Color::White).bg(LIVE).bold()) }

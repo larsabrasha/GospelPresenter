@@ -87,9 +87,10 @@ struct PresentationScreen: View {
 
     /// "sön 8 november · 11:00 · Kyrksalen" under the title; LIVE first while this device presents it.
     private func when(_ p: PresentationView) -> String {
-        let parts = [p.eventDate.map { dateLabel($0, today: localToday(), withYear: false) }, p.time, p.location]
-        let line = parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-        return model.isLive ? ([t("live.badge")] + (line.isEmpty ? [] : [line])).joined(separator: " · ") : line
+        struct Line: Decodable { let parts: [LinePart] }
+        let args: [String: Any] = ["today": localToday(), "locale": Texts.language, "eventDate": p.eventDate ?? NSNull(), "time": p.time ?? NSNull(),
+                                   "location": p.location ?? NSNull(), "live": model.isLive]
+        return written(model.view("dateLineView", args, as: Line.self)?.parts)
     }
 
     /// The presentation's menu, from a tap on its title: what it offers is the core's (`presentationActionsView`), the

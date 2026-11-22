@@ -92,12 +92,11 @@ struct Palette: View {
 
     @ViewBuilder private var presentations: some View {
         let today = localToday()
-        let labels = Dictionary(model.presentations.compactMap { p in p.eventDate.map { (p.id, dateLabel($0, today: today, withYear: true)) } }) { a, _ in a }
-        let found = model.view("paletteView", ["query": blank ? "" : query, "today": today, "labels": labels], as: Found.self)?.presentations ?? []
+        let found = model.view("paletteView", ["query": blank ? "" : query, "today": today, "locale": Texts.language], as: Found.self)?.presentations ?? []
         if !found.isEmpty {
             Section(t("palette.presentations")) {
                 ForEach(found) { p in
-                    row(p.name, "calendar", subtitle: [p.eventDate.map { dateLabel($0, today: today, withYear: true) }, p.time].compactMap { $0 }.joined(separator: " · ")) {
+                    row(p.name, "calendar", subtitle: written(p.line)) {
                         model.path = [p.id]
                     }
                     .accessibilityIdentifier("palette-presentation-\(p.id)")

@@ -1,94 +1,52 @@
-// A start page row's second line, as the web's start page and the Mac app's `subtitle` write it: "Idag", "Imorgon" or
-// the date (with the year where the list asks), the time and the place, leaving out what is not set.
+// A presentation's date line, as the core writes it (`dateLineView`, crates/gp-core/src/date_line.rs: "Idag",
+// "Imorgon" or "sön 8 november", the time, the place): its parts written in the app's words, together or one by one.
+use crate::shell::Core;
 use crate::texts::{language, t};
-use crate::views::PresentationRow;
-use chrono::{Locale, NaiveDate};
+use crate::views::{LinePart, PresentationRow};
+use serde_json::json;
 
 /// The device's date, `YYYY-MM-DD`, as event dates are stored (`localToday`).
 pub fn local_today() -> String { chrono::Local::now().format("%Y-%m-%d").to_string() }
 
-/// `dateLabel` of apps/web/src/pages/dashboard.ts: "Idag", "Imorgon", or "mån 4 maj" (and the year when asked).
-pub fn date_label(iso: &str, today: &str, with_year: bool) -> String {
-    if iso == today { return t("presentations.today", &[]) }
-    let Ok(day) = NaiveDate::parse_from_str(iso, "%Y-%m-%d") else { return iso.to_string() };
-    if NaiveDate::parse_from_str(today, "%Y-%m-%d").ok().and_then(|d| d.succ_opt()) == Some(day) { return t("presentations.tomorrow", &[]) }
-    let locale = if language() == "en" { Locale::en_GB } else { Locale::sv_SE };
-    let format = if with_year { "%a %-d %B %Y" } else { "%a %-d %B" };
-    day.format_localized(format, locale).to_string().replace('.', "")
-}
+/// A part in the app's words: a text's key as its text.
+fn word(p: &LinePart) -> String { p.key.as_deref().map(|k| t(k, &[])).or_else(|| p.text.clone()).unwrap_or_default() }
 
-/// The row's second line.
-pub fn subtitle(p: &PresentationRow, today: &str, show_date: bool, with_year: bool) -> String {
-    let [date, time, place] = parts(p, today, show_date, with_year);
-    let when: Vec<String> = [date, time].into_iter().filter(|s| !s.is_empty()).collect();
-    [when.join(" · "), place].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
-}
+/// The line written, its parts joined with " · ".
+pub fn written(parts: &[LinePart]) -> String { parts.iter().map(word).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ") }
 
-/// The second line's parts apart, each empty when not set: the date (where the list shows it), the time, the place.
-pub fn parts(p: &PresentationRow, today: &str, show_date: bool, with_year: bool) -> [String; 3] {
-    let date = p.event_date.as_deref().filter(|_| show_date).map(|d| date_label(d, today, with_year)).unwrap_or_default();
-    [date, p.time.clone().unwrap_or_default(), p.location.clone().unwrap_or_default()]
+/// The part that is `of` (date, time, place), written; empty where the line has none.
+pub fn part(parts: &[LinePart], of: &str) -> String { parts.iter().find(|p| p.of == of).map(word).unwrap_or_default() }
+
+/// A presentation's line under its title (`dateLineView`), LIVE first while presented here.
+pub fn line(core: &Core, p: &PresentationRow, today: &str, live: bool) -> Vec<LinePart> {
+    let args = json!({ "today": today, "locale": language(), "eventDate": p.event_date, "time": p.time, "location": p.location, "live": live });
+    core.call("dateLineView", args).ok().and_then(|v| serde_json::from_value(v["parts"].clone()).ok()).unwrap_or_default()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn row(date: Option<&str>, time: Option<&str>, location: Option<&str>) -> PresentationRow {
-        PresentationRow {
-            id: "p".into(), name: "Gudstjänst".into(), event_date: date.map(String::from), time: time.map(String::from),
-            location: location.map(String::from), is_template: false, item_count: None,
-        }
+    fn part_of(key: Option<&str>, text: Option<&str>, of: &str) -> LinePart {
+        LinePart { key: key.map(String::from), text: text.map(String::from), of: of.into() }
     }
 
     #[test]
-    fn today_reads_idag() {
-        // Arrange, Act
-        let label = date_label("2026-11-19", "2026-11-19", false);
+    fn a_key_is_written_as_the_apps_text_and_the_parts_joined() {
+        let parts = [part_of(Some("presentations.today"), None, "date"), part_of(None, Some("11:00"), "time")];
 
-        // Assert
-        assert_eq!(label, "Idag");
+        assert_eq!(written(&parts), "Idag · 11:00");
     }
 
     #[test]
-    fn the_next_day_reads_imorgon() {
-        // Arrange, Act
-        let label = date_label("2026-11-20", "2026-11-19", false);
+    fn a_part_is_found_by_what_it_is() {
+        let parts = [part_of(None, Some("11:00"), "time"), part_of(None, Some("Kyrksalen"), "place")];
 
-        // Assert
-        assert_eq!(label, "Imorgon");
+        assert_eq!(part(&parts, "place"), "Kyrksalen");
     }
 
     #[test]
-    fn another_day_reads_its_swedish_weekday_and_month() {
-        // Arrange, Act
-        let label = date_label("2026-09-20", "2026-11-19", true);
-
-        // Assert
-        assert_eq!(label, "sön 20 september 2026");
-    }
-
-    #[test]
-    fn the_subtitle_leaves_out_what_is_not_set() {
-        // Arrange
-        let p = row(Some("2026-11-19"), Some("11:00"), None);
-
-        // Act
-        let line = subtitle(&p, "2026-11-19", true, false);
-
-        // Assert
-        assert_eq!(line, "Idag · 11:00");
-    }
-
-    #[test]
-    fn the_subtitle_has_the_place_last() {
-        // Arrange
-        let p = row(Some("2026-09-20"), Some("11:00"), Some("Kyrksalen"));
-
-        // Act
-        let line = subtitle(&p, "2026-11-19", false, false);
-
-        // Assert
-        assert_eq!(line, "11:00 · Kyrksalen");
+    fn a_part_not_there_is_empty() {
+        assert_eq!(part(&[], "date"), "");
     }
 }

@@ -3,7 +3,7 @@
 // date, the time, the place, and the number of items at the right. A day of one digit is padded, so the months line
 // up too. Where the columns do not fit (a phone over SSH), each row takes two lines: its name, and the rest under it.
 use crate::app::App;
-use crate::dates::parts;
+use crate::dates::part;
 use crate::keys::{Pane, Target};
 use crate::panes::{draw_rows, Rows};
 use crate::texts::{t, t_of};
@@ -23,7 +23,7 @@ struct Cells { live: bool, name: String, date: String, time: String, place: Stri
 pub fn page(f: &mut Frame, area: Rect, app: &App, hits: &mut Hits) {
     let lists: Vec<(String, Vec<Cells>)> = app.lists.iter().map(|list| {
         let cells = list.rows.iter().map(|row| {
-            let [date, time, place] = parts(row, &app.today, list.show_date, list.with_year);
+            let [date, time, place] = ["date", "time", "place"].map(|of| part(&row.line, of));
             let count = row.item_count.unwrap_or(0);
             let items = if count == 1 { t("presentations.item", &[]) } else { t("presentations.items", &[("n", &count.to_string())]) };
             Cells { live: app.live.presentation_id.as_deref() == Some(row.id.as_str()), name: row.name.clone(), date, time, place, items }

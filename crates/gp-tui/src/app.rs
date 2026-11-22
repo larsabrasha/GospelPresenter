@@ -66,7 +66,7 @@ impl App {
     pub fn core(&self) -> &Core { &self.core }
 
     pub fn load_start(&mut self) {
-        self.lists = self.core.view("startPageView", json!({ "today": self.today })).unwrap_or_default();
+        self.lists = self.core.view("startPageView", json!({ "today": self.today, "locale": crate::texts::language() })).unwrap_or_default();
         self.cursor = self.cursor.min(self.rows().len().saturating_sub(1));
     }
 

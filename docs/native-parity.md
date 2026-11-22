@@ -23,7 +23,13 @@ Linux app in the same round; it is done when both read the core's view and neith
    Linux's rounds 7 and 8 built on it from the start (below).
 3. [ ] Typed view models: the core describes its view models and events as types, and the Swift and Rust types are
    generated, so the shells stop decoding JSON by hand.
-4. [ ] The date line (gp_tui::dates::subtitle and the Swift one) into the core.
+4. [x] The date line (2026-11-22): `dateLineView` (crates/gp-core/src/date_line.rs, 12 tests; every day of 2027 and
+   2028 the same as the web's Intl in Swedish and English, packages/rust-core/test/date-line.test.ts): its parts, each
+   a text's key or a text and what it is (live, date, time, place); `startPageView`'s rows and `paletteView`'s
+   presentations carry theirs (`line`), in `locale`'s words. The Mac and iOS app and the Linux app and the TUI write
+   it; Swift's dateLabel and subtitle and gp-tui's date_label, subtitle and parts gone. Linux's title under a
+   presentation now leaves out the year, as the Mac's. The web's dashboard.ts still writes its own (the same words, by
+   the test)
 5. [ ] The forms, one at a time: Redigera detaljer and a song's fields first.
 6. [ ] Utgångar's own outputs (this computer's screens, temporary screens) and the sheets of Lägg till.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.

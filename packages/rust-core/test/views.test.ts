@@ -157,6 +157,34 @@ describe('paletteView', () => {
 
     expect(out.presentations.map((p) => p.id)).toEqual(['soon', 'later', 'past']);
   });
+  it('finds a presentation by its date as the core writes it, without labels', async () => {
+    const out = await nodeRustCore().view<Found>('paletteView', { query: '29 nov', today: '2026-11-22', locale: 'sv' }, presentations());
+
+    expect(out.presentations.map((p) => p.id)).toEqual(['later']);
+  });
+
+  it('gives each presentation its date line with the year', async () => {
+    const out = await nodeRustCore().view<{ presentations: { id: string; line: unknown }[] }>('paletteView', { query: 'kväll', today: '2026-11-22' }, presentations());
+
+    expect(out.presentations[0]?.line).toEqual([{ text: 'sön 29 november 2026', of: 'date' }]);
+  });
+});
+
+describe('startPageView', () => {
+  it("gives each row its date line as its list shows it", async () => {
+    const db = new DatabaseSync(':memory:');
+    const all = (sql: string, params: unknown[]) => {
+      const st = db.prepare(sql);
+      st.setReturnArrays(true);
+      return st.all(...(params as never[])) as unknown as Rows;
+    };
+    nodeRustCore().runSync('migrateOrgSchema', {}, undefined, all);
+    db.exec(`INSERT INTO presentations (id, name, event_date, time, location) VALUES ('later', 'Kvällsmöte', '2026-11-29', '19:00', 'Kyrksalen')`);
+
+    const lists = await nodeRustCore().view<{ id: string; rows: { line: unknown }[] }[]>('startPageView', { today: '2026-11-22', locale: 'en' }, async (sql, params) => all(sql, params));
+
+    expect(lists[0]?.rows[0]?.line).toEqual([{ text: 'Sun 29 November', of: 'date' }, { text: '19:00', of: 'time' }, { text: 'Kyrksalen', of: 'place' }]);
+  });
 });
 
 describe('RustCore.pure', () => {

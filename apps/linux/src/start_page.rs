@@ -5,7 +5,7 @@
 // problem while it has one, Synka nu, Logga ut). Not built yet: Visa fler.
 use crate::shell::Shell;
 use adw::prelude::*;
-use gp_tui::dates::subtitle;
+use gp_tui::dates::written;
 use gp_tui::texts::t;
 use gp_tui::views::PresentationRow;
 use std::rc::Rc;
@@ -18,7 +18,7 @@ pub fn fill(shell: &Rc<Shell>) {
     let rows: Vec<&PresentationRow> = m.app.rows();
     if let Some(p) = live.as_deref().and_then(|id| rows.iter().find(|r| r.id == id)) {
         let group = adw::PreferencesGroup::builder().title(t("remote.nowShowing", &[])).build();
-        group.add(&row(shell, p, &subtitle(p, &m.app.today, true, false), true));
+        group.add(&row(shell, p, &written(&p.line), true));
         page.add(&group);
     }
     // Visas just nu elsewhere: sessions that allow remote control, each with Ta kontroll (none while presenting here).
@@ -31,7 +31,7 @@ pub fn fill(shell: &Rc<Shell>) {
     for list in &m.app.lists {
         let group = adw::PreferencesGroup::builder().title(t(&list.title, &[])).build();
         for p in &list.rows {
-            group.add(&row(shell, p, &subtitle(p, &m.app.today, list.show_date, list.with_year), live.as_deref() == Some(p.id.as_str())));
+            group.add(&row(shell, p, &written(&p.line), live.as_deref() == Some(p.id.as_str())));
         }
         page.add(&group);
     }
