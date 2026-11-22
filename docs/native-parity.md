@@ -207,7 +207,7 @@ Its base, from docs/linux-app.md's "Not built":
 - [~] An item's menu: Byt namn, Kommentar, Arrangemang, Överlägg, Markera, Radera (2026-11-22, pictures of the menu);
   Lägg till efter waits for adding. Byt namn, Kommentar, Arrangemang and Överlägg not tried in pictures
 - [ ] The description card; folding the columns
-- [ ] The overlays in the live column
+- [x] The overlays in the live column (2026-11-22): a switch each while presenting, at most one on (the core's overlay rules through `pageStepView`'s change); pictures of one switched on, then another, looked at (a copy of the demo with two overlays: the demo has none)
 - [ ] Media files fetched; audio and video played
 - [ ] Inställningar, every page the Mac has
 - [ ] A phone's one column

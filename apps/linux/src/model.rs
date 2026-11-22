@@ -40,6 +40,12 @@ impl Model {
         self.pages.entry(id.to_string()).or_insert_with(|| core.call("presentationPageView", json!({ "id": id })).unwrap_or(Value::Null))
     }
 
+    /// The overlays a presentation offers while it is presented (Visning's switches): each one's id and title.
+    pub fn overlays(&mut self, pid: &str) -> Vec<(String, String)> {
+        self.page(pid)["overlays"].as_array().into_iter().flatten()
+            .filter_map(|o| Some((o["id"].as_str()?.to_string(), o["title"].as_str().unwrap_or("").to_string()))).collect()
+    }
+
     /// The slide at `at` of presentation `pid`, laid out by the core with its presentation's theme and its item's
     /// overlay, as the Mac app's TileRequest asks for it.
     pub fn painted(&mut self, pid: &str, at: &SlideAt) -> Painted {

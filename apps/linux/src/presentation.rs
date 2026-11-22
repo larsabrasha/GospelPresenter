@@ -33,7 +33,9 @@ pub struct Page {
     live_picture: gtk::DrawingArea,
     live_buttons: gtk::Box,
     cue: gtk::Label,
-    /// Utgångar and Tillåt fjärrstyrning (outputs.rs), under the cue.
+    /// Överlägg, a switch each, at most one on (the core's), under the cue.
+    overlays: gtk::Box,
+    /// Utgångar and Tillåt fjärrstyrning (outputs.rs), under the overlays.
     outputs: gtk::Box,
     /// Driving a session elsewhere: said over the page.
     banner: adw::Banner,
@@ -167,6 +169,8 @@ impl Page {
         live_column.append(&frame);
         live_column.append(&live_buttons);
         live_column.append(&cue);
+        let overlays = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        live_column.append(&overlays);
         let outputs = gtk::Box::new(gtk::Orientation::Vertical, 0);
         live_column.append(&outputs);
 
@@ -181,7 +185,27 @@ impl Page {
         bar.add_top_bar(&banner);
         bar.set_content(Some(&content));
         let nav_page = adw::NavigationPage::builder().title(&p.name).child(&bar).build();
-        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue, outputs, banner }
+        Page { nav_page, title, title_menu, bar_buttons, rows, order_stack, ticks, tiles, slides, live_column, live_picture, live_buttons, cue, overlays, outputs, banner }
+    }
+
+    /// Överlägg while presenting: a switch for each of the presentation's overlays, the one shown on; switching one
+    /// changes the live state as Visning does (the core's overlay rules: one at a time, black ended).
+    fn fill_overlays(&self, shell: &Rc<Shell>, out: bool, pid: Option<String>, shown: Option<String>) {
+        while let Some(c) = self.overlays.first_child() { self.overlays.remove(&c) }
+        let Some(pid) = pid.filter(|_| out) else { return };
+        let list = shell.model.borrow_mut().overlays(&pid);
+        if list.is_empty() { return }
+        let group = adw::PreferencesGroup::builder().title(t("overlays.title", &[])).build();
+        for (id, title) in list {
+            let row = adw::SwitchRow::builder().title(&title).active(shown.as_deref() == Some(id.as_str())).use_markup(false).build();
+            let weak = Rc::downgrade(shell);
+            row.connect_active_notify(move |r| if let Some(s) = weak.upgrade() {
+                s.model.borrow_mut().app.apply(json!({ "overlayId": if r.is_active() { json!(id) } else { Value::Null } }));
+                s.refresh();
+            });
+            group.add(&row);
+        }
+        self.overlays.append(&group);
     }
 
     /// Whether the page was built for these items, in this order with these titles: else it is built again.
@@ -237,7 +261,9 @@ impl Page {
         });
         self.cue.set_label(cue.as_deref().unwrap_or(""));
         let presenting_here = out && !app.remote;
+        let (pid, shown_overlay) = (page.presentation.as_ref().map(|p| p.id.clone()), app.live.overlay_id.clone());
         drop(m);
+        self.fill_overlays(shell, out, pid, shown_overlay);
         if presenting_here { crate::outputs::fill(shell, &self.outputs) } else { while let Some(c) = self.outputs.first_child() { self.outputs.remove(&c) } }
     }
 }
