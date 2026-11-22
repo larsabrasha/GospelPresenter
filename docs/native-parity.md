@@ -215,7 +215,13 @@ Its base, from docs/linux-app.md's "Not built":
   at: the card folded and open (a long text, and the demo's list), each column folded, both, and one back, light
   and dark. Not built: the sync line at the running order's foot, resizing the columns
 - [x] The overlays in the live column (2026-11-22): a switch each while presenting, at most one on (the core's overlay rules through `pageStepView`'s change); pictures of one switched on, then another, looked at (a copy of the demo with two overlays: the demo has none)
-- [ ] Media files fetched; audio and video played
+- [x] Media files fetched (2026-11-22, media.rs): what to fetch and drop is the core's `mediaPlanView` over the files in
+  the folder, as the Mac's MediaSync.swift; run on the sync's `media` effect and when presenting starts or moves; each
+  file fetched as the signed-in device, kept only whole and with its SHA-256; the window drawn again after each ten.
+  native-linux-media.test.ts in Docker: a picture's thumbnail fetched once signed in and not its full picture, the full
+  picture once presented; a picture of the tile drawn from it looked at. Not built: Lagring (the 2 GiB budget and
+  keeping coming presentations offline are fixed), a video's still for the player, uploads
+- [ ] Audio and video played
 - [ ] Inställningar, every page the Mac has
 - [ ] A phone's one column
 

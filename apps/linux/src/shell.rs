@@ -263,6 +263,8 @@ impl Shell {
         if let Some(page) = self.page.borrow().as_ref() { page.refresh(self) }
         if let Some(out) = self.output.borrow().as_ref() { out.refresh() }
         if let Some(problem) = self.model.borrow_mut().app.refusal.take() { eprintln!("gospel-presenter: refused: {problem}") }
+        // Presenting another presentation fetches its files at once.
+        crate::media::follow(self);
     }
 
     /// Avsluta presentation, asked first as the Mac app asks.

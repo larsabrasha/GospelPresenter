@@ -86,8 +86,9 @@ demo with the sample translation of packages/rust-core/test/bible-fixtures.ts, m
 Skapa presentation and templates (templates.rs; 2026-11-22): + on the start page, blank or from a template, Mallar in
 the header's menu, Spara som mall in a presentation's menu.
 
-Signing in pairs the device with a desktop host and syncs as the Mac app does (connect.rs, net.rs, sync.rs); a
+Signing in pairs the device with a desktop host and syncs as the Mac app does (connect.rs, net.rs, sync.rs), its
+media files fetched as the core plans them (media.rs, into GP_MEDIA, else `media` in the app's data folder); a
 database named as the first argument or in GP_DB is opened as the demo, without a sign-in. Not built: importing
 files, Redigera of a song or a slideshow in the menu, resizing the columns, the sync line at the running order's foot,
-media files (pictures show where the folder beside the database holds them), audio and video, Inställningar, a phone's
+audio and video, Inställningar, a phone's
 one column, packaging (an Arch package, Flatpak).

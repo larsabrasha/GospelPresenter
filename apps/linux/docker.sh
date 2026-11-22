@@ -9,7 +9,7 @@
 # button), `key <xdotool keys>`, `type <text>`.
 # GP_OPEN=<presentation id> opens one at the start; GP_DEMO=<file under crates/gp-core/parity/.out/fixtures> another
 # database than demo.sqlite; GP_CONFIG=<folder> starts signed in instead, with the session.json in it (its server
-# reached from the container as host.docker.internal), the folder kept as the app's settings; GP_LANG=en in English; ADW_DEBUG_COLOR_SCHEME=prefer-dark dark, as
+# reached from the container as host.docker.internal), the folder kept as the app's settings and its media files (media/); GP_LANG=en in English; ADW_DEBUG_COLOR_SCHEME=prefer-dark dark, as
 # the system's dark mode makes it. GTK's Broadway backend was tried first: it
 # stopped drawing after its first frame under Docker Desktop's x86_64 emulation, so the app is looked at through X.
 set -eu
@@ -39,7 +39,7 @@ case "${1:-build}" in
       mkdir -p /run/gp && cp "/src/crates/gp-core/parity/.out/fixtures/$GP_DEMO" /run/gp/demo.sqlite
       Xvfb :9 -screen 0 1440x900x24 >/dev/null 2>&1 &
       sleep 1   # Xvfb opens its socket
-      if [ -n "$GP_SIGNED_IN" ]; then db=; export XDG_CONFIG_HOME=/cfg XDG_DATA_HOME=/run/gp; else db=/run/gp/demo.sqlite; fi
+      if [ -n "$GP_SIGNED_IN" ]; then db=; export XDG_CONFIG_HOME=/cfg XDG_DATA_HOME=/run/gp GP_MEDIA=/cfg/gospel-presenter/media; else db=/run/gp/demo.sqlite; fi
       DISPLAY=:9 GDK_BACKEND=x11 /target/debug/gospel-presenter $db 2>/out/app.log &
       echo "$STEPS" | tr ";" "\n" | while read -r what a b; do
         case "$what" in

@@ -178,7 +178,8 @@ fn perform(shell: &Rc<Shell>, effect: &Value, page: Option<&str>) {
             if let Some(old) = shell.sync.borrow_mut().as_mut().and_then(|s| s.timers.insert(name, id)) { old.remove() }
         }
         Some("cancelTimers") => if let Some(s) = shell.sync.borrow_mut().as_mut() { for (_, t) in s.timers.drain() { t.remove() } },
-        // media: the Linux app fetches no files yet (docs/native-parity.md); queued, idle: nothing to do.
+        Some("media") => crate::media::sync(shell),
+        // queued, idle: nothing to do.
         _ => {}
     }
 }

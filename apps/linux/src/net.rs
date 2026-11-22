@@ -147,6 +147,32 @@ impl Server {
         }
     }
 
+    /// A file fetched as `session` into `to`, kept only when it came whole and its SHA-256 is `sha256`: whether it was.
+    /// Read a block at a time through a file beside it, so a video never sits in memory and a cut one is never kept.
+    pub fn download(&self, path: &str, session: &Session, to: &std::path::Path, sha256: &str) -> bool {
+        use std::io::{Read, Write};
+        let mut req = self.agent.request("GET", &format!("{}{path}", self.base)).timeout(Duration::from_secs(600))
+            .set("authorization", &format!("Bearer {}", session.token));
+        if let Some(d) = &session.device { req = req.set("x-gp-device", d) }
+        let Ok(answer) = req.call() else { return false };
+        if answer.status() != 200 { return false }
+        let part = to.with_extension("part");
+        let fetched = (|| -> std::io::Result<String> {
+            let (mut from, mut file, mut hasher, mut block) = (answer.into_reader(), std::fs::File::create(&part)?, Sha256::new(), vec![0u8; 1 << 16]);
+            loop {
+                let n = from.read(&mut block)?;
+                if n == 0 { break }
+                hasher.update(&block[..n]);
+                file.write_all(&block[..n])?;
+            }
+            file.sync_all()?;
+            Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
+        })();
+        if fetched.is_ok_and(|h| h == sha256) && std::fs::rename(&part, to).is_ok() { return true }
+        let _ = std::fs::remove_file(&part);
+        false
+    }
+
     /// A socket (`/api/sync/poke`, `/api/live/socket`): the credentials as subprotocols, so they stay out of the address
     /// and logs, as the web's `socketProtocols` sends them. Reads wait at most 150 ms, so its thread can be stopped and can send between them.
     pub fn socket(&self, path: &str, client_id: &str, s: &Session) -> Result<Socket, Failure> {
