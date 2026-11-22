@@ -61,8 +61,9 @@ Linux app in the same round; it is done when both read the core's view and neith
    wrong one counted; `qrView` (qr.rs, qrcodegen) the QR code's modules for every shell; `outputRowsView`'s
    `temporary`, the screens this session paired, each let go with ✕. apps/server/test/pair-screen-core.test.ts runs
    the reducer against a server (4). Linux: pair_screen.rs and the rows in outputs.rs, paired by a TV's code in
-   native-linux-live.test.ts (Docker), pictures looked at. The Mac and iOS app: PairScreen.swift draws it; the code's
-   field does not take the typing in the iOS UI test yet (RemoteTests, under way). Not yet: this computer's own
+   native-linux-live.test.ts (Docker), pictures looked at. The Mac and iOS app: PairScreen.swift draws it, the sheet
+   presented from the live column or Visning (from a list's row, drawn again at each live change, the code's field
+   lost the keyboard); RemoteTests pairs a TV by its code against a server (native-remote-ui.test.ts). Not yet: this computer's own
    screens' rows, the sheets of Lägg till.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
 

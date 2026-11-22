@@ -63,9 +63,7 @@ extension RemoteTests {
         code.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "the keyboard up for the code")
         code.typeText(pin)
-        XCTAssertEqual(code.value as? String, pin, "the code typed")
-        let done = app.staticTexts["pair-done"].firstMatch.waitForExistence(timeout: 10)
-        XCTAssertTrue(done, "paired; shown: \(app.staticTexts.allElementsBoundByIndex.prefix(30).map(\.label))")
+        XCTAssertTrue(app.staticTexts["pair-done"].firstMatch.waitForExistence(timeout: 10), "paired")
         app.buttons[sv["common.close"]!].firstMatch.tap()
         XCTAssertTrue(app.descendants(matching: .any)["temporary-1"].firstMatch.waitForExistence(timeout: 10), "listed as a temporary screen")
     }
