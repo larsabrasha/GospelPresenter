@@ -55,7 +55,16 @@ struct AddLibrarySheet: View {
     var body: some View {
         let rows = model.view("libraryOrderView", ["kind": library, "query": query, "locale": Texts.language], as: AddableRows.self)?.rows ?? []
         let now = pick()
-        List(rows) { row in
+        List {
+            // A field of the sheet's own, as the Bible sheet's: a system search would cover the bar's Lägg till while
+            // typing (the core filters, `libraryOrderView`'s query).
+            Section {
+                TextField(t("presentation.searchImages"), text: $query)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+                    .accessibilityIdentifier("library-search")
+            }
+            .listRowBackground(Color.clear)
+            ForEach(rows) { row in
             Button { picked = pick(["type": "toggle", "id": row.id])?.picked ?? picked } label: {
                 HStack(spacing: 12) {
                     thumbnail(row).frame(width: 96, height: 54).clipShape(RoundedRectangle(cornerRadius: 6))
@@ -70,9 +79,12 @@ struct AddLibrarySheet: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("pick-\(row.id)")
             .accessibilityAddTraits(picked.contains(row.id) ? .isSelected : [])
+            }
+            // A row of the list, not over it: the search field stays to type in when nothing is found.
+            if rows.isEmpty {
+                ContentUnavailableView(t(MediaKind(rawValue: at.kind)?.emptyKey ?? "customSlides.empty"), systemImage: symbol).listRowBackground(Color.clear)
+            }
         }
-        .overlay { if rows.isEmpty { ContentUnavailableView(t(MediaKind(rawValue: at.kind)?.emptyKey ?? "customSlides.empty"), systemImage: symbol) } }
-        .searchable(text: $query, prompt: t("presentation.searchImages"))
         .toolbar {
             if at.kind != "slides" {
                 ToolbarItem(placement: .primaryAction) {

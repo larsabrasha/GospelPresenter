@@ -83,6 +83,19 @@ final class AddTests: XCTestCase {
         XCTAssertFalse(pick.isSelected, "added, and let go")
     }
 
+    func testSearchingTheLibraryKeepsLäggTillInReach() throws {
+        let app = try launch(["-gp.demo", "YES", "-gp.fresh", "YES", "-gp.open", "pres-main"])
+        add("add.image", in: app)
+        let search = app.textFields["library-search"].firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "the sheet's own search")
+
+        search.tap()
+        search.typeText("zzz")
+
+        XCTAssertTrue(app.buttons["sheet-confirm"].firstMatch.isHittable, "Lägg till still in reach while typing")
+        XCTAssertTrue(search.isHittable, "the search there to type in though nothing is found")
+    }
+
     func testASoundPickedIsAddedAsAnItem() throws {
         let app = try launch(["-gp.demo", "YES", "-gp.fresh", "YES", "-gp.open", "pres-main"])
         add("presentation.audioTab", in: app)

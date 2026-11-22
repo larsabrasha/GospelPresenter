@@ -63,8 +63,10 @@ Linux app in the same round; it is done when both read the core's view and neith
    the reducer against a server (4). Linux: pair_screen.rs and the rows in outputs.rs, paired by a TV's code in
    native-linux-live.test.ts (Docker), pictures looked at. The Mac and iOS app: PairScreen.swift draws it, the sheet
    presented from the live column or Visning (from a list's row, drawn again at each live change, the code's field
-   lost the keyboard); RemoteTests pairs a TV by its code against a server (native-remote-ui.test.ts). Not yet: this computer's own
-   screens' rows, the sheets of Lägg till.
+   lost the keyboard); RemoteTests pairs a TV by its code against a server (native-remote-ui.test.ts). The sheets of Lägg till, 2026-11-22: the
+   Mac's library sheets search in a field of their own (the core's `libraryOrderView` filters), so Lägg till stays in
+   reach while typing and the field stays when nothing is found (`AddTests`). Not yet: this computer's own screens'
+   rows.
 7. [ ] Linux's transport (net.rs, sync.rs's loop) into `crates/gp-net`; no hurry.
 
 Windows waits until the core's views and the types have settled (below, "Windows").
