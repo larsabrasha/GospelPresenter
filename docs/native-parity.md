@@ -52,15 +52,19 @@ is shared; each platform's part is checked off in its own section below.
 - [x] 6 Mallar and Spara som mall: `templateView` (a template's slot and next date, crates/gp-core/src/template_view.rs,
   8 tests) and `templatesView`'s `recent` (the picker's ten last used, 2 tests in views.test.ts); the web's
   templates.ts and recentTemplates read them
-- [~] 7 Utgångar: `shownOnOutputsView` (what a session's public outputs and screens get, live_report.rs, 12 parity
+- [x] 7 Utgångar: `shownOnOutputsView` (what a session's public outputs and screens get, live_report.rs, 12 parity
   cases against the TS it replaced) and `outputRowsView` (Utgångar's rows and the take-over question, 5 tests); the
-  web's owner.ts and useOutputs.ts read them. Left: the shells' live socket as owner (below)
-- [ ] 8 Fjärrstyrning
+  web's owner.ts and useOutputs.ts read them
+- [x] 8 Fjärrstyrning: the rules were the core's already (`remoteCommandView`, `remotePointerView`, `remoteTakeView`,
+  `pageStepView` with `remote`); the native shells now use them
 - [x] 9 ⌘K: `paletteView`, the presentations a search finds (name, place, the date as the shell writes it), the
   coming first, a few (crates/gp-core/src/palette.rs; 4 tests in views.test.ts); the web's CommandPalette reads it
 - [x] 10 Phone lying down: `pageLayoutView` (columns from 1 000 points, else one column, and lying down while
   presenting the picture at the right, 45 %; crates/gp-core/src/page_layout.rs, 5 tests). The web keeps its CSS
   (`lg` and `landscape:`), which says the same; moving is reorderItems as before
+- [x] The slides' grid (Lars, 2026-11-22: Linux's tiles were wider than a slide): `slideGridView` (tiles to a row,
+  384 shrinking to no less than 340, the height the stage's 16:9; grid_nav.rs, 5 tests); the Mac and iOS app's
+  SlideColumn and the Linux app's tiles read it. The web keeps its CSS grid (SlideGrid.tsx's FIT), which says the same
 
 ## Mac and iOS
 
@@ -101,6 +105,21 @@ is shared; each platform's part is checked off in its own section below.
   picture with Släck under it at the right (PhoneLayout.swift from `pageLayoutView`, which also decides columns);
   in Markera's select mode a row is held and moved (Ticking.swift). `PhoneTests` (3) on an iPhone 17 Pro Max, a
   picture of it lying down looked at. Not tried: an iPad mini lying down (columns by the core's 1 000 points)
+- [x] 7 Utgångar: this device the owner of its live session while signed in to a host (Shell's LiveOwner over the live
+  socket: its report whole on every change and reconnect, the public slide and the screens' canvas from the core);
+  Utgångar's saved screens and public outputs switched in the live column and the phone's Visning (Outputs.swift),
+  taking one over asked first. Checked against a real server by `parity live` (apps/server/test/native-live.test.ts:
+  a member sees the session, a public output's stream gets the slide's words) and in the simulator by
+  `RemoteTests.testVisningSwitchesAPublicOutputOnWhilePresenting` (native-remote-ui.test.ts, GP_NATIVE_UI=1). Gaps:
+  temporary screens (Anslut tillfällig skärm) are not offered; the Mac's own output window keeps its own switch; audio
+  and video are not reported to controllers
+- [x] 8 Fjärrstyrning, both ways: driven (Tillåt fjärrstyrning under Utgångar; a controller's command taken by the
+  core's rule and applied as the device's own change) and driving (Visas just nu with Ta kontroll on the start page;
+  the page steps with `remote`, a click shown at once, the command sent, "not confirmed" said once after 2 s; ■ lets
+  go). Checked by `parity live` (a click shown at once, taken, echoed; refused while off and said once) and in the
+  simulator by `RemoteTests.testTakeControlDrivesASessionPresentedElsewhere` against a presenting `parity present`.
+  Gaps: several sessions of one presentation are not offered a choice (the first is taken); a session whose owner is
+  gone cannot be ended from here (the core's end message is there, no button)
 
 ## Linux
 
@@ -145,8 +164,8 @@ The rounds:
   mall in its menu), Spara som mall in a presentation's menu. Pictures light and dark of the details, Mallar, Skapa
   mall, a template's page and menu, the picker with it, a presentation made from it. Gaps: the date and time are typed
   as text (no pickers), a template's Redigera detaljer is not built (the details dialog is the base's)
-- [ ] 7 Utgångar
-- [ ] 8 Fjärrstyrning
+- [ ] 7 Utgångar: waits on the base's sign-in and sync (the Linux app has no server to report to)
+- [ ] 8 Fjärrstyrning: waits on the same
 - [~] 9 ⌘K as Ctrl+K on every page (palette.rs): the presentation's likeliest actions, + 's kinds by their words,
   songs added to the open presentation, presentations found and opened. Pictures light and dark of the blank
   search, a song found and added, a presentation found and opened. Gaps: no song page nor Inställningar to go to
@@ -165,6 +184,10 @@ Where a choice was not clear, the one most like the web was taken and the questi
   (`image{n}`). Should the web do the same? Not changed, as it changes the web's behaviour.
 
 ## Seen in passing, not this list's
+
+- The Mac app (`swift build`) links the core from `target/release` (Package.swift), which `apps/mac/apple.sh` does not
+  build: after a change to the core, `cargo build -p gp-core-ffi --release --lib` (or crates/gp-core/build.sh) before
+  `swift build`, or the Mac app runs an older core. The iOS app takes apple.sh's xcframework and is not affected.
 
 - The Linux app shows an item's problem by its raw key (`song-trashed`) instead of its text
   (`presentation.songTrashed`); presentation.rs passes the problem to `t` as if it were a key.

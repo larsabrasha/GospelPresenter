@@ -213,8 +213,9 @@ are the core's (`crates/gp-core/src/remote_control.rs`): the command a controlle
 (`remotePointerView`), and whether the owner takes a command (`remoteTakeView`), which it then applies with
 `liveChangeView` as any change of its own. A controller's page runs `pageStepView` with `remote: true`: the step
 leaves the live state alone and answers the change to send on. A shell brings the socket, the messages of
-`packages/core/src/live-protocol.ts` (`own`, `set`, `command`, `sessions`), the 2 s wait and its own pages; the native apps
-have none of this yet (docs/native-apps.md).
+`packages/core/src/live-protocol.ts` (`own`, `set`, `command`, `sessions`), the 2 s wait and its own pages. The Mac and iOS app bring them in Shell's LiveStatus,
+LiveOwner and LiveController (2026-11-22), checked against a server by apps/server/test/native-live.test.ts and in
+the simulator by native-remote-ui.test.ts; what the outputs get is the core's `shownOnOutputsView`.
 
 **On the server** (`apps/server/src/live-hub.ts`) the same code runs in process on Node and in the
 organisation's Durable Object. Sessions are rows in a server-only table, `live_sessions`, and which socket owns

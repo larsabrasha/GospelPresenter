@@ -52,6 +52,8 @@ struct StartPage: View {
             if let id = model.live.id, let p = model.presentations.first(where: { $0.id == id }) {
                 Section { NavigationLink(value: p.id) { NowShowing(p: p) } }
             }
+            // Sessions elsewhere that allow remote control: Ta kontroll drives one from here (LIVE-A27).
+            RemoteSessions()
             ForEach(model.lists) { list in
                 let rows = list.id == "recent" ? Array(list.rows.prefix(restShown)) : list.rows
                 if !rows.isEmpty {
@@ -108,6 +110,8 @@ struct StartPage: View {
             if let id = model.live.id, let p = model.presentations.first(where: { $0.id == id }) {
                 Section { NavigationLink(value: p.id) { NowShowing(p: p) } }
             }
+            // Sessions elsewhere that allow remote control: Ta kontroll drives one from here (LIVE-A27).
+            RemoteSessions()
             // The core's lists as they come (`startPageView`); Senast ändrade 20 at a time, the page's own paging.
             ForEach(model.lists) { list in
                 let rows = list.id == "recent" ? Array(list.rows.prefix(restShown)) : list.rows
@@ -179,6 +183,37 @@ struct PresentationListRow: View {
 }
 
 /// "Visas just nu": what this device presents, a card as the list's, red only in its pulsing dot and its first line.
+/// "Visas just nu" for each session elsewhere that allows remote control, with Ta kontroll (the web's Presentations.tsx
+/// RemoteSessions): the presentation's name, the device presenting it.
+private struct RemoteSessions: View {
+    @Environment(Model.self) private var model
+
+    var body: some View {
+        let sessions = model.app.live.on ? [] : model.app.controllable
+        if !sessions.isEmpty {
+            Section(t("remote.nowShowing")) {
+                ForEach(sessions.indices, id: \.self) { i in
+                    let s = sessions[i]
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(s["presentationName"] as? String ?? "").font(.body.weight(.medium))
+                            Text(s["deviceName"] as? String ?? "").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(t("remote.takeControl")) {
+                            guard let id = s["id"] as? String, let pid = s["presentationId"] as? String else { return }
+                            model.app.takeControl(id)
+                            model.path = [pid]
+                        }
+                        .buttonStyle(.borderedProminent).tint(.sky)
+                        .accessibilityIdentifier("take-control")
+                    }
+                }
+            }
+        }
+    }
+}
+
 private struct NowShowing: View {
     let p: PresentationRow
     @State private var pulse = false

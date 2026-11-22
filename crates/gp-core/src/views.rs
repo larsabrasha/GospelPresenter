@@ -78,6 +78,7 @@ pub async fn run(name: &str, a: &Obj) -> Option<R<Value>> {
         "pageModelView" => crate::page_state::model(a),
         "pageStepView" => crate::page_step::step(a),
         "slideAcrossView" => crate::grid_nav::view(a),
+        "slideGridView" => crate::grid_nav::grid(a),
         "tickView" => crate::ticking::view(a),
         "bibleBrowseView" => crate::bible_browse::view(a),
         "addPickView" => crate::add_pick::view(a),

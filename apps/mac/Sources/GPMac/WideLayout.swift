@@ -238,7 +238,8 @@ private struct SlideColumn: View {
     @Environment(Model.self) private var model
     let p: PresentationView
     @FocusState private var focused: Bool
-    /// The slides are 384 pt, and shrink to no less than 340 where that fits one more to a row (SlideGrid.tsx).
+    /// The slides are 384 pt, and shrink to no less than 340 where that fits one more to a row (the core's
+    /// `slideGridView`).
     @State private var available: CGFloat = 800
     /// The width the number of slides to a row was last worked out for: it follows `available` once that has stood
     /// still a moment, so while a side column slides in or out the slides only scale, and the rows are laid out again
@@ -252,10 +253,13 @@ private struct SlideColumn: View {
     @State private var holding = false
     private static let spacing = SlideGridLayout.spacing, padding = SlideGridLayout.padding
 
+    private struct Grid: Decodable { let columns: Int, tileWidth: CGFloat }
+
+    /// The rows' count for the settled width, the tiles' width for the width now (the core's `slideGridView`).
     private var grid: (columns: Int, width: CGFloat) {
-        let columns = max(1, Int((settled + Self.spacing) / (340 + Self.spacing)))
-        let width = min(384, ((available - Self.spacing * CGFloat(columns - 1)) / CGFloat(columns)).rounded(.down))
-        return (columns, max(1, width))
+        let columns = model.view("slideGridView", ["width": settled, "spacing": Self.spacing], as: Grid.self)?.columns ?? 1
+        let now = model.view("slideGridView", ["width": available, "spacing": Self.spacing, "columns": columns], as: Grid.self)
+        return (columns, now?.tileWidth ?? 340)
     }
 
     private var layout: SlideGridLayout {
@@ -417,7 +421,8 @@ private struct SlideColumn: View {
 }
 
 /// The right column while presenting, what the core lays in it (`presentationColumnsView`'s `live`): the picture shown
-/// with Släck, never the next slide. Not here yet, so left out: Utgångar, Överlägg, Fjärrstyrning in the foot.
+/// with Släck, never the next slide; Utgångar and Tillåt fjärrstyrning (Outputs.swift). Not here yet, so left out:
+/// Överlägg.
 private struct LiveColumn: View {
     @Environment(Model.self) private var model
     let fold: () -> Void
@@ -430,6 +435,7 @@ private struct LiveColumn: View {
                     LivePicture()
                     BlackButton().frame(maxWidth: .infinity)
                 }
+                if part == "outputs" { OutputsGroup() }
             }
             Spacer()
             ColumnFoot(foot: column?.foot ?? ["fold"], symbol: "sidebar.right", label: "presentation.hideLiveColumn", side: .trailing, fold: fold)

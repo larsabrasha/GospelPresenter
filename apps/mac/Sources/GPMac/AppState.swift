@@ -30,6 +30,14 @@ final class AppState {
     var status = ""
     /// What is presented, the same for every window; it goes on while another page is open (Live.swift).
     private(set) var live = Live()
+    /// This device's live session while it presents to a host (`reportLive`).
+    private(set) var liveOwner: LiveOwner?
+    /// The app's live socket while signed in to a host: the organisation's sessions, this device's reports and commands.
+    private(set) var liveLink: LiveStatus?
+    /// A session elsewhere driven from here (Ta kontroll), its pointer mirrored in `live` (`mirrorRemote`).
+    private(set) var controller: LiveController?
+    /// The owner did not confirm a command within 2 s (spec 04 §2): said once.
+    var remoteUnconfirmed = false
     /// The audio and video of what is presented, played on this device (LivePlayer.swift).
     let player = LivePlayer()
     /// Raised when media files arrived (MediaSync.swift): a picture drawn without its file is drawn again.
@@ -86,7 +94,10 @@ final class AppState {
         // `-gp.open <id>` a presentation in the first window, and `-gp.show <itemId>/<n>` presents that slide (launch
         // arguments, read as the app's settings).
         let args = UserDefaults.standard
-        if let session = Keychain.session, !args.bool(forKey: "gp.demo") { open(session) }
+        // `-gp.session <base64 of its JSON>`: signed in with this session, for the UI tests against a server
+        // (native-remote-ui.test.ts); base64, as a launch argument that starts with { is read as a dictionary.
+        if let b64 = args.string(forKey: "gp.session"), let json = Data(base64Encoded: b64), let given = try? JSONDecoder().decode(Session.self, from: json) { open(given) }
+        else if let session = Keychain.session, !args.bool(forKey: "gp.demo") { open(session) }
         else if let file = args.string(forKey: "gp.fixture") { openFixture(file) }
         else if ProcessInfo.processInfo.environment["GP_MAC_DATA"] != nil || args.bool(forKey: "gp.demo") { openDemo() }
         launch = (args.string(forKey: "gp.open"), args.string(forKey: "gp.show"), args.string(forKey: "gp.pick"))
@@ -139,6 +150,7 @@ final class AppState {
             client.start()
             changed()
             noteSync()
+            startLiveLink()
         } catch {
             refusal = "\(error)"
         }
@@ -210,6 +222,11 @@ final class AppState {
     /// on the start page.
     func signOut() {
         if case let .synced(client) = store { client.close() }
+        liveOwner?.follow(nil)
+        liveLink?.stop()
+        liveOwner = nil
+        liveLink = nil
+        controller = nil
         Keychain.session = nil
         store = nil
         live = Live()
@@ -307,8 +324,78 @@ final class AppState {
     /// moves only the selection of the window that showed it, the others keep theirs (`pageEventView`).
     func liveChanged() {
         for w in windows { w.model?.send(["type": "sync"]) }
+        reportLive()
         // Presenting fetches the presentation's files at once (wantedMediaView).
         syncMedia()
+    }
+
+    /// This device as its live session's owner while signed in to a host (Shell's LiveOwner, the web's live/owner.ts):
+    /// what it presents reported, its outputs switched, a controller's command applied as its own change.
+    func reportLive() {
+        guard controller == nil, case let .synced(client) = store, let session, let link = startLiveLink() else { return }
+        if liveOwner == nil {
+            let owner = LiveOwner(client: client, session: session, deviceName: BrowserSignIn.deviceName, link: link)
+            owner.onCommand = { [weak self] change in
+                guard let self, self.live.set(self, change) else { return }
+                self.liveChanged()
+            }
+            liveOwner = owner
+        }
+        liveOwner?.follow(live.on ? jsonObject(live.state) as? [String: Any] : nil)
+    }
+
+    /// The live socket, opened once signed in to a host; the organisation's sessions listed through it.
+    @discardableResult
+    func startLiveLink() -> LiveStatus? {
+        guard case .synced = store, let session else { return nil }
+        if let liveLink { return liveLink }
+        let link = LiveStatus()
+        link.onSessions = { [weak self] in self?.mirrorRemote() }
+        link.start(session)
+        liveLink = link
+        return link
+    }
+
+    /// The sessions elsewhere that allow remote control, for the start page's Ta kontroll (LIVE-A27): never this
+    /// device's own, its owner online.
+    var controllable: [[String: Any]] {
+        let own = liveOwner?.sessionId
+        return (liveLink?.sessions ?? []).compactMap { $0 as? [String: Any] }
+            .filter { $0["remote"] as? Bool == true && $0["ownerOnline"] as? Bool != false && $0["id"] as? String != own }
+    }
+
+    /// Ta kontroll: the session driven from here, its presentation shown as if presented here.
+    func takeControl(_ sessionId: String) {
+        guard case let .synced(client) = store, let link = startLiveLink(), !live.on else { return }
+        let c = LiveController(link: link, sessionId: sessionId, client: client)
+        c.onUnconfirmed = { [weak self] in self?.remoteUnconfirmed = true }
+        controller = c
+        mirrorRemote()
+    }
+
+    /// Driving a session elsewhere ended: the live state this device's own again (nothing presented).
+    func stopControlling() {
+        guard controller != nil else { return }
+        controller = nil
+        live = Live()
+        liveChanged()
+    }
+
+    /// A change of the page sent on to the session driven from here, and shown at once.
+    func sendRemote(_ change: [String: Any]) {
+        controller?.set(change)
+        mirrorRemote()
+    }
+
+    /// The session driven from here as the page reads the live state: what its owner reported, a click at once.
+    func mirrorRemote() {
+        guard let controller else { return }
+        guard controller.session != nil, let data = try? JSONSerialization.data(withJSONObject: controller.shown().pointer),
+              let pointer = try? JSONDecoder().decode(LivePointer.self, from: data) else { return stopControlling() }
+        if pointer != live.state {
+            live.adopt(self, pointer)
+            for w in windows { w.model?.send(["type": "sync"]) }
+        }
     }
 
     /// A presentation's page as `presentationPageView` reads it.

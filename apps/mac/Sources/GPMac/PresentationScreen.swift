@@ -14,7 +14,12 @@ struct PresentationScreen: View {
     var body: some View {
         GeometryReader { geo in
             if let p = model.current {
-                Group {
+                VStack(spacing: 0) {
+                    // Driving a session elsewhere: said over the page (the web's RemoteBanner).
+                    if model.app.controller != nil {
+                        Text(t("remote.banner")).font(.footnote.weight(.medium)).frame(maxWidth: .infinity).padding(.vertical, 6)
+                            .background(Color.orange.opacity(0.85)).foregroundStyle(.white).accessibilityIdentifier("remote-banner")
+                    }
                     if columns(geo.size) { WideLayout(p: p) } else { PhoneLayout(p: p, size: geo.size) }
                 }
                 .navigationTitle(p.name)
@@ -41,6 +46,7 @@ struct PresentationScreen: View {
                     if p.isTemplate { TemplateDetailsSheet(templateId: p.id) } else { DetailsSheet(presentationId: p.id) }
                 }
                 .alert(t("templates.savedAs"), isPresented: $savedAsTemplate) {}
+                .alert(t("remote.unconfirmed"), isPresented: Bindable(model.app).remoteUnconfirmed) {}
                 .sheet(item: Bindable(model).addingSong) { at in AddSongSheet(at: at) }
                 .sheet(item: Bindable(model).addingKind) { at in
                     if at.kind == "bible" { BibleSheet(at: at) } else { AddLibrarySheet(at: at) }

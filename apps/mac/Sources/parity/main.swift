@@ -9,6 +9,18 @@ if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "sync" {
     dispatchMain()
 }
 
+// `parity live <sessions.json> <dir>`: the native app as a live session's owner against a running server (LiveCheck.swift).
+if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "live" {
+    Task { @MainActor in exit(await LiveCheck.run(CommandLine.arguments[2], CommandLine.arguments[3])) }
+    dispatchMain()
+}
+
+// `parity present <sessions.json> <dir> <seconds>`: another computer presenting, for a UI test (PresentCheck.swift).
+if CommandLine.arguments.count > 4, CommandLine.arguments[1] == "present" {
+    Task { @MainActor in exit(await PresentCheck.run(CommandLine.arguments[2], CommandLine.arguments[3], Double(CommandLine.arguments[4]) ?? 60)) }
+    dispatchMain()
+}
+
 // `parity settings <sessions.json> <dir>`: the native Inställningar against a running server (SettingsCheck.swift).
 if CommandLine.arguments.count > 3, CommandLine.arguments[1] == "settings" {
     Task { @MainActor in exit(await SettingsCheck.run(CommandLine.arguments[2], CommandLine.arguments[3])) }

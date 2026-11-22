@@ -123,6 +123,7 @@ impl Page {
         slides.set_margin_end(12);
         slides.set_margin_bottom(24);
         let mut tiles = vec![];
+        let mut flows = vec![];
         for item in &page.items {
             let heading = gtk::Box::new(gtk::Orientation::Horizontal, 4);
             heading.append(&gtk::Label::builder().label(&item.title).xalign(0.0).css_classes(["slide-heading"]).build());
@@ -135,16 +136,19 @@ impl Page {
             if let Some(problem) = page.problem_of(&item.id) {
                 slides.append(&gtk::Label::builder().label(t(problem, &[])).xalign(0.0).css_classes(["dim-label"]).build());
             }
-            let flow = gtk::FlowBox::builder().selection_mode(gtk::SelectionMode::None).homogeneous(true)
-                .column_spacing(12).row_spacing(12).max_children_per_line(12).build();
+            let flow = gtk::FlowBox::builder().selection_mode(gtk::SelectionMode::None).halign(gtk::Align::Start).css_classes(["slide-grid"])
+                .column_spacing(GAP as u32).row_spacing(GAP as u32).build();
             for n in 0..page.slides_of(&item.id).len() {
                 let tile = tiles::tile(shell, &p.id, SlideAt { item_id: item.id.clone(), part_index: n as i64 }, n + 1);
                 flow.append(&tile);
                 tiles.push((format!("{}/{n}", item.id), tile));
             }
             slides.append(&flow);
+            flows.push(flow);
         }
-        let slides_scroll = gtk::ScrolledWindow::builder().child(&slides).hexpand(true).hscrollbar_policy(gtk::PolicyType::Never).build();
+        // External: no scrollbar across, nor the tiles' widths widening the column; the grid fits them to it.
+        let slides_scroll = gtk::ScrolledWindow::builder().child(&slides).hexpand(true).hscrollbar_policy(gtk::PolicyType::External).build();
+        fit_grid(shell, &slides_scroll, flows, tiles.iter().map(|(_, t)| t.clone()).collect());
 
         // The live column: the picture, then Släck; the cue under them.
         let live_picture = tiles::live_picture(shell, true);
@@ -235,4 +239,35 @@ fn menu_on(shell: &Rc<Shell>, item_id: &str, widget: &impl IsA<gtk::Widget>) {
     let (weak, id, at) = (Rc::downgrade(shell), item_id.to_string(), widget.clone().upcast::<gtk::Widget>());
     press.connect_pressed(move |_, _, _| if let Some(s) = weak.upgrade() { item_menu::pop_up(&s, &id, &at) });
     widget.add_controller(press);
+}
+
+/// The space between tiles, across and down.
+const GAP: i32 = 12;
+
+/// The tiles sized by the core's grid (`slideGridView`) for the column's width, again whenever it changes: as many to
+/// a row as fit at 340 to 384, each the stage's shape.
+fn fit_grid(shell: &Rc<Shell>, scroll: &gtk::ScrolledWindow, flows: Vec<gtk::FlowBox>, tiles: Vec<gtk::DrawingArea>) {
+    let (weak, last) = (Rc::downgrade(shell), std::cell::Cell::new(0));
+    // Held weakly: the scroll keeps its callback, and its children must not keep it.
+    let flows: Vec<_> = flows.iter().map(|f| f.downgrade()).collect();
+    let tiles: Vec<_> = tiles.iter().map(|t| t.downgrade()).collect();
+    scroll.add_tick_callback(move |scroll, _| {
+        // The slides' box has a margin of 12 at either side.
+        let width = scroll.width() - 24;
+        if width <= 0 || width == last.get() { return gtk::glib::ControlFlow::Continue }
+        let Some(s) = weak.upgrade() else { return gtk::glib::ControlFlow::Break };
+        let Ok(m) = s.model.try_borrow() else { return gtk::glib::ControlFlow::Continue };
+        let Ok(grid) = m.app.core().call("slideGridView", json!({ "width": width, "spacing": GAP })) else { return gtk::glib::ControlFlow::Continue };
+        last.set(width);
+        let n = |k: &str| grid[k].as_f64().unwrap_or(1.0) as i32;
+        for f in flows.iter().filter_map(|f| f.upgrade()) {
+            f.set_min_children_per_line(n("columns") as u32);
+            f.set_max_children_per_line(n("columns") as u32);
+        }
+        for t in tiles.iter().filter_map(|t| t.upgrade()) {
+            t.set_content_width(n("tileWidth"));
+            t.set_content_height(n("tileHeight"));
+        }
+        gtk::glib::ControlFlow::Continue
+    });
 }

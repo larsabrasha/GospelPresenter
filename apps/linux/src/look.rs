@@ -41,6 +41,8 @@ pub fn css(look: &Value, dark: bool, user_accent: bool) -> String {
     css += &format!(".live-badge {{ color: {}; font-weight: bold; }}\n", hex(look, "red", dark));
     css += "row.selected-item { background-color: alpha(var(--accent-bg-color), 0.15); }\n";
     css += ".slide-heading { font-weight: bold; margin: 12px 6px 4px 6px; }\n";
+    // The slides' grid spaces its tiles itself (presentation.rs, the core's slideGridView).
+    css += "flowbox.slide-grid > flowboxchild { padding: 0; }\n";
     css += ".live-picture { background-color: black; border-radius: 12px; }\n";
     css
 }

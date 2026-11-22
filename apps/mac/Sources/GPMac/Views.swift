@@ -246,6 +246,8 @@ struct PageAnswer: Decodable {
     let state: PageState
     let live: LivePointer
     let liveChanged: Bool
+    /// With `remote`: the change to send on to the session's owner (a controller's page).
+    let change: JSONValue?
     let refused: String?
     let command: JSONValue?
     let handled: Bool

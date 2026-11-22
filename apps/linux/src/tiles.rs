@@ -12,7 +12,8 @@ use serde_json::json;
 use std::f64::consts::{FRAC_PI_2, PI};
 use std::rc::Rc;
 
-pub const WIDTH: i32 = 320;
+/// A tile's width until the column's is known (presentation.rs sizes it by the core's grid).
+const WIDTH: i32 = 340;
 
 /// A rounded rectangle's path.
 pub fn rounded(cr: &cairo::Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
@@ -42,7 +43,8 @@ fn badge(widget: &gtk::DrawingArea, cr: &cairo::Context, text: &str, shown: bool
 
 /// The tile of slide `at` of presentation `pid`, numbered `n` from 1.
 pub fn tile(shell: &Rc<Shell>, pid: &str, at: SlideAt, n: usize) -> gtk::DrawingArea {
-    let area = gtk::DrawingArea::builder().content_width(WIDTH).content_height(WIDTH * 9 / 16).build();
+    let area = gtk::DrawingArea::builder().content_width(WIDTH).content_height(WIDTH * 9 / 16)
+        .halign(gtk::Align::Start).valign(gtk::Align::Start).build();
     let (weak, pid_d, at_d) = (Rc::downgrade(shell), pid.to_string(), at.clone());
     area.set_draw_func(move |widget, cr, w, h| {
         let Some(s) = weak.upgrade() else { return };

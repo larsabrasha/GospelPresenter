@@ -87,3 +87,44 @@ fn refuses_a_direction_other_than_one_step() {
 
     assert!(out.is_err());
 }
+
+fn grid_of(width: f64) -> Value { super::grid(&json!({ "width": width, "spacing": 12 }).as_object().unwrap()).unwrap() }
+
+#[test]
+fn a_wide_column_has_tiles_of_384() {
+    let out = grid_of(1600.0);
+
+    assert_eq!(out["tileWidth"], json!(384.0));
+    assert_eq!(out["columns"], json!(4));
+}
+
+#[test]
+fn tiles_shrink_to_fit_one_more_to_a_row() {
+    let out = grid_of(1100.0);
+
+    assert_eq!(out["columns"], json!(3));
+    assert_eq!(out["tileWidth"], json!(358.0));
+}
+
+#[test]
+fn a_tile_has_the_stages_shape() {
+    let out = grid_of(1100.0);
+
+    assert_eq!(out["tileHeight"], json!(201.0));
+}
+
+#[test]
+fn a_narrow_column_has_one_tile_its_width() {
+    let out = grid_of(300.0);
+
+    assert_eq!(out["columns"], json!(1));
+    assert_eq!(out["tileWidth"], json!(300.0));
+}
+
+#[test]
+fn columns_given_are_kept_and_the_tiles_share_the_width() {
+    let out = super::grid(&json!({ "width": 1100, "spacing": 12, "columns": 2 }).as_object().unwrap()).unwrap();
+
+    assert_eq!(out["columns"], json!(2));
+    assert_eq!(out["tileWidth"], json!(384.0));
+}

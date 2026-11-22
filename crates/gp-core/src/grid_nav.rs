@@ -46,6 +46,24 @@ pub fn view(a: &Obj) -> R<Value> {
     Ok(json!({ "key": best.map(|t| t.key.clone()) }))
 }
 
+/// A slide's tile at its widest, and the least it shrinks to where that fits one more to a row (SlideGrid.razor's
+/// scale; the web's SlideGrid.tsx FIT).
+const TILE: f64 = 384.0;
+const TILE_MIN: f64 = 340.0;
+
+/// `slideGridView` {width, spacing, columns?}: the slides' grid in a column `width` wide with `spacing` between the
+/// tiles: {columns, tileWidth, tileHeight}: as many to a row as fit at no less than 340 each (at least one), each at
+/// most 384, sharing the row's width; the height the stage's shape (1920 × 1080), so a tile is never wider than a
+/// slide. `columns` given keeps that many to a row (a shell that lays the rows out again only once a resize stops).
+pub fn grid(a: &Obj) -> R<Value> {
+    let num = |k: &str| a.get(k).and_then(Value::as_f64).ok_or_else(|| "invalid-args".to_string());
+    let (width, spacing) = (num("width")?.max(1.0), num("spacing")?.max(0.0));
+    let fits = (((width + spacing) / (TILE_MIN + spacing)).floor() as i64).max(1);
+    let columns = a.get("columns").and_then(Value::as_i64).map_or(fits, |c| c.max(1));
+    let tile = TILE.min(((width - spacing * (columns - 1) as f64) / columns as f64).floor()).max(1.0);
+    Ok(json!({ "columns": columns, "tileWidth": tile, "tileHeight": (tile * 1080.0 / 1920.0).round() }))
+}
+
 #[cfg(test)]
 #[path = "grid_nav_tests.rs"]
 mod tests;
