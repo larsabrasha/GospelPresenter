@@ -188,10 +188,9 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       const p = live.pointer;
       if (target !== sessionId || !p.presentationId) return;
       const there = await liveTargets(db, { presentationId: p.presentationId, itemId: change.itemId || null, overlayId: change.overlayId || null });
-      if (!there.item || !there.overlay) return; // gone meanwhile (LIVE-R49)
-      const sameOverlay = change.overlayId === undefined || change.overlayId === p.overlayId;
-      if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black && sameOverlay) return;
-      live.set(change);
+      // Only while presenting, the item and overlay still there (LIVE-R49), and not what is shown already.
+      const { take } = pageCore().pure<{ take: boolean }>('remoteTakeView', { pointer: live.pointer, command: change, item: !!there.item, overlay: !!there.overlay });
+      if (take) live.set(change);
     });
     const offSessions = link.subscribe(() => {
       settleTakeOver(link.sessions, sessionId);

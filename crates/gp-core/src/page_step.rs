@@ -26,8 +26,14 @@ fn context(open: Option<&str>, template: &Value, live: &Map<String, Value>) -> V
 /// slides) and the overlay each item carries; `liveOrder` and `liveOverlays` the same of the presented page where it is
 /// another than the open one. Answers {state, live, liveChanged, refused (`another-presented`, the live state then
 /// unchanged), handled, command (the page's: a dialog, a mutation, a scroll), marks ({shown, next} on the presented
-/// page, null while nothing is), canStart, cue}. Another window of the same device follows a live change with an
+/// page, null while nothing is), canStart, cue, change}. Another window of the same device follows a live change with an
 /// event `sync` of its own.
+///
+/// With `remote: true` the live state is not this step's to change: it belongs to a session on another device, driven
+/// by remote control, or on the web to the window's live channel, which changes it as its owner. The step then leaves
+/// `live` as it is and answers the change asked for as `change` (null without one), for the shell to send on; the
+/// owner applies it with `liveChangeView` and the page follows its answer with `sync`. Without it, `change` is the one
+/// applied or refused.
 pub fn step(a: &Obj) -> R<Value> {
     let cx = obj(a.get("context").ok_or("invalid-args")?)?;
     let open = some(cx.get("presentationId"));
@@ -35,6 +41,7 @@ pub fn step(a: &Obj) -> R<Value> {
     let order = a.get("order").cloned().ok_or("invalid-args")?;
     let mut live = obj(a.get("live").ok_or("invalid-args")?)?.clone();
     let mut state = a.get("state").cloned().unwrap_or(json!({}));
+    let remote = a.get("remote").and_then(Value::as_bool).unwrap_or(false);
     let (mut handled, mut command, mut refused, mut changed) = (true, Value::Null, Value::Null, false);
     let change = match (a.get("event"), a.get("change")) {
         (Some(event), _) => {
@@ -49,7 +56,7 @@ pub fn step(a: &Obj) -> R<Value> {
         (None, Some(change)) => change.clone(),
         (None, None) => return Err("invalid-args".into()),
     };
-    if change.is_object() {
+    if change.is_object() && !remote {
         // The overlays of the presentation the change is about: the one it starts, else the one presented.
         let about = some(change.get("presentationId")).or_else(|| some(live.get("presentationId")));
         let overlays = if about.is_some() && about == open { a.get("overlays") } else { a.get("liveOverlays") };
@@ -82,6 +89,7 @@ pub fn step(a: &Obj) -> R<Value> {
     Ok(json!({
         "state": model["state"], "live": live, "liveChanged": changed, "refused": refused, "handled": handled,
         "command": command, "marks": marks, "canStart": model["canStart"], "cue": model["cue"],
+        "change": if change.is_object() { change } else { Value::Null },
     }))
 }
 

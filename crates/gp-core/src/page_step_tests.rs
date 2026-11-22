@@ -78,7 +78,7 @@ fn a_slide_made_ready_while_presenting_is_cued() {
 
 #[test]
 fn another_page_open_marks_the_presented_page_from_its_own_order() {
-    let mut a = json!({
+    let a = json!({
         "state": {}, "context": { "presentationId": "other", "isTemplate": false }, "live": presenting("a", 0),
         "order": [["z", 1]], "overlays": {}, "liveOrder": order(), "liveOverlays": {}, "event": { "type": "sync" },
     });
@@ -140,4 +140,34 @@ fn neither_an_event_nor_a_change_is_refused() {
     let out = step(a.as_object().unwrap());
 
     assert!(out.is_err());
+}
+
+/// One step of page `p` whose live state is another's to change (remote control, the web's live channel).
+fn run_remote(live: Value, state: Value, event: Value) -> Value {
+    let a = json!({
+        "state": state, "context": { "presentationId": "p", "isTemplate": false }, "live": live,
+        "order": order(), "overlays": { "a": null, "b": "o1" }, "remote": true, "event": event,
+    });
+    step(a.as_object().unwrap()).unwrap()
+}
+
+#[test]
+fn a_remote_step_leaves_the_live_state_to_its_owner() {
+    let out = run_remote(presenting("a", 0), json!({ "presenting": true }), json!({ "type": "step", "delta": 1 }));
+
+    assert_eq!((out["live"]["partIndex"].as_i64(), out["liveChanged"].as_bool()), (Some(0), Some(false)));
+}
+
+#[test]
+fn a_remote_step_answers_the_change_to_send_on() {
+    let out = run_remote(presenting("a", 0), json!({ "presenting": true }), json!({ "type": "step", "delta": 1 }));
+
+    assert_eq!(out["change"], json!({ "itemId": "a", "partIndex": 1, "black": false }));
+}
+
+#[test]
+fn a_remote_step_without_a_change_answers_none() {
+    let out = run_remote(presenting("a", 0), json!({ "presenting": true }), json!({ "type": "select", "itemId": "b" }));
+
+    assert_eq!((out["change"].clone(), out["state"]["selectedId"].as_str()), (Value::Null, Some("b")));
 }

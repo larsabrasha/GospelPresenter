@@ -25,6 +25,7 @@ mod mutators;
 mod page_models;
 mod page_state;
 mod page_step;
+mod remote_control;
 mod ordered;
 mod org_transfer;
 mod pages;

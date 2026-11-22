@@ -207,6 +207,15 @@ väljer"; the sessions everyone gets carry that result. The owner applies it if 
 LIVE-R49), whichever page is open (`apps/web/src/live/owner.ts`), and its next report is what everyone sees.
 A controller's own click shows at once; if the owner has not confirmed it within 2 s, it warns once.
 
+**The same in every shell** (Lars, 2026-11-22: every platform drives a session elsewhere and is driven). The rules
+are the core's (`crates/gp-core/src/remote_control.rs`): the command a controller sends for a change
+(`remoteCommandView`), what it shows of the session until the owner's echo and whether the echo came
+(`remotePointerView`), and whether the owner takes a command (`remoteTakeView`), which it then applies with
+`liveChangeView` as any change of its own. A controller's page runs `pageStepView` with `remote: true`: the step
+leaves the live state alone and answers the change to send on. A shell brings the socket, the messages of
+`packages/core/src/live-protocol.ts` (`own`, `set`, `command`, `sessions`), the 2 s wait and its own pages; the native apps
+have none of this yet (docs/native-apps.md).
+
 **On the server** (`apps/server/src/live-hub.ts`) the same code runs in process on Node and in the
 organisation's Durable Object. Sessions are rows in a server-only table, `live_sessions`, and which socket owns
 which session is kept on the socket (a hibernatable socket's attachment), so a Durable Object may hibernate

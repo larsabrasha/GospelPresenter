@@ -12,6 +12,7 @@ import {
   type LiveSessionInfo,
 } from '@gp/core';
 import { newId } from '../ids.ts';
+import { pageCore } from '../db/pageCore.ts';
 import { socketUrl } from '../server.ts';
 
 // Remote control on the client (spec 04 §2, ADR 0004). One socket per
@@ -268,35 +269,24 @@ export class RemoteControl implements LiveControl {
     return this.link.sessions.find((s) => s.id === this.sessionId);
   }
 
-  get pointer(): LivePointer {
+  /** The session as the server lists it, the pending command shown until its echo (`remotePointerView`). */
+  private shown(): { pointer: LivePointer; confirmed: boolean } {
     const s = this.session();
-    const reported = s?.pointer ?? { itemId: null, partIndex: 0, black: false, overlayId: null, rev: 0 };
-    const shown = this.pending && !matches(reported, this.pending.change) ? { ...reported, ...this.pending.change } : reported;
-    return {
-      presentationId: s?.presentationId ?? null,
-      itemId: shown.itemId,
-      partIndex: shown.partIndex,
-      black: shown.black,
-      overlayId: shown.overlayId ?? null,
-      rev: reported.rev,
-    };
+    return pageCore().pure('remotePointerView', { session: s ? { presentationId: s.presentationId, pointer: s.pointer } : null, pending: this.pending?.change ?? null });
   }
 
+  get pointer(): LivePointer {
+    return this.shown().pointer;
+  }
+
+  /** A change of the page sent on as the command the owner takes (`remoteCommandView`): absolute, shown at once. */
   set(change: LivePointerChange) {
-    const now = this.pointer;
-    const next: LiveChange = { itemId: change.itemId ?? now.itemId, partIndex: change.partIndex ?? now.partIndex, black: change.black ?? now.black };
-    if (change.itemId === null) next.itemId = null;
-    // Only a toggle names the overlay; the owner applies an item's own (`applyLiveChange`).
-    if (change.overlayId !== undefined) {
-      next.overlayId = change.overlayId;
-      if (change.overlayId) next.black = false; // as the owner does: showing an overlay ends the black screen
-    }
+    const { command: next } = pageCore().pure<{ command: LiveChange }>('remoteCommandView', { pointer: this.pointer, change });
     this.pending = { change: next, at: Date.now() };
     this.link.command(this.sessionId, next);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      const s = this.session();
-      if (this.pending && (!s || !matches(s.pointer, this.pending.change)) && !this.warned) {
+      if (this.pending && !this.shown().confirmed && !this.warned) {
         this.warned = true; // once (spec 04 §2)
         this.onUnconfirmed();
       }
@@ -314,8 +304,7 @@ export class RemoteControl implements LiveControl {
   subscribe(fn: (p: LivePointer) => void): () => void {
     this.selfListeners.add(fn);
     const off = this.link.subscribe(() => {
-      const s = this.session();
-      if (this.pending && s && matches(s.pointer, this.pending.change)) this.pending = null; // the echo settles it
+      if (this.pending && this.shown().confirmed) this.pending = null; // the echo settles it
       fn(this.pointer);
     });
     fn(this.pointer);
@@ -328,9 +317,4 @@ export class RemoteControl implements LiveControl {
   dispose() {
     clearTimeout(this.timer);
   }
-}
-
-/** Whether a report shows what a command asked for; the overlay counts only when the command named one. */
-function matches(p: LiveChange, c: LiveChange): boolean {
-  return p.itemId === c.itemId && p.partIndex === c.partIndex && p.black === c.black && (c.overlayId === undefined || p.overlayId === c.overlayId);
 }

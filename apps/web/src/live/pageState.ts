@@ -1,7 +1,8 @@
-// A presentation page's own state, the core's (`pageEventView`, `pageModelView`; docs/view-models.md): the item
+// A presentation page's own state, the core's (`pageStepView`, `pageModelView`; docs/view-models.md): the item
 // selected, the slide made ready, the last thing added and a number typed. This window holds it; every change is the
-// core's answer to an event, so a computer, a phone and the native apps do the same with the same keys and taps. A change
-// to what the outputs show comes back with the answer and goes to the app's live state (LiveChannel, `liveChangeView`).
+// core's answer to an event, so a computer, a phone and the native apps do the same with the same keys and taps. The
+// step is `remote`: a change to what the outputs show comes back with the answer and goes to whoever owns the live
+// state, this window's LiveChannel or, by remote control, a session elsewhere, which apply it (`liveChangeView`).
 import type { LivePointer, LivePointerChange, SlideAt } from '@gp/core';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { pageCore } from '../db/pageCore.ts';
@@ -47,7 +48,7 @@ export interface PageCue {
 
 interface Answer {
   state: PageState;
-  live: LivePointerChange | null;
+  change: LivePointerChange | null;
   command: PageCommand | null;
   handled: boolean;
 }
@@ -80,10 +81,11 @@ export function usePageState(o: {
     latest.current = model.state;
   });
   const send = (event: PageEvent): { command: PageCommand | null; handled: boolean } => {
-    const answer = pageCore().pure<Answer>('pageEventView', { state: latest.current, context, order: o.order, event });
+    const step = { state: latest.current, context: { presentationId: o.presentationId, isTemplate: o.isTemplate }, live: o.pointer, order: o.order, remote: true, event };
+    const answer = pageCore().pure<Answer>('pageStepView', step);
     latest.current = answer.state;
     setHeld(answer.state);
-    if (answer.live) o.setLive(answer.live);
+    if (answer.change) o.setLive(answer.change);
     return answer;
   };
   return { state: model.state, canStart: model.canStart, cue: model.cue, send };
