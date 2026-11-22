@@ -18,7 +18,7 @@ data. Not yet: a presentation's page, presenting, settings, sign-in and sync.
 | Part | What it is | Builds on a Mac |
 | --- | --- | --- |
 | `apps/windows/build/Dockerfile`, `core.sh` | the core cross-compiled for x64 and ARM64 (cargo-xwin, which fetches Microsoft's CRT and Windows SDK), the C# bindings, the core for this machine, the texts | yes, in Docker |
-| `apps/windows/Shell` | plain .NET 8: SQLite for the core (`Database`, SQLite's own API through SQLitePCLRaw, binding by position as the core's `?` and `?1` need), `Core` (a call's statements answered until it is done or refused, transactions), the views decoded (`Views`), the texts (`Texts`, the web's i18n.ts), a row's date line (`Dates`, the Mac's `dateLabel`) | yes |
+| `apps/windows/Shell` | plain .NET 8: SQLite for the core (`Database`, SQLite's own API through SQLitePCLRaw, binding by position as the core's `?` and `?1` need), `Core` (a call's statements answered until it is done or refused, transactions), the views decoded (`Views`), the texts (`Texts`, the web's i18n.ts), a row's date line (`Dates`, the Mac's `dateLabel`; TEMPORARY(core), until the core's view gives it) | yes |
 | `apps/windows/Shell.Tests` | xUnit, against the real core and a copy of the demo data | yes, run |
 | `apps/windows/App` | WinUI 3, unpackaged: one window, the start page | no: the XAML compiler is a Windows program |
 | `apps/windows/build/build.ps1` | the whole on Windows, without Docker | no |

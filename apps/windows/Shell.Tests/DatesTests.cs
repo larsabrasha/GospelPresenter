@@ -1,4 +1,4 @@
-// A start page row's second line, as the Mac's and the web's.
+// A start page row's second line, as the Mac's and the web's. TEMPORARY(core): goes with Shell/Dates.cs.
 using Xunit;
 
 namespace GospelPresenter.Shell.Tests;

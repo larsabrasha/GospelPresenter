@@ -1,4 +1,6 @@
-// A start page row's second line, as apps/mac/Sources/GPMac/Model.swift's `subtitle` and `dateLabel` (the web's
+// TEMPORARY(core): a rule in a shell, to be replaced by the core's view (Lars, 2026-11-22: no logic in a shell). The
+// core's owner moves this line, now in gp_tui::dates::subtitle and apps/mac's Model.swift too, into a view; then the
+// start page reads it from there and this file goes. Until then, as the Mac's `subtitle` and `dateLabel` (the web's
 // dashboard.ts): "Idag", "Imorgon" or "mån 4 maj" (with the year where the list asks), the time and the place.
 using System.Globalization;
 
