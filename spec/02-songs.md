@@ -313,6 +313,9 @@ Parts and arrangements
   duplicates allowed and rendered as repeated slides. `GospelPresenter.Shared/State/Song.cs:120-130`
 - **SONG-R19** When showing a song item: item arrangement → else first arrangement → else all parts.
   `LiveSlideBuilder.cs:99-100`; picker default = first arrangement `GospelPresenter.Shared/Components/Presentations/AddItem/Song/SongTab.razor` (`GetEffectiveArrangementId`).
+  2.0 (Lars, 2026-11-23): first = the lowest `sort`, one that is not a whole number before any, then by id code point
+  by code point ("B" before "b"); the slides, the item's menu and the parts' order use this one order (`songOrder`,
+  `packages/core/src/slides.ts`).
 - **SONG-R58** 2.0 (Lars, 2026-11-19): Original is the arrangement id `original` (no arrangement has it, so SONG-R18
   shows all parts). An item may be added with it or changed to it. When a song gets its first arrangement (a new one,
   made, imported or restored), its items naming none are given `original`, so they go on showing what they showed
@@ -359,6 +362,9 @@ Search
   a *word prefix* (start of text or preceded by a non-letter/digit) somewhere in name, author or
   lyrics, else the song is excluded. Mid-word matches never count ("vighet" ≠ "evighet").
   `SongService.cs:859-930`; `GospelPresenter.Shared/Utils/TextUtils.cs:59-73`
+  2.0 (Lars, 2026-11-23): a letter or digit is one of the BMP, numeric or alphabetic but not a mark nor a circled
+  letter; a character past the BMP is none, so a term right after an emoji starts a word. Finding a song and marking
+  the hit (SONG-A20) read words by this one rule (`packages/core/src/words.ts`).
 - **SONG-R32** Matching is accent-insensitive as fallback ("hogst" finds "Högst", "kna" finds "knä").
   `SongService.cs:899-919`
 - **SONG-R33** Ranking per term (first that applies): title word-prefix 10 (+5 if title starts with

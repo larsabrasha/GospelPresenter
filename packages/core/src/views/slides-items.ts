@@ -1,11 +1,14 @@
 // What each item of a running order shows (ADR 0008; ported back from crates/gp-core/src/slides.rs and item_views.rs):
 // readItemSlides's slides, the same objects, reading the library through the shell. The live views and the
 // presentation page read a running order's slides through `itemsSlides`.
-import { blankPage } from '../custom-slides.ts';
+import { customPageText, parseCustomPages } from '../custom-slides.ts';
 import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS, type BibleItemContent, type BibleSegment } from '../bible.ts';
-import { MAX_ITEM_IMAGE_ID, MAX_ITEM_IMAGES } from '../slides.ts';
+import { imageItemIds, parsePartIds, songOrder } from '../slides.ts';
+import { readStoredJson } from '../stored-json.ts';
 import { marks, type RunSql } from './sql.ts';
-import { argsOf, asF64, asI64, asStr, byCodePoint, charsAtMost, idOf, invalidArgs, isObj, parseJson, strOrEmpty, type Obj } from './serde.ts';
+import { select } from './lists-rows.ts';
+import { VIDEO, videoRow } from './lists-media.ts';
+import { argsOf, asF64, asI64, asStr, charsAtMost, idOf, invalidArgs, isObj, strOrEmpty, type Obj } from './serde.ts';
 
 /** An item as the slides read it. */
 export interface SlideItem {
@@ -31,12 +34,6 @@ function songCredits(author: unknown, publisher: unknown, year: unknown): string
   const y = asI64(year);
   const kept = [asStr(author), p ? `© ${p}` : null, y ? String(y) : null].filter((x): x is string => x !== null && x.trim() !== '');
   return kept.length ? kept.join(' · ') : null;
-}
-
-/** `parsePartIds`: an arrangement's part ids; anything else reads as empty. */
-function partIds(text: string): string[] {
-  const v = parseJson(text);
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
 
 /** What song items read, for every song of a running order at once, each row without its song's id. */
@@ -68,12 +65,8 @@ async function labelsOf(sql: RunSql): Promise<Map<string, { text: unknown; color
   return new Map((await sql('SELECT id, text, color FROM labels', [])).map((r) => [strOrEmpty(r[0]), { text: r[1], color: r[2] }]));
 }
 
-/** By `sort` as an integer (none first), then by id. */
-const bySort = (at: number) => (a: unknown[], b: unknown[]) => {
-  const [x, y] = [asI64(a[at]), asI64(b[at])];
-  if (x !== y) return x === null ? -1 : y === null ? 1 : x - y;
-  return byCodePoint(strOrEmpty(a[0]), strOrEmpty(b[0]));
-};
+/** Rows [id, …] in `songOrder`, their sort at `at`. */
+const bySort = (at: number) => (a: unknown[], b: unknown[]) => songOrder({ sort: a[at], id: strOrEmpty(a[0]) }, { sort: b[at], id: strOrEmpty(b[0]) });
 
 /** `songSlides`: one slide per arranged part (SONG-R18, R19), a repeated part keyed `id#n`. */
 function song(item: SlideItem, labels: Map<string, unknown>, data: Songs): ItemShown {
@@ -85,7 +78,7 @@ function song(item: SlideItem, labels: Map<string, unknown>, data: Songs): ItemS
   const arrangements = (data.arrangements.get(item.sourceId) ?? []).toSorted(bySort(2));
   const wanted = item.arrangementId ?? (arrangements[0] ? strOrEmpty(arrangements[0][0]) : null);
   const arrangement = wanted === null ? undefined : arrangements.find((a) => strOrEmpty(a[0]) === wanted);
-  const arranged = arrangement ? partIds(strOrEmpty(arrangement[1]))
+  const arranged = arrangement ? parsePartIds(strOrEmpty(arrangement[1]))
         .map((id) => parts.find((p) => strOrEmpty(p[0]) === id))
         .filter((p) => p !== undefined) : parts;
   const seen = new Map<string, number>();
@@ -99,12 +92,15 @@ function song(item: SlideItem, labels: Map<string, unknown>, data: Songs): ItemS
   return some(slides, 'no-parts');
 }
 
+/** A Bible item's content as stored (`BibleItemContent`, JSON text): `readBibleItemContent` of it. */
+export const bibleItemContent = (content: string | null): BibleItemContent | null => readBibleItemContent(content === null ? undefined : readStoredJson(content));
+
 /**
  * A Bible item's content (`BibleItemContent`, D12, D25): its translation and its frozen slides, or null where they do
- * not read (a translation of at most 50, at most 1000 slides of at most 500 runs, a verse number 0–999 or null).
+ * not read (a translation of at most 50 characters, at most 1000 slides of at most 500 runs, a verse number 0–999 or
+ * null, a run's text of at most 10 000 characters). The export zip's check reads a 1.x or 2.0 item by it too.
  */
-export function bibleItemContent(content: string | null): BibleItemContent | null {
-  const c = content === null ? undefined : parseJson(content);
+export function readBibleItemContent(c: unknown): BibleItemContent | null {
   if (!isObj(c)) return null;
   const translation = asStr(c.translation);
   if (translation === null || !charsAtMost(translation, BIBLE_ITEM_LIMITS.translation) || !Array.isArray(c.slides) || c.slides.length > BIBLE_ITEM_LIMITS.slides) return null;
@@ -138,17 +134,9 @@ export function bibleItemSlides(item: SlideItem): ItemShown {
   return some(slides, 'no-parts');
 }
 
-/** `imageItemIds`: an image item's pictures, by library id; one made before there could be several shows its source. */
-function imageIds(item: SlideItem): string[] {
-  const v = item.content ? parseJson(item.content) : undefined;
-  const images = isObj(v) ? v.images : undefined;
-  const fits = (x: unknown) => typeof x === 'string' && x.length > 0 && charsAtMost(x, MAX_ITEM_IMAGE_ID);
-  return Array.isArray(images) && images.length >= 1 && images.length <= MAX_ITEM_IMAGES && images.every(fits) ? (images as string[]) : [item.sourceId];
-}
-
 async function image(item: SlideItem, sql: RunSql): Promise<ItemShown> {
   const out: Shown[] = [];
-  for (const [i, id] of imageIds(item).entries()) {
+  for (const [i, id] of imageItemIds(item).entries()) {
     // A trashed picture still shows (MEDIA-R8); a purged one is gone.
     const r = (await sql('SELECT full_hash, thumb_hash FROM images WHERE id = ?', [id]))[0];
     if (r) out.push({ ...slide(`image${i}`, 'media', ''), image: r[0], thumb: r[1] });
@@ -162,40 +150,22 @@ async function audio(item: SlideItem, sql: RunSql): Promise<ItemShown> {
   return { slides: [{ ...slide('audio', 'media', ''), audio: { name: r[1] } }], problem: null, audio: { hash: r[0], fileName: r[1] } };
 }
 
-const VIDEO_COLUMNS = ['id', 'file_name', 'content_type', 'codec', 'hash', 'size', 'duration', 'width', 'height', 'still_hash', 'thumb_hash', 'created_at', 'deleted_at'];
-const camel = (column: string) => column.replace(/_(.)/g, (_, c: string) => c.toUpperCase());
-
+/** A video item's one slide, its video's row as Video lists it (`videoRow`: an unknown type is mp4, an unknown codec h264). */
 async function video(item: SlideItem, sql: RunSql): Promise<ItemShown> {
-  const r = (await sql(`SELECT ${VIDEO_COLUMNS.join(', ')} FROM videos WHERE id = ?`, [item.sourceId]))[0];
+  const [r] = await select(sql, VIDEO, 'videos WHERE id = ?', [item.sourceId]);
   if (!r) return none('video-missing');
-  const row = Object.fromEntries(VIDEO_COLUMNS.map((c, i) => [camel(c), r[i]]));
+  const row = videoRow(r);
   const shown = { ...slide('video', 'media', ''), image: row.stillHash, thumb: row.thumbHash, video: { hash: row.hash, type: row.contentType, codec: row.codec } };
   return { slides: [shown], problem: null, video: row };
 }
 
-const field = (v: unknown, k: string): unknown => (isObj(v) ? (v[k] ?? null) : null);
-
-/** `customPageText`: a page's texts top to bottom, then left to right, one to a line. */
-function pageText(page: unknown): string {
-  const elements = field(page, 'elements');
-  const num = (e: unknown, k: string) => asF64(field(e, k)) ?? 0;
-  const text = (e: unknown) => (asStr(field(e, 'text')) ?? '').trim();
-  const texts = Array.isArray(elements) ? elements.filter((e) => field(e, 'kind') === 'text' && text(e) !== '') : [];
-  return texts
-    .toSorted((a, b) => num(a, 'y') - num(b, 'y') || num(a, 'x') - num(b, 'x'))
-    .map(text)
-    .join('\n');
-}
-
+/** A slideshow's slides, a page each, its pages checked (`parseCustomPages`); a PDF's page is a picture slide too. */
 async function custom(item: SlideItem, sql: RunSql): Promise<ItemShown> {
   const r = (await sql('SELECT pages FROM custom_slides WHERE id = ?', [item.sourceId]))[0];
   if (!r) return none('custom-missing');
-  // A page a slide; a PDF's page is a picture slide too. Not checked against the schema, as the Rust core did not.
-  const read = parseJson(strOrEmpty(r[0]));
-  const pages = Array.isArray(read) && read.length ? read : [blankPage()];
-  const slides = pages.map((page: unknown, i) => {
-    const pdf = field(page, 'backgroundPage');
-    return { ...slide(`page${i}`, pdf !== null ? 'media' : 'song', pageText(page)), image: field(pdf, 'full'), thumb: field(pdf, 'thumb'), custom: page };
+  const slides = parseCustomPages(asStr(r[0])).map((page, i) => {
+    const pdf = page.backgroundPage;
+    return { ...slide(`page${i}`, pdf ? 'media' : 'song', customPageText(page)), image: pdf?.full ?? null, thumb: pdf?.thumb ?? null, custom: page };
   });
   return some(slides, null);
 }

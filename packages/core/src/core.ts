@@ -2,8 +2,6 @@
 // sync's `sync…`) or a view by name, every statement through the shell's `sql` in the shell's transaction. The shape
 // is the one the Rust core had (at the tag native-experiment-end), so the shells did not change when the
 // core came back to TypeScript.
-import type { CustomPage, Picture } from './custom-slides.ts';
-import type { LegacyRows } from './legacy.ts';
 import type { MutatorCtx } from './mutation.ts';
 import { runCommand, runCommandSync, runPureView, runView, type RunSql, type RunSqlSync } from './commands.ts';
 import { SerialQueue } from './serial-queue.ts';
@@ -54,27 +52,4 @@ export function runMutation(on: MutationDb, name: string, args: unknown, ctx: Mu
 export type { Rows, RunSql, RunSqlSync } from './commands.ts';
 export type { DriverEffect } from './sync-driver.ts';
 export * from './pure.ts';
-
-// The export zip's rows (docs/import-from-1x.md), for the web, the server and 1.x's export alike: the rows go to the
-// views as JSON text and the rewritten ones come back as JSON text, so an object's keys keep JavaScript's order.
-
-/** A zip's rows of `format` as this format has them (`legacyUpgradeView`). */
-export function upgradeLegacyRows(format: number, rows: unknown): LegacyRows {
-  return JSON.parse(runPureView('legacyUpgradeView', { format, rows: JSON.stringify(rows) }) as string) as LegacyRows;
-}
-
-/** The first row the server would refuse, named by its table and id, or null (`legacyRowsProblemView`). */
-export function legacyRowsProblem(rows: LegacyRows): string | null {
-  return runPureView('legacyRowsProblemView', { rows: JSON.stringify(rows) }) as string | null;
-}
-
-/** The blobs the rows name, each with the row that names it ("images {id}"), and which of them are videos (`legacyBlobsView`). */
-export function legacyBlobs(rows: LegacyRows): { named: [hash: string, row: string][]; videos: Set<string> } {
-  const { named, videos } = runPureView('legacyBlobsView', { rows: JSON.stringify(rows) }) as { named: [string, string][]; videos: string[] };
-  return { named, videos: new Set(videos) };
-}
-
-/** A 1.x overlay as a page, drawn as 1.x drew it: its picture over the stage, its text at the top left (`legacyOverlayPageView`). */
-export function legacyOverlayPage(content: string | null, picture: Picture | null): CustomPage {
-  return JSON.parse(runPureView('legacyOverlayPageView', { content, picture }) as string) as CustomPage;
-}
+export { legacyBlobs, legacyOverlayPage, legacyRowsProblem, upgradeLegacyRows } from './views/files-legacy.ts';

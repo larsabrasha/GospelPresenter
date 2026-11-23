@@ -122,3 +122,14 @@ describe("the blobs an export's rows name", () => {
     ]);
   });
 });
+
+describe("the check of an export's rows", () => {
+  it("reads a Bible passage's translation in characters, as the slides do, so one of 50 emoji is taken", () => {
+    const content = JSON.stringify({ translation: '😀'.repeat(50), slides: [[{ n: 1, t: 'I begynnelsen' }]] });
+    const item = { id: 'I1', presentation_id: 'P', type: 'bible', title: '1 Mos 1:1', source_id: '', sort: 0, arrangement_id: null, content, overlay_id: null, note: null };
+
+    const problem = legacyRowsProblem({ ...rowsWith([]), presentation_items: [item] });
+
+    expect(problem).toBeNull();
+  });
+});

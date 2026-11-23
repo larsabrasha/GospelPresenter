@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MEDIA_HASH } from './media.ts';
+import { readStoredJson } from './stored-json.ts';
 import { CANVAS } from './themes.ts';
 
 // A slideshow's page (Bildspel, docs/custom-slides.md): texts, pictures and shapes placed freely on the 1920×1080
@@ -77,14 +78,29 @@ export const blankPage = (): CustomPage => ({ background: null, backgroundPictur
 /** A PDF's pages as a slideshow's: each the picture of its page on black, with nothing on it yet. */
 export const pdfPages = (pages: Picture[]): CustomPage[] => pages.map((p) => ({ ...blankPage(), background: '#000000', backgroundPage: { full: p.full, thumb: p.thumb } }));
 
-/** An overlay's page as stored, or a blank one where it does not read. */
+// Every reader of a page checks it here, against the schemas: a slideshow's pages that do not read are one blank page,
+// as Bildspel lists them, and an overlay's page that does not read is a blank one; neither names a picture.
+
+/** A slideshow's pages, as kept or sent, checked; pages that do not read are one blank page. */
+export function readCustomPages(v: unknown): CustomPage[] {
+  const read = customPagesSchema.safeParse(v);
+  return read.success ? read.data : [blankPage()];
+}
+
+/** A page (an overlay's), as kept or sent, checked; one that does not read is a blank page. */
+export function readCustomPage(v: unknown): CustomPage {
+  const read = customPageSchema.safeParse(v);
+  return read.success ? read.data : blankPage();
+}
+
+/** A slideshow's pages as stored (JSON text, stored-json.ts), checked. */
+export function parseCustomPages(json: string | null): CustomPage[] {
+  return readCustomPages(json === null ? undefined : readStoredJson(json));
+}
+
+/** An overlay's page as stored (JSON text, stored-json.ts), checked. */
 export function parseCustomPage(json: string | null): CustomPage {
-  try {
-    const parsed = customPageSchema.safeParse(JSON.parse(json ?? ''));
-    return parsed.success ? parsed.data : blankPage();
-  } catch {
-    return blankPage();
-  }
+  return readCustomPage(json === null ? undefined : readStoredJson(json));
 }
 
 /** A page's texts as a public output shows them: top to bottom, then left to right, one to a line. */

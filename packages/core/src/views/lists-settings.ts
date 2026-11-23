@@ -3,17 +3,21 @@
 import { CCLI_COLLECTION_SETTING, DEFAULT_THEME_SETTING } from '../mutation.ts';
 import { BUILT_IN_THEMES, CLASSIC, DEFAULT_THEME_ID, type Theme, themeDefinitionSchema } from '../themes.ts';
 import type { RunSql } from './sql.ts';
-import { type Fields, jsNum, jsString, langOf, mapRow, readJson, select, sortRows } from './lists-rows.ts';
+import { readStoredJson } from '../stored-json.ts';
+import { type Fields, jsNum, jsString, langOf, mapRow, select, sortRows } from './lists-rows.ts';
 import { argsOf, idOf } from './serde.ts';
 
 // ------------------------------------------------------------------ themes (themes.rs)
 
 /** A built-in theme as a view hands it out: a copy, so no caller changes the one kept here. */
-export const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-/** `themeOfRow` {id, name, definition, sort}: a definition that does not read (as serde_json and zod read it) looks as Classic, the name kept. */
+/**
+ * `themeOfRow` [id, name, definition, sort]: an own theme, as every view reads one. A definition that does not read
+ * (stored-json.ts, then `themeDefinitionSchema`) looks as Classic, the name kept.
+ */
 function ownRow(r: unknown[]): Theme {
-  const parsed = typeof r[2] === 'string' ? themeDefinitionSchema.safeParse(readJson(r[2])) : undefined;
+  const parsed = typeof r[2] === 'string' ? themeDefinitionSchema.safeParse(readStoredJson(r[2])) : undefined;
   const definition = parsed?.success ? parsed.data : copy(CLASSIC.definition);
   // A whole sort past an i64's range is its end, as Rust's `as i64` saturates.
   const sort = typeof r[3] !== 'number' || !Number.isFinite(r[3]) ? 0 : Number.isInteger(r[3]) ? Math.min(2 ** 63, Math.max(-(2 ** 63), r[3])) : r[3];
@@ -23,17 +27,14 @@ function ownRow(r: unknown[]): Theme {
 /** The organisation's default theme's id, as stored (null when it has chosen none). */
 const defaultThemeId = async (sql: RunSql) => (await sql('SELECT value FROM org_settings WHERE id = ?', [DEFAULT_THEME_SETTING]))[0]?.[0] ?? null;
 
-/**
- * `themeOf`: the theme of a presentation whose theme is `themeId` (null: the organisation's default), else Classic; an
- * own theme's row [id, name, definition, sort] read by `row`.
- */
-export async function themeOf(sql: RunSql, themeId: string | null, row: (r: unknown[]) => Theme = ownRow): Promise<Theme> {
+/** `themeOf`: the theme of a presentation whose theme is `themeId` (null: the organisation's default), else Classic (THEME-R1). */
+export async function themeOf(sql: RunSql, themeId: string | null): Promise<Theme> {
   const stored = await defaultThemeId(sql);
   const id = themeId ?? (typeof stored === 'string' ? stored : DEFAULT_THEME_ID);
   const builtIn = BUILT_IN_THEMES.find((t) => t.id === id);
   if (builtIn) return copy(builtIn);
   const [own] = await sql('SELECT id, name, definition, sort FROM themes WHERE id = ?', [id]);
-  return own ? row(own) : copy(CLASSIC);
+  return own ? ownRow(own) : copy(CLASSIC);
 }
 
 const BIBLE: Fields = [['id', 'str'], ['name', 'str'], ['abbreviation', 'str'], ['language', 'opt'], ['verseCount', 'num'], ['contentHash', 'str'], ['stored', 'bool'], ['kept', 'bool']];

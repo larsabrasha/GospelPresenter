@@ -2,6 +2,7 @@
 // refusal, the limits the pages show, the settings' keys, and what the server and the pages read of a mutator's rows.
 import { z } from 'zod';
 import type { Role } from './permissions.ts';
+import { readStoredJson } from './stored-json.ts';
 
 export interface MutatorCtx {
   userId: string;
@@ -102,5 +103,5 @@ const snapshotSchema = z.object({
 export type SongSnapshot = z.infer<typeof snapshotSchema>;
 
 export function parseSongSnapshot(data: string): SongSnapshot {
-  return snapshotSchema.parse(JSON.parse(data));
+  return snapshotSchema.parse(readStoredJson(data));
 }

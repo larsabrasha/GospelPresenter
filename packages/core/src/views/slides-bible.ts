@@ -5,7 +5,8 @@ import { resolveBook } from '../bible-books.ts';
 import { BIBLE_LIMITS, bibleItemTitle, bibleLabel, splitBibleSlides, type BibleBookText, type Verse } from '../bible.ts';
 import { bibleItemSlides, type ItemShown } from './slides-items.ts';
 import type { RunSql } from './sql.ts';
-import { argsOf, asI64, asStr, charsAtMost, hasFraction, intIn, invalidArgs, isObj, parseJson, RUST_SPACE_RUN, rustTrim } from './serde.ts';
+import { readStoredJson } from '../stored-json.ts';
+import { argsOf, asI64, asStr, charsAtMost, hasFraction, intIn, invalidArgs, isObj, RUST_SPACE_RUN, rustTrim } from './serde.ts';
 
 // ------------------------------------------------------------------ a passage's preview (BIBLE-R12, R13)
 
@@ -114,10 +115,10 @@ export function verseSearchPlanView(args: unknown): ReturnType<typeof plan> {
 
 // ------------------------------------------------------------------ a stored text (`bible_texts`, a row a book)
 
-/** A book's verses as stored, `[[chapter, verse, text], …]`, read as serde reads them; none where they do not read. */
+/** A book's verses as stored, `[[chapter, verse, text], …]` (stored-json.ts); none where they do not read. */
 async function versesOf(sql: RunSql, hash: string, book: string): Promise<BibleBookText['verses']> {
   const chunk = asStr((await sql('SELECT chunk FROM bible_texts WHERE hash = ? AND book = ?', [hash, book]))[0]?.[0]);
-  const read = chunk === null ? undefined : parseJson(chunk);
+  const read = chunk === null ? undefined : readStoredJson(chunk);
   const ok = (x: unknown) => Array.isArray(x) && x.length === 3 && asI64(x[0]) !== null && asI64(x[1]) !== null && typeof x[2] === 'string';
   return Array.isArray(read) && read.every(ok) && !hasFraction(chunk!) ? (read as BibleBookText['verses']) : [];
 }

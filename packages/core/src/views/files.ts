@@ -7,7 +7,7 @@ import { MutationError } from '../mutation.ts';
 import type { PureView, View } from './sql.ts';
 import { bibleTextJsonView, bibleTextPlanView, bibleTextStoreView, bibleUploadsView } from './files-bible-texts.ts';
 import { jsonArgs, field } from './files-json.ts';
-import { exportRowsView, legacyBlobsView, legacyOverlayPageView, legacyRowsProblemView, legacyUpgradeView } from './files-legacy.ts';
+import { exportRowsView } from './files-legacy.ts';
 import { mediaPlanView, mediaStorageView, mediaUploadsView, wantedMediaView } from './files-media.ts';
 
 /** How two song names compare for duplicates: case and composition aside (SONG-R42). */
@@ -70,9 +70,5 @@ export const filesViews: Record<string, View> = {
 export const filesPureViews: Record<string, PureView> = {
   songNamesakesView,
   songImportDuplicatesView,
-  legacyUpgradeView,
-  legacyBlobsView,
-  legacyRowsProblemView,
-  legacyOverlayPageView,
   bibleTextStoreView,
 };

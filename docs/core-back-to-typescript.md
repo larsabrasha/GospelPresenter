@@ -230,19 +230,18 @@ Each group was checked once with a fault planted.
 
 Where Rust is matched rather than simplified, for now (step 5 may simplify): lengths and strings by code point where
 Rust counted them so (slideshow pages, theme definitions, highlights); JSON text read as serde_json read it
-(`views/serde.ts`, `files-json.ts`: half a surrogate pair, numbers past a double, 128 levels deep refused); a
+(`stored-json.ts` since round 6: half a surrogate pair, numbers past a double, 128 levels deep refused); a
 `partIndex` wrapped to 32 bits as `usize` on WASM did; Rust's insertion sort for a Bible book of 20 verses or fewer;
 a DEFLATE decoder of its own (`inflate.ts`, beside `zip.ts` since step 5) that takes and refuses what miniz_oxide did.
 
 Not matched, each where the Rust core trapped (panicked), so there was no answer: `legacyOverlayPageView` with a
 picture lacking `full` or `thumb`, a Bible book of more than 20 verses whose chapter is not a number, a typed number
 of non-ASCII text in a page's state, an argument holding half a UTF-16 pair. The TS core answers or refuses there.
-`files-json.ts` keeps a number's text as written through `JSON.parse`'s `context.source` (Node 22, Chromium 114):
-in an engine without it only unusual number literals in a queued change's arguments differ.
+Until round 6 `files-json.ts` kept a number's text as written (`JSON.parse`'s `context.source`); a queued change's
+arguments are read by `stored-json.ts` now, as plain numbers.
 
-Found on the way, for later: the mutators check text lengths with zod, by UTF-16 unit, where the Rust mutators
-counted code points (an element's text of 2 000, an id of 1 to 40): text near those limits made of astral
-characters (emoji) is refused a little earlier in TS. `coreInfoView` answered `gp-core 0.1.0`, which "Om Gospel
+Found on the way: the mutators check text lengths with zod, which (zod 4) counts code points as the Rust mutators did,
+so a text of emoji at its limit is taken by both (checked again in round 6). `coreInfoView` answered `gp-core 0.1.0`, which "Om Gospel
 Presenter" showed as the core it ran on; the row and the view went in step 5, round 4 (Lars, 2026-11-23).
 
 ## Step 3: the switch
@@ -336,6 +335,38 @@ reader and DEFLATE (`zip.ts`, `inflate.ts`), the Bible text's storing and hash, 
 media SQL, the argument and id checks, the trims and comparisons; constants are imported where they are defined.
 e2e, the whole suite: the same 25 as round 4. Seven pairs ran both and differed on broken data or rare characters;
 Lars chose one behaviour for each (round 6).
+
+Round 6 (2026-11-23): one rule each where both copies ran (Lars chose each).
+- Where a word starts (S3): `words.ts`'s `wordChar` (the Rust core's: a BMP letter or digit, not a mark nor a circled
+  letter), with `lower`, `fold` and `terms`, for finding (`search.ts`) and marking (`views/slides-highlight.ts`).
+  Nothing found or marked changes: the two sets agree on the BMP, and search read the half of a pair before a term.
+- A song's arrangements and parts (I3): `songOrder` (`slides.ts`), by `sort` as a whole number (one that is not
+  first), then id by code point; `sortedArrangements` (the item's menu) and the slides' default use it (SONG-R19).
+- The app's JSON (H6, I1, I2, T1): `stored-json.ts`'s `readStoredJson` refuses a parse error, an infinite number,
+  half a surrogate pair in a key or a text, and 128 levels; it replaced `views/serde.ts`'s `parseJson`,
+  `views/lists-rows.ts`'s `readJson`, `files-json.ts`'s `serdeParse` (with its numbers kept as written), and the bare
+  `JSON.parse` of `parsePartIds`, `imageItemIds`, `parseCustomPage`; the views use those three. An own theme is read
+  by `views/lists-settings.ts`'s `ownRow` alone (`themeOf` takes no reader): presenting's `themeView` now saturates
+  a sort past an i64 as Teman did. `files-json.ts`'s `parseLegacyJson` (once `parseText`) is the 1.x and 2.0
+  files' reader, which mends half a pair.
+- Text lengths: zod 4 counts code points already, as the views do (`charsAtMost`, `views/serde.ts`); nothing changed
+  but tests of emoji at each field's limit (`packages/core/test/node/rules.test.ts`). The web's inputs' `maxLength`
+  counts UTF-16 units, so a field of emoji stops at half its length there.
+- A video item's row (I5) is Video's (`videoRow`): an unknown type mp4, an unknown codec h264.
+- Pages (C2, C3): `custom-slides.ts`'s `readCustomPages` and `readCustomPage` check every page read (the slides,
+  Bildspel, the overlay shown, the blobs to fetch and upload, the export zip's rows): pages that do not read are one
+  blank page; `customPageText` is the one page text. The hand-written checks (`lists-media.ts`'s and the export
+  zip's) are gone, and the export's Bible check is `readBibleItemContent` (`views/slides-items.ts`).
+- A queued change's blobs (T4, C4): `themes.ts`'s `checkedThemeBlobs` and `customPageBlobs` of checked pages; a
+  definition or page that does not check names none.
+- The running order (P1): `slideCounts` (`views/slides-presenting.ts`) skips a row that is not [text, whole number
+  from 0], for presenting's keys and the page's state alike.
+- Tests: `packages/core/test/reading-rules.test.ts`, `packages/core/test/node/reading-rules.test.ts`, and one in
+  `packages/core/test/node/legacy.test.ts`.
+- The legacy import's functions (`upgradeLegacyRows`, `legacyRowsProblem`, `legacyBlobs`, `legacyOverlayPage`) return
+  their rows and pages at once instead of as JSON text read back, and a song version and a queued change's arguments
+  are read by `readStoredJson` too.
+- e2e, the whole suite: the same 25 failing as in round 5, 115 passed.
 
 ## How long
 

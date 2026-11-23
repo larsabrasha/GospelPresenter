@@ -7,7 +7,8 @@ import { BIBLE_LIMITS, bookChunk, joinBibleText, LOAD_BIBLE_TEXT_SQL, storeBible
 import { sha256HexSync } from '../platform.ts';
 import type { RunSql } from './sql.ts';
 import { strOrEmpty } from './serde.ts';
-import { jsonArgs, numberOf, field, intOf, mediaPlanString, plain, serdeParse, strOf } from './files-json.ts';
+import { readStoredJson } from '../stored-json.ts';
+import { jsonArgs, numberOf, field, intOf, mediaPlanString, strOf } from './files-json.ts';
 
 /** The translations whose texts this device keeps: every one on a desktop host, else those chosen (`kept_bibles`). */
 const kept = (a: Record<string, unknown>) =>
@@ -18,7 +19,7 @@ async function imports(sql: RunSql) {
   const rows = await sql('SELECT id, name, args FROM _mutation ORDER BY id', []);
   return rows.flatMap((r, index) => {
     if (strOrEmpty(r[1]) !== 'importBible') return [];
-    const args = serdeParse(strOrEmpty(r[2]));
+    const args = readStoredJson(strOrEmpty(r[2])) ?? null;
     return [{ index, id: Number(intOf(r[0])), args, hash: mediaPlanString(field(args, 'contentHash')) }];
   });
 }
@@ -59,7 +60,7 @@ function book(b: unknown): BibleBookText | null {
 
 /** A text's books, if `json` reads as a text whose canonical JSON is what `hash` names. */
 function readText(json: string, hash: string): BibleBookText[] | null {
-  const text = serdeParse(json);
+  const text = readStoredJson(json);
   if (numberOf(field(text, 'v')) !== 1) return null;
   const books = field(text, 'books');
   if (!Array.isArray(books) || !books.length || books.length > BIBLE_LIMITS.books) return null;
@@ -101,6 +102,6 @@ export async function bibleTextJsonView(args: unknown, sql: RunSql) {
 export async function bibleUploadsView(args: unknown, sql: RunSql) {
   const a = jsonArgs(args);
   const uploaded = new Set(Array.isArray(a.uploaded) ? a.uploaded.map(mediaPlanString) : []);
-  const uploads = (await imports(sql)).map((i) => ({ index: i.index, id: i.id, args: plain(i.args), hash: i.hash, uploaded: uploaded.has(i.hash) }));
+  const uploads = (await imports(sql)).map((i) => ({ index: i.index, id: i.id, args: i.args, hash: i.hash, uploaded: uploaded.has(i.hash) }));
   return { uploads };
 }

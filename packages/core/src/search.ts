@@ -1,5 +1,6 @@
 // Song search (spec 02, SONG-R30–R33): every term must start a word in the
-// name, the author or the lyrics; accents are a fallback; hits are ranked.
+// name, the author or the lyrics; accents are a fallback; hits are ranked. What a word is: words.ts.
+import { fold, lower, terms, wordChar } from './words.ts';
 
 /** What search needs of a song. `lyrics` is every part's text; `firstPart` the first part's. */
 export interface SearchableSong {
@@ -9,51 +10,13 @@ export interface SearchableSong {
   lyrics: string;
 }
 
-/** Each code point's `lower` and `fold`, worked out once: a library has few distinct ones, and normalising each anew was most of preparing it. */
-const lowerOf = new Map<string, string>();
-const foldOf = new Map<string, string>();
-
-/** Lower case and NFC, one code point for one code point, so positions match the NFC text. */
-function lower(s: string): string {
-  let out = '';
-  for (const c of s.normalize('NFC')) {
-    let l = lowerOf.get(c);
-    if (l === undefined) {
-      const x = c.toLowerCase();
-      lowerOf.set(c, (l = [...x].length === 1 ? x : c));
-    }
-    out += l;
-  }
-  return out;
-}
-
-/** Each code point without its accents ("ä" → "a"), keeping the length. */
-function fold(s: string): string {
-  let out = '';
-  for (const c of s) {
-    let base = foldOf.get(c);
-    if (base === undefined) {
-      const x = c.normalize('NFD').replace(/\p{M}/gu, '');
-      foldOf.set(c, (base = [...x].length === 1 ? x : c));
-    }
-    out += base;
-  }
-  return out;
-}
-
-const wordChar = /[\p{L}\p{N}]/u;
-
-/** Where `term` starts a word in `text` (start of text, or after a non-letter, non-digit). */
+/** Where `term` starts a word in `text` (start of text, or after what is not a `wordChar`). */
 function wordPrefixes(text: string, term: string): number[] {
   const at: number[] = [];
   for (let i = text.indexOf(term); i !== -1; i = text.indexOf(term, i + 1)) {
-    if (i === 0 || !wordChar.test(text[i - 1]!)) at.push(i);
+    if (i === 0 || !wordChar(text[i - 1]!)) at.push(i);
   }
   return at;
-}
-
-function terms(query: string): string[] {
-  return lower(query).trim().split(/\s+/).filter(Boolean);
 }
 
 /**

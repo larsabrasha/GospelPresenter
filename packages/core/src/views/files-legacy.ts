@@ -1,47 +1,45 @@
 // The export zip's rows (docs/import-from-1x.md; ADR 0008, ported back from crates/gp-core/src/legacy.rs, itself from
 // legacy.ts at 238d481b): an older format's rows brought to this one, the blobs the rows name, the first row the server
-// would refuse, and 1.x's overlay as a page. The rows come and go as JSON text, worked on as JavaScript holds JSON, and
-// written as the Rust core wrote them (files-json.ts's `stringify`). Rows that are not objects, or a table the upgrade
-// reads that is not a list of them, are refused (`invalid-rows`).
-import { CUSTOM_LIMITS, pdfPages } from '../custom-slides.ts';
-import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS } from '../bible.ts';
-import { LEGACY_TABLES } from '../legacy.ts';
+// would refuse, and 1.x's overlay as a page. A column that holds JSON is written by files-json.ts's `stringify`. Rows
+// that are not objects, or a table the upgrade reads that is not a list of them, are refused (`invalid-rows`).
+import { CUSTOM_LIMITS, type CustomPage, type Picture, customPageBlobs, customPagesSchema, pdfPages, readCustomPage, readCustomPages } from '../custom-slides.ts';
+import { LEGACY_TABLES, type LegacyRows } from '../legacy.ts';
 import { MutationError } from '../mutation.ts';
 import { slideDeckPagesSchema } from '../slides.ts';
+import { checkedThemeBlobs } from '../themes.ts';
 import { tableByName } from '../sync-sql.ts';
 import type { RunSql } from './sql.ts';
-import { type Json, jsonArgs, cut, isObject, parseText, sortedKeys, stringify, orderedString, unique } from './files-json.ts';
-import { pageBlobs, themeBlobs } from './files-pages.ts';
+import { type Json, jsonArgs, cut, isObject, parseLegacyJson, sortedKeys, stringify, orderedString, unique } from './files-json.ts';
+import { readBibleItemContent } from './slides-items.ts';
 
 const refused = (): never => {
   throw new MutationError('invalid-rows');
 };
-function rowsArg(a: Json): Json {
-  const rows = typeof a.rows === 'string' ? parseText(a.rows) : undefined;
-  if (!isObject(rows)) throw new MutationError('invalid-args');
-  return rows;
+/**
+ * A zip's rows as the core works on them: plain JSON, as they were written to the file, half a surrogate pair mended
+ * (`parseLegacyJson`); rows that are not an object are refused (`invalid-args`).
+ */
+function rowsOf(rows: unknown): Json {
+  const text = JSON.stringify(rows);
+  const value = text === undefined ? undefined : parseLegacyJson(text);
+  if (!isObject(value)) throw new MutationError('invalid-args');
+  return value;
 }
 
-/** `legacyUpgradeView` {format, rows (JSON text)}: the rows as this format has them, as JSON text. */
-export function legacyUpgradeView(args: unknown): string {
-  const a = jsonArgs(args);
-  if (typeof a.format !== 'number') throw new MutationError('invalid-args');
-  return stringify(upgrade(a.format, rowsArg(a)));
+/** A zip's rows of `format` as this format has them. */
+export const upgradeLegacyRows = (format: number, rows: unknown) => upgrade(format, rowsOf(rows)) as unknown as LegacyRows;
+
+/** The first row the server would refuse, named by its table and id ("images {id}"), or null. */
+export const legacyRowsProblem = (rows: LegacyRows): string | null => problem(rowsOf(rows));
+
+/** The blobs the rows name, each with the row that names it ("images {id}"), and which of them are videos. */
+export function legacyBlobs(rows: LegacyRows): { named: [hash: string, row: string][]; videos: Set<string> } {
+  const { named, videos } = blobs(rowsOf(rows));
+  return { named, videos: new Set(videos) };
 }
 
-/** `legacyBlobsView` {rows (JSON text)}: {named: [hash, row][], videos: hash[]}. */
-export const legacyBlobsView = (args: unknown) => blobs(rowsArg(jsonArgs(args)));
-
-/** `legacyRowsProblemView` {rows (JSON text)}: the first row the server would refuse, named, or null. */
-export const legacyRowsProblemView = (args: unknown) => problem(rowsArg(jsonArgs(args)));
-
-/** `legacyOverlayPageView` {content, picture}: a 1.x overlay as a page, as JSON text. */
-export function legacyOverlayPageView(args: unknown): string {
-  const a = jsonArgs(args);
-  const p = a.picture;
-  const picture = isObject(p) ? { full: sortedKeys(p.full ?? null), thumb: sortedKeys(p.thumb ?? null) } : null;
-  return stringify(overlayPage(typeof a.content === 'string' ? a.content : null, picture));
-}
+/** A 1.x overlay as a page, drawn as 1.x drew it: its picture over the stage, its text at the top left. */
+export const legacyOverlayPage = (content: string | null, picture: Picture | null) => overlayPage(content, picture) as unknown as CustomPage;
 
 /** `exportRowsView` {}: every row of the tables the import writes, with exactly their columns, in their order, by id, as JSON text. */
 export async function exportRowsView(args: unknown, sql: RunSql): Promise<string> {
@@ -73,7 +71,7 @@ const orNull = (v: unknown) => v ?? null;
 
 /** A row's page JSON, or pages JSON, through `f`; one that does not read is left as it was. */
 function rewrite(json: unknown, f: (v: unknown) => unknown): unknown {
-  const v = parseText(text(json) ?? '');
+  const v = parseLegacyJson(text(json) ?? '');
   return v === undefined ? orNull(json) : stringify(f(v));
 }
 
@@ -158,13 +156,13 @@ function upgradeFormat(format: number, rows: Json): Json {
   const made: Json[] = (decks as unknown[]).map((d) => {
     if (!isObject(d)) refused();
     const deck = d as Json;
-    const pages = parseText(text(deck.pages) ?? '');
+    const pages = parseLegacyJson(text(deck.pages) ?? '');
     return (pages !== undefined && slideshowRow(deck.id, deck.name, pages)) || withKey(deck, 'pages', null); // left for the problem check to name
   });
   const items = list(rest, 'presentation_items').map((item) => {
     if (item.type !== 'slides') return item;
     if (format >= 3) return withKey(item, 'type', 'custom');
-    const content = parseText(text(item.content) ?? '');
+    const content = parseLegacyJson(text(item.content) ?? '');
     const row = isObject(content) && Object.hasOwn(content, 'pages') ? slideshowRow(item.id, item.title, content.pages) : null;
     if (!row) return item; // left for the problem check to name
     made.push(row);
@@ -211,7 +209,7 @@ function withFieldTimes(rows: Json): Json {
 
 /** JSON text as JSON.parse reads it, an infinity null, as the schemas check it; undefined where it does not read. */
 function read(json: string | null): unknown {
-  const v = parseText(json ?? '');
+  const v = parseLegacyJson(json ?? '');
   return v === undefined ? undefined : JSON.parse(JSON.stringify(v)) as unknown;
 }
 
@@ -222,9 +220,10 @@ function blobs(rows: Json): { named: [string, string][]; videos: string[] } {
     for (const h of hashes) if (typeof h === 'string' && h) named.push([h, row]);
   };
   const label = (t: string, r: Json) => `${t} ${orderedString(r.id)}`;
+  // Pages and definitions are checked as every reader checks them (custom-slides.ts, themes.ts): one that does not names no blobs.
   const pages = (json: unknown, many: boolean) => {
     const v = read(text(json));
-    return unique((v !== undefined && pageBlobs(v, many)) || []);
+    return customPageBlobs(many ? readCustomPages(v) : [readCustomPage(v)]);
   };
   for (const i of list(rows, 'images')) add(label('images', i), [i.full_hash, i.thumb_hash, i.original_full_hash, i.original_thumb_hash]);
   for (const a of list(rows, 'audios')) add(label('audios', a), [a.hash]);
@@ -233,27 +232,8 @@ function blobs(rows: Json): { named: [string, string][]; videos: string[] } {
   for (const m of list(rows, 'song_materials')) add(label('song_materials', m), [m.hash]);
   for (const c of list(rows, 'custom_slides')) add(label('custom_slides', c), pages(c.pages, true));
   for (const o of list(rows, 'overlays')) add(label('overlays', o), pages(o.content, false));
-  for (const th of list(rows, 'themes')) {
-    const definition = read(text(th.definition));
-    const hs = definition === undefined ? null : themeBlobs(definition);
-    if (hs) add(label('themes', th), hs);
-  }
+  for (const th of list(rows, 'themes')) add(label('themes', th), checkedThemeBlobs(read(text(th.definition))));
   return { named, videos: unique(videos.map((v) => orderedString(Object.hasOwn(v, 'hash') ? v.hash : undefined))) };
-}
-
-/** A Bible item's content that reads (as slides-items.ts's `bibleItemContent`, by UTF-16 units): a translation of at most 50, and slides of segments. */
-function bibleContent(json: string | null): boolean {
-  const o = json ? read(json) : undefined;
-  if (!isObject(o)) return false;
-  const segment = (s: unknown) =>
-    isObject(s) && Object.hasOwn(s, 'n') && (s.n === null || (Number.isInteger(s.n) && (s.n as number) >= 0 && (s.n as number) <= 999)) && typeof s.t === 'string' && s.t.length <= BIBLE_LIMITS.verseLength;
-  return (
-    typeof o.translation === 'string' &&
-    o.translation.length <= BIBLE_ITEM_LIMITS.translation &&
-    Array.isArray(o.slides) &&
-    o.slides.length <= BIBLE_ITEM_LIMITS.slides &&
-    o.slides.every((sl: unknown) => Array.isArray(sl) && sl.length <= BIBLE_ITEM_LIMITS.runs && sl.every(segment))
-  );
 }
 
 /**
@@ -273,12 +253,12 @@ function problem(rows: Json): string | null {
   }
   for (const d of list(rows, 'displays')) if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${id(d)}: no kind "${orderedString(Object.hasOwn(d, 'kind') ? d.kind : undefined)}"`;
   for (const c of list(rows, 'custom_slides')) {
-    const v = read(text(c.pages));
-    if (v === undefined || !pageBlobs(v, true)) return `custom_slides ${id(c)}: pages that do not read`;
+    if (!customPagesSchema.safeParse(read(text(c.pages))).success) return `custom_slides ${id(c)}: pages that do not read`;
   }
   for (const item of list(rows, 'presentation_items')) {
     if (item.type === 'slides') return `presentation_items ${id(item)}: a slide deck item, not a slideshow`;
-    if (item.type === 'bible' && !bibleContent(text(item.content))) return `presentation_items ${id(item)}: a Bible passage that does not read`;
+    const content = text(item.content);
+    if (item.type === 'bible' && !readBibleItemContent(content ? read(content) : undefined)) return `presentation_items ${id(item)}: a Bible passage that does not read`;
   }
   return null;
 }

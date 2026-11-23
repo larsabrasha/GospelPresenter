@@ -4,11 +4,14 @@
 // presentation presented and those kept offline, the files it needs live, with every overlay's and theme's full
 // picture. A video itself only where it is kept offline. The shell moves the bytes; the core says which files. A shell
 // that keeps its files elsewhere than `media_blobs` says what it holds (`held`). Sizes and times are i64, as they were.
+import { customPageBlobs, readCustomPage, readCustomPages } from '../custom-slides.ts';
 import { ITEM_IMAGES_SQL, MEDIA_HASH, NAMED_BLOBS_SQL, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, OVERLAY_PICTURES_SQL, SLIDE_PAGES_SQL, SLIDESHOW_PICTURES_SQL, THEME_PICTURES_SQL } from '../media.ts';
 import { MutationError } from '../mutation.ts';
+import { readStoredJson } from '../stored-json.ts';
+import { checkedThemeBlobs } from '../themes.ts';
 import { marks, type RunSql } from './sql.ts';
 import { byCodePoint, strOrEmpty } from './serde.ts';
-import { type Json, jsonArgs, i64Of, field, i64, intOf, isObject, mediaPlanString, serdeParse, truthy, unique } from './files-json.ts';
+import { type Json, jsonArgs, i64Of, field, i64, intOf, isObject, mediaPlanString, unique } from './files-json.ts';
 
 const VIDEOS_OF = "SELECT v.hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'";
 
@@ -129,50 +132,26 @@ const THEMES = ['createTheme', 'updateTheme'];
 const namesBlobs = (m: string) => ['addImage', 'editImage', 'addAudio', 'addVideo', 'addSongFile', ...DECK_PAGES, ...THEMES].includes(m);
 const twoBlobs = (picture: unknown) => [mediaPlanString(field(picture, 'full')), mediaPlanString(field(picture, 'thumb'))];
 
-/** `customPageBlobs`: every picture the pages draw, both sizes; none when a page does not read as one. */
-function pageBlobs(pages: unknown[]): string[] {
-  const out: string[] = [];
-  for (const p of pages) {
-    const elements = field(p, 'elements');
-    if (!Array.isArray(elements)) return [];
-    const pictures = ['backgroundPicture', 'backgroundPage'].map((k) => field(p, k)).filter(truthy);
-    for (const e of elements) {
-      if (field(e, 'kind') !== 'image') continue;
-      const picture = field(e, 'picture');
-      if (!isObject(picture)) return []; // the web's `e.picture.full` threw on it
-      pictures.push(picture);
-    }
-    for (const pic of pictures) out.push(...twoBlobs(pic));
-  }
-  return unique(out);
-}
-
-/** `themeBlobs` of a definition that reads: each picture background's two blobs. */
-function themeBlobs(d: unknown): string[] {
-  const grounds = [field(field(d, 'song'), 'background'), field(field(d, 'bible'), 'background'), field(d, 'media')];
-  if (!grounds.every(isObject)) return [];
-  return grounds.map((g) => field(g, 'image')).filter((i) => field(i, 'kind') === 'picture').flatMap(twoBlobs);
-}
-
-/** `blobsOf`: the blobs a queued change names, in order. */
+/**
+ * `blobsOf`: the blobs a queued change names, in order. A theme's definition and a slideshow's or an overlay's pages
+ * are checked first, as any reader checks them (`themeDefinitionSchema`, `readCustomPages`): one that does not check
+ * names no blobs.
+ */
 function blobsOf(name: string, args: unknown): string[] {
   const f = (k: string) => mediaPlanString(field(args, k));
   const list = (v: unknown) => (Array.isArray(v) ? v : []);
-  if (THEMES.includes(name)) return unique(field(args, 'definition') === undefined ? [] : themeBlobs(field(args, 'definition')));
+  if (THEMES.includes(name)) return checkedThemeBlobs(field(args, 'definition'));
   if (name === 'addAudio' || name === 'addSongFile') return [f('hash')];
   if (name === 'addVideo') return unique([f('hash'), f('stillHash'), f('thumbHash')]);
   if (name === 'addSlides') return unique(list(field(args, 'pages')).flatMap(twoBlobs));
-  if (DECK_PAGES.includes(name)) {
-    const page = field(args, 'page');
-    return pageBlobs(name.endsWith('Overlay') ? (truthy(page) ? [page] : []) : list(field(args, 'pages')));
-  }
+  if (DECK_PAGES.includes(name)) return customPageBlobs(name.endsWith('Overlay') ? [readCustomPage(field(args, 'page'))] : readCustomPages(field(args, 'pages')));
   return unique([f('fullHash'), f('thumbHash')]);
 }
 
 /** The queue, each change that names blobs with its place in it and the blobs. */
 async function queued(sql: RunSql): Promise<{ index: number; blobs: string[] }[]> {
   const rows = await sql('SELECT name, args FROM _mutation ORDER BY id', []);
-  return rows.flatMap((r, index) => (namesBlobs(strOrEmpty(r[0])) ? [{ index, blobs: blobsOf(strOrEmpty(r[0]), serdeParse(strOrEmpty(r[1]))) }] : []));
+  return rows.flatMap((r, index) => (namesBlobs(strOrEmpty(r[0])) ? [{ index, blobs: blobsOf(strOrEmpty(r[0]), readStoredJson(strOrEmpty(r[1]))) }] : []));
 }
 
 type Held = { hash: string; size: bigint; at: bigint };

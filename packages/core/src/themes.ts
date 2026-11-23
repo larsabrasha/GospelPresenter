@@ -184,6 +184,12 @@ export function themeBlobs(d: ThemeDefinition): string[] {
   return [d.song.background, d.bible.background, d.media].flatMap((bg) => (bg.image?.kind === 'picture' ? [bg.image.full, bg.image.thumb] : []));
 }
 
+/** The blobs of a definition not yet checked (a queued change's, a zip's row): none where it does not check. */
+export function checkedThemeBlobs(v: unknown): string[] {
+  const read = themeDefinitionSchema.safeParse(v);
+  return read.success ? themeBlobs(read.data) : [];
+}
+
 /** The style of a slide kind that carries text. */
 export function slideStyle(theme: Theme, kind: 'song' | 'bible'): SlideStyle {
   return theme.definition[kind];

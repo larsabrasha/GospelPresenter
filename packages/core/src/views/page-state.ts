@@ -10,7 +10,7 @@
 // a change to it comes back as `live`, for the shell to apply through `liveChangeView` (live.ts).
 import { removableItem } from '../presenting.ts';
 import { argsOf, asBool, asI64, asStr, filled, invalidArgs, isObj, type Obj, sameJson } from './serde.ts';
-import { presentingKeyView } from './slides-presenting.ts';
+import { presentingKeyView, slideCounts } from './slides-presenting.ts';
 
 /** A text that is not empty, else none. */
 const sOf = (v: unknown): string | null => (filled(v) ? v : null);
@@ -127,12 +127,7 @@ function pageOf(a: Obj): { p: Page; order: unknown; cx: Obj } {
   const cx = argsOf(a.context);
   const live = argsOf(cx.live);
   const presenting = asBool(cx.presenting) ?? false;
-  if (!has(a, 'order') || !Array.isArray(a.order)) throw invalidArgs();
-  const counts: [string, number][] = [];
-  for (const r of a.order as unknown[]) {
-    const [item, n] = Array.isArray(r) ? [asStr(r[0]), asI64(r[1])] : [null, null];
-    if (item !== null && n !== null) counts.push([item, n]);
-  }
+  const counts = slideCounts(a.order);
   const p = new Page(isObj(a.state) ? { ...a.state } : {}, presenting, live, presenting ? sOf(live.itemId) : null, counts);
   p.sync();
   return { p, order: a.order, cx };

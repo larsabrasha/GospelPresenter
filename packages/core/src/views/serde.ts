@@ -1,5 +1,6 @@
-// A view's arguments and stored JSON read as the Rust core read them (serde_json's `Value`, ADR 0008): what counts as
-// an integer, a number, a text or an object there, and the refusal of arguments that are not an object.
+// A view's arguments read as the Rust core read them (serde_json's `Value`, ADR 0008): what counts as an integer, a
+// number, a text or an object there, and the refusal of arguments that are not an object. Stored JSON text is read by
+// stored-json.ts.
 import { MutationError } from '../mutation.ts';
 
 /** A JSON object's fields. */
@@ -45,7 +46,10 @@ export const asI64 = (v: unknown): number | null => (typeof v === 'number' && Nu
 /** `as_bool`. */
 export const asBool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
 
-/** A text's first code point at most `max` long (`chars().count()`). */
+/**
+ * Whether `s` has at most `max` characters, code points: a text's length as every limit counts it, zod's `.max` in the
+ * schemas too (zod 4 counts code points), so a name of 200 emoji is 200 characters.
+ */
 export const charsAtMost = (s: string, max: number): boolean => s.length <= max || [...s].length <= max;
 
 /** `id`: a text of 1–100 characters. */
@@ -74,25 +78,6 @@ const RUST_EDGES = new RegExp(`^${RUST_CLASS}+|${RUST_CLASS}+$`, 'gu');
 
 /** `str::trim`. */
 export const rustTrim = (s: string): string => s.replace(RUST_EDGES, '');
-
-/** Whether a parsed value holds what serde_json refuses to read: a lone surrogate, a number out of range. */
-function unreadable(v: unknown): boolean {
-  if (typeof v === 'string') return /\p{Surrogate}/u.test(v);
-  if (typeof v === 'number') return !Number.isFinite(v);
-  if (Array.isArray(v)) return v.some(unreadable);
-  if (isObj(v)) return Object.entries(v).some(([k, x]) => unreadable(k) || unreadable(x));
-  return false;
-}
-
-/** `serde_json::from_str::<Value>`: the value, or undefined where it does not read. */
-export function parseJson(text: string): unknown {
-  try {
-    const v: unknown = JSON.parse(text);
-    return unreadable(v) ? undefined : v;
-  } catch {
-    return undefined;
-  }
-}
 
 /** Whether JSON `text`, read already as numbers and texts alone, has a number serde reads as a float: with a point or an exponent, or -0. */
 export function hasFraction(text: string): boolean {

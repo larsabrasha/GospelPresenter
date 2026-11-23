@@ -1,7 +1,7 @@
-// What the lists' views share (ported back from crates/gp-core/src/rows.rs, args.rs, collation.rs and json.rs): a row
+// What the lists' views share (ported back from crates/gp-core/src/rows.rs, args.rs and collation.rs): a row
 // of the local database as the web's reads gave it, SQLite's snake_case columns mapped to camelCase fields, each
 // converted as the web's mapper converts it; the order by name in the page's language
-// (Intl.Collator, which collation.rs was proved equal to); and JSON text read as the Rust core read it.
+// (Intl.Collator, which collation.rs was proved equal to).
 import type { Rows, RunSql } from './sql.ts';
 import { rustTrim } from './serde.ts';
 
@@ -124,34 +124,4 @@ export function sortRows(lang: string, rows: Args[], keys: Key[]): Args[] {
     }
     return 0;
   });
-}
-
-// ------------------------------------------------------------------ JSON text as serde_json read it
-
-/** Half a surrogate pair, which serde_json refuses as an escape. */
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
-
-/** How deep serde_json reads before it gives up. */
-const DEPTH = 128;
-
-/** Whether `v`, an array or object `depth` deep, or one in it, is as deep as serde_json refuses. */
-const tooDeep = (v: unknown, depth: number): boolean =>
-  !!v && typeof v === 'object' && (depth >= DEPTH || Object.values(v).some((x) => tooDeep(x, depth + 1)));
-
-/**
- * JSON text as the Rust core read it, or undefined where it did not: a number past a double's range, half a surrogate
- * pair written as an escape, or nesting past serde_json's 128.
- */
-export function readJson(text: string): unknown {
-  let bad = false;
-  let value: unknown;
-  try {
-    value = JSON.parse(text, (_, v: unknown) => {
-      if ((typeof v === 'number' && !Number.isFinite(v)) || (typeof v === 'string' && LONE_SURROGATE.test(v))) bad = true;
-      return v;
-    });
-  } catch {
-    return undefined;
-  }
-  return bad || tooDeep(value, 1) ? undefined : value;
 }

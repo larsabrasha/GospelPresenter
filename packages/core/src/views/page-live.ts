@@ -1,12 +1,12 @@
 // Presenting's reads (ADR 0008; ported back from crates/gp-core/src/live_views.rs; apps/web/src/live, pages/Output.tsx,
 // pages/live): the slide shown and what goes with it, the item's overlays, a controller's command checked, the video and
 // audio to play, a song to count for CCLI, the outputs and the remote control policy, as the web's reads gave them.
-import { blankPage } from '../custom-slides.ts';
+import { type CustomPage, parseCustomPage } from '../custom-slides.ts';
 import { CCLI_COLLECTION_SETTING, REMOTE_CONTROL_SETTING, remoteControlPolicy } from '../mutation.ts';
 import type { RunSql } from './sql.ts';
 import { argsOf, asStr, idOf, optId } from './serde.ts';
-import { type Args, columns, ITEM, itemKind, itemRow, jsString, langOf, readJson, select, SONG, sortRows } from './lists-rows.ts';
-import { AUDIO, page, Unread, VIDEO, videoRow } from './lists-media.ts';
+import { type Args, columns, ITEM, itemKind, itemRow, jsString, langOf, select, SONG, sortRows } from './lists-rows.ts';
+import { AUDIO, VIDEO, videoRow } from './lists-media.ts';
 import { themeOf } from './lists-settings.ts';
 import { itemsSlides, type SlideItem } from './slides-items.ts';
 
@@ -25,22 +25,11 @@ async function itemOf(sql: RunSql, pid: string, itemId: string): Promise<Args | 
   return r ? itemRow(r) : null;
 }
 
-/** `parseCustomPage`: the page stored, or a blank page where it does not read. */
-function customPage(content: unknown): Args {
-  try {
-    const v = typeof content === 'string' ? readJson(content) : undefined;
-    if (v !== undefined) return page(v);
-  } catch (e) {
-    if (!(e instanceof Unread)) throw e;
-  }
-  return blankPage();
-}
-
 /** `shownOverlay`: what an overlay shows, null for none or one that is gone. */
-async function shownOverlay(sql: RunSql, id: string | null): Promise<Args | null> {
+async function shownOverlay(sql: RunSql, id: string | null): Promise<CustomPage | null> {
   if (id === null) return null;
   const [r] = await sql('SELECT content FROM overlays WHERE id = ?', [id]);
-  return r ? customPage(r[0]) : null;
+  return r ? parseCustomPage(asStr(r[0])) : null;
 }
 
 /** `overlayView` {id}: what the overlay shows, null for none or one deleted meanwhile (`shownOverlay`). */

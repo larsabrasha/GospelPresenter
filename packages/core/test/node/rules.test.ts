@@ -1,5 +1,5 @@
 // The fields' rules the web reads (FIELD_RULES, mutation.ts) against what the mutators take: one truth, held so by
-// this test.
+// this test. A length is in characters (code points, chars.ts), an emoji one.
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import { FIELD_RULES } from '@gp/core';
@@ -55,6 +55,26 @@ describe('FIELD_RULES', () => {
     const { mutate, ready } = org();
     await ready;
     const [name, args] = SETTERS[field]('x'.repeat(fields()[field].max + 1));
+
+    const saved = mutate(name, args);
+
+    await expect(saved).rejects.toMatchObject({ code: 'invalid-args' });
+  });
+
+  it.each(Object.keys(SETTERS) as Field[])('counts %s in characters, so its most in emoji is taken', async (field) => {
+    const { mutate, ready } = org();
+    await ready;
+    const [name, args] = SETTERS[field]('😀'.repeat(fields()[field].max));
+
+    const saved = mutate(name, args);
+
+    await expect(saved).resolves.toBeUndefined();
+  });
+
+  it.each(Object.keys(SETTERS) as Field[])('refuses %s one emoji over its most', async (field) => {
+    const { mutate, ready } = org();
+    await ready;
+    const [name, args] = SETTERS[field]('😀'.repeat(fields()[field].max + 1));
 
     const saved = mutate(name, args);
 

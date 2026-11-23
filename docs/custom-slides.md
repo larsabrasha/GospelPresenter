@@ -39,7 +39,10 @@ Limits, so a page stays small enough to sync and draw: 100 elements a page, 100 
 ## Where it lives
 
 - `packages/core/src/custom-slides.ts`: the page's schema (zod), its limits, and the text of a page for a public
-  output (its texts, top to bottom).
+  output (its texts, top to bottom). Every reader of pages checks them there (`readCustomPages`, `readCustomPage`,
+  the JSON read by `packages/core/src/stored-json.ts`): a slideshow whose pages do not read is one blank page, in
+  Bildspel, on its item's slides and on the outputs alike, and an overlay's page that does not read is a blank page;
+  either names no pictures, to fetch or to upload (Lars, 2026-11-23).
 - `custom_slides` (synced): `id`, `name`, `pages` (JSON, the pages), `created_at`, `updated_at`, `deleted_at`, and
   `name_at` and `pages_at` (schema 27). In the trash as a song is. A save writes all its pages; of two devices' saves
   of the pages the newer by its device's clock wins, and a rename and new pages from two devices both land (SYNC-R23,

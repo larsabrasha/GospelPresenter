@@ -7,6 +7,7 @@ import { MutationError, type MutatorCtx } from './mutation.ts';
 import { isObj } from './views/serde.ts';
 import type { RunSql } from './views/sql.ts';
 import { CHANGED_TABLES, changeTrackingDdl, clientSyncDdl, clientUndoRestore, clientUndoTriggers, tableByName, tableInfo, upsertSql } from './sync-sql.ts';
+import { readStoredJson } from './stored-json.ts';
 
 /** Runs a mutator by name in the shell's transaction, or throws its refusal. */
 type RunMutator = (name: string, args: unknown, ctx: MutatorCtx, sql: RunSql) => Promise<unknown>;
@@ -36,12 +37,8 @@ async function changedTables(sql: RunSql): Promise<unknown[]> {
 
 /** A mutator by name, its arguments as the text queued for them. */
 async function runQueued(run: RunMutator, name: string, argsText: string, ctx: MutatorCtx, sql: RunSql) {
-  let args: unknown;
-  try {
-    args = JSON.parse(argsText);
-  } catch {
-    throw new MutationError('invalid-args', 'the arguments are not JSON');
-  }
+  const args = readStoredJson(argsText);
+  if (args === undefined) throw new MutationError('invalid-args', 'the arguments are not JSON');
   if (!isObj(args)) throw new MutationError('invalid-args', 'the arguments are not an object');
   await run(name, args, ctx, sql);
 }

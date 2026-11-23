@@ -4,6 +4,8 @@ import type { BibleSlide } from './bible.ts';
 import { MEDIA_HASH } from './media.ts';
 import type { VideoCodec, VideoType } from './video.ts';
 import type { SongArrangement } from './schema.ts';
+import { readStoredJson } from './stored-json.ts';
+import { asI64, byCodePoint } from './views/serde.ts';
 
 /** A video slide's video: what a device needs to stream it and to know whether it can play it. */
 export interface SlideVideo {
@@ -45,14 +47,10 @@ export interface Slide {
 // A song's and a Bible passage's slides are the Rust core's (crates/gp-core/src/slides.rs, itemSlidesView and
 // bibleSlidesView): what an output shows is worked out in one place for every app.
 
-/** An arrangement's part ids. A value that is not a list of strings reads as empty. */
+/** An arrangement's part ids, its texts; JSON that does not read (stored-json.ts), or is not a list, reads as empty. */
 export function parsePartIds(json: string): string[] {
-  try {
-    const v: unknown = JSON.parse(json);
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-  } catch {
-    return [];
-  }
+  const v = readStoredJson(json);
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
 
 /**
@@ -62,9 +60,19 @@ export function parsePartIds(json: string): string[] {
  */
 export const ORIGINAL_ARRANGEMENT = 'original';
 
+/**
+ * The order of a song's parts and of its arrangements (SONG-R19): by `sort` as a whole number, one that is not one
+ * first, then by id, code point by code point.
+ */
+export function songOrder(a: { sort: unknown; id: string }, b: { sort: unknown; id: string }): number {
+  const [x, y] = [asI64(a.sort), asI64(b.sort)];
+  if (x !== y) return x === null ? -1 : y === null ? 1 : x - y;
+  return byCodePoint(a.id, b.id);
+}
+
 /** A song's arrangements in their order; the first is the default (SONG-R19). */
 export function sortedArrangements(arrangements: SongArrangement[], songId: string): SongArrangement[] {
-  return arrangements.filter((a) => a.songId === songId).toSorted((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
+  return arrangements.filter((a) => a.songId === songId).toSorted(songOrder);
 }
 
 /** At most this many pictures in one image item. */
@@ -78,15 +86,10 @@ export const MAX_ITEM_IMAGE_ID = 64;
  */
 const imageItemContentSchema = z.object({ images: z.array(z.string().min(1).max(MAX_ITEM_IMAGE_ID)).min(1).max(MAX_ITEM_IMAGES) });
 
-/** An image item's pictures, by library id, in order. */
+/** An image item's pictures, by library id, in order; content that does not read shows its `sourceId` alone. */
 export function imageItemIds(item: { sourceId: string; content: string | null }): string[] {
-  if (!item.content) return [item.sourceId];
-  try {
-    const parsed = imageItemContentSchema.safeParse(JSON.parse(item.content));
-    return parsed.success ? parsed.data.images : [item.sourceId];
-  } catch {
-    return [item.sourceId];
-  }
+  const parsed = item.content ? imageItemContentSchema.safeParse(readStoredJson(item.content)) : null;
+  return parsed?.success ? parsed.data.images : [item.sourceId];
 }
 
 // ------------------------------------------------------------------ PDFs (PRES-R11, D29): a slideshow's pages

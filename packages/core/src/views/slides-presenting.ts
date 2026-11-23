@@ -11,17 +11,22 @@ interface At {
 
 const same = (a: At, b: At) => a.item === b.item && a.part === b.part;
 
-/** `slideOrder`. */
-function orderOf(a: Obj): At[] {
-  if (!Array.isArray(a.order)) throw invalidArgs();
-  const out: At[] = [];
-  for (const r of a.order as unknown[]) {
+/**
+ * The running order's slide counts, `[[itemId, slides]…]` (`slideOrder`'s input), as presenting and the page read
+ * them: a row that is not a text and a whole number from 0 is skipped; an order that is not a list is `invalid-args`.
+ */
+export function slideCounts(order: unknown): [string, number][] {
+  if (!Array.isArray(order)) throw invalidArgs();
+  const out: [string, number][] = [];
+  for (const r of order as unknown[]) {
     const [item, parts] = Array.isArray(r) ? [asStr(r[0]), asI64(r[1])] : [null, null];
-    if (item === null || parts === null) throw invalidArgs();
-    for (let part = 0; part < parts; part++) out.push({ item, part });
+    if (item !== null && parts !== null && parts >= 0) out.push([item, parts]);
   }
   return out;
 }
+
+/** `slideOrder`: every slide of the running order, in order. */
+const orderOf = (a: Obj): At[] => slideCounts(a.order).flatMap(([item, parts]) => Array.from({ length: parts }, (_, part) => ({ item, part })));
 
 /** A slide as JSON gives it: an `itemId` (a text, else none) and a whole `partIndex`. */
 function atOf(v: unknown): At | null {
