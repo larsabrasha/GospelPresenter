@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { isBuiltInTheme, listThemes, resolveTheme, type Role, type Slide, type Theme } from '@gp/core';
-import { libraryPage } from '../db/pageCore.ts';
+import { can, isBuiltInTheme, listThemes, resolveTheme, type Role, type Slide, type Theme } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { orgDefaultThemeId, ownThemes } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -124,7 +123,7 @@ export function Themes({ role }: { role: Role }) {
     );
   const current = saving ?? saved ?? 'classic'; // optimistic while saving; no default saved shows Classic
   // + and Välj, the core's (`libraryPageView`), as every shell's; each theme's own actions are `themesPageView`'s.
-  const manage = libraryPage('themes', role).pick;
+  const manage = can(role, 'ManageThemes');
   const themes = listThemes(own);
   /** The own themes as the grid has them, for Välj. */
   const ownIds = themes.filter((th) => !isBuiltInTheme(th.id)).map((th) => th.id);

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { pageCore } from '../db/pageCore.ts';
 
 // Made at once and named in place, as Apple's apps make a note or a document (Lars, 2026-11-04): + creates "Ny sång"
 // and opens it with its name picked, to type over. What was just made is kept here until its editor has opened.
@@ -20,7 +19,9 @@ export function useJustCreated(id: string): boolean {
   return isNew;
 }
 
-/** `base`, or `base 2`, `base 3` … the first that no name in `taken` is, as Finder names a new folder: the core's (`freshNameView`), for every shell. */
+/** `base`, or `base 2`, `base 3` … the first that no name in `taken` is, any case, as Finder names a new folder. */
 export function freshName(base: string, taken: readonly string[]): string {
-  return pageCore().pure<string>('freshNameView', { base, taken });
+  const names = new Set(taken.map((n) => n.trim().toLowerCase()));
+  if (!names.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n++) if (!names.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
 }

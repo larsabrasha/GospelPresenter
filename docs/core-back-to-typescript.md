@@ -306,6 +306,13 @@ Round 2 (2026-11-23): `rulesView`.
 - e2e: templates, editor, programme-points, users, ccli, trash, library, milestone1, milestone3, settings and
   image-edit pass; custom-slides' one fails as at `4dfb205`.
 
+Round 3 (2026-11-23): Inställningar's list and libraries.
+- `settingsListView` and `settingsSearchView` are `apps/web/src/pages/settings/settingsLinks.ts`'s own: the groups,
+  rows, icons and colours written out there, the search over the i18n texts.
+- `libraryPageView` and `freshNameView` are gone: the web read only whether a role manages a library, now `can`, and
+  `freshName` (`ui/justCreated.ts`) names a new one itself.
+- e2e: settings, library, users, themes, shortcuts, panels, orgs, labels and image-edit pass.
+
 ## How long
 
 The swap the other way, from the first mutator to the TS core out of the app, took 2026-11-13 to 2026-11-17, with the

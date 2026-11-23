@@ -1,4 +1,4 @@
-// Inställningar's pages as the core lays them out (views/page*.ts): the themes, and a fresh name.
+// Inställningar's pages as the core lays them out: the themes.
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import { Core, type Rows } from '../../src/core.ts';
@@ -55,16 +55,6 @@ describe('themesPageView', () => {
     const page = await new Core().view<ThemesPage>('themesPageView', { role: 'admin' }, rows);
 
     expect(page.themes.find((t) => t.default)?.id).toBe('classic');
-  });
-});
-
-describe('freshNameView', () => {
-  it('gives the base when it is free', () => {
-    expect(new Core().pure('freshNameView', { base: 'Ny sång', taken: ['Annan'] })).toBe('Ny sång');
-  });
-
-  it('numbers the base from 2, whatever the case of the names taken', () => {
-    expect(new Core().pure('freshNameView', { base: 'Ny sång', taken: ['ny sång', 'NY SÅNG 2'] })).toBe('Ny sång 3');
   });
 });
 

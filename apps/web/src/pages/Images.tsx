@@ -1,6 +1,5 @@
-import { type LibraryImage, MEDIA_LIMITS, type Role } from '@gp/core';
+import { can, type LibraryImage, MEDIA_LIMITS, type Role } from '@gp/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { libraryPage } from '../db/pageCore.ts';
 import { useLocalUrl, useData, useDb, usePictureUrl } from '../db/react.tsx';
 import { listImages } from '../db/images.ts';
 import { t, type TextKey } from '../i18n.ts';
@@ -116,7 +115,7 @@ export function Images({ role }: { role: Role }) {
   const items = useMemo(() => named(images), [images]);
   const { run, progress, failures } = useMediaImport('image');
   // Whether the pictures are imported, picked and acted on: the core's (`libraryPageView`), as every shell's.
-  const manage = libraryPage('images', role).pick;
+  const manage = can(role, 'ManageImages');
   // A picture edited (MEDIA-R19): Redigera in its menu, here and in Quick Look; the row as it is now, after a sync.
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = editingId ? images?.find((i) => i.id === editingId) : undefined;

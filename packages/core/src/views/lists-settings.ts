@@ -1,13 +1,12 @@
-// The Bibles, the themes and the CCLI report (apps/web's Bibler, Teman, the theme editor, CCLI-rapport), and what
-// Inställningar's lists and pages offer (ported back from crates/gp-core/src/settings_views.rs, settings_pages.rs'
-// `freshNameView` and `themesPageView`, library_pages.rs and views.rs' `coreInfoView`).
+// The Bibles, the themes and the CCLI report (apps/web's Bibler, Teman, the theme editor, CCLI-rapport) (ported back
+// from crates/gp-core/src/settings_views.rs, settings_pages.rs' `themesPageView`, and views.rs' `coreInfoView`).
 import { can, type Permission, type Role } from '../permissions.ts';
 import { BUILT_IN_THEMES, CLASSIC, type Theme, themeDefinitionSchema } from '../themes.ts';
 import type { RunSql } from './sql.ts';
-import { type Args, argsOf, type Fields, idArg, jsNum, jsString, langOf, mapRow, readJson, rustTrim, select, sortRows, textArg } from './lists-rows.ts';
+import { type Args, argsOf, type Fields, idArg, jsNum, jsString, langOf, mapRow, readJson, select, sortRows, textArg } from './lists-rows.ts';
 
 /** `can` for a role as a shell gives it: any text, an unknown one may do nothing. */
-export const may = (role: string, permission: Permission) => can(role as Role, permission);
+const may = (role: string, permission: Permission) => can(role as Role, permission);
 
 // ------------------------------------------------------------------ themes (themes.rs)
 
@@ -104,17 +103,6 @@ export async function themesPageView(args: unknown, sql: RunSql) {
 
 // ------------------------------------------------------------------ pure views
 
-/**
- * `freshNameView` {base, taken}: `base`, or `base 2`, `base 3` … the first that no name in `taken` is, any case, as
- * Finder names a new folder (the web's `freshName`): what + names a new song, slideshow, overlay or theme.
- */
-export function freshNameView(args: unknown): string {
-  const a = argsOf(args);
-  const base = textArg(a, 'base');
-  const taken = new Set((Array.isArray(a.taken) ? a.taken : []).filter((n): n is string => typeof n === 'string').map((n) => rustTrim(n).toLowerCase()));
-  if (!taken.has(base.toLowerCase())) return base;
-  for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
-}
 
 /** `coreInfoView`: what the running core is, for Om Gospel Presenter: the Rust crate's name and version, as it answered. */
 export const coreInfoView = (args: unknown) => (argsOf(args), { name: 'gp-core', version: '0.1.0' });

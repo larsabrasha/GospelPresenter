@@ -1,8 +1,7 @@
-// Inställningar's list (docs/layout-2-0.md): its groups and rows, as the core gives them for every shell
-// (`settingsListView`, `settingsSearchView`; crates/gp-core/src/settings_models.rs), and where each row goes here.
+// Inställningar's list (docs/layout-2-0.md): its groups and rows, which rows a role sees, and the search over them,
+// as iOS's Settings has them.
 import type { ReactNode } from 'react';
-import type { Me } from '@gp/core';
-import { pageCore } from '../../db/pageCore.ts';
+import { can, type Me, type Permission, type Role } from '@gp/core';
 import type { TextKey } from '../../i18n.ts';
 import {
   AdjustmentsIcon,
@@ -52,18 +51,7 @@ export interface SettingsGroup {
   links: SettingsLink[];
 }
 
-/** A row as the core gives it: the page it opens (by its id here), its keys, its icon's name and its square's colour. */
-interface CoreRow {
-  id: string;
-  text: TextKey;
-  icon: string;
-  colour: { name: string; hex: string };
-  keywords: TextKey;
-  intro: TextKey | null;
-  where: TextKey | null;
-}
-
-/** Where a row goes, and the pages that mark it open: navigation is each shell's own. */
+/** Where a row goes, and the pages that mark it open: by the row's id. */
 const ROUTES: Record<string, Pick<SettingsLink, 'route' | 'pages'>> = {
   songs: { route: { page: 'songs' }, pages: ['songs', 'song', ...SONG_PAGES] },
   bibles: { route: { page: 'bibles' }, pages: ['bibles', 'bible'] },
@@ -90,93 +78,108 @@ const ROUTES: Record<string, Pick<SettingsLink, 'route' | 'pages'>> = {
   myReports: { route: { page: 'myReports' }, pages: ['myReports', 'myReport'] },
 };
 
-/** The core's icon names, as the web draws them (Heroicons). */
-const ICONS: Record<string, SettingsLink['icon']> = {
-  song: MusicalNoteIcon,
-  bible: BookOpenIcon,
-  image: PhotoIcon,
-  audio: SpeakerWaveIcon,
-  video: VideoIcon,
-  slides: SlideshowIcon,
-  overlay: SquaresOverlapIcon,
-  label: TagIcon,
-  display: DesktopIcon,
-  theme: BarsIcon,
-  ccli: CcliReportIcon,
-  users: UsersIcon,
-  devices: DevicesIcon,
-  settings: CogIcon,
-  orgs: ViewGridIcon,
-  bug: BugIcon,
-  trash: TrashIcon,
-  about: InformationCircleIcon,
-  appearance: AdjustmentsIcon,
-  language: GlobeIcon,
-  storage: ArrowDownTrayIcon,
-  user: UserIcon,
+
+/** A row of the list, by the page it opens. */
+type Row = SettingsLink & { id: string };
+
+/** A row: the page it opens, its name, its icon, its square's colour (a class written out, which Tailwind finds only so), the other words a search finds it by, and what the page is for. */
+const row = (id: string, label: TextKey, icon: SettingsLink['icon'], colour: string, keywords: TextKey, intro?: TextKey): Row => ({
+  id,
+  ...ROUTES[id]!,
+  label,
+  icon,
+  colour,
+  keywords,
+  ...(intro ? { intro } : {}),
+});
+
+/** The list's groups in order, each its title (none for Papperskorg and Om Gospel Presenter, apart at the foot) and its rows. */
+const GROUPS: { title: TextKey | null; rows: Row[] }[] = [
+  {
+    title: 'settings.group.library',
+    rows: [
+      row('songs', 'nav.songs', MusicalNoteIcon, 'bg-blue-500', 'search.songs'),
+      row('bibles', 'nav.bibles', BookOpenIcon, 'bg-amber-700', 'search.bibles'),
+      row('images', 'nav.images', PhotoIcon, 'bg-rose-500', 'search.images'),
+      row('audios', 'nav.audios', SpeakerWaveIcon, 'bg-orange-500', 'search.audios'),
+      row('videos', 'nav.videos', VideoIcon, 'bg-purple-500', 'search.videos'),
+      row('customSlides', 'nav.customSlides', SlideshowIcon, 'bg-orange-700', 'search.customSlides'),
+    ],
+  },
+  {
+    title: 'settings.group.presentation',
+    rows: [
+      row('overlays', 'overlays.title', SquaresOverlapIcon, 'bg-indigo-500', 'search.overlays', 'intro.overlays'),
+      row('labels', 'nav.labels', TagIcon, 'bg-green-500', 'search.labels', 'intro.labels'),
+    ],
+  },
+  {
+    title: 'settings.group.display',
+    rows: [
+      row('displays', 'nav.displays', DesktopIcon, 'bg-sky-500', 'search.displays', 'intro.displays'),
+      row('themes', 'nav.themes', BarsIcon, 'bg-stone-500', 'search.themes', 'themes.text'),
+      row('ccliReport', 'nav.ccliReport', CcliReportIcon, 'bg-cyan-500', 'search.ccliReport', 'intro.ccliReport'),
+    ],
+  },
+  {
+    title: 'settings.group.church',
+    rows: [
+      row('users', 'nav.users', UsersIcon, 'bg-blue-500', 'search.users'),
+      row('devices', 'nav.devices', DevicesIcon, 'bg-teal-500', 'search.devices', 'intro.devices'),
+      row('orgSettings', 'nav.orgSettings', CogIcon, 'bg-stone-500', 'search.orgSettings', 'intro.orgSettings'),
+      row('orgs', 'nav.orgs', ViewGridIcon, 'bg-indigo-600', 'search.orgs'),
+      row('reports', 'nav.reports', BugIcon, 'bg-red-500', 'search.reports'),
+    ],
+  },
+  { title: null, rows: [row('trash', 'nav.trash', TrashIcon, 'bg-stone-500', 'search.trash')] },
+  { title: null, rows: [row('about', 'nav.about', InformationCircleIcon, 'bg-stone-500', 'search.about')] },
+];
+
+/** What Mina inställningar holds, for the search only: its choices and its pages, each found by its own name. */
+const MY_ROWS: Row[] = [
+  row('settings', 'settings.theme', AdjustmentsIcon, 'bg-blue-500', 'search.theme'),
+  row('settings', 'settings.language', GlobeIcon, 'bg-sky-600', 'search.language'),
+  row('storage', 'storage.title', ArrowDownTrayIcon, 'bg-stone-500', 'search.storage'),
+  row('logins', 'logins.title', UserIcon, 'bg-stone-500', 'search.logins'),
+  row('myReports', 'myReports.title', BugIcon, 'bg-red-500', 'search.myReports'),
+].map((r) => ({ ...r, where: 'nav.settings' }));
+
+/** The permission a row needs, none for everyone's; Enheter is the desktop host's only. */
+const NEEDS: Record<string, Permission> = {
+  bibles: 'ManageBibles', images: 'ViewImages', audios: 'ViewAudios', videos: 'ViewVideos', customSlides: 'ManagePresentations', overlays: 'ManageOverlays',
+  labels: 'ManageSongs', displays: 'ManageRemoteDisplays', ccliReport: 'ViewCcliReport', users: 'ViewUsers', devices: 'ManageUsers',
+  orgSettings: 'ManageOrganizationSettings', orgs: 'ManageOrganizations', reports: 'ManageOrganizations',
 };
 
-/** The core's colours by their Tailwind names, as classes written out, which Tailwind finds only so. */
-const COLOURS: Record<string, string> = {
-  'blue-500': 'bg-blue-500',
-  'amber-700': 'bg-amber-700',
-  'rose-500': 'bg-rose-500',
-  'orange-500': 'bg-orange-500',
-  'purple-500': 'bg-purple-500',
-  'orange-700': 'bg-orange-700',
-  'indigo-500': 'bg-indigo-500',
-  'green-500': 'bg-green-500',
-  'sky-500': 'bg-sky-500',
-  'sky-600': 'bg-sky-600',
-  'cyan-500': 'bg-cyan-500',
-  'teal-500': 'bg-teal-500',
-  'indigo-600': 'bg-indigo-600',
-  'red-500': 'bg-red-500',
-  'stone-500': 'bg-stone-500',
-};
+/** Whether `role` (on a desktop host or not) may open the row: as the pages refuse the others, the list leaves them out. */
+const shown = (r: Row, role: Role, host: boolean) => (r.id !== 'devices' || host) && (!Object.hasOwn(NEEDS, r.id) || can(role, NEEDS[r.id]!));
 
-/** The texts of the list and its search, written out here as every text the web shows must be (packages/architecture's texts test). */
-const SETTINGS_TEXTS = [
-  'settings.group.library', 'settings.group.presentation', 'settings.group.display', 'settings.group.church',
-  'nav.songs', 'nav.bibles', 'nav.images', 'nav.audios', 'nav.videos', 'nav.customSlides', 'overlays.title', 'nav.labels',
-  'nav.displays', 'nav.themes', 'nav.ccliReport', 'nav.users', 'nav.devices', 'nav.orgSettings', 'nav.orgs', 'nav.reports',
-  'nav.trash', 'nav.about', 'settings.theme', 'settings.language', 'storage.title', 'logins.title', 'myReports.title', 'nav.settings',
-  'search.songs', 'search.bibles', 'search.images', 'search.audios', 'search.videos', 'search.customSlides', 'search.overlays',
-  'search.labels', 'search.displays', 'search.themes', 'search.ccliReport', 'search.users', 'search.devices', 'search.orgSettings',
-  'search.orgs', 'search.reports', 'search.trash', 'search.about', 'search.theme', 'search.language', 'search.storage',
-  'search.logins', 'search.myReports',
-  'intro.overlays', 'intro.labels', 'intro.displays', 'themes.text', 'intro.ccliReport', 'intro.devices', 'intro.orgSettings',
-] as const satisfies readonly TextKey[];
-
-function toLink(r: CoreRow): SettingsLink {
-  return {
-    ...ROUTES[r.id]!,
-    label: r.text,
-    icon: ICONS[r.icon] ?? CogIcon,
-    colour: COLOURS[r.colour.name] ?? 'bg-stone-500',
-    keywords: r.keywords,
-    ...(r.intro ? { intro: r.intro } : {}),
-    ...(r.where ? { where: r.where } : {}),
-  };
-}
+/** A row as a link, without its id. */
+const linkOf = ({ id: _, ...link }: Row): SettingsLink => link;
 
 /** The profile cell at the top: Mina inställningar, and its sign-in methods under it. */
 export const MINE: Pick<SettingsLink, 'route' | 'pages'> = { route: { page: 'settings' }, pages: ['settings', 'logins', 'storage', 'myReports', 'myReport'] };
 
-/** The groups of the list, the core's: a row the user may not open is left out (as the pages refuse them), and so is an empty group. */
+/** The groups of the list: a row the user may not open is left out (as the pages refuse them), and so is an empty group. */
 export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGroup[] {
-  const groups = pageCore().pure<{ title: TextKey | null; rows: CoreRow[] }[]>('settingsListView', { role: me.role, host });
-  return groups.map((g) => ({ title: g.title, links: g.rows.map(toLink) }));
+  return GROUPS.flatMap((g) => {
+    const links = g.rows.filter((r) => shown(r, me.role, host)).map(linkOf);
+    return links.length ? [{ title: g.title, links }] : [];
+  });
 }
 
+/** Lower case, accents kept (å, ä and ö are letters of their own in Swedish). */
+const fold = (s: string) => s.trim().toLowerCase();
+
 /**
- * The rows `query` finds, the core's (`settingsSearchView`): in the list's order and then Mina inställningar's, a row
- * whose name or one of whose words holds every word of the query. `text` gives a key's words (i18n `t`).
+ * The rows `query` finds: in the list's order and then Mina inställningar's, a row whose name or one of whose words
+ * holds every word of the query. `text` gives a key's words (i18n `t`).
  */
 export function searchSettings(me: Pick<Me, 'role'>, host: boolean, query: string, text: (key: TextKey) => string): SettingsLink[] {
-  if (!query.trim()) return [];
-  const texts = Object.fromEntries(SETTINGS_TEXTS.map((k) => [k, text(k)]));
-  return pageCore().pure<CoreRow[]>('settingsSearchView', { role: me.role, host, query, texts }).map(toLink);
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const rows = [...GROUPS.flatMap((g) => g.rows.filter((r) => shown(r, me.role, host))), ...MY_ROWS];
+  return rows.filter((r) => words.every((w) => fold(`${text(r.label)},${r.keywords ? text(r.keywords) : ''}`).includes(w))).map(linkOf);
 }
 
 /** Whether `link` is the row of the page open; on a computer the list alone (`/admin`) shows the songs. */

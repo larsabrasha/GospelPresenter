@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
-import { libraryPage } from '../db/pageCore.ts';
 import { can, emailSchema, type InvitationResponse, type InvitationRow, type Me, type MemberRole, ROLES, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
@@ -262,7 +261,7 @@ export function Users({ me, hostServer }: { me: Me; hostServer: boolean | null }
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('users.title')}>{libraryPage('users', me.role, host).add && hostServer !== null && <AddButton label={host ? t('users.create') : t('users.invite')} onClick={() => setAdding(true)} />}</PageHeader>
+      <PageHeader title={t('users.title')}>{manage && hostServer !== null && <AddButton label={host ? t('users.create') : t('users.invite')} onClick={() => setAdding(true)} />}</PageHeader>
       {typeof list === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{list}</p>}
       {Array.isArray(users) && !!users.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(users) && !!users.length && !shown.length && <NoMatch query={query} />}

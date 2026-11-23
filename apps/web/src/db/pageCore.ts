@@ -1,7 +1,7 @@
 // This page's own core, beside the database worker's: for the views that read no database, worked out on the page's
 // thread, synchronously (`Core.pure`). Presenting's keys and marks (live/presenting.ts), so a key reaches the outputs
 // without a round trip to the worker; and the Bible tab's preview, the output's own slides.
-import type { Role, Slide } from '@gp/core';
+import type { Slide } from '@gp/core';
 import { base64, Core } from '@gp/core/core';
 
 let core: Core | undefined;
@@ -24,31 +24,6 @@ export function bibleSlides(translation: string, verses: readonly { b: string; c
 export function verseSearchPlan(query: string, available: readonly string[]): { codes: string[]; from: [number, number]; to: [number, number] } | null {
   return pageCore().pure('verseSearchPlanView', { query, available });
 }
-
-/** An action of a list, the core's: its id, its text's key, whether it removes, the row's field it needs. */
-interface LibraryAction {
-  id: string;
-  text: string;
-  destructive: boolean;
-  when: string | null;
-}
-
-/** What one of Inställningar's lists can do (`libraryPageView`, docs/view-models.md), the same in every shell. */
-export interface LibraryPage {
-  list: 'collection' | 'pages';
-  opens: 'page' | 'preview' | 'sheet' | 'none';
-  add: { id: 'new' | 'import'; text: string } | null;
-  extra: { id: 'import'; text: string; title: string } | null;
-  pick: boolean;
-  pickOnly: 'own' | null;
-  picked: LibraryAction[];
-  row: LibraryAction[];
-}
-
-export function libraryPage(kind: string, role: Role, host = false): LibraryPage {
-  return pageCore().pure<LibraryPage>('libraryPageView', { kind, role, host });
-}
-
 
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */
 export const highlight = (text: string, query: string) => pageCore().pure<{ text: string; hit: boolean }[]>('highlightView', { text, query });

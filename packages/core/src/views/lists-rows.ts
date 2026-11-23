@@ -30,8 +30,7 @@ export function textArg(a: Args, key: string): string {
 /** Rust's white space (`char::is_whitespace`, Unicode's White_Space), which `trim` and `split_whitespace` take: U+0085, not U+FEFF. */
 const RUST_SPACE = '[\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
 const rustTrimmed = new RegExp(`^${RUST_SPACE}+|${RUST_SPACE}+$`, 'g');
-export const rustTrim = (s: string) => s.replace(rustTrimmed, '');
-export const rustWords = (s: string) => s.split(new RegExp(`${RUST_SPACE}+`)).filter(Boolean);
+const rustTrim = (s: string) => s.replace(rustTrimmed, '');
 
 /** How a field is read: `String(x)`, `Number(x)`, `Boolean(x)`, `x ?? null` (kept as it is), or null kept and anything else `Number(x)`. */
 type K = 'str' | 'num' | 'bool' | 'opt' | 'optNum';
