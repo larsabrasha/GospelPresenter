@@ -1,18 +1,9 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "tasks": {
-    "wasm": {
-      "dependsOn": [
-        "^wasm"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
-    },
     "build": {
       "dependsOn": [
-        "^build",
-        "^wasm"
+        "^build"
       ],
       "outputs": [
         "dist/**"
@@ -29,9 +20,7 @@
     },
     "test": {
       "dependsOn": [
-        "^typecheck",
-        "^wasm",
-        "wasm"
+        "^typecheck"
       ],
       "env": [
         "GP_LEGACY_PG",

@@ -13,8 +13,7 @@ import {
   type LegacyUser,
   type Verse,
 } from '@gp/core';
-import { legacyOverlayPage } from '@gp/rust-core';
-import { nodeRustCore } from '@gp/rust-core/node';
+import { legacyOverlayPage } from '@gp/core/core';
 import { mapItems, mapPresentations, type Skipped } from './map-presentations.ts';
 import { mapArrangements, mapCcli, mapLabels, mapParts, mapSongs, mapVersions, ms } from './map-songs.ts';
 import type { Media, StoredImage } from './media.ts';
@@ -68,10 +67,9 @@ const imageRow = (id: string, fileName: string, s: StoredImage, createdAt: numbe
 
 /** Overlays, each a page with its own picture (docs/custom-slides.md): not listed under Bilder. */
 function mapOverlays(data: OldData, media: Media, now: number): LegacyRow[] {
-  const core = nodeRustCore();
   return data.overlays.map((o, sort) => {
     const picture = media.overlayImages.get(o.Id);
-    const page = legacyOverlayPage(core, o.Content, picture ? { full: picture.fullHash, thumb: picture.thumbHash } : null);
+    const page = legacyOverlayPage(o.Content, picture ? { full: picture.fullHash, thumb: picture.thumbHash } : null);
     return { id: o.Id, title: o.Title, content: JSON.stringify(page), image_id: null, sort, updated_at: now };
   });
 }

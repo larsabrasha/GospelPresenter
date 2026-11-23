@@ -1,7 +1,6 @@
 import { renameSync, rmSync } from 'node:fs';
 import { LEGACY_ENTRIES, LEGACY_FORMAT, LEGACY_TABLES, type LegacyManifest } from '@gp/core';
-import { legacyRowsProblem } from '@gp/rust-core';
-import { nodeRustCore } from '@gp/rust-core/node';
+import { legacyRowsProblem } from '@gp/core/core';
 import { mapOrg } from './map.ts';
 import type { Skipped } from './map-presentations.ts';
 import { collectMedia, type ObjectStore } from './media.ts';
@@ -39,7 +38,7 @@ export async function exportOrg(data: OldData, store: ObjectStore, out: string, 
     );
     const mapped = await mapOrg(data, media);
     // The server's own check, so a zip it would refuse is never written: the row is named here instead.
-    const problem = legacyRowsProblem(nodeRustCore(), mapped.rows);
+    const problem = legacyRowsProblem(mapped.rows);
     if (problem) throw new Error(`the import would refuse ${problem}`);
     for (const t of mapped.bibleTexts) zip.add(LEGACY_ENTRIES.bible(t.hash), new TextEncoder().encode(t.json));
     for (const table of LEGACY_TABLES) zip.add(LEGACY_ENTRIES.rows(table), json(mapped.rows[table]));

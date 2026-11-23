@@ -1,7 +1,6 @@
-// The TS core's commands as the shells call them (ADR 0008, docs/core-back-to-typescript.md): a mutator, the schema's
-// `migrateOrgSchema` and `seedLabels`, by name, every statement through the shell's `sql` in the shell's transaction,
-// as the Rust core's commands are run (packages/rust-core's `RustCore.run` and `runSync`). The module by module port
-// adds the rest here; until a name is here, the Rust core runs it.
+// The core's commands and views by name (ADR 0008, docs/core-back-to-typescript.md): a mutator, the schema's
+// `migrateOrgSchema` and `seedLabels`, sync's `sync…`, every statement through the shell's `sql` in the shell's
+// transaction. The shells reach them through core.ts's `Core`.
 import { DrizzleQueryError } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { labelSeedSql } from './labels.ts';
@@ -13,7 +12,6 @@ import * as schema from './schema.ts';
 import { runSyncCommand, SYNC_COMMANDS } from './sync-commands.ts';
 import { syncStepView } from './sync-driver.ts';
 
-export type { DriverEffect } from './sync-driver.ts';
 import { syncStatusView } from './sync-status.ts';
 
 import type { Rows, RunSql } from './views/sql.ts';
@@ -48,17 +46,7 @@ const syncCommands: Record<string, (sql: RunSqlSync) => void> = {
   },
 };
 
-/** Whether the TS core runs the command `name` synchronously: the schema's. */
-export function tsRunsSync(name: string): boolean {
-  return Object.hasOwn(syncCommands, name);
-}
-
 const SYNC = new Set<string>(SYNC_COMMANDS);
-
-/** Whether the TS core runs the command `name`: the schema's, every mutator, and sync's queue and rebase. */
-export function tsRuns(name: string): boolean {
-  return Object.hasOwn(syncCommands, name) || SYNC.has(name) || getMutator(name) !== undefined;
-}
 
 /**
  * Runs the command `name` in the caller's transaction: its answer (sync's commands have one), or a refusal thrown
@@ -86,7 +74,7 @@ async function runMutatorCommand(name: string, args: unknown, ctx: MutatorCtx | 
   try {
     await runMutator(mutator, drizzleOver(sql), args, ctx);
   } catch (e) {
-    // A statement the shell's SQLite refused, as the shell threw it: Drizzle wraps it, the Rust core did not.
+    // A statement the shell's SQLite refused, as the shell threw it, not wrapped by Drizzle.
     throw e instanceof DrizzleQueryError && e.cause !== undefined ? e.cause : e;
   }
   return undefined;
@@ -95,7 +83,7 @@ async function runMutatorCommand(name: string, args: unknown, ctx: MutatorCtx | 
 /** The same, all at once, for statements answered synchronously: only the schema's commands. */
 export function runCommandSync(name: string, sql: RunSqlSync): void {
   const run = syncCommands[name];
-  if (!run) throw new Error(`${name} cannot run synchronously in the TS core`);
+  if (!run) throw new Error(`${name} cannot run synchronously`);
   run(sql);
 }
 
@@ -113,14 +101,6 @@ const pureViews: Record<string, (args: unknown) => unknown> = {
   ...groupPureViews,
 };
 
-/** Whether the TS core has the view `name`, and whether it reads no database. */
-export function tsHasView(name: string): boolean {
-  return Object.hasOwn(views, name) || Object.hasOwn(pureViews, name);
-}
-export function tsHasPureView(name: string): boolean {
-  return Object.hasOwn(pureViews, name);
-}
-
 /** What the view `name` shows; a refusal is thrown as MutationError with its code. */
 export async function runView(name: string, args: unknown, sql: RunSql): Promise<unknown> {
   if (Object.hasOwn(pureViews, name)) return pureViews[name]!(args);
@@ -132,6 +112,7 @@ export async function runView(name: string, args: unknown, sql: RunSql): Promise
 /** A view that reads no database, at once. */
 export function runPureView(name: string, args: unknown): unknown {
   const view = pureViews[name];
-  if (!view) throw new Error(`${name} reads the database: call view() instead`);
-  return view(args);
+  if (view) return view(args);
+  if (Object.hasOwn(views, name)) throw new Error(`${name} reads the database: call view() instead`);
+  throw new MutationError('unknown-view', name);
 }

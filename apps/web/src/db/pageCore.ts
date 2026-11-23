@@ -1,27 +1,14 @@
-// This page's own instance of the Rust core, beside the database worker's: for the views that read no database, worked
-// out on the page's thread, synchronously (`RustCore.pure`). Presenting's keys and marks (live/presenting.ts), so a key
-// reaches the outputs without a round trip to the worker; and the Bible tab's preview, the output's own slides.
+// This page's own core, beside the database worker's: for the views that read no database, worked out on the page's
+// thread, synchronously (`Core.pure`). Presenting's keys and marks (live/presenting.ts), so a key reaches the outputs
+// without a round trip to the worker; and the Bible tab's preview, the output's own slides.
 import type { Permission, Role, Slide } from '@gp/core';
-import { base64, RustCore } from '@gp/rust-core';
-import coreUrl from '@gp/rust-core/gp_core.wasm?url';
+import { base64, Core } from '@gp/core/core';
 
-let core: RustCore | undefined;
+let core: Core | undefined;
 
-/** Loads the page's core: the signed-in app waits for it as it waits for its database (main.tsx). */
-export async function loadPageCore(): Promise<void> {
-  if (core) return;
-  const bytes = await (await fetch(coreUrl)).arrayBuffer();
-  core = new RustCore(await WebAssembly.compile(bytes));
-}
-
-/** The page's core given, where there is no page to fetch it into: the unit tests (test/setup.ts). */
-export function setPageCore(given: RustCore): void {
-  core = given;
-}
-
-/** The page's core; it must have been loaded (`loadPageCore`). */
-export function pageCore(): RustCore {
-  if (!core) throw new Error('the page’s core is not loaded (loadPageCore)');
+/** The page's core, made at its first call. */
+export function pageCore(): Core {
+  core ??= new Core();
   return core;
 }
 

@@ -1,7 +1,7 @@
 # The terminal shell (`crates/gp-tui`, binary `gp`)
 
-> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
-> `native-experiment-end`.
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. A record: the code is removed from the tree
+> (2026-11-23) and kept at the tag `native-experiment-end`; a path here is a path at that tag.
 
 Proposed by Lars on 2026-11-18: a TUI over the Rust core, for presenting over SSH or from a headless Raspberry Pi by
 the stage, on old machines, scriptable and testable in CI, and readable with a terminal's screen reader. First
@@ -26,7 +26,7 @@ What a screen shows and what a key does is the core's, read as the Mac app reads
 | Presenting | `liveChangeView` for every change of the live state (one presentation at a time); `slideMarksView` for VISAS and NÄSTA | the preview shows VISAS and NÄSTA; Avsluta asks first, as the Mac app does |
 | Output view (`o`) | the slide shown, from the same live state | its text centred, nothing before the first slide or after Släck, one quiet status line |
 
-The texts are the app's own: `crates/gp-tui/build.rs` has Node read `apps/web/src/i18n.ts` (as `apps/mac/texts.mjs`
+The texts are the app's own: `crates/gp-tui/build.rs` has Node read `apps/web/src/i18n.ts` (as apps/mac/texts.mjs (at the tag native-experiment-end)
 does for Swift) into the build, and `texts.rs` picks Swedish, or English with `GP_LANG=en`. No text is written anew;
 the footer uses the web's `shortcuts.*` texts.
 

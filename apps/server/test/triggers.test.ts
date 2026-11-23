@@ -9,8 +9,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { tableInfo } from '@gp/core';
 import { queryObjects, SyncClient, type ClientSqlite } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { nodeRustCore } from '@gp/rust-core/node';
 import { nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
+import { Core } from '@gp/core/core';
 
 const upsert = (id: string, value: string) =>
   `INSERT INTO org_settings (id, value) VALUES ('${id}', '${value}') ON CONFLICT (id) DO UPDATE SET value = excluded.value`;
@@ -19,7 +19,7 @@ describe('client undo triggers (wa-sqlite)', () => {
   /** A client database with k = a and no captured rows, and its raw connection. */
   async function client(): Promise<{ sqlite: ClientSqlite; c: SyncClient; rows: () => Promise<unknown[]>; undo: () => Promise<unknown[]> }> {
     const sqlite = await openWaSqlite();
-    const c = await SyncClient.open(sqlite, { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' }, core: nodeRustCore() });
+    const c = await SyncClient.open(sqlite, { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' }, core: new Core() });
     await sqlite.query('UPDATE _sync_meta SET capture = 0');
     await sqlite.query("INSERT INTO org_settings (id, value) VALUES ('k', 'a')");
     await sqlite.query('UPDATE _sync_meta SET capture = 1');
@@ -34,7 +34,7 @@ describe('client undo triggers (wa-sqlite)', () => {
   /** A rebase with nothing from the server: the core puts every captured row back as it was and empties the log. */
   async function restore(sqlite: ClientSqlite) {
     const nothing = { cookie: null, lastMutationId: 0, clear: false, patch: [], more: false, results: [] };
-    await nodeRustCore().run('syncRebase', { pages: [nothing] }, { userId: 'u', role: 'admin' }, async (sql, params) => (await sqlite.query(sql, params)).rows);
+    await new Core().run('syncRebase', { pages: [nothing] }, { userId: 'u', role: 'admin' }, async (sql, params) => (await sqlite.query(sql, params)).rows);
   }
 
   it('keep the first pre-image through upserts, DO NOTHING and OR IGNORE, and undo them all', async () => {

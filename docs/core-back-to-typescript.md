@@ -19,11 +19,11 @@ did.
 | Wave 4, the pages' views | done and switched (2026-11-22): 0 different |
 | Wave 5, imports, exports and files | done and switched (2026-11-22): 0 different |
 | Step 3, the switch | done: the app sends nothing to the WASM (`GP_CORE_TRACE=1`) |
-| Step 4, removal | waits, as planned, for the TS core to have run a real Sunday |
+| Step 4, removal | done (2026-11-23), asked by Lars before a real Sunday: the Rust core, the native shells and the TUI are at the tag `native-experiment-end` |
 
-The checks of the way back run with `crates/gp-core/parity/port.sh` (`build`, `mutations`, `sync`, `views`): the Rust core is the
-reference, the working tree's TS core the candidate (`GP_TS=tree`). In the sync checks' output the reference is
-labelled Rust and the TS core TS.
+The checks of the way back ran with crates/gp-core/parity/port.sh (`build`, `mutations`, `sync`, `views`): the Rust core
+the reference, the working tree's TS core the candidate (`GP_TS=tree`). They went with the Rust core in step 4; to run
+them again, check out the tag `native-experiment-end` and port this tree's `packages/core` onto it.
 
 e2e in a container without a display (Xvfb), the whole suite on the TS core (2026-11-23): 104 passed, 3 skipped.
 Of the rest, the specs that launch a second browser had no headless shell for Playwright's version in that container
@@ -33,7 +33,8 @@ same way at the commit before the port (`4dfb205`), run with one worker too: `au
 `live-order:14`, `menu:17`, `milestone2:181`, `:260`, `:398`, `milestone4:141`, `new-build:54`, `offline:40`,
 `overlays:13`, `phone:32`, `remote:28`, `:136`, `sync-status:13`, `video:202` (mostly a click that waits for an element
 to be stable, or touch and the LAN). None is the port's; they are to be run on a machine with a display.
-`performance.spec.ts` failed its limits under two workers and has not been measured beside the Rust core yet (step 3).
+`performance.spec.ts` fails its limits in that container whichever core runs; its numbers beside the Rust core's are under
+step 4.
 `apps/web/test/ItemMenus.test.tsx` does not load in vitest there (`node:sqlite` from `@gp/rust-core/scenarios`), before
 the port too.
 
@@ -93,7 +94,7 @@ where it still matches (the mutators and the schema above all), not the starting
 ## Step 1: one interface, two cores
 
 Today the shells reach the core through `packages/rust-core` (`RustCore`, `runMutation`, `ReadDb.view`, the sync
-commands; its public surface is `packages/architecture/api/rust-core.api.md`). Add a TS core behind that same surface,
+commands; its public surface is packages/architecture/api/rust-core.api.md (at the tag native-experiment-end)). Add a TS core behind that same surface,
 and one switch that picks which core a shell runs (an environment variable for the checks and e2e, a constant in the
 build). Both cores must be loadable at once, so the parity checks can run them on the same database.
 
@@ -252,7 +253,8 @@ legacy export. Then the whole check: `pnpm typecheck && pnpm lint && pnpm test &
 
 ## Step 4: removal
 
-After the switch has run for real (at least one Sunday on a desktop host):
+Done on 2026-11-23, asked by Lars ("Kör") before the switch had run a real Sunday; a fault the e2e suite does not see
+is fixed in `packages/core`, with the tag `native-experiment-end` to compare against. What went:
 
 - `packages/rust-core`, `crates/gp-core` (its `parity/` with it), `crates/gp-core-ffi`, `crates/gp-core-collation`,
   `crates/gp-tui`, `apps/mac`, `apps/windows`; the root `Cargo.toml` and `Cargo.lock`. `crates/gp-pptx` stays, in its
@@ -260,9 +262,24 @@ After the switch has run for real (at least one Sunday on a desktop host):
 - turbo's `wasm` task; the WASM from `apps/web`'s and `apps/server`'s builds.
 - `packages/architecture`: `api/rust-core.api.md`, the boundaries naming `@gp/rust-core`, `action-ids.test.ts`'s Swift
   checks.
-- The docs: `docs/rust-core.md`, `native-apps.md`, `windows-app.md`, `tui.md` and `native-slide-rendering.md` get a
-  line at the top pointing to ADR 0008 and the tag, and leave `README.md`'s table; `AGENTS.md` and `README.md` say the
-  core is `packages/core` again.
+- The docs: `docs/rust-core.md`, `native-apps.md`, `windows-app.md`, `tui.md` and `native-slide-rendering.md` say
+  at the top that the code is at the tag, and left `README.md`'s table; `AGENTS.md` and `README.md` say the core is
+  `packages/core` again.
+- With them: the native apps' slide renderer (`apps/web`'s `slides.html`), the web's tests that compared the web with views
+  only the native shells read (`autoOutputsView`, `imageEditView`, `settingsSearchKeysView`), and the tests in
+  `packages/core/test/node` of those views (the list under "Not ported").
+
+The shells reach the core through `Core` (`packages/core/src/core.ts`), the shape `RustCore` had: `run`, `view`,
+`pure` and `runSync`. The tests that were `packages/rust-core`'s are `packages/core/test/node`'s, the scenarios
+`packages/core/scenarios`. `scripts/check-mutator-sql.mjs` reads the TS mutators again.
+
+Checked after the removal (2026-11-23, the same container): typecheck, lint, every package's unit tests (core 288,
+server 1196 on every adapter, web 360, architecture 39, legacy 21, desktop 10), and the whole e2e suite: 115 passed,
+3 skipped, and 25 failed, the 22 that fail at `4dfb205` as well (above) and `performance.spec.ts`'s three, which
+fail its limits there whichever core runs. Its numbers beside the Rust core's, one worker each, TS first:
+`startReload` 2147 against 2915 ms, 4× slower CPU under its 2500 against 2992; `songsReload` 2428 against 2984, 4×
+slower 3639 against 4676; `openPresentation` with 4× slower CPU 250 against 332. The page needs no WASM fetched and
+compiled before it starts.
 
 ## Step 5: simplifying, later
 

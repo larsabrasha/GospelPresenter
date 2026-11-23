@@ -1,7 +1,7 @@
 // Etiketter (spec 02 `/admin/labels`, SONG-R45–R47, SONG-A27–A31): the default labels are there from the
 // start; a label is created, renamed in its sheet, moved under Välj, deleted together there, and the song editor follows.
 import { expect, test } from '@playwright/test';
-import { pro } from '../../../packages/rust-core/test/pro-fixture.ts';
+import { pro } from '../../../packages/core/test/node/pro-fixture.ts';
 import { launch, type Desktop } from './apps.ts';
 import { openAdmin, setUpHost } from './flows.ts';
 

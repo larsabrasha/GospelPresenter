@@ -1,7 +1,7 @@
 // The CCLI report's mutators (spec 02 SONG-R48–R52, SONG-A32–A36, decided on 2026-10-31), run on a server database.
 import { describe, expect, it } from 'vitest';
 import type { MutatorName, Role } from '@gp/core';
-import { runMutation } from '@gp/rust-core';
+import { runMutation } from '@gp/core/core';
 import { nodeOrgStore, openSqlite } from '../src/node.ts';
 
 function org() {

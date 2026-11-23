@@ -3,7 +3,7 @@
 // output in a chosen theme, all on the host with no internet: the fonts and
 // the theme's picture come with the app.
 import { expect, test, type Page } from '@playwright/test';
-import { sampleDblZip } from '../../../packages/rust-core/test/bible-fixtures.ts';
+import { sampleDblZip } from '../../../packages/core/test/node/bible-fixtures.ts';
 import { launch, testPort, type Desktop } from './apps.ts';
 import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 

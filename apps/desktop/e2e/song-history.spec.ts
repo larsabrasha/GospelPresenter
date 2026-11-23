@@ -1,7 +1,7 @@
 // Historik (spec 02 `/admin/songs/{id}/history`, SONG-R20–R23, D9): a change keeps the song as it was; the
 // version shows as slides and is restored, which keeps the song as it was before that too.
 import { expect, test } from '@playwright/test';
-import { pro } from '../../../packages/rust-core/test/pro-fixture.ts';
+import { pro } from '../../../packages/core/test/node/pro-fixture.ts';
 import { launch, type Desktop } from './apps.ts';
 import { openAdmin, setUpHost } from './flows.ts';
 

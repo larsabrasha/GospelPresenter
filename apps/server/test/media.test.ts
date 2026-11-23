@@ -5,9 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { blankPage, MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, pdfPages, sha256HexBytes, type CustomPage } from '@gp/core';
 import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, SyncClient, syncMedia } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { nodeRustCore } from '@gp/rust-core/node';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { downloader, get, imageArgs, jpeg, presentingP, put, refusedAsTooLarge, TODAY, uploaded, webp } from './media-fixtures.ts';
+import { Core } from '@gp/core/core';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
 
@@ -349,7 +349,7 @@ describe.each(adapters)('%s adapter: when unused blobs are removed', (adapterNam
 describe('uploads before a push', () => {
   /** A device with a picture imported offline: its two blobs kept, its add queued (which blobs go up is the core's). */
   async function offlinePicture() {
-    const client = await SyncClient.open(await openWaSqlite(), { transport: { post: () => Promise.reject(new Error('offline')) }, ctx: { userId: 'u', role: 'admin' }, core: nodeRustCore() });
+    const client = await SyncClient.open(await openWaSqlite(), { transport: { post: () => Promise.reject(new Error('offline')) }, ctx: { userId: 'u', role: 'admin' }, core: new Core() });
     const fullHash = await storeMediaBlob(client, jpeg('full'), 'image/jpeg');
     const thumbHash = await storeMediaBlob(client, jpeg('thumb'), 'image/jpeg');
     await client.mutate('addImage', imageArgs('img-q', fullHash, thumbHash));

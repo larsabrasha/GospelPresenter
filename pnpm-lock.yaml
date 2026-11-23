@@ -193,9 +193,6 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gp/rust-core':
-        specifier: workspace:*
-        version: link:../../packages/rust-core
       '@gp/server':
         specifier: workspace:*
         version: link:../server
@@ -220,9 +217,6 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gp/rust-core':
-        specifier: workspace:*
-        version: link:../../packages/rust-core
       aws4fetch:
         specifier: 1.0.20
         version: 1.0.20
@@ -258,9 +252,6 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gp/rust-core':
-        specifier: workspace:*
-        version: link:../../packages/rust-core
       '@gp/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -304,9 +295,6 @@ importers:
       '@gp/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gp/rust-core':
-        specifier: workspace:*
-        version: link:../../packages/rust-core
       '@gp/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -365,20 +353,11 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
-  packages/rust-core:
-    dependencies:
-      '@gp/core':
-        specifier: workspace:*
-        version: link:../core
-
   packages/sync:
     dependencies:
       '@gp/core':
         specifier: workspace:*
         version: link:../core
-      '@gp/rust-core':
-        specifier: workspace:*
-        version: link:../rust-core
       '@journeyapps/wa-sqlite':
         specifier: 2.0.8
         version: 2.0.8

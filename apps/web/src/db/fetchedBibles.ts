@@ -1,7 +1,7 @@
 // A translation's text this device does not keep, fetched from the server for this window only (docs/bibles-and-themes.md,
 // "Bibles"): held in a database of its own in memory, so the core's bibleView reads it as it reads a kept one, a book
 // or a chapter at a time. Only the last few are held, as each is megabytes.
-import type { RunSql } from '@gp/rust-core';
+import type { RunSql } from '@gp/core/core';
 import type { BibleTextStore, ClientSqlite } from '@gp/sync/client';
 
 const HELD = 3;

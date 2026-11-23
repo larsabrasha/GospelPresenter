@@ -4,8 +4,8 @@ import { emailSchema } from './accounts.ts';
 // The zip one organisation is exported as: from the current app (1.x, docs/import-from-1x.md), whose export maps the
 // old rows to the new tables, and from 2.0 itself (Inställningar → Organisationen → Exportera), whose rows are its own.
 // What is here is the shape of the file. An older format's rows brought to this one, the blobs the rows name, the
-// check the server and the export make, and 1.x's overlay as a page are the Rust core's (crates/gp-core/src/legacy.rs,
-// through @gp/rust-core's upgradeLegacyRows, legacyBlobs, legacyRowsProblem and legacyOverlayPage).
+// check the server and the export make, and 1.x's overlay as a page are the core's views (views/files-legacy.ts, through
+// core.ts's upgradeLegacyRows, legacyBlobs, legacyRowsProblem and legacyOverlayPage).
 
 /**
  * Bumped when the zip's layout or a row's meaning changes; an import refuses a format it does not know. 2: an overlay

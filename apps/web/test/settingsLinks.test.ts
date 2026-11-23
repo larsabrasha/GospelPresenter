@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../src/i18n.ts';
-import { pageCore } from '../src/db/pageCore.ts';
-import { isOpen, MINE, searchSettings, settingsGroups, SETTINGS_TEXTS } from '../src/pages/settings/settingsLinks.ts';
+import { isOpen, MINE, searchSettings, settingsGroups } from '../src/pages/settings/settingsLinks.ts';
 
 const labels = (role: 'user' | 'admin' | 'superAdmin', host = false) => settingsGroups({ role }, host).flatMap((g) => g.links.map((l) => l.label));
 
@@ -48,17 +47,6 @@ describe('isOpen', () => {
 
   it('Lagring marks Mina inställningar', () => {
     expect(isOpen(MINE, { page: 'storage' })).toBe(true);
-  });
-});
-
-describe('the core’s texts', () => {
-  it('names only texts the web writes out', () => {
-    const named = [
-      ...pageCore().pure<string[]>('settingsSearchKeysView', {}),
-      ...settingsGroups({ role: 'superAdmin' }, true).flatMap((g) => [g.title, ...g.links.map((l) => l.intro)]),
-    ].filter((k): k is string => !!k);
-
-    expect(named.filter((k) => !(SETTINGS_TEXTS as readonly string[]).includes(k))).toEqual([]);
   });
 });
 

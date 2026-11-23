@@ -1,4 +1,4 @@
-import { runMutation, type RustCore, type Rows } from '@gp/rust-core';
+import { runMutation, type Core, type Rows } from '@gp/core/core';
 import {
   isMutatorName,
   MUTATOR_VERSIONS,
@@ -39,7 +39,7 @@ export interface OrgStore {
   /** The same as `query`, each row an array in column order: what the Rust core reads. */
   rows(sql: string, params: unknown[]): Rows;
   /** The Rust core's WASM, which runs every mutator. */
-  core: RustCore;
+  core: Core;
   /**
    * Runs `fn` atomically: all of its writes commit, or none do if it throws.
    * `fn` is async (a mutator) but awaits only this store's queries.

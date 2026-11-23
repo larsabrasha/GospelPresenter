@@ -1,7 +1,7 @@
 # The Windows app: WinUI 3 over the Rust core
 
-> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
-> `native-experiment-end`.
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. A record: the code is removed from the tree
+> (2026-11-23) and kept at the tag `native-experiment-end`; a path here is a path at that tag.
 
 Paused (Lars, 2026-11-22): Mac/iOS and Linux go on first, a round at a time, with the rules moved into the core as
 reducers and typed view models (thin shells). Windows resumes when the live reducer and the types have settled, and is

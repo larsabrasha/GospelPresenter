@@ -1,7 +1,7 @@
 # Slides drawn without a browser
 
-> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
-> `native-experiment-end`.
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. A record: the code is removed from the tree
+> (2026-11-23) and kept at the tag `native-experiment-end`; a path here is a path at that tag.
 
 Asked by Lars on 2026-11-18, with an Apple Watch and an Apple TV in mind; not for 2.0. Way 3 below chosen by Lars on
 2026-11-19 after the probe ("commit och kör"): the core lays out, each shell paints. The core's `slideLayoutView` is
@@ -125,9 +125,9 @@ decide what Classic's Tahoma becomes where a system has none (iOS, where WebKit 
 `slideLayoutView` with Core Text (the glyphs by id where the core put them, the faces from the core's own bytes or the
 system's Tahoma), the theme's colour and own picture with its scrim under them, the outline and shadow as SlideView
 paints them, and the part's label in the system's sans as the page's. A tile shows the label and no credits, the live
-picture the credits and no label, as `apps/web/src/slides/main.tsx` does. Everything else is still SlideView's.
+picture the credits and no label, as apps/web/src/slides/main.tsx does. Everything else is still SlideView's.
 
-Compared picture by picture (`apps/mac/compare.mjs`): the Mac app paints the demo's first 60 song slides in Classic,
+Compared picture by picture (apps/mac/compare.mjs (at the tag native-experiment-end)): the Mac app paints the demo's first 60 song slides in Classic,
 Ljust and three themes of the shipped faces (a shadow, an outline, capitals), every other one through the live
 picture's `Canvas`, and the app's own `slides.html` draws the same in Playwright's WebKit; pixels differing by more than
 48 of 255: a median of 0.064 % in four themes (the label's letters, drawn by Core Text and by the page in the same

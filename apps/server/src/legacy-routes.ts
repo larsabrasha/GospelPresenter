@@ -11,7 +11,7 @@ import {
   type LegacyRows,
   type TableInfo,
 } from '@gp/core';
-import { legacyBlobs, legacyRowsProblem } from '@gp/rust-core';
+import { legacyBlobs, legacyRowsProblem } from '@gp/core/core';
 import { currentSeq, type OrgStore } from '@gp/sync/server';
 import type { Caller } from './auth/index.ts';
 import type { Org } from './app.ts';
@@ -37,13 +37,12 @@ const newRowsSql = (t: TableInfo, rows: number) =>
     ON CONFLICT (id) DO NOTHING`;
 
 function refusal(store: OrgStore, rows: LegacyRows): Refused | null {
-  // The core's checks (legacy.rs), on an instance of their own: the organisation's may be in a mutation's call.
-  const core = store.core.spare();
-  const problem = legacyRowsProblem(core, rows);
+  // The core's checks (core.ts's legacyRowsProblem and legacyBlobs).
+  const problem = legacyRowsProblem(rows);
   if (problem) return { error: 'invalid-rows', detail: problem };
 
   const known = new Set(store.query('SELECT hash FROM media_blobs').map((r) => String(r.hash)));
-  const missing = legacyBlobs(core, rows).named.find(([h]) => !known.has(h));
+  const missing = legacyBlobs(rows).named.find(([h]) => !known.has(h));
   if (missing) return { error: 'missing-media', detail: `${missing[1]}: no file ${missing[0]}` };
   const texts = new Set(store.query('SELECT hash FROM bible_blobs').map((r) => String(r.hash)));
   const bible = rows.bibles.find((b) => !texts.has(String(b.content_hash)));

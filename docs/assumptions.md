@@ -130,7 +130,7 @@ The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31
   device added meanwhile is not skipped; nothing is lost, but two songs may then share a name. The texts are
   shown whole, without marking the words that differ.
 - **The text is read as the current app does, but better in four ways**, checked on 882 real `.pro` files
-  (GP_REAL_PRO_DIR, now `packages/rust-core/test/real-propresenter.test.ts`): the RTF's header groups (fonts,
+  (GP_REAL_PRO_DIR, now `packages/core/test/node/real-propresenter.test.ts`): the RTF's header groups (fonts,
   colours, `{\*…}`) go first, so a slide with empty text boxes is no longer read as `;;` and `\*;;` (ten of
   those files were songs of only that; now they count as files without song text); one blank line between
   lines is kept, at most (Lars: one or two breaks in a row), where the current app kept none; spaces at a

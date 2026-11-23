@@ -34,8 +34,8 @@ import { isAppPage, staticHeaders } from './static.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
-import { nodeRustCore } from '@gp/rust-core/node';
 import { appCors } from './cors.ts';
+import { Core } from '@gp/core/core';
 
 export { mailConfigFrom, type MailConfig } from './mail.ts';
 export type { PptxPages } from './pptx-routes.ts';
@@ -109,11 +109,11 @@ export function openSqlite(file: string, driver: NodeDriver): SqliteFile {
 
 /** An organisation's SQLite file as an OrgStore. */
 export function nodeOrgStore(f: SqliteFile): OrgStore {
-  const core = nodeRustCore();
-  // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
+  const core = new Core();
+  // The schema's migration, in one transaction: a refused database is left as it was.
   f.exec('BEGIN IMMEDIATE');
   try {
-    core.runSync('migrateOrgSchema', {}, undefined, f.rows);
+    core.runSync('migrateOrgSchema', f.rows);
     f.exec('COMMIT');
   } catch (e) {
     if (f.inTransaction()) f.exec('ROLLBACK');
@@ -121,7 +121,7 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
   }
   for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
   // After the change triggers, so the default labels sync like any change (SONG-R47).
-  core.runSync('seedLabels', {}, undefined, f.rows);
+  core.runSync('seedLabels', f.rows);
   return {
     query: f.query,
     rows: f.rows,

@@ -50,7 +50,7 @@ To use a real translation: as an admin, open Biblar and choose a zip (or drop it
 Digital Bible Library or bible.com export (`metadata.xml` with `USX_1/` or `USX_2/`), or an eBible.org
 USFM zip (`…_usfm.zip`), works. Many translations are under copyright: import only one the church
 may use. The repository has none; the tests use a few public-domain verses of the World English
-Bible (`packages/rust-core/test/bible-fixtures.ts`) and generated text.
+Bible (`packages/core/test/node/bible-fixtures.ts`) and generated text.
 
 To check a real translation, point `GP_REAL_BIBLE_ZIP` at its zip (anywhere outside the repository;
 never commit one):
@@ -59,7 +59,7 @@ never commit one):
 GP_REAL_BIBLE_ZIP=/path/to/bible.zip pnpm --filter @gp/rust-core test real-bible
 ```
 
-`packages/rust-core/test/real-bible.test.ts` imports it as the app does, reads references and slides through the core,
+`packages/core/test/node/real-bible.test.ts` imports it as the app does, reads references and slides through the core,
 and checks its shape only: the 66
 books of the Protestant canon, 29 000 to 60 000 verses, no empty verse, no markup or control
 characters left, no space before punctuation, within the server's limits, five known references

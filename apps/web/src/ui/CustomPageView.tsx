@@ -16,7 +16,7 @@ function BlobPagePicture({ hash, thumb, style, id }: { hash: string; thumb: stri
 }
 
 /**
- * A picture of Bilder: this device's, or, on a page with no database (the native apps' renderer, a paired screen),
+ * A picture of Bilder: this device's, or, on a page with no database (a paired screen),
  * `media`'s URL, read with no hook of the database, which such a page lacks (SlideView's `Picture` does the same).
  */
 function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {

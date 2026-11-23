@@ -12,7 +12,6 @@ import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
 import { socketProtocols } from '@gp/sync/client';
 import { LiveChannel } from './live/live.ts';
-import { loadPageCore } from './db/pageCore.ts';
 import { OutputPlayback, Playback, playedFromVideo } from './live/playback.ts';
 import { Player } from './live/player.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
@@ -113,8 +112,7 @@ if (route.page === 'watch') {
   const waiting = setTimeout(() => root.render(<Starting />), 1000);
   const slow = setTimeout(() => root.render(<Stopped why={{ kind: 'slow' }} />), 10_000);
   try {
-    // The page's own core, for presenting's keys and marks (live/presenting.ts), loaded beside the database.
-    await Promise.all([db.open(session), loadPageCore()]);
+    await db.open(session);
     // One live channel per window, for the window's lifetime.
     const live = new LiveChannel(session.orgId, 'operator');
     // The session's audio and video, wherever they play, for the window's lifetime (playback.ts).

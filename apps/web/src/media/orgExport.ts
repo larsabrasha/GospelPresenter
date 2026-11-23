@@ -8,9 +8,8 @@ import {
   type LegacyUser,
   type UserRow,
 } from '@gp/core';
-import { legacyBlobs, legacyRowsProblem } from '@gp/rust-core';
+import { legacyBlobs, legacyRowsProblem } from '@gp/core/core';
 import { api, authHeaders } from '../auth/api.ts';
-import { pageCore } from '../db/pageCore.ts';
 import type { DbStatus } from '../db/protocol.ts';
 import type { ReadDb } from '../db/share.ts';
 import { serverUrl } from '../server.ts';
@@ -79,11 +78,11 @@ export async function exportOrg(db: ExportDb, orgName: string, progress: (p: Org
   const status = await db.syncNow();
   if (status.pending > 0 || status.updateRequired || status.authError) throw new OrgExportError('not-synced');
   const rows = await readRows(db);
-  const problem = legacyRowsProblem(pageCore(), rows);
+  const problem = legacyRowsProblem(rows);
   if (problem) throw new OrgExportError('rows', problem);
   const users = await readUsers();
 
-  const blobs = new Map(legacyBlobs(pageCore(), rows).named.map(([hash, row]) => [hash, row]));
+  const blobs = new Map(legacyBlobs(rows).named.map(([hash, row]) => [hash, row]));
   const texts = new Map(rows.bibles.map((b) => [String(b.content_hash), `bibles ${String(b.id)}`]));
   const wanted = [
     ...[...blobs].map(([hash, row]) => ({ name: LEGACY_ENTRIES.blob(hash), path: `/api/media/${hash}`, row })),

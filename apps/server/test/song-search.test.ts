@@ -7,8 +7,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { searchSongs } from '@gp/core';
 import { SongSearch, SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { nodeRustCore } from '@gp/rust-core/node';
 import { device, setRole, startAdapter, type Device, type Harness } from './harness.ts';
+import { Core } from '@gp/core/core';
 
 let h: Harness;
 let org: string;
@@ -123,7 +123,7 @@ describe('song search on a device', () => {
 
   it("answers from what it holds until told to forget: a write it did not hear of, as another window's", async () => {
     const sqlite = await openWaSqlite();
-    const offline = { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' as const }, core: nodeRustCore() };
+    const offline = { transport: { post: async () => ({ status: 503, body: {} }) as never }, ctx: { userId: 'u', role: 'admin' as const }, core: new Core() };
     const mine = await SyncClient.open(sqlite, offline);
     const other = await SyncClient.open(sqlite, offline); // the same file, as a second window's worker
     await song(mine, 'S1', 'Först', ['Text']);

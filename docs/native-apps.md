@@ -1,7 +1,7 @@
 # The native apps: SwiftUI over the Rust core
 
-> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. Kept as a record and at the tag
-> `native-experiment-end`.
+> Stopped by ADR 0008 (Lars, 2026-11-22): one GUI, the React app. A record: the code is removed from the tree
+> (2026-11-23) and kept at the tag `native-experiment-end`; a path here is a path at that tag.
 
 Lars, 2026-11-17: the native iOS app is built now, SwiftUI over the Rust core (`crates/gp-core`), beside the Capacitor
 shell in `apps/mobile` (docs/phone-app.md). The Mac app is the same SwiftUI in `apps/mac`, one code for both where it
@@ -134,7 +134,7 @@ web app differ, the web app wins. Built with SwiftUI's own components shaped to 
   `apps/mac/apple.sh uitest` checks these menus against the core's answers for a scenario (docs/view-models.md).
 - **Colours and sizes** (`Look.swift`): the warm grey `stone` by role (ground, surface, raised, sidebar), sky-500 as
   the app's tint, rows at least 52 pt.
-- **Texts** are the web's own, Swedish and English: `apps/mac/texts.mjs` writes `apps/web/src/i18n.ts`'s table into a
+- **Texts** are the web's own, Swedish and English: apps/mac/texts.mjs (at the tag native-experiment-end) writes `apps/web/src/i18n.ts`'s table into a
   Swift file (not kept in git) at every build, and `t("presentations.today")` reads it in the device's language
   (Swedish when it is neither). The few the web has no use for (the host's address and certificate, the demo) are in
   `Texts.swift`, as i18n.ts may hold only keys the web's code uses.
@@ -202,8 +202,8 @@ exactly as on the projector, and every output (the output window, paired screens
 (`FittedText`), themes and their fonts, Bible verse numbers, custom pages, pictures. A second renderer in SwiftUI would
 drift from it; the prototype's `SlideFace` (the default theme only, its font size guessed from the characters) is gone.
 
-- **The renderer** is a page of its own in the web app, `apps/web/slides.html` with `apps/web/src/slides/main.tsx`,
-  built by `apps/web/vite.slides.config.ts` (relative addresses, not part of the web app's build) and copied into the
+- **The renderer** is a page of its own in the web app, `apps/web/slides.html` with apps/web/src/slides/main.tsx,
+  built by apps/web/vite.slides.config.ts (relative addresses, not part of the web app's build) and copied into the
   app by `apple.sh`. It offers two calls: `gpSheet` draws a grid of tiles, `gpShow` one slide filling the view. Swift
   feeds them the core's own JSON: the slide, the presentation's theme, the item's overlay.
 - **No network**: the app serves the renderer's files and the pictures itself through the `gp:` scheme
@@ -225,7 +225,7 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   page, an overlay over any) from the core's `slideLayoutView` with Core Text and Core Graphics, in thumbnails and in
   the live picture and output window (a SwiftUI `Canvas`); the web view only where the core refuses (a face it lacks)
   or this cannot read a colour. `GP_PAINTER=0` draws all with SlideView; the
-  check against SlideView is `apps/mac/compare.mjs` (`-gp.compare YES` in the simulator).
+  check against SlideView is apps/mac/compare.mjs (at the tag native-experiment-end) (`-gp.compare YES` in the simulator).
 - **Audio and video live** (Lars, 2026-11-19; `LivePlayer.swift`, `LiveMedia.swift`): the device presenting plays
   them as the web's Player does (docs/live.md "Where audio and video play"): a video or audio item shown plays from
   its start, anything else shown stops it, Släck pauses it and a slide shown again plays it on where it was, unless it

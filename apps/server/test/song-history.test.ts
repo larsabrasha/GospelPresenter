@@ -2,7 +2,7 @@
 // server database with a clock the test sets, as the sync engine runs them (`ctx.now`).
 import { describe, expect, it } from 'vitest';
 import { parseSongSnapshot, SONG_VERSION_LIMIT, SONG_VERSION_WINDOW_MS, type MutatorName } from '@gp/core';
-import { runMutation } from '@gp/rust-core';
+import { runMutation } from '@gp/core/core';
 import { nodeOrgStore, openSqlite } from '../src/node.ts';
 
 const MIN = 60 * 1000;

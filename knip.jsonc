@@ -8,9 +8,8 @@
       "project": ["scripts/*.mjs"]
     },
     "apps/web": {
-      // The service worker is built by a Vite plugin of our own (vite.config.ts), which knip cannot see; the native apps'
-      // slide renderer by vite.slides.config.ts, whose page (slides.html) knip does not read.
-      "entry": ["sw/sw.ts", "src/slides/main.tsx"],
+      // The service worker is built by a Vite plugin of our own (vite.config.ts), which knip cannot see.
+      "entry": ["sw/sw.ts"],
       "project": ["src/**/*.{ts,tsx,css}", "sw/**/*.ts", "test/**/*.ts"]
     },
     "apps/server": {
@@ -20,9 +19,8 @@
       // The Electron main process, its preload and the plain-Node server, built by build.mjs.
       "entry": ["src/main.ts", "src/serve.ts", "src/preload.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "e2e/**/*.ts"],
-      // Not imported: listed so turbo builds the web app before the desktop's e2e runs it; the Rust core's WASM,
-      // which build.mjs copies beside the bundle by its path.
-      "ignoreDependencies": ["@gp/web", "@gp/rust-core"]
+      // Not imported: listed so turbo builds the web app before the desktop's e2e runs it.
+      "ignoreDependencies": ["@gp/web"]
     },
     "apps/legacy": {
       "project": ["src/**/*.ts", "test/**/*.ts"]
@@ -32,9 +30,6 @@
     },
     "packages/sync": {
       "project": ["src/**/*.ts"]
-    },
-    "packages/rust-core": {
-      "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "packages/architecture": {
       "project": ["test/**/*.ts"]

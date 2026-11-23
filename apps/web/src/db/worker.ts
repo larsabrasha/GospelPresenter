@@ -32,9 +32,8 @@ import {
 import { keepVideos } from './videoFiles.ts';
 import { fetchedBibleText } from './fetchedBibles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import { RustCore } from '@gp/rust-core';
+import { Core } from '@gp/core/core';
 import { readBibleZip } from './bibleZip.ts';
-import coreUrl from '@gp/rust-core/gp_core.wasm?url';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 import { mediaAdds } from './mediaAdds.ts';
@@ -84,22 +83,12 @@ async function openDb(file: string, s: Session): Promise<ClientSqlite> {
   }
 }
 
-/** The Rust core's WASM, compiled once for the worker; each client gets its own instance (packages/rust-core). */
-let compiledCore: Promise<WebAssembly.Module> | undefined;
-async function rustCore(): Promise<RustCore> {
-  compiledCore ??= fetch(coreUrl)
-    .then((r) => r.arrayBuffer())
-    .then((bytes) => WebAssembly.compile(bytes));
-  compiledCore.catch(() => (compiledCore = undefined)); // a failed fetch is tried again by the next open
-  return new RustCore(await compiledCore);
-}
-
 /** A view of the core (`SyncClient.view`); a Bible text this device does not keep is read where it is fetched to (fetchedBibles.ts). */
 async function view(name: string, args: unknown): Promise<unknown> {
   const answer = await client!.view(name, args);
   if (name !== 'bibleView' || answer !== null) return answer;
   const rows = await fetchedBibleText((args as { hash: string }).hash, (hash) => fetchBibleText(client!, downloadBibleText, hash), openMemory);
-  return rows && (await rustCore()).view('bibleView', args, rows);
+  return rows && new Core().view('bibleView', args, rows);
 }
 
 async function status(): Promise<DbStatus> {
@@ -310,7 +299,7 @@ function keepBibleHere(id: string, on: boolean): Promise<boolean> {
  */
 function importBible(data: Uint8Array): Promise<BibleImportResult> {
   return serialStore(async () => {
-    const bible = readBibleZip(await rustCore(), data);
+    const bible = readBibleZip(data);
     const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
     const replaced = (await client!.query('SELECT 1 FROM bibles WHERE id = ?', [id])).length > 0;
@@ -334,7 +323,7 @@ async function handle(call: DbCall): Promise<unknown> {
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: server, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
-        core: await rustCore(),
+        core: new Core(),
         beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
         // After the sync on a connection and on each poll: any text or file a failed download left out.
         onMedia: () => {

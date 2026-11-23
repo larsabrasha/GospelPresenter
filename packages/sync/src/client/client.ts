@@ -1,4 +1,4 @@
-import type { DriverEffect } from '@gp/core/commands';
+import type { DriverEffect } from '@gp/core/core';
 import {
   CHANGED_TABLES,
   randomId,
@@ -12,7 +12,7 @@ import {
   type MutatorName,
   type PullResponse,
 } from '@gp/core';
-import type { RunSql, RustCore } from '@gp/rust-core';
+import type { RunSql, Core } from '@gp/core/core';
 import { queryObjects, type ClientSqlite } from './sqlite.ts';
 import type { Transport } from './transport.ts';
 
@@ -21,7 +21,7 @@ export interface SyncClientOptions {
   /** What this device believes about its user. The server re-checks with its own. */
   ctx: MutatorCtx;
   /** The Rust core's WASM: every change runs on it, and it keeps the queue, rebases it and decides when to sync. */
-  core: RustCore;
+  core: Core;
   clientId?: string;
   /** Overridable so tests can play an old client. */
   protocol?: number;
@@ -156,7 +156,7 @@ export class SyncClient {
   }
 
   /**
-   * What the Rust core's view `name` shows (`RustCore.view`, docs/rust-core.md 2.5 step 3), read from one state of
+   * What the Rust core's view `name` shows (`Core.view`, docs/rust-core.md 2.5 step 3), read from one state of
    * the database: serialised with every write. A refusal is thrown as MutationError with the core's code.
    */
   view<T>(name: string, args: unknown): Promise<T> {

@@ -11,7 +11,7 @@ import { SCHEMA_VERSION, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
 /** Today's organisation tables, then their indexes, as the Rust core makes them: read back from a new database. */
 const [orgTables, orgIndexes] = (() => {
   const db = new DatabaseSync(':memory:');
-  nodeRustCore().runSync('migrateOrgSchema', {}, undefined, (sql, params) => {
+  new Core().runSync('migrateOrgSchema', (sql, params) => {
     const st = db.prepare(sql);
     st.setReturnArrays(true);
     return st.all(...(params as never[])) as unknown as unknown[][];
@@ -33,10 +33,10 @@ const before24 = before27.map((s) =>
 );
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { nodeRustCore } from '@gp/rust-core/node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '../src/global/index.ts';
 import { sha256 } from '../src/crypto.ts';
 import { nodeGlobalSql, nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
+import { Core } from '@gp/core/core';
 
 /** The organisation DDL milestone 1 shipped, with no version row: from before the baseline. */
 const milestone1Ddl = [
@@ -251,7 +251,7 @@ describe('client (wa-sqlite)', () => {
     const client = await SyncClient.open(sqlite, {
       transport: { post: async () => ({ status: 503, body: {} }) as never },
       ctx: { userId: 'u', role: 'admin' },
-      core: nodeRustCore(),
+      core: new Core(),
     });
 
     await client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
@@ -271,7 +271,7 @@ describe('client (wa-sqlite)', () => {
     const open = SyncClient.open(sqlite, {
       transport: { post: async () => ({ status: 503, body: {} }) as never },
       ctx: { userId: 'u', role: 'admin' },
-      core: nodeRustCore(),
+      core: new Core(),
     });
 
     await expect(open).rejects.toMatchObject({ code: 'schema-too-old' });

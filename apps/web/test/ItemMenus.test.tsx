@@ -4,7 +4,7 @@
 // the computer's … (ItemContextMenu) and a phone's sheet (ItemSheet), holds the entries the core offers, enabled as it
 // says, and none that it does not offer. iOS checks its own menus against the same file (apps/mac/ios/UITests).
 import type { Overlay, PresentationItem, Song, SongArrangement } from '@gp/core';
-import { madeScenario, readScenario, scenarioAnswers, type ScenarioAction, type ScenarioPage } from '@gp/rust-core/scenarios';
+import { madeScenario, readScenario, scenarioAnswers, type ScenarioAction, type ScenarioPage } from '@gp/core/scenarios';
 import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeAll, describe, expect, it } from 'vitest';

@@ -135,11 +135,8 @@ const COLOURS: Record<string, string> = {
   'stone-500': 'bg-stone-500',
 };
 
-/**
- * The texts the core names for the list and its search, written out here as every text the web shows must be
- * (packages/architecture's texts test); apps/web/test/settingsLinks.test.ts checks the core names no other.
- */
-export const SETTINGS_TEXTS = [
+/** The texts of the list and its search, written out here as every text the web shows must be (packages/architecture's texts test). */
+const SETTINGS_TEXTS = [
   'settings.group.library', 'settings.group.presentation', 'settings.group.display', 'settings.group.church',
   'nav.songs', 'nav.bibles', 'nav.images', 'nav.audios', 'nav.videos', 'nav.customSlides', 'overlays.title', 'nav.labels',
   'nav.displays', 'nav.themes', 'nav.ccliReport', 'nav.users', 'nav.devices', 'nav.orgSettings', 'nav.orgs', 'nav.reports',

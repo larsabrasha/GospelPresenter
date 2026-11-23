@@ -1,21 +1,15 @@
 # Agent guide: the rewrite
 
-> **The core is going back to TypeScript** (ADR 0008, Lars, 2026-11-22; the plan: `docs/core-back-to-typescript.md`).
-> Until the port is done, write nothing new in `crates/gp-core`: a feature waits for the module it touches to be
-> ported, and is then written in TypeScript. The native shells (`apps/mac`, `apps/windows`, `crates/gp-tui`) are
-> stopped; do not extend them. Everything the app calls is ported and switched (the plan's "Where it stands"): the
-> schema, the mutators, sync's client and every view, in `packages/core` (`src/mutators/`, `org-schema.ts`,
-> `sync-*.ts`, `src/views/`, reached through `src/commands.ts`); a change is made there, and `port.sh` shows whether
-> it still matches the Rust core. `GP_CORE=rust` runs the Node side all in Rust again; `GP_CORE_TRACE=1` names what
-> still reaches the WASM.
-
 The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web`, `apps/server`, `apps/desktop`,
-`packages/core`, `packages/sync`), on a core in Rust (`crates/gp-core`, run as WASM through `packages/rust-core`):
-the mutators, the schema, sync's queue and rebase and every page's view are the core's, and new behaviour is written
-there first (`docs/rust-core.md`). Read `README.md` here first (packages, commands, and the table of
-`docs/`, one file per topic); then only the `docs/` file your task touches, and `docs/look.md` and
-`docs/assumptions.md` for UI or behaviour work. The decision is
-`adr/0007-rewrite-on-typescript-local-first.md`; the behaviour spec is `spec/`.
+`apps/mobile`, `packages/core`, `packages/sync`). The core is `packages/core`: the mutators (`src/mutators/`), the
+schema (`org-schema.ts`), sync's client (`sync-*.ts`) and every page's view (`src/views/`), reached through `Core`
+(`src/core.ts`); new behaviour is written there. It came back from Rust (ADR 0008, Lars, 2026-11-22;
+`docs/core-back-to-typescript.md`); the Rust core, the native shells (SwiftUI, WinUI) and the TUI are at the tag
+`native-experiment-end`, not to be extended. `crates/gp-pptx` (the desktop host's PowerPoint drawing) stays Rust.
+Read `README.md` here first (packages, commands, and the table of `docs/`, one file per topic); then only the `docs/`
+file your task touches, and `docs/look.md` and `docs/assumptions.md` for UI or behaviour work. The decisions are
+`adr/0007-rewrite-on-typescript-local-first.md` and `adr/0008-one-gui-core-back-in-typescript.md`; the behaviour spec
+is `spec/`.
 
 ## Commands (from the repository's root)
 
@@ -83,22 +77,6 @@ timing specs go flaky under load).
   `e2e/journeys.spec.ts` runs whole Sundays across the features.
 - `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
   imports; an exception in `knip.jsonc` says why.
-
-## The native apps (apps/mac)
-
-Most bugs found after the fact were in the Swift glue, not the core: focus and saving in fields, keys while
-typing, where a value is read from (the session's role, a launch argument's type), scene and Info.plist setup.
-The core's views have parity tests against the TS; the glue has only what is run (Lars, 2026-11-21).
-
-- Before building a page or flow, list its edge cases from the web's code (when it saves, what Esc, ⌘Z and ↵ do,
-  which role or state it reads, what it asks before) and have them confirmed; then build them all.
-- A rule the web decides in TS goes into the core with a parity test, not into Swift.
-- A behaviour is done when it has been run, not when it builds: a test in `apps/mac/ios/UITests`
-  (`apps/mac/apple.sh uitest`) for what a user does (type, leave the field, undo, close), or, where a test cannot
-  reach it, a run in the simulator with a screenshot. The test stays; "not checked by hand" means not done.
-- Before reporting done, review the diff (`/code-review`) and fix what it finds; the report names what the review
-  found.
-- Keep a round small: a few pages or one flow at a time, each with its tests, not a whole area at once.
 
 ## The old app: the reference
 

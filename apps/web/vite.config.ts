@@ -70,6 +70,4 @@ export default defineConfig(({ command }) => ({
     // `pnpm dev` talks to a server started with `pnpm --filter @gp/desktop serve` (port 8787).
     proxy: { '/api': { target: 'http://127.0.0.1:8787', ws: true } },
   },
-  // The unit tests get the page's core from disk, as the app loads it before it shows a page (db/pageCore.ts).
-  test: { setupFiles: ['./test/setup.ts'] },
 }));

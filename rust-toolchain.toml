@@ -1,5 +1,0 @@
-# The Rust every build of this repository uses, whatever the machine's default (Lars, 2026-11-20): at least 1.95 for
-# DeckCraft's libraries (docs/powerpoint-deckcraft.md); rustup fetches it, and the targets, on the first build here.
-[toolchain]
-channel = "1.100.0"
-targets = ["wasm32-unknown-unknown", "aarch64-apple-ios", "aarch64-apple-ios-sim", "aarch64-apple-darwin"]

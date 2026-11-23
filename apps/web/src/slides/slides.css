@@ -1,7 +1,0 @@
-/* The native apps' slide renderer (main.tsx): nothing but the slides, on a clear page, so an overlay alone is drawn
-   with its ground clear and the app lays it over a slide's picture. */
-html, body { margin: 0; padding: 0; background: transparent !important; overflow: hidden; height: auto; }
-.sheet { display: grid; }
-.tile { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.whole, .whole .tile { width: 100vw; height: 100vh; }
-.clear .slide-box, .clear .slide-stage { background: transparent !important; }

@@ -5,7 +5,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./mutators": "./src/mutators/index.ts",
-    "./commands": "./src/commands.ts"
+    "./core": "./src/core.ts",
+    "./scenarios": "./src/node/scenarios.ts",
+    "./scenarios/*": "./scenarios/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test/node",

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ROOT } from './source.ts';
 
 /** The packages others import, with the entry each `exports` field names. */
-const PACKAGES = ['packages/core', 'packages/rust-core', 'packages/sync', 'apps/server'];
+const PACKAGES = ['packages/core', 'packages/sync', 'apps/server'];
 
 const DECLARED = /^export\s+(?:declare\s+)?(?:async\s+)?(function\*?|const|let|class|abstract class|interface|type|enum)\s+(\w+)/gm;
 const LISTED = /^export\s+(type\s+)?\{([^}]*)\}(?:\s+from\s+'([^']+)')?/gm;

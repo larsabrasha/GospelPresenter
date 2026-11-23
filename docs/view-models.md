@@ -1,5 +1,9 @@
 # View models in the core, so every shell behaves alike
 
+> Since ADR 0008 one shell, the React app. The views the native shells alone read went with them (the list in
+> `docs/core-back-to-typescript.md`, "Not ported"); the rest are `packages/core/src/views/`, and may move into the
+> web where that is simpler (step 5 there).
+
 Proposed and asked for by Lars on 2026-11-18, after the native iOS app (`docs/native-apps.md`) copied the web's flow
 by hand; built the same day for the pages the native app has. The rest of the app follows as its pages are built
 natively.
@@ -25,7 +29,7 @@ weighed"): the core answers "what is on this screen and what can be done", the s
   shells map an id to what it does (a sheet, a mutation) and its icon; which ids exist and when is the core's. A shell
   that has not built an action yet leaves that id out, and says so where it draws the menu.
 - **Texts by key.** Views never return words, only `i18n.ts`'s keys; `apps/web/src/i18n.ts` stays the one table, which
-  the native app reads already (`apps/mac/texts.mjs`). The web still writes each key out where it draws an action, as
+  the native app reads already (apps/mac/texts.mjs (at the tag native-experiment-end)). The web still writes each key out where it draws an action, as
   `packages/architecture` wants every key written out, and takes from the core which actions there are and their state.
 - **State in three places, each changed only by the core** (Lars, 2026-11-18). The data is the database's, changed
   by the mutators. The app's live state, one for every window of a device (which presentation is presented, its
@@ -56,13 +60,13 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 | View | What it decides | Proved by | Read by |
 | --- | --- | --- | --- |
 | `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId} | the item + adds after, one rule for a computer and a phone: the item chosen; while presenting the last added while ahead of the shown, else the shown; before, the selected, else the last added (a phone has no selection) | random running orders against the TS `addAfter` at 238d481b where 2.0's rule holds (`parity/views/page-models.mjs`), unit tests where Lars changed it | web (`liveList.ts`), iOS (`Model.afterFor`) |
-| `startPageView` {today} | the start page's lists: Idag by time, Kommande soonest first, the rest last changed first; which show a date and a year; each row's number of items; an empty list left out | 32 days against the TS `groupPresentations` and `itemCounts` at 238d481b; `packages/rust-core/test/page-models.test.ts` | web (`Presentations.tsx`), iOS (`Model.refresh`) |
+| `startPageView` {today} | the start page's lists: Idag by time, Kommande soonest first, the rest last changed first; which show a date and a year; each row's number of items; an empty list left out | 32 days against the TS `groupPresentations` and `itemCounts` at 238d481b; `packages/core/test/node/page-models.test.ts` | web (`Presentations.tsx`), iOS (`Model.refresh`) |
 | `presentationActionsView` {isTemplate, presenting, role} | the title menu: Redigera detaljer, Material (not for a template), Spara som mall (who may manage templates), the trash (not while presented) | unit tests (`page-models.test.ts`); the web's e2e specs of the menu | web (`PresentationEditor.tsx`), iOS (`PresentationScreen.titleMenu`) |
 | `itemActionsView` {item, song, arrangements, overlays, shownId} | an item's menu: Byt namn (a programme item), Redigera (a song not in the trash, a custom slide), Redigera bilder, Kommentar; Arrangemang › (two or more, a song not in the trash) and Överlägg › (while there are overlays), not for a programme item; Lägg till efter › (nothing above: Lars, 2026-11-18), Markera; Radera, disabled for the item on the outputs, black or not | unit tests; the scenario; the web's e2e specs of the menu; iOS's UI test | web (`ItemContextMenu.tsx`, a phone's `ItemSheet.tsx`), iOS (`ItemMenu`) |
-| `liveChangeView` {pointer, change, overlays}, `followItemOverlayView` | the app's live state: a change numbered after the last, the overlays' rules, a start refused while another presentation is presented | 6 000 random changes and 3 000 overlays changed against 2.0's `applyLiveChange` and `followItemOverlay` (`parity/views/live-state.mjs`), every start over another refused; `packages/rust-core/test/live-state.test.ts` (the TS tests moved there) | web (`live/live.ts`, `live/owner.ts`), iOS (`Live.set`) |
-| `pageEventView` {state, context, order, event}, `pageModelView` | a page's own state and what each key, tap and row does to it: ← → ↑ ↓ PageUp PageDown Space ↵ Escape b . a Delete digits ⌘↑ ⌘↓ ⌥↑ ⌥↓ F5 ⌘., a slide tapped, a row chosen, an addition, the page read again (`changed`, the item that stays); ▶ offered; the cue over the live picture | `packages/rust-core/test/page-state.test.ts` (30 tests); the scenario's keys in each state; the web's e2e specs of the keys (keyboard, live-order, phone, journeys) | web (`live/pageState.ts`, `useEditorKeys.ts`, the computer's page and the phone's), iOS (`Model.send`) |
+| `liveChangeView` {pointer, change, overlays}, `followItemOverlayView` | the app's live state: a change numbered after the last, the overlays' rules, a start refused while another presentation is presented | 6 000 random changes and 3 000 overlays changed against 2.0's `applyLiveChange` and `followItemOverlay` (`parity/views/live-state.mjs`), every start over another refused; `packages/core/test/node/live-state.test.ts` (the TS tests moved there) | web (`live/live.ts`, `live/owner.ts`), iOS (`Live.set`) |
+| `pageEventView` {state, context, order, event}, `pageModelView` | a page's own state and what each key, tap and row does to it: ← → ↑ ↓ PageUp PageDown Space ↵ Escape b . a Delete digits ⌘↑ ⌘↓ ⌥↑ ⌥↓ F5 ⌘., a slide tapped, a row chosen, an addition, the page read again (`changed`, the item that stays); ▶ offered; the cue over the live picture | `packages/core/test/node/page-state.test.ts` (30 tests); the scenario's keys in each state; the web's e2e specs of the keys (keyboard, live-order, phone, journeys) | web (`live/pageState.ts`, `useEditorKeys.ts`, the computer's page and the phone's), iOS (`Model.send`) |
 | `detailsDialogView` {isNew} | a presentation's details dialog: its title, its fields in their groups in order (the theme only for one there), its buttons in order with their texts and roles (Avbryt; Skapa, Skapar…, or Spara) | unit tests (`page-models.test.ts`); the web's e2e specs that make and edit presentations | web (`PresentationDetailsDialog.tsx`), Mac and iOS (`DetailsSheet`, whose bar draws the core's texts: on a Mac as buttons with them, on iOS 26 as the system's × and ✓ named by them) |
-| `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/rust-core/test/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
+| `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/core/test/node/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
 
 Inställningar (Lars, 2026-11-21: settings in the native app, `crates/gp-core/src/settings_models.rs`,
 `settings_pages.rs`):
@@ -71,7 +75,7 @@ Inställningar (Lars, 2026-11-21: settings in the native app, `crates/gp-core/sr
 | --- | --- | --- | --- |
 | `settingsListView` {role, host}, `settingsSearchView` {role, host, query, texts}, `settingsSearchKeysView` | Inställningar's groups and rows: who sees which (the permission each needs, Enheter on a host only), each row's text, icon, colour and intro; the search over names and other words (the shell gives the words of the keys, as the core holds none) | Rust tests (`settings_models_tests.rs`); `apps/web/test/settingsLinks.test.ts` against the web's old expectations, and that the core names only texts the web writes out | web (`settingsLinks.ts`), Mac and iOS (`Settings.swift`) |
 | `mySettingsView` {role, superAdmin, desktop, email, emailConfirmed, mail} | Mina inställningar's groups and rows in order: Bekräfta e-post only for an unconfirmed address where the server mails, Superadminläge only for a Superadmin, Slå på utgångar automatiskt only in the desktop app | Rust tests | Mac and iOS (`SettingsMine.swift`); the web not yet |
-| `trashPageView` {role, now, kind?, query?} | the trash: the kinds a role manages, newest deletion first, days left, the mutators that restore and purge each, the tabs, whether to purge what expired | `packages/rust-core/test/settings-pages.test.ts` | Mac and iOS (`SettingsTrash.swift`); the web not yet (Trash.tsx has the same rules) |
+| `trashPageView` {role, now, kind?, query?} | the trash: the kinds a role manages, newest deletion first, days left, the mutators that restore and purge each, the tabs, whether to purge what expired | `packages/core/test/node/settings-pages.test.ts` | Mac and iOS (`SettingsTrash.swift`); the web not yet (Trash.tsx has the same rules) |
 | `ccliPageView` {locale, filter, keep}, `themesPageView` {role} | the CCLI report's cards and filter; Teman's order, default and each theme's actions | the same | Mac and iOS; the web not yet |
 | `libraryPageView` {kind, role, host?} | what each of Inställningar's lists can do (Lars, 2026-11-21): a `collection` or a list of `pages`, what a row `opens`, the + and the action beside it, whether rows may be picked and which (`pickOnly`), the actions for the picked rows and a row's menu (with the row's field one needs, `when`); how a platform does each is the shell's (docs/native-apps.md, "Each platform's own patterns") | Rust tests (`library_pages_tests.rs`) | Mac and iOS (`Settings*.swift`), the web (`ui/Library.tsx` and its pages) |
 | `freshNameView`, `displayCodeView`, `labelColoursView`, `mediaImportView`, `storageLimitsView`, `bibleImportTextView` | a new thing's name; an output's code from random bytes; a label's swatches; what an import takes and how a picture is fitted; Lagring's limits; a Bible zip as the text and hash a shell keeps | the same, and `bible-import.test.ts` against the TS `serializeBibleText`, `bibleTextHash`, `bibleId` | Mac and iOS; the web reads `freshNameView` (`justCreated.ts`) |
@@ -79,11 +83,11 @@ Inställningar (Lars, 2026-11-21: settings in the native app, `crates/gp-core/sr
 The editors and the rest of Inställningar (the same day, `theme_editor.rs`, `slide_editor.rs`, `image_edit.rs`,
 `org_transfer.rs`, `settings_pages.rs`): `themeEditorView`/`themeEditView`, `slideEditorView`/`slideEditView`/
 `slideHitView`/`editorSlideView`, `imageEditView`/`imageDrawView` (proved against the web's `imageEdit.ts` and
-`CropFrame.tsx` on 500 random pictures, `apps/web/test/imageEditCore.test.ts`), `libraryOrderView`, `deckImportView`,
+`CropFrame.tsx` on 500 random pictures, imageEditCore.test.ts at the tag native-experiment-end), `libraryOrderView`, `deckImportView`,
 `deckPagesView`, `videoImportView`, `displayStatusView`, `exportPlanView`, `importManifestView`, `importPlanView`;
 `userRulesView` (what Användare and Enheter offer before pressing, proved against accounts.ts on every case,
-`packages/rust-core/test/user-rules.test.ts`), `autoOutputsView` (Slå på utgångar automatiskt on the Mac, proved
-against the web's `displaysToTurnOn` and useAutoOutputs's step, `apps/web/test/autoOutputsCore.test.ts`), `mediaStorageView` taking a folder's files (`held`) for Lagring;
+user-rules.test.ts (at the tag native-experiment-end)), `autoOutputsView` (Slå på utgångar automatiskt on the Mac, proved
+against the web's `displaysToTurnOn` and useAutoOutputs's step, autoOutputsCore.test.ts at the tag native-experiment-end), `mediaStorageView` taking a folder's files (`held`) for Lagring;
 `songListView` gained letter sections, the sort by author and `index` (the letters at the edge), `songHistoryPageView` {id, today, yesterday} groups the
 versions by day, and `slideEditView`'s `insert` pastes a copied element under a new id; Rust tests of each, and `parity settings` against a real server. The web still decides these in its own TS; switching
 it to them is not done.
@@ -133,7 +137,7 @@ by it (Lars, 2026-11-21): SwiftUI's `accessibilityIdentifier`, the web's `data-t
 accessible id. A test, or an assistive tool, then finds the same button on every platform. A choice under a button is
 named by both, `add.song` (or `addAfter.song` under the item menu's Lägg till efter); a column's fold and its way back
 by the column's place, `runningOrder.fold`, `liveColumn.unfold`. Rows of a list are named by their data's id, not by
-these. For the Mac and iOS app, `packages/architecture/test/action-ids.test.ts` checks only this much: a Swift file that
+these. For the Mac and iOS app, packages/architecture/test/action-ids.test.ts (at the tag native-experiment-end) checks only this much: a Swift file that
 reads one of those views sets an identifier somewhere (it does not see a second control left unnamed), and `back`,
 `new`, `add` and `black` are each set by name. The web's controls are not named by them yet.
 

@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@gp/core": "workspace:*",
-    "@gp/rust-core": "workspace:*",
     "@journeyapps/wa-sqlite": "2.0.8"
   },
   "devDependencies": {

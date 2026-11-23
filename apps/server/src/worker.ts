@@ -19,9 +19,7 @@ import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
 import { isAppPage, staticHeaders } from './static.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
-import { RustCore } from '@gp/rust-core';
-// The Rust core's WASM, compiled when the Worker is deployed (a CompiledWasm module): a Worker may not compile one itself.
-import coreWasm from '@gp/rust-core/gp_core.wasm';
+import { Core } from '@gp/core/core';
 import { appCors } from './cors.ts';
 
 interface Env {
@@ -79,12 +77,12 @@ function googleOf(env: Env): GoogleOidc | null {
 /** An organisation's data in its Durable Object's own SQLite (evaluation option (a)). */
 export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
   const rows = (sql: string, params: unknown[]) => [...storage.sql.exec(sql, ...params).raw()];
-  const core = new RustCore(coreWasm);
-  // The schema's migration on the Rust core, in one transaction: a refused database is left as it was.
-  storage.transactionSync(() => core.runSync('migrateOrgSchema', {}, undefined, rows));
+  const core = new Core();
+  // The schema's migration, in one transaction: a refused database is left as it was.
+  storage.transactionSync(() => core.runSync('migrateOrgSchema', rows));
   for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) storage.sql.exec(s).toArray();
   // After the change triggers, so the default labels sync like any change (SONG-R47).
-  core.runSync('seedLabels', {}, undefined, rows);
+  core.runSync('seedLabels', rows);
   return {
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],
     rows,

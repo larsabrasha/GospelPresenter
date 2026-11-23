@@ -1,8 +1,7 @@
 // Bundles the Electron main process, its preload, and a plain-Node server for
 // development. better-sqlite3 stays external; the desktop uses node:sqlite.
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { copyFileSync } from 'node:fs';
 import { build } from 'esbuild';
 
 // Only a development or test build may point sign-in at a fake Google
@@ -28,10 +27,6 @@ await build({
 });
 // A sandboxed preload must be CommonJS.
 await build({ ...common, entryPoints: ['src/preload.ts'], format: 'cjs', outExtension: { '.js': '.cjs' } });
-// The Rust core's WASM beside the bundle, where the server's copy of @gp/rust-core/node reads it (`../dist/` from
-// dist/main.mjs is dist/ itself).
-mkdirSync('dist', { recursive: true });
-copyFileSync(createRequire(import.meta.url).resolve('@gp/rust-core/gp_core.wasm'), 'dist/gp_core.wasm');
 // The host's PowerPoint drawing (crates/gp-pptx, docs/powerpoint-deckcraft.md) beside the bundle, where host.ts looks;
 // electron-builder.yml puts it among a package's resources. Built for this machine; a release on a Mac, whose
 // packages are arm64 and x64 alike from this one dist/, builds both and joins them into one program (lipo). Windows

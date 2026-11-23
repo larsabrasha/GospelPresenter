@@ -39,17 +39,14 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 
 | Package | What it is |
 |---|---|
-| `packages/core` | What the shells share beside the Rust core: the table types, the mutators' names and argument types, permissions, the wire protocol, the server's sync SQL, accounts, the imports' parsing, slides' drawing data and the live pointer |
-| `packages/rust-core` | The Rust core (`crates/gp-core`) under the app: its WASM, built by turbo's `wasm` task before whatever loads it, runs every mutator, the organisation schema's migration and the default labels, sync's client logic and the pages' views, on the client and the server alike; the TS core it replaced is the reference its checks take from git, at 238d481b |
+| `packages/core` | The core: the mutators, the organisation schema's migration and the default labels, sync's client logic and the pages' views, reached through `Core` (`src/core.ts`) on the client and the server alike; and the table types, permissions, the wire protocol, the server's sync SQL, accounts, the imports' parsing, slides' drawing data and the live pointer |
 | `packages/sync` | The sync engine: client (rebase, pokes) and server (push, pull, change log) |
 | `packages/architecture` | Tests of the code itself, read as text: file length, names, copies, which package may import which |
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
 | `apps/desktop` | Electron: the embedded server, the main window and the output window |
 | `apps/mobile` | Capacitor: the web app in an iOS shell, with its sign-in sheet (docs/phone-app.md) |
-| `apps/mac` | SwiftUI for iOS and the Mac over the Rust core, through `crates/gp-core-ffi` (UniFFI), synced as the web (docs/native-apps.md) |
-| `apps/windows` | WinUI 3 (C#) over the Rust core, through `crates/gp-core-ffi`'s C# bindings: begun, the start page on the demo data (docs/windows-app.md) |
-| `crates/gp-tui` | A terminal shell (`gp`) over the Rust core in-process, ratatui on an organisation's SQLite: the start page, a presentation and presenting (docs/tui.md) |
+| `crates/gp-pptx` | The desktop host's PowerPoint drawing, in Rust, a workspace of its own (docs/powerpoint-deckcraft.md) |
 | `apps/legacy` | The export from the current app: one organisation from its PostgreSQL and Garage to a zip the new app imports (docs/import-from-1x.md) |
 
 ```sh
@@ -75,7 +72,7 @@ export GP_RESEND_API_KEY=… GP_MAIL_FROM='Gospel Presenter <noreply@…>' GP_AP
                                            # e-mail through Resend (see docs/sign-in-and-pairing.md, "E-mail")
 ```
 
-Needs Node 22 or later, pnpm 12, and Rust with its WASM target (`rustup target add wasm32-unknown-unknown`) for the core's WASM. The e2e runs the real app, with its windows hidden: they are made but never
+Needs Node 22 or later, pnpm 12, and Rust for the desktop host's PowerPoint drawing (`crates/gp-pptx`, its toolchain fetched by rustup). The e2e runs the real app, with its windows hidden: they are made but never
 shown, there is no Dock icon, and the output never takes a second display, so a run takes no focus from whoever
 is at the computer (`GP_E2E_VISIBLE=1 pnpm e2e` shows them). It plays the system browser and
 Google itself (`apps/server/test/fake-google.ts`), so it needs no internet and no Google client. Its
@@ -110,13 +107,9 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [bug-reports.md](docs/bug-reports.md) | "Rapportera fel": what a report carries and never carries, the steps before it, Felrapporter for the SuperAdmin, and the thread with the one who reported |
 | [assumptions.md](docs/assumptions.md) | Where the spec and ADR 0007 leave a choice open, the choice made, per milestone |
 | [planning.md](docs/planning.md) | Not built: planning who does what at each gathering, in place of a shared spreadsheet; what the church's sheet shows, the design, what is left out |
-| [rust-core.md](docs/rust-core.md) | The Rust core 2.0 runs on: why, the reference it is proved against, where it runs, its interface, the loop function by function and view by view, and where it stands |
+| [core-back-to-typescript.md](docs/core-back-to-typescript.md) | How the core came back from Rust to TypeScript (ADR 0008): the waves, the parity checks against Rust, what was removed; the Rust core, the native apps and the TUI are at the tag `native-experiment-end` |
 | [view-models.md](docs/view-models.md) | What a page offers (menus, enabled actions, where + adds, a field's rule) worked out in the core for every shell: what is built, how it is proved, what is next |
-| [native-apps.md](docs/native-apps.md) | The iOS and Mac app in SwiftUI over the Rust core: its UniFFI interface, building, running and installing, pairing and sync as the web's, the pages built and those not |
-| [windows-app.md](docs/windows-app.md) | The Windows app in WinUI 3 over the Rust core: why WinUI and C#, what builds on a Mac and what only on Windows, the build scripts |
-| [tui.md](docs/tui.md) | The terminal shell over the Rust core: what it draws from which view, its keys, how to run it, what is checked and what is left (sync, the CLI, SSH) |
 | [powerpoint-deckcraft.md](docs/powerpoint-deckcraft.md) | Decided, step 1 to build: a `.pptx` item drawn by DeckCraft's libraries when added, its builds and animations as layers every device moves; what was tried on real decks and LibreOffice's and Apache POI's test files, and what is open |
-| [native-slide-rendering.md](docs/native-slide-rendering.md) | A proposal, not decided: slides drawn without a browser (an Apple TV app), the core laying them out and each platform painting them, and what would prove it |
 
 ### Next steps
 
