@@ -1,6 +1,5 @@
-import { listThemes } from '@gp/core';
+import { FIELD_RULES, listThemes } from '@gp/core';
 import { useState } from 'react';
-import { fields } from '../../db/pageCore.ts';
 import { ownThemes } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -65,9 +64,7 @@ export function PresentationDetailsDialog({
   const [d, setD] = useState(initial);
   const [saving, setSaving] = useState(false);
   const own = useData(ownThemes, []);
-  // The fields' lengths, the core's, as its mutators check them (docs/view-models.md).
-  const rule = fields();
-  const set = (field: keyof PresentationDetails) => (e: { target: { value: string } }) => setD((was) => ({ ...was, [field]: e.target.value }));
+    const set = (field: keyof PresentationDetails) => (e: { target: { value: string } }) => setD((was) => ({ ...was, [field]: e.target.value }));
   const save = async () => {
     if (saving || !d.name.trim()) return;
     setSaving(true);
@@ -108,7 +105,7 @@ export function PresentationDetailsDialog({
                 autoFocus
                 aria-label={t('presentation.name')}
                 placeholder={t('presentation.name')}
-                maxLength={rule.presentationName.max}
+                maxLength={FIELD_RULES.name.max}
                 className={BARE}
                 value={d.name}
                 onFocus={(e) => e.currentTarget.select()}
@@ -121,7 +118,7 @@ export function PresentationDetailsDialog({
               />
             </div>
             <div className={GROUP_ROW}>
-              <input aria-label={t('presentation.location')} placeholder={t('presentation.location')} maxLength={rule.location.max} className={BARE} value={d.location} onChange={set('location')} />
+              <input aria-label={t('presentation.location')} placeholder={t('presentation.location')} maxLength={FIELD_RULES.location.max} className={BARE} value={d.location} onChange={set('location')} />
             </div>
           </Group>
           <Group>
@@ -153,7 +150,7 @@ export function PresentationDetailsDialog({
             <textarea
               aria-label={t('presentation.description')}
               placeholder={t('presentation.description')}
-              maxLength={rule.description.max}
+              maxLength={FIELD_RULES.description.max}
               rows={4}
               className={`${BARE} block px-4 py-3 text-sm resize-none`}
               value={d.description}

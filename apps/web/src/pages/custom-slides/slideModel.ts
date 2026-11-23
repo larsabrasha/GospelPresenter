@@ -1,5 +1,4 @@
-import { blankPage, CANVAS, type CustomElement, type CustomPage, type Picture } from '@gp/core';
-import { limits } from '../../db/pageCore.ts';
+import { blankPage, CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Picture } from '@gp/core';
 
 // What the editor does to a custom slide's pages (docs/custom-slides.md), as plain functions: each returns new pages,
 // so the editor keeps them in its state and saves them whole.
@@ -44,7 +43,7 @@ export function withPage(pages: CustomPage[], at: number, fn: (page: CustomPage)
 }
 
 export function addElement(page: CustomPage, e: CustomElement): CustomPage {
-  return page.elements.length >= limits().customElements ? page : { ...page, elements: [...page.elements, e] };
+  return page.elements.length >= CUSTOM_LIMITS.elements ? page : { ...page, elements: [...page.elements, e] };
 }
 
 export function changeElement(page: CustomPage, id: string, patch: Partial<CustomElement>): CustomPage {
@@ -74,7 +73,7 @@ export function reorderElement(page: CustomPage, id: string, to: 'up' | 'down' |
 
 /** A new page after `at`: blank, or a copy of page `at` with new element ids. */
 export function addPage(pages: CustomPage[], at: number, copy: boolean, newId: () => string): CustomPage[] {
-  if (pages.length >= limits().customPages) return pages;
+  if (pages.length >= CUSTOM_LIMITS.pages) return pages;
   const page = copy ? { ...pages[at]!, elements: pages[at]!.elements.map((e) => ({ ...e, id: newId() })) } : blankPage();
   return [...pages.slice(0, at + 1), page, ...pages.slice(at + 1)];
 }

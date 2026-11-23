@@ -1,4 +1,4 @@
-import { fields } from '../../db/pageCore.ts';
+import { FIELD_RULES } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { FloatingInput } from '../../ui/Floating.tsx';
 
@@ -9,7 +9,7 @@ export function PresentationNameField({ value, onChange, onEnter }: { value: str
       label={t('presentation.name')}
       hideLabel
       autoFocus
-      maxLength={fields().presentationName.max}
+      maxLength={FIELD_RULES.name.max}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {

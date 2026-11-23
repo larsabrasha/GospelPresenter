@@ -25,6 +25,18 @@ export class MutationError extends Error {
 /** Limits of spec 02 and 03 (SONG-R7–R9, PRES-R10). Trashed rows do not count. */
 export const LIMITS = { songs: 5000, partsPerSong: 50, arrangementsPerSong: 10, itemsPerPresentation: 100 } as const;
 
+/**
+ * The fields a person types, as the mutators check them: whether one may be left blank, and its most characters. A
+ * name (a presentation's, an item's) is required and trimmed; spec 03's `EventLocation` ≤ 100 and `EventDescription`
+ * ≤ 5000 (PRES-R9).
+ */
+export const FIELD_RULES = {
+  name: { required: true, max: 200 },
+  itemNote: { required: false, max: 200 },
+  location: { required: false, max: 100 },
+  description: { required: false, max: 5000 },
+} as const;
+
 /** The most verses one Bible item holds. */
 export const MAX_VERSES_PER_ITEM = 500;
 

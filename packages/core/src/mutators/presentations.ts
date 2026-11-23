@@ -1,5 +1,5 @@
 import { and, asc, count, eq, gt, gte, max, ne, sql } from 'drizzle-orm';
-import { MAX_VERSES_PER_ITEM } from '../mutation.ts';
+import { FIELD_RULES, MAX_VERSES_PER_ITEM } from '../mutation.ts';
 import { z } from 'zod';
 import { BIBLE_LIMITS, bibleTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
@@ -13,9 +13,8 @@ export const eventTime = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
   .nullable();
-/** spec 03: `EventLocation` ≤ 100, `EventDescription` ≤ 5000 (PRES-R9). */
-export const eventLocation = optionalText(100);
-export const eventDescription = optionalText(5000);
+export const eventLocation = optionalText(FIELD_RULES.location.max);
+export const eventDescription = optionalText(FIELD_RULES.description.max);
 
 /** When and where, and what it is about: the details dialog's fields (spec 03 2a). */
 const eventFields = {
@@ -271,7 +270,7 @@ export async function renameItem(tx: Tx, a: z.output<typeof renameItemArgs>, ctx
   await tx.update(presentationItems).set({ title: a.title }).where(eq(presentationItems.id, a.itemId));
 }
 
-export const setItemNoteArgs = z.object({ itemId: id, note: optionalText(200) });
+export const setItemNoteArgs = z.object({ itemId: id, note: optionalText(FIELD_RULES.itemNote.max) });
 /** An item's comment, for those who run it (spec 03 2f); blank removes it. Never shown on a screen. */
 export async function setItemNote(tx: Tx, a: z.output<typeof setItemNoteArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');

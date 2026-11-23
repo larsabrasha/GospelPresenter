@@ -3,7 +3,7 @@ import { and, count, eq, getTableName, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { can, type Permission } from '../permissions.ts';
 import { audios, customSlides, images, mediaBlobs, overlays, presentationItems, songArrangements, themes, videos } from '../schema.ts';
-import { MutationError, type MutatorCtx } from '../mutation.ts';
+import { FIELD_RULES, MutationError, type MutatorCtx } from '../mutation.ts';
 
 /**
  * The transaction a mutator runs in. It is a plain Drizzle SQLite database:
@@ -42,7 +42,7 @@ export async function requireBlobs(tx: Tx, hashes: string[]) {
 
 export const id = z.string().min(1).max(100);
 /** Trimmed and non-blank, as the UI requires (spec 02, 03). */
-export const name = z.string().trim().min(1).max(200);
+export const name = z.string().trim().min(1).max(FIELD_RULES.name.max);
 /** Optional text: blank is stored as null. */
 export const optionalText = (maxLength: number) =>
   z

@@ -1,5 +1,4 @@
-import { parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
-import { limits } from '../db/pageCore.ts';
+import { type Label, LIMITS, parsePartIds, type SongArrangement, type SongPart } from '@gp/core';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
@@ -84,7 +83,7 @@ export function SongArrangements({ id }: { id: string }) {
         ) : (
           <OpeningRow label={arrangementSummary([], parts, labels)} onClick={create} testId="arrangement-row" />
         )}
-        {arrangements.length < limits().arrangementsPerSong && (
+        {arrangements.length < LIMITS.arrangementsPerSong && (
           <AppButton variant="plain" className={`${ACTION_ROW} justify-start`} onClick={create}>
             <PlusIcon className="size-4" />
             {t('song.createArrangement')}

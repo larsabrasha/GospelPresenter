@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
-import { can, libraryPage } from '../db/pageCore.ts';
-import { emailSchema, ROLES, type InvitationResponse, type InvitationRow, type MemberRole, type UserRow } from '@gp/core';
+import { libraryPage } from '../db/pageCore.ts';
+import { can, emailSchema, type InvitationResponse, type InvitationRow, type Me, type MemberRole, ROLES, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
@@ -19,7 +19,6 @@ import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { serverOrigin } from '../server.ts';
-import type { Me } from '@gp/core';
 import { ROW_HOVER, RowChevron } from '../ui/List.tsx';
 
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */

@@ -1,6 +1,5 @@
-import type { PresentationItem } from '@gp/core';
+import { FIELD_RULES, type PresentationItem } from '@gp/core';
 import { useState, type ReactNode } from 'react';
-import { fields, type FieldRule } from '../../db/pageCore.ts';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
@@ -16,9 +15,9 @@ type HeaderPlace = { afterItemId: string | null };
  * One text of an item asked for in a small dialog, as iOS asks for a new list's name: an item's texts are not edited
  * in the list (that confused, Lars 2026-11-02). The title says what it is, so the field has its name only as its
  * placeholder (Lars, 2026-11-05: a label over one field adds nothing), or none at all, the title naming it (`label` left out). Saved by `save`, which says whether it went through; blank is allowed
- * only where it removes the text: the field's `rule`, the core's (`rulesView`'s fields), with its length.
+ * only where it removes the text: the field's `rule`, the core's (`FIELD_RULES`), with its length.
  */
-function TextDialog({ title, label, initial, rule, submit, save, onClose }: { title: string; label?: string; initial: string; rule: FieldRule; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
+function TextDialog({ title, label, initial, rule, submit, save, onClose }: { title: string; label?: string; initial: string; rule: { required: boolean; max: number }; submit: string; save: (text: string) => Promise<boolean>; onClose: () => void }) {
   const [text, setText] = useState(initial);
   const [saving, setSaving] = useState(false);
   const blocked = (rule.required && !text.trim()) || saving;
@@ -58,7 +57,7 @@ function HeaderDialog({ presentationId, place, item, onAdded, onClose }: { prese
       title={t(item ? 'header.rename' : 'header.new')}
       label={t('header.name')}
       initial={item?.title ?? ''}
-      rule={fields().itemTitle}
+      rule={FIELD_RULES.name}
       submit={t(item ? 'common.save' : 'presentation.addTitle')}
       save={async (title) => {
         if (item) return trySave(db.mutate('renameItem', { itemId: item.id, title }));
@@ -83,7 +82,7 @@ function NoteDialog({ item, onClose }: { item: PresentationItem; onClose: () => 
     <TextDialog
       title={t('note.title')}
       initial={item.note ?? ''}
-      rule={fields().itemNote}
+      rule={FIELD_RULES.itemNote}
       submit={t('common.save')}
       save={(note) => trySave(db.mutate('setItemNote', { itemId: item.id, note }))}
       onClose={onClose}

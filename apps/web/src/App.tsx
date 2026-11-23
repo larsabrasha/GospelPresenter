@@ -1,7 +1,6 @@
+import { can, type Me, type PairStatus } from '@gp/core';
 import { useEffect, useState } from 'react';
 import { useDropGuard } from './ui/DropZone.tsx';
-import type { Me, PairStatus } from '@gp/core';
-import { can } from './db/pageCore.ts';
 import { api } from './auth/api.ts';
 import { updateMe } from './auth/session.ts';
 import { useDb } from './db/react.tsx';

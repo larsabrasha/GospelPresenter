@@ -1,9 +1,6 @@
 // The Bibles, the themes and the CCLI report (apps/web's Bibler, Teman, the theme editor, CCLI-rapport), and what
 // Inställningar's lists and pages offer (ported back from crates/gp-core/src/settings_views.rs, settings_pages.rs'
-// `freshNameView` and `themesPageView`, library_pages.rs, mutators.rs' `rules` and views.rs' `coreInfoView`).
-import { CUSTOM_LIMITS } from '../custom-slides.ts';
-import { MEDIA_LIMITS } from '../media.ts';
-import { LIMITS, MAX_VERSES_PER_ITEM } from '../mutation.ts';
+// `freshNameView` and `themesPageView`, library_pages.rs and views.rs' `coreInfoView`).
 import { can, type Permission, type Role } from '../permissions.ts';
 import { BUILT_IN_THEMES, CLASSIC, type Theme, themeDefinitionSchema } from '../themes.ts';
 import type { RunSql } from './sql.ts';
@@ -117,36 +114,6 @@ export function freshNameView(args: unknown): string {
   const taken = new Set((Array.isArray(a.taken) ? a.taken : []).filter((n): n is string => typeof n === 'string').map((n) => rustTrim(n).toLowerCase()));
   if (!taken.has(base.toLowerCase())) return base;
   for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
-}
-
-const EVERYONE: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes',
-  'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewVideos', 'ManageVideos', 'ViewOverlays', 'ManageOverlays'];
-const ADMIN: Permission[] = ['ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays',
-  'ManageOrganizationSettings', 'ViewCcliReport', 'ManageCcliReport'];
-
-/**
- * `rulesView`: what each role may do, and the limits the mutators hold to, for the shells to show only what will be
- * taken (a button hidden, a field's length); and each field's rule as the mutators check it.
- */
-export function rulesView(args: unknown) {
-  argsOf(args);
-  const of = (role: Role) => [...EVERYONE, ...ADMIN, 'ManageOrganizations' as const].filter((p) => can(role, p));
-  return {
-    permissions: { user: of('user'), admin: of('admin'), superAdmin: of('superAdmin') },
-    limits: {
-      songs: LIMITS.songs, partsPerSong: LIMITS.partsPerSong, arrangementsPerSong: LIMITS.arrangementsPerSong, itemsPerPresentation: LIMITS.itemsPerPresentation,
-      versesPerItem: MAX_VERSES_PER_ITEM, customSlides: CUSTOM_LIMITS.slides, customElements: CUSTOM_LIMITS.elements, customPages: CUSTOM_LIMITS.pages,
-      customText: CUSTOM_LIMITS.text, fileName: MEDIA_LIMITS.fileName,
-    },
-    // The most characters of a name (base.ts's `name`), an item's note, a presentation's place and description.
-    fields: {
-      presentationName: { required: true, max: 200 },
-      itemTitle: { required: true, max: 200 },
-      itemNote: { required: false, max: 200 },
-      location: { required: false, max: 100 },
-      description: { required: false, max: 5000 },
-    },
-  };
 }
 
 /** `coreInfoView`: what the running core is, for Om Gospel Presenter: the Rust crate's name and version, as it answered. */

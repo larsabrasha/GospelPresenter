@@ -298,6 +298,14 @@ Round 1 (2026-11-23): the presentation's menu, its details dialog and an item's 
 - e2e: editor, keyboard, labels, library, programme-points, song-materials, templates, themes and trash pass; drag,
   live-order, milestone2's three, offline, overlays and phone fail as at `4dfb205`, on the same lines.
 
+Round 2 (2026-11-23): `rulesView`.
+- The web asks `can` (`permissions.ts`) and reads `LIMITS`, `MAX_VERSES_PER_ITEM`, `CUSTOM_LIMITS` and `MEDIA_LIMITS`
+  itself; the fields' rules are `FIELD_RULES` (`mutation.ts`), which the mutators' schemas take their lengths from.
+- `packages/core/test/node/rules.test.ts` runs each field's mutator at its most, one over and blank against
+  `FIELD_RULES`.
+- e2e: templates, editor, programme-points, users, ccli, trash, library, milestone1, milestone3, settings and
+  image-edit pass; custom-slides' one fails as at `4dfb205`.
+
 ## How long
 
 The swap the other way, from the first mutator to the TS core out of the app, took 2026-11-13 to 2026-11-17, with the

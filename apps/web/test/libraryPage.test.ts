@@ -1,8 +1,8 @@
 // What Inställningar's lists can do (`libraryPageView`, crates/gp-core/src/library_pages.rs), which the web, the Mac
 // and iOS read, against what the web's pages decided themselves before: by the role's permission, for every role.
 import { describe, expect, it } from 'vitest';
-import type { Permission, Role } from '@gp/core';
-import { can, libraryPage } from '../src/db/pageCore.ts';
+import { can, type Permission, type Role } from '@gp/core';
+import { libraryPage } from '../src/db/pageCore.ts';
 
 const roles: Role[] = ['user', 'admin', 'superAdmin'];
 

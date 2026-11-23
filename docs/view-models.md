@@ -10,7 +10,7 @@ natively.
 
 ## The question
 
-The core decides what the data is and what may change: the mutators and their checks, permissions (`rulesView`),
+The core decides what the data is and what may change: the mutators and their checks, permissions (`can`),
 limits, every page's data (the views), presenting's keys (`presentingKeyView`). A differential check proves each shell
 gets the same answers. How a page behaves around that data was the shells' own: which entries an item's menu has and
 which are disabled, where Lägg till puts a new item, when Spara may be pressed, how the start page is grouped. The web
@@ -66,7 +66,7 @@ weighed"): the core answers "what is on this screen and what can be done", the s
 | `liveChangeView` {pointer, change, overlays}, `followItemOverlayView` | the app's live state: a change numbered after the last, the overlays' rules, a start refused while another presentation is presented | 6 000 random changes and 3 000 overlays changed against 2.0's `applyLiveChange` and `followItemOverlay` (`parity/views/live-state.mjs`), every start over another refused; `packages/core/test/node/live-state.test.ts` (the TS tests moved there) | web (`live/live.ts`, `live/owner.ts`), iOS (`Live.set`) |
 | `pageEventView` {state, context, order, event}, `pageModelView` | a page's own state and what each key, tap and row does to it: ← → ↑ ↓ PageUp PageDown Space ↵ Escape b . a Delete digits ⌘↑ ⌘↓ ⌥↑ ⌥↓ F5 ⌘., a slide tapped, a row chosen, an addition, the page read again (`changed`, the item that stays); ▶ offered; the cue over the live picture | `packages/core/test/node/page-state.test.ts` (30 tests); the scenario's keys in each state; the web's e2e specs of the keys (keyboard, live-order, phone, journeys) | web (`live/pageState.ts`, `useEditorKeys.ts`, the computer's page and the phone's), iOS (`Model.send`) |
 | `detailsDialogView` {isNew} | a presentation's details dialog: its title, its fields in their groups in order (the theme only for one there), its buttons in order with their texts and roles (Avbryt; Skapa, Skapar…, or Spara) | unit tests (`page-models.test.ts`); the web's e2e specs that make and edit presentations | web (`PresentationDetailsDialog.tsx`), Mac and iOS (`DetailsSheet`, whose bar draws the core's texts: on a Mac as buttons with them, on iOS 26 as the system's × and ✓ named by them) |
-| `rulesView`'s `fields` | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/core/test/node/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
+| `FIELD_RULES` (the web reads it directly since step 5 of `docs/core-back-to-typescript.md`; it was `rulesView`'s `fields`) | a field's rule: required, and its most characters, for a presentation's name, an item's title and comment, a place and a description | `packages/core/test/node/rules.test.ts` runs each field's mutator at its most, one over and empty, so the rule is what the mutator takes | web (`HeaderDialog.tsx`, `PresentationDetailsDialog.tsx`, `PresentationNameField.tsx`, `SaveAsTemplateDialog.tsx`), iOS (`TextPrompt`, `DetailsSheet`) |
 
 Inställningar (Lars, 2026-11-21: settings in the native app, `crates/gp-core/src/settings_models.rs`,
 `settings_pages.rs`):

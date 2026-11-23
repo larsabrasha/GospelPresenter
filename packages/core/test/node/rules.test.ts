@@ -1,48 +1,9 @@
-// The permission table and limits the server's own routes keep in TS (packages/core: permissions.ts, mutation.ts,
-// custom-slides.ts, media.ts) against the core's (`rulesView`), which the web and every other shell read: one truth,
-// held so by this test.
+// The fields' rules the web reads (FIELD_RULES, mutation.ts) against what the mutators take: one truth, held so by
+// this test.
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { can, CUSTOM_LIMITS, LIMITS, MAX_VERSES_PER_ITEM, MEDIA_LIMITS, type Permission, type Role } from '@gp/core';
+import { FIELD_RULES } from '@gp/core';
 import { Core, runMutation, type Rows } from '../../src/core.ts';
-
-interface Rules {
-  permissions: Record<Role, Permission[]>;
-  limits: Record<string, number>;
-}
-const rules = () => new Core().pure<Rules>('rulesView', {});
-
-const PERMISSIONS: Permission[] = [
-  'ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs', 'ViewTemplates', 'ManageTemplates', 'ViewBibles', 'ManageBibles',
-  'ViewThemes', 'ManageThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewVideos', 'ManageVideos', 'ViewOverlays',
-  'ManageOverlays', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays', 'ManageOrganizationSettings', 'ViewCcliReport', 'ManageCcliReport',
-  'ManageOrganizations',
-];
-
-describe('rulesView', () => {
-  it.each<Role>(['user', 'admin', 'superAdmin'])('grants a %s what the TS table grants', (role) => {
-    const { permissions } = rules();
-
-    expect(permissions[role].toSorted()).toEqual(PERMISSIONS.filter((p) => can(role, p)).toSorted());
-  });
-
-  it('holds the limits the TS constants hold', () => {
-    const { limits } = rules();
-
-    expect(limits).toEqual({
-      songs: LIMITS.songs,
-      partsPerSong: LIMITS.partsPerSong,
-      arrangementsPerSong: LIMITS.arrangementsPerSong,
-      itemsPerPresentation: LIMITS.itemsPerPresentation,
-      versesPerItem: MAX_VERSES_PER_ITEM,
-      customSlides: CUSTOM_LIMITS.slides,
-      customElements: CUSTOM_LIMITS.elements,
-      customPages: CUSTOM_LIMITS.pages,
-      customText: CUSTOM_LIMITS.text,
-      fileName: MEDIA_LIMITS.fileName,
-    });
-  });
-});
 
 /** An organisation's database in memory with a presentation `p1` and its heading `i1`, and a mutator run over it. */
 function org() {
@@ -69,12 +30,16 @@ const SETTERS: Record<Field, (text: string) => [string, object]> = {
   description: (text) => ['updatePresentation', { id: 'p1', description: text }],
 };
 
-describe("rulesView's fields", () => {
-  const fields = () => new Core().pure<{ fields: Record<Field, { required: boolean; max: number }> }>('rulesView', {}).fields;
-
-  it('names a rule for each field a shell asks for', () => {
-    expect(Object.keys(fields()).toSorted()).toEqual(Object.keys(SETTERS).toSorted());
-  });
+describe('FIELD_RULES', () => {
+  /** Each field's rule: a presentation's name and an item's title are names. */
+  const RULES: Record<Field, { required: boolean; max: number }> = {
+    presentationName: FIELD_RULES.name,
+    itemTitle: FIELD_RULES.name,
+    itemNote: FIELD_RULES.itemNote,
+    location: FIELD_RULES.location,
+    description: FIELD_RULES.description,
+  };
+  const fields = () => RULES;
 
   it.each(Object.keys(SETTERS) as Field[])('lets %s take its most characters, as its mutator does', async (field) => {
     const { mutate, ready } = org();

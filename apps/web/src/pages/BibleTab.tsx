@@ -1,6 +1,6 @@
-import type { Theme, Verse } from '@gp/core';
+import { MAX_VERSES_PER_ITEM, type Theme, type Verse } from '@gp/core';
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { bibleSlides, bookInfo, limits, verseSearchPlan } from '../db/pageCore.ts';
+import { bibleSlides, bookInfo, verseSearchPlan } from '../db/pageCore.ts';
 import { useData, useDataReading, useDb } from '../db/react.tsx';
 import { listBibles } from '../db/queries.ts';
 import { language, t } from '../i18n.ts';
@@ -303,7 +303,7 @@ export function BibleTab({
 
   // A search's verses (none for a query that names no passage); undefined while they are read.
   const found = browse || !query.trim() ? [] : wanted ? read?.passage : [];
-  const shown = (found ?? []).slice(0, limits().versesPerItem);
+  const shown = (found ?? []).slice(0, MAX_VERSES_PER_ITEM);
   const chosen = browse ? (read?.passage ?? []) : shown;
   // The output's own slides and the item's title (`bibleSlidesView`), as adding them freezes them.
   const preview = chosen.length ? bibleSlides(bible.abbreviation, chosen) : null;

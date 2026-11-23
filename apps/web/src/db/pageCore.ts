@@ -1,7 +1,7 @@
 // This page's own core, beside the database worker's: for the views that read no database, worked out on the page's
 // thread, synchronously (`Core.pure`). Presenting's keys and marks (live/presenting.ts), so a key reaches the outputs
 // without a round trip to the worker; and the Bible tab's preview, the output's own slides.
-import type { Permission, Role, Slide } from '@gp/core';
+import type { Role, Slide } from '@gp/core';
 import { base64, Core } from '@gp/core/core';
 
 let core: Core | undefined;
@@ -23,37 +23,6 @@ export function bibleSlides(translation: string, verses: readonly { b: string; c
 /** What a reference selects among the books `available` (`verseSearchPlanView`, BIBLE-R11), or null. */
 export function verseSearchPlan(query: string, available: readonly string[]): { codes: string[]; from: [number, number]; to: [number, number] } | null {
   return pageCore().pure('verseSearchPlanView', { query, available });
-}
-
-/** What the core's mutators hold to (`rulesView`): each role's permissions and the limits of the organisation's data. */
-interface Rules {
-  permissions: Record<Role, Permission[]>;
-  limits: {
-    songs: number;
-    partsPerSong: number;
-    arrangementsPerSong: number;
-    itemsPerPresentation: number;
-    versesPerItem: number;
-    customSlides: number;
-    customElements: number;
-    customPages: number;
-    customText: number;
-    fileName: number;
-  };
-  fields: Record<'presentationName' | 'itemTitle' | 'itemNote' | 'location' | 'description', FieldRule>;
-}
-
-/** A field's rule as the core's mutators check it: whether it may be left empty, and its most characters. */
-export interface FieldRule {
-  required: boolean;
-  max: number;
-}
-let rules: Rules | undefined;
-const theRules = () => (rules ??= pageCore().pure<Rules>('rulesView', {}));
-
-/** Whether `role` may do `permission` (`can`), as the core's mutators decide it: a button the core would refuse is not shown. */
-export function can(role: Role, permission: Permission): boolean {
-  return theRules().permissions[role]?.includes(permission) ?? false;
 }
 
 /** An action of a list, the core's: its id, its text's key, whether it removes, the row's field it needs. */
@@ -80,11 +49,6 @@ export function libraryPage(kind: string, role: Role, host = false): LibraryPage
   return pageCore().pure<LibraryPage>('libraryPageView', { kind, role, host });
 }
 
-/** The limits of the organisation's data, the core's: a field's length, a button hidden at the limit. */
-export const limits = () => theRules().limits;
-
-/** The fields' rules, the core's (docs/view-models.md): whether Spara waits for a word, and a field's length. */
-export const fields = () => theRules().fields;
 
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */
 export const highlight = (text: string, query: string) => pageCore().pure<{ text: string; hit: boolean }[]>('highlightView', { text, query });
