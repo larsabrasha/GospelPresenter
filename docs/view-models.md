@@ -117,9 +117,10 @@ after Släck either, on both, as the scenario showed that → would then start t
    page brings forward the first window that has it, its slide made ready there (made to fail once on purpose, the
    rule left out: the second window opened a page of its own). Run when
    the app's Swift changes, not in every check. Made to fail once on purpose (Radera always enabled): it failed for the
-   shown item, shown and black. The web: `apps/web/test/ItemMenus.test.tsx`, in `pnpm test` (under a second), draws
-   the computer's … and a phone's sheet for each item in each state, in a DOM (happy-dom, Lars 2026-11-18), from the
-   same organisation (`@gp/rust-core/scenarios` makes it), and checks the same three things. Made to fail on purpose
+   shown item, shown and black. The web: ItemMenus.test.tsx (gone in step 5 of `docs/core-back-to-typescript.md`, the
+   menu now the web's, `apps/web/test/itemMenu.test.ts`), in `pnpm test` (under a second), drew the computer's … and a
+   phone's sheet for each item in each state, in a DOM (happy-dom, Lars 2026-11-18), from the same organisation, and
+   checked the same three things. Made to fail on purpose
    twice (a phone's Radera always enabled; Byt namn drawn for every item): it failed where it should. The keys are
    checked in the web by its e2e specs (keyboard, live-order), not yet against the scenario's answers in a shell test;
    iOS sends the same events, from its own keys, unchecked by a test.

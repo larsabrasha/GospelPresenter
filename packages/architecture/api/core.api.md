@@ -449,10 +449,6 @@ upgradeLegacyRows (function)
 
 ## @gp/core/scenarios
 Scenario (type)
-ScenarioAction (type)
-ScenarioAnswers (type)
-ScenarioItem (type)
 ScenarioPage (type)
 madeScenario (function)
 readScenario (const)
-scenarioAnswers (const)

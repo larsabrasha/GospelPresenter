@@ -4,7 +4,7 @@
 // shells' own tests check what they draw against the same file.
 import { describe, expect, it } from 'vitest';
 import { Core } from '../../src/core.ts';
-import { madeScenario as made, readScenario as scenario, type ScenarioItem as Item, type ScenarioPage as Page } from '../../src/node/scenarios.ts';
+import { madeScenario as made, readScenario as scenario, type ScenarioPage as Page } from '../../src/node/scenarios.ts';
 
 interface Shown { itemId: string | null; partIndex: number; black: boolean }
 
@@ -22,15 +22,8 @@ function presentingAfter(core: Core, p: Page, presenting: boolean, keys: object[
   return state;
 }
 
-/** An item's menu asked as the shells ask it: the item, its song and the song's arrangements, the overlays, the item on the outputs. */
-function menuOf(core: Core, p: Page, item: Item, shownId: string | null) {
-  const song = item.type === 'song' ? (p.songs.find((x) => x.id === item.sourceId) ?? null) : null;
-  const arrangements = item.type === 'song' ? p.arrangements.filter((a) => a.songId === item.sourceId) : [];
-  return core.pure<{ groups: unknown[] }>('itemActionsView', { item, song, arrangements, overlays: p.overlays, shownId }).groups;
-}
-
 /**
- * What the scenario's presentation offers in each state: the slide shown and marked, each item's menu, where + adds,
+ * What the scenario's presentation offers in each state: the slide shown and marked, where + adds,
  * whether ▶ may start here and in the other presentation, and the page's state after each of `keys`, played from the
  * page as it stands (the item shown selected).
  */
@@ -57,7 +50,6 @@ async function played(name: string) {
       state,
       shown: presenting ? now.shown : null,
       marks: presenting ? core.pure('slideMarksView', { order: slideOrder(p), shown: now.shown }) : null,
-      menus: Object.fromEntries(p.items.map((i) => [i.id, menuOf(core, p, i, shownId)])),
       adds: s.adds.map((add) => ({ ...add, after: core.pure('addPositionView', { order, shownId, ...add }) })),
       canStart: { [s.presentation]: canStart(s.presentation, p), [s.other]: canStart(s.other, other) },
       keys: pressed,

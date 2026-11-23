@@ -1,8 +1,7 @@
 import type { LibraryVideo, PresentationItem, Theme, ItemSlides } from '@gp/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Action } from '../../db/pageCore.ts';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
-import { arrangementChoices, overlayChoices } from '../../live/liveList.ts';
+import type { ItemChoice } from '../../live/itemMenu.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
 import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
@@ -244,11 +243,11 @@ function SheetChoice({ label, icon, title, value, choices, onChoose }: { label: 
 
 /**
  * A song item's arrangement and the overlay an item carries, in a phone's item sheet (on a computer they are in the
- * heading's …, ItemContextMenu), when the core's item menu offers them (`itemActionsView`: two or more arrangements of
- * a song not in the trash; overlays there, and not a heading). Out of sight in the slides: the arrangement is chosen
+ * heading's …, ItemContextMenu), when the item's menu offers them (live/itemMenu.ts: a song not in the trash with
+ * arrangements; overlays there, and not a heading). Out of sight in the slides: the arrangement is chosen
  * when the song is added, and here only changed (Lars, 2026-11-02).
  */
-export function ItemSettings({ item, arrangement, overlay }: { item: PresentationItem; arrangement: Action | undefined; overlay: Action | undefined }) {
+export function ItemSettings({ item, arrangement, overlay }: { item: PresentationItem; arrangement: ItemChoice | null; overlay: ItemChoice | null }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
@@ -259,8 +258,8 @@ export function ItemSettings({ item, arrangement, overlay }: { item: Presentatio
         <SheetChoice
           label={t('song.arrangements')}
           icon={<RectangleStackIcon className="size-5" />}
-          value={arrangement.chosen ?? ''}
-          choices={arrangementChoices(arrangement)}
+          value={arrangement.chosen}
+          choices={arrangement.choices}
           onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
         />
       )}
@@ -269,8 +268,8 @@ export function ItemSettings({ item, arrangement, overlay }: { item: Presentatio
           label={t('overlays.itemOverlay')}
           icon={<SquaresOverlapIcon className="size-5" />}
           title={t('overlays.itemHint')}
-          value={overlay.chosen ?? ''}
-          choices={overlayChoices(overlay)}
+          value={overlay.chosen}
+          choices={overlay.choices}
           onChoose={(overlayId) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: overlayId || null }))}
         />
       )}

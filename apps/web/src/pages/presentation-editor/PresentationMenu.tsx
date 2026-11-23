@@ -9,9 +9,8 @@ const SEPARATOR = 'border-t-[0.5px] border-stone-200 dark:border-stone-600';
 
 /**
  * A presentation's menu (Alternativ), the same behind the name in the bar on a computer (PresentationBar), in groups:
- * Redigera detaljer… and Noter och länkar; Spara som mall…; and to the trash. Which of them it has is the core's
- * (`presentationActionsView`, docs/view-models.md): the page gives a handler only for those, and this draws what it is
- * given. "…" only where a dialog asks first. Spara offline is not here: the line at the foot of the left column
+ * Redigera detaljer… and Noter och länkar; Spara som mall…; and to the trash. Which of them it has is the page's
+ * (PresentationEditor): it gives a handler only for those, and this draws what it is given. "…" only where a dialog asks first. Spara offline is not here: the line at the foot of the left column
  * (OfflineStatus) and the start page's cloud have it.
  */
 export function PresentationMenu({

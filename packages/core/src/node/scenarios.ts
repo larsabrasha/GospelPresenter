@@ -1,6 +1,5 @@
 // The scenarios (docs/view-models.md): a small organisation made by the mutators in a database in memory, for the
-// core's own scenario test and for each shell's test of what it draws against the same answers
-// (scenarios/<name>.expected.json). Node only: node:sqlite.
+// core's scenario test (scenarios/<name>.expected.json). Node only: node:sqlite.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
@@ -18,25 +17,13 @@ export interface Scenario {
   adds: object[];
 }
 
-/** An item of the page, as `presentationPageView` gives it. */
-export interface ScenarioItem { id: string; type: string; sourceId: string; title: string; arrangementId: string | null; overlayId: string | null }
-
 /** The presentation's page as the shells read it (`presentationPageView`). */
 export interface ScenarioPage {
-  items: ScenarioItem[];
+  items: { id: string; type: string; sourceId: string; title: string; arrangementId: string | null; overlayId: string | null }[];
   slides: Record<string, { slides: unknown[] }>;
   songs: { id: string; deletedAt: number | null }[];
   arrangements: { id: string; songId: string; name: string | null }[];
   overlays: { id: string; title: string }[];
-}
-
-/** An action of a menu as the core gives it. */
-export interface ScenarioAction { id: string; text: string; enabled: boolean; destructive: boolean }
-
-/** What the core answered in a scenario: the items' titles and, in each state, the slide shown and each item's menu. */
-export interface ScenarioAnswers {
-  items: { id: string; title: string }[];
-  states: { state: string; shown: { itemId: string | null; partIndex: number; black: boolean } | null; menus: Record<string, { id: string; actions: ScenarioAction[] }[]> }[];
 }
 
 /**
@@ -48,8 +35,6 @@ const file = (name: string) => readFileSync(createRequire(`${process.cwd()}/`).r
 /** The scenario's file. */
 export const readScenario = (name: string) => JSON.parse(file(`${name}.json`)) as Scenario;
 
-/** What the core answered, as kept in the scenario's expected file. */
-export const scenarioAnswers = (name: string) => JSON.parse(file(`${name}.expected.json`)) as ScenarioAnswers;
 
 /** The scenario's organisation, made by its mutations in a database in memory, and its presentation's page. */
 export async function madeScenario(s: Scenario) {

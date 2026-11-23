@@ -1,5 +1,5 @@
 import type { PresentationItem, Role } from '@gp/core';
-import { presentationActionIds } from '../../db/pageCore.ts';
+import { can } from '../../db/pageCore.ts';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useDataReading, useDb, useShownOverlay } from '../../db/react.tsx';
 import { presentationPage, PRESENTATION_PAGE_READS } from '../../db/views.ts';
@@ -229,12 +229,11 @@ export function PresentationEditor({
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   // A phone or an iPad held upright: one column with sheets, before and while presenting (docs/layout-2-0.md).
   const phone = !wide;
-  // The presentation's menu as the core offers it for every shell (presentationActionsView): a handler only for what
-  // it offers, so the menu shows that and no more.
-  const offers = presentationActionIds(template, !!presenting, role);
-  const saveAsTemplate = offers.has('saveAsTemplate') ? () => setSavingAsTemplate(true) : undefined;
-  const showMaterials = offers.has('materials') ? () => setShowingMaterials(true) : undefined;
-  const trashing = offers.has('trash') ? () => void trash() : undefined;
+  // The presentation's menu: a handler only for what it offers, so the menu shows that and no more. A template has no
+  // notes and links and is not saved as a template again; what is being presented is not put in the trash.
+  const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
+  const showMaterials = !template ? () => setShowingMaterials(true) : undefined;
+  const trashing = !presenting ? () => void trash() : undefined;
   // A host's own window keeps nothing (its server has it all), and a template is never presented.
   const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
   // An item's menu, the same from its row at the left and its heading's … (ItemContextMenu).

@@ -8,8 +8,6 @@ import { Core, runMutation, type Rows } from '../../src/core.ts';
 
 const admin: MutatorCtx = { userId: 'u', role: 'admin', now: 1000 };
 type Slide = { key: string };
-type Choice = { id: string; text?: string; name?: string | null };
-type Groups = { groups: { id: string; actions: { id: string; choices?: Choice[]; chosen?: string }[] }[] };
 
 /** A presentation `p1` with the song S (parts V1, C, V2) as the item `i1`, naming no arrangement. */
 async function sunday() {
@@ -71,21 +69,5 @@ describe('Original beside the arrangements', () => {
     await mutate('addSongPart', { id: 'V3', songId: 'S', labelText: null, content: 'V3' });
 
     expect(await slides()).toEqual(['V1', 'C', 'V2', 'V3']);
-  });
-});
-
-describe("Original in an item's menu", () => {
-  const menu = (arrangementId: string | null, arrangements: { id: string; name: string | null }[]) =>
-    new Core().pure<Groups>('itemActionsView', { item: { id: 'i1', type: 'song', sourceId: 'S', arrangementId, overlayId: null }, song: { deletedAt: null }, arrangements, overlays: [], shownId: null });
-  const arrangement = (m: Groups) => m.groups.flatMap((g) => g.actions).find((a) => a.id === 'arrangement');
-
-  it('offers Original first beside a song with one arrangement, the arrangement chosen when the item names none', () => {
-    const offered = arrangement(menu(null, [{ id: 'A', name: null }]));
-
-    expect([offered?.choices, offered?.chosen]).toEqual([[{ id: 'original', text: 'song.original' }, { id: 'A', name: null, n: 1 }], 'A']);
-  });
-
-  it('offers no arrangements for a song that has only its parts', () => {
-    expect(arrangement(menu(null, []))).toBeUndefined();
   });
 });

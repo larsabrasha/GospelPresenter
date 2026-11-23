@@ -35,8 +35,8 @@ same way at the commit before the port (`4dfb205`), run with one worker too: `au
 to be stable, or touch and the LAN). None is the port's; they are to be run on a machine with a display.
 `performance.spec.ts` fails its limits in that container whichever core runs; its numbers beside the Rust core's are under
 step 4.
-`apps/web/test/ItemMenus.test.tsx` does not load in vitest there (`node:sqlite` from `@gp/rust-core/scenarios`), before
-the port too.
+`apps/web`'s ItemMenus.test.tsx did not load in vitest there (`node:sqlite` from the scenarios), before the port too;
+step 5 replaced it with `apps/web/test/itemMenu.test.ts`.
 
 ## Forward from today, not back to `238d481b`
 
@@ -281,11 +281,22 @@ fail its limits there whichever core runs. Its numbers beside the Rust core's, o
 slower 3639 against 4676; `openPresentation` with 4× slower CPU 250 against 332. The page needs no WASM fetched and
 compiled before it starts.
 
-## Step 5: simplifying, later
+## Step 5: simplifying
 
 With one shell, some of the core's page views only pass decisions from the core to React
 (`presentationActionsView`, `itemActionsView`, `pageModelView` and kin). Each may move into the web where that is
 simpler, one at a time, each with its e2e specs. Not part of the port, and not needed for it.
+
+Round 1 (2026-11-23): the presentation's menu, its details dialog and an item's menu.
+- `detailsDialogView` and `presentationActionsView` are gone: `PresentationDetailsDialog.tsx` and
+  `PresentationEditor.tsx` decide their title, buttons and entries themselves.
+- `itemActionsView` is `apps/web/src/live/itemMenu.ts`, typed (`ItemMenu`), its tests
+  `apps/web/test/itemMenu.test.ts`; ItemContextMenu and ItemSheet draw Kommentar, Lägg till efter, Markera and Radera
+  always, as the view always offered them.
+- The scenario's answers (`packages/core/scenarios/sunday.expected.json`) lost their menus; the web's ItemMenus test,
+  which drew the menus against them and did not load in vitest, went, and `happy-dom` with it.
+- e2e: editor, keyboard, labels, library, programme-points, song-materials, templates, themes and trash pass; drag,
+  live-order, milestone2's three, offline, overlays and phone fail as at `4dfb205`, on the same lines.
 
 ## How long
 

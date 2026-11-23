@@ -1,6 +1,6 @@
 import { listThemes } from '@gp/core';
 import { useState } from 'react';
-import { detailsDialog, fields } from '../../db/pageCore.ts';
+import { fields } from '../../db/pageCore.ts';
 import { ownThemes } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -31,16 +31,6 @@ export function detailsArgs(d: PresentationDetails) {
   };
 }
 
-/** The texts the core's dialog names by key (`detailsDialogView`), each written out for the texts' check. */
-const TEXTS = {
-  'presentations.createTitle': () => t('presentations.createTitle'),
-  'presentation.editDetails': () => t('presentation.editDetails'),
-  'common.cancel': () => t('common.cancel'),
-  'common.create': () => t('common.create'),
-  'common.creating': () => t('common.creating'),
-  'common.save': () => t('common.save'),
-};
-
 /** The sheet's round ✕ and ✓. */
 const ROUND = 'size-11 rounded-full flex items-center justify-center cursor-pointer';
 /** A field in a card's row, without a box of its own: the card is its box, as Calendar's fields. */
@@ -61,20 +51,17 @@ export function PresentationDetailsDialog({
   onSave,
   onClose,
 }: {
-  /** Skapa presentation, or Redigera detaljer of one there: the core says what each has (`detailsDialogView`). */
+  /** Skapa presentation, or Redigera detaljer of one there, which also asks for the theme. */
   isNew: boolean;
   initial: PresentationDetails;
   onSave: (d: PresentationDetails) => Promise<void> | void;
   onClose: () => void;
 }) {
-  // The title, the buttons' texts and whether the theme is asked for are the core's, the same in every shell.
-  const view = detailsDialog(isNew);
-  const title = TEXTS[view.title]();
-  const confirm = view.actions.find((a) => a.role === 'confirm')!;
-  const saveText = TEXTS[confirm.text]();
-  const savingText = confirm.busyText ? TEXTS[confirm.busyText]() : undefined;
-  const cancelText = TEXTS[view.actions.find((a) => a.role === 'cancel')!.text]();
-  const withTheme = view.groups.some((g) => g.includes('theme'));
+  const title = isNew ? t('presentations.createTitle') : t('presentation.editDetails');
+  const saveText = isNew ? t('common.create') : t('common.save');
+  const savingText = isNew ? t('common.creating') : undefined;
+  const cancelText = t('common.cancel');
+  const withTheme = !isNew;
   const [d, setD] = useState(initial);
   const [saving, setSaving] = useState(false);
   const own = useData(ownThemes, []);

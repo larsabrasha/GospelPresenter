@@ -272,7 +272,7 @@ export function pageEventView(args: unknown) {
       break;
     }
     case 'delete': {
-      // As an item's menu offers Radera (`itemActionsView`): not the item on the outputs.
+      // As an item's menu offers Radera (apps/web's itemMenu.ts): not the item on the outputs.
       const item = p.get('selectedId');
       if (item !== null && item !== p.liveItem) command = { type: 'remove', itemId: item };
       else handled = false;

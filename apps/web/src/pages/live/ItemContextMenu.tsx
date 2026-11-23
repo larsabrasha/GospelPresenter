@@ -1,7 +1,6 @@
-import { sortedArrangements, type Overlay, type PresentationItem, type Song, type SongArrangement } from '@gp/core';
+import type { Overlay, PresentationItem, Song, SongArrangement } from '@gp/core';
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { itemActions } from '../../db/pageCore.ts';
-import { arrangementChoices, overlayChoices } from '../../live/liveList.ts';
+import { itemMenu } from '../../live/itemMenu.ts';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -127,22 +126,14 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const [sub, setSub] = useState<'arrangement' | 'overlay' | 'add' | null>(null);
   const { item, at } = menu;
-  // What the menu offers is the core's, the same for every shell (`itemActionsView`, docs/view-models.md); this draws it.
-  const song = item.type === 'song' ? (source.songs.get(item.sourceId) ?? null) : null;
-  const offered = itemActions({ item, song, arrangements: sortedArrangements(source.arrangements, item.sourceId), overlays: source.overlays, shownId: source.shownId });
-  const songHref = offered.has('edit') ? source.editHref(item) : undefined;
-  const arrangement = offered.get('arrangement');
-  const arrangementList = arrangementChoices(arrangement);
-  const arrangementId = arrangement?.chosen ?? '';
-  const overlay = offered.get('overlay');
-  const overlayList = overlayChoices(overlay);
-  const overlayId = overlay?.chosen ?? '';
-  const editImages = offered.has('editImages') && source.onEditImages;
-  const remove = offered.get('delete');
+  const offered = itemMenu({ item, songs: source.songs, arrangements: source.arrangements, overlays: source.overlays, shownId: source.shownId });
+  const songHref = offered.edit ? source.editHref(item) : undefined;
+  const { arrangement, overlay } = offered;
+  const editImages = offered.editImages && source.onEditImages;
 
   const opening = (
     <>
-      {offered.has('rename') && (
+      {offered.rename && (
         <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onRename(item)}>
           <PencilIcon className="size-4" />
           {t('header.rename')}
@@ -160,48 +151,42 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
           {t('presentation.editImages')}
         </AppButton>
       )}
-      {offered.has('note') && (
-        <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onNote(item)}>
-          <CommentIcon className="size-4" />
-          {t('note.title')}
-        </AppButton>
-      )}
+      <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onNote(item)}>
+        <CommentIcon className="size-4" />
+        {t('note.title')}
+      </AppButton>
     </>
   );
-  // A heading shows nothing, so it has no overlay to switch on: the core leaves the group out.
+  // A heading shows nothing, so it has no overlay to switch on: the group is left out.
   const showing = (arrangement || overlay) && (
     <>
       {arrangement && (
-        <SubmenuRow icon={<QueueListIcon className="size-4" />} label={t('song.arrangements')} value={arrangementList.find((c) => c.id === arrangementId)?.title ?? ''} open={sub === 'arrangement'} onOpen={() => setSub('arrangement')}>
-          <Choices choices={arrangementList} chosen={arrangementId} onChoose={(id) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId: id }))} />
+        <SubmenuRow icon={<QueueListIcon className="size-4" />} label={t('song.arrangements')} value={arrangement.choices.find((c) => c.id === arrangement.chosen)?.title ?? ''} open={sub === 'arrangement'} onOpen={() => setSub('arrangement')}>
+          <Choices choices={arrangement.choices} chosen={arrangement.chosen} onChoose={(id) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId: id }))} />
         </SubmenuRow>
       )}
       {overlay && (
-        <SubmenuRow icon={<SquaresOverlapOutlineIcon className="size-4" />} label={t('overlays.itemOverlay')} value={overlayList.find((c) => c.id === overlayId)?.title ?? ''} open={sub === 'overlay'} onOpen={() => setSub('overlay')}>
-          <Choices choices={overlayList} chosen={overlayId} onChoose={(id) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: id || null }))} />
+        <SubmenuRow icon={<SquaresOverlapOutlineIcon className="size-4" />} label={t('overlays.itemOverlay')} value={overlay.choices.find((c) => c.id === overlay.chosen)?.title ?? ''} open={sub === 'overlay'} onOpen={() => setSub('overlay')}>
+          <Choices choices={overlay.choices} chosen={overlay.chosen} onChoose={(id) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: id || null }))} />
         </SubmenuRow>
       )}
     </>
   );
   const listing = (
     <>
-      {offered.has('addAfter') && (
-        <SubmenuRow icon={<PlusIcon className="size-4" />} label={t('live.addAfter')} value="" open={sub === 'add'} onOpen={() => setSub('add')}>
-          <AddChoices onChoose={(choice) => source.onAddAfter(item, choice)} />
-        </SubmenuRow>
-      )}
-      {offered.has('tick') && (
-        <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onTick(item)}>
-          <CheckSquareIcon className="size-4" />
-          {t('presentation.tick')}
-        </AppButton>
-      )}
+      <SubmenuRow icon={<PlusIcon className="size-4" />} label={t('live.addAfter')} value="" open={sub === 'add'} onOpen={() => setSub('add')}>
+        <AddChoices onChoose={(choice) => source.onAddAfter(item, choice)} />
+      </SubmenuRow>
+      <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => source.onTick(item)}>
+        <CheckSquareIcon className="size-4" />
+        {t('presentation.tick')}
+      </AppButton>
     </>
   );
-  const removing = remove && (
-    <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} disabled={!remove.enabled} onClick={() => source.onRemove(item)}>
+  const removing = (
+    <AppButton variant="plain" role="menuitem" className={`${CONTEXT_ROW} text-red-600 dark:text-red-400`} disabled={!offered.removable} onClick={() => source.onRemove(item)}>
       <TrashIcon className="size-4" strokeWidth={1.5} />
-      {remove.enabled ? t('common.delete') : t('live.shownCannotRemove')}
+      {offered.removable ? t('common.delete') : t('live.shownCannotRemove')}
     </AppButton>
   );
 
@@ -221,7 +206,7 @@ export function ItemContextMenu({ menu, source, onClose }: { menu: OpenItemMenu;
         {showing}
         {showing && <div className={DIVIDER} />}
         {listing}
-        {removing && <div className={DIVIDER} />}
+        <div className={DIVIDER} />
         {removing}
       </div>
     </ContextMenu>

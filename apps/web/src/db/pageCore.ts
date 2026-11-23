@@ -86,46 +86,6 @@ export const limits = () => theRules().limits;
 /** The fields' rules, the core's (docs/view-models.md): whether Spara waits for a word, and a field's length. */
 export const fields = () => theRules().fields;
 
-/** A presentation's details dialog as every shell draws it (`detailsDialogView`): its title, field groups and buttons. */
-export interface DetailsDialogView {
-  title: 'presentations.createTitle' | 'presentation.editDetails';
-  groups: ('name' | 'location' | 'date' | 'time' | 'theme' | 'description')[][];
-  actions: { id: 'cancel' | 'save'; text: 'common.cancel' | 'common.create' | 'common.save'; busyText: 'common.creating' | null; role: 'cancel' | 'confirm' }[];
-}
-
-/** The details dialog of a new presentation, or of one there (`detailsDialogView`). */
-export const detailsDialog = (isNew: boolean) => pageCore().pure<DetailsDialogView>('detailsDialogView', { isNew });
-
-/** An action a menu offers, as the core works it out for every shell (docs/view-models.md). */
-export interface Action {
-  id: string;
-  /** Its text's key; the web writes each key out where it draws the action, so the texts' check sees them used. */
-  text: string;
-  enabled: boolean;
-  destructive: boolean;
-  /** A submenu's choices: an arrangement's (`name` null: "Arrangemang {n}"), an overlay's (`text` for Ingen). */
-  choices?: { id: string; name?: string | null; n?: number; text?: string }[];
-  chosen?: string;
-}
-interface ActionGroups {
-  groups: { id: string; actions: Action[] }[];
-}
-
-/** The ids of what the presentation's menu offers (`presentationActionsView`): its entries, the same for every shell. */
-export function presentationActionIds(isTemplate: boolean, presenting: boolean, role: Role): Set<string> {
-  const { groups } = pageCore().pure<ActionGroups>('presentationActionsView', { isTemplate, presenting, role });
-  return new Set(groups.flatMap((g) => g.actions.map((a) => a.id)));
-}
-
-/**
- * What an item's menu offers (`itemActionsView`), by action id, as every shell offers it: the computer's … and the
- * phone's sheet. `shownId` is the item on the outputs while presenting, black or not.
- */
-export function itemActions(args: { item: unknown; song: unknown; arrangements: unknown[]; overlays: unknown[]; shownId: string | null }): Map<string, Action> {
-  const { groups } = pageCore().pure<ActionGroups>('itemActionsView', args);
-  return new Map(groups.flatMap((g) => g.actions.map((a) => [a.id, a] as const)));
-}
-
 /** `text` cut into pieces with the word prefixes matching `query` marked (`highlightView`, SONG-A20), as the core's search reads them. */
 export const highlight = (text: string, query: string) => pageCore().pure<{ text: string; hit: boolean }[]>('highlightView', { text, query });
 
