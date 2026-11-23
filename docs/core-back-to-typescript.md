@@ -25,10 +25,17 @@ The checks of the way back run with `crates/gp-core/parity/port.sh` (`build`, `m
 reference, the working tree's TS core the candidate (`GP_TS=tree`). In the sync checks' output the reference is
 labelled Rust and the TS core TS.
 
-e2e in a container without a display (Xvfb): three specs fail there whichever core runs, at the commit before the
-port (`4dfb205`) as after it: `milestone2.spec.ts:260` and `:398`, `offline.spec.ts:40` (a click waits for an element
-to be stable). `milestone2.spec.ts:181` is flaky both ways. `apps/web/test/ItemMenus.test.tsx` does not load in vitest
-there (`node:sqlite` from `@gp/rust-core/scenarios`), before the port too.
+e2e in a container without a display (Xvfb), the whole suite on the TS core (2026-11-23): 104 passed, 3 skipped.
+Of the rest, the specs that launch a second browser had no headless shell for Playwright's version in that container
+(an environment fault, linked in by hand); rerun with one worker, 22 tests still fail, and every one of them fails the
+same way at the commit before the port (`4dfb205`), run with one worker too: `audio:76`, `custom-slides:67`,
+`drag:29`, `https:43`, `:103`, `:155` (connection reset on the LAN address), `journeys:56`, `letter-index:17`,
+`live-order:14`, `menu:17`, `milestone2:181`, `:260`, `:398`, `milestone4:141`, `new-build:54`, `offline:40`,
+`overlays:13`, `phone:32`, `remote:28`, `:136`, `sync-status:13`, `video:202` (mostly a click that waits for an element
+to be stable, or touch and the LAN). None is the port's; they are to be run on a machine with a display.
+`performance.spec.ts` failed its limits under two workers and has not been measured beside the Rust core yet (step 3).
+`apps/web/test/ItemMenus.test.tsx` does not load in vitest there (`node:sqlite` from `@gp/rust-core/scenarios`), before
+the port too.
 
 ## Forward from today, not back to `238d481b`
 
