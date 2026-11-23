@@ -1,7 +1,7 @@
-// A ProPresenter 7 file as a song (`proPresenterSongView`, spec 02 SONG-R35–R43): the tests of 2.0's TS
+// A ProPresenter 7 file as a song (`proPresenterSong`, spec 02 SONG-R35–R43): the tests of 2.0's TS
 // parseProPresenter and rtfToPlainText, moved here with it; the RTF read through a file holding one slide.
 import { describe, expect, it } from 'vitest';
-import { Core } from '../../src/core.ts';
+import { proPresenterSong } from '../../src/core.ts';
 import { pro, type Spec } from './pro-fixture.ts';
 
 interface Song {
@@ -13,8 +13,7 @@ interface Song {
   arrangements: { name: string | null; partIndexes: number[] }[];
 }
 
-const read = (data: Uint8Array, fileName: string | null) =>
-  new Core().pure<Song | null>('proPresenterSongView', { data: Buffer.from(data).toString('base64'), fileName });
+const read = (data: Uint8Array, fileName: string | null): Song | null => proPresenterSong(data, fileName);
 const oneSlide = (name?: string, ccli?: Spec['ccli']) => pro({ name, ccli, groups: [{ id: 'g1', name: 'Verse 1', slides: ['Text'] }] });
 /** A slide's text after RTF, as a file of one slide holding these lines reads. */
 const plain = (lines: string[]) => read(pro({ name: 'x', groups: [{ id: 'g', name: 'Verse', slides: [lines.join('\n')] }] }), 'x')?.parts[0]?.content;

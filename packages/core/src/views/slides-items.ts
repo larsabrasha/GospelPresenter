@@ -1,8 +1,11 @@
 // What each item of a running order shows (ADR 0008; ported back from crates/gp-core/src/slides.rs and item_views.rs):
 // readItemSlides's slides, the same objects, reading the library through the shell. The live views and the
 // presentation page read a running order's slides through `itemsSlides`.
-import type { RunSql } from './sql.ts';
-import { argsObj, asF64, asI64, asStr, byCodePoint, charsAtMost, idOf, invalidArgs, isObj, parseJson, type Obj } from './serde.ts';
+import { blankPage } from '../custom-slides.ts';
+import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS, type BibleItemContent, type BibleSegment } from '../bible.ts';
+import { MAX_ITEM_IMAGE_ID, MAX_ITEM_IMAGES } from '../slides.ts';
+import { marks, type RunSql } from './sql.ts';
+import { argsOf, asF64, asI64, asStr, byCodePoint, charsAtMost, idOf, invalidArgs, isObj, parseJson, strOrEmpty, type Obj } from './serde.ts';
 
 /** An item as the slides read it. */
 export interface SlideItem {
@@ -17,8 +20,6 @@ export interface SlideItem {
 type Shown = Record<string, unknown>;
 /** An item's slides and why it has none (`ItemSlides`), and an audio or video item's file. */
 export type ItemShown = { slides: Shown[]; problem: string | null } & Record<string, unknown>;
-
-const str = (v: unknown): string => asStr(v) ?? '';
 
 const slide = (key: string, kind: string, text: string): Shown => ({ key, kind, text, verses: null, image: null, label: null, credits: null });
 const none = (problem: string): ItemShown => ({ slides: [], problem });
@@ -47,8 +48,8 @@ interface Songs {
 
 async function bySong(sql: RunSql, statement: string, ids: string[]): Promise<Map<string, unknown[][]>> {
   const out = new Map<string, unknown[][]>();
-  for (const r of await sql(statement.replace('{}', ids.map(() => '?').join(',')), ids)) {
-    const k = str(r[0]);
+  for (const r of await sql(statement.replace('{}', marks(ids.length)), ids)) {
+    const k = strOrEmpty(r[0]);
     out.set(k, [...(out.get(k) ?? []), r.slice(1)]);
   }
   return out;
@@ -64,14 +65,14 @@ async function songsOf(sql: RunSql, ids: string[]): Promise<Songs> {
 
 /** The labels, by id, as a slide carries one. */
 async function labelsOf(sql: RunSql): Promise<Map<string, { text: unknown; color: unknown }>> {
-  return new Map((await sql('SELECT id, text, color FROM labels', [])).map((r) => [str(r[0]), { text: r[1], color: r[2] }]));
+  return new Map((await sql('SELECT id, text, color FROM labels', [])).map((r) => [strOrEmpty(r[0]), { text: r[1], color: r[2] }]));
 }
 
 /** By `sort` as an integer (none first), then by id. */
 const bySort = (at: number) => (a: unknown[], b: unknown[]) => {
   const [x, y] = [asI64(a[at]), asI64(b[at])];
   if (x !== y) return x === null ? -1 : y === null ? 1 : x - y;
-  return byCodePoint(str(a[0]), str(b[0]));
+  return byCodePoint(strOrEmpty(a[0]), strOrEmpty(b[0]));
 };
 
 /** `songSlides`: one slide per arranged part (SONG-R18, R19), a repeated part keyed `id#n`. */
@@ -82,41 +83,42 @@ function song(item: SlideItem, labels: Map<string, unknown>, data: Songs): ItemS
   const credits = songCredits(row[1], row[2], row[3]);
   const parts = (data.parts.get(item.sourceId) ?? []).toSorted(bySort(1));
   const arrangements = (data.arrangements.get(item.sourceId) ?? []).toSorted(bySort(2));
-  const wanted = item.arrangementId ?? (arrangements[0] ? str(arrangements[0][0]) : null);
-  const arrangement = wanted === null ? undefined : arrangements.find((a) => str(a[0]) === wanted);
-  const arranged = arrangement ? partIds(str(arrangement[1]))
-        .map((id) => parts.find((p) => str(p[0]) === id))
+  const wanted = item.arrangementId ?? (arrangements[0] ? strOrEmpty(arrangements[0][0]) : null);
+  const arrangement = wanted === null ? undefined : arrangements.find((a) => strOrEmpty(a[0]) === wanted);
+  const arranged = arrangement ? partIds(strOrEmpty(arrangement[1]))
+        .map((id) => parts.find((p) => strOrEmpty(p[0]) === id))
         .filter((p) => p !== undefined) : parts;
   const seen = new Map<string, number>();
   const slides = arranged.map((p) => {
-    const id = str(p[0]);
+    const id = strOrEmpty(p[0]);
     const n = seen.get(id) ?? 0;
     seen.set(id, n + 1);
     const label = asStr(p[2]);
-    return { ...slide(n ? `${id}#${n}` : id, 'song', str(p[3])), label: (label !== null && labels.get(label)) || null, credits };
+    return { ...slide(n ? `${id}#${n}` : id, 'song', strOrEmpty(p[3])), label: (label !== null && labels.get(label)) || null, credits };
   });
   return some(slides, 'no-parts');
 }
 
-type Run = [n: number | null, t: string];
-
-/** `parseBibleContent` (bibleItemContentSchema): a translation and its frozen slides, or none where they do not read. */
-function bibleContent(content: string | null): { translation: string; slides: Run[][] } | null {
+/**
+ * A Bible item's content (`BibleItemContent`, D12, D25): its translation and its frozen slides, or null where they do
+ * not read (a translation of at most 50, at most 1000 slides of at most 500 runs, a verse number 0–999 or null).
+ */
+export function bibleItemContent(content: string | null): BibleItemContent | null {
   const c = content === null ? undefined : parseJson(content);
   if (!isObj(c)) return null;
   const translation = asStr(c.translation);
-  if (translation === null || !charsAtMost(translation, 50) || !Array.isArray(c.slides) || c.slides.length > 1000) return null;
-  const slides: Run[][] = [];
+  if (translation === null || !charsAtMost(translation, BIBLE_ITEM_LIMITS.translation) || !Array.isArray(c.slides) || c.slides.length > BIBLE_ITEM_LIMITS.slides) return null;
+  const slides: BibleSegment[][] = [];
   for (const runs of c.slides as unknown[]) {
-    if (!Array.isArray(runs) || runs.length > 500) return null;
-    const read: Run[] = [];
+    if (!Array.isArray(runs) || runs.length > BIBLE_ITEM_LIMITS.runs) return null;
+    const read: BibleSegment[] = [];
     for (const r of runs as unknown[]) {
       if (!isObj(r) || !('n' in r)) return null;
       const n = r.n === null ? null : asF64(r.n);
       if (n !== null && (!Number.isInteger(n) || n < 0 || n > 999)) return null;
       if (r.n !== null && n === null) return null;
-      if (typeof r.t !== 'string' || !charsAtMost(r.t, 10_000)) return null;
-      read.push([n, r.t]);
+      if (typeof r.t !== 'string' || !charsAtMost(r.t, BIBLE_LIMITS.verseLength)) return null;
+      read.push({ n, t: r.t });
     }
     slides.push(read);
   }
@@ -125,12 +127,12 @@ function bibleContent(content: string | null): { translation: string; slides: Ru
 
 /** `bibleItemSlides`: the frozen slides, each run with its verse number if it starts a verse. */
 export function bibleItemSlides(item: SlideItem): ItemShown {
-  const content = bibleContent(item.content);
+  const content = bibleItemContent(item.content);
   if (!content) return some([], 'no-parts');
   const credits = content.translation ? `${item.title} · ${content.translation}` : item.title;
   const slides = content.slides.map((runs, i) => ({
-    ...slide(`b${i}`, 'bible', runs.map(([n, t]) => (n === null ? t : t ? `${n} ${t}` : String(n))).join(' ')),
-    verses: runs.map(([n, t]) => ({ n, t })),
+    ...slide(`b${i}`, 'bible', runs.map(({ n, t }) => (n === null ? t : t ? `${n} ${t}` : String(n))).join(' ')),
+    verses: runs,
     credits,
   }));
   return some(slides, 'no-parts');
@@ -140,8 +142,8 @@ export function bibleItemSlides(item: SlideItem): ItemShown {
 function imageIds(item: SlideItem): string[] {
   const v = item.content ? parseJson(item.content) : undefined;
   const images = isObj(v) ? v.images : undefined;
-  const fits = (x: unknown) => typeof x === 'string' && x.length > 0 && charsAtMost(x, 64);
-  return Array.isArray(images) && images.length >= 1 && images.length <= 50 && images.every(fits) ? (images as string[]) : [item.sourceId];
+  const fits = (x: unknown) => typeof x === 'string' && x.length > 0 && charsAtMost(x, MAX_ITEM_IMAGE_ID);
+  return Array.isArray(images) && images.length >= 1 && images.length <= MAX_ITEM_IMAGES && images.every(fits) ? (images as string[]) : [item.sourceId];
 }
 
 async function image(item: SlideItem, sql: RunSql): Promise<ItemShown> {
@@ -189,8 +191,8 @@ async function custom(item: SlideItem, sql: RunSql): Promise<ItemShown> {
   const r = (await sql('SELECT pages FROM custom_slides WHERE id = ?', [item.sourceId]))[0];
   if (!r) return none('custom-missing');
   // A page a slide; a PDF's page is a picture slide too. Not checked against the schema, as the Rust core did not.
-  const read = parseJson(str(r[0]));
-  const pages = Array.isArray(read) && read.length ? read : [{ background: null, backgroundPicture: null, backgroundPage: null, elements: [] }];
+  const read = parseJson(strOrEmpty(r[0]));
+  const pages = Array.isArray(read) && read.length ? read : [blankPage()];
   const slides = pages.map((page: unknown, i) => {
     const pdf = field(page, 'backgroundPage');
     return { ...slide(`page${i}`, pdf !== null ? 'media' : 'song', pageText(page)), image: field(pdf, 'full'), thumb: field(pdf, 'thumb'), custom: page };
@@ -229,7 +231,7 @@ export async function itemsSlides(items: SlideItem[], sql: RunSql): Promise<Item
 
 /** `itemSlidesView` {items: [{id, type, title, sourceId, arrangementId, content}]}: each item's slides and why it has none, by item id. */
 export async function itemSlidesView(args: unknown, sql: RunSql): Promise<Record<string, ItemShown>> {
-  const rows = argsObj(args).items;
+  const rows = argsOf(args).items;
   if (!Array.isArray(rows)) throw invalidArgs();
   const ids: string[] = [];
   const items: SlideItem[] = [];
@@ -239,7 +241,7 @@ export async function itemSlidesView(args: unknown, sql: RunSql): Promise<Record
     ids.push(idOf(o, 'id'));
     const kind = asStr(o.type);
     if (kind === null) throw invalidArgs();
-    items.push({ kind, title: str(o.title), sourceId: str(o.sourceId), arrangementId: asStr(o.arrangementId), content: asStr(o.content) });
+    items.push({ kind, title: strOrEmpty(o.title), sourceId: strOrEmpty(o.sourceId), arrangementId: asStr(o.arrangementId), content: asStr(o.content) });
   }
   return Object.fromEntries((await itemsSlides(items, sql)).map((shown, i) => [ids[i]!, shown]));
 }

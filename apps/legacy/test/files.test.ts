@@ -2,7 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readZip, utf8Decode } from '@gp/core';
+import { readZip, utf8Decode, zipEntryBytes } from '@gp/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { exportOrg } from '../src/export.ts';
 import { collectMedia, type ObjectStore } from '../src/media.ts';
@@ -87,9 +87,10 @@ describe('the export’s files', () => {
     zip.add('b/c.json', new TextEncoder().encode('{}'));
     zip.close();
 
-    const entries = readZip(new Uint8Array(readFileSync(out)));
+    const data = new Uint8Array(readFileSync(out));
+    const entries = readZip(data);
 
-    expect(await Promise.all(entries.map(async (e) => [e.name, utf8Decode(await e.read())]))).toEqual([
+    expect(entries.map((e) => [e.name, utf8Decode(zipEntryBytes(data, e))])).toEqual([
       ['a.txt', 'första'],
       ['b/c.json', '{}'],
     ]);

@@ -4,7 +4,7 @@
 // reports (`SyncClient.onChange`), which pages reload by. On the Node adapter
 // only: neither depends on the server's runtime.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { searchSongs } from '@gp/core';
+import { prepareSong, rankSongs } from '@gp/core';
 import { SongSearch, SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { device, setRole, startAdapter, type Device, type Harness } from './harness.ts';
@@ -60,7 +60,7 @@ describe('song search on a device', () => {
     ];
     const search = new SongSearch(c);
 
-    for (const q of ['jorden', 'harlig', 'härlig jorden', 'ingemann', 'sol', '', 'zzz']) expect(await names(c, search, q), q).toEqual(searchSongs(library, q).map((s) => s.name));
+    for (const q of ['jorden', 'harlig', 'härlig jorden', 'ingemann', 'sol', '', 'zzz']) expect(await names(c, search, q), q).toEqual(rankSongs(library, prepareSong, q).map((s) => s.name));
   });
 
   it('finds a song by a line added to it, and by its new name, not its old one', async () => {

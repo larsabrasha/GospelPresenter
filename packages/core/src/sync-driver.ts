@@ -6,11 +6,10 @@
 // stops syncing and keeps the queue (SYNC-A15); the socket is opened again 3 s after it closes, and a poll every 5
 // minutes is the backstop (SYNC-R43).
 import { MutationError } from './mutation.ts';
+import { byUnits, isObj } from './views/serde.ts';
+import type { RunSql } from './views/sql.ts';
 import { SCHEMA_VERSION } from './org-schema.ts';
 import { PROTOCOL_VERSION } from './protocol.ts';
-
-/** A statement's rows as arrays, in column order. */
-type RunSql = (sql: string, params: unknown[]) => unknown[][] | Promise<unknown[][]>;
 
 /** How long after a closed or refused poke socket the next try waits, and the backstop poll. */
 const RECONNECT_MS = 3_000;
@@ -89,7 +88,7 @@ function fresh(protocol: number, hooks: boolean): DriverState {
 
 /** JSON's text with every object's keys in order, as the Rust core wrote an answer into a failure's words. */
 function sortedJson(v: unknown): string {
-  return JSON.stringify(v ?? null, (_, x: unknown) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
+  return JSON.stringify(v ?? null, (_, x: unknown) => (isObj(x) ? Object.fromEntries(Object.entries(x).toSorted(([a], [b]) => byUnits(a, b))) : x));
 }
 
 /** What an answer of the server's to `what` ("push" or "pull") means: a page, a stop, or a failed try. */
@@ -290,12 +289,10 @@ async function pullBody(sql: RunSql, protocol: number, cookie: unknown): Promise
 
 const bool = (o: Record<string, unknown>, k: string, d: boolean) => (typeof o[k] === 'boolean' ? (o[k] as boolean) : d);
 const int = (v: unknown): number | undefined => (typeof v === 'number' && Number.isInteger(v) ? v : undefined);
-const partsOf = (v: unknown): Parts | null =>
-  v && typeof v === 'object' && !Array.isArray(v) ? { push: bool(v as Record<string, unknown>, 'push', true), pull: bool(v as Record<string, unknown>, 'pull', true) } : null;
+const partsOf = (v: unknown): Parts | null => (isObj(v) ? { push: bool(v, 'push', true), pull: bool(v, 'pull', true) } : null);
 
-function stateOf(v: unknown): DriverState {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new MutationError('invalid-args', 'state');
-  const o = v as Record<string, unknown>;
+function stateOf(o: unknown): DriverState {
+  if (!isObj(o)) throw new MutationError('invalid-args', 'state');
   const socket: Socket = o.socket === 'opening' || o.socket === 'open' ? o.socket : 'closed';
   const phases: Phase[] = ['beforePush', 'push', 'pull', 'rebase'];
   return {
@@ -315,10 +312,9 @@ function stateOf(v: unknown): DriverState {
   };
 }
 
-function eventOf(v: unknown): Event {
+function eventOf(o: unknown): Event {
   const invalid = () => new MutationError('invalid-args', 'event');
-  if (!v || typeof v !== 'object' || Array.isArray(v)) throw invalid();
-  const o = v as Record<string, unknown>;
+  if (!isObj(o)) throw invalid();
   switch (o.type) {
     case 'sync':
       return { type: 'sync', parts: { push: bool(o, 'push', true), pull: bool(o, 'pull', true) }, media: bool(o, 'media', false) };

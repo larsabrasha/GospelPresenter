@@ -11,8 +11,10 @@ import type { Slide } from './slides.ts';
 import type { SyncStatus } from './sync-status.ts';
 import { importZip } from './views/files-bible-import.ts';
 
+export { sortBibleBooks } from './views/files-bible-import.ts';
 export type { ImportedSong } from './views/files-propresenter.ts';
 export { proPresenterSong } from './views/files-propresenter.ts';
+export { bibleItemContent } from './views/slides-items.ts';
 export type { SyncStatus } from './sync-status.ts';
 
 const view = <T>(name: string, args: object) => runPureView(name, args) as T;

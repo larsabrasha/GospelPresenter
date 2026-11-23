@@ -2,14 +2,11 @@
 // Presentations, Templates, Trash, Storage, Labels, the command palette and song import), as the web's reads gave
 // them (ported back from crates/gp-core/src/lists.rs).
 import { MutationError } from '../mutation.ts';
-import type { RunSql } from './sql.ts';
+import { marks, type RunSql } from './sql.ts';
 import { AUDIO, IMAGE, imageRow, VIDEO, videoRow } from './lists-media.ts';
-import { argsOf, type Fields, idArg, jsNum, LABEL, langOf, marks, PART, PRESENTATION, select, SONG, sortRows } from './lists-rows.ts';
+import { type Fields, itemsOf, jsNum, LABEL, langOf, PART, PRESENTATION, select, SONG, sortRows } from './lists-rows.ts';
+import { argsOf, idOf } from './serde.ts';
 
-/** `PresentationItem`; its type is read by `itemRow`. */
-const ITEM: Fields = [['id', 'str'], ['presentationId', 'str'], ['type', 'opt'], ['title', 'str'], ['sourceId', 'str'], ['sort', 'num'],
-  ['arrangementId', 'opt'], ['content', 'opt'], ['overlayId', 'opt'], ['note', 'opt']];
-const KINDS = ['bible', 'image', 'audio', 'video', 'custom', 'header'];
 
 /** `presentationListView`: the presentations, newest event first, those without a date last (`listPresentations`). */
 export async function presentationListView(args: unknown, sql: RunSql) {
@@ -26,9 +23,7 @@ export async function templatesView(args: unknown, sql: RunSql) {
 
 /** `itemsView` {presentationId}: a presentation's items in order (`itemsOf`); an unknown type reads as a song. */
 export async function itemsView(args: unknown, sql: RunSql) {
-  const pid = idArg(argsOf(args), 'presentationId');
-  const rows = await select(sql, ITEM, 'presentation_items WHERE presentation_id = ? ORDER BY sort, id', [pid]);
-  return rows.map((i) => ({ ...i, type: typeof i.type === 'string' && KINDS.includes(i.type) ? i.type : 'song' }));
+  return itemsOf(sql, idOf(argsOf(args), 'presentationId'));
 }
 
 /** `labelsView`: the labels in their order (`listLabels`). */

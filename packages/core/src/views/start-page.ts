@@ -2,14 +2,12 @@
 // 1, dashboard.ts's `groupPresentations`, worked out once for every shell.
 import { MutationError } from '../mutation.ts';
 import { presentationListView } from './lists.ts';
-import { byCodePoint } from './serde.ts';
+import { byCodePoint, byUnits } from './serde.ts';
 import type { RunSql } from './sql.ts';
 
 type Row = Record<string, unknown>;
 
 const textOf = (p: Row, k: string) => (typeof p[k] === 'string' ? (p[k] as string) : undefined);
-/** Strings as JavaScript's `<` orders them: by UTF-16 code units. */
-const jsCmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * `startPageView` {today}: Idag by time (no time last), Kommande soonest first, and the rest, past and undated alike,
@@ -28,7 +26,7 @@ export async function startPageView(args: unknown, sql: RunSql) {
   const changed = (p: Row) => (typeof p.updatedAt === 'number' ? p.updatedAt : -1);
   const byTime = (x: Row, y: Row) => byCodePoint(time(x), time(y));
   const byChanged = (x: Row, y: Row) => changed(y) - changed(x);
-  const byId = (x: Row, y: Row) => jsCmp(textOf(x, 'id') ?? '', textOf(y, 'id') ?? '');
+  const byId = (x: Row, y: Row) => byUnits(textOf(x, 'id') ?? '', textOf(y, 'id') ?? '');
   const date = (p: Row) => textOf(p, 'eventDate');
   const day = all.filter((p) => date(p) === today).toSorted((x, y) => byTime(x, y) || byChanged(x, y) || byId(x, y));
   const upcoming = all

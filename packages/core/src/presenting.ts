@@ -16,12 +16,6 @@ export interface Presenting {
   picked: SlideAt | null;
 }
 
-/**
- * A key: `step` steps what is shown (Space, PageDown and PageUp, a clicker), `pick` moves the outline (← →), `enter`
- * is ↵, `black` is b and `.` (Släck), `escape` lets go of the outline.
- */
-export type PresentingKey = { type: 'step'; delta: number } | { type: 'pick'; delta: number } | { type: 'enter' } | { type: 'black' } | { type: 'escape' };
-
 /** How a slide is marked while presenting: shown now, or the one → shows next. */
 export type SlideMarkKind = 'shown' | 'next';
 

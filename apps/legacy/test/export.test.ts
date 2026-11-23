@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LEGACY_ENTRIES, LEGACY_FORMAT, legacyManifestSchema, readZip, sniffStoredImage, utf8Decode, type LegacyRows } from '@gp/core';
+import { LEGACY_ENTRIES, LEGACY_FORMAT, legacyManifestSchema, readZip, sniffStoredImage, utf8Decode, zipEntryBytes, type LegacyRows } from '@gp/core';
 import { Client } from 'pg';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -51,8 +51,8 @@ describe.skipIf(!URL)('the export from a 1.x database', () => {
     const store: ObjectStore = { get: async (key) => objects.get(key) ?? null };
 
     report = await exportOrg(await readOrg(URL!, 'org-1'), store, out);
-    const zip = readZip(new Uint8Array(readFileSync(out)));
-    entries = new Map(await Promise.all(zip.map(async (e) => [e.name, await e.read()] as const)));
+    const data = new Uint8Array(readFileSync(out));
+    entries = new Map(readZip(data).map((e) => [e.name, zipEntryBytes(data, e)] as const));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 

@@ -1,17 +1,15 @@
 // The Bibles, the themes and the CCLI report (apps/web's Bibler, Teman, the theme editor, CCLI-rapport) (ported back
-// from crates/gp-core/src/settings_views.rs, settings_pages.rs' `themesPageView`).
-import { can, type Permission, type Role } from '../permissions.ts';
-import { BUILT_IN_THEMES, CLASSIC, type Theme, themeDefinitionSchema } from '../themes.ts';
+// from crates/gp-core/src/settings_views.rs, settings_pages.rs).
+import { CCLI_COLLECTION_SETTING, DEFAULT_THEME_SETTING } from '../mutation.ts';
+import { BUILT_IN_THEMES, CLASSIC, DEFAULT_THEME_ID, type Theme, themeDefinitionSchema } from '../themes.ts';
 import type { RunSql } from './sql.ts';
-import { type Args, argsOf, type Fields, idArg, jsNum, jsString, langOf, mapRow, readJson, select, sortRows, textArg } from './lists-rows.ts';
-
-/** `can` for a role as a shell gives it: any text, an unknown one may do nothing. */
-const may = (role: string, permission: Permission) => can(role as Role, permission);
+import { type Fields, jsNum, jsString, langOf, mapRow, readJson, select, sortRows } from './lists-rows.ts';
+import { argsOf, idOf } from './serde.ts';
 
 // ------------------------------------------------------------------ themes (themes.rs)
 
 /** A built-in theme as a view hands it out: a copy, so no caller changes the one kept here. */
-const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+export const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 /** `themeOfRow` {id, name, definition, sort}: a definition that does not read (as serde_json and zod read it) looks as Classic, the name kept. */
 function ownRow(r: unknown[]): Theme {
@@ -23,16 +21,19 @@ function ownRow(r: unknown[]): Theme {
 }
 
 /** The organisation's default theme's id, as stored (null when it has chosen none). */
-const defaultThemeId = async (sql: RunSql) => (await sql("SELECT value FROM org_settings WHERE id = 'defaultThemeId'", []))[0]?.[0] ?? null;
+const defaultThemeId = async (sql: RunSql) => (await sql('SELECT value FROM org_settings WHERE id = ?', [DEFAULT_THEME_SETTING]))[0]?.[0] ?? null;
 
-/** `themeOf`: the theme of a presentation whose theme is `themeId` (null: the organisation's default), else Classic. */
-export async function themeOf(sql: RunSql, themeId: string | null): Promise<Theme> {
-  const [stored] = await sql('SELECT value FROM org_settings WHERE id = ?', ['defaultThemeId']);
-  const id = themeId ?? (typeof stored?.[0] === 'string' ? stored[0] : 'classic');
+/**
+ * `themeOf`: the theme of a presentation whose theme is `themeId` (null: the organisation's default), else Classic; an
+ * own theme's row [id, name, definition, sort] read by `row`.
+ */
+export async function themeOf(sql: RunSql, themeId: string | null, row: (r: unknown[]) => Theme = ownRow): Promise<Theme> {
+  const stored = await defaultThemeId(sql);
+  const id = themeId ?? (typeof stored === 'string' ? stored : DEFAULT_THEME_ID);
   const builtIn = BUILT_IN_THEMES.find((t) => t.id === id);
   if (builtIn) return copy(builtIn);
   const [own] = await sql('SELECT id, name, definition, sort FROM themes WHERE id = ?', [id]);
-  return own ? ownRow(own) : copy(CLASSIC);
+  return own ? row(own) : copy(CLASSIC);
 }
 
 const BIBLE: Fields = [['id', 'str'], ['name', 'str'], ['abbreviation', 'str'], ['language', 'opt'], ['verseCount', 'num'], ['contentHash', 'str'], ['stored', 'bool'], ['kept', 'bool']];
@@ -55,7 +56,7 @@ export const ownThemesView = async (args: unknown, sql: RunSql) => (argsOf(args)
 
 /** `ownThemeView` {id}: an own theme to edit and when it was last saved, null when there is none (`getOwnTheme`). */
 export async function ownThemeView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'id');
+  const id = idOf(argsOf(args), 'id');
   const [r] = await sql('SELECT id, name, definition, sort, updated_at FROM themes WHERE id = ?', [id]);
   return r ? { theme: ownRow(r), updatedAt: jsNum(r[4]) } : null;
 }
@@ -69,34 +70,6 @@ const CCLI: Fields = [['id', 'str'], ['songId', 'str'], ['songName', 'str'], ['c
 export async function ccliReportView(args: unknown, sql: RunSql) {
   const a = argsOf(args);
   const entries = sortRows(langOf(a), await select(sql, CCLI, 'ccli_entries ORDER BY date DESC'), [['desc', 'date'], ['name', 'presentationName'], ['id', 'presentationId'], ['name', 'songName']]);
-  const [on] = await sql("SELECT value FROM org_settings WHERE id = 'ccliCollection'", []);
+  const [on] = await sql('SELECT value FROM org_settings WHERE id = ?', [CCLI_COLLECTION_SETTING]);
   return { entries, on: on?.[0] === 'true' };
-}
-
-/**
- * `themesPageView` {role}: Teman as the page shows it (the web's Themes.tsx `themeChoices`): the two built-in themes
- * first (their names' and descriptions' keys), then the organisation's own in their order; which is the `default`
- * (Classic where none is chosen, or the one chosen is gone); and each theme's `actions` for one who may manage themes.
- * `canAdd`: + makes a theme from the default's look.
- */
-export async function themesPageView(args: unknown, sql: RunSql) {
-  const manage = may(textArg(argsOf(args), 'role'), 'ManageThemes');
-  const chosenId = await defaultThemeId(sql);
-  const themes: Args[] = [
-    ...['classic', 'light'].map((id) => ({ id, name: null, nameKey: `theme.${id}`, descriptionKey: `theme.${id}Description`, builtIn: true })),
-    ...(await ownThemes(sql)).map((t) => ({ id: t.id, name: t.name, nameKey: null, descriptionKey: null, builtIn: false })),
-  ];
-  const chosen = typeof chosenId === 'string' && themes.some((t) => t.id === chosenId) ? chosenId : 'classic';
-  const action = (id: string, text: string, icon: string, destructive = false) => ({ id, text, icon, destructive });
-  for (const t of themes) {
-    const [current, own] = [t.id === chosen, t.builtIn === false];
-    t.default = current;
-    t.actions = [
-      ...(manage && !current ? [action('default', 'themes.useAsDefault', 'tick')] : []),
-      ...(manage && own ? [action('edit', 'themes.edit', 'edit')] : []),
-      ...(manage ? [action('duplicate', 'themes.duplicate', 'duplicate')] : []),
-      ...(manage && own ? [action('delete', 'themes.delete', 'delete', true)] : []),
-    ];
-  }
-  return { themes, default: chosen, canAdd: manage };
 }

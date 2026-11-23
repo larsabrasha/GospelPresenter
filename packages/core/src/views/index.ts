@@ -7,7 +7,7 @@ import { startPageView } from './start-page.ts';
 import { pagePureViews, pageViews } from './page.ts';
 import { filesPureViews, filesViews } from './files.ts';
 import { audiosView, customSlidesView, customSlideView, imagesView, overlayRowView, overlaysView, videosView } from './lists-media.ts';
-import { biblesView, ccliReportView, defaultThemeIdView, ownThemesView, ownThemeView, themesPageView } from './lists-settings.ts';
+import { biblesView, ccliReportView, defaultThemeIdView, ownThemesView, ownThemeView } from './lists-settings.ts';
 import { songHistoryView, songMaterialsView, songPageView, songPresentationsView, songSearchPrepare, songSearchView, songsView, songView } from './lists-songs.ts';
 import { itemsView, labelsView, pinnedView, presentationListView, songPartsView, templatesView, trashEntriesView } from './lists.ts';
 
@@ -17,7 +17,7 @@ export const views: Record<string, View> = {
   presentationListView, templatesView, itemsView, labelsView, songPartsView, pinnedView, trashEntriesView,
   imagesView, audiosView, videosView, customSlidesView, customSlideView, overlaysView, overlayRowView,
   songsView, songSearchPrepare, songSearchView, songView, songPageView, songPresentationsView, songHistoryView, songMaterialsView,
-  biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView, themesPageView,
+  biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView,
   startPageView,
   ...pageViews,
   ...filesViews,

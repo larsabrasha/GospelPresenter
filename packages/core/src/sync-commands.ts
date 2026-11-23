@@ -4,10 +4,10 @@
 // stay in the shell (packages/sync's SyncClient). The shell runs `syncOpen` in the transaction of `migrateOrgSchema`,
 // after it, and each of the others in one transaction of its own, rolled back when the command is refused.
 import { MutationError, type MutatorCtx } from './mutation.ts';
+import { isObj } from './views/serde.ts';
+import type { RunSql } from './views/sql.ts';
 import { CHANGED_TABLES, changeTrackingDdl, clientSyncDdl, clientUndoRestore, clientUndoTriggers, tableByName, tableInfo, upsertSql } from './sync-sql.ts';
 
-/** A statement's rows as arrays, in column order, through the shell's connection in its transaction. */
-type RunSql = (sql: string, params: unknown[]) => unknown[][] | Promise<unknown[][]>;
 /** Runs a mutator by name in the shell's transaction, or throws its refusal. */
 type RunMutator = (name: string, args: unknown, ctx: MutatorCtx, sql: RunSql) => Promise<unknown>;
 
@@ -27,8 +27,6 @@ interface PullPage {
 
 type Args = Record<string, unknown>;
 
-const isObject = (v: unknown): v is Args => typeof v === 'object' && v !== null && !Array.isArray(v);
-
 /** The tables the open transaction wrote, forgotten before it commits. */
 async function changedTables(sql: RunSql): Promise<unknown[]> {
   const tables = (await sql(`SELECT tbl FROM ${CHANGED_TABLES}`, [])).map((r) => r[0]);
@@ -44,7 +42,7 @@ async function runQueued(run: RunMutator, name: string, argsText: string, ctx: M
   } catch {
     throw new MutationError('invalid-args', 'the arguments are not JSON');
   }
-  if (!isObject(args)) throw new MutationError('invalid-args', 'the arguments are not an object');
+  if (!isObj(args)) throw new MutationError('invalid-args', 'the arguments are not an object');
   await run(name, args, ctx, sql);
 }
 
@@ -110,7 +108,7 @@ async function rebase(a: Args, ctx: MutatorCtx, sql: RunSql, run: RunMutator) {
       }
       if (batch && (batch.table !== t.name || (batch.rows + 1) * t.columns.length > MAX_PARAMS)) await flush();
       batch ??= { table: t.name, columns: t.columns, params: [], rows: 0 };
-      const row = isObject(op.row) ? op.row : {};
+      const row = isObj(op.row) ? op.row : {};
       batch.params.push(...t.columns.map((c) => row[c] ?? null));
       batch.rows++;
     }
@@ -143,7 +141,7 @@ export const SYNC_COMMANDS = ['syncOpen', 'syncMutate', 'syncPending', 'syncReba
 
 /** Runs the sync command `name` in the shell's transaction: its answer, or a refusal thrown as MutationError. */
 export async function runSyncCommand(name: string, args: unknown, ctx: MutatorCtx | undefined, sql: RunSql, run: RunMutator): Promise<unknown> {
-  const a = isObject(args) ? args : {};
+  const a = isObj(args) ? args : {};
   if (name === 'syncOpen') return open(a, sql);
   if (name === 'syncPending') return pending(sql);
   if (!ctx) throw new MutationError('forbidden', `${name} needs a caller`);

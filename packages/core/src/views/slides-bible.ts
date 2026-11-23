@@ -1,17 +1,17 @@
 // The Bible tab's views (ADR 0008; ported back from crates/gp-core/src/bible.rs, bible_books.rs and bible_view.rs): a
-// passage's preview as adding it freezes it, a reference read as a plan of verses, the books' names, and a stored
-// text's books, chapters, verses and passages.
-import { canonIndex, englishBookName, isOldTestament, resolveBook, swedishBookName } from '../bible-books.ts';
-import { bibleLabel, bibleTitle, splitBibleSlides, type Verse } from '../bible.ts';
+// passage's preview as adding it freezes it, a reference read as a plan of verses, and a stored text's
+// books, chapters, verses and passages.
+import { resolveBook } from '../bible-books.ts';
+import { BIBLE_LIMITS, bibleItemTitle, bibleLabel, splitBibleSlides, type BibleBookText, type Verse } from '../bible.ts';
 import { bibleItemSlides, type ItemShown } from './slides-items.ts';
 import type { RunSql } from './sql.ts';
-import { argsObj, asI64, asStr, byCodePoint, charsAtMost, hasFraction, intIn, invalidArgs, isObj, parseJson, RUST_SPACE_RUN, rustTrim } from './serde.ts';
+import { argsOf, asI64, asStr, charsAtMost, hasFraction, intIn, invalidArgs, isObj, parseJson, RUST_SPACE_RUN, rustTrim } from './serde.ts';
 
 // ------------------------------------------------------------------ a passage's preview (BIBLE-R12, R13)
 
 /** `verseArg`: book code, chapter and verse 0–999, the text at most 10 000. */
 function verse(v: unknown): Verse {
-  if (!isObj(v) || typeof v.b !== 'string' || !/^[0-9A-Z]{3}$/.test(v.b) || typeof v.t !== 'string' || !charsAtMost(v.t, 10_000)) throw invalidArgs();
+  if (!isObj(v) || typeof v.b !== 'string' || !/^[0-9A-Z]{3}$/.test(v.b) || typeof v.t !== 'string' || !charsAtMost(v.t, BIBLE_LIMITS.verseLength)) throw invalidArgs();
   return { b: v.b, c: intIn(v, 'c', 0, 999), v: intIn(v, 'v', 0, 999), t: v.t };
 }
 
@@ -20,11 +20,11 @@ function verse(v: unknown): Verse {
  * it (title and content, read back as an item's), for the Bible tab's preview: its title, label and slides.
  */
 export function bibleSlidesView(args: unknown): ItemShown & { title: string; label: string } {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const translation = asStr(a.translation) ?? '';
   if (!Array.isArray(a.verses)) throw invalidArgs();
   const verses = (a.verses as unknown[]).map(verse);
-  const title = bibleTitle(verses).slice(0, 200);
+  const title = bibleItemTitle(verses);
   const content = JSON.stringify({ translation, slides: splitBibleSlides(verses) });
   return { ...bibleItemSlides({ kind: 'bible', title, sourceId: '', arrangementId: null, content }), title, label: bibleLabel(verses) };
 }
@@ -108,31 +108,18 @@ const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is
 
 /** `verseSearchPlanView` {query, available}: the plan of a reference, or null (reads no database). */
 export function verseSearchPlanView(args: unknown): ReturnType<typeof plan> {
-  const a = argsObj(args);
+  const a = argsOf(args);
   return plan(asStr(a.query) ?? '', strings(a.available));
-}
-
-/**
- * `bibleBookNamesView` {codes}: each book's Swedish and English name and its testament, in canonical order (BIBLE-R9,
- * R10), codes outside the 66 after, by code (reads no database).
- */
-export function bibleBookNamesView(args: unknown): { code: string; sv: string; en: string; oldTestament: boolean }[] {
-  const order = (c: string) => canonIndex(c) ?? Infinity;
-  return strings(argsObj(args).codes)
-    .toSorted((x, y) => (order(x) === order(y) ? byCodePoint(x, y) : order(x) - order(y)))
-    .map((code) => ({ code, sv: swedishBookName(code), en: englishBookName(code), oldTestament: isOldTestament(code) }));
 }
 
 // ------------------------------------------------------------------ a stored text (`bible_texts`, a row a book)
 
-type StoredVerse = [c: number, v: number, t: string];
-
 /** A book's verses as stored, `[[chapter, verse, text], …]`, read as serde reads them; none where they do not read. */
-async function versesOf(sql: RunSql, hash: string, book: string): Promise<StoredVerse[]> {
+async function versesOf(sql: RunSql, hash: string, book: string): Promise<BibleBookText['verses']> {
   const chunk = asStr((await sql('SELECT chunk FROM bible_texts WHERE hash = ? AND book = ?', [hash, book]))[0]?.[0]);
   const read = chunk === null ? undefined : parseJson(chunk);
   const ok = (x: unknown) => Array.isArray(x) && x.length === 3 && asI64(x[0]) !== null && asI64(x[1]) !== null && typeof x[2] === 'string';
-  return Array.isArray(read) && read.every(ok) && !hasFraction(chunk!) ? (read as StoredVerse[]) : [];
+  return Array.isArray(read) && read.every(ok) && !hasFraction(chunk!) ? (read as BibleBookText['verses']) : [];
 }
 
 /** A `[chapter, verse]` of a passage's bounds. */
@@ -152,7 +139,7 @@ const notAfter = (c: number, v: number, p: [number, number]) => c < p[0] || (c =
  * of `books`, in stored order, as `{b, c, v, t}`.
  */
 export async function bibleView(args: unknown, sql: RunSql): Promise<Record<string, unknown> | null> {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const hash = asStr(a.hash);
   if (hash === null) throw invalidArgs();
   const books = (await sql('SELECT book FROM bible_texts WHERE hash = ? ORDER BY sort', [hash])).map((r) => asStr(r[0]) ?? '');

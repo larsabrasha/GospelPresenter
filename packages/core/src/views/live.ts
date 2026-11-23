@@ -3,20 +3,7 @@
 // docs/view-models.md): which presentation is presented, its slide, black, the overlay shown. It changes only here, so
 // every window holds the same rules: one presentation presented at a time, and the overlays' (LIVE-R11, R15, R16).
 // Which of two pointers is newer (`rev`) stays the channel's between windows. And where Lägg till puts what it adds.
-import { MutationError } from '../mutation.ts';
-
-type Obj = Record<string, unknown>;
-
-const invalid = () => new MutationError('invalid-args', 'arguments');
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
-const objOf = (v: unknown): Obj => {
-  if (!isObj(v)) throw invalid();
-  return v;
-};
-/** JavaScript's truthiness of an id: a string that is not empty. */
-const some = (v: unknown): v is string => typeof v === 'string' && v !== '';
-/** Two JSON values alike, as the Rust core compared them. */
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+import { argsOf, filled, invalidArgs, isObj, type Obj, sameJson } from './serde.ts';
 
 const FIELDS = ['presentationId', 'itemId', 'partIndex', 'black', 'overlayId'] as const;
 
@@ -33,25 +20,25 @@ const FIELDS = ['presentationId', 'itemId', 'partIndex', 'black', 'overlayId'] a
  * was not the left item's own (LIVE-R15, R16).
  */
 function liveChangeView(args: unknown) {
-  const a = objOf(args);
-  const prev = objOf(a.pointer);
-  const change = objOf(a.change);
+  const a = argsOf(args);
+  const prev = argsOf(a.pointer);
+  const change = argsOf(a.change);
   const overlays = isObj(a.overlays) ? a.overlays : {};
-  const overlayOf = (item: unknown) => (some(item) && Object.hasOwn(overlays, item) ? overlays[item] : null);
+  const overlayOf = (item: unknown) => (filled(item) && Object.hasOwn(overlays, item) ? overlays[item] : null);
   const was = (k: string) => (Object.hasOwn(prev, k) ? prev[k] : null);
   if (Object.hasOwn(change, 'presentationId')) {
     const to = change.presentationId;
-    if (some(to) && some(was('presentationId')) && !same(to, was('presentationId'))) return { refused: 'another-presented' };
+    if (filled(to) && filled(was('presentationId')) && !sameJson(to, was('presentationId'))) return { refused: 'another-presented' };
   }
   const next: Obj = {};
   for (const k of FIELDS) next[k] = Object.hasOwn(change, k) ? change[k] : was(k);
   const rev = (typeof prev.rev === 'number' ? prev.rev : 0) + 1;
   const done = () => ({ pointer: { ...next, rev } });
   if (Object.hasOwn(change, 'overlayId')) {
-    if (some(change.overlayId)) next.black = false;
+    if (filled(change.overlayId)) next.black = false;
     return done();
   }
-  if (!some(next.presentationId) || next.black === true) {
+  if (!filled(next.presentationId) || next.black === true) {
     next.overlayId = null;
     return done();
   }
@@ -59,10 +46,10 @@ function liveChangeView(args: unknown) {
     next.overlayId = overlayOf(next.itemId);
     return done();
   }
-  if (same(next.itemId, was('itemId'))) return done();
+  if (sameJson(next.itemId, was('itemId'))) return done();
   const left = overlayOf(was('itemId'));
   const entered = overlayOf(next.itemId);
-  const kept = some(left) && same(was('overlayId'), left) ? null : was('overlayId');
+  const kept = filled(left) && sameJson(was('overlayId'), left) ? null : was('overlayId');
   next.overlayId = entered === null || entered === undefined ? kept : entered;
   return done();
 }
@@ -74,21 +61,21 @@ function liveChangeView(args: unknown) {
  * {change: false} or {change: true, overlayId}.
  */
 function followItemOverlayView(args: unknown) {
-  const a = objOf(args);
-  const p = objOf(a.pointer);
+  const a = argsOf(args);
+  const p = argsOf(a.pointer);
   const none = { change: false };
-  if (!some(p.presentationId) || !some(p.itemId) || p.black === true) return none;
+  if (!filled(p.presentationId) || !filled(p.itemId) || p.black === true) return none;
   if (!Object.hasOwn(a, 'before')) return none;
   const before = a.before;
-  if (Object.hasOwn(a, 'after') && same(before, a.after)) return none;
-  if (!same(Object.hasOwn(p, 'overlayId') ? p.overlayId : null, before)) return none;
+  if (Object.hasOwn(a, 'after') && sameJson(before, a.after)) return none;
+  if (!sameJson(Object.hasOwn(p, 'overlayId') ? p.overlayId : null, before)) return none;
   return { change: true, overlayId: Object.hasOwn(a, 'after') ? a.after : null };
 }
 
 // ------------------------------------------------------------------ what a page offers
 
 /** A string argument that JavaScript would take as given: empty and missing alike are "none". */
-const given = (a: Obj, k: string) => (some(a[k]) ? (a[k] as string) : undefined);
+const given = (a: Obj, k: string) => (filled(a[k]) ? (a[k] as string) : undefined);
 
 /**
  * `addPositionView` {order, shownId, lastAddedId, chosenId, selectedId}: the item something added goes after, one rule
@@ -98,8 +85,8 @@ const given = (a: Obj, k: string) => (some(a[k]) ? (a[k] as string) : undefined)
  * end. An id not in `order` (an item gone) counts as none.
  */
 function addPositionView(args: unknown) {
-  const a = objOf(args);
-  if (!Array.isArray(a.order) || !a.order.every((v) => typeof v === 'string')) throw invalid();
+  const a = argsOf(args);
+  if (!Array.isArray(a.order) || !a.order.every((v) => typeof v === 'string')) throw invalidArgs();
   const order = a.order as string[];
   const here = (k: string) => {
     const id = given(a, k);

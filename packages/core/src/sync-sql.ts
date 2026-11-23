@@ -1,4 +1,5 @@
 import { getTableConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { marks } from './views/sql.ts';
 import { bibleBlobs, bibleTexts, keptBibles, mediaBlobs, pinnedPresentations, syncedTables, videoFiles } from './schema.ts';
 
 // SQL shared by both ends of the sync protocol, generated from the Drizzle
@@ -129,7 +130,7 @@ export function clientUndoRestore(): string[] {
  * Rows are applied in order, so a later row of the same id wins.
  */
 export function upsertSql(t: TableInfo, rows = 1): string {
-  const values = `(${t.columns.map(() => '?').join(', ')})`;
+  const values = `(${marks(t.columns.length)})`;
   return `INSERT INTO ${t.name} (${t.columns.join(', ')}) VALUES ${Array.from({ length: rows }, () => values).join(', ')}
     ON CONFLICT (id) DO UPDATE SET ${t.columns.map((c) => `${c} = excluded.${c}`).join(', ')}`;
 }

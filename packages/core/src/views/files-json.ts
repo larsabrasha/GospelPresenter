@@ -3,11 +3,15 @@
 // carries them, JSON text as serde_json read it (refusing what it refused, numbers kept as written), whole numbers as
 // i64 with its wrapping, `String(v)` and numbers written as Rust wrote them, and strings cut in UTF-16 units.
 import { MutationError } from '../mutation.ts';
+import { byCodePoint } from './serde.ts';
 
 export type Json = Record<string, unknown>;
 
-/** A view's arguments: an object, as JSON carries it to the core, else `invalid-args`. */
-export function argsOf(args: unknown): Json {
+/**
+ * A view's arguments as JSON carries them to the core (`RustCore`'s `json`), a copy: undefined gone, NaN and infinities
+ * null, a bigint a number; an object, else `invalid-args`. serde.ts's `argsOf` takes them as they are.
+ */
+export function jsonArgs(args: unknown): Json {
   const a = asJson(args);
   if (!isObject(a)) throw new MutationError('invalid-args');
   return a;
@@ -26,10 +30,10 @@ export const isObject = (v: unknown): v is Json => v !== null && typeof v === 'o
 export const field = (v: unknown, k: string): unknown => (isObject(v) && Object.hasOwn(v, k) ? v[k] : undefined);
 
 /** `Value::as_str`. */
-export const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
+export const strOf = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
-/** `s(&r[0])`: a column read as text, "" for anything else. */
-export const s = (v: unknown): string => (typeof v === 'string' ? v : '');
+/** Each text once, in the order first met. */
+export const unique = (xs: string[]): string[] => [...new Set(xs)];
 
 /** A unit of a pair that pairs with none as U+FFFD, as a Rust string holds it. */
 export function wellFormed(t: string): string {
@@ -57,7 +61,7 @@ class RustNumber {
 
 const number = (v: unknown): number | undefined => (typeof v === 'number' ? v : v instanceof RustNumber ? v.value : undefined);
 /** `Value::as_f64`. */
-export const asF64 = number;
+export const numberOf = number;
 
 /** How a number is written in JSON text: as JSON.stringify wrote it, or as the text had it. */
 const literalOf = (v: number | RustNumber) => (v instanceof RustNumber ? v.literal : JSON.stringify(v));
@@ -93,7 +97,7 @@ export function intOf(v: unknown): bigint {
 }
 
 /** `Value::as_i64`: an integer that fits, else none. */
-export function asI64(v: unknown): bigint | null {
+export function i64Of(v: unknown): bigint | null {
   const n = number(v);
   if (n === undefined || !Number.isFinite(n)) return null;
   const b = integerOf(v as number | RustNumber);
@@ -104,7 +108,7 @@ export function asI64(v: unknown): bigint | null {
 export const i64 = (x: bigint): bigint => BigInt.asIntN(64, x);
 
 /** JavaScript's `String(v)` of a field that may be missing, as media_plan.rs's `js_string` wrote it. */
-export function jsString(v: unknown): string {
+export function mediaPlanString(v: unknown): string {
   if (v === undefined) return 'undefined';
   if (v === null) return 'null';
   if (typeof v === 'string') return v;
@@ -118,7 +122,7 @@ export function jsString(v: unknown): string {
     if (Number.isInteger(n) && Math.abs(n) < 1e21) return Object.is(n, -0) ? '-0' : BigInt(n).toString();
     return String(n);
   }
-  if (Array.isArray(v)) return v.map((x) => (x === null ? '' : jsString(x))).join(',');
+  if (Array.isArray(v)) return v.map((x) => (x === null ? '' : mediaPlanString(x))).join(',');
   return '[object Object]';
 }
 
@@ -189,9 +193,9 @@ function jsNumber(f: number): string {
 }
 
 /** `String(v)` as ordered.rs's `js_string` wrote it: a number by `js_number`, a missing value "undefined". */
-export function textOf(v: unknown): string {
+export function orderedString(v: unknown): string {
   if (typeof v === 'number') return jsNumber(v);
-  if (Array.isArray(v)) return v.map((x) => (x === null ? '' : textOf(x))).join(',');
+  if (Array.isArray(v)) return v.map((x) => (x === null ? '' : orderedString(x))).join(',');
   if (v !== null && typeof v === 'object') return '[object Object]';
   return String(v);
 }
@@ -202,17 +206,6 @@ export function sortedKeys(v: unknown): unknown {
   if (v instanceof Uint8Array) return sortedKeys(Object.fromEntries([...v].map((b, i) => [String(i), b])));
   if (v === null || typeof v !== 'object') return typeof v === 'bigint' ? Number(v) : v;
   return new Map(Object.keys(v).toSorted(byCodePoint).map((k) => [k, sortedKeys((v as Json)[k])]));
-}
-
-/** Strings in Rust's order: by code point, as their UTF-8 bytes compare. */
-export function byCodePoint(a: string, b: string): number {
-  const x = [...a];
-  const y = [...b];
-  for (let i = 0; i < Math.min(x.length, y.length); i++) {
-    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
-    if (d) return d;
-  }
-  return x.length - y.length;
 }
 
 /** `J::stringify`: JSON text with numbers by `js_number`, a Map's keys in its order. */

@@ -1,7 +1,7 @@
 // The Bible tab's rules, read through the core's pure views (crates/gp-core/src/bible_books.rs and bible.rs): book
 // names, references, titles and slides (spec 05). They were packages/core's TS tests until the core took them over.
 import { describe, expect, it } from 'vitest';
-import type { BibleBookText, Verse } from '@gp/core';
+import { englishBookName, isOldTestament, swedishBookName, type BibleBookText, type Verse } from '@gp/core';
 import { Core } from '../../src/core.ts';
 
 const core = new Core();
@@ -10,7 +10,7 @@ const plan = (query: string, available: string[]) => core.pure<Plan>('verseSearc
 const ALL = 'GEN EXO LEV NUM DEU JOS JDG RUT 1SA 2SA 1KI 2KI 1CH 2CH EZR NEH EST JOB PSA PRO ECC SNG ISA JER LAM EZK DAN HOS JOL AMO OBA JON MIC NAM HAB ZEP HAG ZEC MAL MAT MRK LUK JHN ACT ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT PHM HEB JAS 1PE 2PE 1JN 2JN 3JN JUD REV'.split(' ');
 /** The book a name resolves to: a reference of it planned among every book. */
 const resolve = (name: string) => plan(`${name} 1`, ALL)?.codes[0] ?? null;
-const names = (code: string) => core.pure<{ sv: string; en: string; oldTestament: boolean }[]>('bibleBookNamesView', { codes: [code] })[0]!;
+const names = (code: string) => ({ sv: swedishBookName(code), en: englishBookName(code), oldTestament: isOldTestament(code) });
 type Shown = { title: string; label: string; slides: { text: string; credits: string; verses: { n: number | null; t: string }[] }[] };
 const shown = (verses: Verse[], translation = 'SFB') => core.pure<Shown>('bibleSlidesView', { translation, verses });
 

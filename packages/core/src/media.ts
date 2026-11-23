@@ -74,7 +74,7 @@ export const PICKABLE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'i
 export type PickableImageType = (typeof PICKABLE_IMAGE_TYPES)[number];
 
 /** What is stored (MEDIA-R4): JPEG stays JPEG, PNG, WebP and GIF become WebP. */
-export const STORED_IMAGE_TYPES = ['image/jpeg', 'image/webp'] as const;
+const STORED_IMAGE_TYPES = ['image/jpeg', 'image/webp'] as const;
 export type StoredImageType = (typeof STORED_IMAGE_TYPES)[number];
 
 const EXTENSION_TYPES: Record<string, PickableImageType> = {
@@ -186,21 +186,22 @@ export const THEME_PICTURES_SQL = ['$.song.background.image', '$.bible.backgroun
   FROM themes t WHERE json_valid(t.definition) AND json_extract(t.definition, '${at}.kind') = 'picture'`)
   .join('\n  UNION ALL\n  ');
 
-/** The blobs no image, audio file, video, slideshow, overlay, theme or song's sheet music names, older than the grace period: what a clean-up may remove. */
-export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
-  WHERE received_at < ?
-    AND hash NOT IN (SELECT hash FROM song_materials WHERE hash IS NOT NULL)
-    AND hash NOT IN (SELECT full_hash FROM images)
-    AND hash NOT IN (SELECT thumb_hash FROM images)
-    AND hash NOT IN (SELECT original_full_hash FROM images WHERE original_full_hash IS NOT NULL)
-    AND hash NOT IN (SELECT original_thumb_hash FROM images WHERE original_thumb_hash IS NOT NULL)
-    AND hash NOT IN (SELECT hash FROM audios)
-    AND hash NOT IN (SELECT hash FROM videos)
-    AND hash NOT IN (SELECT still_hash FROM videos)
-    AND hash NOT IN (SELECT thumb_hash FROM videos)
-    AND hash NOT IN (SELECT full_hash FROM (${SLIDESHOW_PICTURES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${SLIDESHOW_PICTURES_SQL}))
-    AND hash NOT IN (SELECT full_hash FROM (${OVERLAY_PICTURES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${OVERLAY_PICTURES_SQL}))
-    AND hash NOT IN (SELECT full_hash FROM (${THEME_PICTURES_SQL}))
-    AND hash NOT IN (SELECT thumb_hash FROM (${THEME_PICTURES_SQL}))`;
+/** Each list of blobs something of the organisation names: an image, audio file, video, slideshow, overlay, theme or song's sheet music. */
+export const NAMED_BLOBS_SQL = [
+  'SELECT hash FROM song_materials WHERE hash IS NOT NULL',
+  'SELECT full_hash FROM images',
+  'SELECT thumb_hash FROM images',
+  'SELECT original_full_hash FROM images WHERE original_full_hash IS NOT NULL',
+  'SELECT original_thumb_hash FROM images WHERE original_thumb_hash IS NOT NULL',
+  'SELECT hash FROM audios',
+  'SELECT hash FROM videos',
+  'SELECT still_hash FROM videos',
+  'SELECT thumb_hash FROM videos',
+  ...[SLIDESHOW_PICTURES_SQL, OVERLAY_PICTURES_SQL, THEME_PICTURES_SQL].flatMap((q) => [`SELECT full_hash FROM (${q})`, `SELECT thumb_hash FROM (${q})`]),
+];
+
+/**
+ * The blobs nothing names, older than the grace period: what a clean-up may remove. `NOT IN` each list apart, so a list
+ * holding a null keeps every blob, as the web's query read it.
+ */
+export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs WHERE received_at < ? ${NAMED_BLOBS_SQL.map((l) => `AND hash NOT IN (${l})`).join(' ')}`;

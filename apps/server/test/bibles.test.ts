@@ -3,7 +3,8 @@
 // change log; only its `bibles` row syncs. Also measures one full-size
 // (generated) translation for docs/bibles-and-themes.md.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, storeBibleTextSql, type BibleBookText } from '@gp/core';
+import { bibleId, bibleTextHash, BIBLE_LIMITS, serializeBibleText, storeBibleTextSql, type BibleBookText } from '@gp/core';
+import { bibleItemContent } from '@gp/core/core';
 import { BibleTextUploads, dropBible, fetchBibleText, keepBible, loadBibleText, setBibleKept, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
@@ -218,7 +219,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
       await syncBibleTexts(bob.client, downloader(h, org, 'bob'), 'chosen');
 
       const [item] = (await bob.client.dump()).presentation_items;
-      expect(parseBibleContent(item!.content as string)?.slides.flat().map((s) => s.n)).toEqual([16, 17]);
+      expect(bibleItemContent(item!.content as string)?.slides.flat().map((s) => s.n)).toEqual([16, 17]);
     });
 
     it('a text fetched for a page is checked against its hash and not stored', async () => {
@@ -253,7 +254,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(bob.client.rejected).toEqual([]);
     const [item] = (await serverDump(h, org, 'alice')).tables.presentation_items;
     expect(item).toMatchObject({ type: 'bible', title: 'Johannes 3:16-17', source_id: 'bible:web' });
-    const content = parseBibleContent(item!.content as string);
+    const content = bibleItemContent(item!.content as string);
     expect(content?.translation).toBe('WEB');
     expect(content?.slides.flat().map((s) => s.n)).toEqual([16, 17]);
     expect(JSON.stringify((await alice.client.dump()).presentation_items)).toBe(JSON.stringify([item]));

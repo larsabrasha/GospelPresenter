@@ -3,17 +3,15 @@
 // would refuse, and 1.x's overlay as a page. The rows come and go as JSON text, worked on as JavaScript holds JSON, and
 // written as the Rust core wrote them (files-json.ts's `stringify`). Rows that are not objects, or a table the upgrade
 // reads that is not a list of them, are refused (`invalid-rows`).
+import { CUSTOM_LIMITS, pdfPages } from '../custom-slides.ts';
+import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS } from '../bible.ts';
+import { LEGACY_TABLES } from '../legacy.ts';
 import { MutationError } from '../mutation.ts';
+import { slideDeckPagesSchema } from '../slides.ts';
 import { tableByName } from '../sync-sql.ts';
 import type { RunSql } from './sql.ts';
-import { type Json, argsOf, cut, isObject, parseText, sortedKeys, stringify, textOf } from './files-json.ts';
-import { pageBlobs, pdfPages, themeBlobs } from './files-pages.ts';
-
-/** The tables an import writes, parents before the rows that name them (`LEGACY_TABLES`). */
-const TABLES = [
-  'labels', 'org_settings', 'themes', 'bibles', 'images', 'audios', 'videos', 'overlays', 'displays', 'songs', 'song_parts',
-  'song_arrangements', 'song_versions', 'song_materials', 'presentations', 'custom_slides', 'presentation_items', 'ccli_entries',
-];
+import { type Json, jsonArgs, cut, isObject, parseText, sortedKeys, stringify, orderedString, unique } from './files-json.ts';
+import { pageBlobs, themeBlobs } from './files-pages.ts';
 
 const refused = (): never => {
   throw new MutationError('invalid-rows');
@@ -26,20 +24,20 @@ function rowsArg(a: Json): Json {
 
 /** `legacyUpgradeView` {format, rows (JSON text)}: the rows as this format has them, as JSON text. */
 export function legacyUpgradeView(args: unknown): string {
-  const a = argsOf(args);
+  const a = jsonArgs(args);
   if (typeof a.format !== 'number') throw new MutationError('invalid-args');
   return stringify(upgrade(a.format, rowsArg(a)));
 }
 
 /** `legacyBlobsView` {rows (JSON text)}: {named: [hash, row][], videos: hash[]}. */
-export const legacyBlobsView = (args: unknown) => blobs(rowsArg(argsOf(args)));
+export const legacyBlobsView = (args: unknown) => blobs(rowsArg(jsonArgs(args)));
 
 /** `legacyRowsProblemView` {rows (JSON text)}: the first row the server would refuse, named, or null. */
-export const legacyRowsProblemView = (args: unknown) => problem(rowsArg(argsOf(args)));
+export const legacyRowsProblemView = (args: unknown) => problem(rowsArg(jsonArgs(args)));
 
 /** `legacyOverlayPageView` {content, picture}: a 1.x overlay as a page, as JSON text. */
 export function legacyOverlayPageView(args: unknown): string {
-  const a = argsOf(args);
+  const a = jsonArgs(args);
   const p = a.picture;
   const picture = isObject(p) ? { full: sortedKeys(p.full ?? null), thumb: sortedKeys(p.thumb ?? null) } : null;
   return stringify(overlayPage(typeof a.content === 'string' ? a.content : null, picture));
@@ -47,9 +45,9 @@ export function legacyOverlayPageView(args: unknown): string {
 
 /** `exportRowsView` {}: every row of the tables the import writes, with exactly their columns, in their order, by id, as JSON text. */
 export async function exportRowsView(args: unknown, sql: RunSql): Promise<string> {
-  argsOf(args);
+  jsonArgs(args);
   const out: Json = {};
-  for (const t of TABLES) {
+  for (const t of LEGACY_TABLES) {
     const columns = tableByName.get(t)!.columns;
     const rows = await sql(`SELECT ${columns.join(', ')} FROM ${t} ORDER BY id`, []);
     out[t] = rows.map((r) => new Map(columns.map((c, i) => [c, sortedKeys(r[i])])));
@@ -94,7 +92,7 @@ function ownPictures(page: unknown, images: Pictures): unknown {
   const [hasBackground, hasElements] = [had('backgroundImageId'), had('elements')];
   delete rest.backgroundImageId;
   delete rest.elements;
-  if (hasBackground) rest.backgroundPicture = images.get(textOf(background)) ?? null;
+  if (hasBackground) rest.backgroundPicture = images.get(orderedString(background)) ?? null;
   rest.backgroundPage = orNull(rest.backgroundPage);
   if (Array.isArray(elements)) {
     rest.elements = elements.flatMap((e: unknown) => {
@@ -102,7 +100,7 @@ function ownPictures(page: unknown, images: Pictures): unknown {
       const own = { ...e };
       const id = own.imageId;
       delete own.imageId;
-      const picture = images.get(textOf(id));
+      const picture = images.get(orderedString(id));
       return picture ? [withKey(own, 'picture', picture)] : [];
     });
   } else if (hasElements) rest.elements = elements;
@@ -111,8 +109,8 @@ function ownPictures(page: unknown, images: Pictures): unknown {
 
 /** A slideshow row of a PDF's pages, as schema 21 made them; null where the pages do not read. */
 function slideshowRow(id: unknown, name: unknown, pages: unknown): Json | null {
-  const made = pdfPages(pages);
-  return made && { id: orNull(id), name: orNull(name), pages: stringify(made), created_at: 0, updated_at: 0, deleted_at: null };
+  const deck = slideDeckPagesSchema.safeParse(pages);
+  return deck.success ? { id: orNull(id), name: orNull(name), pages: stringify(pdfPages(deck.data)), created_at: 0, updated_at: 0, deleted_at: null } : null;
 }
 
 // ------------------------------------------------------------------ the upgrade
@@ -144,7 +142,7 @@ function upgradeFormat(format: number, rows: Json): Json {
     rest.custom_slides = slideshows;
     return rest;
   }
-  const images: Pictures = new Map(list(rest, 'images').map((i) => [textOf(i.id), { full: textOf(i.full_hash), thumb: textOf(i.thumb_hash) }]));
+  const images: Pictures = new Map(list(rest, 'images').map((i) => [orderedString(i.id), { full: orderedString(i.full_hash), thumb: orderedString(i.thumb_hash) }]));
   const own = (v: unknown) => ownPictures(v, images);
   if (format === 4) {
     rest.overlays = list(rest, 'overlays').map((o) => withKey(o, 'content', rewrite(o.content, own)));
@@ -174,7 +172,7 @@ function upgradeFormat(format: number, rows: Json): Json {
   });
   rest.overlays = list(rest, 'overlays').map((o) => {
     if (format !== 1) return withKey(o, 'content', rewrite(o.content, own));
-    const page = overlayPage(text(o.content), images.get(textOf(o.image_id)) ?? null);
+    const page = overlayPage(text(o.content), images.get(orderedString(o.image_id)) ?? null);
     return { id: orNull(o.id), title: orNull(o.title), content: stringify(page), image_id: null, sort: orNull(o.sort), updated_at: null };
   });
   rest.presentation_items = items;
@@ -211,7 +209,6 @@ function withFieldTimes(rows: Json): Json {
 
 // ------------------------------------------------------------------ the blobs and the check
 
-const unique = (xs: string[]) => [...new Set(xs)];
 /** JSON text as JSON.parse reads it, an infinity null, as the schemas check it; undefined where it does not read. */
 function read(json: string | null): unknown {
   const v = parseText(json ?? '');
@@ -224,7 +221,7 @@ function blobs(rows: Json): { named: [string, string][]; videos: string[] } {
   const add = (row: string, hashes: unknown[]) => {
     for (const h of hashes) if (typeof h === 'string' && h) named.push([h, row]);
   };
-  const label = (t: string, r: Json) => `${t} ${textOf(r.id)}`;
+  const label = (t: string, r: Json) => `${t} ${orderedString(r.id)}`;
   const pages = (json: unknown, many: boolean) => {
     const v = read(text(json));
     return unique((v !== undefined && pageBlobs(v, many)) || []);
@@ -241,21 +238,21 @@ function blobs(rows: Json): { named: [string, string][]; videos: string[] } {
     const hs = definition === undefined ? null : themeBlobs(definition);
     if (hs) add(label('themes', th), hs);
   }
-  return { named, videos: unique(videos.map((v) => textOf(Object.hasOwn(v, 'hash') ? v.hash : undefined))) };
+  return { named, videos: unique(videos.map((v) => orderedString(Object.hasOwn(v, 'hash') ? v.hash : undefined))) };
 }
 
-/** A Bible item's content that reads (`bibleItemContentSchema`): a translation of at most 50, and slides of segments. */
+/** A Bible item's content that reads (as slides-items.ts's `bibleItemContent`, by UTF-16 units): a translation of at most 50, and slides of segments. */
 function bibleContent(json: string | null): boolean {
   const o = json ? read(json) : undefined;
   if (!isObject(o)) return false;
   const segment = (s: unknown) =>
-    isObject(s) && Object.hasOwn(s, 'n') && (s.n === null || (Number.isInteger(s.n) && (s.n as number) >= 0 && (s.n as number) <= 999)) && typeof s.t === 'string' && s.t.length <= 10_000;
+    isObject(s) && Object.hasOwn(s, 'n') && (s.n === null || (Number.isInteger(s.n) && (s.n as number) >= 0 && (s.n as number) <= 999)) && typeof s.t === 'string' && s.t.length <= BIBLE_LIMITS.verseLength;
   return (
     typeof o.translation === 'string' &&
-    o.translation.length <= 50 &&
+    o.translation.length <= BIBLE_ITEM_LIMITS.translation &&
     Array.isArray(o.slides) &&
-    o.slides.length <= 1000 &&
-    o.slides.every((sl: unknown) => Array.isArray(sl) && sl.length <= 500 && sl.every(segment))
+    o.slides.length <= BIBLE_ITEM_LIMITS.slides &&
+    o.slides.every((sl: unknown) => Array.isArray(sl) && sl.length <= BIBLE_ITEM_LIMITS.runs && sl.every(segment))
   );
 }
 
@@ -265,8 +262,8 @@ function bibleContent(json: string | null): boolean {
  * no Bible passage that does not read.
  */
 function problem(rows: Json): string | null {
-  const id = (r: Json) => textOf(Object.hasOwn(r, 'id') ? r.id : undefined);
-  for (const t of TABLES) {
+  const id = (r: Json) => orderedString(Object.hasOwn(r, 'id') ? r.id : undefined);
+  for (const t of LEGACY_TABLES) {
     const columns = tableByName.get(t)!.columns;
     for (const r of list(rows, t)) {
       const mismatch = [...columns.filter((c) => !Object.hasOwn(r, c)).map((c) => `no ${c}`), ...Object.keys(r).filter((k) => !columns.includes(k)).map((k) => `unknown ${k}`)];
@@ -274,7 +271,7 @@ function problem(rows: Json): string | null {
       if (why) return `${t} ${id(r)}: ${why}`;
     }
   }
-  for (const d of list(rows, 'displays')) if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${id(d)}: no kind "${textOf(Object.hasOwn(d, 'kind') ? d.kind : undefined)}"`;
+  for (const d of list(rows, 'displays')) if (d.kind !== 'public' && d.kind !== 'screen') return `displays ${id(d)}: no kind "${orderedString(Object.hasOwn(d, 'kind') ? d.kind : undefined)}"`;
   for (const c of list(rows, 'custom_slides')) {
     const v = read(text(c.pages));
     if (v === undefined || !pageBlobs(v, true)) return `custom_slides ${id(c)}: pages that do not read`;
@@ -293,7 +290,7 @@ function problem(rows: Json): string | null {
  * its text above it at the top left, white.
  */
 function overlayPage(content: string | null, picture: unknown): Json {
-  const t = content === null ? '' : cut(content.trim(), 2000);
+  const t = content === null ? '' : cut(content.trim(), CUSTOM_LIMITS.text);
   const elements: Json[] = [];
   if (picture) elements.push({ id: 'image', kind: 'image', x: 0, y: 0, w: 1920, h: 1080, picture, fit: 'contain' });
   if (t) {

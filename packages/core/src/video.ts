@@ -106,7 +106,7 @@ const child = (payload: Uint8Array, type: string) => {
  * …): trak › mdia, whose `hdlr` says `vide`, › minf › stbl › stsd › its first
  * entry.
  */
-export function videoSampleEntries(moov: Uint8Array): string[] {
+function videoSampleEntries(moov: Uint8Array): string[] {
   const found: string[] = [];
   for (const [type, trak] of children(moov)) {
     if (type !== 'trak') continue;
@@ -126,7 +126,7 @@ export function videoSampleEntries(moov: Uint8Array): string[] {
 const CODECS: Record<string, VideoCodec> = { avc1: 'h264', avc3: 'h264', hvc1: 'hevc', hev1: 'hevc' };
 
 /** The codec of a sample entry type, or null for one not taken. */
-export function codecOfEntry(entry: string): VideoCodec | null {
+function codecOfEntry(entry: string): VideoCodec | null {
   return CODECS[entry] ?? null;
 }
 

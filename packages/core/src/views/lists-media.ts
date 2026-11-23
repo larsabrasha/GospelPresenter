@@ -1,7 +1,10 @@
 // The libraries (apps/web's Bilder, Ljud, Video, Bildspel and Overlays, and the add dialog's tabs): pictures, sounds,
 // videos, slideshows and overlays, as the web's reads gave them (ported back from crates/gp-core/src/media_views.rs).
+import { blankPage, CUSTOM_LIMITS } from '../custom-slides.ts';
+import { MEDIA_HASH } from '../media.ts';
 import type { RunSql } from './sql.ts';
-import { type Args, argsOf, type Fields, idArg, mapRow, readJson, select } from './lists-rows.ts';
+import { type Args, type Fields, mapRow, readJson, select } from './lists-rows.ts';
+import { argsOf, idOf, isObj } from './serde.ts';
 
 /** `LibraryImage`, its content type read as the web reads it. */
 export const IMAGE: Fields = [['id', 'str'], ['fileName', 'str'], ['contentType', 'opt'], ['fullHash', 'str'], ['thumbHash', 'str'], ['width', 'num'],
@@ -38,7 +41,6 @@ export class Unread extends Error {}
 const fail = (): never => {
   throw new Unread();
 };
-const isObj = (v: unknown): v is Args => !!v && typeof v === 'object' && !Array.isArray(v);
 const obj = (v: unknown) => (isObj(v) ? v : fail());
 const num = (o: Args, k: string, lo: number, hi: number) => (typeof o[k] === 'number' && o[k] >= lo && o[k] <= hi ? o[k] : fail());
 const int = (o: Args, k: string, lo: number, hi: number) => (Number.isInteger(o[k]) ? num(o, k, lo, hi) : fail());
@@ -47,7 +49,7 @@ const oneOf = (o: Args, k: string, options: string[]) => (typeof o[k] === 'strin
 const color = (o: Args, k: string) => (o[k] === null ? null : typeof o[k] === 'string' && /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : fail());
 /** A string of `lo` to `hi` characters, counted in code points as the Rust core counts them (zod counts UTF-16 units). */
 const chars = (v: unknown, lo: number, hi: number) => (typeof v === 'string' && [...v].length >= lo && [...v].length <= hi ? v : fail());
-const hash = (o: Args, k: string) => (typeof o[k] === 'string' && /^[0-9a-f]{64}$/.test(o[k]) ? o[k] : fail());
+const hash = (o: Args, k: string) => (typeof o[k] === 'string' && MEDIA_HASH.test(o[k]) ? o[k] : fail());
 const picture = (v: unknown) => {
   const o = obj(v);
   return { full: hash(o, 'full'), thumb: hash(o, 'thumb') };
@@ -62,7 +64,7 @@ function element(v: unknown): Args {
   const id = chars(o.id, 1, 40);
   const box = { id, x: num(o, 'x', -3840, 5760), y: num(o, 'y', -2160, 3240), w: num(o, 'w', -3840, 5760), h: num(o, 'h', -2160, 3240), kind };
   if (kind === 'text')
-    return { ...box, text: chars(o.text, 0, 2000), size: int(o, 'size', 10, 400), bold: bool(o, 'bold'), italic: bool(o, 'italic'), align: oneOf(o, 'align', ['left', 'center', 'right']), color: color(o, 'color') };
+    return { ...box, text: chars(o.text, 0, CUSTOM_LIMITS.text), size: int(o, 'size', 10, 400), bold: bool(o, 'bold'), italic: bool(o, 'italic'), align: oneOf(o, 'align', ['left', 'center', 'right']), color: color(o, 'color') };
   if (kind === 'image') return { ...box, picture: Object.hasOwn(o, 'picture') ? picture(o.picture) : fail(), fit: oneOf(o, 'fit', ['contain', 'cover']) };
   if (kind === 'line') return { ...box, stroke: color(o, 'stroke'), strokeWidth: num(o, 'strokeWidth', 1, 100) };
   return { ...box, fill: color(o, 'fill'), stroke: color(o, 'stroke'), strokeWidth: num(o, 'strokeWidth', 0, 100), radius: num(o, 'radius', 0, 540) };
@@ -72,19 +74,19 @@ export function page(v: unknown): Args {
   const o = obj(v);
   const background = Object.hasOwn(o, 'background') ? color(o, 'background') : fail();
   const [backgroundPicture, backgroundPage] = [optPicture(o, 'backgroundPicture'), optPicture(o, 'backgroundPage')];
-  const elements = Array.isArray(o.elements) && o.elements.length <= 100 ? o.elements.map(element) : fail();
+  const elements = Array.isArray(o.elements) && o.elements.length <= CUSTOM_LIMITS.elements ? o.elements.map(element) : fail();
   return { background, backgroundPicture, backgroundPage, elements };
 }
 
-/** `customSlide`: a slideshow, its pages as stored or one blank page where they do not read (`parseCustomPages`, as pages.rs reads them). */
+/** `customSlide`: a slideshow, its pages as stored or one blank page where they do not read (`customPagesSchema`, as pages.rs reads them). */
 function customSlide(r: unknown[]): Args {
   let pages: Args[];
   try {
     const v = typeof r[2] === 'string' ? readJson(r[2]) : undefined;
-    pages = Array.isArray(v) && v.length >= 1 && v.length <= 100 ? v.map(page) : fail();
+    pages = Array.isArray(v) && v.length >= 1 && v.length <= CUSTOM_LIMITS.pages ? v.map(page) : fail();
   } catch (e) {
     if (!(e instanceof Unread)) throw e;
-    pages = [{ background: null, backgroundPicture: null, backgroundPage: null, elements: [] }];
+    pages = [blankPage()];
   }
   return { ...mapRow(r, CUSTOM), pages };
 }
@@ -99,7 +101,7 @@ export async function customSlidesView(args: unknown, sql: RunSql) {
 
 /** `customSlideView` {id}: a slideshow, trashed or not, null when there is none (`getCustomSlide`). */
 export async function customSlideView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'id');
+  const id = idOf(argsOf(args), 'id');
   const [r] = await sql(`SELECT ${customColumns} FROM custom_slides WHERE id = ?`, [id]);
   return r ? customSlide(r) : null;
 }
@@ -109,7 +111,7 @@ export const overlaysView = async (args: unknown, sql: RunSql) => (argsOf(args),
 
 /** `overlayRowView` {id}: an overlay's row, null when there is none (`getOverlay`). */
 export async function overlayRowView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'id');
+  const id = idOf(argsOf(args), 'id');
   const [o] = await select(sql, OVERLAY, 'overlays WHERE id = ?', [id]);
   return o ? overlayRow(o) : null;
 }

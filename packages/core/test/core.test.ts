@@ -10,14 +10,14 @@ import {
   updateUserRequest,
   daysRemaining,
   DEFAULT_LABELS,
-  highlight,
   labelId,
   newer,
   parsePartIds,
-  parseSlideDeckPages,
   pdfPages,
-  searchSongs,
+  prepareSong,
+  rankSongs,
 } from '../src/index.ts';
+import { searchMarks } from '../src/core.ts';
 
 describe('permissions (spec 01)', () => {
   it('users manage songs and presentations; only admins manage users and themes', () => {
@@ -122,7 +122,8 @@ describe('search (SONG-R30–R33)', () => {
     { name: 'Majestät', author: null, firstPart: 'Majestät', lyrics: 'Majestät\nvi böjer knä' },
     { name: 'Vi vill se Gud', author: null, firstPart: 'Vi vill se', lyrics: 'Vi vill se' },
   ];
-  const names = (q: string) => searchSongs(lib, q).map((s) => s.name);
+  const search = <T extends (typeof lib)[number]>(songs: T[], q: string) => rankSongs(songs, prepareSong, q);
+  const names = (q: string) => search(lib, q).map((s) => s.name);
 
   it('SONG-A19', () => {
     expect(names('hogst av allt')[0]).toBe('Högst av allt');
@@ -144,16 +145,6 @@ describe('search (SONG-R30–R33)', () => {
     expect(names('vi')).toEqual(['Vi vill se Gud', 'Majestät']);
   });
 
-  it('a song changed after a search, as a new object, is searched by its new text', () => {
-    const before = [lib[2]!];
-    searchSongs(before, 'majestät');
-    const after = [{ ...lib[2]!, name: 'Konung', firstPart: 'Konung', lyrics: 'Konung' }];
-
-    const hits = searchSongs(after, 'majestät');
-
-    expect(hits).toEqual([]);
-  });
-
   it('a phrase that runs over a line break in the lyrics ranks as a phrase', () => {
     // Both have every word in the first part; only one has them as the phrase, over its line break.
     const songs = [
@@ -161,23 +152,23 @@ describe('search (SONG-R30–R33)', () => {
       { name: 'Blott en dag', author: null, firstPart: 'Blott en dag, ett\nögonblick i sänder', lyrics: 'Blott en dag, ett\nögonblick i sänder' },
     ];
 
-    const hits = searchSongs(songs, 'ett ögonblick i sänder').map((s) => s.name);
+    const hits = rankSongs(songs, prepareSong, 'ett ögonblick i sänder').map((s) => s.name);
 
     expect(hits).toEqual(['Blott en dag', 'Annan']);
   });
 
   it('decomposed (macOS) text matches composed queries', () => {
-    expect(searchSongs([{ ...lib[1]!, name: 'Högst av allt'.normalize('NFD') }], 'högst')).toHaveLength(1);
+    expect(search([{ ...lib[1]!, name: 'Högst av allt'.normalize('NFD') }], 'högst')).toHaveLength(1);
   });
 
   it('highlights the word prefixes that matched, accents or not', () => {
-    expect(highlight('Högst av allt', 'hog al')).toEqual([
+    expect(searchMarks('Högst av allt', 'hog al')).toEqual([
       { text: 'Hög', hit: true },
       { text: 'st av ', hit: false },
       { text: 'al', hit: true },
       { text: 'lt', hit: false },
     ]);
-    expect(highlight('evighet', 'vig')).toEqual([{ text: 'evighet', hit: false }]);
+    expect(searchMarks('evighet', 'vig')).toEqual([{ text: 'evighet', hit: false }]);
   });
 });
 
@@ -213,11 +204,5 @@ describe('PDFs', () => {
       ['#000000', page(1), []],
       ['#000000', page(3), []],
     ]);
-  });
-
-  it("reads stored pages back, and none from what is not a deck's pages", () => {
-    const pages = [page(1)];
-
-    expect([parseSlideDeckPages(JSON.stringify(pages)), parseSlideDeckPages('{"translation":"SFB","slides":[]}'), parseSlideDeckPages('not json'), parseSlideDeckPages(null)]).toEqual([pages, [], [], []]);
   });
 });

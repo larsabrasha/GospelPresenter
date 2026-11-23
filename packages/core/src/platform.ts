@@ -1,4 +1,4 @@
-import { sha256Async } from './sha256.ts';
+import { sha256, sha256Async } from './sha256.ts';
 
 // Web platform APIs that browsers, Node 22+ and Workers all have, but that
 // this package's types (ES2023 only, no DOM) do not describe. Typed here once,
@@ -14,12 +14,15 @@ interface WebGlobals {
 }
 
 /** The random part of Web Crypto. `randomUUID` exists only in secure contexts (https, localhost). */
-export interface RandomSource {
+interface RandomSource {
   randomUUID?: () => string;
   getRandomValues<T extends Uint8Array>(array: T): T;
 }
 
 const web = globalThis as unknown as WebGlobals;
+
+/** Bytes as lower-case hex digits, two a byte. */
+const hex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 
 /**
  * A new random id (a version 4 UUID). `crypto.randomUUID` exists only in
@@ -32,7 +35,7 @@ export function randomId(source: RandomSource = web.crypto): string {
   const b = source.getRandomValues(new Uint8Array(16));
   b[6] = (b[6]! & 0x0f) | 0x40;
   b[8] = (b[8]! & 0x3f) | 0x80;
-  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  const h = hex(b);
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
@@ -51,6 +54,11 @@ export async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new web.Response(stream).arrayBuffer());
 }
 
+/** The SHA-256 of a text's UTF-8 bytes, as 64 lower-case hex digits, at once, in plain JavaScript (a view's check). */
+export function sha256HexSync(text: string): string {
+  return hex(sha256(utf8Encode(text)));
+}
+
 /** The SHA-256 of a text's UTF-8 bytes, as 64 lower-case hex digits. */
 export async function sha256Hex(text: string): Promise<string> {
   return sha256HexBytes(utf8Encode(text));
@@ -64,5 +72,5 @@ export async function sha256Hex(text: string): Promise<string> {
 export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
   const subtle = web.crypto.subtle;
   const digest = subtle ? new Uint8Array(await subtle.digest('SHA-256', bytes)) : await sha256Async(bytes);
-  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex(digest);
 }

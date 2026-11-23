@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
+import { CLASSIC, type Theme } from '@gp/core';
 import { Core, type Rows } from '../../src/core.ts';
 
 /** An organisation's database in memory, migrated by the core, with a song of two parts, and its statements as the core asks for them. */
@@ -13,7 +14,7 @@ function org() {
   new Core().runSync('migrateOrgSchema', all);
   db.exec(`INSERT INTO songs (id, name) VALUES ('s1', 'Härlig är jorden')`);
   db.exec(`INSERT INTO song_parts (id, song_id, sort, content) VALUES ('p1', 's1', 0, 'Första'), ('p2', 's1', 1, 'Andra')`);
-  return { rows: async (sql: string, params: unknown[]) => all(sql, params) };
+  return { db, rows: async (sql: string, params: unknown[]) => all(sql, params) };
 }
 
 const songItem = { id: 'i1', type: 'song', title: 'Härlig är jorden', sourceId: 's1', arrangementId: null, content: null };
@@ -39,6 +40,15 @@ describe('Core.view', () => {
     const { rows } = org();
 
     await expect(new Core().view('itemSlidesView', { items: 'none' }, rows)).rejects.toThrow('invalid-args');
+  });
+
+  it('reads an own theme whose definition does not parse as the dark theme, its name kept', async () => {
+    const { rows, db } = org();
+    db.exec(`INSERT INTO themes (id, name, definition, sort, updated_at) VALUES ('own-1', 'Trasig', '{"song":1}', 1, 0)`);
+
+    const theme = await new Core().view<Theme>('themeView', { id: 'own-1' }, rows);
+
+    expect([theme.name, theme.definition]).toEqual(['Trasig', CLASSIC.definition]);
   });
 });
 

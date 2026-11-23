@@ -1,7 +1,7 @@
 // A search hit's marking (SONG-A20; ADR 0008, ported back from crates/gp-core/src/search.rs's `highlight`): the text
 // cut into pieces with the word prefixes that match a query term marked, as typed or without accents. It works code
 // point by code point, as the Rust core did; search.ts's `highlight` (2.0's, by UTF-16 unit) is not the same.
-import { argsObj, asStr } from './serde.ts';
+import { argsOf, asStr } from './serde.ts';
 
 /** Each code point lowered where it lowers to one code point, after NFC. */
 const lower = (s: string): string[] =>
@@ -32,7 +32,7 @@ const terms = (query: string): string[] => lower(query).join('').trim().split(/\
 
 /** `highlightView` {text, query}: `text`, as NFC, in pieces `{text, hit}`. */
 export function highlightView(args: unknown): { text: string; hit: boolean }[] {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const text = asStr(a.text) ?? '';
   const nfc = [...text.normalize('NFC')];
   const l = lower(text);

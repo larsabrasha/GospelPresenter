@@ -8,14 +8,14 @@ import { MEDIA_HASH } from './media.ts';
 const cssColor = z.string().min(1).max(60).regex(/^[#a-z0-9(),.%\s]+$/i, 'a CSS colour');
 
 /** Where a text sits on the 1920×1080 canvas, in stage pixels: its box, the text placed in it by `valign`. */
-export const textAreaSchema = z.object({
+const textAreaSchema = z.object({
   x: z.number().int().min(0).max(1880),
   y: z.number().int().min(0).max(1040),
   w: z.number().int().min(40).max(1920),
   h: z.number().int().min(40).max(1080),
 });
 
-export const textStyleSchema = z.object({
+const textStyleSchema = z.object({
   /** px on the 1920×1080 canvas; the most the text gets: a text that does not fit is made smaller (docs/themes.md). */
   fontSize: z.number().int().min(10).max(300),
   fontFamily: z.string().min(1).max(200).regex(/^[\w\s',-]+$/, 'a CSS font stack'),
@@ -38,13 +38,13 @@ const blobHash = z.string().regex(MEDIA_HASH);
  * A background image, named, never a URL (ADR 0001 (10)): a built-in asset the app ships with, or a picture of the
  * theme's own, its blobs named as a slideshow's page names its pictures (taken from Bilder or the device, a copy).
  */
-export const backgroundImageSchema = z.discriminatedUnion('kind', [
+const backgroundImageSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('builtIn'), asset: z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/) }),
   z.object({ kind: z.literal('picture'), full: blobHash, thumb: blobHash }),
 ]);
 export type BackgroundImage = z.infer<typeof backgroundImageSchema>;
 
-export const backgroundSchema = z.object({
+const backgroundSchema = z.object({
   color: cssColor,
   image: backgroundImageSchema.nullable(),
   fit: z.enum(['cover', 'contain']),
@@ -52,7 +52,7 @@ export const backgroundSchema = z.object({
   scrim: z.number().int().min(0).max(100),
 });
 
-export const slideStyleSchema = z.object({ background: backgroundSchema, main: textStyleSchema, credits: textStyleSchema });
+const slideStyleSchema = z.object({ background: backgroundSchema, main: textStyleSchema, credits: textStyleSchema });
 
 export const themeDefinitionSchema = z.object({ song: slideStyleSchema, bible: slideStyleSchema, media: backgroundSchema });
 
@@ -179,21 +179,6 @@ export function resolveTheme(presentationThemeId: string | null | undefined, org
   return byId.get(id) ?? own.find((t) => t.id === id) ?? CLASSIC;
 }
 
-/** A stored definition, or null where it does not read (a newer app's, or a broken row). */
-export function parseThemeDefinition(json: string | null): ThemeDefinition | null {
-  try {
-    const parsed = themeDefinitionSchema.safeParse(JSON.parse(json ?? ''));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-/** An own theme's row as a Theme: one whose definition does not read looks as Classic, its name kept. */
-export function themeOfRow(row: { id: string; name: string; sort: number; definition: string }): Theme {
-  return { id: row.id, sort: row.sort, name: row.name, description: '', definition: parseThemeDefinition(row.definition) ?? CLASSIC.definition };
-}
-
 /** The blobs a theme's pictures are: each own background picture's two. */
 export function themeBlobs(d: ThemeDefinition): string[] {
   return [d.song.background, d.bible.background, d.media].flatMap((bg) => (bg.image?.kind === 'picture' ? [bg.image.full, bg.image.thumb] : []));
@@ -213,7 +198,7 @@ export function backgroundOf(theme: Theme, kind: SlideKind): Background {
 /** CSS properties, camel-cased as React's `style` takes them. */
 export type Css = Record<string, string | number>;
 
-export const TEXT_SHADOW = '0 0.06em 0.18em rgba(0, 0, 0, 0.65)';
+const TEXT_SHADOW = '0 0.06em 0.18em rgba(0, 0, 0, 0.65)';
 
 /** A text's look; where it sits is `textAreaCss`. An outline is drawn under the letters' fill, so it widens them outwards. */
 export function textStyleCss(s: TextStyle): Css {

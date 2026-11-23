@@ -11,7 +11,6 @@ import {
   textAreaCss,
   textStyleCss,
   themeBlobs,
-  themeOfRow,
   themeDefinitionSchema,
   type TextStyle,
 } from '../src/index.ts';
@@ -143,12 +142,6 @@ describe('own themes (docs/themes.md)', () => {
 
   it('resolves a deleted own theme to the dark one', () => {
     expect(resolveTheme('own-1', null, []).id).toBe('classic');
-  });
-
-  it('reads a row whose definition does not parse as the dark theme, its name kept', () => {
-    const theme = themeOfRow({ id: 'own-1', name: 'Trasig', sort: 1, definition: '{"song":1}' });
-
-    expect([theme.name, theme.definition]).toEqual(['Trasig', CLASSIC.definition]);
   });
 
   it('names the blobs of its own background pictures', () => {

@@ -5,12 +5,10 @@
 // may choose for each (spec 02 "Import card", SONG-R42; crates/gp-core/src/song_import.rs).
 import { MutationError } from '../mutation.ts';
 import type { PureView, View } from './sql.ts';
-import { bibleImportView } from './files-bible-import.ts';
 import { bibleTextJsonView, bibleTextPlanView, bibleTextStoreView, bibleUploadsView } from './files-bible-texts.ts';
-import { argsOf, field } from './files-json.ts';
+import { jsonArgs, field } from './files-json.ts';
 import { exportRowsView, legacyBlobsView, legacyOverlayPageView, legacyRowsProblemView, legacyUpgradeView } from './files-legacy.ts';
 import { mediaPlanView, mediaStorageView, mediaUploadsView, wantedMediaView } from './files-media.ts';
-import { proPresenterSongView } from './files-propresenter.ts';
 
 /** How two song names compare for duplicates: case and composition aside (SONG-R42). */
 const nameKey = (name: string) => name.trim().normalize('NFC').toLowerCase();
@@ -28,7 +26,7 @@ function list(a: Record<string, unknown>, k: string): unknown[] {
 
 /** `songNamesakesView` {names, library: string[]}: the places in `library` of the names one of `names` has. */
 function songNamesakesView(args: unknown): number[] {
-  const a = argsOf(args);
+  const a = jsonArgs(args);
   const keys = new Set(list(a, 'names').flatMap((n) => (typeof n === 'string' ? [nameKey(n)] : [])));
   return list(a, 'library').flatMap((n, i) => (keys.has(nameKey(typeof n === 'string' ? n : '')) ? [i] : []));
 }
@@ -40,7 +38,7 @@ function songNamesakesView(args: unknown): number[] {
  * song) and the one it starts with (a same text skipped, another kept beside, so no text is lost).
  */
 function songImportDuplicatesView(args: unknown) {
-  const a = argsOf(args);
+  const a = jsonArgs(args);
   const seen = new Map<string, { id: unknown; text: string }[]>();
   const add = (key: string, entry: { id: unknown; text: string }) => seen.set(key, [...(seen.get(key) ?? []), entry]);
   for (const l of list(a, 'library')) add(nameKey(text(l, 'name')), { id: field(l, 'id') ?? null, text: text(l, 'text') });
@@ -70,10 +68,8 @@ export const filesViews: Record<string, View> = {
 
 /** The group's views that read only their arguments. */
 export const filesPureViews: Record<string, PureView> = {
-  proPresenterSongView,
   songNamesakesView,
   songImportDuplicatesView,
-  bibleImportView,
   legacyUpgradeView,
   legacyBlobsView,
   legacyRowsProblemView,

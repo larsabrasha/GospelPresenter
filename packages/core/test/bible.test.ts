@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bibleId, bibleTextHash, bibleTextSchema, compareBooks, joinBibleText, bookChunk, parseBibleContent, serializeBibleText, type BibleBookText } from '../src/index.ts';
+import { bibleId, bibleTextHash, bibleTextSchema, compareBooks, joinBibleText, bookChunk, serializeBibleText, type BibleBookText } from '../src/index.ts';
+import { bibleItemContent } from '../src/core.ts';
 
 /** The current app's test translation (VerseSearchTests): Genesis 1:1 and eight verses of Matthew. */
 const books: BibleBookText[] = [
@@ -31,7 +32,7 @@ describe('a Bible item’s content', () => {
   it('reads as data, never markup; one that does not read is none', () => {
     const content = { translation: 'X', slides: [[{ n: 1, t: '<script>alert(1)</script>' }]] };
 
-    expect([parseBibleContent(JSON.stringify(content)), parseBibleContent('{"slides":"<b>"}'), parseBibleContent('not json')]).toEqual([content, null, null]);
+    expect([bibleItemContent(JSON.stringify(content)), bibleItemContent('{"slides":"<b>"}'), bibleItemContent('not json')]).toEqual([content, null, null]);
   });
 });
 

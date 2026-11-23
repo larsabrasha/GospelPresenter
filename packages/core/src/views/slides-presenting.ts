@@ -1,7 +1,7 @@
 // Presenting's keys and marks (ADR 0008; ported back from crates/gp-core/src/presenting.rs), pure: the web calls them on
 // its own thread, so a key reaches the outputs at once. The order is the running order's slides as
 // [[itemId, slides]…] (`slideOrder`'s input).
-import { argsObj, asBool, asI64, asStr, invalidArgs, isObj, type Obj } from './serde.ts';
+import { argsOf, asBool, asI64, asStr, invalidArgs, isObj, type Obj } from './serde.ts';
 
 /** A slide of the running order; `item` is null for the pointer before anything is shown. */
 interface At {
@@ -52,7 +52,7 @@ const slide = (a: At): Slide => ({ itemId: a.item, partIndex: a.part });
  * presentingKey answers it.
  */
 export function presentingKeyView(args: unknown): { presenting: boolean; shown: Slide & { black: boolean }; picked: Slide | null } {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const order = orderOf(a);
   if (!isObj(a.state)) throw invalidArgs();
   const state = a.state;
@@ -101,7 +101,7 @@ export function presentingKeyView(args: unknown): { presenting: boolean; shown: 
  * NÄSTA still is, from the slide last shown.
  */
 export function slideMarksView(args: unknown): { shown: Slide | null; next: Slide | null } {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const order = orderOf(a);
   const shown = atOf(a.shown);
   if (!shown) throw invalidArgs();

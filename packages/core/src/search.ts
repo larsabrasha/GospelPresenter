@@ -74,22 +74,9 @@ export interface PreparedSong {
 }
 
 /**
- * Each song's prepared texts, kept while the song object lives, for a library
- * searched again on every keystroke. A song object is never changed in place;
- * a changed song is a new object.
- */
-const prepared = new WeakMap<SearchableSong, PreparedSong>();
-
-function prepare(s: SearchableSong): PreparedSong {
-  let p = prepared.get(s);
-  if (!p) prepared.set(s, (p = prepareSong(s)));
-  return p;
-}
-
-/**
  * Every run of white space as one space: a phrase typed as it is sung, over a
  * line break of the lyrics, is then found as a phrase. Not in the old app; the
- * marking (`highlight`) reads the text itself, so it is not affected.
+ * marking (views/slides-highlight.ts) reads the text itself, so it is not affected.
  */
 const spaced = (s: string) => s.replace(/\s+/g, ' ');
 
@@ -134,14 +121,9 @@ function bonus(p: PreparedSong, ts: string[]): number {
 }
 
 /**
- * The songs that match every term, best first. `songs` comes in library
- * order, which ties keep. A blank query returns them all (SONG-R30).
+ * The songs that match every term, best first, over songs whose texts are prepared already: `texts` gives each one's.
+ * `songs` comes in library order, which ties keep. A blank query returns them all (SONG-R30).
  */
-export function searchSongs<T extends SearchableSong>(songs: T[], query: string): T[] {
-  return rankSongs(songs, prepare, query);
-}
-
-/** `searchSongs` over songs whose texts are prepared already: `texts` gives each one's. */
 export function rankSongs<T>(songs: T[], texts: (song: T) => PreparedSong, query: string): T[] {
   const ts = terms(query);
   if (!ts.length) return songs;
@@ -161,27 +143,4 @@ export function rankSongs<T>(songs: T[], texts: (song: T) => PreparedSong, query
     if (all) hits.push({ song, score: score + bonus(p, ts) });
   }
   return hits.toSorted((a, b) => b.score - a.score).map((h) => h.song);
-}
-
-/** `text` (as NFC) cut into pieces, with the word prefixes that match a query term marked (SONG-A20). */
-export function highlight(text: string, query: string): { text: string; hit: boolean }[] {
-  const nfc = text.normalize('NFC');
-  const l = lower(nfc);
-  const lf = fold(l);
-  const marked = Array.from({ length: nfc.length }, () => false);
-  for (const term of terms(query)) {
-    for (const [hay, needle] of [
-      [l, term],
-      [lf, fold(term)],
-    ] as const) {
-      for (const at of wordPrefixes(hay, needle)) marked.fill(true, at, at + needle.length);
-    }
-  }
-  const pieces: { text: string; hit: boolean }[] = [];
-  for (let i = 0; i < nfc.length; i++) {
-    const last = pieces.at(-1);
-    if (last && last.hit === marked[i]) last.text += nfc[i];
-    else pieces.push({ text: nfc[i]!, hit: marked[i]! });
-  }
-  return pieces;
 }

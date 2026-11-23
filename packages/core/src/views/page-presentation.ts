@@ -1,29 +1,20 @@
 // The presentation page's view (ADR 0008; ported back from crates/gp-core/src/presentation_page.rs;
 // apps/web/src/pages/presentation-editor): what the page reads, as the web's reads gave it — the presentation, its
 // theme, its items and their slides, the songs and arrangements the items use, and the overlays.
-import type { RunSql } from './sql.ts';
-import { argsObj, asStr, idOf } from './serde.ts';
-import { type Fields, marks, PRESENTATION, select, SONG } from './lists-rows.ts';
+import { marks, type RunSql } from './sql.ts';
+import { argsOf, asStr, idOf } from './serde.ts';
+import { ARRANGEMENT, itemsOf, PRESENTATION, select, SONG } from './lists-rows.ts';
 import { overlaysView } from './lists-media.ts';
 import { themeOf } from './lists-settings.ts';
 import { itemsSlides } from './slides-items.ts';
-import { itemsOf, slideItem } from './page-live.ts';
-
-/** `SongArrangement`. */
-const ARRANGEMENT: Fields = [
-  ['id', 'str'],
-  ['songId', 'str'],
-  ['name', 'opt'],
-  ['partIds', 'str'],
-  ['sort', 'num'],
-];
+import { slideItem } from './page-live.ts';
 
 /**
  * `presentationPageView` {id}: {presentation (null when there is none), theme, items, slides by item id, songs,
  * arrangements, overlays}.
  */
 export async function presentationPageView(args: unknown, sql: RunSql) {
-  const pid = idOf(argsObj(args), 'id');
+  const pid = idOf(argsOf(args), 'id');
   const items = await itemsOf(sql, pid);
   const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
   const shown = await itemsSlides(items.map(slideItem), sql);

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { can, type Permission } from '../permissions.ts';
 import { audios, customSlides, images, mediaBlobs, overlays, presentationItems, songArrangements, themes, videos } from '../schema.ts';
 import { FIELD_RULES, MutationError, type MutatorCtx } from '../mutation.ts';
+import { ORIGINAL_ARRANGEMENT } from '../slides.ts';
 
 /**
  * The transaction a mutator runs in. It is a plain Drizzle SQLite database:
@@ -93,13 +94,6 @@ export async function renameItems(tx: Tx, table: typeof customSlides | typeof im
     .set({ title: newName })
     .where(and(eq(presentationItems.type, kind), eq(presentationItems.sourceId, sourceId), isNull(presentationItems.content), ne(presentationItems.title, newName)));
 }
-
-/**
- * What an item names for Original, a song's parts in their own order (Lars, 2026-11-19): no arrangement of its own, so
- * it never falls out of date when a part is added, and an id no arrangement has, which every reader takes as all the
- * parts in order (SONG-R18).
- */
-export const ORIGINAL_ARRANGEMENT = 'original';
 
 /** Whether no arrangement has the id yet: an insert of it makes a new one. */
 export async function isNewArrangement(tx: Tx, arrangementId: string): Promise<boolean> {

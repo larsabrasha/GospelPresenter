@@ -1,10 +1,11 @@
 import { and, asc, count, eq, gt, gte, max, ne, sql } from 'drizzle-orm';
 import { FIELD_RULES, MAX_VERSES_PER_ITEM } from '../mutation.ts';
 import { z } from 'zod';
-import { BIBLE_LIMITS, bibleTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
+import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS, bibleItemTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
+import { ORIGINAL_ARRANGEMENT } from '../slides.ts';
 import { requireTheme } from './themes.ts';
-import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx, ORIGINAL_ARRANGEMENT } from './base.ts';
+import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // ------------------------------------------------------------------ presentations
 
@@ -213,7 +214,7 @@ export const addBibleToPresentationArgs = z.object({
   presentationId: id,
   /** The translation the verses came from, and its abbreviation as it was: the item keeps it (D12). */
   bibleId: id,
-  translation: z.string().trim().min(1).max(50),
+  translation: z.string().trim().min(1).max(BIBLE_ITEM_LIMITS.translation),
   verses: z.array(verseArg).min(1).max(MAX_VERSES_PER_ITEM),
   afterItemId: id.nullable().optional(),
 });
@@ -232,7 +233,7 @@ export async function addBibleToPresentation(tx: Tx, a: z.output<typeof addBible
     id: a.itemId,
     presentationId: a.presentationId,
     type: 'bible',
-    title: bibleTitle(a.verses).slice(0, 200),
+    title: bibleItemTitle(a.verses),
     sourceId: a.bibleId,
     arrangementId: null,
     content: JSON.stringify(content),

@@ -1,40 +1,14 @@
 // Presenting's reads (ADR 0008; ported back from crates/gp-core/src/live_views.rs; apps/web/src/live, pages/Output.tsx,
 // pages/live): the slide shown and what goes with it, the item's overlays, a controller's command checked, the video and
 // audio to play, a song to count for CCLI, the outputs and the remote control policy, as the web's reads gave them.
+import { blankPage } from '../custom-slides.ts';
+import { CCLI_COLLECTION_SETTING, REMOTE_CONTROL_SETTING, remoteControlPolicy } from '../mutation.ts';
 import type { RunSql } from './sql.ts';
-import { argsObj, asStr, idOf, optId } from './serde.ts';
-import { type Args, columns, type Fields, jsString, langOf, mapRow, readJson, select, SONG, sortRows } from './lists-rows.ts';
+import { argsOf, asStr, idOf, optId } from './serde.ts';
+import { type Args, columns, ITEM, itemKind, itemRow, jsString, langOf, readJson, select, SONG, sortRows } from './lists-rows.ts';
 import { AUDIO, page, Unread, VIDEO, videoRow } from './lists-media.ts';
 import { themeOf } from './lists-settings.ts';
 import { itemsSlides, type SlideItem } from './slides-items.ts';
-
-/** `PresentationItem`; its type is read by `item`. */
-const ITEM: Fields = [
-  ['id', 'str'],
-  ['presentationId', 'str'],
-  ['type', 'opt'],
-  ['title', 'str'],
-  ['sourceId', 'str'],
-  ['sort', 'num'],
-  ['arrangementId', 'opt'],
-  ['content', 'opt'],
-  ['overlayId', 'opt'],
-  ['note', 'opt'],
-];
-
-const KINDS = ['bible', 'image', 'audio', 'video', 'custom', 'header'];
-/** An item's type as the web reads it: an unknown one reads as a song. */
-const itemKind = (v: unknown): string => (typeof v === 'string' && KINDS.includes(v) ? v : 'song');
-
-/** A presentation item, from its row of `ITEM`. */
-const itemRow = (r: unknown[]): Args => {
-  const v = mapRow(r, ITEM);
-  return { ...v, type: itemKind(v.type) };
-};
-
-/** A presentation's items in the running order. */
-export const itemsOf = async (sql: RunSql, pid: string): Promise<Args[]> =>
-  (await sql(`SELECT ${columns(ITEM)} FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id`, [pid])).map(itemRow);
 
 /** An item as the slides read it. */
 export const slideItem = (i: Args): SlideItem => ({
@@ -59,12 +33,7 @@ function customPage(content: unknown): Args {
   } catch (e) {
     if (!(e instanceof Unread)) throw e;
   }
-  return {
-    background: null,
-    backgroundPicture: null,
-    backgroundPage: null,
-    elements: [],
-  };
+  return blankPage();
 }
 
 /** `shownOverlay`: what an overlay shows, null for none or one that is gone. */
@@ -75,7 +44,7 @@ async function shownOverlay(sql: RunSql, id: string | null): Promise<Args | null
 }
 
 /** `overlayView` {id}: what the overlay shows, null for none or one deleted meanwhile (`shownOverlay`). */
-export const overlayView = (args: unknown, sql: RunSql) => shownOverlay(sql, optId(argsObj(args), 'id'));
+export const overlayView = (args: unknown, sql: RunSql) => shownOverlay(sql, optId(argsOf(args), 'id'));
 
 /** `as_u64`: a whole number from 0 up, as JSON carries one; else none. */
 const asU64 = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 2 ** 64 ? v : null);
@@ -85,7 +54,7 @@ const asU64 = (v: unknown): number | null => (typeof v === 'number' && Number.is
  * (null when it is gone), the slide shown (null when there is none), the presentation's theme, the overlay shown.
  */
 export async function liveSlideView(args: unknown, sql: RunSql) {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const pid = idOf(a, 'presentationId');
   const itemId = optId(a, 'itemId');
   // `as usize` on the WASM core's 32-bit usize: a larger index wraps.
@@ -104,7 +73,7 @@ export async function liveSlideView(args: unknown, sql: RunSql) {
 
 /** `itemOverlaysView` {presentationId}: each item's overlay, [[itemId, overlayId]...] in the running order. */
 export async function itemOverlaysView(args: unknown, sql: RunSql) {
-  const pid = idOf(argsObj(args), 'presentationId');
+  const pid = idOf(argsOf(args), 'presentationId');
   return (await sql('SELECT id, overlay_id FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id', [pid])).map((r) => [
     jsString(r[0]),
     r[1] ?? null,
@@ -116,7 +85,7 @@ export async function itemOverlaysView(args: unknown, sql: RunSql) {
  * (LIVE-R49): the item in the presentation, the overlay not deleted.
  */
 export async function liveTargetsView(args: unknown, sql: RunSql) {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const pid = idOf(a, 'presentationId');
   const itemId = optId(a, 'itemId');
   const item = itemId === null || (await itemOf(sql, pid, itemId)) !== null;
@@ -133,7 +102,7 @@ async function video(sql: RunSql, id: string): Promise<Args | null> {
 
 /** `livePlaybackView` {presentationId, itemId}: the item shown, its video and the next item's, which buffers. */
 export async function livePlaybackView(args: unknown, sql: RunSql) {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const pid = idOf(a, 'presentationId');
   const itemId = optId(a, 'itemId');
   const items = await sql('SELECT id, type, source_id FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id', [pid]);
@@ -149,7 +118,7 @@ export async function livePlaybackView(args: unknown, sql: RunSql) {
 
 /** `itemAudioView` {itemId}: an audio item's file, null for another kind of item or a file gone. */
 export async function itemAudioView(args: unknown, sql: RunSql) {
-  const itemId = optId(argsObj(args), 'itemId');
+  const itemId = optId(argsOf(args), 'itemId');
   if (itemId === null) return null;
   const [r] = await sql("SELECT source_id FROM presentation_items WHERE id = ? AND type = 'audio'", [itemId]);
   if (!r) return null;
@@ -161,10 +130,10 @@ export async function itemAudioView(args: unknown, sql: RunSql) {
  * null: collection off, not a song, or a song without a CCLI number.
  */
 export async function ccliUseView(args: unknown, sql: RunSql) {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const pid = idOf(a, 'presentationId');
   const itemId = optId(a, 'itemId');
-  const [setting] = await sql("SELECT value FROM org_settings WHERE id = 'ccliCollection'", []);
+  const [setting] = await sql('SELECT value FROM org_settings WHERE id = ?', [CCLI_COLLECTION_SETTING]);
   const item = setting?.[0] === 'true' && itemId !== null ? await itemOf(sql, pid, itemId) : null;
   if (!item || item.type !== 'song') return null;
   const [song] = await select(sql, SONG, 'songs WHERE id = ?', [item.sourceId]);
@@ -181,7 +150,7 @@ export async function ccliUseView(args: unknown, sql: RunSql) {
 
 /** `displaysView` {locale}: the organisation's outputs, oldest first, then by name in the page's language and id (`listDisplays`). */
 export async function displaysView(args: unknown, sql: RunSql) {
-  const a = argsObj(args);
+  const a = argsOf(args);
   const rows = (await sql('SELECT id, name, code, kind, created_at FROM displays ORDER BY id', [])).map((r) => ({
     id: r[0] ?? null,
     name: r[1] ?? null,
@@ -198,7 +167,7 @@ export async function displaysView(args: unknown, sql: RunSql) {
 
 /** `remoteControlView`: the organisation's remote control policy (`remoteControlPolicy`): no row, or a value not known, is the presenter's choice. */
 export async function remoteControlView(args: unknown, sql: RunSql) {
-  argsObj(args);
-  const [r] = await sql("SELECT value FROM org_settings WHERE id = 'remoteControl'", []);
-  return r && (r[0] === 'never' || r[0] === 'always') ? r[0] : 'presenter';
+  argsOf(args);
+  const [r] = await sql('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]);
+  return remoteControlPolicy(asStr(r?.[0]));
 }

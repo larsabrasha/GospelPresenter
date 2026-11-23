@@ -3,7 +3,8 @@
 // database answers the page, so the hash must give the thread back.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { highlight, makeZip, PROTOCOL_VERSION, SCHEMA_VERSION, searchSongs, utf8Encode } from '@gp/core';
+import { makeZip, prepareSong, PROTOCOL_VERSION, rankSongs, SCHEMA_VERSION, utf8Encode } from '@gp/core';
+import { searchMarks } from '@gp/core/core';
 import { addSongs, allowRemote, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
@@ -317,8 +318,8 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
     const keys = ['h', 'he', 'her', 'herr', 'herre', 'herr', 'her', 'he', 'h', ''];
     const keystrokes: { screen: number; all: number }[] = [];
     for (const k of keys) {
-      const hits = searchSongs(songs, k);
-      const marked = highlight(hits[0]?.name ?? '', k).filter((p) => p.hit).map((p) => p.text);
+      const hits = rankSongs(songs, prepareSong, k);
+      const marked = searchMarks(hits[0]?.name ?? '', k).filter((p) => p.hit).map((p) => p.text);
       keystrokes.push(await timeKey(page, k, { first: hits.slice(0, 20).map((h) => h.name), count: hits.length, marked }));
     }
     return {

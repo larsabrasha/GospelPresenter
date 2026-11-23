@@ -232,7 +232,7 @@ Where Rust is matched rather than simplified, for now (step 5 may simplify): len
 Rust counted them so (slideshow pages, theme definitions, highlights); JSON text read as serde_json read it
 (`views/serde.ts`, `files-json.ts`: half a surrogate pair, numbers past a double, 128 levels deep refused); a
 `partIndex` wrapped to 32 bits as `usize` on WASM did; Rust's insertion sort for a Bible book of 20 verses or fewer;
-a DEFLATE decoder of its own (`files-inflate.ts`) that takes and refuses what miniz_oxide did.
+a DEFLATE decoder of its own (`inflate.ts`, beside `zip.ts` since step 5) that takes and refuses what miniz_oxide did.
 
 Not matched, each where the Rust core trapped (panicked), so there was no answer: `legacyOverlayPageView` with a
 picture lacking `full` or `thumb`, a Bible book of more than 20 verses whose chapter is not a number, a typed number
@@ -327,6 +327,15 @@ outputs show, presenting's state) is the core's; how it is drawn is the web's.
 - Om Gospel Presenter no longer has the core's row ("Kärna: Rust, gp-core 0.1.0"), and `coreInfoView` is gone.
 - e2e, the whole suite: 115 passed, 3 skipped, and the same 25 failing as after step 4 (the 22 of `4dfb205` and
   performance's three), each on the same step as then or a later one.
+
+Round 5 (2026-11-23): no copies (Lars: "inget skräp som dubbla metoder"). An audit of `packages/core/src` found about
+45 groups where the older TS modules and the views ported back from Rust did one job twice. Every copy no shipped code
+ran is gone (the old zip reader, Bible reference and content readers, `searchSongs` and `highlight`, the old slide
+builders and theme readers, four views no shell called), and every pair that behaved alike is one function: the zip
+reader and DEFLATE (`zip.ts`, `inflate.ts`), the Bible text's storing and hash, the theme read, the item rows, the
+media SQL, the argument and id checks, the trims and comparisons; constants are imported where they are defined.
+e2e, the whole suite: the same 25 as round 4. Seven pairs ran both and differed on broken data or rare characters;
+Lars chose one behaviour for each (round 6).
 
 ## How long
 

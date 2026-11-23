@@ -5,7 +5,6 @@ import {
   DEFAULT_THEME_SETTING,
   isBuiltInTheme,
   serializeBibleText,
-  sortBibleBooks,
   verseCount,
   type BibleBookText,
   type LegacyRow,
@@ -13,7 +12,7 @@ import {
   type LegacyUser,
   type Verse,
 } from '@gp/core';
-import { legacyOverlayPage } from '@gp/core/core';
+import { legacyOverlayPage, sortBibleBooks } from '@gp/core/core';
 import { mapItems, mapPresentations, type Skipped } from './map-presentations.ts';
 import { mapArrangements, mapCcli, mapLabels, mapParts, mapSongs, mapVersions, ms } from './map-songs.ts';
 import type { Media, StoredImage } from './media.ts';

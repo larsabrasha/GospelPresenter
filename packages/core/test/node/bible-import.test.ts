@@ -1,14 +1,14 @@
-// A translation's zip read by the core (`bibleImportView`, spec 05 BIBLE-R3–R6): the tests of 2.0's TS importBibleZip,
+// A translation's zip read by the core (`importBibleZip`, spec 05 BIBLE-R3–R6): the tests of 2.0's TS importBibleZip,
 // parseUsx, parseUsfm and parseXml, moved here with it; a book's text read through a zip holding that one file.
 import { deflateRawSync } from 'node:zlib';
-import { makeZip, MutationError, utf8Encode, type BibleBookText } from '@gp/core';
+import { makeZip, MutationError, utf8Encode } from '@gp/core';
 import { describe, expect, it } from 'vitest';
-import { Core } from '../../src/core.ts';
+import { importBibleZip } from '../../src/core.ts';
 import { sampleDblZip, sampleUsfm, sampleUsfmZip, sampleUsx, WEB_SAMPLE } from './bible-fixtures.ts';
 
-interface Bible { name: string; abbreviation: string; language: string | null; books: BibleBookText[] }
+type Bible = ReturnType<typeof importBibleZip>;
 
-const read = (zip: Uint8Array) => new Core().pure<Bible>('bibleImportView', { data: Buffer.from(zip).toString('base64') });
+const read = (zip: Uint8Array) => importBibleZip(zip);
 const refusal = (zip: Uint8Array) => {
   try {
     read(zip);

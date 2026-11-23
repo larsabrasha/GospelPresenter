@@ -1,87 +1,24 @@
 // A translation imported from a .zip of USX or USFM (spec 05 BIBLE-R3–R6; ADR 0008, ported back from
 // crates/gp-core/src/bible_import.rs, itself from bible-import.ts at 238d481b). It runs on the device that imports, so
-// a desktop host needs no internet and the server never parses a zip: a zip reader over DEFLATE (files-inflate.ts), a
-// small XML reader, and readers of the two formats.
+// a desktop host needs no internet and the server never parses a zip: the core's zip reader (zip.ts), a small XML
+// reader, and readers of the two formats.
 import { compareBooks, swedishBookName } from '../bible-books.ts';
-import { BIBLE_ZIP_MAX_BYTES } from '../bible.ts';
+import { BIBLE_ZIP_MAX_BYTES, type BibleBookText } from '../bible.ts';
 import { MutationError } from '../mutation.ts';
 import { utf8Decode } from '../platform.ts';
-import { base64 } from './files-bytes.ts';
-import { inflate } from './files-inflate.ts';
-import { argsOf, cut, wellFormed } from './files-json.ts';
+import { readZip, zipEntryBytes, type ZipEntry } from '../zip.ts';
+import { cut, wellFormed } from './files-json.ts';
+import { byUnits } from './serde.ts';
 
-type Verse = [number, number, string];
-interface Book {
-  code: string;
-  verses: Verse[];
-}
+type Verse = BibleBookText['verses'][number];
+type Book = BibleBookText;
 
 const refuse = (code: string): never => {
   throw new MutationError(code);
 };
 
-/**
- * `bibleImportView` {data (the zip, base64)}: the translation {name, abbreviation, language, books}, or refused with
- * why: not-zip, compression, too-large, no-files, no-verses.
- */
-export function bibleImportView(args: unknown): unknown {
-  const a = argsOf(args);
-  const data = typeof a.data === 'string' ? base64(a.data) : null;
-  if (!data) refuse('invalid-args');
-  return importZip(data!);
-}
-
-// ------------------------------------------------------------------ zip
-
-interface Entry {
-  name: string;
-  size: number;
-  method: number;
-  compressed: number;
-  local: number;
-}
-
-/** A little-endian number at `o`; past the end, the bytes read as 0. */
-const le = (d: Uint8Array, o: number, n: number) => {
-  let v = 0;
-  for (let k = 0; k < n; k++) v += (d[o + k] ?? 0) * 2 ** (8 * k);
-  return v;
-};
-
-/** The entries of a zip file, from its central directory. */
-function readZip(data: Uint8Array): Entry[] {
-  const len = data.length;
-  let end = -1;
-  if (len >= 22) for (let i = len - 22; i >= Math.max(0, len - 22 - 65_535) && end < 0; i--) if (le(data, i, 4) === 0x06054b50) end = i;
-  if (end < 0) refuse('not-zip');
-  const count = le(data, end + 10, 2);
-  let p = le(data, end + 16, 4);
-  const entries: Entry[] = [];
-  for (let i = 0; i < count; i++) {
-    if (p + 46 > len || le(data, p, 4) !== 0x02014b50) refuse('not-zip');
-    const nameLength = le(data, p + 28, 2);
-    const name = utf8Decode(data.subarray(Math.min(p + 46, len), Math.min(p + 46 + nameLength, len)));
-    entries.push({ name, size: le(data, p + 24, 4), method: le(data, p + 10, 2), compressed: le(data, p + 20, 4), local: le(data, p + 42, 4) });
-    p += 46 + nameLength + le(data, p + 30, 2) + le(data, p + 32, 2);
-  }
-  return entries;
-}
-
-/** An entry's text: stored, or DEFLATE; a damaged stream is refused as `compression`. */
-function textOf(data: Uint8Array, e: Entry): string {
-  if (le(data, e.local, 4) !== 0x04034b50) refuse('not-zip');
-  const start = Math.min(e.local + 30 + le(data, e.local + 26, 2) + le(data, e.local + 28, 2), data.length);
-  const raw = data.subarray(start, Math.min(start + e.compressed, data.length));
-  if (e.method === 0) return utf8Decode(raw);
-  if (e.method !== 8) refuse('compression');
-  let bytes: Uint8Array;
-  try {
-    bytes = inflate(raw);
-  } catch {
-    return refuse('compression');
-  }
-  return utf8Decode(bytes);
-}
+/** An entry's text: stored, or DEFLATE (`zipEntryBytes`). */
+const textOf = (data: Uint8Array, e: ZipEntry) => utf8Decode(zipEntryBytes(data, e));
 
 // ------------------------------------------------------------------ XML
 
@@ -323,7 +260,6 @@ function parseUsfm(usfm: string): Book | null {
 
 const fileOf = (path: string) => path.slice(path.lastIndexOf('/') + 1).toLowerCase();
 const dirOf = (path: string) => path.slice(0, path.lastIndexOf('/') + 1);
-const units = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
 
 /** The initials of a title's capitalised words, two or more ("Svenska Folkbibeln" SF). */
 function initials(title: string): string | null {
@@ -346,7 +282,7 @@ function htmlTitle(html: string): string | null {
 
 /** The canonical order of two books (BIBLE-R9): the 66 books first, the others after by code. */
 const known = (code: string) => swedishBookName(code) !== code;
-const byBook = (x: Book, y: Book) => (known(x.code) || known(y.code) ? compareBooks(x.code, y.code) : units(x.code, y.code));
+const byBook = (x: Book, y: Book) => (known(x.code) || known(y.code) ? compareBooks(x.code, y.code) : byUnits(x.code, y.code));
 
 /** `a - b || c - d` as a sort reads it: NaN and 0 alike are no answer. */
 function byVerse(x: Verse, y: Verse): number {
@@ -367,6 +303,9 @@ function sorted<T>(xs: T[], by: (x: T, y: T) => number): T[] {
   }
   return out;
 }
+
+/** Books in canonical order and each book's verses by chapter and verse (BIBLE-R9). */
+export const sortBibleBooks = (books: BibleBookText[]): BibleBookText[] => sorted(books, byBook).map((b) => ({ code: b.code, verses: sorted(b.verses, byVerse) }));
 
 /** A number as JSON from JavaScript has it: whole numbers as integers, NaN and infinities as null. */
 const number = (f: number) => (Number.isFinite(f) ? f : null);
@@ -411,7 +350,7 @@ export function importZip(data: Uint8Array): unknown {
   if (!files.length) refuse('no-files');
 
   const books: Book[] = [];
-  for (const file of files.toSorted((x, y) => units(x.name, y.name))) {
+  for (const file of files.toSorted((x, y) => byUnits(x.name, y.name))) {
     const text = textOf(data, file);
     const book = usx ? parseUsx(text) : parseUsfm(text);
     if (book && book.verses.length && !PERIPHERALS.has(book.code) && !books.some((b) => b.code === book.code)) books.push(book);
@@ -421,6 +360,6 @@ export function importZip(data: Uint8Array): unknown {
     name: cut(name, 200),
     abbreviation: cut(abbreviation, 50),
     language: language === null ? null : cut(language, 20),
-    books: sorted(books, byBook).map((b) => ({ code: b.code, verses: sorted(b.verses, byVerse).map(([c, v, t]) => [number(c), number(v), wellFormed(t)]) })),
+    books: sortBibleBooks(books).map((b) => ({ code: b.code, verses: b.verses.map(([c, v, t]) => [number(c), number(v), wellFormed(t)]) })),
   };
 }

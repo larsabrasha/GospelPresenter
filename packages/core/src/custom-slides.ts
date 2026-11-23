@@ -77,16 +77,6 @@ export const blankPage = (): CustomPage => ({ background: null, backgroundPictur
 /** A PDF's pages as a slideshow's: each the picture of its page on black, with nothing on it yet. */
 export const pdfPages = (pages: Picture[]): CustomPage[] => pages.map((p) => ({ ...blankPage(), background: '#000000', backgroundPage: { full: p.full, thumb: p.thumb } }));
 
-/** A slide's pages as stored, or one blank page where they do not read. */
-export function parseCustomPages(json: string | null): CustomPage[] {
-  try {
-    const parsed = customPagesSchema.safeParse(JSON.parse(json ?? ''));
-    return parsed.success ? parsed.data : [blankPage()];
-  } catch {
-    return [blankPage()];
-  }
-}
-
 /** An overlay's page as stored, or a blank one where it does not read. */
 export function parseCustomPage(json: string | null): CustomPage {
   try {
@@ -107,7 +97,7 @@ export function customPageText(page: CustomPage): string {
 }
 
 /** Every picture `pages` draw: their backgrounds' and their elements'. */
-export const customPagePictures = (pages: CustomPage[]): Picture[] =>
+const customPagePictures = (pages: CustomPage[]): Picture[] =>
   pages.flatMap((p) => [
     ...(p.backgroundPicture ? [p.backgroundPicture] : []),
     ...(p.backgroundPage ? [p.backgroundPage] : []),

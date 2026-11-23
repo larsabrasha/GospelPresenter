@@ -1,36 +1,12 @@
 // What the lists' views share (ported back from crates/gp-core/src/rows.rs, args.rs, collation.rs and json.rs): a row
 // of the local database as the web's reads gave it, SQLite's snake_case columns mapped to camelCase fields, each
-// converted as the web's mapper converts it; the arguments' checks; the order by name in the page's language
+// converted as the web's mapper converts it; the order by name in the page's language
 // (Intl.Collator, which collation.rs was proved equal to); and JSON text read as the Rust core read it.
-import { MutationError } from '../mutation.ts';
 import type { Rows, RunSql } from './sql.ts';
+import { rustTrim } from './serde.ts';
 
-/** A view's arguments: an object, else refused as the Rust core refused them. */
+/** A view's arguments, or a row as an object of its fields. */
 export type Args = Record<string, unknown>;
-
-export function argsOf(args: unknown): Args {
-  if (!args || typeof args !== 'object' || Array.isArray(args)) throw new MutationError('invalid-args', 'the arguments are not an object');
-  return args as Args;
-}
-
-/** `id`: 1–100 characters (code points, as Rust counts them). */
-export function idArg(a: Args, key: string): string {
-  const v = a[key];
-  if (typeof v !== 'string' || v.length === 0 || [...v].length > 100) throw new MutationError('invalid-args', key);
-  return v;
-}
-
-/** A string argument that must be given; refused otherwise. */
-export function textArg(a: Args, key: string): string {
-  const v = a[key];
-  if (typeof v !== 'string') throw new MutationError('invalid-args', key);
-  return v;
-}
-
-/** Rust's white space (`char::is_whitespace`, Unicode's White_Space), which `trim` and `split_whitespace` take: U+0085, not U+FEFF. */
-const RUST_SPACE = '[\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
-const rustTrimmed = new RegExp(`^${RUST_SPACE}+|${RUST_SPACE}+$`, 'g');
-const rustTrim = (s: string) => s.replace(rustTrimmed, '');
 
 /** How a field is read: `String(x)`, `Number(x)`, `Boolean(x)`, `x ?? null` (kept as it is), or null kept and anything else `Number(x)`. */
 type K = 'str' | 'num' | 'bool' | 'opt' | 'optNum';
@@ -83,8 +59,6 @@ export async function select(sql: RunSql, fields: Fields, from: string, params: 
   return ((await sql(`SELECT ${columns(fields)} FROM ${from}`, params)) as Rows).map((r) => mapRow(r, fields));
 }
 
-/** `?, ?, …`: `n` parameters. */
-export const marks = (n: number) => Array.from({ length: n }, () => '?').join(', ');
 
 /** `Song`. */
 export const SONG: Fields = [['id', 'str'], ['name', 'str'], ['author', 'opt'], ['publisher', 'opt'], ['year', 'opt'], ['ccli', 'opt'], ['deletedAt', 'opt']];
@@ -95,6 +69,25 @@ export const PRESENTATION: Fields = [['id', 'str'], ['name', 'str'], ['eventDate
 export const PART: Fields = [['id', 'str'], ['songId', 'str'], ['sort', 'num'], ['labelId', 'opt'], ['content', 'str']];
 /** `Label`. */
 export const LABEL: Fields = [['id', 'str'], ['text', 'str'], ['color', 'str'], ['sort', 'num']];
+/** `SongArrangement`. */
+export const ARRANGEMENT: Fields = [['id', 'str'], ['songId', 'str'], ['name', 'opt'], ['partIds', 'str'], ['sort', 'num']];
+/** `PresentationItem`; its type is read by `itemRow`. */
+export const ITEM: Fields = [['id', 'str'], ['presentationId', 'str'], ['type', 'opt'], ['title', 'str'], ['sourceId', 'str'], ['sort', 'num'],
+  ['arrangementId', 'opt'], ['content', 'opt'], ['overlayId', 'opt'], ['note', 'opt']];
+
+const KINDS = ['bible', 'image', 'audio', 'video', 'custom', 'header'];
+/** An item's type as the web reads it: an unknown one reads as a song. */
+export const itemKind = (v: unknown): string => (typeof v === 'string' && KINDS.includes(v) ? v : 'song');
+
+/** A presentation item, from its row of `ITEM`. */
+export const itemRow = (r: unknown[]): Args => {
+  const v = mapRow(r, ITEM);
+  return { ...v, type: itemKind(v.type) };
+};
+
+/** A presentation's items in the running order (`itemsOf`). */
+export const itemsOf = async (sql: RunSql, pid: string): Promise<Args[]> =>
+  (await sql(`SELECT ${columns(ITEM)} FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id`, [pid])).map(itemRow);
 
 // ------------------------------------------------------------------ the order by name (collation.rs)
 

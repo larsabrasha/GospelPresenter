@@ -9,27 +9,16 @@
 // The app's live state, which presentation is presented and its slide, is not here: it is read (`context.live`), and
 // a change to it comes back as `live`, for the shell to apply through `liveChangeView` (live.ts).
 import { removableItem } from '../presenting.ts';
-import { asBool, asI64, asStr, invalidArgs, isObj, type Obj } from './serde.ts';
+import { argsOf, asBool, asI64, asStr, filled, invalidArgs, isObj, type Obj, sameJson } from './serde.ts';
 import { presentingKeyView } from './slides-presenting.ts';
 
 /** A text that is not empty, else none. */
-const sOf = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
-const objOf = (v: unknown): Obj => {
-  if (!isObj(v)) throw invalidArgs();
-  return v;
-};
+const sOf = (v: unknown): string | null => (filled(v) ? v : null);
 const has = (o: Obj, k: string) => Object.hasOwn(o, k);
 /** A value an event must carry, else `invalid-args`. */
 function need<T>(v: T | null): T {
   if (v === null) throw invalidArgs();
   return v;
-}
-
-/** JSON values alike, as serde_json's `Value` compares them: objects by their fields, whatever their order. */
-function same(a: unknown, b: unknown): boolean {
-  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => same(x, b[i]));
-  if (isObj(a)) return isObj(b) && Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((k) => has(b, k) && same(a[k], b[k]));
-  return a === b;
 }
 
 /** Rust's `str::parse::<i64>`: an optional sign and digits, in range; else none. */
@@ -125,18 +114,18 @@ class Page {
       state: { presenting: this.presenting, shown, picked },
       key,
     });
-    if (!same(next.picked, picked)) {
+    if (!sameJson(next.picked, picked)) {
       const item = sOf(next.picked?.itemId);
       if (item !== null) this.set('selectedId', item);
       this.set('picked', next.picked);
     }
-    return same(next.shown, shown) ? null : next.shown;
+    return sameJson(next.shown, shown) ? null : next.shown;
   }
 }
 
 function pageOf(a: Obj): { p: Page; order: unknown; cx: Obj } {
-  const cx = objOf(a.context);
-  const live = objOf(cx.live);
+  const cx = argsOf(a.context);
+  const live = argsOf(cx.live);
   const presenting = asBool(cx.presenting) ?? false;
   if (!has(a, 'order') || !Array.isArray(a.order)) throw invalidArgs();
   const counts: [string, number][] = [];
@@ -169,9 +158,9 @@ const slideAt = (itemId: string, partIndex: number) => ({ itemId, partIndex });
  * `add`, `start` (F5, ⌥⌘P, ▶), `end` (⌘.), `sync` (the context changed), `changed` {itemIds} (the page read again).
  */
 export function pageEventView(args: unknown) {
-  const a = objOf(args);
+  const a = argsOf(args);
   const { p, order, cx } = pageOf(a);
-  const ev = objOf(a.event);
+  const ev = argsOf(a.event);
   const delta = asI64(ev.delta) ?? 1;
   const sign = Math.sign(delta);
   const itemArg = sOf(ev.itemId);
@@ -352,7 +341,7 @@ export function pageEventView(args: unknown) {
  * number typed has none (`live.noSuchSlide`), each with its number and item.
  */
 export function pageModelView(args: unknown) {
-  const { p, cx } = pageOf(objOf(args));
+  const { p, cx } = pageOf(argsOf(args));
   let cue: unknown = null;
   if (p.presenting) {
     const n = parseI64(p.typed());

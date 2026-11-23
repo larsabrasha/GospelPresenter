@@ -4,11 +4,11 @@
 // prepares it again, as the web's worker kept it.
 import { MutationError } from '../mutation.ts';
 import { type PreparedSong, prepareSong, rankSongs } from '../search.ts';
-import type { RunSql } from './sql.ts';
-import { argsOf, columns, type Fields, idArg, LABEL, langOf, mapRow, marks, PART, PRESENTATION, select, SONG, sortRows } from './lists-rows.ts';
+import { marks, type RunSql } from './sql.ts';
+import { ARRANGEMENT, columns, type Fields, LABEL, langOf, mapRow, PART, PRESENTATION, select, SONG, sortRows } from './lists-rows.ts';
+import { argsOf, idOf, strOrEmpty } from './serde.ts';
 import { themeOf } from './lists-settings.ts';
 
-const ARRANGEMENT: Fields = [['id', 'str'], ['songId', 'str'], ['name', 'opt'], ['partIds', 'str'], ['sort', 'num']];
 const VERSION: Fields = [['id', 'str'], ['songId', 'str'], ['userId', 'str'], ['createdAt', 'num'], ['name', 'str'], ['data', 'str']];
 const MATERIAL: Fields = [['id', 'str'], ['songId', 'str'], ['kind', 'str'], ['title', 'str'], ['url', 'opt'], ['hash', 'opt'], ['contentType', 'opt'],
   ['size', 'optNum'], ['sort', 'num'], ['createdAt', 'num']];
@@ -22,8 +22,6 @@ export async function songsView(args: unknown, sql: RunSql) {
 /** The library as search reads it, in the shell's order: each song's id and prepared texts; null until prepared. */
 let library: { ids: string[]; prepared: PreparedSong[] } | null = null;
 
-const text = (v: unknown) => (typeof v === 'string' ? v : '');
-
 /**
  * `songSearchPrepare` {order}: reads the library and prepares it for search, in `order` (the songs' ids as the shell
  * orders them; ties in a search keep it); how many songs it holds. A song not in `order` is not searched.
@@ -31,11 +29,11 @@ const text = (v: unknown) => (typeof v === 'string' ? v : '');
 export async function songSearchPrepare(args: unknown, sql: RunSql) {
   const order = argsOf(args).order;
   if (!Array.isArray(order) || !order.every((id) => typeof id === 'string')) throw new MutationError('invalid-args', 'order');
-  const songs = new Map((await sql('SELECT id, name, author FROM songs WHERE deleted_at IS NULL', [])).map((r) => [text(r[0]), [text(r[1]), text(r[2])]]));
+  const songs = new Map((await sql('SELECT id, name, author FROM songs WHERE deleted_at IS NULL', [])).map((r) => [strOrEmpty(r[0]), [strOrEmpty(r[1]), strOrEmpty(r[2])]]));
   const lyrics = new Map<string, string[]>();
   for (const [songId, content] of await sql('SELECT p.song_id, p.content FROM song_parts p JOIN songs s ON s.id = p.song_id WHERE s.deleted_at IS NULL ORDER BY p.song_id, p.sort, p.id', [])) {
-    const own = lyrics.get(text(songId)) ?? lyrics.set(text(songId), []).get(text(songId))!;
-    own.push(text(content));
+    const own = lyrics.get(strOrEmpty(songId)) ?? lyrics.set(strOrEmpty(songId), []).get(strOrEmpty(songId))!;
+    own.push(strOrEmpty(content));
   }
   const next: NonNullable<typeof library> = { ids: [], prepared: [] };
   for (const id of order as string[]) {
@@ -70,11 +68,11 @@ export async function songSearchView(args: unknown) {
 const song = async (sql: RunSql, id: string) => (await select(sql, SONG, 'songs WHERE id = ?', [id]))[0] ?? null;
 
 /** `songView` {id}: the song (`getSong`), null when there is none. */
-export const songView = async (args: unknown, sql: RunSql) => song(sql, idArg(argsOf(args), 'id'));
+export const songView = async (args: unknown, sql: RunSql) => song(sql, idOf(argsOf(args), 'id'));
 
 /** `songPageView` {id}: {song, parts, arrangements, labels}: the song's page and the pages pushed in from it. */
 export async function songPageView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'id');
+  const id = idOf(argsOf(args), 'id');
   return {
     song: await song(sql, id),
     parts: await select(sql, PART, 'song_parts WHERE song_id IN (?) ORDER BY sort, id', [id]),
@@ -85,7 +83,7 @@ export async function songPageView(args: unknown, sql: RunSql) {
 
 /** `songPresentationsView` {songId}: the presentations and templates, not in the trash, that show the song (D17). */
 export async function songPresentationsView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'songId');
+  const id = idOf(argsOf(args), 'songId');
   const cols = columns(PRESENTATION).split(', ').map((c) => `p.${c}`).join(', ');
   const rows = await sql(`SELECT DISTINCT ${cols} FROM presentations p JOIN presentation_items i ON i.presentation_id = p.id
          WHERE i.type = 'song' AND i.source_id = ? AND p.deleted_at IS NULL ORDER BY p.name`, [id]);
@@ -94,7 +92,7 @@ export async function songPresentationsView(args: unknown, sql: RunSql) {
 
 /** `songHistoryView` {id}: {song, versions newest first (SONG-R23), the organisation's default theme}. */
 export async function songHistoryView(args: unknown, sql: RunSql) {
-  const id = idArg(argsOf(args), 'id');
+  const id = idOf(argsOf(args), 'id');
   return {
     song: await song(sql, id),
     versions: await select(sql, VERSION, 'song_versions WHERE song_id = ? ORDER BY created_at DESC, id DESC', [id]),

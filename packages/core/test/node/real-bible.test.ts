@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BIBLE_LIMITS, bibleTextHash, bibleTextSchema, bookChunk, serializeBibleText, type BibleBookText, type Verse } from '@gp/core';
-import { Core } from '../../src/core.ts';
+import { Core, importBibleZip } from '../../src/core.ts';
 
 const zipPath = process.env.GP_REAL_BIBLE_ZIP;
 const core = new Core();
@@ -27,7 +27,7 @@ describe.skipIf(!zipPath)('a real Bible (GP_REAL_BIBLE_ZIP)', () => {
   const all = () => bible.books.flatMap((b) => b.verses.map(([c, v, t]) => ({ ref: `${b.code} ${c}:${v}`, t })));
 
   it('imports, with the whole canon and a sane number of verses', async () => {
-    bible = core.pure('bibleImportView', { data: readFileSync(zipPath!).toString('base64') });
+    bible = importBibleZip(new Uint8Array(readFileSync(zipPath!)));
     const codes = bible.books.map((b) => b.code);
 
     expect(CANON.filter((c) => !codes.includes(c))).toEqual([]);

@@ -3,10 +3,9 @@
 // (rv.data.Presentation); only the fields for the title, the CCLI block, the groups, their slides' text and the
 // arrangements are read, with a small reader of the wire format. A slide's text is RTF, made plain here; a unit of a
 // pair that pairs with none is U+FFFD at the end, as the Rust core had it.
-import { LIMITS, MutationError } from '../mutation.ts';
+import { LIMITS } from '../mutation.ts';
 import { utf8Decode } from '../platform.ts';
-import { base64 } from './files-bytes.ts';
-import { argsOf, cut, wellFormed } from './files-json.ts';
+import { cut, wellFormed } from './files-json.ts';
 
 /** The lengths an imported value is cut to rather than refused (SONG-R41). */
 const MAX = { name: 200, author: 200, publisher: 200, ccli: 20, label: 50, content: 5000, arrangementName: 100 } as const;
@@ -18,17 +17,6 @@ export interface ImportedSong {
   ccli: string | null;
   parts: { labelText: string | null; content: string }[];
   arrangements: { name: string | null; partIndexes: number[] }[];
-}
-
-/**
- * `proPresenterSongView` {data (the file, base64), fileName}: the song the file holds, or null when it has no slide
- * text or cannot be read (SONG-R40).
- */
-export function proPresenterSongView(args: unknown): ImportedSong | null {
-  const a = argsOf(args);
-  const data = typeof a.data === 'string' ? base64(a.data) : null;
-  if (!data) throw new MutationError('invalid-args');
-  return proPresenterSong(data, typeof a.fileName === 'string' ? a.fileName : null);
 }
 
 /** The song a `.pro` file holds, or null when it has no slide text or cannot be read (SONG-R35–R43). */

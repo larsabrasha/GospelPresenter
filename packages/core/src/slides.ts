@@ -56,8 +56,9 @@ export function parsePartIds(json: string): string[] {
 }
 
 /**
- * What an item names for Original, a song's parts in their own order, beside its arrangements (Lars, 2026-11-19): the
- * core's `ORIGINAL`, an id no arrangement has, so every reader shows all the parts (SONG-R18).
+ * What an item names for Original, a song's parts in their own order, beside its arrangements (Lars, 2026-11-19): no
+ * arrangement of its own, so it never falls out of date when a part is added, and an id no arrangement has, so every
+ * reader shows all the parts in order (SONG-R18).
  */
 export const ORIGINAL_ARRANGEMENT = 'original';
 
@@ -66,39 +67,16 @@ export function sortedArrangements(arrangements: SongArrangement[], songId: stri
   return arrangements.filter((a) => a.songId === songId).toSorted((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
 }
 
-/** A slide of an image item: one picture, over the theme's media background (spec 05). */
-export function imageSlide(fullHash: string, key = 'image', thumbHash: string | null = null): Slide {
-  return { key, kind: 'media', text: '', verses: null, image: fullHash, thumb: thumbHash, label: null, credits: null };
-}
-
-/** A video item's one slide: the still as its picture, the video for the outputs that play it. */
-export function videoSlide(video: { hash: string; contentType: VideoType; codec: VideoCodec; stillHash: string; thumbHash?: string }): Slide {
-  return {
-    key: 'video',
-    kind: 'media',
-    text: '',
-    verses: null,
-    image: video.stillHash,
-    thumb: video.thumbHash ?? null,
-    label: null,
-    credits: null,
-    video: { hash: video.hash, type: video.contentType, codec: video.codec },
-  };
-}
-
-/** An audio item's one slide: nothing on the outputs but the theme's background, while the sound plays. */
-export function audioSlide(name: string): Slide {
-  return { key: 'audio', kind: 'media', text: '', verses: null, image: null, label: null, credits: null, audio: { name } };
-}
-
 /** At most this many pictures in one image item. */
 export const MAX_ITEM_IMAGES = 50;
+/** An image item's picture's library id, at most this long. */
+export const MAX_ITEM_IMAGE_ID = 64;
 
 /**
  * What an image item keeps: its pictures in order, library ids (Presentation.razor's image parts).
  * An item made before there could be several has no content and shows its `sourceId` alone.
  */
-export const imageItemContentSchema = z.object({ images: z.array(z.string().min(1).max(64)).min(1).max(MAX_ITEM_IMAGES) });
+const imageItemContentSchema = z.object({ images: z.array(z.string().min(1).max(MAX_ITEM_IMAGE_ID)).min(1).max(MAX_ITEM_IMAGES) });
 
 /** An image item's pictures, by library id, in order. */
 export function imageItemIds(item: { sourceId: string; content: string | null }): string[] {
@@ -129,12 +107,3 @@ const slidePageSchema = z.object({ full: z.string().regex(MEDIA_HASH), thumb: z.
 /** A PDF's pages, rendered at import: what `addSlides` takes, and a deck of before (schema 20, a zip of format 3). */
 export const slideDeckPagesSchema = z.array(slidePageSchema).min(1).max(MAX_SLIDE_PAGES);
 
-/** A deck's pages, or none where they do not read. */
-export function parseSlideDeckPages(json: string | null): SlidePage[] {
-  try {
-    const parsed = slideDeckPagesSchema.safeParse(JSON.parse(json ?? ''));
-    return parsed.success ? parsed.data : [];
-  } catch {
-    return [];
-  }
-}

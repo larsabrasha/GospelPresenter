@@ -11,13 +11,30 @@ export const invalidArgs = (): MutationError => new MutationError('invalid-args'
 export const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** The view's arguments: an object, else `invalid-args` (mutators.rs `run`). */
-export function argsObj(args: unknown): Obj {
+export function argsOf(args: unknown): Obj {
   if (!isObj(args)) throw invalidArgs();
   return args;
 }
 
+/** JavaScript's truthiness of a text: a string that is not empty. */
+export const filled = (v: unknown): v is string => typeof v === 'string' && v !== '';
+
+/**
+ * Two JSON values alike, as serde_json's `Value` compares them: objects by their fields, whatever their order; a value
+ * left out (undefined) as null, as JSON carries it.
+ */
+export function sameJson(a: unknown, b: unknown): boolean {
+  const [x, y] = [a ?? null, b ?? null];
+  if (Array.isArray(x)) return Array.isArray(y) && x.length === y.length && x.every((v, i) => sameJson(v, y[i]));
+  if (isObj(x)) return isObj(y) && Object.keys(x).length === Object.keys(y).length && Object.keys(x).every((k) => Object.hasOwn(y, k) && sameJson(x[k], y[k]));
+  return x === y;
+}
+
 /** `as_str`. */
 export const asStr = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+/** A text, else "" (`s(&r[0])`: a column read as text). */
+export const strOrEmpty = (v: unknown): string => (typeof v === 'string' ? v : '');
 
 /** `as_f64`: any number JSON carries (NaN and the infinities travel as null). */
 export const asF64 = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -90,6 +107,9 @@ export function hasFraction(text: string): boolean {
   }
   return false;
 }
+
+/** JavaScript's `<` order of strings: by UTF-16 code units. */
+export const byUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Rust's `str` order: by code point (UTF-8's bytes), not UTF-16's units. */
 export function byCodePoint(a: string, b: string): number {

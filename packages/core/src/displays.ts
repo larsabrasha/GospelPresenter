@@ -5,7 +5,7 @@
 
 /** Lower-case letters and digits that are not easily confused (no i, l, o, 0, 1). */
 export const DISPLAY_CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
-export const DISPLAY_CODE_LENGTH = 7;
+const DISPLAY_CODE_LENGTH = 7;
 export const DISPLAY_CODE = /^[abcdefghjkmnpqrstuvwxyz23456789]{7}$/;
 
 /** At most 50 outputs per organisation, screens and public ones together (LIVE-R30). */

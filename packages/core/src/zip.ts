@@ -1,4 +1,6 @@
-import { inflateRaw, utf8Decode, utf8Encode } from './platform.ts';
+import { MutationError } from './mutation.ts';
+import { utf8Decode, utf8Encode } from './platform.ts';
+import { inflate } from './inflate.ts';
 
 // A zip's parts, stored entries only (no compression, no ZIP64), shared by every zip the app writes: `makeZip` here,
 // the web app's export of Blobs (apps/web/src/media/zipBlob.ts) and 1.x's export to a file (apps/legacy). Each writes
@@ -79,48 +81,58 @@ export function makeZip(files: { name: string; data: Uint8Array }[]): Uint8Array
   return out;
 }
 
+/** A zip's entry as its central directory names it: its name, size, method (0 stored, 8 DEFLATE) and where its bytes are. */
 export interface ZipEntry {
   name: string;
   size: number;
-  read(): Promise<Uint8Array>;
+  method: number;
+  compressed: number;
+  local: number;
 }
 
-const u16 = (d: Uint8Array, o: number) => d[o]! | (d[o + 1]! << 8);
-const u32 = (d: Uint8Array, o: number) => (d[o]! | (d[o + 1]! << 8) | (d[o + 2]! << 16) | (d[o + 3]! << 24)) >>> 0;
+const refuse = (code: string): never => {
+  throw new MutationError(code);
+};
+
+/** A little-endian number at `o`; past the end, the bytes read as 0. */
+const le = (d: Uint8Array, o: number, n: number) => {
+  let v = 0;
+  for (let k = 0; k < n; k++) v += (d[o + k] ?? 0) * 2 ** (8 * k);
+  return v;
+};
 
 /**
- * The entries of a zip in memory, from its central directory; stored and DEFLATE entries can be read. For the tests and
- * tools that check a zip the app wrote: a translation's zip is read by the Rust core (`bibleImportView`).
+ * The entries of a zip in memory, from its central directory (no ZIP64): a translation's zip (files-bible-import.ts),
+ * and the tests and tools that check a zip the app wrote. Refused as `not-zip` where there is no directory.
  */
 export function readZip(data: Uint8Array): ZipEntry[] {
+  const len = data.length;
   let end = -1;
-  for (let i = data.length - 22; i >= Math.max(0, data.length - 22 - 65_535); i--) {
-    if (u32(data, i) === 0x06054b50) {
-      end = i;
-      break;
-    }
-  }
-  if (end < 0) throw new Error('not-zip');
-  const count = u16(data, end + 10);
-  let p = u32(data, end + 16);
+  if (len >= 22) for (let i = len - 22; i >= Math.max(0, len - 22 - 65_535) && end < 0; i--) if (le(data, i, 4) === 0x06054b50) end = i;
+  if (end < 0) refuse('not-zip');
+  const count = le(data, end + 10, 2);
+  let p = le(data, end + 16, 4);
   const entries: ZipEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (p + 46 > data.length || u32(data, p) !== 0x02014b50) throw new Error('not-zip');
-    const method = u16(data, p + 10);
-    const compressed = u32(data, p + 20);
-    const nameLength = u16(data, p + 28);
-    const local = u32(data, p + 42);
-    const name = utf8Decode(data.subarray(p + 46, p + 46 + nameLength));
-    entries.push({
-      name,
-      size: u32(data, p + 24),
-      async read() {
-        const start = local + 30 + u16(data, local + 26) + u16(data, local + 28);
-        const raw = data.subarray(start, start + compressed);
-        return method === 8 ? inflateRaw(raw) : raw;
-      },
-    });
-    p += 46 + nameLength + u16(data, p + 30) + u16(data, p + 32);
+    if (p + 46 > len || le(data, p, 4) !== 0x02014b50) refuse('not-zip');
+    const nameLength = le(data, p + 28, 2);
+    const name = utf8Decode(data.subarray(Math.min(p + 46, len), Math.min(p + 46 + nameLength, len)));
+    entries.push({ name, size: le(data, p + 24, 4), method: le(data, p + 10, 2), compressed: le(data, p + 20, 4), local: le(data, p + 42, 4) });
+    p += 46 + nameLength + le(data, p + 30, 2) + le(data, p + 32, 2);
   }
   return entries;
+}
+
+/** An entry's bytes: stored, or DEFLATE; another method or a damaged stream is refused as `compression`. */
+export function zipEntryBytes(data: Uint8Array, e: ZipEntry): Uint8Array {
+  if (le(data, e.local, 4) !== 0x04034b50) refuse('not-zip');
+  const start = Math.min(e.local + 30 + le(data, e.local + 26, 2) + le(data, e.local + 28, 2), data.length);
+  const raw = data.subarray(start, Math.min(start + e.compressed, data.length));
+  if (e.method === 0) return raw;
+  if (e.method !== 8) refuse('compression');
+  try {
+    return inflate(raw);
+  } catch {
+    return refuse('compression');
+  }
 }
