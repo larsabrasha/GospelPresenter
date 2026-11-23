@@ -242,8 +242,8 @@ in an engine without it only unusual number literals in a queued change's argume
 
 Found on the way, for later: the mutators check text lengths with zod, by UTF-16 unit, where the Rust mutators
 counted code points (an element's text of 2 000, an id of 1 to 40): text near those limits made of astral
-characters (emoji) is refused a little earlier in TS. `coreInfoView` still answers `gp-core 0.1.0`, which "Om Gospel
-Presenter" shows as the core it runs on.
+characters (emoji) is refused a little earlier in TS. `coreInfoView` answered `gp-core 0.1.0`, which "Om Gospel
+Presenter" showed as the core it ran on; the row and the view went in step 5, round 4 (Lars, 2026-11-23).
 
 ## Step 3: the switch
 
@@ -312,6 +312,21 @@ Round 3 (2026-11-23): Inställningar's list and libraries.
 - `libraryPageView` and `freshNameView` are gone: the web read only whether a role manages a library, now `can`, and
   `freshName` (`ui/justCreated.ts`) names a new one itself.
 - e2e: settings, library, users, themes, shortcuts, panels, orgs, labels and image-edit pass.
+
+Round 4 (2026-11-23), by the rule Lars agreed: what is true whatever the page looks like (rules, data, what the
+outputs show, presenting's state) is the core's; how it is drawn is the web's.
+- The views that read no database are typed functions of `packages/core/src/pure.ts` (through `@gp/core/core`):
+  `presentingMarks`, `addPosition`, `liveChange`, `followItemOverlay`, `pageModel` and `pageEvent` with the page's
+  types (`PageState`, `PageEvent`, `PageCommand`, `PageCue`), `bibleSlides`, `verseSearchPlan`, `importBibleZip`,
+  `proPresenterSong`, `songNamesakes`, `songImportDuplicates`, `searchMarks` and `syncStatus`. The web calls them
+  directly: `apps/web`'s pageCore.ts and bibleZip.ts are gone, and with them the names as strings, the casts of each
+  answer and the files sent as base64. A book's names are `swedishBookName`, `englishBookName` and `isOldTestament`.
+- Presenting's state machine stays in the core: it decides what the outputs show.
+- `removableItem` (`presenting.ts`) is the one rule that the item on the outputs is not removed; the page's Radera
+  key (`page-state.ts`) and the item's menu (`itemMenu.ts`) both ask it.
+- Om Gospel Presenter no longer has the core's row ("Kärna: Rust, gp-core 0.1.0"), and `coreInfoView` is gone.
+- e2e, the whole suite: 115 passed, 3 skipped, and the same 25 failing as after step 4 (the 22 of `4dfb205` and
+  performance's three), each on the same step as then or a later one.
 
 ## How long
 

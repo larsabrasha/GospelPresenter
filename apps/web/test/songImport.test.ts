@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ImportedSong } from '../src/db/pageCore.ts';
+import type { ImportedSong } from '@gp/core/core';
 import { choicesFor, defaultChoice, importResult, importResultText, namesakes, planImport, songsToSend } from '../src/pages/songImport.ts';
 
 const song = (name: string, verse = 'Ett'): ImportedSong => ({

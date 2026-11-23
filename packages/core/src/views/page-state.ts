@@ -8,6 +8,7 @@
 //
 // The app's live state, which presentation is presented and its slide, is not here: it is read (`context.live`), and
 // a change to it comes back as `live`, for the shell to apply through `liveChangeView` (live.ts).
+import { removableItem } from '../presenting.ts';
 import { asBool, asI64, asStr, invalidArgs, isObj, type Obj } from './serde.ts';
 import { presentingKeyView } from './slides-presenting.ts';
 
@@ -272,9 +273,8 @@ export function pageEventView(args: unknown) {
       break;
     }
     case 'delete': {
-      // As an item's menu offers Radera (apps/web's itemMenu.ts): not the item on the outputs.
       const item = p.get('selectedId');
-      if (item !== null && item !== p.liveItem) command = { type: 'remove', itemId: item };
+      if (item !== null && removableItem(item, p.liveItem)) command = { type: 'remove', itemId: item };
       else handled = false;
       break;
     }

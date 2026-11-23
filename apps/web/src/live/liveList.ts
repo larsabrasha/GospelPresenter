@@ -1,9 +1,9 @@
 // The running order while presenting (docs/layout-2-0.md): where an addition goes, and when the list follows the
 // shown part.
-import { pageCore } from '../db/pageCore.ts';
+import { addPosition } from '@gp/core/core';
 
 /**
- * The item something added goes after, one rule for the computer and the phone, the core's (`addPositionView`,
+ * The item something added goes after, one rule for the computer and the phone, the core's (`addPosition`,
  * docs/view-models.md): the one chosen in an item's … menu ("Lägg till efter"); while presenting, the last thing
  * added while it is still ahead of the shown item, so several additions keep the order they were added in, else the
  * shown item; before, the selected item, else the last thing added (a phone has no selection). Null: at the end.
@@ -15,7 +15,7 @@ export function addAfter(place: {
   chosenId: string | null;
   selectedId?: string | null;
 }): string | null {
-  return pageCore().pure<string | null>('addPositionView', place);
+  return addPosition(place);
 }
 
 /**

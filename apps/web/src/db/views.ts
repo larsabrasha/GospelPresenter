@@ -127,5 +127,3 @@ export const songHistory = (db: ReadDb, id: string) => db.view<{ song: Song | nu
 /** The sheet music, recordings and links of songs, each song's in its order (songMaterialsView). */
 export const songMaterialsOf = (db: ReadDb, songIds: string[]) => db.view<SongMaterial[]>('songMaterialsView', { songIds });
 
-/** The core the database's worker runs (coreInfoView): its crate's name and version, for Om Gospel Presenter. */
-export const coreInfo = (db: ReadDb) => db.view<{ name: string; version: string }>('coreInfoView', {});

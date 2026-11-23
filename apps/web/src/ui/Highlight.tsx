@@ -1,4 +1,4 @@
-import { highlight } from '../db/pageCore.ts';
+import { searchMarks as highlight } from '@gp/core/core';
 
 /** `text` with the word prefixes that match `query` marked (SONG-A20), yellow as in SearchHighlighter.cs. */
 export function Highlight({ text, query }: { text: string; query: string }) {

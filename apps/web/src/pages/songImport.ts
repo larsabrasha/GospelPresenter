@@ -1,5 +1,5 @@
 import type { MutatorArgs } from '@gp/core';
-import { pageCore, type ImportedSong } from '../db/pageCore.ts';
+import { songImportDuplicates, songNamesakes, type DuplicateChoice, type ImportedSong } from '@gp/core/core';
 import { t } from '../i18n.ts';
 
 // What the ProPresenter import on Sånger sends and says (spec 02 "Import card", SONG-R42 as changed on
@@ -27,8 +27,6 @@ export interface LibrarySong {
   text: string;
 }
 
-/** Skip the file's song, replace the library's with it, or add it beside the other. */
-export type DuplicateChoice = 'skip' | 'replace' | 'keep';
 
 export interface Duplicate {
   /** Its index in `ImportPlan.songs`. */
@@ -56,7 +54,7 @@ export const songText = (parts: { content: string }[]) => parts.map((p) => p.con
 
 /** The library songs to compare with: those whose name one of the read songs has (case and composition aside). */
 export function namesakes<S extends { name: string }>(read: ImportedSong[], library: S[]): S[] {
-  const at = pageCore().pure<number[]>('songNamesakesView', { names: read.map((s) => s.name), library: library.map((s) => s.name) });
+  const at = songNamesakes(read.map((s) => s.name), library.map((s) => s.name));
   return at.map((i) => library[i]!);
 }
 
@@ -67,8 +65,7 @@ export function namesakes<S extends { name: string }>(read: ImportedSong[], libr
  */
 export function planImport(read: ImportedSong[], library: LibrarySong[], newId: () => string): ImportPlan {
   const texts = read.map((s) => songText(s.parts));
-  type Found = Omit<Duplicate, 'name' | 'text'>;
-  const found = pageCore().pure<Found[]>('songImportDuplicatesView', { songs: read.map((s, i) => ({ name: s.name, text: texts[i] })), library });
+  const found = songImportDuplicates(read.map((s, i) => ({ name: s.name, text: texts[i]! })), library);
   const duplicates = found.map((d): Duplicate => ({ ...d, name: read[d.index]!.name, text: texts[d.index]! }));
   const songs = read.map((s) => {
     const partIds = s.parts.map(() => newId());

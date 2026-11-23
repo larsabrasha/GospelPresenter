@@ -1,6 +1,6 @@
-import { MAX_VERSES_PER_ITEM, type Theme, type Verse } from '@gp/core';
+import { englishBookName, isOldTestament, MAX_VERSES_PER_ITEM, swedishBookName, type Theme, type Verse } from '@gp/core';
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { bibleSlides, bookInfo, verseSearchPlan } from '../db/pageCore.ts';
+import { bibleSlides, verseSearchPlan } from '@gp/core/core';
 import { useData, useDataReading, useDb } from '../db/react.tsx';
 import { listBibles } from '../db/queries.ts';
 import { language, t } from '../i18n.ts';
@@ -45,7 +45,7 @@ interface BibleRead {
 const TEXT_TABLES = ['bible_texts', 'bible_blobs'];
 
 /** A book's name in the page's language (spec 05: Swedish under sv, else English). */
-const bookName = (code: string) => (language() === 'sv' ? bookInfo(code).sv : bookInfo(code).en);
+const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) : englishBookName(code));
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 /** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
@@ -59,8 +59,8 @@ const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-ins
  */
 function BookPicker({ books, onPick }: { books: string[]; onPick: (code: string) => void }) {
   const groups = [
-    { title: t('bible.oldTestament'), books: books.filter((code) => bookInfo(code).oldTestament) },
-    { title: t('bible.newTestament'), books: books.filter((code) => !bookInfo(code).oldTestament) },
+    { title: t('bible.oldTestament'), books: books.filter((code) => isOldTestament(code)) },
+    { title: t('bible.newTestament'), books: books.filter((code) => !isOldTestament(code)) },
   ];
   const list = useRovingList(books.length);
   let index = 0;

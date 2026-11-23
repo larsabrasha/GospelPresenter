@@ -194,7 +194,9 @@ export function PresentationEditor({
   useAppCommand('start', start);
   useEditorKeys({ ticking, page, shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null, onCommand });
   // Said over the live picture once the keys moved the outline: the slide ↵ shows, or that the number typed has none.
-  const cueText = page.cue && t(page.cue.text, { n: page.cue.n, item: items.find((i) => i.id === page.cue!.itemId)?.title ?? '' });
+  // The cue's words: the slide ↵ shows, or that the number typed has none.
+  const cueArgs = page.cue && { n: page.cue.n, item: items.find((i) => i.id === page.cue!.itemId)?.title ?? '' };
+  const cueText = page.cue && cueArgs && (page.cue.text === 'live.cued' ? t('live.cued', cueArgs) : t('live.noSuchSlide', cueArgs));
 
   if (!data) return null;
   const { presentation, slides, songs, theme, overlays } = data;

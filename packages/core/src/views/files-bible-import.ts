@@ -377,7 +377,7 @@ const number = (f: number) => (Number.isFinite(f) ? f : null);
  * verses and front or back matter are left out; books come in canonical order, their verses by chapter and verse.
  * Files are taken in the order of their names (by code unit), the first of two with one book's code kept.
  */
-function importZip(data: Uint8Array): unknown {
+export function importZip(data: Uint8Array): unknown {
   if (data.length > BIBLE_ZIP_MAX_BYTES) refuse('too-large');
   const entries = readZip(data).filter((e) => !e.name.endsWith('/') && e.size > 0);
   let name = 'Unknown Bible';

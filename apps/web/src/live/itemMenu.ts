@@ -1,7 +1,7 @@
 // What an item's menu offers, the same on its row, its heading's … and a phone's sheet (ItemContextMenu.tsx,
 // ItemSheet.tsx; Lars, 2026-11-18). Kommentar, Lägg till efter › and Markera are always there; Radera too, disabled for
 // the item on the outputs.
-import { ORIGINAL_ARRANGEMENT, sortedArrangements, type Overlay, type PresentationItem, type Song, type SongArrangement } from '@gp/core';
+import { ORIGINAL_ARRANGEMENT, removableItem, sortedArrangements, type Overlay, type PresentationItem, type Song, type SongArrangement } from '@gp/core';
 import { t } from '../i18n.ts';
 
 /** A choice of Arrangemang › or Överlägg ›, by its id and its title. */
@@ -60,6 +60,6 @@ export function itemMenu({ item, songs, arrangements, overlays, shownId }: {
       shows && overlays.length
         ? { choices: [{ id: '', title: t('overlays.itemNone') }, ...overlays.map((o) => ({ id: o.id, title: o.title }))], chosen: item.overlayId ?? '' }
         : null,
-    removable: item.id !== shownId,
+    removable: removableItem(item.id, shownId),
   };
 }

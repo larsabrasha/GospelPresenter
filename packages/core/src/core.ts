@@ -51,21 +51,9 @@ export function runMutation(on: MutationDb, name: string, args: unknown, ctx: Mu
   return on.core.run(name, args, ctx, on.rows).then(() => undefined);
 }
 
-const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-/** A file's bytes as standard base64, as JSON carries them to a view that reads a file. */
-export function base64(bytes: Uint8Array): string {
-  const out: string[] = [];
-  for (let at = 0; at < bytes.length; at += 3) {
-    const [a, b, c] = [bytes[at]!, bytes[at + 1], bytes[at + 2]];
-    const n = (a << 16) | ((b ?? 0) << 8) | (c ?? 0);
-    out.push(B64[n >> 18]!, B64[(n >> 12) & 63]!, b === undefined ? '=' : B64[(n >> 6) & 63]!, c === undefined ? '=' : B64[n & 63]!);
-  }
-  return out.join('');
-}
-
 export type { Rows, RunSql, RunSqlSync } from './commands.ts';
 export type { DriverEffect } from './sync-driver.ts';
+export * from './pure.ts';
 
 // The export zip's rows (docs/import-from-1x.md), for the web, the server and 1.x's export alike: the rows go to the
 // views as JSON text and the rewritten ones come back as JSON text, so an object's keys keep JavaScript's order.

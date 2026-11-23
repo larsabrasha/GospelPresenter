@@ -11,7 +11,7 @@ import { argsOf, cut, wellFormed } from './files-json.ts';
 /** The lengths an imported value is cut to rather than refused (SONG-R41). */
 const MAX = { name: 200, author: 200, publisher: 200, ccli: 20, label: 50, content: 5000, arrangementName: 100 } as const;
 
-interface ImportedSong {
+export interface ImportedSong {
   name: string;
   author: string | null;
   publisher: string | null;
@@ -28,8 +28,13 @@ export function proPresenterSongView(args: unknown): ImportedSong | null {
   const a = argsOf(args);
   const data = typeof a.data === 'string' ? base64(a.data) : null;
   if (!data) throw new MutationError('invalid-args');
+  return proPresenterSong(data, typeof a.fileName === 'string' ? a.fileName : null);
+}
+
+/** The song a `.pro` file holds, or null when it has no slide text or cannot be read (SONG-R35–R43). */
+export function proPresenterSong(data: Uint8Array, fileName: string | null): ImportedSong | null {
   try {
-    return song(data, typeof a.fileName === 'string' ? a.fileName : null);
+    return song(data, fileName);
   } catch (e) {
     if (e instanceof Bad) return null;
     throw e;

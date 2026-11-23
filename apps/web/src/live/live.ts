@@ -5,7 +5,7 @@ import {
   type LivePointerChange,
   type LiveVideo,
 } from '@gp/core';
-import { pageCore } from '../db/pageCore.ts';
+import { liveChange } from '@gp/core/core';
 import { newId } from '../ids.ts';
 import type { OutputVideo } from './video.ts';
 import type { PlaybackBus, PlaybackMessage } from './playback.ts';
@@ -109,11 +109,11 @@ export class LiveChannel implements PlaybackBus {
   }
 
   /**
-   * Operator only: changes what the outputs show, as the core changes the pointer (`liveChangeView`: the overlay rules,
+   * Operator only: changes what the outputs show, as the core changes the pointer (`liveChange`: the overlay rules,
    * one presentation presented at a time). False when the core refused it: another presentation is presented.
    */
   set(change: LivePointerChange): boolean {
-    const done = pageCore().pure<{ pointer?: LivePointer; refused?: string }>('liveChangeView', { pointer: this.current, change, overlays: Object.fromEntries(this.itemOverlays) });
+    const done = liveChange(this.current, change, Object.fromEntries(this.itemOverlays));
     const pointer = done.pointer;
     if (!pointer) return false;
     this.receive(pointer, true);

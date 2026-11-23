@@ -1,35 +1,17 @@
 // How the sync stands, in words, and whether the bar should show it (docs/layout-2-0.md, "The start page and the bar"):
-// the core's `syncStatusView` (crates/gp-core/src/sync_status.rs), which every shell asks; the words are each shell's.
+// the core's `syncStatus`; the words are the web's.
 import { useEffect, useState } from 'react';
-import { pageCore } from '../db/pageCore.ts';
+import { syncStatus as coreSyncStatus, type SyncStatus } from '@gp/core/core';
 import type { DbStatus } from '../db/protocol.ts';
 import { t } from '../i18n.ts';
 
 /** A text of the core's, by its code. */
-interface StatusText {
-  code: 'idle' | 'syncing' | 'offline' | 'error' | 'authNeeded' | 'pending' | 'pendingOne';
-  n?: number;
-}
-
-/** What needs the person's attention until it is dealt with (the yellow line under the bar, Shell.tsx). */
-interface Notice {
-  code: 'updateRequired' | 'notPaired' | 'authRequired';
-  action: 'pairAgain' | 'signIn' | null;
-}
-
-interface SyncStatus {
-  problem: boolean;
-  texts: StatusText[];
-  notice: Notice | null;
-  /** Whether the grace applies: changes waiting, or no connection. */
-  waiting: boolean;
-  graceMs: number;
-}
+type StatusText = SyncStatus['texts'][number];
 
 /** The core's word on the sync as `s` has it, `waitedLong` once `waiting` has held for the grace. */
 function syncStatus(s: DbStatus | null, waitedLong: boolean): SyncStatus {
   const stopped = s?.updateRequired ? 'update-required' : (s?.authError ?? null);
-  return pageCore().pure<SyncStatus>('syncStatusView', { pending: s?.pending ?? 0, stopped, connected: s?.connected ?? true, busy: s?.syncing ?? false, waitedLong });
+  return coreSyncStatus({ pending: s?.pending ?? 0, stopped, connected: s?.connected ?? true, busy: s?.syncing ?? false, waitedLong });
 }
 
 /** The words of a text of the core's, each key written out. */
@@ -48,7 +30,7 @@ function word(text: StatusText): string {
     case 'pendingOne':
       return t('status.pendingOne');
     case 'pending':
-      return t('status.pending', { n: text.n ?? 0 });
+      return t('status.pending', { n: text.n });
   }
 }
 

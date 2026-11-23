@@ -32,8 +32,7 @@ import {
 import { keepVideos } from './videoFiles.ts';
 import { fetchedBibleText } from './fetchedBibles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import { Core } from '@gp/core/core';
-import { readBibleZip } from './bibleZip.ts';
+import { Core, importBibleZip } from '@gp/core/core';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 import { mediaAdds } from './mediaAdds.ts';
@@ -299,7 +298,7 @@ function keepBibleHere(id: string, on: boolean): Promise<boolean> {
  */
 function importBible(data: Uint8Array): Promise<BibleImportResult> {
   return serialStore(async () => {
-    const bible = readBibleZip(data);
+    const bible = importBibleZip(data);
     const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
     const replaced = (await client!.query('SELECT 1 FROM bibles WHERE id = ?', [id])).length > 0;

@@ -1,5 +1,5 @@
 // The Bibles, the themes and the CCLI report (apps/web's Bibler, Teman, the theme editor, CCLI-rapport) (ported back
-// from crates/gp-core/src/settings_views.rs, settings_pages.rs' `themesPageView`, and views.rs' `coreInfoView`).
+// from crates/gp-core/src/settings_views.rs, settings_pages.rs' `themesPageView`).
 import { can, type Permission, type Role } from '../permissions.ts';
 import { BUILT_IN_THEMES, CLASSIC, type Theme, themeDefinitionSchema } from '../themes.ts';
 import type { RunSql } from './sql.ts';
@@ -100,9 +100,3 @@ export async function themesPageView(args: unknown, sql: RunSql) {
   }
   return { themes, default: chosen, canAdd: manage };
 }
-
-// ------------------------------------------------------------------ pure views
-
-
-/** `coreInfoView`: what the running core is, for Om Gospel Presenter: the Rust crate's name and version, as it answered. */
-export const coreInfoView = (args: unknown) => (argsOf(args), { name: 'gp-core', version: '0.1.0' });

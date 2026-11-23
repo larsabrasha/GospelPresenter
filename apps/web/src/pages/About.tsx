@@ -1,6 +1,4 @@
 import type { ReactNode } from 'react';
-import { useDataReading } from '../db/react.tsx';
-import { coreInfo } from '../db/views.ts';
 import { t } from '../i18n.ts';
 import { GitHubIcon, GlobeIcon, LogoIcon } from '../ui/icons.tsx';
 import { PageContainer } from '../ui/PageContainer.tsx';
@@ -25,10 +23,6 @@ export function About() {
           <dt className="text-stone-500 dark:text-stone-400">{t('about.version')}</dt>
           <dd className="min-w-0 break-words" data-testid="about-version">
             <Commit />
-          </dd>
-          <dt className="text-stone-500 dark:text-stone-400">{t('about.core')}</dt>
-          <dd className="min-w-0 break-words" data-testid="about-core">
-            <Core />
           </dd>
         </dl>
         <p className="text-center text-stone-500 dark:text-stone-400">
@@ -59,12 +53,6 @@ function OutLink({ href, children }: { href: string; children: ReactNode }) {
       {children}
     </a>
   );
-}
-
-/** The core the database's worker runs, as it answers for itself: proof that the app runs on the Rust core. */
-function Core() {
-  const core = useDataReading((db) => coreInfo(db), [], []);
-  return <span>{core ? t('about.coreValue', core) : t('about.unknown')}</span>;
 }
 
 /** The commit, as a link to it on GitHub; from the dev server marked as a development build. */

@@ -7,7 +7,7 @@ import { startPageView } from './start-page.ts';
 import { pagePureViews, pageViews } from './page.ts';
 import { filesPureViews, filesViews } from './files.ts';
 import { audiosView, customSlidesView, customSlideView, imagesView, overlayRowView, overlaysView, videosView } from './lists-media.ts';
-import { biblesView, ccliReportView, coreInfoView, defaultThemeIdView, ownThemesView, ownThemeView, themesPageView } from './lists-settings.ts';
+import { biblesView, ccliReportView, defaultThemeIdView, ownThemesView, ownThemeView, themesPageView } from './lists-settings.ts';
 import { songHistoryView, songMaterialsView, songPageView, songPresentationsView, songSearchPrepare, songSearchView, songsView, songView } from './lists-songs.ts';
 import { itemsView, labelsView, pinnedView, presentationListView, songPartsView, templatesView, trashEntriesView } from './lists.ts';
 
@@ -25,8 +25,6 @@ export const views: Record<string, View> = {
 export const pureViews: Record<string, PureView> = {
   ...live.pureViews,
   ...slidesPureViews,
-  // lists (wave 4)
-  coreInfoView,
   ...pagePureViews,
   ...filesPureViews,
 };

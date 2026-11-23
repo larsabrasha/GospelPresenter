@@ -1,6 +1,6 @@
 import type { Song } from '@gp/core';
 import { useRef, useState } from 'react';
-import { proPresenterSong } from '../db/pageCore.ts';
+import { proPresenterSong, type DuplicateChoice } from '@gp/core/core';
 import { songPartsOf } from '../db/queries.ts';
 import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -23,7 +23,6 @@ import {
   songsToSend,
   songText,
   type Duplicate,
-  type DuplicateChoice,
   type ImportPlan,
 } from './songImport.ts';
 

@@ -24,3 +24,9 @@ export type PresentingKey = { type: 'step'; delta: number } | { type: 'pick'; de
 
 /** How a slide is marked while presenting: shown now, or the one → shows next. */
 export type SlideMarkKind = 'shown' | 'next';
+
+/**
+ * Whether an item may be removed: not the one on the outputs, black or not (`shownId`); removed after Släck, the next →
+ * would start the order over (Lars, 2026-11-18).
+ */
+export const removableItem = (itemId: string, shownId: string | null | undefined) => itemId !== shownId;
