@@ -1,0 +1,19 @@
+{
+  "name": "@gp/legacy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export": "node --experimental-transform-types --disable-warning=ExperimentalWarning src/main.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gp/core": "workspace:*",
+    "aws4fetch": "1.0.20",
+    "pg": "8.23.1",
+    "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@types/pg": "8.15.6"
+  }
+}

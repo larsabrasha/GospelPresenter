@@ -1,0 +1,38 @@
+// The running order while presenting (docs/layout-2-0.md): where an addition goes, and when the list follows the
+// shown part.
+import { addPosition } from '@gp/core/core';
+
+/**
+ * The item something added goes after, one rule for the computer and the phone, the core's (`addPosition`,
+ * docs/view-models.md): the one chosen in an item's … menu ("Lägg till efter"); while presenting, the last thing
+ * added while it is still ahead of the shown item, so several additions keep the order they were added in, else the
+ * shown item; before, the selected item, else the last thing added (a phone has no selection). Null: at the end.
+ */
+export function addAfter(place: {
+  order: readonly string[];
+  shownId: string | null;
+  lastAddedId: string | null;
+  chosenId: string | null;
+  selectedId?: string | null;
+}): string | null {
+  return addPosition(place);
+}
+
+/**
+ * Whether the list scrolls to the shown part: never after a tap in the list, where the part is under the finger;
+ * otherwise (the arrows, someone controlling it remotely) only when the part is out of view, above the
+ * sticky heading or below the bottom. `top` and `bottom` are the part's, relative to the list's visible top.
+ */
+export function followsShown({ byTap, top, bottom, viewHeight, headingHeight }: { byTap: boolean; top: number; bottom: number; viewHeight: number; headingHeight: number }): boolean {
+  if (byTap) return false;
+  return top < headingHeight || bottom > viewHeight;
+}
+
+/**
+ * What an item's menu in the live list offers (docs/layout-2-0.md): moving it up or down while there is room, and
+ * removing it unless it is the one shown.
+ */
+export function itemActions(order: readonly string[], itemId: string, shownId: string | null): { up: boolean; down: boolean; remove: boolean } {
+  const at = order.indexOf(itemId);
+  return { up: at > 0, down: at !== -1 && at < order.length - 1, remove: itemId !== shownId };
+}

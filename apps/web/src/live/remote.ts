@@ -1,0 +1,336 @@
+import { useEffect, useState } from 'react';
+import {
+  LIVE_PING, liveReconnectDelay,
+  type AudioCommand,
+  type VideoCommand,
+  type LiveChange,
+  type LiveOwnState,
+  type LivePointer,
+  type LivePointerChange,
+  type LiveScreen,
+  type LiveServerMessage,
+  type LiveSessionInfo,
+} from '@gp/core';
+import { newId } from '../ids.ts';
+import { socketUrl } from '../server.ts';
+
+// Remote control on the client (spec 04 §2, ADR 0004). One socket per
+// operator window to `/api/live/socket`: the window reports the session it
+// owns, every member sees the organisation's sessions, and a controller's
+// commands reach the owner through the server. The owner's outputs never
+// wait for the network: they follow its own LiveChannel.
+
+/** What the live page drives: the window's own LiveChannel, or a session elsewhere. */
+export interface LiveControl {
+  readonly pointer: LivePointer;
+  set(change: LivePointerChange): void;
+  subscribe(fn: (p: LivePointer) => void): () => void;
+}
+
+/** This window's session id: kept for the tab's life, so a reload resumes the same session (spec 04). */
+export function windowSessionId(): string {
+  const key = 'gp.liveSession';
+  try {
+    const known = sessionStorage.getItem(key);
+    if (known) return known;
+    const made = newId();
+    sessionStorage.setItem(key, made);
+    return made;
+  } catch {
+    return newId();
+  }
+}
+
+/** "Tillåt fjärrstyrning", per window: it stays on from one presentation to the next (LIVE-R39). */
+export function remoteAllowed(): boolean {
+  try {
+    return sessionStorage.getItem('gp.remote') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * How often an open live socket pings the server. One that heard nothing (no answer, no message) for longer than a ping
+ * and its answer's time (`LIVE_PONG_MS`) is taken for dead and opened again: one behind a router that lost its state
+ * never closes, and would show "connected" while nothing arrives (the review, 2026-11-09).
+ */
+export const LIVE_PING_MS = 20_000;
+const LIVE_PONG_MS = 10_000;
+
+export class LiveLink {
+  sessions: LiveSessionInfo[] = [];
+  /** The outputs with a page open on them (a saved screen can be switched on only then). */
+  online: string[] = [];
+  /** The temporary screens paired with the organisation (spec 04 §5). */
+  screens: LiveScreen[] = [];
+  connected = false;
+  private ws: WebSocket | null = null;
+  private attempt = 0;
+  private pinging: ReturnType<typeof setInterval> | null = null;
+  /** When the socket last heard anything. */
+  private heard = 0;
+  /** A ping is out: the next message answers it. */
+  private pinged = false;
+  private owned: LiveOwnState | null = null;
+  private lastSent = '';
+  private closed = false;
+  private listeners = new Set<() => void>();
+  private commandListeners = new Set<(sessionId: string, change: LiveChange) => void>();
+  private audioListeners = new Set<(sessionId: string, command: AudioCommand) => void>();
+  private videoListeners = new Set<(sessionId: string, command: VideoCommand) => void>();
+  private errorListeners = new Set<(error: string) => void>();
+  private releasedListeners = new Set<(sessionId: string, outputs: string[]) => void>();
+
+  constructor(private protocols: string[]) {
+    this.connect();
+  }
+
+  private connect() {
+    if (this.closed) return;
+    const ws = new WebSocket(socketUrl('/api/live/socket'), this.protocols);
+    this.ws = ws;
+    ws.addEventListener('open', () => {
+      this.attempt = 0;
+      this.connected = true;
+      this.stopPinging();
+      this.heard = Date.now();
+      this.pinging = setInterval(() => {
+        if (this.ws !== ws) return;
+        if (Date.now() - this.heard > LIVE_PING_MS + LIVE_PONG_MS) return ws.close();
+        this.pinged = true;
+        if (ws.readyState === WebSocket.OPEN) ws.send(LIVE_PING);
+      }, LIVE_PING_MS);
+      // The whole state again on every reconnect (LIVE-R47).
+      this.lastSent = '';
+      if (this.owned) this.sendOwned();
+      this.notify();
+    });
+    ws.addEventListener('message', (e) => {
+      const answered = this.pinged;
+      this.pinged = false;
+      this.heard = Date.now();
+      let m: LiveServerMessage;
+      try {
+        m = JSON.parse(String(e.data)) as LiveServerMessage;
+      } catch {
+        return;
+      }
+      if (m.type === 'sessions') {
+        this.sessions = m.sessions;
+        this.online = m.online;
+        this.screens = m.screens;
+        this.notify();
+      } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
+      else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
+      else if (m.type === 'video-command') for (const fn of this.videoListeners) fn(m.sessionId, m.command);
+      else if (m.type === 'released') for (const fn of this.releasedListeners) fn(m.sessionId, m.outputs);
+      else if (m.type === 'pong') return;
+      // An older server knows no ping and refuses it: that answer is a pong as well, and no error to show.
+      else if (answered && m.error === 'invalid-message') return;
+      else {
+        // A refused report is not what the server holds: send the next one even if it is the same.
+        this.lastSent = '';
+        for (const fn of this.errorListeners) fn(m.error);
+      }
+    });
+    ws.addEventListener('close', () => {
+      if (this.ws !== ws) return;
+      this.stopPinging();
+      this.connected = false;
+      this.notify();
+      setTimeout(() => this.connect(), liveReconnectDelay(this.attempt++)); // LIVE-R51
+    });
+  }
+
+  private stopPinging() {
+    if (this.pinging) clearInterval(this.pinging);
+    this.pinging = null;
+  }
+
+  private send(m: unknown) {
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));
+  }
+
+  private sendOwned() {
+    const json = JSON.stringify(this.owned);
+    if (json === this.lastSent) return; // only what changed (LIVE-R47)
+    this.lastSent = json;
+    this.send({ type: 'own', state: this.owned });
+  }
+
+  /** Reports the session this window presents; null when it stops presenting, which ends it. */
+  own(state: LiveOwnState | null) {
+    if (!state) {
+      if (this.owned) this.send({ type: 'end', sessionId: this.owned.sessionId });
+      this.owned = null;
+      this.lastSent = '';
+      return;
+    }
+    this.owned = state;
+    this.sendOwned();
+  }
+
+  /** A controller's command: absolute, and dropped if the server cannot be reached (never queued, LIVE-R48). */
+  command(sessionId: string, change: LiveChange) {
+    this.send({ type: 'set', sessionId, change });
+  }
+
+  /** A controller's audio command, relayed to the presenting computer (spec 04 §1b). Dropped if unsent. */
+  audioCommand(sessionId: string, command: AudioCommand) {
+    this.send({ type: 'audio', sessionId, command });
+  }
+
+  onAudioCommand(fn: (sessionId: string, command: AudioCommand) => void): () => void {
+    this.audioListeners.add(fn);
+    return () => this.audioListeners.delete(fn);
+  }
+
+  /** A controller's video command (play, pause, seek), relayed to the presenting computer. Dropped if unsent. */
+  videoCommand(sessionId: string, command: VideoCommand) {
+    this.send({ type: 'video', sessionId, command });
+  }
+
+  onVideoCommand(fn: (sessionId: string, command: VideoCommand) => void): () => void {
+    this.videoListeners.add(fn);
+    return () => this.videoListeners.delete(fn);
+  }
+
+  /** Ends a session whose owner is gone (LIVE-R50). */
+  end(sessionId: string) {
+    this.send({ type: 'end', sessionId });
+  }
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  onCommand(fn: (sessionId: string, change: LiveChange) => void): () => void {
+    this.commandListeners.add(fn);
+    return () => this.commandListeners.delete(fn);
+  }
+
+  onError(fn: (error: string) => void): () => void {
+    this.errorListeners.add(fn);
+    return () => this.errorListeners.delete(fn);
+  }
+
+  /** Screens the server let go after 4 hours without a slide change (LIVE-R43). */
+  onReleased(fn: (sessionId: string, outputs: string[]) => void): () => void {
+    this.releasedListeners.add(fn);
+    return () => this.releasedListeners.delete(fn);
+  }
+
+  close() {
+    this.closed = true;
+    this.stopPinging();
+    this.ws?.close();
+  }
+
+  private notify() {
+    for (const fn of this.listeners) fn();
+  }
+}
+
+/** The organisation's live sessions, as they change, and whether this window's socket is up. */
+export function useLiveSessions(link: LiveLink): { sessions: LiveSessionInfo[]; connected: boolean; online: string[]; screens: LiveScreen[] } {
+  const [value, setValue] = useState(() => ({ sessions: link.sessions, connected: link.connected, online: link.online, screens: link.screens }));
+  useEffect(() => {
+    const read = () => setValue({ sessions: link.sessions, connected: link.connected, online: link.online, screens: link.screens });
+    const off = link.subscribe(read);
+    read(); // a list that arrived between the render and this subscription would otherwise be missed until the next one
+    return off;
+  }, [link]);
+  return value;
+}
+
+/** How long a controller waits for the owner's echo before it warns (spec 04 §2). */
+const CONFIRM_MS = 2000;
+
+/**
+ * A session elsewhere, driven from here: it shows what the owner last
+ * reported, except that a click shows at once (optimistic) until the echo.
+ * If the owner has not confirmed within 2 s, `onUnconfirmed` is called once.
+ */
+export class RemoteControl implements LiveControl {
+  private pending: { change: LiveChange; at: number } | null = null;
+  private warned = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(
+    private link: LiveLink,
+    readonly sessionId: string,
+    private onUnconfirmed: () => void,
+  ) {}
+
+  private session(): LiveSessionInfo | undefined {
+    return this.link.sessions.find((s) => s.id === this.sessionId);
+  }
+
+  get pointer(): LivePointer {
+    const s = this.session();
+    const reported = s?.pointer ?? { itemId: null, partIndex: 0, black: false, overlayId: null, rev: 0 };
+    const shown = this.pending && !matches(reported, this.pending.change) ? { ...reported, ...this.pending.change } : reported;
+    return {
+      presentationId: s?.presentationId ?? null,
+      itemId: shown.itemId,
+      partIndex: shown.partIndex,
+      black: shown.black,
+      overlayId: shown.overlayId ?? null,
+      rev: reported.rev,
+    };
+  }
+
+  set(change: LivePointerChange) {
+    const now = this.pointer;
+    const next: LiveChange = { itemId: change.itemId ?? now.itemId, partIndex: change.partIndex ?? now.partIndex, black: change.black ?? now.black };
+    if (change.itemId === null) next.itemId = null;
+    // Only a toggle names the overlay; the owner applies an item's own (`applyLiveChange`).
+    if (change.overlayId !== undefined) {
+      next.overlayId = change.overlayId;
+      if (change.overlayId) next.black = false; // as the owner does: showing an overlay ends the black screen
+    }
+    this.pending = { change: next, at: Date.now() };
+    this.link.command(this.sessionId, next);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      const s = this.session();
+      if (this.pending && (!s || !matches(s.pointer, this.pending.change)) && !this.warned) {
+        this.warned = true; // once (spec 04 §2)
+        this.onUnconfirmed();
+      }
+      this.pending = null;
+      this.notifySelf();
+    }, CONFIRM_MS);
+    this.notifySelf();
+  }
+
+  private selfListeners = new Set<(p: LivePointer) => void>();
+  private notifySelf() {
+    for (const fn of this.selfListeners) fn(this.pointer);
+  }
+
+  subscribe(fn: (p: LivePointer) => void): () => void {
+    this.selfListeners.add(fn);
+    const off = this.link.subscribe(() => {
+      const s = this.session();
+      if (this.pending && s && matches(s.pointer, this.pending.change)) this.pending = null; // the echo settles it
+      fn(this.pointer);
+    });
+    fn(this.pointer);
+    return () => {
+      this.selfListeners.delete(fn);
+      off();
+    };
+  }
+
+  dispose() {
+    clearTimeout(this.timer);
+  }
+}
+
+/** Whether a report shows what a command asked for; the overlay counts only when the command named one. */
+function matches(p: LiveChange, c: LiveChange): boolean {
+  return p.itemId === c.itemId && p.partIndex === c.partIndex && p.black === c.black && (c.overlayId === undefined || p.overlayId === c.overlayId);
+}

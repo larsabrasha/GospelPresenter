@@ -1,0 +1,48 @@
+# Local only: the spike has no Cloudflare account and deploys nothing.
+name = "gp-sync-spike"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+
+# Debug routes (`SPIKE_DEBUG=1`) and the setup token (`SETUP_TOKEN`) go in
+# .dev.vars for `wrangler dev`, never here: a var here would ship with a deploy.
+
+# Sign-in with Google: GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_BASE_URL may go in
+# [vars]; GOOGLE_CLIENT_SECRET is a secret (`wrangler secret put`).
+
+# Only test builds may point sign-in at a fake Google (apps/server/src/google.ts).
+[define]
+GP_TEST_ISSUER = "false"
+
+# The built web app: `pnpm build` before a deploy. Only /api/* reaches the Worker; Cloudflare serves the
+# files with web/public/_headers (the same headers as src/static.ts).
+# Workers Logs: what the Worker writes (its JSON events, client errors among them) is kept and searchable in the
+# dashboard, under the Worker's Observability (docs/cloudflare.md, "Logs").
+[observability]
+enabled = true
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# headers of web/public/_headers, and an address with no file gets index.html.
+run_worker_first = ["/api/*"]
+html_handling = "none"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-sync-spike-global"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# Picture blobs (D31). The bucket must exist before a deploy: `wrangler r2 bucket create gp-media`.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

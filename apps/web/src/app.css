@@ -1,0 +1,293 @@
+/*
+ * The app's styles: Tailwind, set up as in the current app
+ * (GospelPresenter.Shared/tailwind-input.css). styles.css holds the slide's
+ * own rules (the 1920x1080 canvas); it sits in its own layer, above Tailwind's
+ * base and below its utilities, so a utility always wins.
+ */
+@layer theme, base, slide, components, utilities;
+
+@import "tailwindcss";
+@import "./styles.css" layer(slide);
+
+@custom-variant dark (&:where(.dark, .dark *));
+/* A finger rather than a mouse (an iPad lying down): rows and buttons at least 44 pt, items dragged by ≡ (docs/layout-2-0.md). */
+@custom-variant touch (@media (pointer: coarse));
+/* Inställningar in two columns, list and page, as iPadOS's Settings: from an iPad held upright, not a phone lying down
+   (Lars, 2026-11-02). useSplit in ui/useWide.ts asks the same. */
+@custom-variant split (@media (width >= 680px) and (height >= 500px));
+@custom-variant max-split (@media not ((width >= 680px) and (height >= 500px)));
+/*
+ * The page reaches the screen's edges (viewport-fit=cover in index.html), so what is drawn keeps out of the status bar,
+ * the notch or the island, the corners and the home indicator, on every phone and tablet, standing or lying, in the
+ * phone app and in a browser: the body by this padding at the top and sides, a layer fixed over the whole screen by its
+ * own. At the foot the columns' backgrounds reach the edge (Lars, 2026-11-03: a strip of the page's colour under them
+ * looked unfinished): what stands there, a column's last line, a toggle, a list's end, keeps above the home indicator by
+ * `pb-safe-*` and `bottom-safe-*`, its spacing plus the inset. 0 elsewhere.
+ */
+@utility p-safe {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+/* The body's: the top and the sides; the foot is kept by what stands there. */
+@utility px-safe-top {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+/* Tailwind's spacing plus the home indicator's inset: `pb-safe-4` is 1rem above it. */
+@utility pb-safe-* {
+  padding-bottom: calc(--spacing(--value(integer)) + env(safe-area-inset-bottom));
+}
+@utility bottom-safe-* {
+  bottom: calc(--spacing(--value(integer)) + env(safe-area-inset-bottom));
+}
+/* The same, but never less than a margin of Tailwind's spacing: `p-safe-4` is at least 1rem on every side. */
+@utility p-safe-* {
+  --safe-min: --spacing(--value(integer));
+  padding: max(var(--safe-min), env(safe-area-inset-top)) max(var(--safe-min), env(safe-area-inset-right))
+    max(var(--safe-min), env(safe-area-inset-bottom)) max(var(--safe-min), env(safe-area-inset-left));
+}
+
+/*
+ * The 2.0 colours (docs/layout-2-0.md), all from Tailwind's warm grey, stone, as the text's are (Lars, 2026-11-02:
+ * warm as Claude's, rather than neutral beside Apple's blue-tinted greys), named by role: the ground, the page, the
+ * lightest; a surface on it (cards, panels, dialogs, a list's rows) in white with a hairline; raised on a surface
+ * (fields, pills, secondary buttons, rows inside a card), raised-2 a step further (hover); separators, a see-through
+ * hairline; a sidebar a step darker than the page beside it. A sheet is drawn a step lighter in dark mode, as iOS
+ * lifts what floats: its own colour, its rows one step above it.
+ */
+@theme {
+  /* stone-100, not 50: white cards stand out from it, as on iOS's grouped grey (Lars, 2026-11-02: too little contrast). */
+  --color-ground: var(--color-stone-100);
+  --color-surface: #ffffff;
+  --color-raised: var(--color-stone-100);
+  --color-raised-2: var(--color-stone-200);
+  /* A hairline of the scale's darkest, see-through, so it reads the same on every surface. */
+  --color-separator: color-mix(in oklab, var(--color-stone-950) 10%, transparent);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-100), var(--color-stone-200));
+  --color-sheet: var(--color-stone-100);
+  --color-sheet-cell: #ffffff;
+}
+/*
+ * What floats over the page, a dialog of pages, is drawn a step lighter in dark mode, as iOS's elevated colours:
+ * its ground is the page's surface, its cards a step above.
+ */
+.dark .elevated {
+  --color-ground: var(--color-stone-900);
+  --color-surface: var(--color-stone-800);
+  --color-raised: var(--color-stone-700);
+  --color-raised-2: var(--color-stone-600);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-900), var(--color-stone-950));
+}
+.dark {
+  --color-ground: var(--color-stone-950);
+  --color-surface: var(--color-stone-900);
+  --color-raised: var(--color-stone-800);
+  --color-raised-2: var(--color-stone-700);
+  --color-separator: color-mix(in oklab, var(--color-stone-50) 12%, transparent);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-950), black 30%);
+  --color-sheet: var(--color-stone-900);
+  --color-sheet-cell: var(--color-stone-800);
+}
+
+@layer base {
+  h1 { @apply text-3xl/16; }
+  h2 { @apply text-2xl/12; }
+  h3 { @apply text-xl/10; }
+  h4 { @apply text-lg/8; }
+  h5 { @apply text-base/6; }
+  h6 { @apply text-sm/4; }
+
+  /* The shell: the page never scrolls, its content does (Layout/MainLayout.razor). */
+  html { @apply h-dvh overscroll-none overflow-hidden bg-ground text-stone-900 dark:text-stone-100; }
+  html.dark { color-scheme: dark; }
+  body { @apply flex flex-col h-full px-safe-top; }
+  #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }
+  /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. Not #root,
+     whose room would stop the top bar short of the window's edge: the pages scroll in boxes of their own. */
+  .overflow-y-auto { scrollbar-gutter: stable; }
+  /* And never scrolls sideways (Lars, 2026-11-02): what is too wide is cut, not scrolled to. */
+  .overflow-y-auto { overflow-x: hidden; }
+  /* The right padding that, with the scrollbar's room (`--scrollbar`, measured in main.tsx: 0 where the bar floats over
+     the content, as on a Mac with a trackpad), makes 20px: a column as wide at the right as at the left, whatever the
+     scrollbar (Lars, 2026-11-02). */
+  :root { --beside-scrollbar: max(4px, calc(20px - var(--scrollbar, 0px))); }
+}
+
+/* Dialogs fade in, as the current app's dialog.animated. */
+@keyframes dialog-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dialog-in { animation: dialog-in 200ms ease-out; }
+
+/* A folded column's floating toggle (ui/PanelToggle.tsx) comes in once the column has slid away (300 ms). */
+@keyframes float-in {
+  from { opacity: 0; transform: scale(0.85); }
+}
+.float-in { animation: float-in 220ms cubic-bezier(0.65, 0, 0.35, 1) 260ms both; }
+@media (prefers-reduced-motion: reduce) { .float-in { animation: none; } }
+
+/* A loading line ("Laddar...") shows only once the wait is felt, 400 ms, and fades in then: a quick load shows nothing
+   rather than a flash of it (Lars, 2026-11-03). */
+.loading-line { animation: dialog-in 200ms ease-out 400ms both; }
+
+/* A sheet slides up from below on a phone, with iOS's sheet curve; centred (from `sm`) it grows out of its place
+   instead, as a dialog in the middle should (Lars, 2026-11-02; ui/Sheet.tsx). */
+@keyframes sheet-in {
+  from { transform: translateY(100vh); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.sheet-in { animation: sheet-in 420ms cubic-bezier(0.32, 0.72, 0, 1); }
+@media (width >= 40rem) {
+  .sheet-in { animation: sheet-pop 220ms cubic-bezier(0.32, 0.72, 0, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-in { animation: dialog-in 200ms ease-out; }
+}
+
+/* Format's popover (pages/custom-slides/FormatSheet.tsx) grows out of the brush above its right corner, as an iPad's. */
+@keyframes popover-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+.popover-in { transform-origin: top right; animation: popover-in 180ms cubic-bezier(0.32, 0.72, 0, 1); }
+@media (prefers-reduced-motion: reduce) { .popover-in { animation: dialog-in 200ms ease-out; } }
+
+/* Quick Look (ui/QuickLook.tsx): the dark fades in and the item grows into place, and both go the same way out. */
+@keyframes look-in {
+  from { opacity: 0; }
+}
+@keyframes look-item-in {
+  from { opacity: 0; transform: scale(0.92); }
+}
+.look-in { animation: look-in 220ms ease-out; }
+.look-in .look-item { animation: look-item-in 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+.look-out { animation: look-in 180ms ease-in reverse forwards; }
+.look-out .look-item { animation: look-item-in 180ms ease-in reverse forwards; }
+/* On a phone it is a sheet, as Inställningar: up from below with iOS's curve, and down again (or pulled down). */
+@keyframes look-down {
+  to { transform: translateY(100vh); }
+}
+@media (width < 40rem) {
+  .look-in, .look-out, .look-in .look-item, .look-out .look-item { animation: none; }
+  .look-in .look-sheet { animation: sheet-in 420ms cubic-bezier(0.32, 0.72, 0, 1); }
+  .look-out .look-sheet { animation: look-down 260ms ease-in forwards; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .look-in .look-item, .look-out .look-item, .look-in .look-sheet, .look-out .look-sheet { animation: none; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-item { animation: toast-in 200ms ease-out; }
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(0.75rem); }
+}
+.toast-item-out { animation: toast-out 200ms ease-in forwards; }
+
+/* A date or time pill's own picker icon, hidden: the pill draws its own beside the field (SimpleInput). */
+input.native-picker-hidden::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  padding: 0;
+  margin: 0;
+}
+
+/* The sign-in page's slowly moving blue blobs (Login.razor, tailwind-input.css). */
+@keyframes blob-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+@keyframes blob-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 30px) scale(1.15); }
+  66% { transform: translate(20px, -40px) scale(0.95); }
+}
+
+@keyframes blob-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, 40px) scale(0.95); }
+  66% { transform: translate(-30px, -20px) scale(1.1); }
+}
+
+.animated-bg { position: relative; overflow: hidden; }
+.animated-bg::before,
+.animated-bg::after { content: ""; position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; }
+.animated-bg::before { width: 600px; height: 600px; background: #0ea5e9; top: -200px; left: -100px; opacity: 0.15; animation: blob-1 18s ease-in-out infinite; }
+.animated-bg::after { width: 500px; height: 500px; background: #38bdf8; top: -100px; right: -100px; opacity: 0.12; animation: blob-2 22s ease-in-out infinite; }
+.blob-3 { position: absolute; width: 450px; height: 450px; background: #0ea5e9; border-radius: 50%; filter: blur(120px); opacity: 0.1; top: 200px; left: 50%; transform: translateX(-50%); animation: blob-3 20s ease-in-out infinite; pointer-events: none; }
+:where(.dark, .dark *) .animated-bg::before { background: #0284c7; opacity: 0.2; }
+:where(.dark, .dark *) .animated-bg::after { background: #0ea5e9; opacity: 0.15; }
+:where(.dark, .dark *) .blob-3 { background: #0284c7; opacity: 0.12; }
+
+/* The card around an empty list (ui/Empty.tsx): no card of its own, quiet, and no rival to an intro card above it. */
+:has(> [data-empty-list]) {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/*
+ * The desktop app on a Mac (main.tsx): no title bar, so a page's bar reaches the top, makes room for the window's three
+ * buttons and moves the window when dragged; what is pressed in it does not. A dialog or a sheet over it takes the
+ * whole window, so nothing under it drags.
+ */
+.mac-frame [data-window-bar] {
+  -webkit-app-region: drag;
+  padding-left: 88px;
+}
+.mac-frame [data-window-bar] :is(a, button, input, select, [role='menu']),
+.mac-frame [data-overlay] {
+  -webkit-app-region: no-drag;
+}
+/* A dialog keeps clear of the window's buttons at every width, a narrow window's full one too (a sheet sits low). */
+.mac-frame [data-overlay='dialog'] {
+  padding-top: 40px;
+}
+
+/*
+ * The desktop app (main.tsx) as a native app (Lars, 2026-11-02): headings, labels and lists do not select or show a
+ * text cursor; what is typed in does, and anything marked `.selectable`.
+ */
+.native body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* A link or a picture is not dragged away as a URL or a file, as a native app's buttons are not. */
+.native :is(a, img) {
+  -webkit-user-drag: none;
+}
+.native :is(input, textarea, [contenteditable='true'], .selectable) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Inställningar's content bar: a detail page's own name (in its slot) stands in for the page's kind. */
+[data-bar]:has([data-bar-slot]:not(:empty)) [data-bar-title] {
+  display: none;
+}
+
+/* The custom slide editor's handles (react-moveable, pages/custom-slides/EditorCanvas.tsx): a size a finger can hold
+   on a touch screen, and the app's blue. */
+.moveable-control-box { --moveable-color: #0ea5e9; }
+/* Above the slide, under every menu and sheet: Moveable's own 3000 put the handles over the + menu (Lars, 2026-11-04). */
+.moveable-control-box { z-index: 5 !important; }
+/* Lined up with the page's middle or another element: Keynote's yellow. */
+.moveable-control-box .moveable-line.moveable-guideline,
+.moveable-control-box .moveable-line.moveable-gap { background: #facc15 !important; }
+@media (pointer: coarse) {
+  .moveable-control-box .moveable-control {
+    width: 24px !important;
+    height: 24px !important;
+    margin-top: -12px !important;
+    margin-left: -12px !important;
+  }
+}

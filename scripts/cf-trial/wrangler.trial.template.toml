@@ -1,0 +1,42 @@
+# Trial only: the repo's Worker behind the debug gate, on <worker>.<subdomain>.workers.dev.
+# A template: setup.sh fills __SUBDOMAIN__ and __D1_ID__ and writes .local/wrangler.trial.toml (git-ignored),
+# so the paths below are relative to .local/. Secrets (TRIAL_DEBUG_TOKEN, SETUP_TOKEN) go with the deploy
+# from .local/tokens.env, never here.
+name = "gp-trial-gospel"
+main = "../entry.ts"
+compatibility_date = "2026-08-01"
+workers_dev = true
+preview_urls = false
+
+[define]
+GP_TEST_ISSUER = "false"
+
+[vars]
+# Debug routes on, every one of them behind TRIAL_DEBUG_TOKEN (gate.ts).
+SPIKE_DEBUG = "1"
+GOOGLE_REDIRECT_BASE_URL = "https://gp-trial-gospel.__SUBDOMAIN__.workers.dev"
+PASSKEY_RP_ID = "gp-trial-gospel.__SUBDOMAIN__.workers.dev"
+PASSKEY_ORIGINS = "https://gp-trial-gospel.__SUBDOMAIN__.workers.dev"
+
+[assets]
+directory = "../../../apps/web/dist"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-trial-global"
+database_id = "__D1_ID__"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-trial-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

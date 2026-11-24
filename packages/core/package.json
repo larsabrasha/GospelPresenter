@@ -1,0 +1,20 @@
+{
+  "name": "@gp/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./mutators": "./src/mutators/index.ts",
+    "./core": "./src/core.ts",
+    "./scenarios": "./src/node/scenarios.ts",
+    "./scenarios/*": "./scenarios/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test/node",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "zod": "4.6.7"
+  }
+}

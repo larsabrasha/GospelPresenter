@@ -1,0 +1,357 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Sha256, VIDEO_LIMITS, type LibraryVideo } from '@gp/core';
+import { expectedPosition, follow, keepInStep, SEEK_DRIFT_S, VideoEngine } from '../src/live/video.ts';
+import { checkPickedVideo, hashFile, stillTime, uploadVideo, VideoRefused, type UploadProgress } from '../src/media/video.ts';
+import { formatDuration } from '../src/pages/VideoTab.tsx';
+
+// TODO.md "Video": following the presenting window's video, and the import's checks, hash and upload.
+
+describe('following a video', () => {
+  it('moves the position on by the time since the moment while it plays', () => {
+    expect(expectedPosition({ playing: true, position: 10, at: 1000 }, 3500)).toBe(12.5);
+  });
+
+  it('keeps the position while it is paused, and never goes past the end', () => {
+    expect(expectedPosition({ playing: false, position: 10, at: 1000 }, 9000)).toBe(10);
+    expect(expectedPosition({ playing: true, position: 10, at: 0 }, 60_000, 30)).toBe(30);
+  });
+
+  it('plays at normal speed when within a few hundredths of where it should be', () => {
+    expect(follow(5.02, 5, true)).toEqual({ seekTo: null, rate: 1 });
+  });
+
+  it('plays a little faster when behind, a little slower when ahead, at most 5 %', () => {
+    expect(follow(5.1, 5, true).rate).toBeCloseTo(1.05);
+    expect(follow(5, 5.06, true).rate).toBeCloseTo(0.97);
+    expect(follow(5.25, 5, true)).toEqual({ seekTo: null, rate: 1.05 });
+  });
+
+  it('seeks when it has drifted more than a fraction of a second', () => {
+    expect(follow(5 + SEEK_DRIFT_S + 0.01, 5, true)).toEqual({ seekTo: 5 + SEEK_DRIFT_S + 0.01, rate: 1 });
+  });
+
+  it('seeks a paused follower to where the video was paused', () => {
+    expect(follow(8, 3, false)).toEqual({ seekTo: 8, rate: 1 });
+  });
+});
+
+/** An output's video whose clock stands still for `startMs` after every seek, as Safari's on an iPad, and then plays on. */
+class SlowStartVideo {
+  paused = true;
+  seeking = false;
+  duration = 60;
+  playbackRate = 1;
+  seeks = 0;
+  private time = 0;
+  private movesAt = 0;
+  constructor(
+    private startMs: number,
+    private now: () => number,
+  ) {}
+  get currentTime() {
+    return this.time;
+  }
+  set currentTime(t: number) {
+    this.time = t;
+    this.seeks++;
+    this.movesAt = this.now() + this.startMs;
+  }
+  play() {
+    this.paused = false;
+    return Promise.resolve();
+  }
+  pause() {
+    this.paused = true;
+  }
+  /** `ms` of play from now. */
+  tick(ms: number) {
+    if (!this.paused && this.now() >= this.movesAt) this.time += (ms / 1000) * this.playbackRate;
+  }
+}
+
+describe('a follower whose seeks take a moment to start', () => {
+  /** Follows a video that has played since 10 s, for `seconds`, checking every 250 ms as FollowingVideo does. */
+  const followFor = (startMs: number, seconds: number) => {
+    let now = 0;
+    const el = new SlowStartVideo(startMs, () => now);
+    const video = { hash: 'h', type: 'video/mp4', codec: 'h264', playing: true, position: 10, at: 0 } as const;
+    for (; now < seconds * 1000; now += 50) {
+      if (now % 250 === 0) keepInStep(el as unknown as HTMLVideoElement, video, now);
+      el.tick(50);
+    }
+    return { off: Math.abs(expectedPosition(video, now) - el.currentTime), seeks: el.seeks };
+  };
+
+  it('gets in step and stops seeking when every seek stands still for half a second', () => {
+    const { off, seeks } = followFor(500, 10);
+
+    expect(off).toBeLessThan(SEEK_DRIFT_S);
+    expect(seeks).toBeLessThanOrEqual(3);
+  });
+
+  it('seeks again when a seek never gets going', () => {
+    const { seeks } = followFor(Number.POSITIVE_INFINITY, 4);
+
+    expect(seeks).toBe(2);
+  });
+});
+
+describe('a follower the browser will not start untouched', () => {
+  const video = { hash: 'h', type: 'video/mp4', codec: 'h264', playing: true, position: 0, at: 0 } as const;
+  /** An element whose play() the browser answers with `answer`. */
+  const element = (answer: () => Promise<void>) => ({ paused: true, seeking: false, duration: 30, currentTime: 0, playbackRate: 1, play: answer, pause() {} });
+  const heard = async (answer: () => Promise<void>) => {
+    const said: boolean[] = [];
+    keepInStep(element(answer) as unknown as HTMLVideoElement, video, 0, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+    return said;
+  };
+
+  it('says it was refused when the browser wants a tap', async () => {
+    expect(await heard(() => Promise.reject(new DOMException('needs a tap', 'NotAllowedError')))).toEqual([true]);
+  });
+
+  it('says nothing when a play was only cut short', async () => {
+    expect(await heard(() => Promise.reject(new DOMException('a new source', 'AbortError')))).toEqual([]);
+  });
+
+  it('says it plays when the browser lets it while a seek is still settling', async () => {
+    const said: boolean[] = [];
+    let allowed = false;
+    const el = element(() => (allowed ? Promise.resolve() : Promise.reject(new DOMException('needs a tap', 'NotAllowedError'))));
+    keepInStep(el as unknown as HTMLVideoElement, { ...video, position: 10 }, 0, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+    allowed = true;
+
+    keepInStep(el as unknown as HTMLVideoElement, { ...video, position: 10 }, 250, (r) => said.push(r));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(said).toEqual([true, false]);
+  });
+
+  it('says it plays once the browser lets it', async () => {
+    expect(await heard(() => Promise.resolve())).toEqual([false]);
+  });
+});
+
+describe('picking a video', () => {
+  it('takes MP4 and MOV by the type the browser reports, or by the extension', () => {
+    expect(checkPickedVideo({ type: 'video/quicktime', size: 10, name: 'IMG_0001.MOV' })).toBe('video/quicktime');
+    expect(checkPickedVideo({ type: '', size: 10, name: 'dop.mp4' })).toBe('video/mp4');
+  });
+
+  it('refuses WebM, a file over 2 GB, and a name over 200 characters', () => {
+    const problem = (f: { type: string; size: number; name: string }) => {
+      try {
+        checkPickedVideo(f);
+        return null;
+      } catch (e) {
+        return (e as VideoRefused).problem;
+      }
+    };
+    expect(problem({ type: 'video/webm', size: 10, name: 'a.webm' })).toBe('type');
+    expect(problem({ type: 'video/mp4', size: VIDEO_LIMITS.bytes + 1, name: 'a.mp4' })).toBe('size');
+    expect(problem({ type: 'video/mp4', size: 10, name: `${'a'.repeat(200)}.mp4` })).toBe('name');
+  });
+
+  it('shows a length as minutes and seconds, or hours too', () => {
+    expect(formatDuration(65_000)).toBe('1:05');
+    expect(formatDuration(3_725_000)).toBe('1:02:05');
+  });
+});
+
+describe('when the still is taken', () => {
+  it('takes it at one second into a long video', () => {
+    expect(stillTime(120)).toBe(1);
+  });
+
+  it('takes it a tenth into a short clip', () => {
+    expect(stillTime(3)).toBeCloseTo(0.3);
+  });
+
+  it('takes the first frame when the length is unknown', () => {
+    expect(stillTime(Number.NaN)).toBe(0);
+  });
+});
+
+describe('hashing a file in steps', () => {
+  it('gives the hash of the whole file, reading a part at a time', async () => {
+    const bytes = Uint8Array.from({ length: VIDEO_LIMITS.partBytes + 77 }, (_, i) => i & 0xff);
+    const seen: number[] = [];
+
+    const hash = await hashFile(new Blob([bytes]), (done) => seen.push(done));
+
+    expect(hash).toBe(new Sha256().update(bytes).hex());
+    expect(seen).toEqual([VIDEO_LIMITS.partBytes / bytes.length, 1]);
+  });
+});
+
+/** A server that takes an upload in parts of four bytes, as `/api/media/{hash}/upload` does, and can drop the network once. */
+function fakeServer(dropAtPart: number | null) {
+  let parts: Uint8Array[] = [];
+  let size = 0;
+  let dropped = false;
+  const reply = (status: number, body: object) => new Response(JSON.stringify(body), { status });
+  const fetch = vi.fn(async (url: string, init: RequestInit) => {
+    const path = new URL(url, 'http://host').pathname;
+    if (init.method === 'POST' && path.endsWith('/upload')) {
+      size = (JSON.parse(String(init.body)) as { size: number }).size;
+      return reply(200, { done: false, partBytes: 4, received: parts.length * 4 });
+    }
+    if (init.method === 'PUT') {
+      const part = Number(path.split('/').at(-1));
+      if (part === dropAtPart && !dropped) {
+        dropped = true;
+        throw new TypeError('Failed to fetch');
+      }
+      if (part !== parts.length + 1) return reply(409, { error: 'out-of-order', received: parts.length * 4 });
+      parts = [...parts, new Uint8Array(init.body as Uint8Array)];
+      return reply(200, { received: Math.min(size, parts.length * 4) });
+    }
+    return reply(200, { done: true, type: 'video/mp4', codec: 'hevc' });
+  });
+  return { fetch, whole: () => new Uint8Array(parts.flatMap((p) => [...p])) };
+}
+
+describe('uploading a video in parts', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const file = new Blob([Uint8Array.from({ length: 10 }, (_, i) => i + 1)]);
+
+  it('sends every part in order and finishes with what the server read from the file', async () => {
+    const server = fakeServer(null);
+    vi.stubGlobal('fetch', server.fetch);
+
+    const result = await uploadVideo(file, 'a'.repeat(64), () => {}, async () => {});
+
+    expect(result).toEqual({ type: 'video/mp4', codec: 'hevc' });
+    expect(server.whole()).toEqual(new Uint8Array(await file.arrayBuffer()));
+  });
+
+  it('waits when the network drops, then goes on from the last part the server has', async () => {
+    const server = fakeServer(2);
+    vi.stubGlobal('fetch', server.fetch);
+    const progress: UploadProgress[] = [];
+
+    await uploadVideo(file, 'a'.repeat(64), (p) => progress.push(p), async () => {});
+
+    expect(progress.some((p) => p.waiting)).toBe(true);
+    expect(server.whole()).toEqual(new Uint8Array(await file.arrayBuffer()));
+    expect(server.fetch.mock.calls.filter(([, init]) => init.method === 'PUT').map(([url]) => url.split('/').at(-1))).toEqual(['1', '2', '2', '3']);
+  });
+
+  it('throws the reason when the server refuses the codec', async () => {
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) =>
+      init.method === 'POST' && String(_url).endsWith('/finish')
+        ? new Response(JSON.stringify({ error: 'invalid-video', problem: 'codec', entry: 'mp4v' }), { status: 400 })
+        : new Response(JSON.stringify({ done: true, partBytes: 4, received: 10 }), { status: 200 }),
+    );
+
+    await expect(uploadVideo(file, 'a'.repeat(64), () => {}, async () => {})).rejects.toMatchObject({ problem: 'codec', codec: 'mp4v' });
+  });
+});
+
+/** A video element as far as the engine uses one, and a page whose tab can be hidden, as Safari's. */
+class FakeVideo extends EventTarget {
+  removeAttribute(name: string) {
+    if (name === 'src') this.src = '';
+  }
+  paused = true;
+  ended = false;
+  muted = false;
+  currentTime = 0;
+  duration = 20;
+  playbackRate = 1;
+  preload = '';
+  playsInline = false;
+  src = '';
+  load() {}
+  play() {
+    this.paused = false;
+    this.dispatchEvent(new Event('play'));
+    return Promise.resolve();
+  }
+  pause() {
+    if (this.paused) return;
+    this.paused = true;
+    this.dispatchEvent(new Event('pause'));
+  }
+}
+
+describe('the presenting window’s video while its tab is hidden', () => {
+  const page = Object.assign(new EventTarget(), { hidden: false, createElement: () => new FakeVideo() });
+  const video = { hash: 'h'.repeat(64), contentType: 'video/mp4', codec: 'h264', duration: 20_000 } as unknown as LibraryVideo;
+  const hide = (hidden: boolean) => {
+    page.hidden = hidden;
+    page.dispatchEvent(new Event('visibilitychange'));
+  };
+  const shown = async () => {
+    vi.stubGlobal('document', page);
+    vi.useFakeTimers({ now: 1_000_000 });
+    const engine = new VideoEngine(async () => 'blob:video');
+    await engine.show({ itemId: 'v', video });
+    return { engine, el: (engine as unknown as { current: { el: FakeVideo } }).current.el };
+  };
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    page.hidden = false;
+  });
+
+  it('reports it playing on from where the browser paused it, so the outputs play on', async () => {
+    const { engine, el } = await shown();
+    el.currentTime = 3;
+    hide(true);
+    el.pause(); // Safari, not anyone's hand
+    vi.advanceTimersByTime(2_000);
+
+    expect(engine.state()).toMatchObject({ playing: true, position: 5 });
+  });
+
+  it('goes on from where it should be once the tab shows again', async () => {
+    const { el } = await shown();
+    el.currentTime = 3;
+    hide(true);
+    el.pause();
+    vi.advanceTimersByTime(4_000);
+
+    hide(false);
+
+    expect({ paused: el.paused, at: el.currentTime }).toEqual({ paused: false, at: 7 });
+  });
+
+  it('stays paused when someone paused it while the tab was hidden', async () => {
+    const { engine, el } = await shown();
+    hide(true);
+    engine.command({ action: 'pause', itemId: 'v' });
+    vi.advanceTimersByTime(2_000);
+
+    hide(false);
+
+    expect({ playing: engine.state()?.playing, paused: el.paused }).toEqual({ playing: false, paused: true });
+  });
+});
+
+describe('a video item whose file cannot be had for the moment', () => {
+  const page = Object.assign(new EventTarget(), { hidden: false, createElement: () => new FakeVideo() });
+  const video = (hash: string) => ({ hash, contentType: 'video/mp4', codec: 'h264', duration: 20_000 }) as unknown as LibraryVideo;
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows nothing of the video before it, and plays its own once it can be had: it is asked for again', async () => {
+    vi.stubGlobal('document', page);
+    vi.useFakeTimers();
+    let online = true;
+    const engine = new VideoEngine(async (hash) => (online ? `blob:${hash}` : null));
+    await engine.show({ itemId: 'I1', video: video('first') });
+    online = false;
+
+    await engine.show({ itemId: 'I2', video: video('second') });
+    const meanwhile = [engine.state()?.hash ?? null, engine.picture()];
+    online = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect([meanwhile, engine.state()?.hash]).toEqual([[null, null], 'second']);
+  });
+});

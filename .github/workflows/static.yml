@@ -6,7 +6,7 @@ on:
   push:
     branches: ['main']
     paths:
-      - 'docs/**'
+      - 'website/**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -35,22 +35,22 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          cache-dependency-path: docs/package-lock.json
+          cache-dependency-path: website/package-lock.json
           node-version: 20
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-        working-directory: docs
+        working-directory: website
       - name: Build
         run: npm run build
-        working-directory: docs
+        working-directory: website
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           # Upload dist folder
-          path: docs/dist
+          path: website/dist
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

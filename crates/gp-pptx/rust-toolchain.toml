@@ -1,0 +1,5 @@
+# The Rust the PowerPoint drawing builds with, whatever the machine's default (Lars, 2026-11-20): at least 1.95 for
+# DeckCraft's libraries (docs/powerpoint-deckcraft.md); rustup fetches it, and the targets, on the first build here.
+[toolchain]
+channel = "1.100.0"
+targets = ["aarch64-apple-darwin"]

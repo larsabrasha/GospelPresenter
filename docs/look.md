@@ -1,0 +1,221 @@
+# Look
+
+Version 2.0 leaves this look for live, the start page, its bar and Inställningar: [The 2.0 layout](layout-2-0.md).
+The rest of this file holds until a page is changed.
+
+The web app is to look as the current Blazor app does (its `main` branch, not the pictures in `docs/public`),
+on every screen size, light and dark. It uses Tailwind v4 (`@tailwindcss/vite`), set up as the current app's
+`tailwind-input.css` (`apps/web/src/app.css`). Dark mode is the current app's: the class `.dark` on `<html>`,
+the choice in localStorage `theme` (`light`, `dark`, `system`; the system's when none), chosen under Mina
+inställningar (`/settings`) and applied before the first render (`apps/web/src/ui/theme.ts`). The shell is
+`MainLayout.razor`'s top bar (logo to the start page, Beta, both replaced by "‹ Presentationer" in a presentation, the sync's cloud, the cog to the admin pages, the
+user's menu) and `AdminLayout.razor`'s side menu (`apps/web/src/Shell.tsx`). Unlike the current app, the admin pages
+open in a dialog over the page the user is on (`PageDialog` in `ui/Dialog.tsx`; docs/assumptions.md), as the
+settings of Lars's other apps (bygg, piano): at most 896 px wide and 768 px high, a narrow menu, and the pages filling
+the rest (`PageFill` in `ui/PageContainer.tsx`); full screen on a phone. Om Gospel Presenter (`pages/About.tsx`)
+is last in the menu, at its foot, as in those apps: the version, and links out, which the desktop app opens in
+the system browser. The shared components are in
+`apps/web/src/ui/`: `AppButton` with the current app's variants (the only place a `<button>` is made; the lint
+rule says so), `Dialog`, `Modal`, `FloatingInput`/`Select`/`Textarea`, `PillTabs`, the lists, `Dropdown` and
+`PageContainer`. The start page (`pages/Presentations.tsx`) is `Dashboard.razor`: Idag, Kommande and the rest.
+
+The presentation (step 2) is `Pages/Presentation.razor` and what it uses: the running order in a white side
+column (`Sidebar.razor`; an item is dragged by its handle at the right, and the selected one has a ⋯ menu with
+Ta bort), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), the green
+Starta presentation, the add modal with its pill tabs and round search (`AddItemModal.razor`, `ui/Picker.tsx`),
+the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
+switches in `ui/Toggle.tsx`, the red Avsluta); the old dark stage view (`StageView.razor`) is not in 2.0. Live is the editor presenting, as `Presentation.razor` (Lars, 2026-10-30): `/presentations/{id}`
+presents in place (Starta presentation and Avsluta stay on the page; a reload goes on presenting; `/live/{id}`
+from before opens it too) with the running order, so items are added, removed and moved while live; the main area shows the
+selected item's slides, a click shows one live, and the item shown live is selected as the slides step on.
+Below `lg` (a phone) it is laid out as the current app's: the running order is a drawer from the left, open when
+the page opens and closed by choosing an item or tapping the dimmed page, with the round menu button at the bottom
+left and Starta presentation at the right; live's panel floats at the bottom right and folds to its caption and a
+small picture; and a song tapped under Lägg till opens its preview full screen, with ✕ (or Escape) and its own add
+button, while Bibeltexter keeps its preview in the tab. Presenting, the drawer is closed when it starts.
+
+The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
+Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
+(`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
+the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Above the list, the ProPresenter import card (`pages/SongImport.tsx`), and the
+whole page takes dropped `.pro` files; its bar fills as the files are read, and pulses while saving. Its duplicate dialog is new: a row per song with a green Likadan or amber Annan text pill, Visa text, and a SimpleSelect of the choice. Etiketter (`pages/Labels.tsx`) is Labels.razor's: rows of white-on-colour pills with ↑, ↓, the pencil and the bin, and a dialog with Etiketttext and a colour field. Historik (`pages/SongHistory.tsx`) is SongHistory.razor's: a column of versions (name and "Idag 14:05"), the chosen one sky-tinted, and its parts as slides beside it in the organisation's default theme, stacked on a phone; the song page has the grey Historik button with a clock at the left of its last row.
+
+A song's fields, its parts' text and its arrangements' names save 500 ms after the last keystroke, as
+`Utils/Debouncer.cs` does there, and `AutoSaveIndicator.razor`'s grey "✓ Sparad" shows at the right of the
+header after each save, fading after 2 s (`ui/AutoSave.tsx`). It also shows after a label, a chip or an
+arrangement changes, as there. Unlike the current app, a waiting save is never dropped: it is written at once
+when the field loses focus, the page closes or another page opens, and before a reload or a closing window. A
+field shows what was typed while it has focus, so its own save coming back (trimmed) or a sync does not move
+the cursor or take back a letter; once it is left, the stored value shows when it next changes. A blank name
+and a year that is not 0–9999 are not written and say nothing; a refused write says nothing either. Each save
+is a mutation of its own (`updateSong` with one field, `updateSongPart`, `updateArrangement`), so typing now
+queues a few more mutations, which the sync sends together; the server keeps a version of the song before them,
+at most one per person per half hour (song history, docs/assumptions.md). Tested in `apps/web/test/debounce.test.ts` (the wait, flushing, failures, order)
+and e2e in `milestone2.spec.ts` (Sparad, typing on through a save, leaving at once, reloading at once, a blank name).
+
+A clash in a part (D18; the old app had none to copy): when a part's stored text changes from elsewhere while the
+user has typed in it since giving it focus, and is not what they have, nothing more is written, and an amber
+box under the part says "Någon annan ändrade den här texten medan du skrev. Deras text:" with the other text,
+"Behåll min text" (written at once) and "Använd deras" (`warnOnClash` on `AutoSaveField`). Within the sync as it
+is: the server keeps the last write, so whoever is still typing when the other's write arrives is the one
+warned; one who already left the part is not, and the later write wins silently. Tested in
+`e2e/song-clash.spec.ts` (two computers of one user, both choices).
+
+The keyboard help (`ui/ShortcutHelp.tsx`, `KeyboardShortcuts.razor` and `ShortcutHelpDialog.razor`): `?` outside
+a text field opens "Kortkommandon", the old dialog's texts drawn as iPadOS's list of a held ⌘ (Lars, 2026-11-05):
+each group's name over its card in line with its rows' words, the keys in grey at the right as macOS's menus write
+them (letters in capitals, ⌥ before ⇧ before ⌘, no keycaps), the groups two abreast where there is room, and the
+hint under them. The group of what is on screen comes first, then "Överallt" with the app's keys and `?`; `?`, Esc
+or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, Del, ↑ ↓, and the
+new Alt+↑ ↓), Lägg till (⌘/Ctrl+↵, ↓; one kind, from +'s menu, so no ⌘/Ctrl+1–6; it hides the editor's group, whose keys are off behind it), and
+the new Live (↵ shows the slide made ready, else the next; → ← ↓ ↑ and a number make one ready, ⌘↑ ⌘↓ go between
+items, Esc lets it go, Space PageDown PageUp step at once, ⌘. ends, B and a clicker's `.`). The old
+editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
+Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
+
+Redigera detaljer and Ny presentation (`PresentationDetailsDialog.tsx`) are drawn as Calendar's "Redigera händelse"
+on iOS 27 (Lars, 2026-11-05): a round ✕ and a round ✓ (blue while it can save) at the top, no words, the name and
+the place in one card, the date and the time in one with their values in grey pills at the right, the theme a row
+with its value as a pop-up, and the description last. The picture editor has the same ✕ and ✓.
+
+The whole app by the keyboard (Lars, 2026-11-05): each page's controls are reached by Tab (gone through page by page
+that day; none answered only a pointer). A menu at a
+point (`ui/ContextMenu.tsx`: an item's …, a right click, the menu key or ⇧F10 on a row) is used as macOS's: opened
+by a key, the focus is on its first choice; ↑ ↓ Home End move between the choices, → opens a row's submenu and ← or
+Escape goes back to the row, Escape closes the menu and gives the focus back to what opened it, and Tab closes it.
+A list dragged into order is put in order by Alt+↑ ↓ on its focused row (the running order, a song's parts,
+Etiketter, Lager, and a picture item's pictures). An editor's slide has its keys in `docs/custom-slides.md` and
+`docs/themes.md`. Tested in `e2e/keyboard.spec.ts`.
+
+The app's keys (`ui/appKeys.ts`), on every page and in Inställningar, outside a text field and not under another
+dialog or an open menu: `g` and a letter goes to a section ("go to", as Gmail's and GitHub's: `a`, `b` and `n` were
+taken), `g p` Presentationer, `g s` Sånger, `g b` Biblar, `g i` Bilder, `g l` Ljud, `g v` Videor, `g e` Bildspel, and
+not while presenting, where a slip of `g` must not turn B (black) into Biblar; `,` opens Inställningar; `/` puts the
+focus in the page's search; `n` in Inställningar presses the list's +. A library (`ui/libraryKeys.ts`) is walked by
+↑ ↓ (← → too in a grid; ↓ in its search goes to the first), ↵ opens the focused item and Delete removes it, asked
+first. In a presentation F5, as PowerPoint's, or ⌥⌘P, as Keynote's Spela upp, starts presenting, and F5 never reloads
+the page there. A browser keeps ⌘1–⌘9, ⌘F, ⌘N and ⌘, for itself, so the desktop app's menu bar (`apps/desktop/src/menu.ts`)
+has them: Arkiv → Ny (⌘N), Presentation → Starta presentation (⌥⌘P), and Gå → the sections (⌘1–⌘7), Tillbaka (⌘[,
+Alt+← elsewhere) and Sök (⌘F); a choice sends the page its command, so it never types into a field. Back in a
+browser is its own (⌘[ or Alt+←).
+
+⌘K (Ctrl+K elsewhere; `ui/CommandPalette.tsx`), the search of everything as today's apps have it, also from a
+field: one search, and under it, grouped as Spotlight's, the songs by title, a line or the author (the library's
+own search), the presentations by name, place or date as the start page writes it (the coming ones first), the
+commands (the keys' list: Starta presentation in a presentation, Gå till …, Ny sång, Öppna Inställningar), and the
+pages of Inställningar by their names and words (its own search). Blank, it shows the coming presentations and the
+commands. ↑ ↓ mark, ↵ opens the marked one. In a presentation ⌘↵, or the marked row's own button (a finger has no
+⌘), adds a song where Lägg till adds it (after the item picked; while presenting after the one shown), picks it and
+scrolls to it, and while presenting shows it at once ("Lägg till och visa"; Lars, 2026-11-05: the quickest way to a
+song asked for). There + 's kinds are commands too ("Lägg till video…"), and a page of Inställningar a command already
+goes to is not listed again. Where the window is wide the marked song's words or presentation's running order show
+beside the list, fading in as the mark moves (`ui/PalettePreview.tsx`). The songs are found by the worker's search
+(docs/performance.md, 10–45 ms a key for 3 000 songs), the rest in the page; the last songs found stay until the next
+answer, so the list does not jump at each key, and ↵ pressed meanwhile waits for it, so it never takes a song of the
+query before. Bible passages and media are not found yet. Gå → Sök i allt in the desktop app's menu bar,
+and a magnifier for a touch screen, which has no ⌘K (Lars, 2026-11-05): beside Inställningar's cog in the start
+page's and the presentation's bars where the window is wide (`lg`), and below that floating at the bottom left,
+white and lifted, the blue + at the right, as iOS 26 puts search where the thumb is (the presentation's bar had no
+room). Opened on a phone the search stands at the top, above the keyboard, as iPhone's Spotlight. A command shows
+its keys in grey at the right (`g s`, F5, `,`; the menu bar's ⌘ ones in the desktop app), not on a touch screen.
+
+The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
+light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's
+large grey pictures and small icons when a list is empty (`ui/Empty.tsx`; as Apple's empty states since 2026-11-04: what the
+page is for where no intro card says it, and a button for the first step, named for it: Skriv in en sång, Importera
+bilder, Importera en bibel), the dashed sky frame while files hover
+over a page that takes them (`DropZone.razor`, `ui/DropZone.tsx`), the overlay under `DetailHeader` with
+floating fields, the QR dialogs with the grey link field and its copy button (`ui/CopyField.tsx`), and the
+trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is drawn as Min profil. Where the
+new pages do more or less than the current ones (the user row's e-mail and invite state, the overlay's preview), they keep
+what they do and only take the look. A public output's row is the current one's: the name, "Sänder från …"
+under it while it sends, the viewer count ("0 enheter" too), Visa QR-kod and Ta bort; its link, the copy
+button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The templates page and its
+dialogs (`pages/Templates.tsx`), the picker on Skapa and the editor's sky banner take the current app's markup.
+The user page (`/admin/users/{id}`, `pages/UserDetail.tsx`) is `UserDetail.razor` without the profile picture; its
+invite card shows the link only right after Skapa (AUTH-R13), on a host as "Logga in som … här". CCLI-rapport
+(`pages/CcliReport.tsx`) is CcliReport.razor's: the collection switch with its grey line, Alla, Orapporterade and
+Rapporterade as pills, and a card per day and presentation with a grey head, its Rapporterad switch, and rows of
+number and song (the number under the song on a phone). The current app's API keys and super-admin pages have no
+counterpart yet.
+
+Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor` and `InvitePage.razor`
+(`pages/AuthCard.tsx`): the logo and the two-blue name, the fields as floating fields and the wide sky Kom igång;
+the sign-in page in the middle of the screen over the slowly moving blue blobs (`animated-bg` in `app.css`), the
+Google button white with its G; an invite that cannot be used as the old envelope picture without the logo.
+Anslut till värddatorn has no counterpart and is drawn as setup. Anslut tillfällig utgång is
+`PairingCodeDialog.razor`: the QR code in its white frame, "eller", the numbered steps, the grey address field
+and the four large digit boxes, and the green tick when a screen is paired. `/display` is `Display.razor`'s
+black page (the code huge in mono, the logo and name at the foot); `/watch` is `PublicWatchPage.razor`'s
+three faint dots and `PublicSlideView.razor`'s slide, with the credits below the text rather than over it.
+A paired screen draws the projector's canvas, as the output window (see [Paired screens](live.md#paired-screens)). Where the new pages do more than the
+current ones (Avbryt and Stäng in the pairing dialog), they keep what they do and only take the look.
+
+Where the look would change what the app does, Lars decided (2026-10-27) to follow the current app: Bilder and
+Ljud trash from a ⋯ menu (since 2026-11-04 the libraries are one page as iOS 27's, `ui/Library.tsx`: an item's menu
+opens on a right click or a held finger, with Byt namn and Radera, and Välj marks several for Radera); the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
+Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
+coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Släck and B only
+blank, and Släck is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
+the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet;
+a build knows it only from `GP_COMMIT`, for a release build to set, so local and e2e builds show none); the canvas
+is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen scrolls
+on `/watch`, not on the output window or a paired screen.
+
+This computer's own outputs under Utgångar are switches, as there (`live/outputWindow.ts`): in the desktop app one
+for each display the app's window is not on, named as macOS names it ("EPSON PJ", the laptop's own when the app
+stands on an external display), several on at once, each fullscreen on its display (`apps/desktop/src/outputs.ts`);
+with no other display, and in a browser, one "Utgångsfönster" in a window of its own (Lars, 2026-11-02). On opens
+the output, off closes it, and each shows whether its window is open, so closing the window some other way turns it
+off; Avsluta closes them all. The app's window moved onto a display with an output closes that output, with a toast
+that says so. "Slå på utgångar automatiskt" under Mina inställningar (the desktop app only, on at first) turns them
+on as a presentation starts and as a display is plugged in while it runs, each as it was last left by hand (by the
+display's name; one never switched comes on), and closes the output of a display unplugged (`live/autoOutputs.ts`). In the desktop app the main process reports where outputs are open
+(`outputs-changed`) and when the displays change (`displays-changed`), and a reloaded page asks (`outputs-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
+page shows it off until it is switched on again, which takes the open popup back by its name. Unlike the
+current app the row is always there (with one display the output is a window) and a browser opens a popup,
+not a Presentation-API receiver; there is no Esc in the output window, and Avsluta presentation closes it, as the current app's `Live.razor` does (Lars, 2026-10-29). A click in it asks for full screen, it keeps the screen awake, and it is named after the presentation.
+A blocked popup says "Live-vyn kunde inte öppnas". Tested in e2e in Electron (`milestone6.spec.ts`: on, off,
+closed by the window, a reload) and in unit tests for both kinds (`apps/web/test/outputWindow.test.ts`); the
+browser's popup is not tested in a real browser.
+
+Dragging, in the running order and an arrangement's chips, is the current app's SortableJS lists redone with
+pointer events (`ui/sortable.ts`, no library): the mouse drags at once; a finger drags after holding still
+150 ms, so a swipe still scrolls; the rows make room as the dragged one passes; near the edge of a scrolling list it
+scrolls; Escape cancels. A drop is saved by the mutators the ↑ ↓ buttons used before (`moveItem`,
+`moveArrangementPart`, moved `by` the places it passed), so sync is as before. The current app has no keyboard
+way; here Alt+↑/↓ moves the selected item in the running order, and the focused chip in an arrangement (Tab
+reaches each chip). Tested in e2e: the mouse and the keys (`milestone2.spec.ts`), and touch through Chromium's
+touch input (`drag.spec.ts`); not on a real tablet or in Safari.
+
+The move went in steps, and is finished: 1 the frame, the components and the start page; 2 the presentation
+(editor, live, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`,
+`/watch` and the output. Everything is Tailwind, except the slide itself: `apps/web/src/styles.css` keeps the
+1920×1080 canvas's rules (`ui/SlideView.tsx`, and a verse number, also on `/watch`), in the CSS layer `slide`
+below Tailwind's utilities. They are plain CSS on purpose: their sizes are the canvas's own pixels from spec 04
+(LIVE-R17, R18), the theme's inline styles go on top of them, and what a screen shows should not move when the
+rest of the app's look does.
+
+`GP_CAPTURE=<dir> pnpm --filter @gp/desktop exec playwright test capture` takes a picture of every page, desktop
+(1440×900) and phone (390×844), light and dark (`apps/desktop/e2e/capture.spec.ts`), to set beside the
+current app's from `node scripts/capture-old-app.mjs <url> <dir>` with that app running in mock mode.
+`GP_CAPTURE_ONLY=setup,login,…` takes only the named pictures. Pages with no counterpart in the current app
+(setup, which mock mode skips, and Anslut till värddatorn) are taken in the new app only.
+`node scripts/compare-old-app.mjs <dir> [name,…]` does both in one go: it adds the reference worktree
+`../GospelPresenter-main-ref` if it is missing (detached at the tag `v1-final`, fetched if it is not here; one that is there is
+used as it is), runs the current app in mock mode on a free port, takes its pictures into `<dir>/old`, stops it
+(also on Ctrl-C), takes the new app's into `<dir>/new`, and lists the names found on one side only. Three pages
+took 71 s, 4 s of it starting the current app after an earlier build.
+
+**The website's pictures** (gospelpresenter.com, `website/`): `pnpm screenshots` takes the seven views its carousel
+shows (start page, Sånger, a presentation, Lägg till sång, Lägg till bibeltext, live, and a phone following a public
+output), in Swedish and English, light and dark, desktop (1440×900) and phone (390×844), at twice the pixels, as WebP
+over `website/src/screenshots` (`apps/desktop/e2e/website.spec.ts`; about a minute, both languages side by side). Each
+language gets a church of its own, with public-domain songs and a Bible of all 66 books, one verse each. Run it when
+the look changes, and commit the pictures with the change; GitHub Pages publishes `docs/` when it changes on `main`.
+The stage view the 1.x pictures had is gone (2026-11-01); the phone following along took its place.
+
+**Captions in sentence case** (Lars, 2026-11-02, as iOS 26): the grey caption over a group or a list ("Idag",
+"Kommande", "Ordning", "Utgångar") is written as a sentence, semibold and grey, never in capitals. Capitals stay
+only in the logo and in status badges (LIVE, STANDARD, and Ta kontroll's VISAS JUST NU); this window's own Visas just nu card on
+the start page says it as a sentence, and its row has only a red dot (Lars, 2026-11-03).

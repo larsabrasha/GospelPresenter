@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/crates/gp-pptx/Cargo.toml", "$TURBO_ROOT$/crates/gp-pptx/Cargo.lock", "$TURBO_ROOT$/crates/gp-pptx/src/**", "$TURBO_ROOT$/rust-toolchain.toml"],
+      "env": ["GP_RELEASE"]
+    }
+  }
+}

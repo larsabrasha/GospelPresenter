@@ -1,0 +1,12 @@
+packages:
+  - packages/*
+  - apps/*
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  esbuild: true
+  # sharp ships prebuilt binaries per platform (@img/sharp-*); its script only builds from source without one.
+  sharp: false
+  # electron-builder's Squirrel.Windows maker; the Windows installer is NSIS (D32), so it never runs.
+  electron-winstaller: false
+  workerd: true

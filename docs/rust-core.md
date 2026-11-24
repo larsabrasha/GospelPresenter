@@ -1,0 +1,242 @@
+# The Rust core
+
+> Ended by ADR 0008 (Lars, 2026-11-22): the core went back to TypeScript, and this file is the record of how it
+> came to Rust. The way back: `docs/core-back-to-typescript.md`. The code is removed from the tree (2026-11-23) and
+> kept at the tag `native-experiment-end`; a path here is a path at that tag.
+
+2.0 runs on it (Lars, 2026-11-17: 2.0 was not released yet, so the Rust core became 2.0's rather than waiting for a
+2.5). Lars, 2026-11-13: the app is made again on one core in Rust, under the web (the React UI kept, the core as
+WASM), the server (WASM in the Worker and in Node) and later native apps; MCP and a CLI come later on the same core.
+It was done in a loop, function by function and view by view, each proved against the TypeScript app as it was
+before (the reference). How the core is built and checked: `crates/gp-core/README.md`. What 2.0 gains from here is
+written in the core first.
+
+## The core swapped, nothing else
+
+Lars, 2026-11-14, planned as a 2.5 after a 2.0 on the TypeScript core: the same app, the same React UI on the web, in
+Electron and in Capacitor, with the Rust core as WASM under all of it instead of the TS core; no new features in the
+swap, behaviour as before, proved by the differential checks and the whole e2e suite. Made on `claude/rust-core` and
+taken into 2.0's branch on 2026-11-17. Done:
+
+1. every mutator switched on the client and the server (`runMutation` in `packages/rust-core`): done;
+2. sync's client logic in the core: done;
+3. the views in the core, the React pages reading slides and lists from it: done;
+4. the TS core out of the app; the reference kept at 238d481b for the checks; and a Bible's text read through a view
+   of the core, a chapter at a time (Lars, 2026-11-17). The export waits for the imports: it is a format, the core's,
+   while the zip and the files' bytes stay the shell's. Done, 2026-11-17: what `packages/core` keeps is what the shells
+   still need (the tables' types and `tableInfo`, the server's sync SQL, `MUTATOR_VERSIONS` and the arguments' types,
+   `MutationError`, limits and settings keys, song search's `highlight`, and `slides.ts` for the song and Bible tabs'
+   previews); the checks unpack the reference's `packages/core` and `packages/sync` from 238d481b with `git archive`
+   and stop if it lacks the TS mutators.
+
+### Step 2: sync's client logic
+
+Today `SyncClient` (`packages/sync/src/client/client.ts`): a change runs at once on the device and is queued in
+`_mutation`, in one transaction; `push` sends the queue; `pull` fetches the server's changes page by page from a
+cookie; `rebase`, in one transaction, undoes every change of the device's the server has not confirmed (the undo log
+of `packages/core/src/sync-sql.ts`'s triggers), applies the server's, drops what the server has taken and replays the
+rest on top.
+
+Into the core: what decides what the database holds — the queue, the rebase, the triggers — as commands such as "run
+and queue a change", "the queue to send" and "here are the server's pages: rebase". In the shell: the network, the
+socket that says something is new, when and how often to sync, retries, and sign-in and the server's refusals
+("update required", credentials gone). The server's sync engine (`packages/sync/src/server/engine.ts`) stays
+TypeScript: it already runs the mutators through the core, and the rest of it is the server's own.
+
+Small, and the riskiest step: a wrong rebase loses or doubles a church's changes. Proved by a differential check of
+its own: the same random mix of local changes, server pages and refusals through both clients on two databases,
+the tables and the queue compared after every step; then the server's tests, which run two devices against a server
+on every adapter, and the e2e specs of sync and offline. After it a native app syncs by the web's rules exactly.
+
+Later the rest went in too (Lars, 2026-11-20), as the web, the Mac and iOS app and the iPad 3 spike each had their own
+copy: the requests a device sends and what an answer means (`crates/gp-core/src/sync_wire.rs`), and when to sync
+(`sync_driver.rs`, `syncStepView`): a reducer every shell runs, its state the shell's to hold, its answer the effects
+to do in order (post this request, keep this page, rebase, open or close the poke socket, set a timer, fetch the
+media). The shells keep the sockets, the timers, the requests' transport and sign-in. The server's sync engine stays
+TypeScript, and so does the server's `PROTOCOL_VERSION`; the core's is the one devices send, the same 1.
+
+### Step 3: the views
+
+What a page shows, worked out: today the web's own SQL (`apps/web/src/db/queries.ts`, 34 queries) and reckonings in
+React components; the slides (`readItemSlides`) are in Rust and proved already. Page by page: the presentation and
+presenting first, then the songs list and the song editor (parts, arrangements, labels, history), then the Bibles,
+pictures, sounds, videos, custom slides, templates, themes, overlays, outputs, the CCLI report, the trash and the
+settings. Each view is a call to the core in the database worker; React gets finished JSON instead of running SQL.
+A page is read again when a table it reads changes, as now: each view names the tables it reads.
+
+Proved view by view: the old TS query and the new Rust view on the same database give identical JSON (as the slides
+are checked), and every e2e spec that reaches the page passes unchanged. Large and harmless: a view cannot spoil data,
+only show it wrongly, which the comparison catches. Long lists (3 000 songs) are measured, so that copying JSON over
+the bridge does not make them slower; search is in the core already. After it the native apps, MCP and the CLI read
+the web's lists, and React holds no SQL. It can run beside step 2: they touch different files.
+
+What comes next is written in Rust first, planning among it (`docs/planning.md`). Native UIs on the same core waited
+until the core was done; it was, and the iOS app is built on it now (Lars, 2026-11-17; `docs/native-apps.md`).
+
+### Before 2.0 goes out, and after
+
+Weighed with Lars, 2026-11-16, in order of risk:
+
+1. **Where churches run it.** The e2e specs in WebKit as well as Chromium, real Safari, iOS through Capacitor and a
+   packaged app; then one or two churches on a beta for a few Sundays before 2.0 goes out widely. The rebase is proved
+   against the TS client, not yet against real networks and real people: the largest risk left.
+2. **The web's storage.** The web is held back by OPFS, not by the core. WAL with `locking_mode=EXCLUSIVE` measured 8
+   times faster in Chromium (98 against 801 µs a mutation) and almost 3 in WebKit (59 against 165); TRUNCATE and
+   PERSIST give disk I/O errors with the VFS. It needs one connection to write, which fits, as the output window reads
+   through the operator window's database; check first that nothing else opens it. The views are measured with 3 000
+   songs before step 3 counts as done.
+3. **Checks once the reference is gone.** When the TS core leaves the app (step 4), a new feature has nothing to be
+   compared with. The random checks stay, but check properties instead of sameness: no change lost or doubled by a
+   rebase, client and server ending on the same rows, every refused change undone.
+4. **UniFFI for the native shells.** When the native apps come, the core's interface is generated by UniFFI (Mozilla's,
+   below) instead of the hand-written C interface with JSON: Swift and Kotlin types made from the Rust ones, so no
+   shell parses JSON by hand. The web keeps JSON over WASM. Done for Swift, 2026-11-17 (`crates/gp-core-ffi`,
+   `docs/native-apps.md`): the steps, SQLite's values and the caller are generated types; a command's arguments and
+   a view's answer are still JSON text, which Swift decodes into its own types.
+
+## What else was weighed
+
+Lars, 2026-11-14 to 16. What we need at once: offline, and through the church's own computer without the internet; a
+server on Cloudflare; permissions decided by the server; the same rules on the web and in native apps. Nothing found
+does all of it better; each below does a part.
+
+- **Mozilla** does what we do: the shared parts of Firefox for Android and iOS (sync, logins, history) are Rust
+  components (application-services), bound to Kotlin and Swift by UniFFI, under native UIs; desktop Firefox is web
+  technology over its engine. Windows and Linux follow that here: the web's UI in Electron to begin with.
+- **1Password** has one Rust core under native apps and its web; **Figma** runs its core as WASM in the browser.
+- **Crux** (Red Badger) is a framework for this very pattern: a Rust core, effects done by Swift, Kotlin and web
+  shells. The core follows it without using it; its type generation is worth a look with UniFFI.
+- **Sync engines** (Zero, ElectricSQL, PowerSync) do sync for you, but want a server of their own, most with Postgres,
+  and fit badly with Durable Objects and the church's own computer. PowerSync's core is also Rust in SQLite on every
+  platform: the same idea as ours.
+- **CRDTs** (Automerge, Loro, Yjs) merge concurrent changes without a server: better when many write the same text at
+  once, which a church seldom does, and they make permissions harder. The server deciding and the client replaying
+  its changes on top (Replicache's and Linear's model) is simpler and fits.
+- **The TS core kept, under native UIs**: in JavaScriptCore under SwiftUI on the Mac and iOS, in Hermes or QuickJS on
+  Android. Nothing to prove, being the same code, and cheaper; but slower, harder to debug from native, and the core
+  stays in a language the native platforms do not speak. The one real alternative to the rewrite, not a better one.
+
+Not searched again for news: what is above is as known by mid-2026.
+
+## The reference
+
+The TypeScript app at commit 238d481b on `claude/replace-csharp-with-rewrite` (Lars, 2026-11-13). It is 50f53f37,
+the app before this work, with presenting's keys and the running order's slides moved into `packages/core`
+(`presentingKey`, `slideMarks`, `readItemSlides`), behaviour kept and proved by the e2e specs that reach them: a
+contract the Rust core is checked against call for call, not a reading of React code. It is not changed while the
+core is made. The checks bundle its `packages/core` from a checkout of that commit, so a TS function removed from the
+app on this branch is still there to compare with:
+
+```sh
+git worktree add ../gp-reference 238d481b
+GP_REPO=$PWD/../gp-reference crates/gp-core/build.sh test
+```
+
+## Where the core runs
+
+- **The web**: the React UI as it is; the client's database worker (`apps/web/src/db/worker.ts`) loads the core's
+  WASM and answers its SQL from wa-sqlite.
+- **The server**: the Worker loads the same WASM and answers from the organisation's Durable Object SQLite, whose
+  `sql.exec` is synchronous; the Node host answers from node:sqlite or better-sqlite3. Client and server run the
+  same mutators, so the server moves with the client, group by group, never after it.
+- **Windows and Linux**: the desktop app as it is (Electron), its React UI over the core as WASM in the database
+  worker, as the web; a native UI there may come later (Lars, 2026-11-13: web technology there to begin with, as
+  Mozilla's desktop Firefox; Tauri, the core native under the system's web view, not before the core is done).
+- **The Mac and iOS**: the core as a static library under SwiftUI, one UI for both where it can be (`apps/mac`),
+  through UniFFI (`crates/gp-core-ffi`). The Mac app is SwiftPM's (`crates/gp-core/build.sh run`); the iOS app is
+  `apps/mac/ios/GPiOS.xcodeproj` over the same views, the core from `apps/mac/build/GPCore.xcframework` (macOS, iOS,
+  the iOS simulator), built by `apps/mac/apple.sh`. An iPhone stacks the three columns, an iPad keeps them; the output
+  window is the Mac's only, for now. Building, sync and the pages: `docs/native-apps.md`.
+- **Android**: the core under Jetpack Compose, through the same UniFFI interface in Kotlin.
+- **MCP and a CLI**: later, through the same interface.
+
+## The core's interface
+
+What every shell calls, and later MCP and the CLI; kept stable, and versioned when it changes:
+
+- a **command** (a mutator): name, arguments and the caller's role in; `ok` or a refusal's code out;
+- a **view**: name and arguments in; what a page shows out, as JSON (the slides, a list, a search's hits);
+- **presenting**: a reducer, what is shown and the key pressed in, what is shown next out;
+- **syncing**: a reducer, the driver's state and what happened in (a poke, the server's answer, a timer), the next
+  state and the effects to do out (`syncStepView`);
+- **SQL as effects**: the core never opens a database; it asks its shell for each query and waits for the rows.
+
+In the core: the schema and its migrations, the mutators and their argument checks, permissions, the views, song
+search, presenting, sync's own logic (the pending changes and their rebase, the requests, the answers' meaning and
+when to sync), and the import and export formats.
+In the shells: drawing, the network's transport and sockets, the timers, sign-in and sessions, the bytes of pictures, sound and video, and the desktop
+host.
+
+## The loop
+
+For each function or view, in the order below:
+
+1. **Port** it to the core.
+2. **Prove** it against the reference. A function: the same inputs through both, random ones with the edges among
+   them (invalid arguments, other roles, rows gone, Unicode), the outcomes and the database rows compared after
+   every step (`crates/gp-core/parity/diff.mjs` is the pattern). A view: the web's e2e specs that reach it, run on
+   the core; on the Mac, a picture beside the web's, the same content in about the same place.
+3. **Switch** the web and the server to the core for it, and remove the TypeScript one from the app;
+   `pnpm typecheck && pnpm lint && pnpm test`, the e2e specs it reaches, and `crates/gp-core/build.sh test` pass.
+4. **Commit**, and mark it in the table below.
+
+A difference the check finds is the core's to fix, unless the reference is wrong; then Lars decides.
+
+## In order
+
+0. The core in workerd and in the web's worker, proved there before anything is switched.
+1. The schema and its migrations, which both ends need alike.
+2. The mutators, a file at a time, client and server together.
+3. Sync's client logic.
+4. The views, page by page (`apps/web/src/pages`), the presentation and presenting first.
+5. The imports: the 1.x zip, ProPresenter, Bibles.
+6. The Mac app's pages, after the web's, and iOS beside them in the same SwiftUI.
+
+The platforms in order (Lars, 2026-11-13): the web, the Mac and iOS first. Windows and Linux follow the web in the
+desktop app without work of their own; Android comes after them.
+
+## Where it stands
+
+The mutators by file of `packages/core/src/mutators`; ported and proved means in the core and through the checks,
+switched means the app runs the core's.
+
+| Part | Ported and proved | Switched |
+| --- | --- | --- |
+| The core in workerd (a SQLite Durable Object, `parity/workerd-check.mjs`) | proved: 15 000 mutations, the same outcomes and rows | — |
+| The core in a browser: a Web Worker over wa-sqlite, in memory and on OPFS (`parity/browser-check.mjs`), in Chromium and WebKit (Safari's engine, not Safari or iOS themselves) | proved: 15 000 mutations, the same outcomes and rows; as fast as the TS core, OPFS the cost of both | — |
+| Schema and migrations, and the default labels (`crates/gp-core/src/schema.rs`; the commands `migrateOrgSchema` and `seedLabels`, each in the shell's one transaction) | proved (`crates/gp-core/parity/mutations/schema-check.mjs`): a new database, one of every version 11 to 26 with rows the data migrations change, and the three the migration refuses; the same `sqlite_master` and rows. A refused database is left as it was, where the TS migration leaves an empty `_schema` table on it | switched: the client's start, the Node host and the Durable Object open a database through the core |
+| The mutators, every file but probe (`crates/gp-core/src/mutators/`, one module a file, each with its own dispatcher; arguments as zod checks them, permissions as `permissions.ts`'s, JSON stored as `JSON.stringify` writes it) | proved, each file alone: 30 000 random mutations through both cores, every table compared after each step, no differences (`node crates/gp-core/parity/mutations/run.mjs <file> --ops 3000 --seeds 10`; `build.sh test` runs 3 000 a file). Invalid arguments, every role and an unknown one, rows gone or in the trash, Unicode at the limits, and every limit reached: presentations (16), songs (10, the 5 000 songs), arrangements (6), labels (4), song-materials (4), history (1), templates (7), custom-slides (7), themes (4), bibles-and-themes (3), overlays (3), displays (3), ccli (3), org-settings (1), trash (2), media (23) | every one, on the client and the server (`runMutation` in `packages/rust-core`, under `packages/sync`'s client and server engine): 2.5's step 1, 2026-11-16; a refusal carries the core's code, not the TS core's English message |
+| probe (1) | a test helper: ported, so every mutator, the sync tests' included, runs on the core | switched |
+| The TS core out of the app (the swap's step 4) | the checks take the reference from git (238d481b), not from the app | done: the mutators, the schema's DDL and migrations, the label seed, the client's sync SQL, `readItemSlides`, presenting's reducer and the verse lookups gone from `packages/core`; Drizzle gone from the server and sync |
+| A Bible's text (`bibleView`) | proved: 230 compared against 2.0's reads (books, chapters, verses, every page turned, 14 searches, a text missing) | switched: a book and a chapter read through the core, only what is needed; a translation the device does not keep is fetched into a database of its own in the worker (the last three). The first open is faster (13–16 against 23–25 ms), a book and a chapter slower (9–10 against 5–6, 7 against 5 ms: a round trip to the worker each) |
+| Views: every page's (37 views: the presentation and presenting, the songs and their editor, history and materials, the libraries, the presentations, templates and trash, labels, Bibles, themes, displays, the CCLI report), against the web's own reads at 238d481b | proved: identical JSON on the demo data (`parity/views-check.mjs`, `parity/views/*.mjs`); presenting's keys and marks 314 054 compared; song search against the TS search; 3 000 songs measured, no slower but opening Lägg till by a few ms (the JSON over the bridge) | switched: the pages read through `ReadDb.view`, from the database's worker under the client's lock; the output window asks its owner. Left in the shell, by design: the files' bytes and the video cache (the platform's storage); and, not decided, ordering by name in the page's language (below) |
+| What the pages work out besides (Lars, 2026-11-17): the song and Bible tabs' previews, a reference read as verses, a passage's title and label, the books' names and testaments, a search hit's marking, each role's permissions and the data's limits | proved: the Bible preview for every browse, 4 000 random references, every book's names, 3 000 marked texts, against 2.0's TS (`parity/views/bible*.mjs`, `highlight.mjs`); the permissions and limits equal the TS table the server's own routes keep (`packages/core/test/node/rules.test.ts`) | switched: pure views on the page's own core (apps/web/src/db/pageCore.ts (at the tag native-experiment-end): `bibleSlidesView`, `verseSearchPlanView`, `bibleBookNamesView`, `highlightView`, `rulesView`), the song preview through `itemSlidesView`; the TS functions gone from `packages/core`, their tests moved to `packages/rust-core`. The TS `searchSongs` and `highlight` stay as performance.spec's yardstick, `compareBooks` for the Bible import |
+| The app's live state and a page's own state (Lars, 2026-11-18; `docs/view-models.md`): one presentation presented at a time, the overlays' rules, and what each key, tap and row does to the selection and the slide made ready | proved: `liveChangeView` on 6 000 changes and `followItemOverlayView` on 3 000 against 2.0's TS (`parity/views/live-state.mjs`); the page's reducer by unit tests and the scenario | switched: the web's LiveChannel and owner, the presentation page on a computer and a phone (`live/pageState.ts`); the native app's `Live` and `Model.send`; `applyLiveChange` and `followItemOverlay` gone from `packages/core`, the web's `presentingKey` too (`presentingKeyView` stays, the reducer's own) |
+| What a page offers (Lars, 2026-11-18; `docs/view-models.md`): where + adds, the start page's lists, the title's and an item's menus, a field's rule | proved: `addPositionView` on 4 000 running orders and `startPageView` on 32 days against 2.0's TS (`parity/views/page-models.mjs`); the menus by unit tests (`packages/core/test/node/page-models.test.ts`); each field's rule against its mutator (`rules.test.ts`) | switched: the web (`liveList.ts`, `Presentations.tsx`, `PresentationEditor.tsx`, `ItemContextMenu.tsx`, the name dialogs) and the native app; `groupPresentations` and `itemCounts` gone from the web; the phone's item sheet and the details dialog read the core too (`ItemSheet.tsx`, `detailsDialogView`) |
+| Sync's client logic: the queue, the rebase, the triggers (`crates/gp-core/src/sync.rs`) | proved: 15 000 steps over 10 seeds against the TS client and the server's real engine, a second device changing the same library, lost answers, offline, refusals, a role change, a first pull of two pages, an SQL error; every table, the queue and the undo log compared after each step (`parity/sync/check.mjs`); since the switch, the app's own `SyncClient` against the TS client as it was at 75e7f234, taken from git when the check is built | switched: `SyncClient` runs `syncOpen`, `syncMutate`, `syncPending` and `syncRebase` through the core, and since 2026-11-20 does what the core's driver says (`syncStepView`): the requests, the server's refusals, when to sync, the socket's reconnects and the poll; the transport, the socket itself, the timers, sign-in, `beforePush` and `localWrite` stay in the shell. The driver's rules by 27 Rust tests (`sync_driver_tests.rs`) and its requests by `packages/core/test/node/sync-driver.test.ts`; the web through the server's sync tests and this check, the Mac and iOS app against a real server by `apps/server/test/native-sync.test.ts`. A COMMIT refused by a foreign key after a rebase is rolled back as before, but never happened in the checks |
+| The ProPresenter import (`crates/gp-core/src/propresenter.rs`, `proPresenterSongView`; the file as base64) | proved: 2 000 files made as ProPresenter writes them, the same damaged, 300 of noise, and 819 real files (`parity/views/propresenter.mjs`, `GP_REAL_PRO_DIR`): the same song or none, the text worked on as UTF-16 units as the web's; a unit that pairs with none is U+FFFD in the core's answer | switched (2026-11-18): Sånger's import reads files through the page's core; `parseProPresenter` and its tests gone from `packages/core`, the tests and `pro-fixture.ts` moved to `packages/rust-core` |
+| A Bible's zip (`crates/gp-core/src/bible_import.rs`, `bibleImportView`; the zip as base64; DEFLATE by miniz_oxide) | proved: 1 500 zips made (DBL with USX_1/ or USX_2/, loose USX, USFM, SFM, copr.htm, front matter, a book twice, none; books with what USX and USFM have), 500 of them damaged, and three real Swedish ones (`parity/views/bible-import.mjs`, `GP_REAL_BIBLE_ZIP`): the same translation or the same refusal. Files are taken in the order of their names by code unit where the TS used `localeCompare`, which matters only for two files with one book's code; a damaged DEFLATE stream is refused as `compression` where the TS threw the platform's error. A whole Bible in 143–305 ms against the TS's 212–365 | switched (2026-11-18): the database's worker reads a zip with a core of its own, so the client's goes on syncing; `importBibleZip`, its readers and their tests gone from `packages/core` (`readZip` moved to `zip.ts` for the tests and tools that check a zip the app wrote), the tests and `bible-fixtures.ts` moved to `packages/rust-core` |
+| An export zip's rows, of 1.x or 2.0 (`crates/gp-core/src/legacy.rs`: `legacyUpgradeView`, `legacyBlobsView`, `legacyRowsProblemView`, `legacyOverlayPageView`; the rows as JSON text both ways, worked on in JavaScript's key order by `ordered.rs`, so a rewritten page is the text JSON.stringify writes) | proved: 1 500 zips' rows of formats 1 to 8 made here (columns in other orders, missing or extra, ids of every kind, pages with pictures of Bilder by id, PDF decks, Bible passages, RTF leftovers, themes with pictures, outputs' kinds, JSON written loosely), half of them as a sound export writes them, and 300 overlays of 1.x (`parity/views/legacy.mjs`): the upgraded rows table by table as JSON.stringify writes them, the first row refused and the blobs named, 0 different. Against the TS at fb03e798 (build.sh's LEGACY_REFERENCE), as 238d481b has no field times. Rows that are not objects, or a table the upgrade reads that is not a list of them, are refused as `invalid-rows` where the TS threw or made something the server then refused | switched (2026-11-18): the web's import and export (`legacyImport.ts`, `orgExport.ts`, the page's core), the server's check (`legacy-routes.ts`, a spare instance of the organisation's core) and 1.x's export (`apps/legacy`, `nodeRustCore`), through `@gp/rust-core`'s `upgradeLegacyRows`, `legacyBlobs`, `legacyRowsProblem` and `legacyOverlayPage`; `packages/core/src/legacy.ts` keeps the zip's shape and schemas only, its tests moved to `packages/rust-core` |
+| The export's rows read from the device's database (`exportRowsView`: every row of the import's tables with exactly their columns, by id, as JSON text in the columns' order) | proved: the demo's database brought to schema 27, the same JSON text as `orgExport.ts`'s SQL wrote (`parity/views/legacy.mjs`) | switched (2026-11-18): `orgExport.ts` reads them through `ReadDb.view`; no SQL left in the export |
+| A ProPresenter import's duplicates (`crates/gp-core/src/song_import.rs`: `songNamesakesView`, `songImportDuplicatesView`): which songs share a name (case and composition aside) with one in the library or earlier in the import, whether their text is the same, what may be chosen and what the dialog starts with | proved: 2 000 imports with names alike but for case, composition or white space, texts alike but for spaces and line breaks (`parity/views/song-import.mjs`), against the web's `songImport.ts` at fb03e798: 0 different | switched (2026-11-18): `songImport.ts`'s `namesakes` and `planImport` ask the page's core; the songs' ids, the choices applied and the result line stay the web's |
+| Ordering by name in the page's language (`crates/gp-core/src/collation.rs`: ICU4X's collator over `collation_data`, Swedish and English only, without the Han tailorings ICU4X's datagen command always adds, written by `crates/gp-core-collation`; Lars, 2026-11-18; ICU4X 2.3 since 2026-11-19, as parley pins its segmenter and ICU4X's crates move together) | proved: the views' order against `Intl.Collator` (`sensitivity: 'base'` for names) on the fixture's songs, templates, Bibles, outputs and CCLI entries, and 40 libraries of made-up names (å ä ö and kin, v and w, accents composed and decomposed, case, digits, punctuation, other scripts, emoji) in Swedish and English (`parity/views/collation.mjs`): 0 different; the native add sheet's `searchSongsView` against the web's search over the library in that order, 301 queries over 400 made-up songs in each language (`parity/views/songs.mjs`): 0 different. The core grew 332 kB, 75 kB with brotli (1.66 to 1.99 MB, 409 to 484 kB); all of ICU4X's data would have been 1.23 MB. 3 000 songs ordered in about the time `Intl.Collator` takes | switched (2026-11-18): `songsView`, `templatesView`, `biblesView`, `displaysView` and `ccliReportView` take the page's `locale` and give their rows ordered (`queries.ts`, `SongSearch`), and so does the native app's `searchSongsView`, with the app's language (before, SQLite's byte order: "apa" after "Zebra"); a page's own sorting by a column the user picks (Sånger's, the libraries' by name with numbers) is still the web's |
+| A slide laid out to the glyph (`crates/gp-core/src/slide_layout.rs`, `slide_items.rs` for pictures, videos' stills, slideshows' pages and overlays, `slideLayoutView`, with the `layout` feature, which the native shells' `crates/gp-core-ffi` turns on: parley over the app's faces as TrueType in `crates/gp-core/fonts`, with Chromium's break opportunities; way 3 of `docs/native-slide-rendering.md`, Lars, 2026-11-19) | proved: against SlideView in Chromium and WebKit, the fitted size, each line's text, where it starts across and its baseline below the line's top, in four themes (Inter, Montserrat and Lato; centred, left and right; top, middle and foot; capitals; a narrow box): the demo's 170 slides in `build.sh test` (`parity/slide-layout.mjs`) and 10 646 from 812 real songs (`GP_REAL_PRO_DIR`), 85 168 compared: 0 different, besides 89 where a word is within 2.5 px of the box's edge (the engines round sub-pixel widths apart) and 11 lines with a hyphen WebKit alone places 1.5–6 px across. On a Mac also Classic in the system's Tahoma, which the shell adds (`add_slide_face`): 106 460 compared over the real songs, 0 different besides the same 89 at the edge. Not checked: credits cut with an ellipsis; outlines and shadows are painted, not laid out. The web's WASM is unchanged without the feature (1.99 MB, 485 kB brotli); with it 3.79 MB, 979 kB | switched in the Mac and iOS app (2026-11-19): song and Bible slides painted from it (`apps/mac/Sources/GPMac/SlidePainter.swift`, `docs/native-slide-rendering.md`; Bible slides proved as songs are, 165 of them beside the demo's songs: 0 different). Since 2026-11-19 every kind is laid out and painted (pictures, videos' stills, slideshow pages, overlays; compared picture by picture, `docs/native-slide-rendering.md`); a stack of which the core has no face (Classic's Tahoma where no shell added it) `font-not-shipped` |
+| Which media files a device fetches (`crates/gp-core/src/media_wanted.rs`, `wantedMediaView` {presenting, persistent, keepComing, today, days, fetch}: the web's `wantedBlobs` and `wantedVideos` of `packages/sync/src/client/media.ts`, the same SQL; Lars, 2026-11-19) | proved: against the web's own functions as they are today (`parity/views/wanted-media.mjs`, in `build.sh test`), on the demo with own themes', overlays' and slideshows' pictures and presentations kept offline, 46 policies (presenting or not, kept by hand or as coming, a device keeping nothing, one fetching nothing): 0 different. A slideshow, an overlay or an image item whose JSON does not read stopped the web's whole fetch (`json_each`), the core's alike; since 2026-11-20 both pass over it (`readable` in `packages/core/src/media.ts` and `media_wanted.rs`; the check breaks one of each and asks for the good ones' pictures) | switched: the web (`wantedVideos`) and, through `mediaPlanView`, the Mac and iOS app |
+| What a device does with Bible texts (`crates/gp-core/src/bible_texts.rs`; Lars, 2026-11-21): `bibleTextPlanView` {keeping} what to fetch (a kept translation names it and it is not here) and drop (no kept translation names it, never what a queued import names); `bibleTextStoreView` {hash, json} a text fetched read as `bibleTextSchema` reads it, written canonically and hashed (SHA-256, the `sha2` crate), and the statements that keep it, or null; `bibleTextJsonView` a kept text's canonical JSON; `bibleUploadsView` the queued imports to upload before a push, each with its place in the queue | proved: against the web's syncBibleTexts, fetchBibleText and BibleTextUploads at 3d061fc9, taken from git (`parity/views/bible-texts.mjs`, in `build.sh test`): 400 texts made at random, sound and broken in each way the schema refuses (a book twice, a lowercase code, a fourth part, numbers out of range or not whole, a verse over 10 000 code points, as zod 4 counts it, no books or verses, too many of either, not JSON) and written canonically and not (spaced, floats, keys the schema strips), 127 of them taken; what to fetch and drop keeping all or the chosen with imports queued; the uploads before a push through, refused, failing and unreachable: 411 compared, 0 different; `read_text` by eight Rust tests. Not covered: a lone surrogate escape (`\ud800`), which JavaScript reads and serde_json refuses | switched: the web's syncBibleTexts, fetchBibleText and BibleTextUploads only move the texts (`retryRefused` stays the web's, as it queues a change again); the Mac and iOS app (`Shell/BibleTexts.swift`), which shows them nowhere yet |
+| What a device does with its media files (`crates/gp-core/src/media_plan.rs`; Lars, 2026-11-20): `mediaPlanView` {policy, budget, now, held?, inUse?} what to fetch, what to drop (nothing names it past the grace, never what a queued change names; then the oldest of the cache over the budget) and the cache's bytes; `mediaUploadsView` {uploaded, now} the blobs to upload before a push, each with its change's place in the queue; `mediaStorageView` the storage report; `blobs_of` which blobs a queued change names | proved: against the web's syncMedia, MediaUploads and storageReport at bb87c4aa, taken from git (`parity/views/media-plan.mjs`, in `build.sh test`), on the demo with blobs held and not, old and new orphans (one without bytes), queued changes naming blobs of every kind, videos kept whole, a presentation kept offline, 13 policies and three budgets, the uploads again within and after half the grace, and the plan with `held` as a folder gives it, and with `inUse` (what the shell's player has, never dropped), and a folder's video kept while its presentation is presented: 81 compared, 0 different; `blobs_of` and its JavaScript `String()` by ten Rust tests | switched: the web's syncMedia, MediaUploads and storageReport only move the bytes and check the hashes; `blobsOf`, `wantedBlobs` and `keptPresentations` gone from TS; the Mac and iOS app's `MediaSync.swift` (with a budget and clean-up now) and `Server.download` (each file's SHA-256) |
+| What the device presenting does with audio and video (`crates/gp-core/src/playback.rs`, `playbackStepView` {player, presentationId, item, black}: the web's Player and engines' rules, spec 04 §1b and LIVE-R6: a video or audio item shown plays from its start, anything else shown stops it, Släck pauses it and a slide shown again plays it on unless it was paused by hand, an item made live under Släck waits for the picture; Lars, 2026-11-19) | tested: eight Rust tests, one a rule; the Mac app's `GP_MAC_PLAYTEST` runs them on real files. Not compared with the web's code, whose rules live in its engines with the browser's elements | used by the Mac and iOS app (`LivePlayer.swift`); the web still uses its own |
+| How the sync stands, in words (`crates/gp-core/src/sync_status.rs`, `syncStatusView` {pending, stopped, connected, busy, waitedLong}: the web's `syncState` and its yellow line's reasons; texts as codes, each shell's words; Lars, 2026-11-20, as the web and the Mac app had drifted: the Mac said offline at once and the update in other words) | tested: eleven Rust tests, the web's `syncState.test.ts` unchanged on the core | switched: the web (`ui/syncState.ts`, `TopBar.tsx`, `Shell.tsx`'s warnings), the Mac and iOS app (`AppState.noteSync`, the grace's timer the core's 1.5 s); the Mac app's menu shows the yellow line's words, as it has no line |
+| The iOS and Mac app (`docs/native-apps.md`): the presentations, the running order, presenting, from the web's views; pairing with a desktop host and sync as the web's `SyncClient`; no external output on iOS yet | built on the core through UniFFI; run in the simulator, synced both ways with the web through a desktop host | — |
+
+Where the core does otherwise than the TS core, on purpose or not yet checked: a database the migration refuses is
+left as it was (the TS one leaves an empty `_schema` table); a song version whose text does not read is refused with
+`invalid-snapshot` (the TS core throws zod's error; versions are only made by the mutators, so the check never makes
+one); and a string with a lone UTF-16 surrogate cannot reach the core, as JSON between the shell and the core is UTF-8
+(the checks send none).
+
+Written in the core after the reference (Lars, 2026-11-17): schema 27, a time per field of custom slides, overlays and
+own themes, and the newest change of each field winning (SYNC-R23, docs/assumptions.md); and a renamed slideshow,
+picture, sound or video renaming its items, as a song does (docs/assumptions.md). The reference stops at 26, so the checks bring its
+databases to 27 as the core's migration does and add these rules to the reference's mutators as triggers
+(`parity/beyond-reference.mjs`); the sync check's reference client takes today's tables and schema version. A
+feature written in the core first is proved so: its rule beside the reference, the rest unchanged.

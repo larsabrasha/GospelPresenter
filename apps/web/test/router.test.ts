@@ -1,0 +1,209 @@
+import { describe, expect, it } from 'vitest';
+import { t } from '../src/i18n.ts';
+import { aloneInSettings, href, isAdminPage, parseRoute, type Route } from '../src/ui/router.ts';
+
+/** Reads an address the way the app does: `useRoute` gives the router the path, the query and the fragment. */
+const read = (address: string) => {
+  const u = new URL(address, 'http://localhost');
+  return parseRoute(u.pathname, u.search, u.hash);
+};
+
+describe('routes', () => {
+  it('every route survives a round trip through its address', () => {
+    const routes: Route[] = [
+      { page: 'songs' },
+      { page: 'song', id: 'a b/c' },
+      { page: 'songHistory', id: 'S1' },
+      { page: 'songArrangements', id: 'S1' },
+      { page: 'songArrangement', id: 'S1', arrangementId: 'A 1/2' },
+      { page: 'songMaterials', id: 'S1' },
+      { page: 'presentations' },
+      { page: 'presentation', id: 'P1' },
+      { page: 'presentation', id: 'P1', remote: true, session: null },
+      { page: 'presentation', id: 'P1', remote: true, session: 'S 1' },
+      { page: 'trash', kind: null },
+      { page: 'trash', kind: 'Song' },
+      { page: 'trash', kind: 'Image' },
+      { page: 'output' },
+      { page: 'users' },
+      { page: 'user', id: 'U 1/2' },
+      { page: 'devices' },
+      { page: 'bibles' },
+      { page: 'images' },
+      { page: 'audios' },
+      { page: 'overlays' },
+      { page: 'overlay', id: 'O 1/2' },
+      { page: 'themes' },
+      { page: 'displays' },
+      { page: 'orgSettings' },
+      { page: 'about' },
+      { page: 'settings' },
+      { page: 'watch', code: 'abcdefg' },
+      { page: 'display', id: null, name: null, token: null },
+      { page: 'display', id: 'abcdefg', name: 'Kyrksal & co', token: null },
+      { page: 'display', id: null, name: null, token: 'Ab-_1' },
+      { page: 'logins', error: null },
+      { page: 'logins', error: 'login-taken' },
+      { page: 'storage' },
+      { page: 'invite', token: 'gpin_abc-_123' },
+      { page: 'signedIn' },
+      { page: 'signIn', error: null },
+      { page: 'signIn', error: 'not-linked' },
+    ];
+    for (const r of routes) expect(read(href(r)), href(r)).toEqual(r);
+  });
+
+  it('addresses are plain paths, with no # except an invite\'s token', () => {
+    expect(href({ page: 'presentations' })).toBe('/');
+    expect(href({ page: 'songs' })).toBe('/admin/songs');
+    expect(href({ page: 'song', id: 'S1' })).toBe('/admin/songs/S1');
+    expect(href({ page: 'presentation', id: 'P1' })).toBe('/presentations/P1');
+    expect(href({ page: 'images' })).toBe('/admin/images');
+    expect(href({ page: 'trash', kind: 'Image' })).toBe('/trash?kind=Image');
+    // The token is in the fragment, which no server sees, never in the path (it would reach a log).
+    expect(href({ page: 'invite', token: 'gpin_x' })).toBe('/invite#gpin_x');
+    expect(read('/invite')).toEqual({ page: 'presentations' }); // an invite page without its token is nothing
+    expect(read('/invite/gpin_x')).toEqual({ page: 'presentations' });
+    // A saved screen's link, and a temporary screen's (spec 04 §5, §8).
+    expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
+    expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
+  });
+
+  it('opens the presentation from an old link into the stage view, as the stage view is gone', () => {
+    // Arrange
+    const search = '?remote=true&session=S1&stage=true';
+
+    // Act
+    const route = parseRoute('/presentations/P1', search);
+
+    // Assert
+    expect(route).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1' });
+  });
+
+  it('a /live/ link from before opens the presentation, presenting or controlling as it said', () => {
+    expect(read('/live/P1')).toEqual({ page: 'presentation', id: 'P1' });
+    expect(read('/live/P1?remote=1&session=S1&stage=true')).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1' });
+  });
+
+  it('admin pages live under /admin, and no page is under /api', () => {
+    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays', 'about'] as const) {
+      const path = href({ page });
+      expect(path).toBe(`/admin/${page}`);
+      expect(path).not.toMatch(/^\/api/);
+    }
+    expect(read('/users')).toEqual({ page: 'presentations' });
+    expect(read('/admin/nowhere')).toEqual({ page: 'songs' });
+  });
+
+  it('/admin is Inställningar\'s list, and links back to it', () => {
+    expect(read('/admin')).toEqual({ page: 'admin' });
+    expect(read('/admin/')).toEqual({ page: 'admin' });
+    expect(href({ page: 'admin' })).toBe('/admin');
+  });
+
+  it('every page under /admin opens as Inställningar', () => {
+    for (const path of ['/admin', '/admin/songs/S1', '/admin/users/U1', '/admin/overlays/O1', '/admin/settings', '/admin/about', '/songs']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
+  it('a song opened straight from a page outside Inställningar stands alone', () => {
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, 1)).toBe(true);
+  });
+
+  it('a song reached from the list, or from the address bar, keeps the list and its way back', () => {
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, 2)).toBe(false);
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, undefined)).toBe(false);
+  });
+
+  it('the one trash opens in Inställningar, whatever kind it is opened at', () => {
+    for (const path of ['/trash', '/trash?kind=Presentation', '/trash?kind=Song']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
+  it('a page of the list itself never stands alone, opened first or not', () => {
+    expect(aloneInSettings({ page: 'settings' }, 1)).toBe(false);
+  });
+
+  it('Mina inställningar and its sign-in methods open as Inställningar too, at their own addresses', () => {
+    for (const path of ['/settings', '/logins']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
+  it('the pages outside Inställningar open on their own, the template editor among them', () => {
+    for (const path of ['/', '/presentations/P1', '/templates', '/templates/T1']) {
+      expect(isAdminPage(read(path)), path).toBe(false);
+    }
+  });
+
+  it('a template opens in the editor at /templates/{id}, as in the current app (spec 03 screen 2)', () => {
+    expect(href({ page: 'template', id: 'T 1' })).toBe('/templates/T%201');
+    expect(read('/templates/T%201')).toEqual({ page: 'template', id: 'T 1' });
+  });
+
+  it('Mallar is a page of its own at /templates, outside Inställningar', () => {
+    expect(href({ page: 'templates' })).toBe('/templates');
+    expect(read('/templates')).toEqual({ page: 'templates' });
+  });
+
+  it("Mallar's address from when it was in Inställningar still opens it, outside Inställningar", () => {
+    const route = read('/admin/templates');
+
+    expect(route).toEqual({ page: 'templates' });
+    expect(isAdminPage(route)).toBe(false);
+  });
+
+  it('the song addresses from before the admin menu still open them', () => {
+    expect(read('/songs')).toEqual({ page: 'songs' });
+    expect(read('/songs/S1')).toEqual({ page: 'song', id: 'S1' });
+  });
+
+  it('the trash kind is case-insensitive, and an unknown kind is everything', () => {
+    expect(read('/trash?kind=presentation')).toEqual({ page: 'trash', kind: 'Presentation' });
+    expect(read('/trash?kind=IMAGE')).toEqual({ page: 'trash', kind: 'Image' });
+    expect(read('/trash?kind=audio')).toEqual({ page: 'trash', kind: 'Audio' });
+    expect(read('/trash?kind=Template')).toEqual({ page: 'trash', kind: 'Template' });
+    expect(read('/trash?kind=nothing')).toEqual({ page: 'trash', kind: null });
+    expect(read('/trash?kind=')).toEqual({ page: 'trash', kind: null });
+  });
+
+  it('a link cut off in the middle of a percent escape still opens the app (code review)', () => {
+    // decodeURIComponent throws on these; the app used to stop at start with a blank page.
+    expect(read('/songs/%E0%A4%A')).toEqual({ page: 'song', id: '%E0%A4%A' });
+    expect(read('/%E0%A4%A')).toEqual({ page: 'presentations' });
+    expect(read('/invite#gpin_abc%E0%A4%A')).toEqual({ page: 'invite', token: 'gpin_abc%E0%A4%A' });
+  });
+
+  it('an unknown address goes to the start page, the presentations; a trailing slash does not matter', () => {
+    expect(read('/nowhere')).toEqual({ page: 'presentations' });
+    expect(read('/')).toEqual({ page: 'presentations' });
+    expect(read('/presentations/')).toEqual({ page: 'presentations' });
+  });
+
+  it('Inloggningsmetoder, with the error a refused Google link comes back with', () => {
+    expect(read('/logins')).toEqual({ page: 'logins', error: null });
+    expect(read('/logins?error=login-taken')).toEqual({ page: 'logins', error: 'login-taken' });
+    expect(href({ page: 'logins', error: 'login-taken' })).toBe('/logins?error=login-taken');
+  });
+});
+
+describe('text', () => {
+  it('fills placeholders and leaves unknown ones visible', () => {
+    expect(t('status.pending', { n: 3 })).toBe('3 ändringar väntar');
+    expect(t('status.pending')).toBe('{n} ändringar väntar');
+  });
+});
+
+describe('auth error texts', () => {
+  it('every refusal has a Swedish text; a lock says how long; anything else is the generic one', async () => {
+    const { errorText } = await import('../src/auth/errors.ts');
+    expect(errorText({ error: 'not-linked', body: null })).toBe('Det här Google-kontot är inte kopplat till någon användare. Be din administratör om en inbjudan.');
+    expect(errorText({ error: 'too-many-attempts', body: { retryAfter: 61 } })).toBe('För många misslyckade försök. Vänta 2 min och försök igen.');
+    expect(errorText({ error: 'pair-code-invalid', body: null })).toBe('Ogiltig eller utgången kod');
+    expect(errorText({ error: 'last-login', body: null })).toBe('Du kan inte ta bort ditt sista sätt att logga in.');
+    expect(errorText({ error: 'passkey-failed', body: null })).toBe('Passkeyn kunde inte användas. Försök igen.');
+    expect(errorText({ error: 'something-new', body: null })).toBe('Något gick fel. Försök igen.');
+  });
+});
