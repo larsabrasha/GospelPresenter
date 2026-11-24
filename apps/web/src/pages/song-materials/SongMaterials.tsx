@@ -65,7 +65,7 @@ export function MaterialList({ materials, editable, empty }: { materials: SongMa
             {editable && (
               <Dropdown
                 className="shrink-0 pr-2"
-                menuClassName="w-44"
+                menuClassName="min-w-44"
                 button={{ className: 'size-9 rounded-full flex items-center justify-center cursor-pointer text-stone-400 hover:bg-raised', 'aria-label': t('material.options', { title: m.title }), title: t('presentation.options') }}
                 trigger={<EllipsisOutlineIcon className="size-4" />}
               >

@@ -12,9 +12,14 @@ interface StrokeIconProps extends IconProps {
   strokeWidth?: number;
 }
 
+/** An icon's classes: never shrunk in a flex row, where a long text beside it took its width (Lars, 2026-11-24). */
+function icon(className?: string) {
+  return `shrink-0 ${className ?? ''}`;
+}
+
 function Solid({ className, viewBox = '0 0 24 24', children }: IconProps & { viewBox?: string; children: ReactNode }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} fill="currentColor" className={className} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} fill="currentColor" className={icon(className)} aria-hidden="true">
       {children}
     </svg>
   );
@@ -22,7 +27,7 @@ function Solid({ className, viewBox = '0 0 24 24', children }: IconProps & { vie
 
 function Outline({ className, strokeWidth = 1.5, children }: IconProps & { strokeWidth?: number; children: ReactNode }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={strokeWidth} stroke="currentColor" className={className} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={strokeWidth} stroke="currentColor" className={icon(className)} aria-hidden="true">
       {children}
     </svg>
   );
@@ -41,7 +46,7 @@ export function LogoIcon({ className }: IconProps) {
 /** Google's G, in its four colours (Components/SignIn.razor). */
 export function GoogleIcon({ className }: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={icon(className)} viewBox="0 0 24 24" aria-hidden="true">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -203,7 +208,7 @@ export function DocumentIcon({ className }: IconProps) {
 
 export function SpinnerIcon({ className }: IconProps) {
   return (
-    <svg className={`animate-spin ${className ?? ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={icon(`animate-spin ${className ?? ''}`)} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
@@ -277,7 +282,7 @@ export function SquaresOverlapIcon({ className }: IconProps) {
 /** A screen gone black, for Svart (Lars, 2026-11-04): its frame in the text's colour, its picture black. */
 export function BlackScreenIcon({ className }: IconProps) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={icon(className)} aria-hidden="true">
       {/* A thick frame, so the black inside shows against it (Lars, 2026-11-04, B of the six drawn). */}
       <rect x="2.25" y="3.25" width="19.5" height="13.5" rx="2.75" fill="currentColor" />
       <rect x="4.25" y="5.25" width="15.5" height="9.5" rx="1" fill="#000" />
@@ -1009,13 +1014,13 @@ export function ClockIcon({ className, strokeWidth }: StrokeIconProps) {
 export function CheckboxIcon({ className, checked, filled }: IconProps & { checked: boolean; filled?: boolean }) {
   if (checked && filled)
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={icon(className)} aria-hidden="true">
         <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" strokeWidth="1.5" />
         <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white" />
       </svg>
     );
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={icon(className)} aria-hidden="true">
       <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" strokeWidth="1.5" />
       {checked && <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="currentColor" />}
     </svg>

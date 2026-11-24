@@ -242,7 +242,7 @@ export function RunningOrder({
           // A menu, as a phone's + (Lars, 2026-11-05): the kinds, then Rubrik.
           <Dropdown
             className="w-full"
-            menuClassName="w-56 p-1.5 rounded-xl!"
+            menuClassName="min-w-56 p-1.5 rounded-xl!"
             button={{ className: `w-full flex items-center justify-center gap-2 h-9 touch:h-11 rounded-full text-sm cursor-pointer ${SKY_TINT}` }}
             trigger={
               <>

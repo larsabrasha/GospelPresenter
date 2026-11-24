@@ -21,7 +21,7 @@ export function MoreMenu({ name, choices }: { name: string; choices: MoreChoice[
   return (
     <Dropdown
       className="shrink-0"
-      menuClassName="w-48"
+      menuClassName="min-w-48"
       button={{ className: 'size-8 touch:size-11 rounded-full flex items-center justify-center cursor-pointer text-stone-400 hover:bg-raised hover:text-stone-600 dark:hover:text-stone-200', 'aria-label': t('images.more', { name }), title: t('presentation.options') }}
       trigger={<EllipsisOutlineIcon className="size-4" />}
     >

@@ -7,8 +7,9 @@ import type { SlideMarkKind } from '@gp/core';
 // rounded, with a thin dark edge at the top and a thick outline that marks
 // the chosen slide, red while it is on the screens.
 
-// A hairline round it in dark mode, so a black slide keeps its edge on a dark ground.
-const BASE = 'block relative aspect-video rounded-2xl overflow-hidden border-t-[0.5px] border-stone-800/90 outline-4 dark:ring-[0.5px] dark:ring-white/15';
+// A hairline round it in dark mode, so a black slide keeps its edge on a dark ground. `isolate`: the layers inside
+// (its number, VISAS, the black cover) stack within the tile, so a sticky heading scrolled over it stays on top.
+const BASE = 'block relative isolate aspect-video rounded-2xl overflow-hidden border-t-[0.5px] border-stone-800/90 outline-4 dark:ring-[0.5px] dark:ring-white/15';
 
 /**
  * The classes of a slide tile. `selected` is the chosen slide; `live` that the
