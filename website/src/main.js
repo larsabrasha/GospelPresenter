@@ -27,6 +27,3 @@ document.querySelectorAll("[data-lang]").forEach((el) => {
   });
 });
 
-// The desktop download, filled in from the GitHub Releases API at runtime.
-import { initDownload } from "./download.js";
-initDownload();

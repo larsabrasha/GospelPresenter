@@ -74,17 +74,6 @@
   "faq_a18": "Ja. Gospel Presenter har en inbyggd MCP-server (Model Context Protocol) som låter AI-assistenter som Claude arbeta direkt med dina presentationer – t.ex. lista, skapa eller redigera dem, hämta sångtexter eller söka i bibeln. Det innebär att du kan ta hjälp av AI för att snabbt sätta ihop en presentation utifrån dagens predikan eller sångrepertoar. Funktionen är experimentell och under utveckling.",
   "faq_q19": "Fungerar skrivbordsappen utan internet?",
   "faq_a19": "Ja. Sånger, presentationer och de bilder och filer presentationerna använder ligger på din egen dator, så du kan bygga och köra en hel gudstjänst utan uppkoppling. När nätet är tillbaka synkas ändringarna åt båda hållen automatiskt. Två saker kräver internet innan du går offline: första inloggningen, som sker i webbläsaren, och bibelöversättningar, som du laddar ner en i taget. Fjärrstyrning från mobil, publikvyn med QR-kod och parade skärmar går via servern och fungerar därför inte offline. Skrivbordsappen är under utveckling.",
-  "downloadTitle": "Hämta skrivbordsappen",
-  "downloadIntro": "Skrivbordsappen är under utveckling. Den lagrar sånger, presentationer och media på din egen dator — macOS, Windows och Linux — så att en gudstjänst fungerar helt utan internet. När uppkopplingen är tillbaka synkas ändringarna åt båda hållen. Första gången loggar du in via webbläsaren, så den starten kräver internet. På Windows och Linux håller appen sig uppdaterad själv. Den ansluter till vår instans på app.gospelpresenter.com och kan än så länge inte peka mot en egen server.",
-  "downloadForMac": "Ladda ner för macOS",
-  "downloadForWindows": "Ladda ner för Windows",
-  "downloadForLinux": "Ladda ner för Linux",
-  "downloadVersion": "Version",
-  "downloadAllReleases": "Alla versioner och versionsnoteringar",
-  "downloadUnknownVersion": "Öppna släppsidan för att ladda ner senaste versionen",
-  "downloadUseWeb": "Öppna webbappen",
-  "downloadNoBuildForPlatform": "Den här versionen har inget bygge för din plattform. Använd Gospel Presenter i webbläsaren så länge.",
-  "downloadOtherPlatform": "Skrivbordsappen är till för datorer. På telefon eller surfplatta använder du Gospel Presenter i webbläsaren.",
-  "downloadUnsignedTitle": "Första starten kräver ett extra steg",
-  "downloadUnsignedBody": "Appen är än så länge inte signerad med ett Apple-utvecklarcertifikat, så macOS blockerar den första gången. Öppna den nedladdade filen, och om macOS vägrar: gå till Systeminställningar, sedan Sekretess och säkerhet, bläddra nedåt och välj Öppna ändå. Det gör du bara en gång. Så länge appen är osignerad kan den inte heller uppdatera sig själv på macOS, så kom tillbaka hit för nya versioner."
+  "desktopTitle": "Skrivbordsappen",
+  "desktopComing": "En ny skrivbordsapp är på gång, byggd för den nya versionen av Gospel Presenter. Tills den är klar använder du Gospel Presenter i webbläsaren, på vilken dator som helst."
 }
