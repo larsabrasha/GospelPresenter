@@ -47,7 +47,7 @@ weighed"): the core answers "what is on this screen and what can be done", the s
   and its state and sends `changed` {itemIds: the items on the screen, the top first}; the core lets go of what the
   state names and the page no longer has, and answers `{"type": "stay", itemId}`: the first of those items still
   there, which the shell keeps where it stood on the screen though items above it grew, shrank or went (null: none
-  is left, and the slides stay where they stand). The iPad 3 spike does so (`spike/ios8-ipad3/app/Live.m`); the web
+  is left, and the slides stay where they stand). The iPad 3 spike did so (spike/ios8-ipad3/app/Live.m, in git's history); the web
   and the native app do not send `changed` yet.
 - **What stays a shell's**: layout and sizes, widgets and their platform's patterns (an alert on iOS, a dialog on the
   web), icons, animation, scrolling and when the list follows the shown slide, the navigation stack's mechanics,

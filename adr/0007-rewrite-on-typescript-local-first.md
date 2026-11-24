@@ -276,7 +276,7 @@ for the new app; the mechanisms are retired with the stack.
   our own was the fallback, not the default. **Settled after this ADR was written:** the evaluation
   in `research/sync-engine-evaluation.md` found no engine that meets all of these, so we build our own
   (decision 2), with organisation data in the organisation's Durable Object on Cloudflare. **The
-  spike passed** (`spike/sync/RESULTS.md`): on Node, on hosted
+  spike passed** (`research/sync-spike-results.md`): on Node, on hosted
   Cloudflare, in Chromium, WebKit and Firefox on OPFS, and between a Mac and a real iPad on the LAN.
   Still unproven: Durable Object hibernation, load, Safari on iPad with OPFS, and Capacitor.
 - **D8, decided after this ADR was written:** the embedded LAN server does not replace the server

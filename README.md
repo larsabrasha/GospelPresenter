@@ -15,7 +15,7 @@ and in a phone app.
 | [`spec/`](spec/) | What the app does, area by area: the behaviour spec the app is built from |
 | [`adr/`](adr/) | The decisions; [`adr/0007-rewrite-on-typescript-local-first.md`](adr/0007-rewrite-on-typescript-local-first.md) is the rewrite's; [`adr/0008-one-gui-core-back-in-typescript.md`](adr/0008-one-gui-core-back-in-typescript.md) brings the core back to TypeScript, with one GUI |
 | [`website/`](website/) | The website, gospelpresenter.com (`.github/workflows/static.yml`) |
-| [`research/`](research/), [`spike/`](spike/) | What was tried before the rewrite was decided |
+| [`research/`](research/) | What was tried before the rewrite was decided; the spikes' code is in git's history |
 | [`Assets/`](Assets/), [`scripts/`](scripts/) | The app icon's designs; the app's own scripts, and those the ADRs and the spec name |
 
 ## The C# app (1.x)

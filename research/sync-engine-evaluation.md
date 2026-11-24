@@ -324,7 +324,7 @@ Estimated bundle cost: tens of kilobytes on top of the SQLite WASM build the cli
 
 Goal: prove the protocol, the rebase and the Workers transaction story, or find what breaks them.
 
-**Result (2026-10-26):** passed locally, verdict "go, with changes"; see [`spike/sync/RESULTS.md`](../spike/sync/RESULTS.md).
+**Result (2026-10-26):** passed locally, verdict "go, with changes"; see [`research/sync-spike-results.md`](sync-spike-results.md).
 
 - **Day 1, Node.** `packages/core` with three mutators (`createPresentation`, `addSongToPresentation`,
   `reorderItems`) and Drizzle schema; Hono push/pull on better-sqlite3 with trigger-written

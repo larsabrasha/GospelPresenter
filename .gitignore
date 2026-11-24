@@ -29,18 +29,6 @@ Thumbs.db
 
 # The PowerPoint drawing's builds, a workspace of its own (crates/gp-pptx/Cargo.toml).
 /crates/gp-pptx/target/
-# The iPad 3 spike's builds (spike/ios8-ipad3/README.md)
-/spike/ios8-ipad3/.build/
-/spike/ios8-ipad3/app/.theos/
-/spike/ios8-ipad3/app/packages/
-/spike/ios8-ipad3/app/Resources/demo.sqlite
-/spike/ios8-ipad3/app/Resources/Icon-*.png
-/spike/ios8-ipad3/app/Resources/Default-*.png
-/spike/ios8-ipad3/app/Resources/texts.json
-/spike/ios8-ipad3/app/Resources/*.ttf
-# The slide layout probe's build, faces and report (spike/slide-layout/README.md)
-/spike/slide-layout/target/
-/spike/slide-layout/.build/
 
 # Worktrees of Claude Code agents
 .claude/worktrees/

@@ -35,8 +35,6 @@
       "project": ["test/**/*.ts"]
     }
   },
-  // Not the app: the spike tried before the rewrite, with packages of its own.
-  "ignore": ["spike/**"],
   // `cloudflare:workers` is the Workers runtime's own module, not a package.
   "ignoreDependencies": ["cloudflare"],
   // The tests and the desktop host make their self-signed certificates with the system's openssl; a Mac release joins

@@ -2,7 +2,7 @@
 
 Decided (Lars, 2026-11-20): build step 1 below, the clicks as stills; the animations (step 2) after it. Until now a
 slideshow came in only as a PDF the church exports from PowerPoint or Keynote (the decision of 2026-10-28, which this
-changes: PDF stays as the fallback, for charts above all). The probes behind the measurements: `spike/pptx-deckcraft`. This adds a `.pptx` item whose slides, their builds click
+changes: PDF stays as the fallback, for charts above all). The probes behind the measurements were spike/pptx-deckcraft, in git's history (removed on 2026-11-24). This adds a `.pptx` item whose slides, their builds click
 by click and, optionally, their animations show on every device, drawn by DeckCraft's libraries when the file is
 added; no DeckCraft app, and no PowerPoint, on any device.
 

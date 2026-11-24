@@ -1,5 +1,7 @@
 # Sync spike: results
 
+> The spike's code (spike/sync) was removed on 2026-11-24; it is in git's history, before commit 'Remove the spikes'.
+
 - **Date:** 2026-10-26
 - **Scope:** "Next step: a two-day spike" in `research/sync-engine-evaluation.md`; ADR 0007 decisions 1–4
 - **Branch:** `claude/sync-spike`
