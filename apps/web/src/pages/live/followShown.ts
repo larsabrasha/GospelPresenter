@@ -4,8 +4,8 @@ import { followsShown } from '../../live/liveList.ts';
 /**
  * How a list of slides scrolls while presenting, the same on a computer and a phone: to the slide shown (it carries
  * `data-current="true"`; before presenting the one picked, `data-picked="true"`), once for each slide shown, there at once on opening and glided to after (Lars,
- * 2026-11-02), unless it was tapped where it already shows (liveList.ts `followsShown`); and to an item's section
- * (`data-item`) each time a new `toItem` is given, the same item chosen again too. `margin` is the room kept above the
+ * 2026-11-02), unless it was tapped where it already shows (liveList.ts `followsShown`); and at once to an item's
+ * section (`data-item`) each time a new `toItem` is given, the same item chosen again too. `margin` is the room kept above the
  * slide under its section's sticky heading. Returns what to call when a tap shows a slide.
  */
 export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: string, margin: number, toItem: { id: string } | null) {
@@ -31,7 +31,8 @@ export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: str
   useEffect(() => {
     const el = box.current;
     const section = toItem ? el?.querySelector<HTMLElement>(`[data-item="${toItem.id}"]`) : null;
-    if (el && section) el.scrollTo({ top: section.offsetTop, behavior: 'smooth' });
+    // There at once, not glided: an item chosen in the running order jumps to its slides (Lars, 2026-11-24).
+    if (el && section) el.scrollTo({ top: section.offsetTop, behavior: 'instant' });
   }, [box, toItem]);
 
   return () => {
