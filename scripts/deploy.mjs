@@ -1,4 +1,4 @@
-// A deploy that can be traced to its commit (the review, 2026-11-09): `pnpm deploy:test`, `pnpm deploy:apptest` or
+// A deploy that can be traced to its commit (the review, 2026-11-09): `pnpm deploy:test`, `pnpm deploy:apptest`, `pnpm deploy:staging` or
 // `pnpm deploy:app` (production).
 // It refuses a working tree whose app files have changes (wrangler bundles the Worker from the files as they are), builds the web app
 // with GP_COMMIT, so its page says which commit it is, and names the Worker version by the commit, so
@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process';
 
 const env = process.argv[2];
-const configs = { test: 'wrangler.test.toml', apptest: 'wrangler.apptest.toml', app: 'wrangler.app.toml' };
+const configs = { test: 'wrangler.test.toml', apptest: 'wrangler.apptest.toml', staging: 'wrangler.staging.toml', app: 'wrangler.app.toml' };
 if (!configs[env]) {
   console.error(`usage: node scripts/deploy.mjs <${Object.keys(configs).join('|')}> [--dry-run]`);
   process.exit(2);

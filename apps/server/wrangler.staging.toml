@@ -1,0 +1,51 @@
+# Staging at staging.gospelpresenter.com (docs/cloudflare.md, "staging.gospelpresenter.com"): `pnpm deploy:staging`.
+# Production's config with its own name, address, D1 and R2, for a rehearsal of the cutover on 1.x's real data.
+# Sign-in by passkey and Google; no mail, so an import's invitations reach no one. The setup token, GOOGLE_CLIENT_ID
+# and GOOGLE_CLIENT_SECRET are secrets (`wrangler secret put … --config wrangler.staging.toml`), kept across deploys.
+name = "gp-staging"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+workers_dev = false
+preview_urls = false
+
+# The address: a Workers custom domain, which makes its own DNS record and certificate.
+routes = [{ pattern = "staging.gospelpresenter.com", custom_domain = true }]
+
+[define]
+GP_TEST_ISSUER = "false"
+
+[vars]
+PASSKEY_RP_ID = "staging.gospelpresenter.com"
+PASSKEY_ORIGINS = "https://staging.gospelpresenter.com"
+GOOGLE_REDIRECT_BASE_URL = "https://staging.gospelpresenter.com"
+
+# Workers Logs: what the Worker writes (its JSON events, client errors among them) is kept and searchable in the
+# dashboard, under the Worker's Observability (docs/cloudflare.md, "Logs").
+[observability]
+enabled = true
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# headers of web/public/_headers, and an address with no file gets index.html.
+run_worker_first = ["/api/*"]
+html_handling = "none"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-staging-global"
+database_id = "bfbc3350-e582-423f-ab17-86ef90ad1878"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-staging-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

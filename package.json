@@ -12,6 +12,7 @@
     "check:quick": "node scripts/check-quick.mjs",
     "deploy:test": "node scripts/deploy.mjs test",
     "deploy:apptest": "node scripts/deploy.mjs apptest",
+    "deploy:staging": "node scripts/deploy.mjs staging",
     "deploy:app": "node scripts/deploy.mjs app",
     "screenshots": "GP_WEBSITE=\"$PWD/website/src/screenshots\" pnpm --filter @gp/desktop exec playwright test website"
   },

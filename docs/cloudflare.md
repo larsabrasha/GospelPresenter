@@ -34,6 +34,16 @@ Worker's secrets, and `GOOGLE_REDIRECT_BASE_URL` its var. The Google client is 1
 `https://apptest.gospelpresenter.com/api/auth/google/callback` and production's. `pnpm deploy:apptest` deploys it;
 no workflow does.
 
+**staging.gospelpresenter.com (2026-11-24).** A rehearsal of the cutover (Lars, 2026-11-24: an environment that looks
+as production does, with 1.x's real data copied there): Worker `gp-staging`, D1 `gp-staging-global` (WEUR) and R2
+`gp-staging-media`, named in `apps/server/wrangler.staging.toml`, which is production's config with its own name,
+address and storage. Not apptest, because an import adds to the organisation it goes into, and apptest's holds test
+data. Passkeys and Google, as production; no mail, so the invitations an import makes reach no one. Its secrets are
+`SETUP_TOKEN`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (apptest's client, whose redirect URIs need
+`https://staging.gospelpresenter.com/api/auth/google/callback`). `pnpm deploy:staging` deploys it; no workflow does.
+It holds the churches' real names and addresses, so it is deleted once the cutover is done (`wrangler delete`, and
+the D1 and the bucket).
+
 **app.gospelpresenter.com (prepared 2026-11-11, not deployed).** Production: Worker `gp-app`, D1 `gp-app-global`
 (WEUR) and R2 `gp-app-media` (both made 2026-11-11, empty), named in `apps/server/wrangler.app.toml`, set up as apptest is. `pnpm deploy:app` deploys
 it; no workflow does. Today the address is the C# app's (1.x), through a Cloudflare Tunnel, and a Workers custom domain
@@ -41,9 +51,10 @@ is not made where a DNS record is already there: the deploy fails until that rec
 address by mistake. Before the first deploy: `wrangler secret put SETUP_TOKEN --config wrangler.app.toml`.
 Google and mail, if production has them: the secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `RESEND_API_KEY`,
 and `MAIL_FROM` and `APP_URL` (docs/sign-in-and-pairing.md); the Google client is apptest's, whose redirect URIs
-already have `https://app.gospelpresenter.com/api/auth/google/callback` (2026-11-24). The cutover: the
-churches export from 1.x (docs/import-from-1x.md), the tunnel's DNS record for `app` goes, `pnpm deploy:app` makes the
-custom domain, and each church imports its zip. Passkeys made on apptest do not work here: their RP ID is apptest's.
+already have `https://app.gospelpresenter.com/api/auth/google/callback` (2026-11-24); Google also needs the var
+`GOOGLE_REDIRECT_BASE_URL`, which `wrangler.app.toml` does not have yet. The cutover, rehearsed on staging first: the
+churches export from 1.x (docs/import-from-1x.md), 1.x takes no more changes, the tunnel's DNS record for `app` goes,
+`pnpm deploy:app` makes the custom domain, and each church imports its zip. Passkeys made on apptest do not work here: their RP ID is apptest's.
 
 **A trial on a real account (2026-10-28).** With Lars's go-ahead the Worker ran on
 `https://gp-trial-gospel.lars-arvidsson.workers.dev`, with D1 `gp-trial-global` (region WEUR) and R2

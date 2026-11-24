@@ -12,10 +12,12 @@ by e-mail, and all history.
 
    On the old server, as a Docker image on the old app's compose network, in the folder of its `.env`: the image
    reads `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_BUCKET_NAME` from it and finds `postgres` and
-   `garage` by their service names. Docker builds it straight from GitHub, so the server needs no checkout:
+   `garage` by their service names. Docker builds it straight from GitHub (the repository is public), so the server
+   needs no checkout. The build names a branch with the rewrite at its root: until the rewrite is merged, main is
+   still 1.x, so `#main` builds nothing (found 2026-11-24):
 
    ```sh
-   docker build -t gospelpresenter-legacy-export -f apps/legacy/Dockerfile https://github.com/larsabrasha/GospelPresenter.git#main:rewrite
+   docker build -t gospelpresenter-legacy-export -f apps/legacy/Dockerfile https://github.com/larsabrasha/GospelPresenter.git#claude/sweet-fermi-mz0n1t
    docker network ls                                # the old app's network, e.g. gospelpresenter_default
    docker run --rm --network gospelpresenter_default --env-file .env -v "$PWD":/out --user "$(id -u):$(id -g)" gospelpresenter-legacy-export
    docker run --rm --network gospelpresenter_default --env-file .env -v "$PWD":/out --user "$(id -u):$(id -g)" gospelpresenter-legacy-export --org <id>
@@ -53,8 +55,8 @@ by e-mail, and all history.
    one fails), and sends the rows last to `POST /api/import/legacy`, which writes all of them or none. A refused
    import says which row and why (`detail`), and the page shows it.
 
-   The upgrade of an older format's rows, the blobs they name and this check are the Rust core's
-   (`crates/gp-core/src/legacy.rs`, since 2026-11-18), so the web, the server and 1.x's export run the same code.
+   The upgrade of an older format's rows, the blobs they name and this check are the core's
+   (`packages/core/src/views/files-legacy.ts`), so the web, the server and 1.x's export run the same code.
    The server (`apps/server/src/legacy-routes.ts`) checks the rows as the export did (`legacyRowsProblem`: every
    row names exactly its table's columns, an output's code and kind are 2.0's, Bible and slide deck items read),
    and that every blob and Bible text the rows name was uploaded; then it writes the new rows in one transaction,
