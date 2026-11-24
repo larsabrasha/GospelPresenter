@@ -198,16 +198,18 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   expect(await saved.count()).toBe(0);
   await expect(ccli).toHaveValue('1'.repeat(21));
 
-  // The same text again, after a letter typed and taken back: tried again, and refused again.
+  // The same text again, after a letter typed and taken back: tried again, and refused again. Typed keys would be
+  // cut to the limit, so each change goes past it as the first did.
   await expect(failed).toHaveCount(0, { timeout: 6000 });
-  await ccli.press('End');
-  await ccli.press('2');
-  await ccli.press('Backspace');
+  await ccli.focus();
+  await typePastLimit(ccli, '1'.repeat(21) + '2');
+  await typePastLimit(ccli, '1'.repeat(21));
   await ccli.blur();
   await expect(failed).toBeVisible();
 
   // Refused once more while the warning shows: still one warning, not two.
-  await ccli.press('3');
+  await ccli.focus();
+  await typePastLimit(ccli, '1'.repeat(21) + '3');
   await ccli.blur();
   await page.waitForTimeout(300); // nothing may happen: time for a second warning to show
   expect(await failed.count()).toBe(1);
