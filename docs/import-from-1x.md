@@ -13,11 +13,10 @@ by e-mail, and all history.
    On the old server, as a Docker image on the old app's compose network, in the folder of its `.env`: the image
    reads `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_BUCKET_NAME` from it and finds `postgres` and
    `garage` by their service names. Docker builds it straight from GitHub (the repository is public), so the server
-   needs no checkout. The build names a branch with the rewrite at its root: until the rewrite is merged, main is
-   still 1.x, so `#main` builds nothing (found 2026-11-24):
+   needs no checkout:
 
    ```sh
-   docker build -t gospelpresenter-legacy-export -f apps/legacy/Dockerfile https://github.com/larsabrasha/GospelPresenter.git#claude/sweet-fermi-mz0n1t
+   docker build -t gospelpresenter-legacy-export -f apps/legacy/Dockerfile https://github.com/larsabrasha/GospelPresenter.git#main
    docker network ls                                # the old app's network, e.g. gospelpresenter_default
    docker run --rm --network gospelpresenter_default --env-file .env -v "$PWD":/out --user "$(id -u):$(id -g)" gospelpresenter-legacy-export
    docker run --rm --network gospelpresenter_default --env-file .env -v "$PWD":/out --user "$(id -u):$(id -g)" gospelpresenter-legacy-export --org <id>
@@ -75,7 +74,7 @@ shapes it already knows.
 ## From 2.0 itself
 
 Inställningar → Organisationen → **Exportera** (Lars, 2026-11-08) writes the same zip, format 8, of an organisation of
-this app, so it moves to another server (gp-test to apptest, a desktop host to the cloud) through the same Importera.
+this app, so it moves to another server (apptest to production, a desktop host to the cloud) through the same Importera.
 The page (`apps/web/src/media/orgExport.ts`) reads every row of the import's tables from this device's database, the
 members with an address from `GET /api/users` (as users to invite, without Google subjects), the Bible texts and
 every blob the rows name (`legacyBlobs`: pictures with an edit's original, sounds, videos with their stills, song

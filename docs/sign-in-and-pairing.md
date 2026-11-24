@@ -69,7 +69,7 @@ Superadmin is left without one.
 **Superadmins and superadminläge** ([accounts-and-roles.md](accounts-and-roles.md)). A Superadmin is a mark on the
 account, not a role: on a server whose configuration names them (`GP_SUPER_ADMINS` on Node, `SUPER_ADMINS` on the
 Worker, comma-separated addresses) an account that has confirmed one of the addresses; elsewhere (the desktop app,
-gp-test, which has neither Google nor mail to confirm an address with) the mark setup gave (`users.super_admin`).
+a server with neither Google nor mail to confirm an address with) the mark setup gave (`users.super_admin`).
 Their powers wait behind superadminläge, a switch under Mina inställningar (`POST /api/auth/superadmin`): it needs a
 sign-in of their own from the last 10 minutes, lasts an hour (`sessions.super_until`), and shows a violet line at the
 top with Avsluta. Turned off in an organisation they are no member of, the page opens their own. What a Superadmin does

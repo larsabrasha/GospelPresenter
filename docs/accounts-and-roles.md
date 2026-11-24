@@ -127,7 +127,7 @@ address and confirming it.
 
 - The Superadmins' log (`audit_log`) is written, but nothing shows it yet.
 - A fresh sign-in is asked for by "Logga ut och logga in igen", not by a sign-in in place.
-- gp-test names no Superadmins in its configuration: it has neither Google nor mail, so no address there can be
+- A server with neither Google nor mail names no Superadmins in its configuration: no address there can be
   confirmed, and the mark setup gave counts, as on a desktop host.
 - An invitation and a confirming link were tested on Node and the Worker's adapters and in the server's tests; no
   e2e test runs them, since every e2e test runs a desktop host, which makes people instead.

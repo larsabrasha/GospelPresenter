@@ -17,7 +17,7 @@ import { inParallel } from './inParallel.ts';
 import { zipBlob, ZipTooLarge } from './zipBlob.ts';
 
 // The organisation exported as a zip (Inställningar → Organisationen → Exportera; Lars, 2026-11-08), in the format the
-// import reads (LEGACY_ENTRIES), so an organisation moves from one server to another: gp-test to apptest, a desktop
+// import reads (LEGACY_ENTRIES), so an organisation moves from one server to another: apptest to production, a desktop
 // host to the cloud. Its rows come from this device's database, which has all of them; its users, Bible texts and
 // files from the server, a video too, whole. Nothing is changed anywhere.
 

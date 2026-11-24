@@ -4,8 +4,8 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-/** The test environment on Cloudflare (docs/cloudflare.md) until the app has a cloud of its own. */
-const DEFAULT_SERVER = 'https://gp-test.lars-arvidsson.workers.dev';
+/** The test environment on Cloudflare (docs/cloudflare.md, "apptest") until production runs 2.0. */
+const DEFAULT_SERVER = 'https://apptest.gospelpresenter.com';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const env = { ...process.env, GP_APP_SERVER: process.env.GP_APP_SERVER || DEFAULT_SERVER };

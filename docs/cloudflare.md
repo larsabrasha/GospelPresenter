@@ -13,20 +13,14 @@ organisation's Durable Object (songs, presentations, the sync log) and R2 (media
 which asks for a session; the bucket has no public address. The Worker still has its own fallback for the files, for a
 config that sends it everything; `apps/server/test/static.test.ts` checks it on Node and in local workerd.
 
-**The test environment (2026-11-02).** `https://gp-test.lars-arvidsson.workers.dev`: Worker `gp-test`, D1
-`gp-test-global` (WEUR) and R2 `gp-test-media`, named in `apps/server/wrangler.test.toml`. It runs the repo's
-Worker as it is, with no debug routes, and signs in by passkey only (Lars, 2026-11-02): no Google client and no
-mail, so `/api/auth/state` says `google: false, mail: false`. The setup token is the Worker's secret
-`SETUP_TOKEN`, set at the first deploy; a deploy keeps it. `.github/workflows/deploy-test.yml` builds the web
-app and deploys on a push to main that touches the app, or for any branch by hand (workflow_dispatch). It
-needs the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. By hand, from `apps/server`
-after `pnpm build`: `wrangler deploy --config wrangler.test.toml`. Its D1 and its objects migrate on their first
-request after a deploy, as the trial's did.
+**The first test environment, gp-test (2026-11-02 to 2026-11-24).** A Worker on `workers.dev`, by passkey only,
+deployed by a workflow on each push to main. Removed with its config, its workflow, its D1 and its R2 (Lars,
+2026-11-24): apptest took its place, and staging rehearses the cutover.
 
 **apptest.gospelpresenter.com (2026-11-08).** The test environment at the church's own domain, before the
 current app's `app.gospelpresenter.com` moves (Lars, 2026-11-08): Worker `gp-apptest`, D1 `gp-apptest-global`
-(WEUR) and R2 `gp-apptest-media`, named in `apps/server/wrangler.apptest.toml`, apart from gp-test, whose passkeys
-belong to its `workers.dev` address. The address is a Workers custom domain (`routes`, `custom_domain = true`);
+(WEUR) and R2 `gp-apptest-media`, named in `apps/server/wrangler.apptest.toml`. Its D1 and its objects migrate on
+their first request after a deploy, as the trial's did. The address is a Workers custom domain (`routes`, `custom_domain = true`);
 until 2026-11-08 it was the current app's test instance, through a Cloudflare Tunnel to a machine at Lars's home.
 Passkeys and Google (since 2026-11-24); the setup token, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are the
 Worker's secrets, and `GOOGLE_REDIRECT_BASE_URL` its var. The Google client is 1.x's (Google Cloud project
@@ -48,11 +42,12 @@ the D1 and the bucket).
 (WEUR) and R2 `gp-app-media` (both made 2026-11-11, empty), named in `apps/server/wrangler.app.toml`, set up as apptest is. `pnpm deploy:app` deploys
 it; no workflow does. Today the address is the C# app's (1.x), through a Cloudflare Tunnel, and a Workers custom domain
 is not made where a DNS record is already there: the deploy fails until that record is removed, so no deploy takes the
-address by mistake. Before the first deploy: `wrangler secret put SETUP_TOKEN --config wrangler.app.toml`.
-Google and mail, if production has them: the secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `RESEND_API_KEY`,
-and `MAIL_FROM` and `APP_URL` (docs/sign-in-and-pairing.md); the Google client is apptest's, whose redirect URIs
-already have `https://app.gospelpresenter.com/api/auth/google/callback` (2026-11-24); Google also needs the var
-`GOOGLE_REDIRECT_BASE_URL`, which `wrangler.app.toml` does not have yet. The cutover, rehearsed on staging first: the
+address by mistake. Before the first deploy, from `apps/server`, the secrets `SETUP_TOKEN`, `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` (`wrangler secret put … --config wrangler.app.toml`, which makes the Worker without an address),
+so the setup page is never open without its token. The Google client is apptest's, whose redirect URIs already have
+`https://app.gospelpresenter.com/api/auth/google/callback` (2026-11-24), and `GOOGLE_REDIRECT_BASE_URL` is a var.
+Mail, if production has it: the secret `RESEND_API_KEY`, and `MAIL_FROM` and `APP_URL` (docs/sign-in-and-pairing.md).
+The cutover, rehearsed on staging first: the
 churches export from 1.x (docs/import-from-1x.md), 1.x takes no more changes, the tunnel's DNS record for `app` goes,
 `pnpm deploy:app` makes the custom domain, and each church imports its zip. Passkeys made on apptest do not work here: their RP ID is apptest's.
 
@@ -109,10 +104,10 @@ unused blobs on R2 (`media.test.ts` ran with none). Behaviour under load, and wh
 The web app in a browser on Cloudflare was tried by hand only: Lars opened the trial, set it up with a passkey
 and the setup token, signed in and found it working; no browser test runs against it.
 
-**Deploys and restores (the review, 2026-11-09).** `pnpm deploy:test`, `pnpm deploy:apptest` and
+**Deploys and restores (the review, 2026-11-09).** `pnpm deploy:apptest`, `pnpm deploy:staging` and
 `pnpm deploy:app` (`scripts/deploy.mjs`) refuse a working tree whose app files have changes, build with `GP_COMMIT` (the page's version is the commit) and
-name the Worker version by the commit (`--tag`), so `wrangler rollback` finds the one before; the workflow does the
-same and runs typecheck, lint and the tests first. A rollback works only for a deploy that changed no schema: the server
+name the Worker version by the commit (`--tag`), so `wrangler rollback` finds the one before; typecheck, lint and the
+tests are the deployer's to run first (`app-checks.yml` runs them on each pull request and push to main). A rollback works only for a deploy that changed no schema: the server
 refuses a database newer than its code, so after a migration the way back is a fix forward. And a client whose schema
 is not the server's stops syncing until it reloads (426), which the quiet swap does only away from live: so no deploy
 from Saturday evening to Sunday afternoon, and a commit that bumps a schema says so. Restores: D1 has Time Travel
@@ -124,8 +119,8 @@ exists, Exportera under Organisationen is a church's copy of its data.
 **Logs (2026-11-04).** The Worker writes its events as JSON lines (`console.warn`; on Node, stderr): a refused
 sign-in (`passkey-refused`), an error a client caught nothing for (`client-error`), and since 2026-11-09 one the server
 caught nothing for (`server-error`, its method and path; `apps/server/src/server-error.ts`). `[observability] enabled`
-in both wrangler configs keeps them in Workers Logs, searchable in the dashboard under the Worker's Observability,
-or followed live with `wrangler tail --config wrangler.test.toml`. A client error is sent by the app itself
+in every wrangler config keeps them in Workers Logs, searchable in the dashboard under the Worker's Observability,
+or followed live with `wrangler tail --config wrangler.apptest.toml`. A client error is sent by the app itself
 (`apps/web/src/clientErrors.ts`) when the yellow "Ett oväntat fel har inträffat." bar shows or a page crashes:
 `POST /api/client-errors` with the message, the stack, the page's path (never its query or fragment) and the build's
 commit, cut to `CLIENT_ERROR_LIMITS`; the server adds the organisation, the user, whether the device is paired and the

@@ -1,5 +1,5 @@
 # The test environment at the church's own address (docs/cloudflare.md, "apptest.gospelpresenter.com"):
-# `wrangler deploy --config wrangler.apptest.toml` after `pnpm build`. Its own D1 and R2, apart from gp-test.
+# `wrangler deploy --config wrangler.apptest.toml` after `pnpm build`. Its own D1 and R2.
 # Sign-in by passkey and Google (since 2026-11-24); no mail. The setup token, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
 # are secrets (`wrangler secret put … --config wrangler.apptest.toml`), kept across deploys.
 name = "gp-apptest"
