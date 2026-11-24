@@ -28,8 +28,11 @@ current app's `app.gospelpresenter.com` moves (Lars, 2026-11-08): Worker `gp-app
 (WEUR) and R2 `gp-apptest-media`, named in `apps/server/wrangler.apptest.toml`, apart from gp-test, whose passkeys
 belong to its `workers.dev` address. The address is a Workers custom domain (`routes`, `custom_domain = true`);
 until 2026-11-08 it was the current app's test instance, through a Cloudflare Tunnel to a machine at Lars's home.
-Passkeys only so far, as gp-test; the setup token is the Worker's secret `SETUP_TOKEN`. By hand, from
-`apps/server` after `pnpm build`: `wrangler deploy --config wrangler.apptest.toml`; no workflow deploys it yet.
+Passkeys and Google (since 2026-11-24); the setup token, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are the
+Worker's secrets, and `GOOGLE_REDIRECT_BASE_URL` its var. The Google client is 1.x's (Google Cloud project
+514257590171), with a second secret for 2.0 so 1.x keeps its own; its redirect URIs keep 1.x's `/signin-google` and add
+`https://apptest.gospelpresenter.com/api/auth/google/callback` and production's. `pnpm deploy:apptest` deploys it;
+no workflow does.
 
 **app.gospelpresenter.com (prepared 2026-11-11, not deployed).** Production: Worker `gp-app`, D1 `gp-app-global`
 (WEUR) and R2 `gp-app-media` (both made 2026-11-11, empty), named in `apps/server/wrangler.app.toml`, set up as apptest is. `pnpm deploy:app` deploys
@@ -37,8 +40,8 @@ it; no workflow does. Today the address is the C# app's (1.x), through a Cloudfl
 is not made where a DNS record is already there: the deploy fails until that record is removed, so no deploy takes the
 address by mistake. Before the first deploy: `wrangler secret put SETUP_TOKEN --config wrangler.app.toml`.
 Google and mail, if production has them: the secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `RESEND_API_KEY`,
-and `MAIL_FROM` and `APP_URL` (docs/sign-in-and-pairing.md), with
-`https://app.gospelpresenter.com/api/auth/google/callback` among the Google client's redirect URIs. The cutover: the
+and `MAIL_FROM` and `APP_URL` (docs/sign-in-and-pairing.md); the Google client is apptest's, whose redirect URIs
+already have `https://app.gospelpresenter.com/api/auth/google/callback` (2026-11-24). The cutover: the
 churches export from 1.x (docs/import-from-1x.md), the tunnel's DNS record for `app` goes, `pnpm deploy:app` makes the
 custom domain, and each church imports its zip. Passkeys made on apptest do not work here: their RP ID is apptest's.
 
