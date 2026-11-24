@@ -2,13 +2,22 @@
 // crates/gp-core/src/propresenter.rs, itself from propresenter.ts at 238d481b). A `.pro` file is a protobuf message
 // (rv.data.Presentation); only the fields for the title, the CCLI block, the groups, their slides' text and the
 // arrangements are read, with a small reader of the wire format. A slide's text is RTF, made plain here; a unit of a
-// pair that pairs with none is U+FFFD at the end, as the Rust core had it.
-import { LIMITS } from '../mutation.ts';
+// pair that pairs with none is U+FFFD, as the Rust core had it; a value too long is cut in characters (chars.ts).
+import { FIELD_RULES, LIMITS } from '../mutation.ts';
 import { utf8Decode } from '../platform.ts';
-import { cut, wellFormed } from './files-json.ts';
+import { cutChars } from '../chars.ts';
+import { wellFormed } from './files-json.ts';
 
-/** The lengths an imported value is cut to rather than refused (SONG-R41). */
-const MAX = { name: 200, author: 200, publisher: 200, ccli: 20, label: 50, content: 5000, arrangementName: 100 } as const;
+/** The lengths an imported value is cut to rather than refused (SONG-R41): the most its field takes, in characters. */
+const MAX = {
+  name: FIELD_RULES.name.max,
+  author: FIELD_RULES.author.max,
+  publisher: FIELD_RULES.publisher.max,
+  ccli: FIELD_RULES.ccli.max,
+  label: FIELD_RULES.label.max,
+  content: FIELD_RULES.partContent.max,
+  arrangementName: FIELD_RULES.arrangementName.max,
+} as const;
 
 export interface ImportedSong {
   name: string;
@@ -219,7 +228,7 @@ function song(data: Uint8Array, fileName: string | null): ImportedSong | null {
       const text = cue && slideText(cue);
       if (!text) continue;
       mine.push(parts.length);
-      parts.push({ labelText: label === null ? null : cut(label, MAX.label), content: cut(text, MAX.content) });
+      parts.push({ labelText: label === null ? null : cutChars(label, MAX.label), content: cutChars(text, MAX.content) });
     }
     if (groupId && mine.length) partsOfGroup.set(groupId, mine);
   }
@@ -234,15 +243,15 @@ function song(data: Uint8Array, fileName: string | null): ImportedSong | null {
       .flatMap((key) => partsOfGroup.get(key) ?? [])
       .filter((i) => i < parts.length);
     const named = clean(stringOf(arr, 2));
-    if (partIndexes.length) arrangements.push({ name: named === null ? null : cut(named, MAX.arrangementName), partIndexes });
+    if (partIndexes.length) arrangements.push({ name: named === null ? null : cutChars(named, MAX.arrangementName), partIndexes });
   }
   const author = clean(stringOf(block, 1));
   const publisher = clean(stringOf(block, 4));
   return {
-    name: cut(name, MAX.name),
-    author: author === null ? null : cut(author, MAX.author),
-    publisher: publisher === null ? null : cut(publisher, MAX.publisher),
-    ccli: ccliNumber ? cut(String(Number(ccliNumber)), MAX.ccli) : null,
+    name: cutChars(name, MAX.name),
+    author: author === null ? null : cutChars(author, MAX.author),
+    publisher: publisher === null ? null : cutChars(publisher, MAX.publisher),
+    ccli: ccliNumber ? cutChars(String(Number(ccliNumber)), MAX.ccli) : null,
     parts,
     arrangements: arrangements.slice(0, LIMITS.arrangementsPerSong),
   };

@@ -5,11 +5,12 @@ import { keepSongVersion, keepVersionOfPart } from './history.ts';
 import { ensureLabel } from './labels.ts';
 import { renameSongItems } from './presentations.ts';
 import { parsePartIds } from '../slides.ts';
+import { FIELD_RULES } from '../mutation.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx, isNewArrangement, keepOriginal } from './base.ts';
 
 // ------------------------------------------------------------------ songs
 
-export const createSongArgs = z.object({ id, name, author: optionalText(200).optional() });
+export const createSongArgs = z.object({ id, name, author: optionalText(FIELD_RULES.author.max).optional() });
 export async function createSong(tx: Tx, a: z.output<typeof createSongArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
   const [n] = await tx.select({ n: count() }).from(songs).where(isNull(songs.deletedAt));
@@ -23,10 +24,10 @@ export async function createSong(tx: Tx, a: z.output<typeof createSongArgs>, ctx
 export const updateSongArgs = z.object({
   id,
   name: name.optional(),
-  author: optionalText(200).optional(),
-  publisher: optionalText(200).optional(),
+  author: optionalText(FIELD_RULES.author.max).optional(),
+  publisher: optionalText(FIELD_RULES.publisher.max).optional(),
   year: z.number().int().min(0).max(9999).nullable().optional(),
-  ccli: optionalText(20).optional(),
+  ccli: optionalText(FIELD_RULES.ccli.max).optional(),
 });
 export async function updateSong(tx: Tx, a: z.output<typeof updateSongArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
@@ -88,8 +89,8 @@ async function renumberParts(tx: Tx, order: string[]) {
   }
 }
 
-const partContent = z.string().max(5000);
-const labelText = z.string().trim().max(50).nullable();
+const partContent = z.string().max(FIELD_RULES.partContent.max);
+const labelText = z.string().trim().max(FIELD_RULES.label.max).nullable();
 
 export const addSongPartArgs = z.object({ id, songId: id, labelText, content: partContent });
 /** Appends a part to a song. */
@@ -169,12 +170,12 @@ export async function moveSongPart(tx: Tx, a: z.output<typeof moveSongPartArgs>,
 const importedSong = z.object({
   id,
   name,
-  author: optionalText(200),
-  publisher: optionalText(200),
-  ccli: optionalText(20),
+  author: optionalText(FIELD_RULES.author.max),
+  publisher: optionalText(FIELD_RULES.publisher.max),
+  ccli: optionalText(FIELD_RULES.ccli.max),
   parts: z.array(z.object({ id, labelText, content: partContent })).min(1).max(LIMITS.partsPerSong),
   arrangements: z
-    .array(z.object({ id, name: optionalText(100), partIds: z.array(id).max(500) }))
+    .array(z.object({ id, name: optionalText(FIELD_RULES.arrangementName.max), partIds: z.array(id).max(500) }))
     .max(LIMITS.arrangementsPerSong),
   /** The library song this one replaces, as the importer chose; null adds it, whatever its name. */
   replaces: id.nullable(),

@@ -2,6 +2,7 @@ import { and, asc, eq, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { labelDefaults, labelId, labelKey } from '../labels.ts';
 import { labels, songParts } from '../schema.ts';
+import { FIELD_RULES } from '../mutation.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // Part labels (spec 02 "Part label", `/admin/labels`, SONG-R45–R47). A label is
@@ -11,7 +12,7 @@ import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx }
 /** At most this many labels (the current app has a limit and no number for it). */
 export const LABEL_LIMIT = 200;
 
-const labelText = z.string().trim().min(1).max(50);
+const labelText = z.string().trim().min(1).max(FIELD_RULES.label.max);
 const color = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/)

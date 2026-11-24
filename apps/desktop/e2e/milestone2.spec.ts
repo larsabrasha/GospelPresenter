@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, backToSong, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, backToSong, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost, typePastLimit } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -187,9 +187,9 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   await expect(saved).toHaveCount(0); // gone 2.3 s after the last save of creating the song
   const ccli = page.getByLabel('CCLI');
 
-  // A CCLI number is at most 20 characters; without the field's own limit, the write is refused.
-  await ccli.evaluate((el) => el.removeAttribute('maxlength'));
-  await ccli.fill('1'.repeat(21));
+  // A CCLI number is at most 20 characters; past the field's own limit, the write is refused.
+  await ccli.focus();
+  await typePastLimit(ccli, '1'.repeat(21));
   await ccli.blur();
 
   const failed = page.getByRole('alert').getByText('Kunde inte spara');
@@ -223,13 +223,12 @@ test('a refused rename of a presentation says "Kunde inte spara"', async () => {
   const failed = page.getByRole('alert').getByText('Kunde inte spara');
   const tooLong = 'x'.repeat(201);
 
-  // A name is at most 200 characters; without the field's own limit, the write is refused.
+  // A name is at most 200 characters; past the field's own limit, the write is refused.
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
   const name = details.getByLabel('Namn');
-  await name.evaluate((el) => el.removeAttribute('maxlength'));
-  await name.fill(tooLong);
+  await typePastLimit(name, tooLong);
   await details.getByRole('button', { name: 'Spara' }).click();
   await expect(failed).toBeVisible();
   await page.reload();
@@ -245,9 +244,8 @@ test('a refused create says "Kunde inte spara", and the dialog stays to try agai
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   const name = dialog.getByLabel('Namn');
 
-  // A name is at most 200 characters; without the field's own limit, the write is refused.
-  await name.evaluate((el) => el.removeAttribute('maxlength'));
-  await name.fill('x'.repeat(201));
+  // A name is at most 200 characters; past the field's own limit, the write is refused.
+  await typePastLimit(name, 'x'.repeat(201));
   await name.press('Enter');
   await expect(page.getByRole('alert').getByText('Kunde inte spara')).toBeVisible();
   await expect(dialog).toBeVisible();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { PairClaimResponse, SignInResponse } from '@gp/core';
+import { ACCOUNT_LIMITS, type PairClaimResponse, type SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { deviceName, saveDeviceToken } from '../auth/session.ts';
@@ -15,7 +15,7 @@ import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
  * signs in: never with Google, which the LAN may not reach.
  */
 /** A code from the host's QR code (`#pair={code}`). */
-const codeFromLink = () => /^#pair=(\d{6})$/.exec(location.hash)?.[1] ?? '';
+const codeFromLink = () => new RegExp(`^#pair=(\\d{${ACCOUNT_LIMITS.pairCodeDigits}})$`).exec(location.hash)?.[1] ?? '';
 
 export function Pair({ paired, dev, onSignedIn }: { paired: boolean; dev: boolean; onSignedIn: (r: SignInResponse) => void }) {
   const [code, setCode] = useState(codeFromLink);
@@ -44,7 +44,7 @@ export function Pair({ paired, dev, onSignedIn }: { paired: boolean; dev: boolea
         className="flex flex-col gap-4 pt-2"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (busy || digits.length !== 6) return;
+          if (busy || digits.length !== ACCOUNT_LIMITS.pairCodeDigits) return;
           setBusy(true);
           try {
             const r = await api<PairClaimResponse>('POST', '/api/pair/claim', { code: digits, name });
@@ -67,13 +67,14 @@ export function Pair({ paired, dev, onSignedIn }: { paired: boolean; dev: boolea
           inputMode="numeric"
           autoComplete="one-time-code"
           autoFocus
-          maxLength={7}
+          // The digits, and room for one space typed between them ("123 456"): only the digits are sent.
+          maxChars={ACCOUNT_LIMITS.pairCodeDigits + 1}
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
-        <FloatingInput id="pair-name" label={t('pair.name')} maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput id="pair-name" label={t('pair.name')} maxChars={ACCOUNT_LIMITS.deviceName} value={name} onChange={(e) => setName(e.target.value)} />
         <FormError text={error} />
-        <AppButton variant="plain" type="submit" disabled={busy || digits.length !== 6 || !name.trim()} className={AUTH_SUBMIT}>
+        <AppButton variant="plain" type="submit" disabled={busy || digits.length !== ACCOUNT_LIMITS.pairCodeDigits || !name.trim()} className={AUTH_SUBMIT}>
           {t('pair.submit')}
         </AppButton>
       </form>

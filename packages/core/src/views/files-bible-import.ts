@@ -3,11 +3,12 @@
 // a desktop host needs no internet and the server never parses a zip: the core's zip reader (zip.ts), a small XML
 // reader, and readers of the two formats.
 import { compareBooks, swedishBookName } from '../bible-books.ts';
-import { BIBLE_ZIP_MAX_BYTES, type BibleBookText } from '../bible.ts';
-import { MutationError } from '../mutation.ts';
+import { BIBLE_LIMITS, BIBLE_ZIP_MAX_BYTES, type BibleBookText } from '../bible.ts';
+import { cutChars } from '../chars.ts';
+import { FIELD_RULES, MutationError } from '../mutation.ts';
 import { utf8Decode } from '../platform.ts';
 import { readZip, zipEntryBytes, type ZipEntry } from '../zip.ts';
-import { cut, wellFormed } from './files-json.ts';
+import { wellFormed } from './files-json.ts';
 import { byUnits } from './serde.ts';
 
 type Verse = BibleBookText['verses'][number];
@@ -357,9 +358,9 @@ export function importZip(data: Uint8Array): unknown {
   }
   if (!books.length) refuse('no-verses');
   return {
-    name: cut(name, 200),
-    abbreviation: cut(abbreviation, 50),
-    language: language === null ? null : cut(language, 20),
+    name: cutChars(name, FIELD_RULES.name.max),
+    abbreviation: cutChars(abbreviation, BIBLE_LIMITS.abbreviation),
+    language: language === null ? null : cutChars(language, BIBLE_LIMITS.language),
     books: sortBibleBooks(books).map((b) => ({ code: b.code, verses: b.verses.map(([c, v, t]) => [number(c), number(v), wellFormed(t)]) })),
   };
 }

@@ -1,3 +1,4 @@
+import { FIELD_RULES } from '@gp/core';
 import { useState } from 'react';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { listBibles, type InstalledBible } from '../db/queries.ts';
@@ -66,7 +67,7 @@ export function BibleDetail({ id }: { id: string }) {
       {dialog}
       <DetailHeader backHref={href({ page: 'bibles' })} title={bible.name} saved={saved.node} className="px-5" />
       <Group>
-        <AutoSaveField bare label={t('song.name')} maxLength={200} value={bible.name} onSave={(v) => (v.trim() ? db.mutate('renameBible', { id: bible.id, name: v }) : undefined)} onSaved={saved.show} />
+        <AutoSaveField bare label={t('song.name')} maxChars={FIELD_RULES.name.max} value={bible.name} onSave={(v) => (v.trim() ? db.mutate('renameBible', { id: bible.id, name: v }) : undefined)} onSaved={saved.show} />
         <p className={GROUP_ROW}>
           <span>{t('bibles.abbreviation')}</span>
           <span className="text-stone-500 dark:text-stone-400">{bible.abbreviation}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
-import { can, emailSchema, type InvitationResponse, type InvitationRow, type Me, type MemberRole, ROLES, type UserRow } from '@gp/core';
+import { ACCOUNT_LIMITS, can, emailSchema, type InvitationResponse, type InvitationRow, type Me, type MemberRole, ROLES, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
@@ -112,7 +112,7 @@ function InviteDialog({ onInvited, onClose }: { onInvited: (email: string) => vo
         }}
       >
         <div>
-          <FloatingInput label={t('users.email')} type="email" autoFocus maxLength={320} hasError={!!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
+          <FloatingInput label={t('users.email')} type="email" autoFocus maxChars={ACCOUNT_LIMITS.email} hasError={!!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
           {emailError && (
             <p className="text-sm text-red-500 dark:text-red-400 mt-1" role="alert">
               {emailError}
@@ -172,9 +172,9 @@ function CreateUserDialog({ onCreated, onClose }: { onCreated: (id: string) => v
           setSaving(false);
         }}
       >
-        <FloatingInput label={t('users.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('users.name')} autoFocus maxChars={ACCOUNT_LIMITS.personName} value={name} onChange={(e) => setName(e.target.value)} />
         <div>
-          <FloatingInput label={t('users.email')} type="email" maxLength={320} hasError={!!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
+          <FloatingInput label={t('users.email')} type="email" maxChars={ACCOUNT_LIMITS.email} hasError={!!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
           {emailError && (
             <p className="text-sm text-red-500 dark:text-red-400 mt-1" role="alert">
               {emailError}

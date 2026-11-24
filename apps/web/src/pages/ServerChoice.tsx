@@ -58,7 +58,8 @@ export function ServerChoice() {
   return (
     <form className="w-64 mx-auto pt-4 space-y-3" onSubmit={(e) => void use(e)}>
       <p className={AUTH_TEXT}>{t('server.text')}</p>
-      <FloatingInput label={t('server.address')} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" autoFocus maxLength={200} value={address} onChange={(e) => setAddress(e.target.value)} />
+      {/* The web's own limit: the address is this device's choice, which no rule of the core's checks. */}
+      <FloatingInput label={t('server.address')} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" autoFocus maxChars={200} value={address} onChange={(e) => setAddress(e.target.value)} />
       <FormError text={state.error ?? null} center />
       <div className="flex flex-col items-center gap-2">
         <AppButton type="submit" disabled={!address.trim()} loading={state.trying}>

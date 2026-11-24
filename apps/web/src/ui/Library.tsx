@@ -65,7 +65,7 @@ export interface LibraryProps<T extends LibraryEntry> {
   manage: boolean;
   /** An item's own choices, first in its menu, each a `role="menuitem"` of class `row` (a deck's Ersätt med ny PDF). */
   renderActions?: (item: T, row: string) => ReactNode;
-  rename?: { title: string; label: string; maxLength: number; run: (item: T, name: string) => Promise<unknown> };
+  rename?: { title: string; label: string; maxChars: number; run: (item: T, name: string) => Promise<unknown> };
   /** Ladda ner: an item's file, fetched if this device does not have it; several are saved as `zipName`.zip. */
   download?: { file: (item: T) => Promise<DownloadFile | null>; zipName: string };
   remove: {
@@ -327,7 +327,7 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
         <NameDialog
           title={p.rename.title}
           label={p.rename.label}
-          maxLength={p.rename.maxLength}
+          maxChars={p.rename.maxChars}
           initial={renaming.name}
           onClose={() => setRenaming(null)}
           submit={async (name) => {

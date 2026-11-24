@@ -3,6 +3,7 @@ import { t } from '../i18n.ts';
 import { ctrlLabel } from './shortcuts.ts';
 import { AppButton } from './AppButton.tsx';
 import { CloseIcon, SearchIcon } from './icons.tsx';
+import { withMaxChars } from './maxChars.ts';
 
 // The parts the add-item modal's tabs share (Components/Presentations/AddItem):
 // the round search field, the row at the foot with the add button, and the
@@ -46,11 +47,11 @@ export function SearchField({
         ref={inputRef}
         autoFocus={autoFocus}
         type="search"
-        maxLength={100}
         aria-label={label}
         placeholder={placeholder ?? label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        // The web's own limit: no rule of the core's counts a search's characters.
+        onChange={withMaxChars(100, (e) => onChange(e.target.value))}
         className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full ${filled ? 'border border-transparent bg-stone-900/[0.06] dark:bg-white/[0.08] placeholder:text-stone-500 dark:placeholder:text-stone-400' : 'border border-stone-200 dark:border-stone-600 bg-white dark:bg-raised'} text-stone-900 dark:text-stone-100 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
       />
       {value && (

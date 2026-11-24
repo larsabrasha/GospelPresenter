@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AuthState, SetupResponse, SignInResponse } from '@gp/core';
+import { ACCOUNT_LIMITS, type AuthState, type SetupResponse, type SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
@@ -65,8 +65,8 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
           setBusy(false);
         }}
       >
-        <FloatingInput id="setup-name" label={t('setup.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        <FloatingInput id="setup-organization" label={t('setup.orgName')} maxLength={200} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+        <FloatingInput id="setup-name" label={t('setup.name')} autoFocus maxChars={ACCOUNT_LIMITS.personName} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput id="setup-organization" label={t('setup.orgName')} maxChars={ACCOUNT_LIMITS.orgName} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
         {!hostToken && (
           <div>
             <FloatingInput
@@ -74,7 +74,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
               label={t('setup.token')}
               type="password"
               autoComplete="off"
-              maxLength={200}
+              maxChars={ACCOUNT_LIMITS.setupToken}
               aria-describedby="setup-token-hint"
               value={setupToken}
               onChange={(e) => setSetupToken(e.target.value)}

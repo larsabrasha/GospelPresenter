@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { swedishBookName } from './bible-books.ts';
 import { FIELD_RULES } from './mutation.ts';
+import { cutChars } from './chars.ts';
 import { sha256Hex } from './platform.ts';
 
 // Bible text (spec 05 "Bibles"): references, the verses they select, and how
@@ -42,7 +43,7 @@ export function bibleTitle(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
 }
 
 /** An item's title of these verses (`addBibleToPresentation`): `bibleTitle`, cut to an item's 200. */
-export const bibleItemTitle = (verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string => bibleTitle(verses).slice(0, FIELD_RULES.name.max);
+export const bibleItemTitle = (verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string => cutChars(bibleTitle(verses), FIELD_RULES.name.max);
 
 /** The add button's label (spec 05 "Bibeltexter"): like the title, with spaces around a dash between chapters. */
 export function bibleLabel(verses: Pick<Verse, 'b' | 'c' | 'v'>[]): string {
@@ -163,7 +164,7 @@ export interface BibleItemContent {
  * by the SHA-256 of its canonical JSON (see docs/bibles-and-themes.md, "Bibles"). Books are
  * stored one per row, so no row comes near the 2 MB a Durable Object allows.
  */
-export const BIBLE_LIMITS = { bibles: 10, books: 200, verses: 60_000, verseLength: 10_000, bookBytes: 1_800_000, textBytes: 32 * 1024 * 1024 } as const;
+export const BIBLE_LIMITS = { bibles: 10, abbreviation: 50, language: 20, books: 200, verses: 60_000, verseLength: 10_000, bookBytes: 1_800_000, textBytes: 32 * 1024 * 1024 } as const;
 
 const bookCode = z.string().regex(/^[0-9A-Z]{3}$/);
 export const bibleBookTextSchema = z.object({

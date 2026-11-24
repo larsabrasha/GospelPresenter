@@ -56,6 +56,14 @@ describe('a translation from a zip (BIBLE-R3–R6)', () => {
     expect([refusal(makeZip([{ name: 'readme.txt', data: utf8Encode('hej') }])), refusal(utf8Encode('not a zip'))]).toEqual(['no-files', 'not-zip']);
   });
 
+  it('cuts an imported name of 201 emoji to 200 characters, each emoji whole', () => {
+    const zip = sampleDblZip('😀'.repeat(201), 'SFB');
+
+    const bible = read(zip);
+
+    expect(bible.name).toBe('😀'.repeat(200));
+  });
+
   it('reads DEFLATE entries, as real zips have', () => {
     expect(book('GEN.usfm', sampleUsfm('GEN'))).toEqual(read(deflated('GEN.usfm', sampleUsfm('GEN'))).books[0]);
   });

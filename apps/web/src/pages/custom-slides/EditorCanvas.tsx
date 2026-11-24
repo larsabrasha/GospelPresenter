@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type TouchEvent } from 'react';
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
-import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
+import { CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { mainCss, stageCss } from '../../themes.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
 import { arrowNudge, CANVAS_FOCUS, nextInTurn } from '../../ui/canvasKeys.ts';
 import { HoldMenu } from '../../ui/RemoveMenu.tsx';
+import { withMaxChars } from '../../ui/maxChars.ts';
 import { nextBeneath } from './slideModel.ts';
 
 // The page being edited (docs/custom-slides.md), as Keynote's: drawn as every output draws it, scaled to the column,
@@ -247,8 +248,7 @@ function InlineText({ element: e, theme, onChange, onDone }: { element: Extract<
       autoFocus
       aria-label={t('slideEditor.text')}
       value={e.text}
-      maxLength={2000}
-      onChange={(ev) => onChange(ev.target.value)}
+      onChange={withMaxChars(CUSTOM_LIMITS.text, (ev) => onChange(ev.target.value))}
       onBlur={onDone}
       onKeyDown={(ev) => {
         if (ev.key !== 'Escape') return;

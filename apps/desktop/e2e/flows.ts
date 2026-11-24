@@ -313,3 +313,15 @@ export async function allowRemote(page: Page) {
   await (await remoteSwitch(page)).check();
   await closeRemoteSheet(page);
 }
+
+/**
+ * Puts `text` in a field past its most characters, to see the write refused: as an IME's composition, whose input the
+ * field's limit leaves alone (apps/web/src/ui/maxChars.ts), with the value set as the browser sets it so React reads it.
+ */
+export async function typePastLimit(field: Locator, text: string) {
+  await field.evaluate((el, value) => {
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, value);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
+  }, text);
+}

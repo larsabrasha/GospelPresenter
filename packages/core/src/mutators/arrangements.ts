@@ -2,6 +2,7 @@ import { count, eq, max } from 'drizzle-orm';
 import { z } from 'zod';
 import { songArrangements, songs } from '../schema.ts';
 import { parsePartIds } from '../slides.ts';
+import { FIELD_RULES } from '../mutation.ts';
 import { id, LIMITS, limit, MutationError, optionalText, requirePermission, type MutatorCtx, type Tx, isNewArrangement, keepOriginal } from './base.ts';
 import { keepSongVersion, keepVersionOfArrangement } from './history.ts';
 import { partIdsInOrder } from './songs.ts';
@@ -9,7 +10,7 @@ import { partIdsInOrder } from './songs.ts';
 // ------------------------------------------------------------------ arrangements
 
 /** Trimmed; blank is no name (SONG-R16). */
-const arrangementName = optionalText(100);
+const arrangementName = optionalText(FIELD_RULES.arrangementName.max);
 const partIdList = z.array(id).max(500);
 
 /** The ids that are parts of the song, in the given order with repeats (SONG-R15). */

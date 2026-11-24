@@ -1,12 +1,13 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 import { CalendarIcon, ChevronDownIcon, ClockIcon } from './icons.tsx';
+import { withMaxChars } from './maxChars.ts';
 
 /**
  * A small grey pill of a field, with an icon beside it: a calendar for a date,
  * a clock for a time (Components/SimpleInput.razor). The icon is a sibling,
  * not laid over the field: WebKit ignores padding on date and time inputs.
  */
-export function SimpleInput({ icon, className, type = 'text', ...rest }: InputHTMLAttributes<HTMLInputElement> & { icon?: ReactNode }) {
+export function SimpleInput({ icon, className, type = 'text', maxChars, onChange, ...rest }: InputHTMLAttributes<HTMLInputElement> & { icon?: ReactNode; maxChars?: number }) {
   const shown = icon ?? (type === 'date' ? <CalendarIcon className="size-4" /> : type === 'time' ? <ClockIcon className="size-4" /> : null);
   return (
     <div
@@ -15,6 +16,7 @@ export function SimpleInput({ icon, className, type = 'text', ...rest }: InputHT
       {shown && <span className="flex items-center shrink-0 pointer-events-none text-stone-400 dark:text-stone-500">{shown}</span>}
       <input
         {...rest}
+        onChange={withMaxChars(maxChars, onChange)}
         type={type}
         className={`min-w-0 bg-transparent dark:scheme-dark text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none${type === 'date' || type === 'time' ? ' native-picker-hidden' : ''}`}
       />

@@ -8,6 +8,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { Dialog } from '../../ui/Dialog.tsx';
 import { Group, GROUP_ROW, PopUp } from '../../ui/Group.tsx';
 import { CheckIcon, CloseIcon } from '../../ui/icons.tsx';
+import { withMaxChars } from '../../ui/maxChars.ts';
 
 /** What the dialog edits; empty strings are cleared fields. */
 export interface PresentationDetails {
@@ -105,11 +106,10 @@ export function PresentationDetailsDialog({
                 autoFocus
                 aria-label={t('presentation.name')}
                 placeholder={t('presentation.name')}
-                maxLength={FIELD_RULES.name.max}
                 className={BARE}
                 value={d.name}
                 onFocus={(e) => e.currentTarget.select()}
-                onChange={set('name')}
+                onChange={withMaxChars(FIELD_RULES.name.max, set('name'))}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
                   e.preventDefault();
@@ -118,7 +118,7 @@ export function PresentationDetailsDialog({
               />
             </div>
             <div className={GROUP_ROW}>
-              <input aria-label={t('presentation.location')} placeholder={t('presentation.location')} maxLength={FIELD_RULES.location.max} className={BARE} value={d.location} onChange={set('location')} />
+              <input aria-label={t('presentation.location')} placeholder={t('presentation.location')} className={BARE} value={d.location} onChange={withMaxChars(FIELD_RULES.location.max, set('location'))} />
             </div>
           </Group>
           <Group>
@@ -150,11 +150,10 @@ export function PresentationDetailsDialog({
             <textarea
               aria-label={t('presentation.description')}
               placeholder={t('presentation.description')}
-              maxLength={FIELD_RULES.description.max}
               rows={4}
               className={`${BARE} block px-4 py-3 text-sm resize-none`}
               value={d.description}
-              onChange={set('description')}
+              onChange={withMaxChars(FIELD_RULES.description.max, set('description'))}
             />
           </Group>
         </div>

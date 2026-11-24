@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BUG_REPORT_LIMITS, type BugReportMessage } from '@gp/core';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { withMaxChars } from '../ui/maxChars.ts';
 import { Group } from '../ui/Group.tsx';
 
 // A bug report's thread (docs/bug-reports.md), the same on both sides: the Superadmin's page of the report and the
@@ -49,11 +50,10 @@ export function ReportThread({ messages, asAdmin, send, empty }: { messages: Bug
         <textarea
           aria-label={t('reports.write')}
           placeholder={t('reports.write')}
-          maxLength={BUG_REPORT_LIMITS.text}
           rows={2}
           className="flex-1 min-w-0 resize-none bg-transparent py-1.5 text-sm outline-none placeholder:text-stone-400 dark:placeholder:text-stone-500"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={withMaxChars(BUG_REPORT_LIMITS.text, (e) => setText(e.target.value))}
           onKeyDown={(e) => {
             // ⌘↩ or Ctrl+↩ sends, as in Mail; a plain ↩ is a new line.
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit();

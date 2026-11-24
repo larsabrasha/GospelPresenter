@@ -2,7 +2,7 @@ import { count, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { BIBLE_LIMITS, bibleId } from '../bible.ts';
 import { bibleBlobs, bibles, bibleTexts } from '../schema.ts';
-import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { id, limit, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // ------------------------------------------------------------------ bibles
 
@@ -15,9 +15,9 @@ async function dropUnusedText(tx: Tx, hash: string) {
 }
 
 export const importBibleArgs = z.object({
-  name: z.string().trim().min(1).max(200),
-  abbreviation: z.string().trim().min(1).max(50),
-  language: z.string().trim().max(20).nullable(),
+  name,
+  abbreviation: z.string().trim().min(1).max(BIBLE_LIMITS.abbreviation),
+  language: z.string().trim().max(BIBLE_LIMITS.language).nullable(),
   /** The text, uploaded first (`PUT /bibles/{hash}`) and stored where this runs. */
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
@@ -44,7 +44,7 @@ export async function importBible(tx: Tx, a: z.output<typeof importBibleArgs>, c
   if (existing && existing.contentHash !== a.contentHash) await dropUnusedText(tx, existing.contentHash);
 }
 
-export const renameBibleArgs = z.object({ id, name: z.string().trim().min(1).max(200) });
+export const renameBibleArgs = z.object({ id, name });
 /** A translation's name; its abbreviation, and so its id, stay. */
 export async function renameBible(tx: Tx, a: z.output<typeof renameBibleArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageBibles');

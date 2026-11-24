@@ -9,8 +9,9 @@ import { slideDeckPagesSchema } from '../slides.ts';
 import { checkedThemeBlobs } from '../themes.ts';
 import { tableByName } from '../sync-sql.ts';
 import type { RunSql } from './sql.ts';
-import { type Json, jsonArgs, cut, isObject, parseLegacyJson, sortedKeys, stringify, orderedString, unique } from './files-json.ts';
+import { type Json, jsonArgs, isObject, parseLegacyJson, sortedKeys, stringify, orderedString, unique } from './files-json.ts';
 import { readBibleItemContent } from './slides-items.ts';
+import { cutChars } from '../chars.ts';
 
 const refused = (): never => {
   throw new MutationError('invalid-rows');
@@ -270,7 +271,7 @@ function problem(rows: Json): string | null {
  * its text above it at the top left, white.
  */
 function overlayPage(content: string | null, picture: unknown): Json {
-  const t = content === null ? '' : cut(content.trim(), CUSTOM_LIMITS.text);
+  const t = content === null ? '' : cutChars(content.trim(), CUSTOM_LIMITS.text);
   const elements: Json[] = [];
   if (picture) elements.push({ id: 'image', kind: 'image', x: 0, y: 0, w: 1920, h: 1080, picture, fit: 'contain' });
   if (t) {

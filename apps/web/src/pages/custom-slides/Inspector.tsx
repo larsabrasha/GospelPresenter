@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import type { CustomElement, CustomPage } from '@gp/core';
+import { type CustomElement, type CustomPage, FIELD_RULES } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
@@ -74,7 +74,7 @@ export function Inspector({
   return (
     <div className="space-y-5" data-testid="inspector">
       <Group>
-        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxLength={200} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxChars={FIELD_RULES.name.max} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
       {hasBackground && (
         <Group title={t('slideEditor.page', { n: pageAt + 1 })}>

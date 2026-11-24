@@ -2,6 +2,7 @@ import { count, eq, max } from 'drizzle-orm';
 import { z } from 'zod';
 import { AUDIO_TYPES, MEDIA_HASH, MEDIA_LIMITS } from '../media.ts';
 import { mediaBlobs, songMaterials, songs } from '../schema.ts';
+import { FIELD_RULES } from '../mutation.ts';
 import { id, limit, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // ------------------------------------------------------------------ sheet music and links on a song (spec 02 "Song material")
@@ -13,7 +14,7 @@ const MATERIALS_PER_SONG = 30;
 const webAddress = z
   .string()
   .trim()
-  .max(2000)
+  .max(FIELD_RULES.linkUrl.max)
   .regex(/^https?:\/\/[^\s/?#]+[^\s]*$/i, 'not a web address');
 
 /** The song, if it is there, and the next place after its material. */

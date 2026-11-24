@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FIELD_RULES } from '@gp/core';
 import { Core, runMutation, type Rows } from '../../src/core.ts';
 
-/** An organisation's database in memory with a presentation `p1` and its heading `i1`, and a mutator run over it. */
+/** An organisation's database in memory with a presentation `p1` and its heading `i1`, a song `s1`, and a mutator run over it. */
 function org() {
   const db = new DatabaseSync(':memory:');
   const all = (sql: string, params: unknown[] = []) => {
@@ -16,10 +16,13 @@ function org() {
   const core = new Core();
   core.runSync('migrateOrgSchema', all);
   const mutate = (name: string, args: object) => runMutation({ core, rows: all }, name, args, { userId: 'u', role: 'admin', now: 1000 });
-  return { mutate, ready: mutate('createPresentation', { id: 'p1', name: 'Söndag' }).then(() => mutate('addHeaderToPresentation', { itemId: 'i1', presentationId: 'p1', title: 'Lovsång' })) };
+  const ready = mutate('createPresentation', { id: 'p1', name: 'Söndag' })
+    .then(() => mutate('addHeaderToPresentation', { itemId: 'i1', presentationId: 'p1', title: 'Lovsång' }))
+    .then(() => mutate('createSong', { id: 's1', name: 'Psalm' }));
+  return { mutate, ready };
 }
 
-type Field = 'presentationName' | 'itemTitle' | 'itemNote' | 'location' | 'description';
+type Field = 'presentationName' | 'itemTitle' | 'itemNote' | 'location' | 'description' | 'songName' | 'author' | 'publisher' | 'ccli' | 'partContent' | 'partLabel' | 'label' | 'arrangementName';
 
 /** Each field's mutator, setting it to `text`. */
 const SETTERS: Record<Field, (text: string) => [string, object]> = {
@@ -28,16 +31,32 @@ const SETTERS: Record<Field, (text: string) => [string, object]> = {
   itemNote: (text) => ['setItemNote', { itemId: 'i1', note: text }],
   location: (text) => ['updatePresentation', { id: 'p1', location: text }],
   description: (text) => ['updatePresentation', { id: 'p1', description: text }],
+  songName: (text) => ['updateSong', { id: 's1', name: text }],
+  author: (text) => ['updateSong', { id: 's1', author: text }],
+  publisher: (text) => ['updateSong', { id: 's1', publisher: text }],
+  ccli: (text) => ['updateSong', { id: 's1', ccli: text }],
+  partContent: (text) => ['addSongPart', { id: 'v1', songId: 's1', labelText: null, content: text }],
+  partLabel: (text) => ['addSongPart', { id: 'v1', songId: 's1', labelText: text, content: 'Text' }],
+  label: (text) => ['createLabel', { text, color: '#336699' }],
+  arrangementName: (text) => ['createArrangement', { id: 'a1', songId: 's1', name: text, partIds: [] }],
 };
 
 describe('FIELD_RULES', () => {
-  /** Each field's rule: a presentation's name and an item's title are names. */
+  /** Each field's rule: a presentation's name, an item's title and a song's are names; a part's label is a label's, optional. */
   const RULES: Record<Field, { required: boolean; max: number }> = {
     presentationName: FIELD_RULES.name,
     itemTitle: FIELD_RULES.name,
     itemNote: FIELD_RULES.itemNote,
     location: FIELD_RULES.location,
     description: FIELD_RULES.description,
+    songName: FIELD_RULES.name,
+    author: FIELD_RULES.author,
+    publisher: FIELD_RULES.publisher,
+    ccli: FIELD_RULES.ccli,
+    partContent: FIELD_RULES.partContent,
+    partLabel: { required: false, max: FIELD_RULES.label.max },
+    label: FIELD_RULES.label,
+    arrangementName: FIELD_RULES.arrangementName,
   };
   const fields = () => RULES;
 

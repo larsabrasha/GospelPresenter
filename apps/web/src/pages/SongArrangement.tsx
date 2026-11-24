@@ -1,4 +1,4 @@
-import { parsePartIds, type Label, type SongArrangement as Arrangement, type SongPart } from '@gp/core';
+import { FIELD_RULES, type Label, parsePartIds, type SongArrangement as Arrangement, type SongPart } from '@gp/core';
 import { useEffect, useRef } from 'react';
 import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -96,7 +96,7 @@ function ArrangementEditor({
       {named && (
         <AutoSaveField
           label={t('song.name')}
-          maxLength={100}
+          maxChars={FIELD_RULES.arrangementName.max}
           value={arrangement.name ?? ''}
           onSave={(name) => db.mutate('updateArrangement', { id: arrangement.id, name })}
           onSaved={showSaved}

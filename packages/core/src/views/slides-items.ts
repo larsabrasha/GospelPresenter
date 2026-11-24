@@ -8,7 +8,8 @@ import { readStoredJson } from '../stored-json.ts';
 import { marks, type RunSql } from './sql.ts';
 import { select } from './lists-rows.ts';
 import { VIDEO, videoRow } from './lists-media.ts';
-import { argsOf, asF64, asI64, asStr, charsAtMost, idOf, invalidArgs, isObj, strOrEmpty, type Obj } from './serde.ts';
+import { argsOf, asF64, asI64, asStr, idOf, invalidArgs, isObj, strOrEmpty, type Obj } from './serde.ts';
+import { charsAtMost } from '../chars.ts';
 
 /** An item as the slides read it. */
 export interface SlideItem {

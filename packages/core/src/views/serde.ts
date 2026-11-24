@@ -2,6 +2,7 @@
 // number, a text or an object there, and the refusal of arguments that are not an object. Stored JSON text is read by
 // stored-json.ts.
 import { MutationError } from '../mutation.ts';
+import { charsAtMost } from '../chars.ts';
 
 /** A JSON object's fields. */
 export type Obj = Record<string, unknown>;
@@ -45,12 +46,6 @@ export const asI64 = (v: unknown): number | null => (typeof v === 'number' && Nu
 
 /** `as_bool`. */
 export const asBool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
-
-/**
- * Whether `s` has at most `max` characters, code points: a text's length as every limit counts it, zod's `.max` in the
- * schemas too (zod 4 counts code points), so a name of 200 emoji is 200 characters.
- */
-export const charsAtMost = (s: string, max: number): boolean => s.length <= max || [...s].length <= max;
 
 /** `id`: a text of 1–100 characters. */
 export function idOf(o: Obj, k: string): string {

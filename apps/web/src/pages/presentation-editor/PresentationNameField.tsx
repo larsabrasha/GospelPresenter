@@ -9,7 +9,7 @@ export function PresentationNameField({ value, onChange, onEnter }: { value: str
       label={t('presentation.name')}
       hideLabel
       autoFocus
-      maxLength={FIELD_RULES.name.max}
+      maxChars={FIELD_RULES.name.max}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {

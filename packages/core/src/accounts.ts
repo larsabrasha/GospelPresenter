@@ -35,18 +35,28 @@ export const ACCOUNT_LIMITS = {
   emailLinkTtlMs: 24 * 60 * 60_000,
   /** How long an invitation a 1.x import made waits: its people come back over weeks. */
   importInviteTtlMs: 90 * 24 * 60 * 60_000,
+  /** The most characters of a person's name, an organisation's, a device's, an e-mail address and the setup token. */
+  personName: 200,
+  orgName: 200,
+  deviceName: 200,
+  email: 320,
+  setupToken: 200,
+  /** A passkey's name, as the user calls it. */
+  passkeyName: 100,
+  /** The digits of a pairing code. */
+  pairCodeDigits: 6,
 } as const;
 
 export const roleSchema = z.enum(ROLES);
-const personName = z.string().trim().min(1).max(200);
+const personName = z.string().trim().min(1).max(ACCOUNT_LIMITS.personName);
 /** Lower-cased: one address, one account, whatever the case it is typed in. */
 export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .max(320)
+  .max(ACCOUNT_LIMITS.email)
   .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'invalid-email');
-const deviceName = z.string().trim().max(200).default('');
+const deviceName = z.string().trim().max(ACCOUNT_LIMITS.deviceName).default('');
 
 /** The app's languages; a mail goes out in the language of the page that asked for it (decided on 2026-10-31). */
 export const mailLanguage = z.enum(['sv', 'en']).catch('sv');
@@ -73,9 +83,9 @@ export type LoginProvider = (typeof LOGIN_PROVIDERS)[number];
 
 /** First run: the organisation and its first Admin, a Superadmin, who then links a login through the invite it answers with. */
 export const setupRequest = z.object({
-  setupToken: z.string().min(1).max(200),
+  setupToken: z.string().min(1).max(ACCOUNT_LIMITS.setupToken),
   name: personName,
-  orgName: z.string().trim().min(1).max(200),
+  orgName: z.string().trim().min(1).max(ACCOUNT_LIMITS.orgName),
 });
 
 export interface SetupResponse {
@@ -95,7 +105,7 @@ export const googleBeginRequest = z.object({
   app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
 });
 
-export const passkeyName = z.string().trim().min(1).max(100);
+export const passkeyName = z.string().trim().min(1).max(ACCOUNT_LIMITS.passkeyName);
 
 /**
  * Starts a passkey ceremony. `signin`: any passkey of this server's RP ID,
@@ -110,7 +120,7 @@ export const passkeyBeginRequest = z.object({
   mode: z.enum(['signin', 'register']),
   invite: z.string().min(1).max(200).optional(),
   name: passkeyName.optional(),
-  personName: z.string().trim().min(1).max(200).optional(),
+  personName: personName.optional(),
   app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
 });
 
@@ -216,7 +226,7 @@ export const confirmEmailRequest = z.object({ token: z.string().min(1).max(200) 
 export const superModeRequest = z.object({ on: z.boolean() });
 
 /** `POST /api/orgs` and `PATCH /api/orgs/{id}`: an organisation's name (ORG-R1). */
-export const orgNameRequest = z.object({ name: z.string().trim().min(1).max(200) });
+export const orgNameRequest = z.object({ name: z.string().trim().min(1).max(ACCOUNT_LIMITS.orgName) });
 
 /** `POST /api/auth/switch`: the organisation to act in from now on (spec 01 switcher). */
 export const switchOrgRequest = z.object({ orgId: z.string().min(1).max(200) });
@@ -231,7 +241,7 @@ export interface OrgRow {
 /** A pairing code signs the device in as `userId` (the caller when absent), a member of the caller's organisation. */
 export const pairCodeRequest = z.object({ userId: z.string().min(1).max(200).optional() });
 
-export const pairClaimRequest = z.object({ code: z.string().regex(/^\d{6}$/), name: z.string().trim().min(1).max(200) });
+export const pairClaimRequest = z.object({ code: z.string().regex(new RegExp(`^\\d{${ACCOUNT_LIMITS.pairCodeDigits}}$`)), name: z.string().trim().min(1).max(ACCOUNT_LIMITS.deviceName) });
 export const pairDevRequest = pairClaimRequest.pick({ name: true });
 
 /** The signed-in user, as `GET /auth/me` answers, read fresh from the server's tables. */

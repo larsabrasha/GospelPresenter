@@ -61,7 +61,7 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
         if (!a) return fail(c, 400, 'invalid-request');
         const admin = await firstAdmin();
         if (!admin) return fail(c, 400, 'pair-code-invalid');
-        const code = newDigits(6);
+        const code = newDigits(ACCOUNT_LIMITS.pairCodeDigits);
         await accounts.pairing.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, admin.userId, admin.orgId);
         const claimed = (await accounts.pairing.claimPairCode(code, a.name, 1))!;
         const session = await signedIn(claimed.userId, claimed.orgId, a.name, claimed.deviceId);
@@ -87,7 +87,7 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
         if (!t) return fail(c, 404, 'not-found');
         const refusal = t.id === caller.ctx.userId ? null : accountRefusal(actor(caller), t);
         if (refusal) return fail(c, 403, refusal);
-        const code = newDigits(6);
+        const code = newDigits(ACCOUNT_LIMITS.pairCodeDigits);
         return c.json({ code, expiresAt: await accounts.pairing.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, t.id, caller.orgId) });
       }),
     );

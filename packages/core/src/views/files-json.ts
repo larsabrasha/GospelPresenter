@@ -1,7 +1,7 @@
 // The values the views of files read and write as the Rust core had them (ADR 0008; ported back from
 // crates/gp-core/src/files.rs, json.rs, ordered.rs and the helpers of media_plan.rs and mutators.rs): arguments as JSON
 // carries them, the JSON text of 1.x's and 2.0's files (`parseLegacyJson`; the app's own is stored-json.ts's), whole
-// numbers as i64 with its wrapping, `String(v)` and numbers written as Rust wrote them, and strings cut in UTF-16 units.
+// numbers as i64 with its wrapping, `String(v)` and numbers written as Rust wrote them; a text too long is cut by chars.ts, in characters.
 import { MutationError } from '../mutation.ts';
 import { byCodePoint } from './serde.ts';
 
@@ -47,9 +47,6 @@ export function wellFormed(t: string): string {
   }
   return out;
 }
-
-/** At most `max` UTF-16 units, as `slice` cuts; half a pair cut off is U+FFFD (`cut`). */
-export const cut = (t: string, max: number): string => (t.length > max ? wellFormed(t.slice(0, max)) : t);
 
 const number = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
 /** `Value::as_f64`. */

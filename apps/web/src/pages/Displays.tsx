@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { displayCode, type Display } from '@gp/core';
+import { type Display, displayCode, FIELD_RULES } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -64,7 +64,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
         }}
       >
         <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{kind === 'screen' ? t('screens.addText') : t('displays.addText')}</p>
-        <FloatingInput label={t('displays.name')} hideLabel autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('displays.name')} hideLabel autoFocus maxChars={FIELD_RULES.name.max} value={name} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={() => onClose(null)}>
             {t('common.cancel')}

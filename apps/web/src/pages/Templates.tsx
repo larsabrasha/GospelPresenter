@@ -1,4 +1,4 @@
-import type { Presentation } from '@gp/core';
+import { FIELD_RULES, type Presentation } from '@gp/core';
 import { useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { listTemplates } from '../db/queries.ts';
@@ -74,7 +74,7 @@ function TemplateDetailsDialog({
             ))}
           </SimpleSelect>
           <SimpleInput type="time" aria-label={t('schedule.time')} value={time} onChange={(e) => setTime(e.target.value)} />
-          <SimpleInput placeholder={t('schedule.location')} aria-label={t('schedule.location')} maxLength={100} value={location} onChange={(e) => setLocation(e.target.value)} />
+          <SimpleInput placeholder={t('schedule.location')} aria-label={t('schedule.location')} maxChars={FIELD_RULES.location.max} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { emailSchema, type AuthState, type ChangeEmailResponse, type Me } from '@gp/core';
+import { ACCOUNT_LIMITS, type AuthState, type ChangeEmailResponse, emailSchema, type Me } from '@gp/core';
 import { api } from '../../auth/api.ts';
 import { errorText } from '../../auth/errors.ts';
 import { setSuperMode } from '../../auth/superMode.ts';
@@ -44,7 +44,7 @@ function EmailDialog({ me, onMe, onClose }: { me: Me; onMe: (m: Me) => void; onC
           }
         }}
       >
-        <FloatingInput label={t('profile.newEmail')} type="email" autoFocus maxLength={320} hasError={!!error} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <FloatingInput label={t('profile.newEmail')} type="email" autoFocus maxChars={ACCOUNT_LIMITS.email} hasError={!!error} value={email} onChange={(e) => setEmail(e.target.value)} />
         {error && (
           <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
@@ -94,7 +94,7 @@ export function Profile({ me, onMe }: { me: Me; onMe: (m: Me) => void }) {
         <div className="p-3">
           <AutoSaveField
             label={t('users.name')}
-            maxLength={200}
+            maxChars={ACCOUNT_LIMITS.personName}
             value={me.name}
             onSave={(v) =>
               v.trim()

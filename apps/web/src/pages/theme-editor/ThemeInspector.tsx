@@ -1,4 +1,4 @@
-import { FONT_STACKS, type Background, type TextStyle, type ThemeDefinition } from '@gp/core';
+import { type Background, FONT_STACKS, type TextStyle, THEME_LIMITS, type ThemeDefinition } from '@gp/core';
 import { locale, t, type TextKey } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
@@ -128,7 +128,7 @@ export function ThemeInspector({
   return (
     <div className="space-y-5" data-testid="theme-inspector">
       <Group>
-        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxLength={100} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxChars={THEME_LIMITS.name} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
       <BackgroundPanel kind={kind} background={backgroundIn(definition, kind)} onBackground={onBackground} onChoosePicture={onChoosePicture} />
       {kind !== 'media' && <p className="px-4 text-[13px] text-stone-500 dark:text-stone-400">{t('themeEditor.pickHint')}</p>}

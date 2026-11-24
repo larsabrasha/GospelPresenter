@@ -1,9 +1,10 @@
 import type { ReactNode, RefObject } from 'react';
-import type { CustomElement } from '@gp/core';
+import { CUSTOM_LIMITS, type CustomElement } from '@gp/core';
 import { t, type TextKey } from '../../i18n.ts';
 import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { ACTION_ROW, GROUP_ROW, Group } from '../../ui/Group.tsx';
+import { withMaxChars } from '../../ui/maxChars.ts';
 
 // What the picked element is, to change (docs/custom-slides.md): its words, size and colour, its fill and outline,
 // its picture, its place in the drawing order; and, with nothing picked, the page's background and the page itself.
@@ -48,10 +49,9 @@ export function ElementPanel({
               ref={textRef}
               aria-label={t('slideEditor.text')}
               rows={3}
-              maxLength={2000}
               className="w-full resize-y bg-transparent text-[17px] outline-none"
               value={e.text}
-              onChange={(ev) => onChange({ text: ev.target.value })}
+              onChange={withMaxChars(CUSTOM_LIMITS.text, (ev) => onChange({ text: ev.target.value }))}
             />
           </div>
           <Slider label={t('slideEditor.size')} value={e.size} min={10} max={400} onChange={(size) => onChange({ size })} />

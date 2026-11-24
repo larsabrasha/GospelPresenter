@@ -2,7 +2,7 @@
 // in the custom slides' editor, carried by an item, toggled during live, switched off by Släck.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createOverlay, createPresentation, createSong, openAdmin, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createOverlay, createPresentation, createSong, openAdmin, pickItem, setUpHost, typePastLimit } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -113,10 +113,9 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await createOverlay(page, 'Kollekt', 'Swish 123 45');
   const failed = page.getByRole('alert').getByText('Kunde inte spara');
 
-  // A text is at most 2 000 characters; without the field's own limit, the page's write is refused.
+  // A text is at most 2 000 characters; past the field's own limit, the page's write is refused.
   const field = page.getByRole('textbox', { name: 'Text', exact: true });
-  await field.evaluate((el) => el.removeAttribute('maxlength'));
-  await field.fill('x'.repeat(2001));
+  await typePastLimit(field, 'x'.repeat(2001));
   await expect(failed).toBeVisible();
 
   // An overlay that does not exist, chosen for an item: refused, and the item carries none.

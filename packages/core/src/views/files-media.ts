@@ -11,6 +11,7 @@ import { readStoredJson } from '../stored-json.ts';
 import { checkedThemeBlobs } from '../themes.ts';
 import { marks, type RunSql } from './sql.ts';
 import { byCodePoint, strOrEmpty } from './serde.ts';
+import { charsAtMost } from '../chars.ts';
 import { type Json, jsonArgs, i64Of, field, i64, intOf, isObject, mediaPlanString, unique } from './files-json.ts';
 
 const VIDEOS_OF = "SELECT v.hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'";
@@ -28,7 +29,7 @@ interface Policy {
 /** The policy from a view's arguments {presenting, persistent, keepComing, today, days, fetch}. */
 function policyOf(a: Json): Policy {
   const p = a.presenting ?? null;
-  if (p !== null && (typeof p !== 'string' || [...p].length < 1 || [...p].length > 100)) throw new MutationError('invalid-args');
+  if (p !== null && (typeof p !== 'string' || p.length === 0 || !charsAtMost(p, 100))) throw new MutationError('invalid-args');
   const flag = (v: unknown, otherwise: boolean) => (typeof v === 'boolean' ? v : otherwise);
   return { presenting: p, persistent: flag(a.persistent, true), keepComing: flag(a.keepComing, false), today: typeof a.today === 'string' ? a.today : '', days: i64Of(a.days) ?? 7n, fetch: flag(a.fetch, true) };
 }

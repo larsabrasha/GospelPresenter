@@ -45,7 +45,7 @@ export function Audios({ role }: { role: Role }) {
           return m && { name: a.fileName, data: m.bytes, type: m.contentType };
         },
       }}
-      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxChars: MEDIA_LIMITS.fileName, run: (a, fileName) => db.mutate('renameAudio', { id: a.id, fileName }) }}
       remove={{ ...trashTexts('audios.trashed'), run: (a) => db.mutate('trashAudio', { id: a.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('audios.failed', { n: failures.length })} testId="audio" />}

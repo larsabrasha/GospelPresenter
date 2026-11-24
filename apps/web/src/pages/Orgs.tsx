@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ListSearch, matches, NoMatch } from '../ui/ListSearch.tsx';
-import type { Me, OrgRow, UserRow } from '@gp/core';
+import { ACCOUNT_LIMITS, type Me, type OrgRow, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { enterWith, sessionIn, switchOrg } from '../auth/orgs.ts';
@@ -65,7 +65,7 @@ function CreateOrgDialog({ onClose }: { onClose: () => void }) {
           setSaving(false);
         }}
       >
-        <FloatingInput label={t('orgs.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('orgs.name')} autoFocus maxChars={ACCOUNT_LIMITS.orgName} value={name} onChange={(e) => setName(e.target.value)} />
         {error && (
           <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
@@ -213,7 +213,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
       <div>
         <AutoSaveField
           label={t('org.name')}
-          maxLength={200}
+          maxChars={ACCOUNT_LIMITS.orgName}
           value={org.name}
           onSave={async (name) => {
             if (!name.trim()) return;

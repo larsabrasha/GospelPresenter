@@ -5,6 +5,7 @@ import { useDbStatus } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import type { LiveChannel } from '../live/live.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { withMaxChars } from '../ui/maxChars.ts';
 import { useAppCommand } from '../ui/appKeys.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { Group, SwitchRow } from '../ui/Group.tsx';
@@ -88,12 +89,11 @@ function BugReportDialog({ me, state, shot: taken, onClose }: { me: Me; state: R
           <textarea
             aria-label={t('report.what')}
             placeholder={t('report.what')}
-            maxLength={BUG_REPORT_LIMITS.text}
             rows={5}
             autoFocus
             className="block w-full min-w-0 resize-none bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400 dark:placeholder:text-stone-500"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={withMaxChars(BUG_REPORT_LIMITS.text, (e) => setText(e.target.value))}
           />
         </Group>
         {shot && (

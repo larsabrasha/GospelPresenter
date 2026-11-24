@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { DEFAULT_LABEL_COLOR, labelKey, type Label } from '@gp/core';
+import { DEFAULT_LABEL_COLOR, FIELD_RULES, type Label, labelKey } from '@gp/core';
 import { listLabels } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -92,7 +92,7 @@ function LabelSheet({ editing, labels, onRemove, onClose }: { editing: Label | n
           </span>
         </div>
         <div className="space-y-1">
-          <FloatingInput id={inputId} label={t('labels.field')} hideLabel autoFocus maxLength={50} value={text} hasError={taken} onChange={(e) => setText(e.target.value)} />
+          <FloatingInput id={inputId} label={t('labels.field')} hideLabel autoFocus maxChars={FIELD_RULES.label.max} value={text} hasError={taken} onChange={(e) => setText(e.target.value)} />
           {taken && <p className="text-sm text-red-600 dark:text-red-400">{t('labels.taken')}</p>}
         </div>
         <div role="radiogroup" aria-label={t('labels.color')} className="grid grid-cols-6 gap-3 justify-items-center">

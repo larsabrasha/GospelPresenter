@@ -6,7 +6,8 @@ import { BIBLE_LIMITS, bibleItemTitle, bibleLabel, splitBibleSlides, type BibleB
 import { bibleItemSlides, type ItemShown } from './slides-items.ts';
 import type { RunSql } from './sql.ts';
 import { readStoredJson } from '../stored-json.ts';
-import { argsOf, asI64, asStr, charsAtMost, hasFraction, intIn, invalidArgs, isObj, RUST_SPACE_RUN, rustTrim } from './serde.ts';
+import { argsOf, asI64, asStr, hasFraction, intIn, invalidArgs, isObj, RUST_SPACE_RUN, rustTrim } from './serde.ts';
+import { charsAtMost } from '../chars.ts';
 
 // ------------------------------------------------------------------ a passage's preview (BIBLE-R12, R13)
 

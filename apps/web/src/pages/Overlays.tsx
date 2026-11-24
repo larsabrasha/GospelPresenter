@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { blankPage, type Overlay, type Theme } from '@gp/core';
+import { blankPage, FIELD_RULES, type Overlay, type Theme } from '@gp/core';
 import { defaultTheme, listOverlays } from '../db/queries.ts';
 import { useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -62,7 +62,7 @@ export function Overlays() {
         { key: 'name', label: t('library.sort.name'), compare: byName },
       ]}
       manage
-      rename={{ title: t('library.renameTitle'), label: t('overlays.createName'), maxLength: 200, run: (o, title) => db.mutate('updateOverlay', { id: o.id, title, at: Date.now() }) }}
+      rename={{ title: t('library.renameTitle'), label: t('overlays.createName'), maxChars: FIELD_RULES.name.max, run: (o, title) => db.mutate('updateOverlay', { id: o.id, title, at: Date.now() }) }}
       remove={{
         ask: (items) => (items.length === 1 ? { text: t('overlays.removeConfirm', { title: items[0]!.name }), bold: items[0]!.name } : { text: t('overlays.removeMany', { n: items.length }) }),
         run: (o) => db.mutate('deleteOverlay', { id: o.id }),

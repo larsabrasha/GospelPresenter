@@ -1,3 +1,4 @@
+import { ACCOUNT_LIMITS } from '@gp/core';
 import { useState } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
@@ -9,7 +10,7 @@ export function NameDialog({
   title,
   text,
   label = t('logins.name'),
-  maxLength = 100,
+  maxChars = ACCOUNT_LIMITS.passkeyName,
   initial,
   submit,
   onClose,
@@ -17,7 +18,8 @@ export function NameDialog({
   title: string;
   text?: string;
   label?: string;
-  maxLength?: number;
+  /** Its most characters: a passkey's name's unless given (a library item's). */
+  maxChars?: number;
   initial: string;
   submit: (name: string) => Promise<void>;
   onClose: () => void;
@@ -37,7 +39,7 @@ export function NameDialog({
           setBusy(false);
         }}
       >
-        <FloatingInput label={label} hideLabel autoFocus maxLength={maxLength} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={label} hideLabel autoFocus maxChars={maxChars} value={name} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

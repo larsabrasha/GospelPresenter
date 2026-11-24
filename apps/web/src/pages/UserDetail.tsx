@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { accountRefusal, type AuthState, can, emailSchema, type LoginMethod, type Me, type MemberRole, removeUserRefusal, roleChangeRefusal, ROLES, type UserRow } from '@gp/core';
+import { ACCOUNT_LIMITS, accountRefusal, type AuthState, can, emailSchema, type LoginMethod, type Me, type MemberRole, removeUserRefusal, roleChangeRefusal, ROLES, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
@@ -188,12 +188,12 @@ export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; h
         {canEdit ? (
           <>
             {/* A blank name is not saved. */}
-            <AutoSaveField label={t('users.name')} maxLength={200} value={user.name} onSave={(v) => (v.trim() ? patch({ name: v.trim() }) : undefined)} onSaved={saved.show} />
+            <AutoSaveField label={t('users.name')} maxChars={ACCOUNT_LIMITS.personName} value={user.name} onSave={(v) => (v.trim() ? patch({ name: v.trim() }) : undefined)} onSaved={saved.show} />
             <div>
               <AutoSaveField
                 label={t('users.email')}
                 type="email"
-                maxLength={320}
+                maxChars={ACCOUNT_LIMITS.email}
                 hasError={!!emailError}
                 value={user.email ?? ''}
                 onSave={(v) => {

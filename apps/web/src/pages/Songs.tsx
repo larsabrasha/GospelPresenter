@@ -1,3 +1,4 @@
+import { FIELD_RULES } from '@gp/core';
 import { useRef, useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -64,7 +65,7 @@ export function Songs() {
       ]}
       open={(s) => href({ page: 'song', id: s.id })}
       manage
-      rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateSong', { id: s.id, name }) }}
+      rename={{ title: t('library.renameTitle'), label: t('song.name'), maxChars: FIELD_RULES.name.max, run: (s, name) => db.mutate('updateSong', { id: s.id, name }) }}
       remove={{
         ask: (items) => (items.length === 1 ? { text: t('song.trashConfirm', { name: items[0]!.name }), bold: items[0]!.name } : { text: t('library.trashMany', { n: items.length }) }),
         done: (items) => (items.length === 1 ? t('song.trashed', { name: items[0]!.name }) : t('library.trashedMany', { n: items.length })),

@@ -27,15 +27,23 @@ export class MutationError extends Error {
 export const LIMITS = { songs: 5000, partsPerSong: 50, arrangementsPerSong: 10, itemsPerPresentation: 100 } as const;
 
 /**
- * The fields a person types, as the mutators check them: whether one may be left blank, and its most characters. A
- * name (a presentation's, an item's) is required and trimmed; spec 03's `EventLocation` ≤ 100 and `EventDescription`
- * ≤ 5000 (PRES-R9).
+ * The fields a person types, as the mutators check them: whether one may be left blank, and its most characters
+ * (chars.ts). A name (a presentation's, an item's, a song's, an output's, a Bible's, a piece of song material's) is
+ * required and trimmed; spec 03's `EventLocation` ≤ 100 and `EventDescription` ≤ 5000 (PRES-R9); a song's fields and
+ * its parts' (SONG-R41); a label's text, which a part's label takes too, there optional; a link's address.
  */
 export const FIELD_RULES = {
   name: { required: true, max: 200 },
   itemNote: { required: false, max: 200 },
   location: { required: false, max: 100 },
   description: { required: false, max: 5000 },
+  author: { required: false, max: 200 },
+  publisher: { required: false, max: 200 },
+  ccli: { required: false, max: 20 },
+  partContent: { required: false, max: 5000 },
+  label: { required: true, max: 50 },
+  arrangementName: { required: false, max: 100 },
+  linkUrl: { required: true, max: 2000 },
 } as const;
 
 /** The most verses one Bible item holds. */

@@ -1,4 +1,4 @@
-import { type Label, LIMITS, type SongPart } from '@gp/core';
+import { FIELD_RULES, type Label, LIMITS, type SongPart } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { presentationsUsing, songPage, SONG_PAGE_READS } from '../db/views.ts';
@@ -180,7 +180,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <AutoSaveField
           label={`${t('song.parts')} ${i + 1}`}
           value={p.content}
-          maxLength={5000}
+          maxChars={FIELD_RULES.partContent.max}
           multiline
           bare
           warnOnClash
@@ -230,10 +230,10 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <Group>
           {/* A blank name is not saved (spec 02). */}
           <div data-song-name>
-            <AutoSaveField bare autoSelect={isNew} label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+            <AutoSaveField bare autoSelect={isNew} label={t('song.name')} maxChars={FIELD_RULES.name.max} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
           </div>
-          <AutoSaveField bare label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} />
-          <AutoSaveField bare label={t('song.publisher')} maxLength={200} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} />
+          <AutoSaveField bare label={t('song.author')} maxChars={FIELD_RULES.author.max} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} />
+          <AutoSaveField bare label={t('song.publisher')} maxChars={FIELD_RULES.publisher.max} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} />
           <AutoSaveField
             bare
             label={t('song.year')}
@@ -247,7 +247,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             }}
             onSaved={saved.show}
           />
-          <AutoSaveField bare label={t('song.ccli')} maxLength={20} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} />
+          <AutoSaveField bare label={t('song.ccli')} maxChars={FIELD_RULES.ccli.max} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} />
         </Group>
         {/* The current app shows no heading over the parts; this one is for screen readers. */}
         <h2 className="sr-only">{t('song.parts')}</h2>

@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, type InputHTMLAttributes, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronDownIcon } from './icons.tsx';
+import { withMaxChars } from './maxChars.ts';
 
 // Fields with the label inside the box, which moves up when the field has a
 // value or focus (Components/FloatingInput.razor, FloatingSelect, FloatingTextarea).
@@ -17,10 +18,14 @@ export function FloatingInput({
   inputClassName,
   id,
   placeholder,
+  maxChars,
+  onChange,
   ...rest
 }: InputHTMLAttributes<HTMLInputElement> & {
   ref?: Ref<HTMLInputElement>;
   label: string;
+  /** The most characters it takes, as the core counts them (ui/maxChars.ts). */
+  maxChars?: number;
   hideLabel?: boolean;
   hasError?: boolean;
   /** A row of a card of fields (ui/Group.tsx): no box of its own, its name still moving up as it is typed in. */
@@ -35,6 +40,7 @@ export function FloatingInput({
     <div className={`relative ${className ?? ''}`}>
       <input
         {...rest}
+        onChange={withMaxChars(maxChars, onChange)}
         id={inputId}
         placeholder={hideLabel ? (placeholder ?? label) : ' '}
         aria-label={hideLabel ? label : undefined}
@@ -83,7 +89,16 @@ function useGrow(on: boolean) {
 }
 
 /** A `bare` field (a song part's text) grows with its text, from three lines, and has no handle to size it. */
-export function FloatingTextarea({ label, className, id, rows = 4, bare, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean }) {
+export function FloatingTextarea({
+  label,
+  className,
+  id,
+  rows = 4,
+  bare,
+  maxChars,
+  onChange,
+  ...rest
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; bare?: boolean; maxChars?: number }) {
   const own = useId();
   const areaId = id ?? own;
   const area = useGrow(!!bare);
@@ -91,6 +106,7 @@ export function FloatingTextarea({ label, className, id, rows = 4, bare, ...rest
     <div className={`relative ${className ?? ''}`}>
       <textarea
         {...rest}
+        onChange={withMaxChars(maxChars, onChange)}
         ref={area}
         id={areaId}
         rows={bare ? 3 : rows}

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { blankPage, type Theme } from '@gp/core';
+import { blankPage, FIELD_RULES, type Theme } from '@gp/core';
 import { listCustomSlides, type LibraryCustomSlide } from '../../db/customSlides.ts';
 import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
@@ -102,7 +102,7 @@ export function CustomSlides() {
             </AppButton>
           )
         }
-        rename={{ title: t('library.renameTitle'), label: t('song.name'), maxLength: 200, run: (s, name) => db.mutate('updateCustomSlide', { id: s.id, name, at: Date.now() }) }}
+        rename={{ title: t('library.renameTitle'), label: t('song.name'), maxChars: FIELD_RULES.name.max, run: (s, name) => db.mutate('updateCustomSlide', { id: s.id, name, at: Date.now() }) }}
         remove={{ ...trashTexts('customSlides.trashed'), run: (s) => db.mutate('trashCustomSlide', { id: s.id, at: Date.now() }) }}
         add={
           <>

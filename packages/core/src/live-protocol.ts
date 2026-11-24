@@ -3,6 +3,7 @@ import { customPageSchema, type CustomPage } from './custom-slides.ts';
 import { OVERLAY_LIMITS } from './live.ts';
 import { isBuiltInTheme, resolveTheme, themeDefinitionSchema, type Theme, type ThemeDefinition } from './themes.ts';
 import { VIDEO_CODECS, VIDEO_TYPES } from './video.ts';
+import { cutUnits } from './chars.ts';
 
 // Remote control (spec 04 §2, ADR 0004 as carried over by ADR 0007 decision 4).
 // The window that presents owns its session and drives its own outputs from
@@ -76,19 +77,19 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
   const verses = slide.verses
     ? slide.verses.slice(0, PUBLIC_SLIDE_LIMITS.segments).flatMap((seg) => {
         if (budget <= 0) return [];
-        const t = seg.t.slice(0, budget);
+        const t = cutUnits(seg.t, budget);
         budget -= t.length;
         return [{ n: seg.n, t }];
       })
     : null;
   return {
     kind: slide.kind,
-    text: slide.text.slice(0, PUBLIC_SLIDE_LIMITS.text),
+    text: cutUnits(slide.text, PUBLIC_SLIDE_LIMITS.text),
     verses,
     image: slide.image,
-    credits: slide.credits?.slice(0, PUBLIC_SLIDE_LIMITS.credits) ?? null,
+    credits: slide.credits == null ? null : cutUnits(slide.credits, PUBLIC_SLIDE_LIMITS.credits),
     ...themeOnWire(theme),
-    overlay: overlay?.slice(0, OVERLAY_LIMITS.content) ?? null,
+    overlay: overlay == null ? null : cutUnits(overlay, OVERLAY_LIMITS.content),
   };
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import type { AuthState, SignInResponse } from '@gp/core';
+import { ACCOUNT_LIMITS, type AuthState, type SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { useDesktopSignIn } from '../auth/google.ts';
@@ -114,7 +114,7 @@ export function SignInChoices({
               if (personName.trim()) void s.passkey(invite, { mode: 'register', personName: personName.trim() });
             }}
           >
-            <FloatingInput label={t('invite.yourName')} autoFocus maxLength={200} value={personName} onChange={(e) => setPersonName(e.target.value)} />
+            <FloatingInput label={t('invite.yourName')} autoFocus maxChars={ACCOUNT_LIMITS.personName} value={personName} onChange={(e) => setPersonName(e.target.value)} />
             <AppButton type="submit" variant="plain" className={OTHER} disabled={!personName.trim()}>
               {t('passkey.create')}
             </AppButton>
@@ -180,7 +180,7 @@ function Recover() {
   return (
     <form className="w-64 mx-auto pt-4 space-y-3" onSubmit={(e) => void send(e)}>
       <p className={AUTH_TEXT}>{t('recover.text')}</p>
-      <FloatingInput label={t('recover.email')} type="email" autoFocus maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <FloatingInput label={t('recover.email')} type="email" autoFocus maxChars={ACCOUNT_LIMITS.email} value={email} onChange={(e) => setEmail(e.target.value)} />
       <FormError text={state.error ?? null} center />
       <div className="flex justify-center">
         <AppButton type="submit" disabled={!email.trim()} loading={state.sending}>

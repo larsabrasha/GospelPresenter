@@ -7,6 +7,7 @@ import { BIBLE_LIMITS, bookChunk, joinBibleText, LOAD_BIBLE_TEXT_SQL, storeBible
 import { sha256HexSync } from '../platform.ts';
 import type { RunSql } from './sql.ts';
 import { strOrEmpty } from './serde.ts';
+import { charsAtMost } from '../chars.ts';
 import { readStoredJson } from '../stored-json.ts';
 import { jsonArgs, numberOf, field, intOf, mediaPlanString, strOf } from './files-json.ts';
 
@@ -52,7 +53,7 @@ function book(b: unknown): BibleBookText | null {
   for (const v of verses) {
     if (!Array.isArray(v) || v.length !== 3) return null;
     const [c, n, t] = [small(v[0]), small(v[1]), v[2]];
-    if (typeof t !== 'string' || [...t].length > BIBLE_LIMITS.verseLength || c === null || n === null) return null;
+    if (typeof t !== 'string' || !charsAtMost(t, BIBLE_LIMITS.verseLength) || c === null || n === null) return null;
     out.push([c, n, t]);
   }
   return { code, verses: out };

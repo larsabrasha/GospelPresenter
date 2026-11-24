@@ -170,7 +170,7 @@ export function Images({ role }: { role: Role }) {
           return m && { name: nameFor(image.fileName, m.contentType), data: m.bytes, type: m.contentType };
         },
       }}
-      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxLength: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
+      rename={{ title: t('library.renameTitle'), label: t('library.fileName'), maxChars: MEDIA_LIMITS.fileName, run: (image, fileName) => db.mutate('renameImage', { id: image.id, fileName }) }}
       remove={{ ...trashTexts('images.trashed'), run: (image) => db.mutate('trashImage', { id: image.id, at: Date.now() }) }}
       add={manage && <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />}
       notices={<ImportNotices progress={progress && t('images.importing', progress)} failures={failures} failed={t('images.failed', { n: failures.length })} testId="image" />}

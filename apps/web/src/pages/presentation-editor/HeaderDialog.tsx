@@ -34,7 +34,7 @@ function TextDialog({ title, label, initial, rule, submit, save, onClose }: { ti
           if (saved) onClose();
         }}
       >
-        <FloatingInput label={label ?? title} placeholder={label ? undefined : ''} hideLabel autoFocus maxLength={rule.max} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
+        <FloatingInput label={label ?? title} placeholder={label ? undefined : ''} hideLabel autoFocus maxChars={rule.max} value={text} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

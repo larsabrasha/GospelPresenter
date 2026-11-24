@@ -1,4 +1,4 @@
-import type { SongMaterial } from '@gp/core';
+import { FIELD_RULES, type SongMaterial } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../../db/react.tsx';
 import { getSong, songMaterialsOf } from '../../db/views.ts';
@@ -201,9 +201,9 @@ function LinkDialog({ songId, onClose }: { songId: string; onClose: () => void }
           onClose();
         }}
       >
-        <FloatingInput label={t('material.linkUrl')} autoFocus type="url" inputMode="url" maxLength={2000} value={url} hasError={bad} onChange={(e) => (setUrl(e.target.value), setBad(false))} />
+        <FloatingInput label={t('material.linkUrl')} autoFocus type="url" inputMode="url" maxChars={FIELD_RULES.linkUrl.max} value={url} hasError={bad} onChange={(e) => (setUrl(e.target.value), setBad(false))} />
         {bad && <p className="text-sm text-red-500 dark:text-red-400 -mt-2">{t('material.badUrl')}</p>}
-        <FloatingInput label={t('material.linkTitle')} maxLength={200} value={title} placeholder={url.trim() ? linkSource(url.trim()) : undefined} onChange={(e) => setTitle(e.target.value)} />
+        <FloatingInput label={t('material.linkTitle')} maxChars={FIELD_RULES.name.max} value={title} placeholder={url.trim() ? linkSource(url.trim()) : undefined} onChange={(e) => setTitle(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}
@@ -232,7 +232,7 @@ function RenameDialog({ material, onClose }: { material: SongMaterial; onClose: 
           onClose();
         }}
       >
-        <FloatingInput label={t('material.linkTitle')} autoFocus maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <FloatingInput label={t('material.linkTitle')} autoFocus maxChars={FIELD_RULES.name.max} value={title} onChange={(e) => setTitle(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}

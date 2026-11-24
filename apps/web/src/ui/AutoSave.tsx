@@ -83,7 +83,7 @@ export function AutoSaveField({
   showLabel,
   bare,
   className,
-  maxLength,
+  maxChars,
   type,
   min,
   max,
@@ -104,8 +104,8 @@ export function AutoSaveField({
   /** Written straight into its card, without a box of its own: a part's text, or a row of a card of fields. */
   bare?: boolean;
   className?: string;
-  /** The field's limits (AppConstraints): its length, and for a number its type and range. */
-  maxLength?: number;
+  /** The field's limits (AppConstraints): its most characters (ui/maxChars.ts), and for a number its type and range. */
+  maxChars?: number;
   type?: 'text' | 'number' | 'email';
   min?: number;
   max?: number;
@@ -220,7 +220,7 @@ export function AutoSaveField({
   };
   // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
   const field = multiline ? (
-    <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} bare={bare} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} bare={bare} rows={rows} maxChars={maxChars} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
     <FloatingInput
       label={label}
@@ -228,7 +228,7 @@ export function AutoSaveField({
       type={type}
       min={min}
       max={max}
-      maxLength={maxLength}
+      maxChars={maxChars}
       hasError={hasError}
       value={shown}
       ref={input}

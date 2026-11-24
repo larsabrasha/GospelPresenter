@@ -349,9 +349,11 @@ Round 6 (2026-11-23): one rule each where both copies ran (Lars chose each).
   by `views/lists-settings.ts`'s `ownRow` alone (`themeOf` takes no reader): presenting's `themeView` now saturates
   a sort past an i64 as Teman did. `files-json.ts`'s `parseLegacyJson` (once `parseText`) is the 1.x and 2.0
   files' reader, which mends half a pair.
-- Text lengths: zod 4 counts code points already, as the views do (`charsAtMost`, `views/serde.ts`); nothing changed
-  but tests of emoji at each field's limit (`packages/core/test/node/rules.test.ts`). The web's inputs' `maxLength`
-  counts UTF-16 units, so a field of emoji stops at half its length there.
+- Text lengths: zod 4 counts code points already, as the views do; tests of emoji at each field's limit
+  (`packages/core/test/node/rules.test.ts`). Counting and cutting characters is in one place, `packages/core/src/chars.ts`
+  (`charCount`, `charsAtMost`, `cutChars`): the imports cut a name at 200 characters, not 200 UTF-16 units. The web's
+  fields count the same way (`maxChars`, `apps/web/src/ui/maxChars.ts`; the browser's own limit counted UTF-16 units,
+  and `pnpm lint` now refuses it), with the limits taken from the core's constants (`FIELD_RULES`, `ACCOUNT_LIMITS`, …).
 - A video item's row (I5) is Video's (`videoRow`): an unknown type mp4, an unknown codec h264.
 - Pages (C2, C3): `custom-slides.ts`'s `readCustomPages` and `readCustomPage` check every page read (the slides,
   Bildspel, the overlay shown, the blobs to fetch and upload, the export zip's rows): pages that do not read are one
@@ -367,6 +369,15 @@ Round 6 (2026-11-23): one rule each where both copies ran (Lars chose each).
   their rows and pages at once instead of as JSON text read back, and a song version and a queued change's arguments
   are read by `readStoredJson` too.
 - e2e, the whole suite: the same 25 failing as in round 5, 115 passed.
+
+Round 7 (2026-11-24): text lengths in characters, everywhere (Lars). `packages/core/src/chars.ts` counts and cuts by
+code point for the views, the imports (a name cut at 200 characters, not 200 UTF-16 units) and the web's fields:
+`maxChars` (`apps/web/src/ui/maxChars.ts`) in place of the browser's `maxLength`, which `pnpm lint` now refuses in
+`apps/web/src`. Each field's limit is the core's constant for the field the mutator checks (`FIELD_RULES`,
+`ACCOUNT_LIMITS`, …). The outputs' wire still cuts by UTF-16 unit (`cutUnits`), as its size is reckoned so, but never
+splits a pair. The e2e tests that typed past a field's limit to see a refusal use `typePastLimit` (`e2e/flows.ts`).
+e2e, without the 25 known to fail in this container: 111 passed; drag and milestone2's `:181`, known, and
+milestone2's `:117` (flaky under two workers, passed three times alone) failed.
 
 ## How long
 
