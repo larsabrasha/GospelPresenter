@@ -8,7 +8,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Highlight } from '../../ui/Highlight.tsx';
 import { AdjustmentsIcon, ArrowDownTrayIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
-import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
+import { AddFooter, EmptyTab, isAddKey, SearchField, usePresentationItems, useFocusWhenShown } from '../../ui/Picker.tsx';
 import { DropZone } from '../../ui/DropZone.tsx';
 import { ROUND_CLOSE } from '../../ui/glass.ts';
 import { useSongImport } from '../SongImport.tsx';
@@ -83,6 +83,8 @@ export function SongTab({
   const [held, setHeld] = useState<Song | null>(null);
   if (answered && held !== fresh) setHeld(fresh);
   const selected = answered ? fresh : (fresh ?? held);
+  const inPresentation = usePresentationItems();
+  const again = inPresentation.some((i) => i.type === 'song' && i.sourceId === selected?.id);
   const effectiveId = selected?.id ?? null;
   // A long list is drawn in steps: 3 000 rows at once (a cleared search, after an add) held up the running order 300 ms.
   const rows = useStepped(shown);
@@ -263,6 +265,7 @@ export function SongTab({
       </div>
       <div className="hidden md:block">
         <AddFooter
+          again={again}
           name={selected?.name}
           label={selected ? t('presentation.addSong', { name: selected.name }) : undefined}
           onAdd={selected ? () => void add() : undefined}

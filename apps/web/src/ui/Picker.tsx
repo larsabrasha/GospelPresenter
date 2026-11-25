@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode, type RefObject, type Ref } from 'react';
+import type { PresentationItem } from '@gp/core';
+import { createContext, useContext, useEffect, useState, type ReactNode, type RefObject, type Ref } from 'react';
 import { t } from '../i18n.ts';
 import { ctrlLabel } from './shortcuts.ts';
 import { AppButton } from './AppButton.tsx';
-import { CloseIcon, SearchIcon } from './icons.tsx';
+import { CheckIcon, CloseIcon, SearchIcon } from './icons.tsx';
 import { withMaxChars } from './maxChars.ts';
 
 // The parts the add-item modal's tabs share (Components/Presentations/AddItem):
@@ -82,17 +83,54 @@ export function isAddKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; a
 }
 
 /**
+ * The add dialog's adds, counted, and when the last was: each turns its Lägg till into "Tillagd" for a moment. And the
+ * presentation's items, so a tab can say when what is chosen is there already.
+ */
+export const AddContext = createContext<{ n: number; at: number; items: readonly PresentationItem[] }>({ n: 0, at: 0, items: [] });
+
+/** The items of the presentation the add dialog adds to: a tab says when what is chosen is among them already. */
+export const usePresentationItems = () => useContext(AddContext).items;
+
+/** How long Lägg till says "Tillagd" after an add. */
+const DONE_MS = 1500;
+
+/**
  * The foot of a tab: "Lägg till <name>", the name in bold. `label` is the button's full name, for screen readers and
  * tests. Its key (⌘↵) is in its tooltip and the keyboard help, not written under the list (Lars, 2026-11-05: a line
- * of help in every tab, and on a phone a key it has not).
+ * of help in every tab, and on a phone a key it has not). After an add it is green with a tick, "Tillagd", for a
+ * moment, where the eye already is, as the App Store's Hämta (Lars, 2026-11-25: one hardly noticed what had happened).
+ * `again` when what is chosen is in the presentation already: it says so, and the button adds it again.
  */
-export function AddFooter({ name, label, onAdd }: { name?: string; label?: string; onAdd?: () => void }) {
+export function AddFooter({ name, label, onAdd, again }: { name?: string; label?: string; onAdd?: () => void; again?: boolean }) {
+  const added = useContext(AddContext);
+  // "Tillagd" while the last add is under DONE_MS old, so a tab started over by its add (a new song's) shows it too;
+  // drawn again as that time runs out.
+  const [, redraw] = useState(0);
+  const left = DONE_MS - (Date.now() - added.at);
+  const done = left > 0;
+  useEffect(() => {
+    if (left <= 0) return;
+    const timer = setTimeout(() => redraw((n) => n + 1), left);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once for each add; `left` is read as it starts
+  }, [added.at]);
   return (
-    <div className="shrink-0 flex flex-wrap items-center justify-end gap-x-10 gap-y-2 pt-4">
-      {name !== undefined && onAdd && (
-        <AppButton aria-label={label} title={`${label ?? t('presentation.add')} (${ctrlLabel('↵')})`} onClick={onAdd} className="max-w-full min-w-0 inline-flex items-center gap-1">
-          <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{name}</span>
+    <div className="shrink-0 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 pt-4">
+      {done ? (
+        <AppButton aria-live="polite" title={label} onClick={onAdd} disabled={!onAdd} className="added-pop inline-flex items-center gap-1.5 bg-green-600! hover:bg-green-600! disabled:opacity-100!">
+          <CheckIcon className="size-4 shrink-0" />
+          {t('presentation.addedDone')}
         </AppButton>
+      ) : (
+        name !== undefined &&
+        onAdd && (
+          <>
+            {again && <span className="text-sm text-stone-500 dark:text-stone-400">{t('presentation.alreadyIn')}</span>}
+            <AppButton aria-label={label} title={`${label ?? t('presentation.add')} (${ctrlLabel('↵')})`} onClick={onAdd} className="max-w-full min-w-0 inline-flex items-center gap-1">
+              <span className="shrink-0">{t(again ? 'presentation.addAgain' : 'presentation.add')}</span> <span className="font-bold truncate">{name}</span>
+            </AppButton>
+          </>
+        )
       )}
     </div>
   );

@@ -71,6 +71,11 @@ const OWN_WRITE_MS = 10_000;
  * (`/templates/{id}`): a banner says so, and there is no Starta presentation
  * and no Spara som mall.
  */
+/** No item lit up. */
+const NONE: ReadonlySet<string> = new Set();
+/** How long an added item stays lit in the running order: as long as a phone marks one (PhoneLive's MARKED_MS). */
+const LIT_MS = 2600;
+
 export function PresentationEditor({
   id,
   role,
@@ -126,6 +131,20 @@ export function PresentationEditor({
   // addition follows while presenting (liveList.ts).
   const [adding, setAdding] = useState<{ after: string | null; kind: AddKind; images?: boolean } | null>(null);
   const added = (itemId: string) => page.send({ type: 'added', itemId });
+  // The items the add dialog added, lit up in the running order as it closes, where they landed (Lars, 2026-11-25: one
+  // hardly noticed what had happened): behind the dialog they would light up unseen.
+  const addedHere = useRef<string[]>([]);
+  const [lit, setLit] = useState<ReadonlySet<string>>(NONE);
+  useEffect(() => {
+    if (!lit.size) return;
+    const timer = setTimeout(() => setLit(NONE), LIT_MS);
+    return () => clearTimeout(timer);
+  }, [lit]);
+  const closeAdding = () => {
+    setAdding(null);
+    if (addedHere.current.length) setLit(new Set(addedHere.current));
+    addedHere.current = [];
+  };
   // Headings and comments (spec 03 2f): a new heading is selected, as an addition is.
   const texts = useItemTexts(id, added);
   const [details, setDetails] = useState(false);
@@ -359,9 +378,11 @@ export function PresentationEditor({
                   if (!on) setTickFirst(null);
                 }}
                 overlays={overlays}
+                lit={lit}
               />
             </SideMenu>
             <SlideList
+              markedId={selectedId && lit.has(selectedId) ? selectedId : null}
               template={template}
               items={items}
               slides={slides}
@@ -410,8 +431,12 @@ export function PresentationEditor({
             kind={adding.kind}
             theme={theme}
             toItemId={adding.images ? (selectedId ?? undefined) : undefined}
-            onAdded={added}
-            onClose={() => setAdding(null)}
+            items={items}
+            onAdded={(itemId) => {
+              addedHere.current.push(itemId);
+              added(itemId);
+            }}
+            onClose={closeAdding}
           />
         )}
         {texts.dialogs}

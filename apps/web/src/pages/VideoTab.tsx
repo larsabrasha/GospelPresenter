@@ -10,7 +10,7 @@ import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { VideoIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
-import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
+import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, usePresentationItems, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { PickableFileRow } from './PickableFileRow.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
@@ -59,6 +59,8 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = videos?.filter((v) => !q || v.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
   const chosen = (videos ?? []).filter((v) => picked.includes(v.id)).toSorted((a, b) => picked.indexOf(a.id) - picked.indexOf(b.id));
+  const inPresentation = usePresentationItems();
+  const again = inPresentation.some((i) => i.type === 'video' && chosen.some((c) => c.id === i.sourceId));
   const list = useRovingList(shown.length);
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -141,6 +143,7 @@ export function VideoTab({ presentationId, afterItemId, onAdded, active }: { pre
           </ul>
         </div>
         <AddFooter
+          again={again}
           name={chosen.length ? names : undefined}
           label={chosen.length ? t('presentation.addImage', { name: names }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

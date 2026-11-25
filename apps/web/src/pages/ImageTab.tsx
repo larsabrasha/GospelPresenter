@@ -12,7 +12,7 @@ import { DropZone } from '../ui/DropZone.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { useView, VIEW_ITEM, VIEW_LIST, ViewPicker } from '../ui/ViewPicker.tsx';
 import { useRovingList } from '../ui/listNav.ts';
-import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
+import { AddFooter, DeselectAll, EmptyTab, isAddKey, SearchField, usePresentationItems, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ImageFull, ImageThumb } from './Images.tsx';
 import { PictureMenu } from '../ui/RemoveMenu.tsx';
@@ -56,6 +56,9 @@ export function ImageTab({
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = images?.filter((i) => !q || i.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
   const chosen = (images ?? []).filter((i) => picked.includes(i.id)).toSorted((a, b) => picked.indexOf(a.id) - picked.indexOf(b.id));
+  // An image item has its one picture as its source, or several in its content's list.
+  const inPresentation = usePresentationItems();
+  const again = inPresentation.some((i) => i.type === 'image' && chosen.some((c) => c.id === i.sourceId || !!i.content?.includes(c.id)));
   const grid = useRovingList(shown.length, 'grid');
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -161,6 +164,7 @@ export function ImageTab({
           </ul>
         </div>
         <AddFooter
+          again={again}
           name={chosen.length === 1 ? chosen[0]!.fileName : chosen.length ? t('presentation.imagesWord', { n: chosen.length }) : undefined}
           label={chosen.length ? t('presentation.addImage', { name: chosen.length === 1 ? chosen[0]!.fileName : t('presentation.imagesWord', { n: chosen.length }) }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

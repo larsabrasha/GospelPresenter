@@ -13,7 +13,7 @@ import { useTrySave } from '../../ui/AutoSave.tsx';
 import { DropZone } from '../../ui/DropZone.tsx';
 import { ArrowDownTrayIcon, PlusIcon, PresentationChartOutlineIcon } from '../../ui/icons.tsx';
 import { matches } from '../../ui/ListSearch.tsx';
-import { AddFooter, DeselectAll, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
+import { AddFooter, DeselectAll, isAddKey, SearchField, usePresentationItems, useFocusWhenShown } from '../../ui/Picker.tsx';
 import { navigate } from '../../ui/router.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { FirstPage } from '../custom-slides/CustomSlides.tsx';
@@ -66,6 +66,8 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
   const busy = useRef(false);
   const shown = slides?.filter((s) => matches(query, s.name)) ?? [];
   const chosen = (slides ?? []).filter((s) => picked.includes(s.id)).toSorted((a, b) => picked.indexOf(a.id) - picked.indexOf(b.id));
+  const inPresentation = usePresentationItems();
+  const again = inPresentation.some((i) => i.type === 'custom' && chosen.some((c) => c.id === i.sourceId));
   const names = chosen.map((s) => s.name).join(', ');
 
   /** Each after the one before, in the order they were picked. */
@@ -195,6 +197,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
           </div>
         </div>
         <AddFooter
+          again={again}
           name={chosen.length ? names : undefined}
           label={chosen.length ? t('presentation.addImage', { name: names }) : undefined}
           onAdd={chosen.length ? () => void add() : undefined}

@@ -117,6 +117,30 @@
 }
 .terminal-cursor { animation: terminal-blink 1s steps(1) infinite; margin-left: 0.1em; }
 
+/* An add, plain to see (Lars, 2026-11-25: one hardly noticed what had happened): Lägg till pops as it turns "Tillagd"
+   (ui/Picker.tsx), and the items added glow twice in the running order as the dialog closes, where they landed. */
+@keyframes added-pop {
+  0% { transform: scale(0.92); }
+  55% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.added-pop { animation: added-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes added-glow {
+  0% { box-shadow: 0 0 0 0 rgb(14 165 233 / 0.7); transform: scale(0.97); }
+  25% { transform: scale(1.02); }
+  45% { transform: scale(1); }
+  100% { box-shadow: 0 0 0 10px rgb(14 165 233 / 0); }
+}
+.added-glow { animation: added-glow 1.2s ease-out 2; }
+@media (prefers-reduced-motion: reduce) {
+  .added-pop { animation: none; }
+  @keyframes added-glow-still {
+    from { box-shadow: 0 0 0 4px rgb(14 165 233 / 0.7); }
+    to { box-shadow: 0 0 0 4px rgb(14 165 233 / 0); }
+  }
+  .added-glow { animation: added-glow-still 1.2s ease-out 2; }
+}
+
 /* Dialogs fade in, as the current app's dialog.animated. */
 @keyframes dialog-in {
   from { opacity: 0; }

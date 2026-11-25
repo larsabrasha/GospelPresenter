@@ -9,7 +9,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { BookOpenIcon, ChevronDownIcon, ChevronLeftIcon } from '../ui/icons.tsx';
-import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
+import { AddFooter, EmptyTab, isAddKey, SearchField, usePresentationItems, useFocusWhenShown } from '../ui/Picker.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
@@ -274,6 +274,7 @@ export function BibleTab({
   const search = useRef<HTMLInputElement>(null);
   const adding = useRef(false);
   useFocusWhenShown(search, active);
+  const inPresentation = usePresentationItems();
 
   const bible = bibles?.find((b) => b.id === bibleId) ?? bibles?.[0] ?? null;
   const hash = bible?.contentHash;
@@ -310,6 +311,8 @@ export function BibleTab({
   const preview = chosen.length ? bibleSlides(bible.abbreviation, chosen) : null;
   const slides = preview?.slides ?? [];
   const title = preview?.title ?? '';
+  // The same verses there already, in any translation: a Bible item's title is its passage.
+  const again = inPresentation.some((i) => i.type === 'bible' && !!title && i.title === title);
 
   const reset = () => {
     setQuery('');
@@ -448,6 +451,7 @@ export function BibleTab({
         </div>
       </div>
       <AddFooter
+        again={again}
         name={preview?.label}
         label={preview ? t('presentation.addSong', { name: preview.label }) : undefined}
         onAdd={chosen.length ? () => void add() : undefined}

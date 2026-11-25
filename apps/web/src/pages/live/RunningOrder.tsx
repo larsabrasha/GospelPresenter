@@ -40,6 +40,7 @@ export function RunningOrder({
   tickFirst = null,
   onTicking,
   overlays = [],
+  lit,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -56,6 +57,8 @@ export function RunningOrder({
   onTicking: (on: boolean) => void;
   /** The organisation's overlays: an item that carries one names it under its title. */
   overlays?: Overlay[];
+  /** Items just added: they light up where they landed, as the add dialog closes. */
+  lit?: ReadonlySet<string>;
 }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
@@ -173,7 +176,7 @@ export function RunningOrder({
                   // iOS's lists in edit mode, only the ticks and a light tint mark rows (Lars, 2026-11-03: the blue hid the tick).
                   ticking ? (ticked.has(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
                   : selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10'
-                } ${dragging === i ? `shadow-lg ${selected && !ticking ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
+                } ${lit?.has(item.id) ? 'added-glow' : ''} ${dragging === i ? `shadow-lg ${selected && !ticking ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
               >
                 {ticking ? (
                   <AppButton

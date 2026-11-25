@@ -308,6 +308,7 @@ export function PhoneLive({
           afterItemId={afterFor(adding.chosenId)}
           theme={theme}
           toItemId={adding.images}
+          items={items}
           onAdded={(itemId) => {
             page.send({ type: 'added', itemId });
             setToAdded({ id: itemId });

@@ -323,14 +323,22 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await expect(page.getByRole('status').getByText('har lagts till')).toHaveCount(0);
   await search.press('Control+Enter'); // D15: adds, stays open, starts over
   await expect(page.getByRole('status').getByText('"Pilgrimsfärd" har lagts till')).toBeVisible();
+  // Lägg till itself says so, green with a tick, where the eye is (Lars, 2026-11-25).
+  await expect(picker.getByRole('button', { name: 'Tillagd' })).toBeVisible();
   await expect(search).toHaveValue('');
   await expect(search).toBeFocused();
   await search.fill('blott');
   await search.press('Control+Enter');
   await expect(page.getByRole('status').getByText('"Blott en dag" har lagts till')).toBeVisible();
+  // A song there already says so, and its button adds it again.
+  await search.fill('pilgrim');
+  await expect(picker.getByText('Finns redan i presentationen')).toBeVisible();
+  await expect(picker.getByRole('button', { name: 'Lägg till Pilgrimsfärd' })).toHaveText(/Lägg till igen/);
   await picker.getByRole('button', { name: 'Stäng' }).click();
   const order = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
   await expect(order).toHaveText([/Pilgrimsfärd/, /Blott en dag/]);
+  // The two added light up where they landed as the dialog closes.
+  await expect(order.locator('.added-glow')).toHaveCount(2);
 
   // Reorder by dragging the row with the mouse, then by Alt+↑/↓ on the selected item; the order is saved either way.
   await dragTo(page, order.nth(1), order.nth(0), 'above');

@@ -10,6 +10,7 @@ import { Modal } from '../../ui/Dialog.tsx';
 import { PageFill } from '../../ui/PageContainer.tsx';
 import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, SlideshowIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
+import { AddContext } from '../../ui/Picker.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { AudioTab } from '../AudioTab.tsx';
 import { BibleTab } from '../BibleTab.tsx';
@@ -69,7 +70,17 @@ export function addKinds(): [AddKind, string, (p: { className?: string }) => Rea
   ];
 }
 
-export function AddItemDialog({ toItemId, kind, ...props }: Omit<TabProps, 'active'> & { toItemId?: string; kind: AddKind }) {
+export function AddItemDialog({
+  toItemId,
+  kind,
+  items,
+  ...props
+}: Omit<TabProps, 'active'> & {
+  toItemId?: string;
+  kind: AddKind;
+  /** The presentation's items: a tab says when what is chosen is among them already (ui/Picker.tsx `usePresentationItems`). */
+  items: readonly PresentationItem[];
+}) {
   useShortcutGroup(KEYS);
   const db = useDb();
   const trySave = useTrySave();
@@ -79,6 +90,12 @@ export function AddItemDialog({ toItemId, kind, ...props }: Omit<TabProps, 'acti
   const editingSongId = editing?.id ?? null;
   /** Counts the songs added from the new song's editor: the song tab starts over, its search empty. */
   const [addedNew, setAddedNew] = useState(0);
+  /** Counts every add here: Lägg till says "Tillagd" for a moment after each (ui/Picker.tsx `AddFooter`). */
+  const [lastAdd, setLastAdd] = useState({ n: 0, at: 0 });
+  const onAdded = (itemId: string) => {
+    setLastAdd((was) => ({ n: was.n + 1, at: Date.now() }));
+    props.onAdded(itemId);
+  };
 
   // Skapa in the song tab: a song named as the search, with its first part, Verse 1, to type in, opened here.
   const newSong = async (query: string) => {
@@ -94,7 +111,7 @@ export function AddItemDialog({ toItemId, kind, ...props }: Omit<TabProps, 'acti
     if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId: props.presentationId, songId: id, arrangementId: null, afterItemId: props.afterItemId }))))
       return;
     toast(t('presentation.added', { name }));
-    props.onAdded(itemId);
+    onAdded(itemId);
     setEditing(null);
     setAddedNew((n) => n + 1);
   };
@@ -103,9 +120,10 @@ export function AddItemDialog({ toItemId, kind, ...props }: Omit<TabProps, 'acti
     if (editing?.isNew) discard(editing.id);
     props.onClose();
   };
-  const tabProps: TabProps = { ...props, onClose: close, active: !editingSongId };
+  const tabProps: TabProps = { ...props, onAdded, onClose: close, active: !editingSongId };
   const label = addKinds().find(([key]) => key === kind)![1];
   return (
+    <AddContext value={{ ...lastAdd, items }}>
     <Modal title={t('presentation.addKind', { kind: label.toLocaleLowerCase() })} onClose={close} className="max-w-4xl" bare={!!editingSongId}>
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
@@ -142,5 +160,6 @@ export function AddItemDialog({ toItemId, kind, ...props }: Omit<TabProps, 'acti
         </div>
       </div>
     </Modal>
+    </AddContext>
   );
 }
