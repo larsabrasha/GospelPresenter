@@ -53,6 +53,46 @@ Then open `http://localhost:8080`. Behind a proxy of your own, set `GP_PASSKEY_R
 `GP_PASSKEY_ORIGINS` to `https://<domain>` and `GP_TRUSTED_PROXIES` to the proxy's address. Built from a checkout:
 `docker build -f apps/server/Dockerfile -t gospelpresenter-server .`
 
+## Running it on Cloudflare
+
+How `app.gospelpresenter.com` runs: no machine of your own to keep up, cheap, and close to every church. Cloudflare
+serves the web app's files itself, and a Worker answers the API: the accounts in D1, each organisation in a Durable
+Object with its own SQLite, the pictures, sounds and videos in R2. All three are in Cloudflare's free plan, within its
+daily limits (Workers and Durable Objects 100,000 requests a day, D1 500 MB a database, R2 10 GB; see
+[Workers' pricing](https://developers.cloudflare.com/workers/platform/pricing/)); the paid Workers plan raises them.
+Whether a church's Sunday stays inside the free plan's limits, 10 ms of CPU a request among them, is not measured.
+
+You need a Cloudflare account, a domain on it (`presenter.example.org` below), and a checkout with
+`pnpm install` done. From `apps/server`:
+
+```sh
+npx wrangler login
+npx wrangler d1 create mychurch-global --location weur     # prints the database_id
+npx wrangler r2 bucket create mychurch-media
+cp wrangler.app.toml wrangler.mychurch.toml
+```
+
+In `wrangler.mychurch.toml`, change `name` (`mychurch`), the `routes` pattern, `PASSKEY_RP_ID`, `PASSKEY_ORIGINS` and
+`GOOGLE_REDIRECT_BASE_URL` to the domain, and `database_name`, `database_id` and `bucket_name` to the two just made.
+Then the secrets, before the first deploy, so the setup page is never open without its token:
+
+```sh
+openssl rand -hex 24                                       # a setup token of your own
+npx wrangler secret put SETUP_TOKEN --config wrangler.mychurch.toml
+npx wrangler secret put GOOGLE_CLIENT_ID --config wrangler.mychurch.toml       # optional, both or neither
+npx wrangler secret put GOOGLE_CLIENT_SECRET --config wrangler.mychurch.toml
+```
+
+and the deploy, which builds the web app first and makes the domain's DNS record and certificate:
+
+```sh
+(cd ../.. && pnpm build) && npx wrangler deploy --config wrangler.mychurch.toml
+```
+
+Open `https://presenter.example.org` and set up with the token. An update is `git pull`, then the same deploy; the
+databases migrate on their first request after it. E-mail, Google's client, logs, restores and why a deploy that
+changed a schema cannot be rolled back: [`docs/cloudflare.md`](docs/cloudflare.md).
+
 ## The C# app (1.x)
 
 The app before this one, in C# (Blazor and MAUI) with PostgreSQL and Garage, is kept at the tag
