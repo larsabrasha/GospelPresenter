@@ -4,7 +4,7 @@ import type { DbStatus } from '../src/db/protocol.ts';
 import { exportOrg, OrgExportError } from '../src/media/orgExport.ts';
 import { zipBlob } from '../src/media/zipBlob.ts';
 
-const synced: DbStatus = { storage: 'opfs', connected: true, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
+const synced: DbStatus = { storage: 'opfs', connected: true, unreachable: false, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
 
 /** A device's database as the export reads it: no rows, and the sync's status after a sync now. */
 const deviceWith = (status: DbStatus) => ({ view: async <T,>() => '{}' as T, syncNow: async () => status });

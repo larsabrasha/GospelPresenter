@@ -86,4 +86,35 @@ describe('syncStepView', () => {
 
     expect(posted(s)?.body.protocol).toBe(0);
   });
+
+  it('is not unreachable while its socket is still opening', async () => {
+    const d = await device();
+
+    const s = await d.step(d.state, { type: 'start' });
+
+    expect(s.state).toMatchObject({ socket: 'opening', connected: false, unreachable: false });
+  });
+
+  it('is unreachable once a try to open its socket fails, until one opens', async () => {
+    const d = await device();
+    const opening = await d.step(d.state, { type: 'start' });
+
+    const failed = await d.step(opening.state, { type: 'socketClosed' });
+    const again = await d.step(failed.state, { type: 'timer', name: 'reconnect' });
+    const opened = await d.step(again.state, { type: 'socketOpened' });
+
+    expect(failed.state).toMatchObject({ connected: false, unreachable: true });
+    expect(again.state).toMatchObject({ socket: 'opening', unreachable: true });
+    expect(opened.state).toMatchObject({ connected: true, unreachable: false });
+  });
+
+  it('is not unreachable when an open socket closes: it is tried again first', async () => {
+    const d = await device();
+    const opening = await d.step(d.state, { type: 'start' });
+    const opened = await d.step(opening.state, { type: 'socketOpened' });
+
+    const closed = await d.step(opened.state, { type: 'socketClosed' });
+
+    expect(closed.state).toMatchObject({ connected: false, unreachable: false });
+  });
 });

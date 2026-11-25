@@ -53,6 +53,7 @@ interface PokeSocket {
 /** The core's sync driver's state (crates/gp-core/src/sync_driver.rs): given back with each event; these fields are read. */
 interface DriverState {
   connected: boolean;
+  unreachable: boolean;
   busy: boolean;
   stopped: string | null;
 }
@@ -242,6 +243,11 @@ export class SyncClient {
     return this.state.connected;
   }
 
+  /** The last try to connect failed and none has worked since: offline for certain, not only still connecting. */
+  get unreachable(): boolean {
+    return this.state.unreachable;
+  }
+
   /** Set when the server answered "update required": the client stops syncing and keeps its queue. */
   get updateRequired(): boolean {
     return this.state.stopped === 'update-required';
@@ -295,7 +301,7 @@ export class SyncClient {
 
   // ------------------------------------------------------------ the core's sync driver
 
-  private state: DriverState = { connected: false, busy: false, stopped: null };
+  private state: DriverState = { connected: false, unreachable: false, busy: false, stopped: null };
   private events = new SerialQueue();
   /** Sync events sent and not yet worked out: `busy` from the moment one is asked for. */
   private asked = 0;
@@ -311,7 +317,7 @@ export class SyncClient {
   private run = 0;
 
   private status() {
-    return `${this.busy} ${this.state.connected} ${this.state.stopped}`;
+    return `${this.busy} ${this.state.connected} ${this.state.unreachable} ${this.state.stopped}`;
   }
 
   private statusChanged(before: string) {

@@ -10,8 +10,8 @@ import { t } from '../i18n.ts';
 export function MediaReadiness({ presentationId, audio }: { presentationId: string; audio: boolean }) {
   const state = usePresentationMedia(presentationId, audio);
   const status = useDbStatus();
-  // Not connected yet just after loading is not offline (ui/syncState.ts).
-  const offline = useWaitedLong(status?.connected === false);
+  // Offline only once a try to connect has failed: still connecting after a load is not (ui/syncState.ts).
+  const offline = useWaitedLong(!!status?.unreachable);
   if (!state || state.needed === 0) return null;
   const missing = state.needed - state.present;
   // All there is the usual case: said to screen readers only, so the eye meets a line only when something is missing.

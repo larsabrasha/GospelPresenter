@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DbStatus } from '../src/db/protocol.ts';
 import { initials, syncState } from '../src/ui/syncState.ts';
 
-const synced: DbStatus = { storage: 'opfs', connected: true, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
+const synced: DbStatus = { storage: 'opfs', connected: true, unreachable: false, syncing: false, pending: 0, updateRequired: false, authError: null, rejected: [] };
 
 describe('syncState', () => {
   it('a page not yet connected is no problem yet', () => {
@@ -22,7 +22,7 @@ describe('syncState', () => {
   });
 
   it('offline is a problem at once, with the changes that wait', () => {
-    expect(syncState({ ...synced, connected: false, pending: 3 }, true)).toEqual({ problem: true, text: 'Offline · 3 ändringar väntar' });
+    expect(syncState({ ...synced, connected: false, unreachable: true, pending: 3 }, true)).toEqual({ problem: true, text: 'Offline · 3 ändringar väntar' });
   });
 
   it('one change waiting is said in the singular', () => {
@@ -30,7 +30,11 @@ describe('syncState', () => {
   });
 
   it('offline with nothing waiting says only offline', () => {
-    expect(syncState({ ...synced, connected: false }, true).text).toBe('Offline');
+    expect(syncState({ ...synced, connected: false, unreachable: true }, true).text).toBe('Offline');
+  });
+
+  it('a page still connecting past the grace is not offline: only a try that failed says so', () => {
+    expect(syncState({ ...synced, connected: false }, true)).toEqual({ problem: false, text: 'Synkar…' });
   });
 
   it('signed out, only the changes that wait are counted: the yellow line says to sign in again', () => {

@@ -34,6 +34,12 @@ export interface DriverState {
   started: boolean;
   socket: Socket;
   connected: boolean;
+  /**
+   * The last try to open the socket failed, and none has opened since: the one sure sign of no connection (Lars,
+   * 2026-11-25: Offline only when it is certain). A socket still opening, or one that closed and is being tried again,
+   * is not it.
+   */
+  unreachable: boolean;
   stopped: string | null;
   busy: boolean;
   phase: Phase;
@@ -81,7 +87,7 @@ const BOTH: Parts = { push: true, pull: true };
 
 function fresh(protocol: number, hooks: boolean): DriverState {
   return {
-    protocol, hooks, started: false, socket: 'closed', connected: false, stopped: null, busy: false, phase: 'idle',
+    protocol, hooks, started: false, socket: 'closed', connected: false, unreachable: false, stopped: null, busy: false, phase: 'idle',
     parts: { ...BOTH }, run: 0, again: null, media: false, reconnect: false,
   };
 }
@@ -152,6 +158,7 @@ function step(st: DriverState, ev: Event): [DriverState, Do[]] {
       break;
     case 'close':
       s.started = false;
+      s.unreachable = false;
       s.reconnect = false;
       close(s, out);
       out.push({ type: 'cancelTimers' });
@@ -159,6 +166,7 @@ function step(st: DriverState, ev: Event): [DriverState, Do[]] {
     case 'socketOpened':
       if (s.socket === 'opening') {
         s.socket = 'open';
+        s.unreachable = false;
         sync(s, out, BOTH, true); // to catch up on what happened while disconnected
       }
       break;
@@ -173,6 +181,7 @@ function step(st: DriverState, ev: Event): [DriverState, Do[]] {
         // A socket refused says nothing of why: a sync tells offline from refused credentials, and the socket is tried
         // again after it unless they were.
         s.socket = 'closed';
+        s.unreachable = s.started;
         s.reconnect = true;
         sync(s, out, BOTH, false);
       }
@@ -301,6 +310,7 @@ function stateOf(o: unknown): DriverState {
     started: bool(o, 'started', false),
     socket,
     connected: socket === 'open',
+    unreachable: bool(o, 'unreachable', false),
     stopped: typeof o.stopped === 'string' ? o.stopped : null,
     busy: bool(o, 'busy', false),
     phase: phases.includes(o.phase as Phase) ? (o.phase as Phase) : 'idle',

@@ -11,7 +11,7 @@ type StatusText = SyncStatus['texts'][number];
 /** The core's word on the sync as `s` has it, `waitedLong` once `waiting` has held for the grace. */
 function syncStatus(s: DbStatus | null, waitedLong: boolean): SyncStatus {
   const stopped = s?.updateRequired ? 'update-required' : (s?.authError ?? null);
-  return coreSyncStatus({ pending: s?.pending ?? 0, stopped, connected: s?.connected ?? true, busy: s?.syncing ?? false, waitedLong });
+  return coreSyncStatus({ pending: s?.pending ?? 0, stopped, connected: s?.connected ?? true, unreachable: s?.unreachable ?? false, busy: s?.syncing ?? false, waitedLong });
 }
 
 /** The words of a text of the core's, each key written out. */
@@ -37,7 +37,8 @@ function word(text: StatusText): string {
 /**
  * What the profile menu says of the sync, and whether something is wrong: an update needed, or offline or changes
  * waiting past the grace (`waitedLong`). Only then does the bar show the cloud; a page just loaded has not
- * connected yet, and is not offline for that (Lars, 2026-11-05). Signed out, the yellow line under the bar says so
+ * connected yet, and is not offline for that (Lars, 2026-11-05), nor is one slow to connect: Offline only once a try to
+ * connect has failed (`unreachable`; Lars, 2026-11-25). Signed out, the yellow line under the bar says so
  * with its button (Shell.tsx), and the bar and the columns' foot only count the changes that wait (Lars, 2026-11-07:
  * it was said three times at once).
  */

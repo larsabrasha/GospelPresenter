@@ -25,6 +25,8 @@ export interface DbStatus {
   storage: string;
   /** The poke socket is open, so changes arrive within a second. */
   connected: boolean;
+  /** The last try to open it failed, and none has worked since: offline for certain (the core's sync driver). */
+  unreachable: boolean;
   /** A sync with the server is under way. */
   syncing: boolean;
   pending: number;

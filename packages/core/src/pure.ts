@@ -150,4 +150,4 @@ export const searchMarks = (text: string, query: string) => view<{ text: string;
 // ------------------------------------------------------------------ the sync
 
 /** How the sync stands, in words, and whether it is a problem; `waitedLong` once `waiting` has held for the grace. */
-export const syncStatus = (s: { pending: number; stopped: string | null; connected: boolean; busy: boolean; waitedLong: boolean }) => view<SyncStatus>('syncStatusView', s);
+export const syncStatus = (s: { pending: number; stopped: string | null; connected: boolean; unreachable: boolean; busy: boolean; waitedLong: boolean }) => view<SyncStatus>('syncStatusView', s);

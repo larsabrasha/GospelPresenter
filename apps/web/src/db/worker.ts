@@ -94,6 +94,7 @@ async function status(): Promise<DbStatus> {
   return {
     storage,
     connected: client?.connected ?? false,
+    unreachable: client?.unreachable ?? false,
     syncing: client?.busy ?? false, // read before the await below, so the report is of this moment
     pending: client ? (await client.pending()).length : 0,
     updateRequired: client?.updateRequired ?? false,
