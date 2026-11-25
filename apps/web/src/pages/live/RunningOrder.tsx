@@ -7,7 +7,7 @@ import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { CheckboxIcon, EllipsisOutlineIcon, ItemBadge, MenuIcon, PlusIcon, SquaresOverlapIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { CheckboxIcon, CommentIcon, EllipsisOutlineIcon, ItemBadge, MenuIcon, PlusIcon, SquaresOverlapIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
 import { Dropdown } from '../../ui/Dropdown.tsx';
 import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
@@ -281,15 +281,20 @@ export function RunningOrder({
  * name's line (`self-start`), not centred on the two.
  */
 /**
- * A row's title, and under it its note and the overlay it carries, by name with the overlays' icon (Lars, 2026-11-25:
- * seen in the running order, not only above the item's slides), as the row's own lines in the same grey.
+ * A row's title, and under it its note and the overlay it carries, each with its icon, as above the item's slides (Lars,
+ * 2026-11-25), as the row's own lines in the same grey.
  */
 function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {
   const overlay = item.overlayId ? overlays.find((o) => o.id === item.overlayId) : undefined;
   return (
     <span className="min-w-0 flex flex-col">
       <span className="truncate">{item.title}</span>
-      {item.note && <span className="truncate text-xs text-stone-500 dark:text-stone-400" data-testid="row-note">{item.note}</span>}
+      {item.note && (
+        <span className="flex items-center gap-1 min-w-0 text-xs text-stone-500 dark:text-stone-400" data-testid="row-note">
+          <CommentIcon className="size-3 shrink-0" />
+          <span className="truncate">{item.note}</span>
+        </span>
+      )}
       {overlay && (
         <span className="flex items-center gap-1 min-w-0 text-xs text-stone-500 dark:text-stone-400" data-testid="row-overlay" title={t('overlays.itemOverlay')}>
           <SquaresOverlapIcon className="size-3" />
