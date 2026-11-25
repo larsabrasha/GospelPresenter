@@ -193,7 +193,8 @@ function BrowsePicker({
           aria-label={t('common.back')}
           title={t('common.back')}
           onClick={onBack}
-          className="mb-2 -ml-1 cursor-pointer p-2.5 bg-surface text-stone-700 dark:text-stone-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          // Flat, as a button in the dialog's content is: a floating one's shadow was cut by the column (Lars, 2026-11-25).
+          className="mb-2 cursor-pointer size-10 flex items-center justify-center bg-raised hover:bg-raised-2 dark:bg-raised-2 text-stone-700 dark:text-stone-200 rounded-full"
         >
           <ChevronLeftIcon className="size-5" />
         </AppButton>
