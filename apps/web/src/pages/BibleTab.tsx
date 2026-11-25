@@ -49,10 +49,15 @@ const TEXT_TABLES = ['bible_texts', 'bible_blobs'];
 const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) : englishBookName(code));
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
-/** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
-const CELL = 'rounded-lg bg-raised/70 dark:bg-raised/50 hover:bg-raised-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
-/** A picked verse: tinted sky (BibleVersePicker.razor). */
-const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+/** A chapter to pick, in its grid: a round button of its own (AddItem/Bible/BibleChapterPicker.razor). */
+const CELL = 'rounded-full bg-raised/70 dark:bg-raised/50 hover:bg-raised-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+/**
+ * A book or a verse to pick: a row of a list, not a card of its own, with the running order's corners (Lars,
+ * 2026-11-25) (BibleBookPicker.razor, BibleVersePicker.razor).
+ */
+const ROW = 'rounded-[18px] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+/** A picked verse: blue, as the running order marks its row. */
+const ROW_PICKED = 'rounded-[18px] bg-sky-500 text-white cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-700';
 
 /**
  * The book picker, the Old Testament then the New (BIBLE-R10), in canonical order, in a box of its
@@ -74,7 +79,7 @@ function BookPicker({ books, onPick }: { books: string[]; onPick: (code: string)
               <section key={g.title} className="flex flex-col gap-1">
                 <h3 className="text-sm/5 font-semibold text-stone-400 px-3 mb-1 sticky top-0 bg-surface py-2 z-10">{g.title}</h3>
                 {g.books.map((code) => (
-                  <AppButton key={code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(code)}>
+                  <AppButton key={code} variant="plain" {...list.item(index++)} className={`${ROW} px-3 py-2 text-left`} onClick={() => onPick(code)}>
                     {bookName(code)}
                   </AppButton>
                 ))}
@@ -109,9 +114,9 @@ function VersePicker({ verses, label, picked, onPick }: { verses: [number, numbe
     <div className="flex-1 min-h-0 overflow-y-auto" onKeyDown={list.onKeyDown}>
       <div className="flex flex-col gap-1.5 text-sm" role="group" aria-label={label}>
         {verses.map(([, v, text], i) => (
-          <AppButton key={v} variant="plain" {...list.item(i)} aria-pressed={picked(v)} className={`px-3 py-2 text-left ${picked(v) ? CELL_PICKED : CELL}`} onClick={() => onPick(v)}>
-            <span className="font-semibold whitespace-nowrap text-sky-500">{v}</span>{' '}
-            <span className="ml-1 text-stone-700 dark:text-stone-300">{text}</span>
+          <AppButton key={v} variant="plain" {...list.item(i)} aria-pressed={picked(v)} className={`px-3 py-2 text-left ${picked(v) ? ROW_PICKED : ROW}`} onClick={() => onPick(v)}>
+            <span className={`font-semibold whitespace-nowrap ${picked(v) ? 'text-white' : 'text-sky-500'}`}>{v}</span>{' '}
+            <span className={`ml-1 ${picked(v) ? 'text-white' : 'text-stone-700 dark:text-stone-300'}`}>{text}</span>
           </AppButton>
         ))}
       </div>

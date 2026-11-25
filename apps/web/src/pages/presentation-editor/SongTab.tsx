@@ -29,14 +29,16 @@ const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song
         variant="plain"
         aria-pressed={chosen}
         onClick={() => onPick(s.id)}
-        className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-raised/70 dark:bg-raised/50 hover:bg-raised-2'
+        // A row of a list, not a card of its own; the chosen one blue as the running order marks its row, with the same
+        // corners (Lars, 2026-11-25).
+        className={`w-full text-left px-4 h-[52px] mb-0.5 flex flex-col justify-center rounded-[20px] cursor-pointer text-sm ${
+          chosen ? 'bg-sky-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/10'
         }`}
       >
         <span className="block truncate w-full">
           <Highlight text={s.name} query={query} />
         </span>
-        <span className="block text-xs text-stone-400 truncate w-full">{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
+        <span className={`block text-xs truncate w-full ${chosen ? 'text-white/80' : 'text-stone-400'}`}>{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
       </AppButton>
     </li>
   );
