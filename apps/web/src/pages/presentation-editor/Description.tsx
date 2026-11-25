@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { PencilIcon } from '../../ui/icons.tsx';
 
 /**
  * A presentation's description at the top of its running order, where it is plain to see (Lars, 2026-11-01): three
  * lines, and Visa mer when there is more, which unfolds the rest. A flat card a step lighter than the column, as a group
  * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field). Visa mer at the end of the
  * last line, and Visa mindre under the text at the same right edge, so the two stand where each other was (Lars,
- * 2026-11-25). Unfolded, `onEdit` adds Redigera at the left of Visa mindre, which opens Redigera detaljer.
+ * 2026-11-25). Unfolded, `onEdit` adds a pencil at the left of Visa mindre, which opens Redigera detaljer: a pencil, as
+ * the add dialog's song has, rather than a second word beside Visa mindre (Lars, 2026-11-25).
  */
 export function Description({ text, className, onEdit }: { text: string; className?: string; onEdit?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -31,8 +33,15 @@ export function Description({ text, className, onEdit }: { text: string; classNa
       {open ? (
         <div className="mt-0.5 flex items-center justify-between gap-3">
           {onEdit ? (
-            <AppButton variant="plain" onClick={onEdit} className="text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer">
-              {t('presentation.descriptionEdit')}
+            <AppButton
+              variant="plain"
+              onClick={onEdit}
+              aria-label={t('presentation.descriptionEdit')}
+              title={t('presentation.descriptionEdit')}
+              // Its pencil where the text starts, a finger's room around it that does not make the row taller.
+              className="-ml-2 -my-2 size-8 rounded-full flex items-center justify-center text-sky-500 hover:text-sky-600 hover:bg-raised-2 cursor-pointer"
+            >
+              <PencilIcon className="size-4" />
             </AppButton>
           ) : (
             <span />
