@@ -348,7 +348,13 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
 
 /** A link or button by its text or label, in the page. */
 function byName(selector: string, name: string, root: ParentNode = document): HTMLElement | undefined {
-  return [...root.querySelectorAll<HTMLElement>(selector)].find((e) => e.getAttribute('aria-label') === name || e.textContent?.trim() === name);
+  // Its text as heard: without what is hidden from a screen reader, as a menu item's key cap is.
+  const heard = (e: HTMLElement) => {
+    const copy = e.cloneNode(true) as HTMLElement;
+    for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+    return copy.textContent?.trim();
+  };
+  return [...root.querySelectorAll<HTMLElement>(selector)].find((e) => e.getAttribute('aria-label') === name || heard(e) === name);
 }
 declare global {
   interface Window {

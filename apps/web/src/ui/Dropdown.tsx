@@ -68,9 +68,16 @@ export function Dropdown({
     return () => document.removeEventListener('pointerdown', outside, true);
   }, [open]);
 
+  // Focus back on the button, once the menu has gone, unless the choice has put it somewhere: a dialog it opened has its
+  // field in focus, to type in at once (Lars, 2026-11-25: Lägg till bibeltext lost its search to the + behind it).
   const close = (refocus: boolean) => {
     setOpen(false);
-    if (refocus) triggerRef.current?.focus();
+    if (!refocus) return;
+    const menu = menuRef.current;
+    setTimeout(() => {
+      const at = document.activeElement;
+      if (!at || at === document.body || menu?.contains(at)) triggerRef.current?.focus();
+    });
   };
 
   const onKeyDown = (e: KeyboardEvent) => {

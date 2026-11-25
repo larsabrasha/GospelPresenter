@@ -62,6 +62,13 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await expect(add).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(add).toHaveCount(0);
+  // A I: a dialog chosen from the menu keeps its search in focus, to type at once; the menu gives focus back to its
+  // button only when nothing took it (Lars, 2026-11-25).
+  await page.keyboard.press('a');
+  await page.getByRole('menu').getByRole('menuitem').first().waitFor();
+  await page.keyboard.press('i');
+  await expect(page.getByRole('dialog', { name: 'Lägg till bild' }).getByRole('searchbox')).toBeFocused();
+  await page.keyboard.press('Escape');
 
   // The live page's keys, a clicker's among them; Esc closes the help.
   await page.getByRole('button', { name: 'Starta presentation' }).click();

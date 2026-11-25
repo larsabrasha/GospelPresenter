@@ -1,5 +1,5 @@
 import type { PresentationItem } from '@gp/core';
-import { createContext, useContext, useEffect, useState, type ReactNode, type RefObject, type Ref } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject, type Ref } from 'react';
 import { t } from '../i18n.ts';
 import { ctrlLabel } from './shortcuts.ts';
 import { AppButton } from './AppButton.tsx';
@@ -66,12 +66,21 @@ export function SearchField({
 
 /**
  * Puts focus in a tab's search when the tab is shown, so the user can type at once; not below
- * `md`, where it would bring up a phone's keyboard over the list (SongTab.razor's IsMobileAsync).
+ * `md`, where it would bring up a phone's keyboard over the list (SongTab.razor's IsMobileAsync). A search drawn only
+ * once its data is read (the Bible tab's, after the translations) gets it when it comes, once each time the tab shows
+ * (Lars, 2026-11-25: Lägg till bibeltext opened with nothing to type in).
  */
 export function useFocusWhenShown(input: RefObject<HTMLInputElement | null>, active: boolean) {
+  const focused = useRef(false);
   useEffect(() => {
-    if (active && !matchMedia('(max-width: 767.98px)').matches) input.current?.focus();
-  }, [active, input]);
+    if (!active) {
+      focused.current = false;
+      return;
+    }
+    if (focused.current || !input.current || matchMedia('(max-width: 767.98px)').matches) return;
+    input.current.focus();
+    focused.current = true;
+  });
 }
 
 /**
