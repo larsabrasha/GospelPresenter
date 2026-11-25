@@ -72,6 +72,13 @@ export function SearchField({
  */
 export function useFocusWhenShown(input: RefObject<HTMLInputElement | null>, active: boolean) {
   const focused = useRef(false);
+  // Taken down and put up again (a dialog shown again, React's strict mode): focused once more.
+  useEffect(
+    () => () => {
+      focused.current = false;
+    },
+    [],
+  );
   useEffect(() => {
     if (!active) {
       focused.current = false;

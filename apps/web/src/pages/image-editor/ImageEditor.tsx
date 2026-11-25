@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { ImageEdit, LibraryImage } from '@gp/core';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { cropOfAspect, drawEdited, isNoEdit, NO_EDIT, readEdit, turnedSize } from '../../media/imageEdit.ts';
 import { renderEditedImage } from '../../media/process.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { ModalLayer } from '../../ui/modal.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, CheckIcon, CloseIcon } from '../../ui/icons.tsx';
 import { CropFrame } from './CropFrame.tsx';
@@ -161,8 +161,10 @@ export function ImageEditor({ image, onClose }: { image: LibraryImage; onClose: 
     onKeyUp: () => setShowingOriginal(false),
   };
 
-  return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={t('imageEditor.title', { name: image.fileName })} className="fixed inset-0 z-[150] flex flex-col bg-black text-white pt-safe-top pb-safe-bottom" data-testid="image-editor">
+  // In the browser's own modal (ui/modal.tsx): all behind it inert, the focus back where it was when it closes.
+  return (
+    <ModalLayer label={t('imageEditor.title', { name: image.fileName })}>
+    <div className="fixed inset-0 z-[150] flex flex-col bg-black text-white pt-safe-top pb-safe-bottom" data-testid="image-editor">
       <div className="relative flex items-center justify-between px-4 h-16 shrink-0">
         {/* ✕ and ✓, round, as iOS 27's Photos (Lars, 2026-11-05: no words); the words are their names. */}
         <AppButton variant="plain" aria-label={t('common.cancel')} title={t('common.cancel')} className={`${ROUND} bg-white/10 hover:bg-white/20 text-white`} onClick={onClose}>
@@ -256,7 +258,7 @@ export function ImageEditor({ image, onClose }: { image: LibraryImage; onClose: 
           </AppButton>
         </div>
       </div>
-    </div>,
-    document.body,
+    </div>
+    </ModalLayer>
   );
 }

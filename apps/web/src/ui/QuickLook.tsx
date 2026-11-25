@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import type { VideoCodec, VideoType } from '@gp/core';
 import { useFetchedUrl, usePictureUrl } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { canPlayVideo, codecName, playUrl } from '../media/video.ts';
 import { AppButton } from './AppButton.tsx';
 import { Dropdown } from './Dropdown.tsx';
+import { ModalLayer } from './modal.tsx';
 import { useLookGestures } from './lookGestures.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWaveIcon } from './icons.tsx';
@@ -133,7 +133,7 @@ export function QuickLook({
     // look's, before the page under it hears them.
     if (box.current?.querySelector('[role="menu"]')) return;
     const dialogs = document.querySelectorAll('[aria-modal="true"]');
-    if (dialogs[dialogs.length - 1] !== box.current) return;
+    if (dialogs[dialogs.length - 1] !== box.current?.closest('dialog')) return;
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft' && onPrevious) onPrevious();
     else if (e.key === 'ArrowRight' && onNext) onNext();
@@ -148,15 +148,13 @@ export function QuickLook({
     return () => document.removeEventListener('keydown', listen, true);
   }, []);
 
-  return createPortal(
+  // In the browser's own modal (ui/modal.tsx): all behind it inert, the focus back where it was when it closes.
+  return (
+    <ModalLayer label={name} data-testid="quick-look">
     <div
       ref={box}
       tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
-      aria-label={name}
       className={`outline-none fixed inset-0 z-[140] ${closing ? 'look-out' : 'look-in'}`}
-      data-testid="quick-look"
     >
       <div ref={backdrop} className="absolute inset-0 bg-black/40" />
       <div ref={sheet} className="look-sheet absolute inset-0 flex flex-col bg-black/95 backdrop-blur-md text-white pt-safe-top pb-safe-bottom">
@@ -193,7 +191,7 @@ export function QuickLook({
         )}
       </div>
       </div>
-    </div>,
-    document.body,
+    </div>
+    </ModalLayer>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useLayerRoot } from './modal.tsx';
 import { useDismiss } from './useDismiss.ts';
 
 /** The choices of a menu that can be chosen now. */
@@ -21,6 +22,7 @@ function choicesOf(menu: Element): HTMLElement[] {
 export function ContextMenu({ at, label, onClose, children }: { at: { x: number; y: number }; label: string; onClose: () => void; children: ReactNode }) {
   const menu = useRef<HTMLDivElement>(null);
   useDismiss(menu, onClose);
+  const layer = useLayerRoot();
   // Kept inside the window: a menu that would run off the right or the bottom opens to the left or upward.
   useLayoutEffect(() => {
     const el = menu.current!;
@@ -88,6 +90,8 @@ export function ContextMenu({ at, label, onClose, children }: { at: { x: number;
     return () => removeEventListener('keydown', key, true);
   }, []);
 
+  // In the topmost modal when one is open (a row's menu in Inställningar): in the page's body it would be inert.
+  if (!layer) return null;
   return createPortal(
     <div
       ref={menu}
@@ -98,7 +102,7 @@ export function ContextMenu({ at, label, onClose, children }: { at: { x: number;
     >
       {children}
     </div>,
-    document.body,
+    layer,
   );
 }
 

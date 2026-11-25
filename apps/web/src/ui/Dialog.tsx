@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon, CloseIcon } from './icons.tsx';
 import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_BACK, ROUND_CLOSE } from './glass.ts';
 import { PagePhoneBarSlots } from './barSlots.ts';
-import { useReturnFocus } from './returnFocus.ts';
+import { ModalLayer } from './modal.tsx';
 import { useSheetDrag } from './sheetDrag.ts';
 
 /** The round close button in a dialog's corner (Components/Dialog.razor). */
@@ -27,11 +26,11 @@ function CloseButton({ onClick }: { onClick: () => void }) {
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
 /**
- * The covered page behind a dialog, and the box. Escape, the close button and a
- * press on the dimmed page close it (utils.js showModal), a dialog of pages only the close button; the first field (or
- * button) gets focus, and Tab stays in the box, as with the current app's native
- * `showModal`. Keys in the box stay there, so the page's shortcuts do not see them.
- * It fades in, not out: a delayed close would undo the page opening it again meanwhile.
+ * The covered page behind a dialog, and the box, in the browser's own modal (ui/modal.tsx `ModalLayer`, as the
+ * current app's native `showModal`): all behind it inert, and the focus it had back when it closes. Escape, the close
+ * button and a press on the dimmed page close it (utils.js showModal), a dialog of pages only the close button; the
+ * first field (or button) gets focus, and Tab stays in the box. Keys in the box stay there, so the page's shortcuts do
+ * not see them. It fades in, not out: a delayed close would undo the page opening it again meanwhile.
  */
 function DialogFrame({
   titleId,
@@ -68,13 +67,17 @@ function DialogFrame({
     },
     () => !!page && matchMedia('(width < 40rem)').matches,
   );
-  useReturnFocus(); // before the focus moves in
   useEffect(() => {
     const el = box.current!;
     if (el.contains(document.activeElement)) return;
     if (page) el.focus();
-    // The dialog's default button first, when it has one (`data-default`), so ↵ presses it.
-    else (el.querySelector<HTMLElement>('[data-default]') ?? el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])'))?.focus();
+    // The dialog's default button first, when it has one (`data-default`), so ↵ presses it; else its first field or
+    // button that can be seen (not a file picker's hidden input, as Importera has).
+    else {
+      const seen = (x: HTMLElement) => x.getClientRects().length > 0 && !x.matches(':disabled');
+      const first = [...el.querySelectorAll<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')].find(seen);
+      (el.querySelector<HTMLElement>('[data-default]') ?? first)?.focus();
+    }
   }, [page]);
   const close = onClose;
   const trapTab = (e: React.KeyboardEvent) => {
@@ -91,7 +94,8 @@ function DialogFrame({
       first.focus();
     }
   };
-  return createPortal(
+  return (
+    <ModalLayer labelledBy={titleId} data-page-dialog={page ? '' : undefined}>
     <div
       ref={backdrop}
       data-overlay="dialog"
@@ -104,11 +108,7 @@ function DialogFrame({
         ref={box}
         className={`relative w-full max-h-full rounded-2xl shadow-2xl ${FLOATING_EDGE} bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
-        role="dialog"
-        aria-modal="true"
-        // A page in a dialog (Inställningar) still has the app's keys (ui/appKeys.ts).
-        data-page-dialog={page ? '' : undefined}
-        aria-labelledby={titleId}
+        data-dialog-box
         onKeyDown={(e) => {
           e.stopPropagation(); // keys in a dialog are the dialog's
           if (e.key === 'Escape' && !page) close();
@@ -117,8 +117,8 @@ function DialogFrame({
       >
         {children(close)}
       </div>
-    </div>,
-    document.body,
+    </div>
+    </ModalLayer>
   );
 }
 

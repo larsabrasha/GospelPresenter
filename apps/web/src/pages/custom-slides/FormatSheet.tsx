@@ -4,6 +4,7 @@ import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { FLOATING_EDGE, ROUND_CLOSE } from '../../ui/glass.ts';
 import { CloseIcon } from '../../ui/icons.tsx';
+import { useLayerRoot } from '../../ui/modal.tsx';
 import { useSheetDrag } from '../../ui/sheetDrag.ts';
 import { usePhone } from '../../ui/usePhone.ts';
 
@@ -42,6 +43,9 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   const sheet = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   useSheetDrag(sheet, bar, onClose, () => undefined);
+  // In the topmost modal when one is open (the slide editor in Inställningar): in the page's body it would be inert.
+  const root = useLayerRoot();
+  if (!root) return null;
   return createPortal(
     <div
       ref={sheet}
@@ -58,7 +62,7 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-4">{children}</div>
     </div>,
-    document.body,
+    root,
   );
 }
 

@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
-import { useReturnFocus } from './returnFocus.ts';
+import { ModalLayer } from './modal.tsx';
 import { CloseIcon } from './icons.tsx';
 import { useSheetDrag } from './sheetDrag.ts';
 
@@ -54,13 +53,14 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
     el.style.transition = ms ? `background-color ${ms}ms` : 'none';
     el.style.backgroundColor = `rgb(0 0 0 / ${dimmedAlpha() * (1 - progress)})`;
   });
-  useReturnFocus(); // before the focus moves in
   // Focus into the sheet, so Escape reaches it from what opened it (a tile of a page behind, say).
   useEffect(() => {
     const el = panel.current;
     if (el && !el.contains(document.activeElement)) el.focus({ preventScroll: true });
   }, []);
-  return createPortal(
+  // In the browser's own modal (ui/modal.tsx): all behind it inert, the focus back where it was when it closes.
+  return (
+    <ModalLayer labelledBy={titleId}>
     <div
       ref={backdrop}
       data-overlay
@@ -71,10 +71,8 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
     >
       <div
         ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
         tabIndex={-1}
+        data-dialog-box
         // No room kept for a scrollbar (app.css keeps it in every box that scrolls): a sheet is short, and its rows
         // stand as far from the right edge as from the left (Lars, 2026-11-02).
         className={`sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto [scrollbar-gutter:auto] rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl ${FLOATING_EDGE} pb-4 outline-none`}
@@ -106,8 +104,8 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
           <div className="px-4 flex flex-col gap-4">{children}</div>
         </Dismiss.Provider>
       </div>
-    </div>,
-    document.body,
+    </div>
+    </ModalLayer>
   );
 }
 

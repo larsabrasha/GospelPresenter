@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { CheckCircleIcon, WarningSolidIcon } from './icons.tsx';
+import { OnTopLayer } from './modal.tsx';
 
 /** A confirmation (green tick) or a warning (amber triangle), as ToastKind in the current app. */
 export type ToastKind = 'success' | 'warning';
@@ -61,16 +62,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={show}>
       {children}
-      {/* Warnings in a region of their own, so a screen reader says them at once rather than after what it is reading. */}
+      {/* Warnings in a region of their own, so a screen reader says them at once rather than after what it is reading.
+          While one shows, in the topmost modal when one is open (ui/modal.tsx): under it, in the page, it would be hidden
+          and inert. Empty, the regions stay in the page, out of a dialog's own alerts. */}
+      <MaybeOnTop on={!!(shown || leaving)}>
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[150] grid pointer-events-none *:col-start-1 *:row-start-1 *:justify-self-center">
         <div role="alert">{shown?.kind === 'warning' && toastItem(shown, false)}</div>
         <div role="status">{shown?.kind === 'success' && toastItem(shown, false)}</div>
         {leaving && <div aria-hidden="true">{toastItem(leaving, true)}</div>}
       </div>
+      </MaybeOnTop>
     </ToastContext>
   );
 }
 
 export function useToast(): (text: string, kind?: ToastKind) => void {
   return useContext(ToastContext);
+}
+
+/** `children` in the layer root while `on`, else where they stand. */
+function MaybeOnTop({ on, children }: { on: boolean; children: ReactNode }) {
+  return on ? <OnTopLayer>{children}</OnTopLayer> : children;
 }
