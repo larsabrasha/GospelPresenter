@@ -13,6 +13,7 @@ import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
 import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
+import { OVERLAY_CHIP } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 
 
@@ -293,8 +294,8 @@ function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overla
         </span>
       )}
       {overlay && (
-        <span className="flex items-center gap-1 min-w-0 text-xs text-stone-500 dark:text-stone-400" data-testid="row-overlay" title={t('overlays.itemOverlay')}>
-          <SquaresOverlapIcon className="size-3" />
+        <span className={`self-start mt-0.5 ${OVERLAY_CHIP}`} data-testid="row-overlay" title={t('overlays.itemOverlay')}>
+          <SquaresOverlapIcon className="size-3 shrink-0" />
           <span className="truncate">{overlay.title}</span>
         </span>
       )}
