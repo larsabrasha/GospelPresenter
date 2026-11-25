@@ -33,3 +33,13 @@ export function nextDate(template: Pick<Presentation, 'weekday' | 'time'>, now =
   if (days === 0 && template.time !== null && time >= template.time) days = 7;
   return localToday(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days));
 }
+
+/**
+ * The template Skapa presentation offers first (Lars, 2026-11-25): the one whose next service comes soonest, by its
+ * date and then its time; the first template (the last used) when none has a weekday; null with none.
+ */
+export function suggestedTemplate<T extends Pick<Presentation, 'weekday' | 'time'>>(templates: readonly T[], now = new Date()): T | null {
+  const dated = templates.filter((tp) => tp.weekday !== null).map((tp) => ({ tp, when: `${nextDate(tp, now)} ${tp.time ?? '00:00'}` }));
+  if (!dated.length) return templates[0] ?? null;
+  return dated.reduce((a, b) => (b.when < a.when ? b : a)).tp;
+}

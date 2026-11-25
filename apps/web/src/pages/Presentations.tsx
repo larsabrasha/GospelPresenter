@@ -9,10 +9,8 @@ import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ROUND_CLOSE } from '../ui/glass.ts';
 import { useTrySave } from '../ui/AutoSave.tsx';
-import { Dialog } from '../ui/Dialog.tsx';
-import { ChevronRightIcon, CloseIcon, DocumentIcon, DocumentTextIcon } from '../ui/icons.tsx';
+import { ChevronRightIcon } from '../ui/icons.tsx';
 import { CARD, ListLinkRow, ListSection, ROW_HOVER } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -21,7 +19,8 @@ import { usePageKeys } from '../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { dateLabel, fullDate, localToday } from './dashboard.ts';
-import { nextDate, templateDetails } from './templates.ts';
+import { nextDate } from './templates.ts';
+import { TemplatePicker } from './TemplatePicker.tsx';
 import { detailsArgs, PresentationDetailsDialog } from './presentation-editor/PresentationDetailsDialog.tsx';
 
 /**
@@ -54,53 +53,6 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
       }}
       onClose={onClose}
     />
-  );
-}
-
-const PICK =
-  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-stone-50 dark:hover:bg-raised text-left text-inherit cursor-pointer transition-colors';
-
-/**
- * The first step of Skapa when there are templates: a blank presentation, or one of the last used templates
- * (Dashboard.razor). Who may change them has "Hantera mallar" beside the caption, to Mallar (Lars, 2026-11-02); the
- * first template is made with Spara som mall.
- */
-function TemplatePicker({ templates, manage, onPick, onClose }: { templates: Presentation[]; manage: boolean; onPick: (template: Presentation | null) => void; onClose: () => void }) {
-  return (
-    <Dialog title={t('presentations.createTitle')} onClose={onClose}>
-      <AppButton
-        variant="plain"
-        className={`absolute top-4 right-4 ${ROUND_CLOSE}`}
-        title={t('common.close')}
-        aria-label={t('common.close')}
-        onClick={onClose}
-      >
-        <CloseIcon className="size-5" />
-      </AppButton>
-      <AppButton variant="plain" className={PICK} onClick={() => onPick(null)}>
-        <DocumentIcon className="size-5 shrink-0 text-stone-400 dark:text-stone-500" />
-        <span className="text-sm font-medium">{t('templates.blank')}</span>
-      </AppButton>
-      <div className="flex items-baseline justify-between gap-2 pt-2">
-        <span className="text-sm font-semibold text-stone-500 dark:text-stone-400">{t('templates.pickerTitle')}</span>
-        {manage && (
-          <a href={href({ page: 'templates' })} onClick={onClose} className="text-sm text-sky-600 dark:text-sky-400 no-underline hover:underline">
-            {t('templates.manage')}
-          </a>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
-        {templates.map((tp) => (
-          <AppButton key={tp.id} variant="plain" className={PICK} onClick={() => onPick(tp)}>
-            <DocumentTextIcon className="size-5 shrink-0 text-stone-400 dark:text-stone-500" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{tp.name}</div>
-              {templateDetails(tp) && <div className="text-xs text-stone-400 dark:text-stone-500">{templateDetails(tp)}</div>}
-            </div>
-          </AppButton>
-        ))}
-      </div>
-    </Dialog>
   );
 }
 

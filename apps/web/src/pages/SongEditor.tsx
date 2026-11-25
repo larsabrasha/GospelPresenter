@@ -11,7 +11,7 @@ import { useJustCreated } from '../ui/justCreated.ts';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, ClockIcon, PlusIcon, QueueListIcon, TrashIcon } from '../ui/icons.tsx';
-import { DANGER_ROW, Group, OpeningRow, TEXT_ACTION } from '../ui/Group.tsx';
+import { DANGER_ROW, Group, OpeningRow } from '../ui/Group.tsx';
 import { MoreMenu } from '../ui/MoreMenu.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { isAddKey } from '../ui/Picker.tsx';
@@ -256,10 +256,10 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <h2 className="sr-only">{t('song.parts')}</h2>
         <ol className="space-y-4">{parts.map(partRow)}</ol>
         <AppButton
-          variant="plain"
-          // Close under the parts it adds to, the rows below a step further off (Lars, 2026-11-25: in between it seemed
-          // to belong to neither).
-          className={`${TEXT_ACTION} -mt-3`}
+          variant="secondary"
+          // A button, not a link's words (Lars, 2026-11-25), close under the parts it adds to, the rows below a step
+          // further off (in between it seemed to belong to neither).
+          className="-mt-1"
           disabled={parts.length >= LIMITS.partsPerSong}
           onClick={() => {
             const partId = newId();
