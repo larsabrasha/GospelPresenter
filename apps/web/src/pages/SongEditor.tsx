@@ -257,7 +257,9 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <ol className="space-y-4">{parts.map(partRow)}</ol>
         <AppButton
           variant="plain"
-          className={`${TEXT_ACTION} -mt-2`}
+          // Close under the parts it adds to, the rows below a step further off (Lars, 2026-11-25: in between it seemed
+          // to belong to neither).
+          className={`${TEXT_ACTION} -mt-3`}
           disabled={parts.length >= LIMITS.partsPerSong}
           onClick={() => {
             const partId = newId();
@@ -273,18 +275,29 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             rows (Lars, 2026-11-25); then Ta bort sång as a red row of its own. A song just
             made in the add dialog has none of them: a page pushed in would leave the dialog. */}
         {!adding && (
+          <div className="pt-4">
           <Group>
             {!!parts.length && <OpeningRow icon={{ icon: QueueListIcon, colour: 'bg-sky-500' }} label={t('song.arrangements')} value={arrangementSummary(arrangements, parts, labels)} href={href({ page: 'songArrangements', id })} />}
             <SongMaterialsRow songId={id} />
             <OpeningRow icon={{ icon: ClockIcon, colour: 'bg-stone-500' }} label={t('song.history')} href={href({ page: 'songHistory', id })} />
           </Group>
+          </div>
         )}
+        {/* A red row the width of the page on a phone, as iOS's; wider, a red button of its own size, as macOS's
+            (Lars, 2026-11-25: a row across a wide page was too large). */}
         {!adding && (
-          <Group>
-            <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>
+          <>
+            <div className="sm:hidden">
+              <Group>
+                <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>
+                  {t('song.trash')}
+                </AppButton>
+              </Group>
+            </div>
+            <AppButton variant="danger" className="max-sm:hidden" onClick={() => void trash()}>
               {t('song.trash')}
             </AppButton>
-          </Group>
+          </>
         )}
       </div>
     </Frame>
