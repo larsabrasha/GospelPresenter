@@ -191,7 +191,6 @@ export function SlideList({
                 {item.id === pointer.itemId && !pointer.black && <span className="absolute -left-3 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" aria-label={t('live.badge')} />}
                 <span className="min-w-0 truncate">{item.title}</span>
               </span>
-              <OverlayChip item={item} overlays={overlays} />
               {editing ? (
                 // While its pictures are edited, Klar ends it at once.
                 <AppButton variant="plain" onClick={() => setEditingImages(null)} className={`${HEADING_BUTTON} ml-auto bg-sky-500 text-white hover:bg-sky-600`}>
@@ -201,6 +200,8 @@ export function SlideList({
                 itemMenuButton(item)
               )}
             </h3>
+            {/* The overlay it carries on a line of its own under the heading, then its comment (Lars, 2026-11-25). */}
+            <OverlayChip item={item} overlays={overlays} />
             <ItemNote item={item} />
             <ItemWarnings item={item} set={set} songName={song?.name} />
             {set && editing ? (
