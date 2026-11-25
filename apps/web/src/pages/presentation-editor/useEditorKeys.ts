@@ -4,8 +4,8 @@ import type { PageCommand, PageControl, PageEvent } from '../../live/pageState.t
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { placedSlides, slideAcross } from './slideGridNav.ts';
 
-/** How long typed digits wait for ↵ before they are forgotten. */
-const TYPED_MS = 3000;
+/** How long typed digits wait for the next one before they are forgotten: a second, as a TV's remote (Lars, 2026-11-25). */
+const TYPED_MS = 1000;
 
 /**
  * The presentation page's keys (spec 03 section 6, spec 04 "Keyboard shortcuts during live"), as ProPresenter's: never

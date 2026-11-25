@@ -337,7 +337,7 @@ Live-updates on start/stop/presence. (Connected-users page belongs to the *Admin
 | Live page (2.0) | ↵ (on the page, a row or a slide; anywhere once a slide is ready) | the slide made ready, outlined in blue, the outline gone after; with none ready, the next slide (Lars, 2026-11-07: an outline always there that moved by itself was hard to follow) | `pages/presentation-editor/useEditorKeys.ts` |
 | Live page (2.0) | → ← ↑ ↓ | make a slide ready and move it, a slide sideways, a row up or down as the slides stand (as Finder's icons); nothing shows until ↵; on the slide shown the blue wins, VISAS still says it | same |
 | Live page (2.0) | ⌘↑ ⌘↓ (Ctrl on Windows) | mark the previous or next item, as the sidebar's (not live), its first slide made ready | same |
-| Live page (2.0) | a number | that slide of the marked item made ready; said over the live picture with the item's name, or that it has none; each tile shows its number (as ProPresenter's and PowerPoint's number and ↵) | same |
+| Live page (2.0) | a number | that slide of the marked item made ready, "Tryck Enter för att visa" on it and its number lit; each tile shows its number (as ProPresenter's and PowerPoint's number and ↵). A digit within a second of the one before joins it, as a TV's remote, unless the item has no slide of that number: then it starts over (3, 5 is slide 5); a number with no slide makes none ready | same |
 | Live page (2.0) | Escape | a number typed, then the slide made ready, let go | same |
 | Live page (2.0) | ⌘. (Ctrl+.) | Avsluta presentation, asked first, its button the default; also in ⌘K | same |
 | Live page (2.0) | Space PageDown | next part at once, into the next item too: a clicker's keys | same |

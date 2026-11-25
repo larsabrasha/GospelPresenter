@@ -33,9 +33,9 @@ export function tileClass({ selected, live, rested, interactive = true }: { sele
 export function SlideMark({ kind, className }: { kind: SlideMarkKind | 'enter'; className?: string }) {
   return (
     <span
-      className={`shrink-0 text-[11px]/4 font-bold tracking-wide px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'bg-red-600 text-white' : kind === 'enter' ? 'bg-sky-500 text-white tracking-normal' : 'bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
+      className={`shrink-0 text-[11px]/4 px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'font-bold tracking-wide bg-red-600 text-white' : kind === 'enter' ? 'font-medium bg-sky-500 text-white' : 'font-bold tracking-wide bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
     >
-      {kind === 'shown' ? t('live.shownBadge') : kind === 'enter' ? t('live.enterBadge') : t('live.nextBadge')}
+      {kind === 'shown' ? t('live.shownBadge') : kind === 'enter' ? <EnterWords /> : t('live.nextBadge')}
     </span>
   );
 }
@@ -51,5 +51,17 @@ export function AudioMark({ slide, small = false }: { slide: Slide; small?: bool
       <SpeakerWaveIcon className={`${small ? 'size-6' : 'size-10'} drop-shadow`} />
       {!small && <span className="max-w-full truncate text-sm drop-shadow">{slide.audio.name}</span>}
     </span>
+  );
+}
+
+/** "Tryck Enter för att visa", only the key bold: the eye finds what to press (Lars, 2026-11-25). */
+function EnterWords() {
+  const [before, after] = t('live.enterBadge').split('{key}') as [string, string?];
+  return (
+    <>
+      {before}
+      <b className="font-bold">{t('live.enterKey')}</b>
+      {after}
+    </>
   );
 }

@@ -286,11 +286,18 @@ export function pageEventView(args: unknown) {
       }
       const d = asI64(ev.digit);
       if (d === null || d < 0 || d > 9) throw invalidArgs();
-      const typed = lastThree(p.typed() + String(d));
-      p.set('typed', typed);
       const item = p.picked()?.[0] ?? p.get('selectedId') ?? p.liveItem;
-      const at = (parseI64(typed) ?? 0) - 1;
-      if (item !== null && at >= 0 && at < p.count(item)) p.set('picked', slideAt(item, at));
+      const slideOf = (digits: string) => {
+        const at = (parseI64(digits) ?? 0) - 1;
+        return item !== null && at >= 0 && at < p.count(item) ? at : null;
+      };
+      // As a TV's remote (Lars, 2026-11-25): a digit joins the ones typed just before it (the shell forgets them after
+      // a second), unless the item has no slide of the number they make; then it starts over, so 3 then 5 is slide 5.
+      const joined = lastThree(p.typed() + String(d));
+      const typed = slideOf(joined) !== null ? joined : String(d);
+      p.set('typed', typed);
+      const at = slideOf(typed);
+      if (item !== null && at !== null) p.set('picked', slideAt(item, at));
       break;
     }
     case 'clearTyped':

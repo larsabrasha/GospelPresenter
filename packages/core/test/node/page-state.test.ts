@@ -81,6 +81,23 @@ describe('a number typed while presenting', () => {
     expect([typed.state.picked, shown.live]).toEqual([{ itemId: 'a', partIndex: 1 }, { itemId: 'a', partIndex: 1, black: false }]);
   });
 
+  it('joins a digit to the one typed before it, as a TV remote does', () => {
+    const first = sent({ type: 'digit', digit: 1 }, { selectedId: 'a', followed: 'a' }, presented('a'));
+
+    const second = sent({ type: 'digit', digit: 0 }, first.state, presented('a'));
+
+    // Slide 10 is not item a's, so the 0 starts over and makes none ready: slide 1 stays the one ready.
+    expect([second.state.typed, second.state.picked]).toEqual(['0', { itemId: 'a', partIndex: 0 }]);
+  });
+
+  it('starts over with a digit when the joined number has no slide, so 2 then 3 is slide 3', () => {
+    const first = sent({ type: 'digit', digit: 2 }, { selectedId: 'a', followed: 'a' }, presented('a'));
+
+    const second = sent({ type: 'digit', digit: 3 }, first.state, presented('a'));
+
+    expect([second.state.typed, second.state.picked]).toEqual(['3', { itemId: 'a', partIndex: 2 }]);
+  });
+
   it('says there is no such slide, and ↵ shows nothing', () => {
     const typed = sent({ type: 'digit', digit: 9 }, { selectedId: 'a', followed: 'a' }, presented('a'));
 
