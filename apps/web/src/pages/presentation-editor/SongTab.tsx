@@ -5,6 +5,7 @@ import { songPage, songPreviewSlides } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { ROW_HOVER } from '../../ui/List.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Highlight } from '../../ui/Highlight.tsx';
 import { AdjustmentsIcon, ArrowDownTrayIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
@@ -24,15 +25,15 @@ const NONE: Song[] = [];
 /** A hit in the song list; drawn again only when its song, its choice or the query changes. */
 const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song: Song; chosen: boolean; query: string; onPick: (id: string) => void }) {
   return (
-    <li>
+    <li className="border-b-[0.5px] border-separator last:border-b-0">
       <AppButton
         variant="plain"
         aria-pressed={chosen}
         onClick={() => onPick(s.id)}
-        // A row of a list, not a card of its own; the chosen one blue as the running order marks its row, with the same
-        // corners (Lars, 2026-11-25).
-        className={`w-full text-left px-4 h-[52px] mb-0.5 flex flex-col justify-center rounded-[20px] cursor-pointer text-sm ${
-          chosen ? 'bg-sky-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/10'
+        // A row of one card of rows, as the start page's list (Lars, 2026-11-25), the chosen one blue; its focus ring
+        // inside it, which the scrolling card would otherwise cut.
+        className={`w-full text-left px-4 h-[52px] flex flex-col justify-center cursor-pointer text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 ${
+          chosen ? 'bg-sky-500 text-white' : ROW_HOVER
         }`}
       >
         <span className="block truncate w-full">
@@ -221,7 +222,7 @@ export function SongTab({
               {create}
             </EmptyTab>
           )}
-          <ul ref={list} className="md:flex-1 md:min-h-0 md:overflow-y-auto" aria-label={t('nav.songs')}>
+          <ul ref={list} className="md:flex-1 md:min-h-0 md:overflow-y-auto bg-surface rounded-xl border-[0.5px] border-separator empty:hidden" aria-label={t('nav.songs')}>
             {rows.map((s) => (
               <SongRow key={s.id} song={s} chosen={s.id === effectiveId} query={shownQuery} onPick={onPick} />
             ))}

@@ -160,7 +160,7 @@ export function AddItemDialog({
   const label = addKinds().find(([key]) => key === kind)![1];
   return (
     <AddContext value={{ ...lastAdd, items }}>
-    <Modal title={t('presentation.addKind', { kind: label.toLocaleLowerCase() })} onClose={close} className="max-w-4xl" bare={!!editingSongId}>
+    <Modal title={t('presentation.addKind', { kind: label.toLocaleLowerCase() })} onClose={close} className="max-w-4xl bg-ground!" bare={!!editingSongId}>
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
           // The same page as in Inställningar, filling the dialog.
