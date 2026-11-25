@@ -198,6 +198,7 @@ export function PhoneLive({
           slides={slides}
           selectedId={null}
           shownId={pointer.black ? null : pointer.itemId}
+          overlays={overlays}
           onSelect={() => {}}
           onAdd={(choice) => choose(null, choice)}
           // A row's menu here is the computer's (ItemContextMenu); its pictures open in their sheet, as the item's own sheet has them.

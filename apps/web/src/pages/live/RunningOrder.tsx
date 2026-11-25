@@ -1,4 +1,4 @@
-import type { PresentationItem, ItemSlides } from '@gp/core';
+import type { ItemSlides, Overlay, PresentationItem } from '@gp/core';
 import { useEffect, useRef, useState } from 'react';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -7,7 +7,7 @@ import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { CheckboxIcon, EllipsisOutlineIcon, ItemBadge, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { CheckboxIcon, EllipsisOutlineIcon, ItemBadge, MenuIcon, PlusIcon, SquaresOverlapIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
 import { Dropdown } from '../../ui/Dropdown.tsx';
 import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
@@ -38,6 +38,7 @@ export function RunningOrder({
   ticking,
   tickFirst = null,
   onTicking,
+  overlays = [],
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -52,6 +53,8 @@ export function RunningOrder({
   ticking: boolean;
   tickFirst?: string | null;
   onTicking: (on: boolean) => void;
+  /** The organisation's overlays: an item that carries one names it under its title. */
+  overlays?: Overlay[];
 }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
@@ -180,7 +183,7 @@ export function RunningOrder({
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
                     <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
-                    <RowTitle item={item} />
+                    <RowTitle item={item} overlays={overlays} />
                   </AppButton>
                 ) : (
                   <>
@@ -192,7 +195,7 @@ export function RunningOrder({
                     onClick={() => onSelect(item.id)}
                   >
                     <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
-                    <RowTitle item={item} />
+                    <RowTitle item={item} overlays={overlays} />
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">
                         <WarningIcon className="size-4" />
@@ -277,11 +280,22 @@ export function RunningOrder({
  * item comes, seen without a hover, as Reminders shows a note (Lars, 2026-11-05). The kind's icon then stays on the
  * name's line (`self-start`), not centred on the two.
  */
-function RowTitle({ item }: { item: PresentationItem }) {
+/**
+ * A row's title, and under it its note and the overlay it carries, by name with the overlays' icon (Lars, 2026-11-25:
+ * seen in the running order, not only above the item's slides), as the row's own lines in the same grey.
+ */
+function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {
+  const overlay = item.overlayId ? overlays.find((o) => o.id === item.overlayId) : undefined;
   return (
     <span className="min-w-0 flex flex-col">
       <span className="truncate">{item.title}</span>
       {item.note && <span className="truncate text-xs text-stone-500 dark:text-stone-400" data-testid="row-note">{item.note}</span>}
+      {overlay && (
+        <span className="flex items-center gap-1 min-w-0 text-xs text-stone-500 dark:text-stone-400" data-testid="row-overlay" title={t('overlays.itemOverlay')}>
+          <SquaresOverlapIcon className="size-3" />
+          <span className="truncate">{overlay.title}</span>
+        </span>
+      )}
     </span>
   );
 }

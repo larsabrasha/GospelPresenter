@@ -351,6 +351,7 @@ export function PresentationEditor({
                   setTicking(on);
                   if (!on) setTickFirst(null);
                 }}
+                overlays={overlays}
               />
             </SideMenu>
             <SlideList
