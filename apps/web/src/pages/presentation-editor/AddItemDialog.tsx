@@ -2,10 +2,12 @@ import type { PresentationItem, Theme } from '@gp/core';
 import { useState, type ReactNode } from 'react';
 import type { Db } from '../../db/db.ts';
 import { useDb } from '../../db/react.tsx';
+import { songPage } from '../../db/views.ts';
 import { FIRST_PART_LABEL } from '../songEditorLook.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { useTrySave } from '../../ui/AutoSave.tsx';
+import { useConfirm } from '../../ui/Dialog.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
 import { PageFill } from '../../ui/PageContainer.tsx';
 import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, SlideshowIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
@@ -49,12 +51,31 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
-/** A song made in the dialog and not added: thrown away, not to the trash, as it was only ever a draft there. */
-function discardSong(db: Db, id: string) {
-  void db.mutate('trashSong', { id, at: Date.now() }).then(
-    () => db.mutate('purgeSong', { id }),
-    () => undefined,
-  );
+/**
+ * A song made here is a draft until Skapa (Lars, 2026-11-25): kept as it is typed, in no list. Its id is kept on this
+ * device until then, so a draft left by a closed dialog or a crash is offered again at the next Skapa.
+ */
+const DRAFT_KEY = 'gp.songDraft';
+const draftId = () => {
+  try {
+    return localStorage.getItem(DRAFT_KEY);
+  } catch {
+    return null;
+  }
+};
+const keepDraftId = (id: string | null) => {
+  try {
+    if (id) localStorage.setItem(DRAFT_KEY, id);
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // no storage: a draft left behind is not offered again
+  }
+};
+
+/** A draft thrown away (Avbryt): deleted at once, never by way of the trash. */
+function discardDraft(db: Db, id: string) {
+  keepDraftId(null);
+  void db.mutate('purgeSong', { id }).catch(() => undefined);
 }
 
 /** The kinds an item is, each its name in +'s menu and its icon, Bildspel last: singular, as Keynote's Infoga names its
@@ -85,11 +106,12 @@ export function AddItemDialog({
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
-  /** The song open in the editor here; `isNew` when it was just made here, to be added or thrown away. */
-  const [editing, setEditing] = useState<{ id: string; isNew: boolean; focusName?: boolean } | null>(null);
+  const { dialog, ask } = useConfirm();
+  /** The song open in the editor here; `isNew` for a draft made here, to be created or thrown away. */
+  const [editing, setEditing] = useState<{ id: string; isNew: boolean; focusName?: boolean; resumed?: boolean } | null>(null);
   const editingSongId = editing?.id ?? null;
-  /** Counts the songs added from the new song's editor: the song tab starts over, its search empty. */
-  const [addedNew, setAddedNew] = useState(0);
+  /** The song last created here: the song tab starts over with it chosen, ready to add. */
+  const [created, setCreated] = useState<{ id: string; name: string } | null>(null);
   /** Counts every add here: Lägg till says "Tillagd" for a moment after each (ui/Picker.tsx `AddFooter`). */
   const [lastAdd, setLastAdd] = useState({ n: 0, at: 0 });
   const onAdded = (itemId: string) => {
@@ -97,29 +119,43 @@ export function AddItemDialog({
     props.onAdded(itemId);
   };
 
-  // Skapa in the song tab: a song named as the search, with its first part, Verse 1, to type in, opened here.
+  // A draft left behind here: offered again, or thrown away for a new one. One with no text yet just goes.
+  const resumeDraft = async () => {
+    const id = draftId();
+    if (!id) return false;
+    const page = await songPage(db, id).catch(() => null);
+    if (!page?.song?.draft) {
+      keepDraftId(null);
+      return false;
+    }
+    const name = page.song.name;
+    if (page.parts.some((p) => p.content.trim()) && (await ask({ title: t('song.draftTitle'), text: t('song.draftText', { name }), bold: name, confirm: t('song.draftResume'), primary: true }))) {
+      setEditing({ id, isNew: true, resumed: true });
+      return true;
+    }
+    discardDraft(db, id);
+    return false;
+  };
+  // Skapa in the song tab: a draft named as the search, with its first part, Verse 1, to type in, opened here.
   const newSong = async (query: string) => {
+    if (await resumeDraft()) return;
     const id = newId();
     const name = query || t('song.newTitle');
-    if (!(await trySave(db.mutate('createSong', { id, name })))) return;
+    if (!(await trySave(db.mutate('createSong', { id, name, draft: true })))) return;
+    keepDraftId(id);
     await trySave(db.mutate('addSongPart', { id: newId(), songId: id, labelText: FIRST_PART_LABEL, content: '' }));
     setEditing({ id, isNew: true, focusName: !query });
   };
-  const discard = (id: string) => discardSong(db, id);
-  const addNew = async (id: string, name: string) => {
-    const itemId = newId();
-    if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId: props.presentationId, songId: id, arrangementId: null, afterItemId: props.afterItemId }))))
-      return;
-    toast(t('presentation.added', { name }));
-    onAdded(itemId);
+  // Skapa in the draft's editor: a song of the library now, chosen in the list, to be added as any other.
+  const create = async (id: string, name: string) => {
+    if (!(await trySave(db.mutate('publishSong', { id })))) return;
+    keepDraftId(null);
+    toast(t('song.created', { name }));
+    setCreated({ id, name });
     setEditing(null);
-    setAddedNew((n) => n + 1);
   };
-  // Closed while a new song is open: it goes, as with Avbryt.
-  const close = () => {
-    if (editing?.isNew) discard(editing.id);
-    props.onClose();
-  };
+  // Closed while a draft is open: it is kept, offered again at the next Skapa.
+  const close = () => props.onClose();
   const tabProps: TabProps = { ...props, onAdded, onClose: close, active: !editingSongId };
   const label = addKinds().find(([key]) => key === kind)![1];
   return (
@@ -135,12 +171,13 @@ export function AddItemDialog({
                 id={editing.id}
                 onBack={() => setEditing(null)}
                 adding={{
-                  onAdd: (name) => void addNew(editing.id, name),
+                  onCreate: (name) => void create(editing.id, name),
                   onCancel: () => {
-                    discard(editing.id);
+                    discardDraft(db, editing.id);
                     setEditing(null);
                   },
                   focusName: !!editing.focusName,
+                  resumed: !!editing.resumed,
                 }}
               />
             ) : (
@@ -151,7 +188,7 @@ export function AddItemDialog({
         )}
         {/* The song list stays as it was under its song's editor. */}
         <div className={editingSongId ? 'hidden' : 'flex-1 min-h-0 flex flex-col'}>
-          {kind === 'songs' && <SongTab key={addedNew} {...tabProps} onEditSong={(id) => setEditing({ id, isNew: false })} onNewSong={(q) => void newSong(q)} />}
+          {kind === 'songs' && <SongTab key={created?.id ?? ''} {...tabProps} created={created} onEditSong={(id) => setEditing({ id, isNew: false })} onNewSong={(q) => void newSong(q)} />}
           {kind === 'bible' && <BibleTab {...tabProps} />}
           {kind === 'images' && <ImageTab {...tabProps} toItemId={toItemId} />}
           {kind === 'audio' && <AudioTab {...tabProps} />}
@@ -159,6 +196,7 @@ export function AddItemDialog({
           {kind === 'video' && <VideoTab {...tabProps} />}
         </div>
       </div>
+      {dialog}
     </Modal>
     </AddContext>
   );

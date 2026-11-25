@@ -13,7 +13,7 @@ function rows(over: Partial<LegacyRows> = {}): LegacyRows {
   return { ...(Object.fromEntries(LEGACY_TABLES.map((t) => [t, []])) as unknown as LegacyRows), ...over };
 }
 
-const song = { id: 'song-1', name: 'Bred dina vida vingar', author: 'Lina Sandell', publisher: null, year: 1865, ccli: '123', deleted_at: null };
+const song = { id: 'song-1', name: 'Bred dina vida vingar', author: 'Lina Sandell', publisher: null, year: 1865, ccli: '123', deleted_at: null, draft: null };
 const part = { id: 'p-1', song_id: 'song-1', sort: 0, label_id: 'label:vers 1', content: 'Bred dina vida vingar' };
 const label = { id: 'label:vers 1', text: 'Vers 1', color: '#ff0000', sort: 0 };
 const presentation = {

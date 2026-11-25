@@ -56,17 +56,24 @@ export function SongTab({
   onAdded,
   active,
   onEditSong,
+  created,
   onNewSong,
-}: TabProps & { onEditSong: (songId: string) => void; /** Skapa: a new song named as the search, in its editor. */ onNewSong: (query: string) => void }) {
+}: TabProps & {
+  onEditSong: (songId: string) => void;
+  /** Skapa: a new song named as the search, in its editor. */
+  onNewSong: (query: string) => void;
+  /** The song just created with Skapa: searched for and chosen, ready to add (Lars, 2026-11-25). */
+  created?: { id: string; name: string } | null;
+}) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(created?.name ?? '');
   // Searched in the database's worker: `shown` answers `shownQuery`, which trails `query` until it has answered.
   const { songs, shown: found, shownQuery } = useSongSearch(query);
   // ProPresenter files imported here, in the moment, as in Sånger (Lars, 2026-11-05): beside the search, or dropped.
   const songImport = useSongImport(songs);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(created?.id ?? null);
   const [arrangementId, setArrangementId] = useState<string | null>(null);
   // On a phone a tapped song opens its preview over the add dialog, with the add button there (SongTab.razor).
   const [fullScreen, setFullScreen] = useState(false);

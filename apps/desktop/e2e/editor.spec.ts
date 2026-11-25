@@ -159,7 +159,7 @@ test('several pictures make one image item; Redigera removes one and adds more',
   await expect(order.getByRole('listitem')).toHaveCount(1);
 });
 
-test('Skapa in Lägg till opens a new song named as the search: Lägg till adds it, Avbryt and closing throw it away', async () => {
+test('Skapa in Lägg till opens a draft named as the search: Skapa makes it a song chosen in the list, Avbryt throws it away, a left draft comes back', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -171,7 +171,8 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök på titel, författare eller textrad');
 
-  // Not found: Skapa opens the editor, named as the search, typing in its first part; Ctrl+Enter adds it.
+  // Not found: Skapa opens the editor, named as the search, typing in its first part; Ctrl+Enter (Skapa) makes the song
+  // and goes back to the list with it chosen, not yet added (Lars, 2026-11-25); then it is added as any song.
   await search.fill('Blott en dag');
   await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
   await expect(picker.getByRole('heading', { name: 'Ny sång' })).toBeVisible();
@@ -179,10 +180,33 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await expect(picker.getByLabel('Delar 1')).toBeFocused();
   await page.keyboard.type('Blott en dag, ett ögonblick i sänder');
   await page.keyboard.press('Control+Enter');
-  await expect(page.getByText('"Blott en dag" har lagts till')).toBeVisible();
+  await expect(page.getByText('"Blott en dag" har skapats')).toBeVisible();
   await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
-  await expect(search).toHaveValue('');
-  await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Blott en dag', exact: true })).toBeVisible();
+  await expect(search).toHaveValue('Blott en dag');
+  const order = page.getByRole('list', { name: 'Programpunkter' });
+  await expect(order.getByRole('button', { name: 'Blott en dag', exact: true })).toHaveCount(0);
+  await picker.getByRole('button', { name: 'Lägg till Blott en dag' }).click();
+  await expect(order.getByRole('button', { name: 'Blott en dag', exact: true })).toBeVisible();
+
+  // A draft is in no list until Skapa; one left behind (the window reloaded) is offered again at the next Skapa.
+  await search.fill('Halvfärdig');
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByLabel('Delar 1')).toBeFocused();
+  await page.keyboard.type('Första raden');
+  await expect(picker.getByText('Sparad')).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sång', exact: true }).click();
+  await search.fill('Halvfärdig');
+  await expect(picker.getByText('Inga sånger hittades')).toBeVisible();
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Fortsätta på den osparade sången?' }).getByRole('button', { name: 'Fortsätt' }).click();
+  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toHaveValue('Halvfärdig');
+  await expect(picker.getByLabel('Delar 1')).toHaveValue('Första raden');
+  // Taken up again it has text: Avbryt asks before it goes.
+  await picker.getByRole('button', { name: 'Avbryt' }).click();
+  await page.getByRole('dialog', { name: 'Släng sången?' }).getByRole('button', { name: 'Släng' }).click();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
 
   // Avbryt after typing asks, then the song is gone: not in the library, not in the trash.
   await search.fill('Kastad');

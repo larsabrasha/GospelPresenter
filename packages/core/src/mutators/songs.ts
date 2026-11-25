@@ -10,15 +10,23 @@ import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission
 
 // ------------------------------------------------------------------ songs
 
-export const createSongArgs = z.object({ id, name, author: optionalText(FIELD_RULES.author.max).optional() });
+/** `draft`: made in the add dialog, in no list until `publishSong` (Skapa) or gone with `purgeSong` (Avbryt). */
+export const createSongArgs = z.object({ id, name, author: optionalText(FIELD_RULES.author.max).optional(), draft: z.boolean().optional() });
 export async function createSong(tx: Tx, a: z.output<typeof createSongArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
-  const [n] = await tx.select({ n: count() }).from(songs).where(isNull(songs.deletedAt));
+  const [n] = await tx.select({ n: count() }).from(songs).where(and(isNull(songs.deletedAt), isNull(songs.draft)));
   limit((n?.n ?? 0) >= LIMITS.songs, 'songs');
   await tx
     .insert(songs)
-    .values({ id: a.id, name: a.name, author: a.author ?? null })
+    .values({ id: a.id, name: a.name, author: a.author ?? null, draft: a.draft ? 1 : null })
     .onConflictDoNothing();
+}
+
+export const publishSongArgs = z.object({ id });
+/** Skapa in the add dialog: a draft becomes a song of the library, as any other. */
+export async function publishSong(tx: Tx, a: z.output<typeof publishSongArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  await tx.update(songs).set({ draft: null }).where(eq(songs.id, a.id));
 }
 
 export const updateSongArgs = z.object({
@@ -61,12 +69,12 @@ export async function deleteSongRows(tx: Tx, songId: string) {
 }
 
 export const purgeSongArgs = z.object({ id });
-/** Permanent delete (SONG-R27, D14): only of a song that is in the trash where this runs. */
+/** Permanent delete (SONG-R27, D14): only of a song that is in the trash where this runs, or of a draft (Avbryt). */
 export async function purgeSong(tx: Tx, a: z.output<typeof purgeSongArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
-  const [s] = await tx.select({ deletedAt: songs.deletedAt }).from(songs).where(eq(songs.id, a.id));
+  const [s] = await tx.select({ deletedAt: songs.deletedAt, draft: songs.draft }).from(songs).where(eq(songs.id, a.id));
   if (!s) return; // already gone: nothing to do
-  if (s.deletedAt === null) throw new MutationError('not-in-trash', 'song is not in the trash');
+  if (s.deletedAt === null && s.draft === null) throw new MutationError('not-in-trash', 'song is not in the trash');
   await deleteSongRows(tx, a.id);
 }
 

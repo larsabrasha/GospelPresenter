@@ -4,7 +4,7 @@ import { MutationError } from './mutation.ts';
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 27;
+export const SCHEMA_VERSION = 28;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -65,7 +65,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS labels (id TEXT PRIMARY KEY NOT NULL, text TEXT NOT NULL, color TEXT NOT NULL,
      sort INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS songs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, author TEXT,
-     publisher TEXT, year INTEGER, ccli TEXT, deleted_at INTEGER)`,
+     publisher TEXT, year INTEGER, ccli TEXT, deleted_at INTEGER, draft INTEGER)`,
   `CREATE TABLE IF NOT EXISTS song_parts (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), sort INTEGER NOT NULL,
      label_id TEXT REFERENCES labels(id), content TEXT NOT NULL)`,
@@ -206,6 +206,8 @@ export const orgMigrations: Record<number, string[]> = {
   // A time per field of the rows written whole (SYNC-R23): the newest change of each field wins, from the row's last
   // change.
   27: FIELD_TIMES.flatMap(([table, fields]) => [...fieldTimeColumns(table, fields), `UPDATE ${table} SET ${fields.map((f) => `${f}_at = updated_at`).join(', ')}`]),
+  // A song made in the add dialog is a draft until Skapa (Lars, 2026-11-25): in no list until then.
+  28: ['ALTER TABLE songs ADD COLUMN draft INTEGER'],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

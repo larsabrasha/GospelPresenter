@@ -27,19 +27,21 @@ import { CARD, PILL } from './songEditorLook.ts';
 // SongFieldsEditor, SongPartsEditor and SongArrangementEditor.
 
 
-/** A song just made in the add dialog: added, or thrown away (the song goes too). */
+/** A draft made in the add dialog: created with Skapa, or thrown away with Avbryt (Lars, 2026-11-25). */
 export interface NewSong {
-  onAdd: (name: string) => void;
+  onCreate: (name: string) => void;
   onCancel: () => void;
   /** The name is a stand-in (nothing was searched for): start there rather than in the first part. */
   focusName: boolean;
+  /** A draft left behind and taken up again: it has text, so Avbryt asks before it goes. */
+  resumed: boolean;
 }
 
 /**
  * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor), one page wherever a song is edited.
  * With `onBack`, inside the add dialog (EditSong.razor): its back button returns to the song list there, and
- * so does moving the song to the trash. With `adding`, a song just made there: Avbryt, "Ny sång"
- * and Lägg till (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen. There, Escape
+ * so does moving the song to the trash. With `adding`, a draft made there: Avbryt, "Ny sång"
+ * and Skapa (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen. There, Escape
  * is the back button, or Avbryt.
  */
 export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => void; adding?: NewSong }) {
@@ -62,7 +64,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   // A new song starts in its first part, or in its name when that is a stand-in.
   const focused = useRef(false);
   /** Something was typed in the editor (a new song's Avbryt asks then). */
-  const typed = useRef(false);
+  const typed = useRef(!!adding?.resumed);
   useEffect(() => {
     if (!adding || focused.current || !data?.song) return;
     focused.current = true;
@@ -71,7 +73,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const addKey = useEffectEvent((e: KeyboardEvent) => {
     if (!adding || !data?.song || !isAddKey(e)) return;
     e.preventDefault();
-    adding.onAdd(data.song.name);
+    adding.onCreate(data.song.name);
   });
   useEffect(() => {
     if (!adding) return;
@@ -205,7 +207,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
       onEscape={adding ? () => void cancel() : onBack}
       bar={
         adding ? (
-          // The dialog's one bar while a song is made in it, as iOS's sheet: Avbryt, the name in the middle, Lägg till.
+          // The dialog's one bar while a song is made in it, as iOS's sheet: Avbryt, the name in the middle, Skapa.
           <div className="relative flex items-center justify-between gap-3 h-14 shrink-0 px-4">
             <AppButton variant="cancel" onClick={() => void cancel()}>
               {t('common.cancel')}
@@ -213,8 +215,8 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             <h1 className="absolute left-1/2 -translate-x-1/2 max-w-[40%] truncate font-semibold text-[17px] dark:text-stone-100">{t('song.newTitle')}</h1>
             <div className="flex items-center gap-3">
               <span className="relative w-16 h-5">{saved.node}</span>
-              <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onAdd(song.name)}>
-                {t('presentation.add')}
+              <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onCreate(song.name)}>
+                {t('common.create')}
               </AppButton>
             </div>
           </div>

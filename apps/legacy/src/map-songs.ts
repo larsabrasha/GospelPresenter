@@ -24,7 +24,7 @@ export function mapLabels(data: OldData): LegacyRow[] {
 }
 
 export function mapSongs(data: OldData): LegacyRow[] {
-  return data.songs.map((s) => ({ id: s.Id, name: s.Name, author: s.Author, publisher: s.Publisher, year: s.Year, ccli: s.Ccli, deleted_at: ms(s.DeletedAt) }));
+  return data.songs.map((s) => ({ id: s.Id, name: s.Name, author: s.Author, publisher: s.Publisher, year: s.Year, ccli: s.Ccli, deleted_at: ms(s.DeletedAt), draft: null }));
 }
 
 export function mapParts(data: OldData): LegacyRow[] {

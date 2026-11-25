@@ -63,9 +63,13 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **A purged song's items stay** in their presentations and say the song is gone.
 - **Skapa in Lägg till opens the new song's editor there** (decided with Lars on 2026-10-30; the current app
   asks for a name first): the song is named as the search ("Ny sång" when nothing was searched for) and has an
-  empty first part, where typing starts. Its header has Avbryt, "Ny sång" and Lägg till (Ctrl+Enter), which adds
-  it as any song and starts the search over. Avbryt, or closing the dialog, throws the song away for good (not
-  to the trash); Avbryt asks first when anything was typed. Escape in the editor there goes back one step, as
+  empty first part, where typing starts. It is a draft until Skapa (Lars, 2026-11-25: one did not see what was
+  made, nor that a song was made at all): kept as it is typed, but in no list, search or count (`songs.draft`,
+  schema 28). Its header has Avbryt, "Ny sång" and Skapa (Ctrl+Enter), which makes it a song of the library and
+  goes back to the list, the song searched for and chosen, its slides beside it, to be added as any song. Avbryt
+  throws the draft away for good (not to the trash) and asks first when anything was typed. Closing the dialog
+  keeps it: the next Skapa on that device offers it again (Fortsätt), or throws it away for a new one; a draft
+  with no text yet just goes. Escape in the editor there goes back one step, as
   Avbryt or the back button do, and a second Escape closes the dialog (`e2e/editor.spec.ts`).
 - **Song search reads a line break as a space** (SONG-R33 as changed with Lars on 2026-10-30): a phrase typed as
   it is sung, over a line break of the lyrics, gets the phrase bonus; the current app gives it none. Otherwise

@@ -8,7 +8,7 @@ import type { ThemeDefinition } from './themes.ts';
 
 /** Each mutator's version, which a push carries. The server takes from this version up: none has a second yet. */
 export const MUTATOR_VERSIONS = {
-  createSong: 1, updateSong: 1, trashSong: 1, restoreSong: 1, purgeSong: 1, addSongPart: 1, importSongs: 1, restoreSongVersion: 1,
+  createSong: 1, publishSong: 1, updateSong: 1, trashSong: 1, restoreSong: 1, purgeSong: 1, addSongPart: 1, importSongs: 1, restoreSongVersion: 1,
   addSongFile: 1, addSongLink: 1, renameSongMaterial: 1, removeSongMaterial: 1, setCcliCollection: 1, recordCcliUse: 1, setCcliReported: 1,
   createLabel: 1, updateLabel: 1, deleteLabel: 1, moveLabel: 1, updateSongPart: 1, removeSongPart: 1, moveSongPart: 1,
   createArrangement: 1, updateArrangement: 1, removeArrangement: 1, appendArrangementPart: 1, removeArrangementPart: 1, moveArrangementPart: 1,
@@ -42,7 +42,8 @@ type EventFields = { eventDate?: string | null; time?: string | null; location?:
 type AudioType = 'audio/mpeg' | 'audio/wav' | 'audio/ogg' | 'audio/mp4' | 'audio/webm' | 'audio/x-m4a';
 
 interface AllMutatorArgs {
-  createSong: { id: string; name: string; author?: string | null };
+  createSong: { id: string; name: string; author?: string | null; draft?: boolean };
+  publishSong: { id: string };
   updateSong: { id: string; name?: string; author?: string | null; publisher?: string | null; year?: number | null; ccli?: string | null };
   trashSong: { id: string; at: number };
   restoreSong: { id: string };

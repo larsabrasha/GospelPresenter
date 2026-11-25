@@ -19,6 +19,8 @@ import {
 import {
   createSongArgs,
   createSong,
+  publishSongArgs,
+  publishSong,
   updateSongArgs,
   updateSong,
   trashSongArgs,
@@ -217,6 +219,7 @@ const m = <S extends z.ZodType>(args: S, run: Mutator<S>['run']): Mutator<S> => 
 /** Every mutator. Arguments are validated with `args` on both ends before `run`. */
 export const mutators = {
   createSong: m(createSongArgs, createSong),
+  publishSong: m(publishSongArgs, publishSong),
   updateSong: m(updateSongArgs, updateSong),
   trashSong: m(trashSongArgs, trashSong),
   restoreSong: m(restoreSongArgs, restoreSong),

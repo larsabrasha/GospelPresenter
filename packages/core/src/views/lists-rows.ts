@@ -61,7 +61,7 @@ export async function select(sql: RunSql, fields: Fields, from: string, params: 
 
 
 /** `Song`. */
-export const SONG: Fields = [['id', 'str'], ['name', 'str'], ['author', 'opt'], ['publisher', 'opt'], ['year', 'opt'], ['ccli', 'opt'], ['deletedAt', 'opt']];
+export const SONG: Fields = [['id', 'str'], ['name', 'str'], ['author', 'opt'], ['publisher', 'opt'], ['year', 'opt'], ['ccli', 'opt'], ['deletedAt', 'opt'], ['draft', 'opt']];
 /** `Presentation`. */
 export const PRESENTATION: Fields = [['id', 'str'], ['name', 'str'], ['eventDate', 'opt'], ['deletedAt', 'opt'], ['themeId', 'opt'], ['isTemplate', 'bool'],
   ['weekday', 'opt'], ['time', 'opt'], ['location', 'opt'], ['description', 'opt'], ['updatedAt', 'opt'], ['lastUsedAt', 'opt']];

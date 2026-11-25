@@ -117,7 +117,7 @@ function slideshowRow(id: unknown, name: unknown, pages: unknown): Json | null {
 /**
  * A zip's rows as this format has them (`upgradeLegacyRows`): before 4 a deck's pages become a slideshow of PDF pages
  * that its item names; before 5 a page's pictures of Bilder become its own; before 6 an item has no comment; before 7
- * no picture is edited; in every format a song part that is only an RTF leftover goes; and the fields that keep a
+ * no picture is edited; before 9 no song is a draft; in every format a song part that is only an RTF leftover goes; and the fields that keep a
  * time each take the row's last change.
  */
 const upgrade = (format: number, rows: Json): Json => withFieldTimes(withoutRtfLeftovers(upgradeFormat(format, rows)));
@@ -133,6 +133,7 @@ function upgradeFormat(format: number, rows: Json): Json {
   const [themes, videos, materials] = [take('themes'), take('videos'), take('song_materials')];
   Object.assign(rest, { themes, videos, song_materials: materials });
   if (format < 6) rest.presentation_items = list(rest, 'presentation_items').map((i) => withKey(i, 'note', null));
+  if (format < 9) rest.songs = list(rest, 'songs').map((s) => withKey(s, 'draft', null));
   if (format < 7) {
     const unedited = (i: Json) => ({ ...i, ...Object.fromEntries(['original_full_hash', 'original_thumb_hash', 'original_width', 'original_height', 'edit'].map((k) => [k, null])) });
     rest.images = list(rest, 'images').map(unedited);

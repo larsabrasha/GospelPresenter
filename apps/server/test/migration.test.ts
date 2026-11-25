@@ -22,8 +22,11 @@ const [orgTables, orgIndexes] = (() => {
 })();
 const orgDdl = [...orgTables, ...orgIndexes];
 
+/** Today's tables as a file before version 28 had them: no song drafts. */
+const before28 = orgDdl.map((s) => s.replace(', deleted_at INTEGER, draft INTEGER)', ', deleted_at INTEGER)'));
+
 /** Today's tables as a file before version 27 had them: no field times (SYNC-R23). */
-const before27 = orgDdl.map((s) => s.replace(/, (name|pages|title|content|definition)_at INTEGER/g, ''));
+const before27 = before28.map((s) => s.replace(/, (name|pages|title|content|definition)_at INTEGER/g, ''));
 
 /** Today's tables as a file before version 24 had them: no comment on an item, and no picture edited (25). */
 const before24 = before27.map((s) =>

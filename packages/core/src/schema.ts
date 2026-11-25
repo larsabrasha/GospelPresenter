@@ -22,6 +22,11 @@ export const songs = sqliteTable('songs', {
   ccli: text('ccli'),
   /** Set while the song is in the trash. */
   deletedAt: integer('deleted_at'),
+  /**
+   * 1 while the song is a draft: made in the add dialog and not yet created there with Skapa (Lars, 2026-11-25). Kept as
+   * it is typed, so nothing is lost, but in no list, search or count until then; null for a song.
+   */
+  draft: integer('draft'),
 });
 
 /** One part is one slide (spec 02). `sort` is 0-based and contiguous per song. */

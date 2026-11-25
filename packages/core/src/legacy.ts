@@ -12,10 +12,10 @@ import { emailSchema } from './accounts.ts';
  * is a page (docs/custom-slides.md). 3: a slide deck is a row of `slide_decks`, which its item names. 4: a slide
  * deck is a slideshow (`custom_slides`) of PDF pages, which its item names as one. 5: a page's pictures are its own
  * blobs, not pictures of Bilder by id. 6: an item has a comment (`note`, spec 03 2f). 7: a picture may be edited, its
- * original kept (MEDIA-R19). 8: 2.0's own export, with videos, own themes and song materials (2026-11-08). An import
- * reads the older ones too (the core's upgrade).
+ * original kept (MEDIA-R19). 8: 2.0's own export, with videos, own themes and song materials (2026-11-08). 9: a song may be a
+ * draft (`draft`, 2026-11-25). An import reads the older ones too (the core's upgrade).
  */
-export const LEGACY_FORMAT = 8;
+export const LEGACY_FORMAT = 9;
 
 /** The zip's entries: the manifest, the users, one file of rows per table, the Bible texts and the blobs. */
 export const LEGACY_ENTRIES = {
@@ -87,7 +87,7 @@ export const legacyUsersSchema = z.array(legacyUserSchema).max(1000);
  * The formats an import reads: this one, 4 (pictures of Bilder by id on a page), 3 (decks of their own), 2 (decks on
  * their items), 1 (overlays of a text and a picture too).
  */
-export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, 5, 6, 7, LEGACY_FORMAT];
+export const LEGACY_FORMATS_READ: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, LEGACY_FORMAT];
 
 /** What the server answers when it refuses an import, with a `detail` naming the row. */
 export type LegacyImportRefusal = 'invalid-rows' | 'missing-media' | 'missing-bible' | 'write-failed';
