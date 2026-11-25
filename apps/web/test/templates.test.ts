@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextDate, scheduleLine, suggestedTemplate, templateDetails } from '../src/pages/templates.ts';
+import { nextDate, scheduleLine, templateDetails } from '../src/pages/templates.ts';
 
 // 2026-11-01 is a Sunday.
 const sunday = (hours: number, minutes = 0) => new Date(2026, 10, 1, hours, minutes);
@@ -32,18 +32,4 @@ describe("a template's weekly slot", () => {
     expect(scheduleLine({ weekday: null, time: null })).toBeNull();
   });
 
-  it('offers first the template whose next service comes soonest', () => {
-    const sundayService = { weekday: 0, time: '11:00' };
-    const fridayService = { weekday: 5, time: '17:00' };
-
-    const offered = suggestedTemplate([sundayService, fridayService], new Date(2026, 9, 28, 12)); // a Wednesday
-
-    expect(offered).toBe(fridayService);
-  });
-
-  it('offers first the last used template when none has a weekday', () => {
-    const first = { weekday: null, time: '11:00' };
-
-    expect(suggestedTemplate([first, { weekday: null, time: null }], sunday(9))).toBe(first);
-  });
 });

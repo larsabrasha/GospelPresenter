@@ -60,11 +60,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   const picker = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(picker.getByRole('button', { name: 'Tom presentation' })).toBeVisible();
   await expect(picker.getByRole('link', { name: 'Hantera mallar' })).toHaveAttribute('href', '/templates');
-  // The only template, so the one suggested at the top: its next Sunday on a calendar leaf, its time and place.
-  const suggested = picker.getByTestId('suggested-template');
-  await expect(suggested).toContainText('Söndag');
-  await expect(suggested).toContainText('11:00 · Kyrkan');
-  await suggested.click();
+  await picker.getByRole('button', { name: /Söndag.*Söndag 11:00 · Kyrkan/ }).click();
   const details = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(details.getByLabel('Namn')).toHaveValue('Söndag');
   await expect(details.getByLabel('Datum')).toHaveValue(nextSunday('11:00'));
