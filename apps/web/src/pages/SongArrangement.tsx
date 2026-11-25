@@ -136,7 +136,7 @@ function ArrangementEditor({
                   <MinusIcon className="size-3.5" strokeWidth={3} />
                 </AppButton>
                 <PartPill part={part} labels={labels} />
-                <span className="flex-1" />
+                <FirstLine part={part} />
                 <GripIcon className="size-4 text-stone-300 dark:text-stone-500 shrink-0" />
               </li>
             );
@@ -157,6 +157,7 @@ function ArrangementEditor({
               <PlusIcon className="size-3.5" strokeWidth={3} />
             </span>
             <PartPill part={p} labels={labels} />
+            <FirstLine part={p} />
           </AppButton>
         ))}
       </Group>
@@ -171,4 +172,13 @@ function ArrangementEditor({
       </Group>
     </div>
   );
+}
+
+/**
+ * A part's first line of text, grey after its label, cut to the row: two parts of one label told apart, and what each
+ * is seen without opening the song (Lars, 2026-11-25).
+ */
+function FirstLine({ part }: { part: SongPart }) {
+  const line = part.content.split('\n').find((l) => l.trim())?.trim() ?? '';
+  return <span className="flex-1 min-w-0 truncate text-sm text-stone-500 dark:text-stone-400">{line}</span>;
 }

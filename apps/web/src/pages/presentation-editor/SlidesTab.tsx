@@ -19,6 +19,7 @@ import { useToast } from '../../ui/Toast.tsx';
 import { FirstPage } from '../custom-slides/CustomSlides.tsx';
 import { useView, ViewPicker, type View } from '../../ui/ViewPicker.tsx';
 import type { TabProps } from './AddItemDialog.tsx';
+import { SMALL_ACTION } from '../../ui/Group.tsx';
 
 const SLIDES_LIST: Record<View, string> = {
   list: 'flex flex-col gap-1 p-1',
@@ -35,8 +36,8 @@ function PdfHelp() {
       {howPdf ? (
         <p className="whitespace-pre-line">{t('slides.howPdfSteps')}</p>
       ) : (
-        <AppButton variant="plain" className="text-sky-600 dark:text-sky-400 hover:underline cursor-pointer" onClick={() => setHowPdf(true)}>
-          {t('slides.howPdf')} ›
+        <AppButton variant="plain" className={SMALL_ACTION} onClick={() => setHowPdf(true)}>
+          {t('slides.howPdf')}
         </AppButton>
       )}
     </div>

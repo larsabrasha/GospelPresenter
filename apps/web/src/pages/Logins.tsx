@@ -9,7 +9,7 @@ import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { NameDialog } from '../ui/NameDialog.tsx';
-import { GROUP_ROW, Group } from '../ui/Group.tsx';
+import { Group, GROUP_ROW, SMALL_ACTION, SMALL_DANGER } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -29,7 +29,6 @@ async function fetchLogins(): Promise<LoginMethod[] | string> {
 
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale());
 /** A row's action, as text in sky at its end. */
-const ROW_ACTION = 'shrink-0 text-sm text-sky-600 dark:text-sky-400 cursor-pointer disabled:opacity-40 disabled:cursor-default';
 const label = (l: LoginMethod) => l.name ?? (l.provider === 'google' ? t('logins.google') : t('logins.passkey'));
 
 /**
@@ -120,11 +119,11 @@ export function Logins({ error: initialError }: { error: string | null }) {
                   <div className="text-xs text-stone-500 dark:text-stone-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
                 </div>
                 {l.provider === 'passkey' && (
-                  <AppButton variant="plain" className={ROW_ACTION} onClick={() => setDialog({ kind: 'rename', login: l })}>
+                  <AppButton variant="plain" className={SMALL_ACTION} onClick={() => setDialog({ kind: 'rename', login: l })}>
                     {t('logins.rename')}
                   </AppButton>
                 )}
-                <AppButton variant="plain" className={`${ROW_ACTION} text-red-600! dark:text-red-400!`} disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
+                <AppButton variant="plain" className={SMALL_DANGER} disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
                   {t('logins.remove')}
                 </AppButton>
               </li>

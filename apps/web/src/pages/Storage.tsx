@@ -5,7 +5,7 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ACTION_ROW, GROUP_ROW, Group, OpeningRow, PopUp, SwitchRow } from '../ui/Group.tsx';
+import { ACTION_ROW, Group, GROUP_ROW, OpeningRow, PopUp, SMALL_ACTION, SwitchRow } from '../ui/Group.tsx';
 import { setKeepComingSetting, useKeepComing } from '../ui/KeepOffline.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
@@ -184,7 +184,7 @@ function DeviceStorage() {
                     </span>
                   </span>
                   {byHand && (
-                    <AppButton variant="plain" className="shrink-0 text-sky-600 dark:text-sky-400 cursor-pointer hover:underline" onClick={() => void db.setPinned(o.presentationId, false)}>
+                    <AppButton variant="plain" className={SMALL_ACTION} onClick={() => void db.setPinned(o.presentationId, false)}>
                       {t('storage.stopKeeping')}
                     </AppButton>
                   )}

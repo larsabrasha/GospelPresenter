@@ -10,6 +10,7 @@ import { GROUP_LIST, PanelGroup, SHEET_LIST } from './PanelGroup.tsx';
 import { useOutputs } from './useOutputs.ts';
 import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
 import { SoundOutputRow } from './SoundOutputRow.tsx';
+import { SMALL_ACTION } from '../../ui/Group.tsx';
 
 /**
  * Utgångar (spec 04 §1) in the live column, a group as iOS's Settings has (Lars, 2026-11-02): this computer's own, one
@@ -40,7 +41,7 @@ export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessi
             extra={
               x.id === OUTPUT_WINDOW &&
               askScreens && (
-                <AppButton variant="plain" onClick={askScreens} className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">
+                <AppButton variant="plain" onClick={askScreens} className={SMALL_ACTION}>
                   {t('live.chooseScreen')}
                 </AppButton>
               )

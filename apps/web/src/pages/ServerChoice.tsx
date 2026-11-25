@@ -4,6 +4,7 @@ import { chooseServer, serverChangeable, serverIsDefault, serverOrigin } from '.
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { AUTH_TEXT, FormError } from './AuthCard.tsx';
+import { SMALL_ACTION } from '../ui/Group.tsx';
 
 /** The addresses to try for what was typed: as typed with a scheme, else https first and then http (a host on a LAN). */
 export function serverCandidates(typed: string): string[] {
@@ -42,7 +43,7 @@ export function ServerChoice() {
     return (
       <p className="pt-4 text-xs text-stone-400 dark:text-stone-500 text-center">
         {t('server.label', { host })}{' '}
-        <AppButton variant="plain" className="text-sky-600 dark:text-sky-400 cursor-pointer hover:underline" onClick={() => setOpen(true)}>
+        <AppButton variant="plain" className={`${SMALL_ACTION} ml-1`} onClick={() => setOpen(true)}>
           {t('server.change')}
         </AppButton>
       </p>
@@ -68,7 +69,7 @@ export function ServerChoice() {
         {!serverIsDefault() && (
           <AppButton
             variant="plain"
-            className="text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:underline"
+            className={SMALL_ACTION}
             onClick={() => {
               chooseServer(null);
               location.reload();

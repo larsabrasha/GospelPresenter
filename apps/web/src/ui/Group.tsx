@@ -1,6 +1,7 @@
 import type { ReactNode, SelectHTMLAttributes } from 'react';
 import { AppButton } from './AppButton.tsx';
 import { ChevronDownIcon, ChevronRightIcon } from './icons.tsx';
+import { RED_TINT, SKY_TINT } from './glass.ts';
 import { CARD } from './List.tsx';
 import { SWITCH } from './Toggle.tsx';
 
@@ -15,20 +16,33 @@ export const GROUP_ROW = 'flex items-center justify-between gap-3 px-4 min-h-11 
 export const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06] disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`;
 
 /** A destructive action as a group of its own, red and centred, as iOS's "Radera …". */
-export const DANGER_ROW = `${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`;
+export const DANGER_ROW =
+  `danger-row ${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06] ` +
+  // Wider than a phone, a red button of its own size, as macOS's, not a row across the page (Lars, 2026-11-25); its
+  // group's card goes (`Group`).
+  'sm:self-start sm:w-auto sm:min-h-0 sm:h-9 sm:py-0 sm:rounded-full sm:bg-red-500/10 sm:hover:bg-red-500/16 sm:dark:bg-red-400/15 sm:dark:hover:bg-red-400/22';
 
 /** A group's small grey caption, over its card. */
 export const CAPTION = 'px-4 text-sm/5 font-semibold text-stone-500 dark:text-stone-400';
 
-/** An action under a group, in sky text with its icon, no box of its own ("Lägg till del", "Ladda upp fil"). */
-export const TEXT_ACTION =
-  'self-start flex items-center gap-1.5 px-4 min-h-11 text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:underline disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:no-underline';
+/**
+ * An action under a group, with its icon ("Ladda upp fil"): a tinted pill, so one sees where it starts and ends, not
+ * sky text that reads as a link (Lars, 2026-11-25).
+ */
+export const TEXT_ACTION = `self-start inline-flex items-center gap-1.5 h-9 touch:h-11 px-4 rounded-full text-sm cursor-pointer disabled:opacity-50 disabled:cursor-default ${SKY_TINT}`;
+
+/** The same, small, for an action inside a row or a line of text ("Sluta spara", "Byt"). */
+export const SMALL_ACTION = `shrink-0 inline-flex items-center gap-1 h-7 touch:h-9 px-3 rounded-full text-[13px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-default ${SKY_TINT}`;
+
+/** A small red one, as Ta bort beside a login. */
+export const SMALL_DANGER = `shrink-0 inline-flex items-center gap-1 h-7 touch:h-9 px-3 rounded-full text-[13px] font-medium cursor-pointer disabled:opacity-40 disabled:cursor-default ${RED_TINT}`;
 
 export function Group({ title, footer, children }: { title?: string; footer?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="space-y-1.5">
       {title && <h2 className={CAPTION}>{title}</h2>}
-      <div className={`${CARD} flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator`}>{children}</div>
+      {/* A group of only a red action has no card where that action is a button of its own (DANGER_ROW). */}
+      <div className={`${CARD} flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator sm:has-[>.danger-row:only-child]:bg-transparent sm:has-[>.danger-row:only-child]:border-0 sm:has-[>.danger-row:only-child]:overflow-visible`}>{children}</div>
       {footer && <div className="px-4 text-xs text-stone-500 dark:text-stone-400">{footer}</div>}
     </section>
   );

@@ -283,21 +283,13 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           </Group>
           </div>
         )}
-        {/* A red row the width of the page on a phone, as iOS's; wider, a red button of its own size, as macOS's
-            (Lars, 2026-11-25: a row across a wide page was too large). */}
+        {/* A red row the width of the page on a phone, as iOS's; wider, a red button of its own size (DANGER_ROW). */}
         {!adding && (
-          <>
-            <div className="sm:hidden">
-              <Group>
-                <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>
-                  {t('song.trash')}
-                </AppButton>
-              </Group>
-            </div>
-            <AppButton variant="danger" className="max-sm:hidden" onClick={() => void trash()}>
+          <Group>
+            <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>
               {t('song.trash')}
             </AppButton>
-          </>
+          </Group>
         )}
       </div>
     </Frame>

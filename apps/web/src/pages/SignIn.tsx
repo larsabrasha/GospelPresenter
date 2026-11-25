@@ -120,7 +120,7 @@ export function SignInChoices({
             </AppButton>
           </form>
         ) : (
-          <AppButton key="new" variant="plain" className="text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:underline" onClick={() => setNaming(true)}>
+          <AppButton key="new" variant="secondary" onClick={() => setNaming(true)}>
             {t('invite.newWithPasskey')}
           </AppButton>
         ),

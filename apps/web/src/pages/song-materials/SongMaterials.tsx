@@ -155,7 +155,7 @@ function MaterialsEditor({ songId }: { songId: string }) {
           {f}
         </p>
       ))}
-      <div className="flex flex-wrap">
+      <div className="flex flex-wrap gap-2">
         <AppButton variant="plain" className={TEXT_ACTION} disabled={busy} onClick={() => picker.current?.click()}>
           <PlusIcon className="size-4" />
           {busy ? t('material.uploading') : t('material.uploadFile')}

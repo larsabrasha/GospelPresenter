@@ -150,7 +150,7 @@ export function SongHistory({ id }: { id: string }) {
               ))}
             </section>
             <section className={`flex-1 min-w-0 ${viewing ? '' : '@max-xl:hidden'}`} aria-label={t('history.preview')}>
-              <AppButton variant="plain" className={`${TEXT_ACTION} -ml-4 -mt-2 @xl:hidden`} onClick={() => setViewing(false)}>
+              <AppButton variant="plain" className={`${TEXT_ACTION} mb-3 @xl:hidden`} onClick={() => setViewing(false)}>
                 <ChevronLeftIcon className="size-4" />
                 {t('history.versions')}
               </AppButton>
