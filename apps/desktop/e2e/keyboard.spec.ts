@@ -2,7 +2,7 @@
 // item put in order, a slideshow's slide, its elements picked with Tab and moved with the arrows, and the live keys.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, nameNew, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, nameNew, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -165,6 +165,8 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
+  // The middle shows the item selected at the left alone: Sång A first, then its slide.
+  await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   const row = (name: string) => page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name, exact: true });

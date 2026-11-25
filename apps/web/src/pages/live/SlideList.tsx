@@ -7,7 +7,8 @@ import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.ts
 import { AudioMark, SlideMark } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
-import { ImageItemEditor, ItemMedia, ItemWarnings } from '../presentation-editor/ItemParts.tsx';
+import { ImageItemEditor, ItemWarnings } from '../presentation-editor/ItemParts.tsx';
+import { MediaPreview } from './MediaPreview.tsx';
 import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
 import { PILL } from '../songEditorLook.ts';
 import { OverlayChip } from './OverlayChip.tsx';
@@ -20,13 +21,15 @@ export type SlidePick = { itemId: string; partIndex: number };
 const HEADING_BUTTON = 'ml-1 h-7 px-2.5 rounded-full flex items-center gap-1 normal-case tracking-normal font-medium cursor-pointer';
 
 /**
- * A presentation's slides, one list on a computer and a phone, the same before and while it is presented
- * (docs/layout-2-0.md; Lars, 2026-11-02): the whole running order, each item a section whose heading sticks at the
+ * A presentation's slides, the same before and while it is presented (docs/layout-2-0.md; Lars, 2026-11-02): on a
+ * phone the whole running order in one list, on a computer the item selected (`only`), each item a section whose heading sticks at the
  * top until the next pushes it away, with its warnings and its player under it; from `lg` the item's arrangement and
  * overlay too, and its slides a grid of pictures; on a phone every part a row with its whole text. While presenting
  * (`onShow`) a click or a tap shows a slide; the list follows the shown one only when it changed some other way, and
  * only when out of view. An item's … beside its name opens on a computer the same menu as its row at the left
- * (`menuSource`, ItemContextMenu), and on a phone `onItemMenu`'s sheet.
+ * (`menuSource`, ItemContextMenu), and on a phone `onItemMenu`'s sheet. With `only` (a computer's, Lars 2026-11-25:
+ * the whole running order at once was a lot), only that item, the one selected at the left, which follows the slide
+ * picked and the one shown into the next item.
  */
 export function SlideList({
   items,
@@ -48,6 +51,7 @@ export function SlideList({
   footer,
   header,
   template = false,
+  only,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -79,6 +83,8 @@ export function SlideList({
   header?: ReactNode;
   /** A template's editor: the empty list says the template is empty. */
   template?: boolean;
+  /** On a computer: the item selected, the only one shown (null: the first). */
+  only?: string | null;
 }) {
   const wide = useWide();
   const box = useRef<HTMLDivElement>(null);
@@ -98,6 +104,9 @@ export function SlideList({
   const picked = pickedShown === undefined ? ownPicked : pickedShown;
   // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next.
   const markTapped = useFollowShown(box, !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
+  // One item on a computer: the one selected, or the first when none is (or it is gone).
+  const at = only === undefined ? -1 : Math.max(0, items.findIndex((i) => i.id === only));
+  const listed = only === undefined ? items : items.slice(at, at + 1);
   const markOf = slideMarks(slideOrderOf(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 }))), pointer);
   const show =
     onShow &&
@@ -158,7 +167,7 @@ export function SlideList({
           <p className="text-sm text-stone-400 dark:text-stone-500 max-w-xs leading-relaxed">{withBold(t('presentation.emptyText'), '{add}', t('presentation.add'))}</p>
         </div>
       )}
-      {items.map((item) => {
+      {listed.map((item) => {
         const set = slides.get(item.id);
         const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
@@ -189,12 +198,11 @@ export function SlideList({
             </h3>
             <ItemNote item={item} />
             <ItemWarnings item={item} set={set} songName={song?.name} />
-            {/* Before presenting, a preview of an audio or video item; while presenting its controls are on the live
-                picture once it is shown (MediaControls). */}
-            {!onShow && <ItemMedia item={item} set={set} />}
             {set && editing ? (
               <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
-            ) : !set?.slides.length ? null : wide ? (
+            ) : !set?.slides.length ? null : wide || (!onShow && (set.audio || set.video)) ? (
+              // Before presenting, an audio or video item's one tile carries its preview's controls, as the live picture
+              // does while presenting (MediaPreview.tsx), on a phone too; while presenting they are on the live picture.
               <SlideGrid
                 itemId={item.id}
                 slides={set.slides}
@@ -203,6 +211,7 @@ export function SlideList({
                 overlayId={item.overlayId}
                 shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
                 picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
+                media={!onShow && (set.audio || set.video) ? <MediaPreview itemId={item.id} set={set} /> : undefined}
               />
             ) : (
               // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are

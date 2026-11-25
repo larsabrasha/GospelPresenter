@@ -264,7 +264,7 @@ drift from it; the prototype's `SlideFace` (the default theme only, its font siz
   slideshow's page show small in their row, an audio file's with its speaker and its name beside (the web's SlideRow
   and AudioMark), a song's or reading's part by its words or number; a tile of an audio item has the speaker and the
   name. Before presenting, an audio item has its name and its own player (Tona ut too), a video item its still with
-  the system's player, each fetching its file when first wanted (the web's ItemMedia).
+  the system's player, each fetching its file when first wanted (the web's MediaPreview).
 - **Measured** in the iPhone 17 Pro simulator on this Mac (2026-11-17, `-gp.demo YES -gp.measure YES`, Swedish song
   slides in the classic theme): one snapshot 65 ms, a sheet of 20 69 ms, 100 slides cold (caches emptied) 1 140 ms,
   from disk 37 ms, from memory 14 ms. Not yet measured on Lars's iPhone: the simulator runs on the Mac's processor,

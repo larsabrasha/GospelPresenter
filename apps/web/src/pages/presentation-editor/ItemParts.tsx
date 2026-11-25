@@ -1,11 +1,9 @@
-import type { LibraryVideo, PresentationItem, Theme, ItemSlides } from '@gp/core';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AudioEngine, type AudioControl } from '../../live/audio.ts';
+import type { PresentationItem, Theme, ItemSlides } from '@gp/core';
+import { useRef, type ReactNode } from 'react';
+import type { AudioControl } from '../../live/audio.ts';
 import type { ItemChoice } from '../../live/itemMenu.ts';
-import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
-import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
-import { useDb, useFetchedUrl, usePictureUrl } from '../../db/react.tsx';
+import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
@@ -17,71 +15,6 @@ import { useSortable } from '../../ui/sortable.ts';
 import { tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-
-/**
- * An audio item in the editor: the player of the live page (AudioPlayer.razor), on a preview of its
- * own that stops when the item is left; once this device has the file, fetched now when it lacks it, as Quick Look
- * does: a device keeps by itself only the files of a presentation presented or kept offline.
- */
-function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; name: string }) {
-  const url = useFetchedUrl(hash);
-  if (!url)
-    return (
-      <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 border-[0.5px] border-separator space-y-3">
-        <p className="text-sm font-medium truncate">{name}</p>
-        <p className="text-sm text-stone-400">{url === null ? t('common.error') : t('presentation.audioFetching')}</p>
-      </div>
-    );
-  return <PreviewPlayer key={url} url={url} itemId={itemId} name={name} />;
-}
-
-function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; name: string }) {
-  const [engine] = useState(() => new AudioEngine(async () => url));
-  useEffect(() => () => engine.dispose(), [engine]);
-  return (
-    <div className="w-full sm:max-w-lg">
-      <AudioPlayer control={engine} itemId={itemId} name={name} testId="audio-preview" />
-    </div>
-  );
-}
-
-/**
- * A video item in the editor: a player that streams the video from the server when it is played and
- * keeps nothing (TODO.md "Video"), over its still. A device that cannot play the codec says so.
- */
-function VideoPreview({ video }: { video: LibraryVideo }) {
-  // Its still fetched as a picture at full size is, its thumbnail meanwhile.
-  const poster = usePictureUrl(video.stillHash, video.thumbHash);
-  const playable = canPlayVideo(video.contentType, video.codec);
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    if (!playable) return;
-    let live = true;
-    void playUrl(video.hash).then((url) => live && setSrc(url));
-    return () => {
-      live = false;
-    };
-  }, [video.hash, playable]);
-  return (
-    <div className="w-full sm:max-w-lg space-y-2">
-      {!playable && <ItemWarning>{t('videos.cannotPlay', { codec: codecName(video.codec) })}</ItemWarning>}
-      {playable ? (
-        <video
-          className="w-full aspect-video rounded-xl bg-black"
-          controls
-          playsInline
-          preload="none"
-          poster={poster ?? undefined}
-          src={src ?? undefined}
-          aria-label={t('videos.preview', { name: video.fileName })}
-          data-testid="video-preview"
-        />
-      ) : (
-        poster && <img className="w-full aspect-video object-contain rounded-xl bg-black" src={poster} alt="" draggable={false} />
-      )}
-    </div>
-  );
-}
 
 /** A warning about an item, under its heading, with an action at its end when there is one. */
 function ItemWarning({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -206,12 +139,6 @@ export function ItemWarnings({ item, set, songName }: { item: PresentationItem; 
 /** While presenting: the session's audio and video, which the controls on the live picture drive. */
 export type Players = { audio: AudioControl; video?: VideoControl };
 
-/** Before presenting, an audio or video item's preview: its own player, which plays nothing on the outputs. */
-export function ItemMedia({ item, set }: { item: PresentationItem; set: ItemSlides | undefined }) {
-  if (set?.audio) return <AudioPreview key={item.id} itemId={item.id} hash={set.audio.hash} name={set.audio.fileName} />;
-  if (set?.video) return <VideoPreview key={item.id} video={set.video} />;
-  return null;
-}
 
 /**
  * A choice in a phone's item sheet, as iOS's Settings has one: a row of the sheet's card, its icon and name at the left

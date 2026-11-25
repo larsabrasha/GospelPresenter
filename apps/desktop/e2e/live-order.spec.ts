@@ -3,7 +3,7 @@
 // and Ta bort, which the shown item does not allow; Delete removes the selected item after asking.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, dragTo, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -19,6 +19,8 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B', 'Sång C']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
+  // The middle shows the item selected at the left alone: Sång A first, then its slide.
+  await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   const list = page.getByRole('list', { name: 'Programpunkter' });
   const rows = list.getByRole('listitem');

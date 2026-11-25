@@ -99,10 +99,10 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrksal').check();
   await outputs.getByLabel('Mobilerna').check();
-  // The 2.0 layout on a computer: the live bar instead of the app's, every item's slides in the middle, and the
-  // outputs a group of switches, three on.
+  // The 2.0 layout on a computer: the live bar instead of the app's, the selected item's slides in the middle (one item
+  // at a time, Lars 2026-11-25), and the outputs a group of switches, three on.
   await expect(page.getByTestId('presentation-bar')).toBeVisible();
-  await expect(page.getByTestId('live-slides').locator('section')).toHaveCount(3);
+  await expect(page.getByTestId('live-slides').locator('section')).toHaveCount(1);
   await expect(page.getByTestId('live-panel').getByRole('checkbox', { checked: true })).toHaveCount(3);
 
   /** What each of the three shows: the projector, the TV and the phone. */

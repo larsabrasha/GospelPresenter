@@ -45,7 +45,8 @@ export function useEditorKeys(o: {
       e.preventDefault();
       const from = page.state.picked ?? o.shown;
       const key = slideAcross(placedSlides(), from && `${from.itemId}/${from.partIndex}`, e.key === 'ArrowDown' ? 1 : -1);
-      if (!key) return;
+      // Past the first row or the last of the one item shown: the slide before or after, into the item beside it.
+      if (!key) return send({ type: 'pick', delta: e.key === 'ArrowDown' ? 1 : -1 });
       const [itemId, part] = key.split('/') as [string, string];
       return send({ type: 'pickAt', itemId, partIndex: Number(part) });
     }

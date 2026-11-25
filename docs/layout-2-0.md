@@ -153,9 +153,13 @@ overlay.
   and Markera, nothing added above, as Keynote's Ny bild adds after (Lars, 2026-11-18); and Radera last, in red. A phone's sheet of an item's … has the same groups in the
   same order (Lars, 2026-11-05: it had the list's first). No Flytta
   upp or ned: a row is dragged, or moved with Alt+↑/↓, as Apple's lists have it. In
-  Markera's select mode every row has ≡, and the shown item cannot be ticked. A click scrolls the middle
-  to the item. A move, removal or addition shows a line with Ångra.
-- **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
+  Markera's select mode every row has ≡, and the shown item cannot be ticked. A click shows the item in the
+  middle. A move, removal or addition shows a line with Ångra.
+- **Middle:** the item selected at the left alone, its parts as a grid of slides; a click shows one (Lars, 2026-11-25:
+  the whole order at once was a lot, so one item, as ProPresenter and EasyWorship show theirs). The selection follows
+  the slide picked and the one shown, so ← → and ↑ ↓ past an item's last slide go on into the next, and the middle
+  with them; the running order at the left is the way to another (no Nästa under the item: Lars, 2026-11-25). A phone
+  keeps the whole order in one list.
   The slides are 384 px, and shrink to no less than 340 px where that fits one more to a row: three on an iPad lying
   down with both columns folded (Lars, 2026-11-03; `apps/web/src/pages/presentation-editor/SlideGrid.tsx`).
 - **Audio and video while presenting** (Lars, 2026-11-06): each is shown and played alone, as a slide. An audio

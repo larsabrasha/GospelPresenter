@@ -376,6 +376,7 @@ export function PresentationEditor({
               onEditingImages={setEditingImages}
               picked={picked}
               onPick={(p) => send({ type: 'show', ...p })}
+              only={selectedId ?? liveItemId}
             />
           </>
         )}

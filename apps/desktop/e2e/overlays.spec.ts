@@ -26,14 +26,16 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
-  // Sång A carries Kollekt, chosen under its heading: its tiles show it.
+  // Sång A carries Kollekt, chosen under its heading: its tiles show it. The middle shows the item selected alone.
+  await pickItem(page, 'Sång A');
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
   await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
   await page.getByRole('menuitemradio', { name: 'Kollekt' }).click();
   // The … closes on a press outside it, also from a heading that sticks (its blur once held the cover to it).
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
   await expect(page.getByRole('menu')).toBeVisible();
-  await page.getByRole('list', { name: 'Sång B' }).click({ position: { x: 5, y: 5 } });
+  // A press in the middle's own margin, beside the item shown alone there.
+  await page.getByTestId('live-slides').click({ position: { x: 5, y: 300 } });
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Sång A' }).getByTestId('slide-overlay').first()).toHaveText('Swish 123 45');
 

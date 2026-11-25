@@ -1,6 +1,6 @@
 import type { Slide } from '@gp/core';
 import { t } from '../../i18n.ts';
-import { useAudio } from '../../live/audio.ts';
+import { useAudio, type AudioControl } from '../../live/audio.ts';
 import { RemoteVideo, useVideo } from '../../live/video.ts';
 import { canPlayVideo, codecName } from '../../media/video.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -15,20 +15,24 @@ import { PlayerControls } from './PlayerControls.tsx';
  * computer's audio and video; on a controller they send commands and mirror what it reports.
  */
 export function MediaControls({ slide, itemId, players }: { slide: Slide; itemId: string; players: Players }) {
-  if (slide.audio) return <AudioControls name={slide.audio.name} itemId={itemId} players={players} />;
+  if (slide.audio) return <AudioOverlay name={slide.audio.name} itemId={itemId} control={players.audio} />;
   if (slide.video && players.video) return <VideoControls slide={slide} itemId={itemId} players={players} />;
   return null;
 }
 
-const SHADE = 'absolute inset-0 z-[1] flex flex-col justify-between p-2.5 text-white bg-linear-to-t from-black/70 via-transparent via-45% to-black/45';
+/** The shade the controls stand on, over a picture: darker at the foot and the top, so white reads on any picture. */
+export const SHADE = 'absolute inset-0 z-[1] flex flex-col justify-between p-2.5 text-white bg-linear-to-t from-black/70 via-transparent via-45% to-black/45';
 
-function AudioControls({ name, itemId, players }: { name: string; itemId: string; players: Players }) {
-  const state = useAudio(players.audio);
+/**
+ * An audio item's controls over its picture: its name and Tona ut at the top, the player at the foot. While presenting
+ * they drive the session's audio; before it, a preview of its own (MediaPreview.tsx).
+ */
+export function AudioOverlay({ name, itemId, control, testId = 'audio-player' }: { name: string; itemId: string; control: AudioControl; testId?: string }) {
+  const state = useAudio(control);
   const mine = state?.itemId === itemId ? state : null;
   const playing = !!mine?.playing;
-  const control = players.audio;
   return (
-    <div className={SHADE} role="group" aria-label={name} data-testid="audio-player" data-playing={playing}>
+    <div className={SHADE} role="group" aria-label={name} data-testid={testId} data-playing={playing}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium truncate flex-1 drop-shadow">{name}</p>
         <AppButton

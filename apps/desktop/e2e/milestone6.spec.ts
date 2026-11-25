@@ -1,7 +1,7 @@
 // Milestone 6: the rest of live, in slices: a clicker's keys, the output window, and where a presentation is presented.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, endPresentation, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -25,6 +25,8 @@ test("a clicker's keys drive the live page: next and previous across items, and 
   await expect.poll(() => page.getByTestId('live-panel').evaluate((el) => el.getAnimations().length), { intervals: [0, 20, 40] }).toBeGreaterThan(0);
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
+  // The middle shows the item selected at the left alone: Sång A first, then its slide.
+  await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 

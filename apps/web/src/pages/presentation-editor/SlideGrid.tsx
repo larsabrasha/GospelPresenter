@@ -1,4 +1,5 @@
 import { ORIGINAL_ARRANGEMENT, type LivePointer, type SongArrangement, type Theme, type ItemSlides, type SlideMarkKind } from '@gp/core';
+import type { ReactNode } from 'react';
 import { useShownOverlay } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -49,6 +50,8 @@ const FIT = 'lg:@min-[708px]:@max-[796px]:w-[calc((100%-1.75rem)/2)] lg:@min-[10
  * current app's blue outline and nothing more (spec 04: Starta presentation still starts black; Lars, 2026-11-03);
  * while presenting the slide ↵ shows, which wins over the red of the one shown (VISAS still says it). Each tile names
  * its slide (`data-slide`, `itemId`/part) for the arrows to move through them as they stand (useEditorKeys.ts).
+ * `media`, before presenting, goes over an audio or video item's one tile: its preview's controls, in place of the
+ * tile's speaker and number, as the live picture has them (MediaPreview.tsx).
  */
 export function SlideGrid({
   slides,
@@ -60,6 +63,7 @@ export function SlideGrid({
   shown,
   picked,
   itemId,
+  media,
 }: {
   /** The item the slides are of, for `data-slide`. */
   itemId?: string;
@@ -71,6 +75,7 @@ export function SlideGrid({
   highlight?: string;
   shown?: { pointer: LivePointer; itemId: string; mark: (partIndex: number) => SlideMarkKind | null; onShow: (partIndex: number) => void };
   picked?: { partIndex: number | null; onPick: (partIndex: number) => void };
+  media?: ReactNode;
 }) {
   const overlay = useShownOverlay(overlayId);
   const size = column ? '' : `w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1 ${FIT}`;
@@ -85,7 +90,7 @@ export function SlideGrid({
           const chosen = picked?.partIndex === i;
           const mark = shown?.mark(i);
           return (
-            <li key={s.key} className={`${size} flex`}>
+            <li key={s.key} className={`${size} flex relative`}>
               <AppButton
                 variant="plain"
                 aria-label={`${label} ${i + 1}`}
@@ -97,13 +102,16 @@ export function SlideGrid({
                 onClick={() => (shown ? shown.onShow(i) : picked?.onPick(i))}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
-                <AudioMark slide={s} />
+                {!media && <AudioMark slide={s} />}
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
                 {/* Its number, for a number and ↵ to show it while presenting (Lars, 2026-11-07). */}
-                <span className="absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md bg-black/55 px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white" aria-hidden>
-                  {i + 1}
-                </span>
+                {!media && (
+                  <span className="absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md bg-black/55 px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white" aria-hidden>
+                    {i + 1}
+                  </span>
+                )}
               </AppButton>
+              {media}
             </li>
           );
         })}
