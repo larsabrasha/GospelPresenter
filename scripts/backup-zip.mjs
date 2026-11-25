@@ -10,7 +10,8 @@ import { parseArgs } from 'node:util';
 import { LEGACY_ENTRIES } from '../packages/core/src/legacy.ts';
 import { makeZip } from '../packages/core/src/zip.ts';
 
-const { values: a } = parseArgs({ options: { config: { type: 'string' }, org: { type: 'string' }, night: { type: 'string' }, out: { type: 'string' } } });
+// pnpm passes on the `--` that ends its own options.
+const { values: a } = parseArgs({ args: process.argv.slice(2).filter((x) => x !== '--'), options: { config: { type: 'string' }, org: { type: 'string' }, night: { type: 'string' }, out: { type: 'string' } } });
 if (!a.config || !a.org) {
   console.error('usage: pnpm backup:zip -- --config apps/server/wrangler.<env>.toml --org <id> [--night YYYY-MM-DD] [--out file.zip]');
   process.exit(2);
