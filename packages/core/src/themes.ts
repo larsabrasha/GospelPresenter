@@ -3,7 +3,7 @@ import { MEDIA_HASH } from './media.ts';
 
 // Slide themes (spec 05 "Themes", ADR 0001, docs/themes.md): data, validated with Zod (ADR 0007 decision 8). A theme
 // styles each slide type: Song and BibleText have a background, main text and credits; Media has a background only.
-// Two are built in (code); an organisation makes its own (the `themes` table), which go after them.
+// Built in (code): two, and one for Lekfullt läge; an organisation makes its own (the `themes` table), which go after them.
 
 const cssColor = z.string().min(1).max(60).regex(/^[#a-z0-9(),.%\s]+$/i, 'a CSS colour');
 
@@ -121,6 +121,21 @@ const style = (background: Background, main: Partial<TextStyle>, credits: Partia
   credits: { ...CREDITS, ...credits },
 });
 
+/** A terminal's type: the computer's own monospace font, so nothing is bundled for a joke. */
+const MONO = "'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Courier New', monospace";
+const TERMINAL_GREEN = '#33ff66';
+/** Below the prompt's line (the slide draws it at the top left), left aligned as a command's output. */
+const TERMINAL_MAIN: Partial<TextStyle> = {
+  fontFamily: MONO,
+  fontSize: 62,
+  lineHeight: 1.35,
+  color: TERMINAL_GREEN,
+  align: 'left',
+  valign: 'top',
+  area: { x: 120, y: 190, w: CANVAS.width - 240, h: CANVAS.height - 190 - CANVAS.padBottom },
+};
+const TERMINAL_CREDITS: Partial<TextStyle> = { fontFamily: MONO, fontSize: 32, color: 'rgba(51, 255, 102, 0.5)', area: { x: 120, y: CANVAS.height - CANVAS.padBottom, w: CANVAS.width - 240, h: CANVAS.padBottom - CANVAS.creditsBottom } };
+
 const LIGHT = plain('#ffffff');
 const LIGHT_MAIN = { color: '#000000' };
 const LIGHT_CREDITS = { color: 'rgba(0, 0, 0, 0.4)' };
@@ -152,7 +167,24 @@ export const BUILT_IN_THEMES: Theme[] = [
       media: plain('#000000'),
     },
   },
+  {
+    // For Lekfullt läge (Lars, 2026-11-25): a terminal's green on black, the text where a command's output would be, a
+    // prompt above it and a cursor after it, which the slide draws for this theme's id (PLAYFUL_THEME_IDS). Offered
+    // only while Lekfullt läge is on; a copy of it (Duplicera) keeps the colours and the type, not the prompt.
+    id: 'terminal',
+    sort: 2,
+    name: 'Terminal',
+    description: 'Grön text på svart, som i en terminal, med prompt och blinkande markör.',
+    definition: {
+      song: style(plain('#000000'), TERMINAL_MAIN, TERMINAL_CREDITS),
+      bible: style(plain('#000000'), TERMINAL_MAIN, TERMINAL_CREDITS),
+      media: plain('#000000'),
+    },
+  },
 ];
+
+/** The built-in themes that are a joke, offered only while Lekfullt läge is on (or where one is already chosen). */
+export const PLAYFUL_THEME_IDS: ReadonlySet<string> = new Set(['terminal']);
 
 export const DEFAULT_THEME_ID = 'classic';
 export const CLASSIC: Theme = BUILT_IN_THEMES[0]!;

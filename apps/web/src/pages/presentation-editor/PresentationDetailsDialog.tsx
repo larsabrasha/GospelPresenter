@@ -1,4 +1,5 @@
-import { FIELD_RULES, listThemes } from '@gp/core';
+import { FIELD_RULES, listThemes, PLAYFUL_THEME_IDS } from '@gp/core';
+import { playful } from '../../ui/playful.ts';
 import { useState } from 'react';
 import { ownThemes } from '../../db/queries.ts';
 import { useData } from '../../db/react.tsx';
@@ -137,7 +138,10 @@ export function PresentationDetailsDialog({
                 <span className="shrink-0">{t('presentation.theme')}</span>
                 <PopUp aria-label={t('presentation.theme')} value={d.themeId} onChange={set('themeId')}>
                   <option value="">{t('presentation.themeDefault')}</option>
-                  {listThemes(own ?? []).map((th) => (
+                  {listThemes(own ?? [])
+                    // The Terminal theme only while Lekfullt läge is on, or where it is chosen (ui/playful.ts).
+                    .filter((th) => !PLAYFUL_THEME_IDS.has(th.id) || playful() || th.id === d.themeId)
+                    .map((th) => (
                     <option key={th.id} value={th.id}>
                       {themeName(th)}
                     </option>

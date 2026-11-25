@@ -13,6 +13,11 @@ by a new version of the app:
   75 px Tahoma, line height 1.4, centred, on black; a Bible text regular and left; credits 40 px, 40 % white, at the
   foot. The fallback for an unknown theme (THEME-R1, R9).
 - **Ljust** (`light`): the same, black on white, credits 40 % black. Pictures and videos stay on black.
+- **Terminal** (`terminal`, Lars, 2026-11-25): for Lekfullt läge (`apps/web/src/ui/playful.ts`). Green on black in the
+  computer's own monospace font, left and from the top, under a prompt ("gp@kyrkan:~$ sjung --vers", "läs --högt"
+  for a Bible text) that the slide draws for this id, with a blinking cursor after the text. Offered in Teman and a
+  presentation's details only while Lekfullt läge is on, or where it is chosen already (`PLAYFUL_THEME_IDS`); a copy
+  keeps the colours and the type, not the prompt and the cursor.
 
 Spec 05's Midnatt, Dagsljus and Norrsken, and Norrsken's picture, are gone: no church used them (Lars). A
 presentation or a default that still names one shows Mörkt, as any unknown id does.

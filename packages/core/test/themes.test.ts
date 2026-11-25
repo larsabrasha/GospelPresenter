@@ -6,6 +6,7 @@ import {
   can,
   isBuiltInTheme,
   listThemes,
+  PLAYFUL_THEME_IDS,
   resolveTheme,
   TEXT_BOX,
   textAreaCss,
@@ -16,12 +17,14 @@ import {
 } from '../src/index.ts';
 
 describe('built-in themes (spec 05, ADR 0001)', () => {
-  it('THEME-A1: two, dark then light, with Swedish names; ids unique; Classic, the dark one, exists', () => {
+  it('THEME-A1: two, dark then light, with Swedish names, and Terminal for Lekfullt läge; ids unique; Classic, the dark one, exists', () => {
     expect(listThemes().map((t) => [t.id, t.name])).toEqual([
       ['classic', 'Mörkt'],
       ['light', 'Ljust'],
+      ['terminal', 'Terminal'],
     ]);
-    expect(new Set(BUILT_IN_THEMES.map((t) => t.id)).size).toBe(2);
+    expect(new Set(BUILT_IN_THEMES.map((t) => t.id)).size).toBe(3);
+    expect([...PLAYFUL_THEME_IDS]).toEqual(['terminal']);
     expect(isBuiltInTheme('classic')).toBe(true);
     for (const t of BUILT_IN_THEMES) expect(themeDefinitionSchema.safeParse(t.definition).success, t.id).toBe(true);
   });
@@ -47,9 +50,9 @@ describe('built-in themes (spec 05, ADR 0001)', () => {
     }
   });
 
-  it('THEME-R8: every main text is 75px / 1.4, and no line box is taller than Classic’s', () => {
+  it('THEME-R8: every main text is 75px / 1.4, and no line box is taller than Classic’s (the playful ones aside)', () => {
     const box = (s: TextStyle) => s.fontSize * s.lineHeight;
-    for (const t of BUILT_IN_THEMES) {
+    for (const t of BUILT_IN_THEMES.filter((th) => !PLAYFUL_THEME_IDS.has(th.id))) {
       for (const kind of ['song', 'bible'] as const) {
         const main = t.definition[kind].main;
         expect([main.fontSize, main.lineHeight], `${t.id} ${kind}`).toEqual([75, 1.4]);
@@ -133,7 +136,7 @@ describe('own themes (docs/themes.md)', () => {
   it('lists the built-in ones first, then the own ones by when they were made', () => {
     const later = { ...own, id: 'own-2', sort: 9 };
 
-    expect(listThemes([later, own]).map((t) => t.id)).toEqual(['classic', 'light', 'own-1', 'own-2']);
+    expect(listThemes([later, own]).map((t) => t.id)).toEqual(['classic', 'light', 'terminal', 'own-1', 'own-2']);
   });
 
   it('resolves a presentation’s own theme and an own default', () => {

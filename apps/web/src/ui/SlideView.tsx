@@ -5,6 +5,7 @@ import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { CustomPageView } from './CustomPageView.tsx';
 import { FittedText } from './FittedText.tsx';
 import { Highlight } from './Highlight.tsx';
+import { t } from '../i18n.ts';
 
 const STAGE_WIDTH = CANVAS.width;
 const STAGE_HEIGHT = CANVAS.height;
@@ -168,10 +169,12 @@ export function SlideView({
             ) : (
               <>
                 <ThemePicture theme={theme} kind={slide.kind} media={media} />
+                {theme.id === 'terminal' && <TerminalPrompt kind={slide.kind} />}
                 <div className="slide-content" style={textAreaCss(slideStyle(theme, slide.kind).main)}>
                   {/* Bible text flows as HTML does, with no kept line breaks (BibleTextSlide.razor); a song keeps its lines. */}
                   <FittedText css={slide.verses ? { ...mainCss(theme, slide.kind), whiteSpace: 'normal' } : mainCss(theme, slide.kind)}>
                     {slide.verses ? <BibleText slide={slide} /> : highlight ? <Highlight text={slide.text} query={highlight} /> : slide.text}
+                    {theme.id === 'terminal' && <span className="terminal-cursor" aria-hidden>▋</span>}
                   </FittedText>
                 </div>
                 {credits && slide.credits && (
@@ -190,6 +193,16 @@ export function SlideView({
           <div className={`absolute inset-0 z-60 bg-black transition-opacity duration-500 ease-in-out ${black ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} data-testid="black-cover" />
         )}
       </div>
+    </div>
+  );
+}
+
+/** The Terminal theme's prompt (themes.ts, Lekfullt läge), at the top left, above the text as a command above its output. */
+function TerminalPrompt({ kind }: { kind: SlideKind }) {
+  return (
+    <div className="absolute left-[120px] top-[80px] z-[1] whitespace-nowrap text-[44px]/none text-[#33ff66]" style={{ fontFamily: "'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Courier New', monospace" }} aria-hidden>
+      <span className="opacity-60">gp@kyrkan:~$ </span>
+      {kind === 'bible' ? t('fun.terminalRead') : t('fun.terminalSing')}
     </div>
   );
 }

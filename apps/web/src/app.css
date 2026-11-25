@@ -111,6 +111,12 @@
   :root { --beside-scrollbar: max(4px, calc(20px - var(--scrollbar, 0px))); }
 }
 
+/* The Terminal theme's cursor (ui/SlideView.tsx), on and off as a terminal's. */
+@keyframes terminal-blink {
+  50% { opacity: 0; }
+}
+.terminal-cursor { animation: terminal-blink 1s steps(1) infinite; margin-left: 0.1em; }
+
 /* Dialogs fade in, as the current app's dialog.animated. */
 @keyframes dialog-in {
   from { opacity: 0; }

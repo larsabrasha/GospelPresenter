@@ -8,6 +8,7 @@ const ASSETS: Record<string, string> = {};
 const TEXTS: Record<string, { name: TextKey; description: TextKey }> = {
   classic: { name: 'theme.classic', description: 'theme.classicDescription' },
   light: { name: 'theme.light', description: 'theme.lightDescription' },
+  terminal: { name: 'theme.terminal', description: 'theme.terminalDescription' },
 };
 
 export function themeName(theme: Theme): string {
