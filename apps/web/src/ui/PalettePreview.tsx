@@ -1,7 +1,7 @@
 import { listLabels, itemsOf, songPartsOf } from '../db/queries.ts';
 import { useData } from '../db/react.tsx';
 import { t } from '../i18n.ts';
-import { CalendarIcon, ItemIcon, MapPinIcon } from './icons.tsx';
+import { CalendarIcon, ItemBadge, MapPinIcon } from './icons.tsx';
 
 // ⌘K's look at the marked one, beside the list where the window is wide (Lars, 2026-11-05: "förhandsgranskas på ett
 // smutt sätt"): a song's words, part by part under their labels, or a presentation's running order with each point's
@@ -39,19 +39,14 @@ function RunningOrder({ id }: { id: string }) {
   if (!items.length) return <p className="text-sm text-stone-400">{t('palette.noItems')}</p>;
   return (
     <ol className="space-y-1.5">
-      {items.map((item) =>
-        item.type === 'header' ? (
-          <li key={item.id} className="pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500 truncate">
-            {item.title}
-          </li>
-        ) : (
-          // Each point with its kind's icon, as the running order has it (pages/live/RunningOrder.tsx).
-          <li key={item.id} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
-            <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-            <span className="truncate">{item.title}</span>
-          </li>
-        ),
-      )}
+      {/* Each point as the running order shows it, a heading too, with its kind's coloured symbol, a size smaller, so
+          one knows it again (pages/live/RunningOrder.tsx; Lars, 2026-11-25). */}
+      {items.map((item) => (
+        <li key={item.id} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
+          <ItemBadge type={item.type} className="size-5! rounded-[5px]!" />
+          <span className="truncate">{item.title}</span>
+        </li>
+      ))}
     </ol>
   );
 }

@@ -685,12 +685,6 @@ export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
 
 const ITEM_ICONS = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: PointIcon };
 
-/** The icon of an item's kind (Components/Presentations/Sidebar.razor). */
-export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = ITEM_ICONS[type];
-  return <Icon className={className} />;
-}
-
 /** Each kind's colour, as its library's in Inställningar (settingsLinks.ts); a programme point grey, as it shows nothing. */
 const ITEM_COLOURS: Record<PresentationItem['type'], string> = {
   song: 'bg-blue-500',
