@@ -7,7 +7,7 @@ import { AppButton } from './AppButton.tsx';
  * outside, a choice in the menu or Escape closes it. `button` is the
  * button's own attributes: its label, its class. Opened from the keyboard,
  * focus moves to the first choice, the arrows move between the choices, and
- * Escape puts focus back on the button.
+ * Escape puts focus back on the button. A choice with `data-shortcut` is chosen by that key while the menu is open.
  */
 export function Dropdown({
   button,
@@ -16,7 +16,7 @@ export function Dropdown({
   menuClassName,
   className,
 }: {
-  button: ButtonHTMLAttributes<HTMLButtonElement> & { 'data-testid'?: string };
+  button: ButtonHTMLAttributes<HTMLButtonElement> & { 'data-testid'?: string; 'data-add-menu'?: boolean };
   trigger: ReactNode;
   children: ReactNode;
   menuClassName?: string;
@@ -92,6 +92,13 @@ export function Dropdown({
     }
     const all = items();
     if (!all.length) return;
+    // A choice's own key, as its row shows it (Lars, 2026-11-25: + and then a number).
+    const keyed = !e.altKey && !e.ctrlKey && !e.metaKey && all.find((el) => el.dataset.shortcut === e.key);
+    if (keyed) {
+      e.preventDefault();
+      keyed.click();
+      return;
+    }
     const at = all.indexOf(document.activeElement as HTMLElement);
     const next = { ArrowDown: at + 1, ArrowUp: at < 0 ? all.length - 1 : at - 1, Home: 0, End: all.length - 1 }[e.key];
     if (next === undefined) return;

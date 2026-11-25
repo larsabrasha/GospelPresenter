@@ -254,7 +254,7 @@ export function RunningOrder({
           <Dropdown
             className="w-full"
             menuClassName="min-w-56 p-1.5 rounded-xl!"
-            button={{ className: `w-full flex items-center justify-center gap-2 h-9 touch:h-11 rounded-full text-sm cursor-pointer ${SKY_TINT}` }}
+            button={{ 'data-add-menu': true, className: `w-full flex items-center justify-center gap-2 h-9 touch:h-11 rounded-full text-sm cursor-pointer ${SKY_TINT}` }}
             trigger={
               <>
                 <PlusIcon className="size-4" />
@@ -262,7 +262,7 @@ export function RunningOrder({
               </>
             }
           >
-            <AddChoices onChoose={onAdd} />
+            <AddChoices onChoose={onAdd} numbered />
           </Dropdown>
         )}
       </div>

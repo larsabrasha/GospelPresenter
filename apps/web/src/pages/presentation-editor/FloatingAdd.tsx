@@ -17,10 +17,10 @@ export function FloatingAdd({ onChoose, liveColumn }: { onChoose: (choice: AddCh
     <div className={`float-in absolute z-10 ${place}`}>
       <Dropdown
         menuClassName="min-w-56 p-1.5 rounded-xl!"
-        button={{ 'aria-label': t('live.add'), title: t('live.add'), className: `size-14 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}` }}
+        button={{ 'data-add-menu': true, 'aria-label': t('live.add'), title: t('live.add'), className: `size-14 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}` }}
         trigger={<PlusIcon className="size-6" strokeWidth={2.25} />}
       >
-        <AddChoices onChoose={onChoose} />
+        <AddChoices onChoose={onChoose} numbered />
       </Dropdown>
     </div>
   );

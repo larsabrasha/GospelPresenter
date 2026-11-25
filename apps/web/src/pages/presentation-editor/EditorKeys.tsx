@@ -76,7 +76,7 @@ function pageActions(p: PageState, addSong: { key: string; icon: React.ReactNode
   if (!p.live)
     return [
       ...(p.canStart ? [{ key: 'start', label: t('shortcuts.start'), icon: icon(PlayIcon), keys: [isMac ? 'Ctrl+Alt+P' : 'F5'], run: p.onStart }] : []),
-      { key: 'add-song', label: t('palette.addKind', { kind: addSong.label.toLocaleLowerCase() }), icon: addSong.icon, keys: ['a'], run: addSong.run },
+      { key: 'add-song', label: t('palette.addKind', { kind: addSong.label.toLocaleLowerCase() }), icon: addSong.icon, keys: ['a 1'], run: addSong.run },
     ];
   const media: PaletteAction[] = [];
   const { shown, players } = p;

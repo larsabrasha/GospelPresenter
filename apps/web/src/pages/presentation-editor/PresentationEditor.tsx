@@ -202,7 +202,13 @@ export function PresentationEditor({
       if (c.focus) document.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(c.itemId)}"] [aria-pressed]`)?.focus({ preventScroll: true });
     } else if (c.type === 'move' && item) failing(db.mutate('moveItem', { itemId: item.id, by: c.by }));
     else if (c.type === 'remove' && item) void removeItem(item);
-    else if (c.type === 'add') setAdding({ after: null, kind: 'songs' });
+    // A opens the + menu, as a click from the keyboard: the first choice in focus, the arrows and ↵, or a number (Lars,
+    // 2026-11-25). The menu of the + to be seen, the sidebar's or the floating one; with neither, Lägg till sång.
+    else if (c.type === 'add') {
+      const plus = [...document.querySelectorAll<HTMLButtonElement>('[data-add-menu]')].find((b) => b.offsetParent !== null);
+      if (plus) plus.click();
+      else setAdding({ after: null, kind: 'songs' });
+    }
     // A start always brings the live column out, folded or not before (Lars, 2026-11-03), so it slides in with the picture.
     else if (c.type === 'start') panels.show('right');
     else if (c.type === 'end') runCommand('end');
