@@ -145,8 +145,6 @@ export function RunningOrder({
           const problem = slides.get(item.id)?.problem;
           const shown = item.id === shownId;
           const selected = item.id === selectedId;
-          // A second line, its note or its overlay: the row's pill is a rounded card, as tall as the two lines.
-          const twoLines = !!item.note || overlays.some((o) => o.id === item.overlayId);
           return (
             <li
               key={item.id}
@@ -168,7 +166,8 @@ export function RunningOrder({
               {/* Centred in the 20px room left of the row. */}
               {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
               <div
-                className={`flex items-center pl-1 pr-1.5 touch:pr-0 ${twoLines ? 'rounded-2xl' : 'rounded-full'} ${
+                // A pill, with one line or two (Lars, 2026-11-25).
+                className={`flex items-center pl-1 pr-1.5 touch:pr-0 rounded-full ${
                   // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white. While ticking, as
                   // iOS's lists in edit mode, only the ticks and a light tint mark rows (Lars, 2026-11-03: the blue hid the tick).
                   ticking ? (ticked.has(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
