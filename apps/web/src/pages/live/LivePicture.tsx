@@ -66,7 +66,8 @@ export function LivePicture({
   players?: Players;
   itemId?: string | null;
   /** The slide ↵ shows, outlined in blue (useEditorKeys.ts): said in the picture's middle, clear of its controls, so a slip is seen before it shows. */
-  cue?: string | null;
+  /** What ↵ will show, under the picture (Lars, 2026-11-25: over it, it could not be read), or that no slide has the number typed (`problem`). */
+  cue?: { text: string; problem: boolean } | null;
   /**
    * A phone held upright: the picture small at the left, Släck at its right and `leading` and `trailing` under Släck,
    * so the running order keeps the room to scroll (Lars, 2026-11-08); lying down, the picture over Släck's row.
@@ -77,12 +78,13 @@ export function LivePicture({
       <div data-live-picture className={`relative ${beside ? 'w-1/2 shrink-0 landscape:w-full' : 'w-full'} ${maxWidthClass} aspect-video ${beside ? 'rounded-xl landscape:rounded-2xl' : 'rounded-2xl'} overflow-hidden ring-2 ${black ? 'ring-stone-500' : 'ring-red-500'}`} data-testid={testId}>
         <SlideView slide={slide} theme={theme} label={false} overlay={overlay} black={black} video={players?.video?.live && <PictureVideo control={players.video} />} />
         {players && itemId && slide && <MediaControls slide={slide} itemId={itemId} players={players} />}
-        {cue && (
-          <span className="absolute inset-0 z-[2] m-auto h-fit w-fit rounded-full bg-black/75 px-3 py-1.5 text-sm font-semibold tabular-nums text-white" data-testid="live-cue">
-            {cue}
-          </span>
-        )}
       </div>
+  );
+  // Under the picture, in the blue of the slide outlined to show next; amber when the number typed has no slide.
+  const cueLine = cue && (
+    <p role="status" data-testid="live-cue" className={`max-w-full truncate text-sm font-semibold tabular-nums ${cue.problem ? 'text-amber-600 dark:text-amber-400' : 'text-sky-600 dark:text-sky-400'}`}>
+      {cue.text}
+    </p>
   );
   const clear = (wide: string) => (
     <AppButton
@@ -104,6 +106,7 @@ export function LivePicture({
         {/* Upright: Släck over a row of the round buttons at the right end; lying down, one row with Släck in its middle
             (`contents` lets leading and trailing stand at its ends). */}
         <div role="toolbar" aria-label={t('live.outputs')} className="flex-1 min-w-0 flex flex-col gap-2 landscape:w-full landscape:flex-row landscape:items-center landscape:justify-between">
+          {cueLine}
           {clear('w-full px-3 landscape:w-auto landscape:flex-1 landscape:max-w-36')}
           <div className="flex justify-end gap-2 empty:hidden landscape:contents">
             {leading && <span className="landscape:order-first">{leading}</span>}
@@ -116,6 +119,7 @@ export function LivePicture({
   return (
     <div className="flex flex-col gap-3 items-center">
       {picture}
+      {cueLine}
       {/* Släck in the middle; on a phone Visning at the row's right end, round and lifted; the picture stays free of
           buttons (Lars, 2026-11-02). */}
       <div role="toolbar" aria-label={t('live.outputs')} className={`flex items-center h-11 lg:h-9 lg:touch:h-11 ${trailing ? 'w-full max-w-[640px] justify-between gap-2' : 'justify-center'}`}>

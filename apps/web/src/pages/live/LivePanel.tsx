@@ -41,7 +41,7 @@ export function LivePanel({
   theme: Theme;
   overlays: Overlay[];
   /** The slide ↵ shows, said over the picture (useEditorKeys.ts). */
-  cue?: string | null;
+  cue?: { text: string; problem: boolean } | null;
   /** Out, or folded off the right edge (ui/sidePanels.ts). */
   open?: boolean;
   /** Folds it away, by the toggle at its foot. */

@@ -191,9 +191,9 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
   // then the outline is gone.
   await page.keyboard.press('ControlOrMeta+ArrowUp');
   await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
-  await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
+  await expect(cue).toHaveText('↵ Sång A · bild 1');
   await page.keyboard.press('ArrowRight');
-  await expect(cue).toHaveText('Bild 2 i Sång A – Enter visar');
+  await expect(cue).toHaveText('↵ Sång A · bild 2');
   await expect(shown).toHaveText('B ett');
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A två');
@@ -210,7 +210,7 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
 
   // A number makes that slide of the item marked ready, and ↵ shows it; a slide it does not have is said, and shows nothing.
   await page.keyboard.press('1');
-  await expect(cue).toHaveText('Bild 1 i Sång A – Enter visar');
+  await expect(cue).toHaveText('↵ Sång A · bild 1');
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A ett');
   await page.keyboard.press('9');

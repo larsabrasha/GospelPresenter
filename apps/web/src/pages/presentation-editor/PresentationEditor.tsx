@@ -196,7 +196,7 @@ export function PresentationEditor({
   // Said over the live picture once the keys moved the outline: the slide ↵ shows, or that the number typed has none.
   // The cue's words: the slide ↵ shows, or that the number typed has none.
   const cueArgs = page.cue && { n: page.cue.n, item: items.find((i) => i.id === page.cue!.itemId)?.title ?? '' };
-  const cueText = page.cue && cueArgs && (page.cue.text === 'live.cued' ? t('live.cued', cueArgs) : t('live.noSuchSlide', cueArgs));
+  const cueText = page.cue && cueArgs && (page.cue.text === 'live.cued' ? { text: t('live.cued', cueArgs), problem: false } : { text: t('live.noSuchSlide', cueArgs), problem: true });
 
   if (!data) return null;
   const { presentation, slides, songs, theme, overlays } = data;
