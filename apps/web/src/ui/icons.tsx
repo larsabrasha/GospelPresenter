@@ -672,14 +672,13 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
 }
 
 /**
- * A point of the programme that shows nothing (spec 03 2f): one line of an agenda, its bullet and its words, so it reads
- * as "a point" at a glance (Lars, 2026-11-25).
+ * A point of the programme that shows nothing (spec 03 2f): a filled dot, neutral, saying only that it is a point of
+ * the programme (Lars, 2026-11-25, chosen among some twenty).
  */
 export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <circle cx="6" cy="12" r="2.5" fill="currentColor" stroke="none" />
-      <path strokeLinecap="round" d="M11.5 12h8" />
+      <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
     </Outline>
   );
 }
@@ -705,7 +704,7 @@ const ITEM_COLOURS: Record<PresentationItem['type'], string> = {
 
 /**
  * An item's kind in the running order as Inställningar draws a library: its icon white on a small tile of the
- * library's colour (Lars, 2026-11-25: tried, so a kind is told at a glance); a programme point on grey.
+ * library's colour (Lars, 2026-11-25: tried, so a kind is told at a glance); a programme point a dot on grey.
  */
 export function ItemBadge({ type, className = '' }: { type: PresentationItem['type']; className?: string }) {
   const Icon = ITEM_ICONS[type];
