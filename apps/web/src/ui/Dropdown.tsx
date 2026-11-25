@@ -93,9 +93,11 @@ export function Dropdown({
     const all = items();
     if (!all.length) return;
     // A choice's own key, as its row shows it (Lars, 2026-11-25: + and then a number).
-    const keyed = !e.altKey && !e.ctrlKey && !e.metaKey && all.find((el) => el.dataset.shortcut === e.key);
+    const keyed = !e.altKey && !e.ctrlKey && !e.metaKey && all.find((el) => el.dataset.shortcut === e.key.toLowerCase());
     if (keyed) {
+      // The menu's, not the page's too: B in it is Bibeltext, not the black screen behind.
       e.preventDefault();
+      e.stopPropagation();
       keyed.click();
       return;
     }

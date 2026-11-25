@@ -42,14 +42,15 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till i presentationen' }).locator('kbd')).toHaveText('A');
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
-  // A opens the + menu, each choice with its number (Lars, 2026-11-25): the arrows and ↵ choose, as 1 for Sång does.
+  // A opens the + menu, each choice with the letter G takes to its library (Lars, 2026-11-25: A S as G S): the arrows
+  // and ↵ choose, as S for Sång does.
   await page.keyboard.press('a');
   const menu = page.getByRole('menu');
-  await expect(menu.getByRole('menuitem')).toHaveText([/^Sång\s*1$/, /^Bibeltext\s*2$/, /^Bild\s*3$/, /^Ljud\s*4$/, /^Video\s*5$/, /^Bildspel\s*6$/, /^Programpunkt\s*7$/]);
+  await expect(menu.getByRole('menuitem')).toHaveText([/^Sång\s*S$/, /^Bibeltext\s*B$/, /^Bild\s*I$/, /^Ljud\s*L$/, /^Video\s*V$/, /^Bildspel\s*E$/, /^Programpunkt\s*P$/]);
   await expect(menu.getByRole('menuitem').first()).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(menu.getByRole('menuitem', { name: /Bibeltext/ })).toBeFocused();
-  await page.keyboard.press('1');
+  await page.keyboard.press('s');
   const add = page.getByRole('dialog', { name: 'Lägg till sång' });
   // Out of the search field, where ? is a letter like any other.
   await add.getByRole('button', { name: 'Stäng' }).focus();
