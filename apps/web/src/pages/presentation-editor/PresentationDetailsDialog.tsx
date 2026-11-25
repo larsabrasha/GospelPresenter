@@ -151,7 +151,9 @@ export function PresentationDetailsDialog({
               aria-label={t('presentation.description')}
               placeholder={t('presentation.description')}
               rows={4}
-              className={`${BARE} block px-4 py-3 text-sm resize-none`}
+              // As tall as its text, from four lines to sixteen (or half the window), then it scrolls (Lars, 2026-11-25:
+              // a service's whole order is written here). Where the browser does not size it itself, four lines.
+              className={`${BARE} block px-4 py-3 text-sm resize-none [field-sizing:content] min-h-[calc(4lh+1.5rem)] max-h-[min(50vh,calc(16lh+1.5rem))] overflow-y-auto`}
               value={d.description}
               onChange={withMaxChars(FIELD_RULES.description.max, set('description'))}
             />
