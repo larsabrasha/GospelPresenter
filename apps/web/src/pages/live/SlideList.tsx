@@ -201,8 +201,9 @@ export function SlideList({
               )}
             </h3>
             {/* The overlay it carries on a line of its own under the heading, then its comment (Lars, 2026-11-25), close
-                under the heading and a step further from the slides, as the heading's they are (Lars, 2026-11-25). */}
-            <div className="flex flex-col gap-1.5 -mt-0.5 lg:-mt-2.5 mb-1 empty:hidden">
+                under the heading and a step further from the slides, as the heading's they are, and in from the slides'
+                edge where the heading's name starts (Lars, 2026-11-25). */}
+            <div className="flex flex-col gap-1.5 ml-4 -mt-0.5 lg:-mt-2.5 mb-1 empty:hidden">
               <OverlayChip item={item} overlays={overlays} />
               <ItemNote item={item} />
             </div>
