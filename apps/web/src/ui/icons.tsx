@@ -671,11 +671,14 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
   );
 }
 
-/** Lines of text, left aligned (Heroicons' bars-3-bottom-left): a point of the programme that shows nothing (spec 03 2f). */
+/**
+ * A dot: a point of the programme that shows nothing (spec 03 2f). A dot, not lines of text, so a programme's points
+ * stand out among the songs and pictures of the running order (Lars, 2026-11-25).
+ */
 export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+      <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
     </Outline>
   );
 }
