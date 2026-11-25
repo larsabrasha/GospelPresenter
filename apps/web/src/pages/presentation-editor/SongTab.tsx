@@ -112,20 +112,23 @@ export function SongTab({
     [select],
   );
 
+  // The song and its slides read as one, as the outputs will show it in that arrangement; the one before stays shown
+  // until the next is read, so a song picked does not blink through "no song" and an empty list of slides on its way
+  // (Lars, 2026-11-25).
   const preview = useData(
     async (d) => {
       if (!effectiveId) return null;
       const { song, arrangements, parts, labels } = await songPage(d, effectiveId);
       if (!song) return null;
-      return { song, arrangements: sortedArrangements(arrangements, song.id), parts, labels };
+      const sorted = sortedArrangements(arrangements, song.id);
+      const chosen = arrangementId ?? sorted[0]?.id ?? null;
+      return { song, arrangements: sorted, parts, labels, chosen, slides: await songPreviewSlides(d, song.id, chosen) };
     },
-    [effectiveId],
+    [effectiveId, arrangementId],
   );
-  const shownPreview = preview?.song.id === effectiveId ? preview : null;
-  const chosen = arrangementId ?? shownPreview?.arrangements[0]?.id ?? null;
-  // The preview's slides from the core, as the outputs will show the song in that arrangement.
-  const previewId = shownPreview?.song.id ?? null;
-  const previewSlides = useData(async (d) => (previewId ? songPreviewSlides(d, previewId, chosen) : []), [previewId, chosen]) ?? [];
+  const shownPreview = effectiveId ? (preview ?? null) : null;
+  const chosen = shownPreview?.chosen ?? null;
+  const previewSlides = shownPreview?.slides ?? [];
 
   // A new search, or a cleared one, starts both lists at the top and selects the first hit.
   const searchFor = (v: string) => {

@@ -182,6 +182,11 @@ async function clearCache(): Promise<void> {
 /** The bytes of the blobs' cache after the last clean-up: the videos' cache gets what is left of the budget. */
 let blobCache = 0;
 
+/** The tables of songs' words and their labels: none names a Bible text or a file (song_materials does, so is not one). */
+const TEXT_TABLES = new Set(['songs', 'song_parts', 'song_arrangements', 'song_versions', 'labels', 'ccli_entries']);
+/** Whether a change wrote only those; one that does not say what it wrote may have written anything. */
+const onlyText = (tables: ReadonlySet<string> | undefined) => !!tables && tables.size > 0 && [...tables].every((t) => TEXT_TABLES.has(t));
+
 let mediaSyncQueued = false;
 /** Fetches the blobs of pictures this device lacks (thumbnails first) and drops unused ones; coalesced. Then the videos kept offline. */
 function syncMediaBlobs() {
@@ -354,8 +359,13 @@ async function handle(call: DbCall): Promise<unknown> {
       c.onStatus(() => void reportStatus());
       c.onChange((tables) => {
         notifyChanged(tables);
-        syncBibles();
-        syncMediaBlobs();
+        // The plans of the texts and files to fetch or drop read none of a song's words: a change to only those (a part
+        // typed in, a new song's draft) starts neither, which held the database for a third of a second after each
+        // (Lars, 2026-11-25: Skapa waited on two of them).
+        if (!onlyText(tables)) {
+          syncBibles();
+          syncMediaBlobs();
+        }
         void reportStatus();
       });
       // In memory, the database is empty until it is pulled: the window opens on the data, not on empty pages

@@ -67,7 +67,9 @@ function useDataOf<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[]
     const reload = () => {
       const mine = ++run;
       void load(db).then((v) => {
-        if (current && mine === run) setValue(v);
+        // The same data as before keeps the value it had: a change to a table this reads but not to what it shows (a
+        // song's draft, behind a whole presentation) then draws nothing again (Lars, 2026-11-25: Skapa waited on it).
+        if (current && mine === run) setValue((was) => (sameData(was, v) ? was : v));
       });
     };
     reload();
@@ -79,6 +81,18 @@ function useDataOf<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[]
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` is a new closure every render; `deps` are its inputs; `tables` is fixed per call.
   }, [db, ...deps]);
   return value;
+}
+
+/** Whether two loads gave the same data: plain values, arrays, maps, sets and plain objects, compared through. */
+export function sameData(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => sameData(x, b[i]));
+  if (a instanceof Map) return b instanceof Map && a.size === b.size && [...a].every(([k, v]) => b.has(k) && sameData(v, b.get(k)));
+  if (a instanceof Set) return b instanceof Set && a.size === b.size && [...a].every((x) => b.has(x));
+  if (Object.getPrototypeOf(a) !== Object.prototype || Object.getPrototypeOf(b) !== Object.prototype) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && sameData((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
 export function useDbStatus(): DbStatus | undefined {
