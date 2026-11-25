@@ -177,11 +177,15 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
         </>
       }
     >
-      <div className="flex items-center gap-3 px-4 py-3 sm:py-2">
+      {/* The name opens Mina inställningar, as the account at the top of iOS's Inställningar does, and says so under it as
+          Inställningar's own row does (Lars, 2026-11-25); no role, no organisation (Lars, 2026-11-02). */}
+      <AppButton variant="plain" role="menuitem" className={`${ROW} py-3! sm:py-2!`} href={href({ page: 'settings' })}>
         <Avatar name={me.name} className="size-10 sm:size-8 text-sm sm:text-xs" />
-        {/* The name alone: no role, no organisation (Lars, 2026-11-02). */}
-        <div className="min-w-0 text-[17px] sm:text-sm font-semibold truncate">{me.name}</div>
-      </div>
+        <span className="min-w-0 flex flex-col">
+          <span className="text-[17px] sm:text-sm font-semibold truncate">{me.name}</span>
+          <span className="text-[13px] sm:text-xs text-stone-500 dark:text-stone-400 truncate">{t('nav.settings')}</span>
+        </span>
+      </AppButton>
       {/* Inställningar is the bar's cog, so not here too (Lars, 2026-11-04: one way there). */}
       {orgs.length > 0 && (
         <>

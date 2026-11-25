@@ -12,7 +12,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('the start page bar holds the cog and the picture, whose menu tells the sync and opens both settings; + is in the heading row', async () => {
+test('the start page bar holds the cog and the picture, whose menu tells the sync and opens Mina inställningar by the name; + is in the heading row', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -30,8 +30,10 @@ test('the start page bar holds the cog and the picture, whose menu tells the syn
   await page.getByTestId('me').click();
   await expect(page.getByTestId('sync-state')).toHaveCount(0); // all synced: the menu says nothing of it
   await expect(page.getByRole('menuitem', { name: 'Synka nu' })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: 'Mina inställningar' })).toHaveCount(0); // a row in Inställningar
-  await page.keyboard.press('Escape');
+  // The name opens Mina inställningar, as the account at the top of iOS's Inställningar does (Lars, 2026-11-25).
+  await page.getByRole('menuitem', { name: /Mina inställningar/ }).click();
+  await expect(page.getByRole('heading', { name: 'Mina inställningar', exact: true })).toBeVisible();
+  await closeAdmin(page);
   await openAdmin(page, 'Mina inställningar');
   await expect(page.getByRole('heading', { name: 'Mina inställningar', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Administration' }).getByRole('link', { name: 'Mina inställningar' })).toHaveAttribute('aria-current', 'page');
