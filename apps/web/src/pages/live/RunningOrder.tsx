@@ -278,7 +278,7 @@ export function RunningOrder({
 }
 
 /**
- * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) as a yellow chip and
+ * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) as a grey chip and
  * the overlay it carries as a purple one, each on one line with its icon (Lars, 2026-11-25: colour for what shows on the
  * screens and for what whoever runs it must not miss); the whole note is above the item's slides. The
  * kind's icon is centred on the lines, as iOS's lists centre it beside a title and a subtitle.

@@ -250,13 +250,13 @@ export function SlideList({
 }
 
 /**
- * An item's comment for those who run it (spec 03 2f), under its name where its text starts, on a note's warm yellow
+ * An item's comment for those who run it (spec 03 2f), under its name where its text starts, on a neutral grey card
  * where it is read in full, as its chip in the running order (Lars, 2026-11-25); never on a screen.
  */
 function ItemNote({ item }: { item: PresentationItem }) {
   if (!item.note) return null;
   return (
-    <p className="self-start max-w-full flex gap-1.5 rounded-xl px-3 py-1.5 text-[13px]/[18px] bg-amber-500/12 text-amber-800 dark:text-amber-200 whitespace-pre-line" data-testid="item-note">
+    <p className="self-start max-w-full flex gap-1.5 rounded-xl px-3 py-1.5 text-[13px]/[18px] bg-stone-500/10 text-stone-700 dark:bg-white/[0.07] dark:text-stone-200 whitespace-pre-line" data-testid="item-note">
       <CommentIcon className="size-3.5 shrink-0 mt-0.5" />
       <span className="min-w-0">{item.note}</span>
     </p>
