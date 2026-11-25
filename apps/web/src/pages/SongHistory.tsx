@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { songHistory, SONG_HISTORY_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
@@ -47,7 +48,7 @@ export function SongHistory({ id }: { id: string }) {
     return (
       <PageContainer maxWidthClass="max-w-[1200px]">
         {header}
-        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{loadingText()}</div>
       </PageContainer>
     );
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { syncStatus as coreSyncStatus, type SyncStatus } from '@gp/core/core';
 import type { DbStatus } from '../db/protocol.ts';
 import { t } from '../i18n.ts';
+import { fun } from './playful.ts';
 
 /** A text of the core's, by its code. */
 type StatusText = SyncStatus['texts'][number];
@@ -22,7 +23,7 @@ function word(text: StatusText): string {
     case 'syncing':
       return t('status.syncing');
     case 'offline':
-      return t('status.offline');
+      return fun(t('status.offline'), t('fun.offline'));
     case 'error':
       return t('status.error');
     case 'authNeeded':

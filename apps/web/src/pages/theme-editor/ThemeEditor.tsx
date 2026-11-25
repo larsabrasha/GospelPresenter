@@ -3,6 +3,7 @@ import type { Background, TextStyle, Theme, ThemeDefinition } from '@gp/core';
 import { getOwnTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t, type TextKey } from '../../i18n.ts';
+import { loadingText } from '../../ui/playful.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSavedIndicator, useTrySave } from '../../ui/AutoSave.tsx';
 import { ArrowUturnLeftIcon, ArrowUturnRightIcon, PaintBrushIcon } from '../../ui/icons.tsx';
@@ -103,7 +104,7 @@ export function ThemeEditor({ id }: { id: string }) {
   );
 
   if (!row || !definition || !h)
-    return <PageContainer>{row === null ? <p className="px-5 text-stone-500">{t('themeEditor.missing')}</p> : <div className="loading-line px-5 text-stone-400">{t('common.loading')}</div>}</PageContainer>;
+    return <PageContainer>{row === null ? <p className="px-5 text-stone-500">{t('themeEditor.missing')}</p> : <div className="loading-line px-5 text-stone-400">{loadingText()}</div>}</PageContainer>;
 
   const theme: Theme = { ...row.theme, definition };
   /** A change, kept for Ångra: `key` names its kind, so a slider pulled is one step; '' is always a step of its own. */

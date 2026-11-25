@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ccliReport } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
@@ -94,7 +95,7 @@ export function CcliReport({ role }: { role: Role }) {
         </PillTabs>
       </div>
       {!data ? (
-        <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>
       ) : !cards.length ? (
         <div className={`${CARD} overflow-hidden`}>
           <EmptyPicture picture={<CcliPicture className={PICTURE} />} title={t('ccli.empty')} />

@@ -4,6 +4,7 @@ import { listCustomSlides } from '../../db/customSlides.ts';
 import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
+import { loadingText } from '../../ui/playful.ts';
 import { newId } from '../../ids.ts';
 import { useDeckImport } from '../../media/deckImport.ts';
 import { DECK_ACCEPT } from '../../media/slides.ts';
@@ -157,7 +158,7 @@ export function SlidesTab({ presentationId, afterItemId, onAdded, onClose, activ
           </p>
         )}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {!slides && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{t('common.loading')}</p>}
+          {!slides && <p className="loading-line flex items-center justify-center py-12 text-stone-400 text-sm">{loadingText()}</p>}
           {slides && !slides.length && (
             <div className="flex flex-col items-center gap-4 py-10 text-sm text-stone-500 dark:text-stone-400">
               <p>{t('customSlides.empty')}</p>

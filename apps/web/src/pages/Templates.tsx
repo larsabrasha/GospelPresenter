@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { listTemplates } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -147,7 +148,7 @@ export function Templates() {
       </div>
       {!templates && (
         <div className={CARD}>
-          <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
+          <div className="loading-line px-5 py-4 text-stone-400 text-sm">{loadingText()}</div>
         </div>
       )}
       {templates && !templates.length && (

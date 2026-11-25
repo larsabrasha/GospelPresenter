@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { BugReportRow } from '@gp/core';
 import { locale, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { EmptySmall } from '../ui/Empty.tsx';
 import { BugIcon } from '../ui/icons.tsx';
 import { CARD, ROW_HOVER, RowChevron } from '../ui/List.tsx';
@@ -28,7 +29,7 @@ export function BugReports() {
       {typeof reports === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{reports}</p>}
       {Array.isArray(reports) && !!reports.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(reports) && !!reports.length && !shown.length && <NoMatch query={query} />}
-      {reports === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {reports === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       <div className={`${CARD} ${!Array.isArray(reports) || (!!reports.length && !shown.length) ? 'hidden' : ''}`}>
         {Array.isArray(reports) && !reports.length && <EmptySmall icon={<BugIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('reports.empty')} />}
         <ul aria-label={t('nav.reports')}>

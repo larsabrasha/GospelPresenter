@@ -5,6 +5,7 @@ import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { enterWith, sessionIn, switchOrg } from '../auth/orgs.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
@@ -102,7 +103,7 @@ export function Orgs() {
       {Array.isArray(orgs) && !!orgs.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(orgs) && !!orgs.length && !shown.length && <NoMatch query={query} />}
       {/* No card until the list is here: an empty card while it comes from the server flashes by (Lars, 2026-11-05). */}
-      {orgs === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {orgs === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       <div className={`${CARD} ${!Array.isArray(orgs) || (!!orgs.length && !shown.length) ? 'hidden' : ''}`}>
         {Array.isArray(orgs) && !orgs.length && <EmptySmall icon={<ViewGridIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('orgs.empty')} />}
         <ul aria-label={t('orgs.title')}>
@@ -203,7 +204,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'orgs' })} title="" className="px-5" />
-        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{org ?? t('common.loading')}</div>
+        <div className={`px-7 ${org ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{org ?? loadingText()}</div>
       </PageContainer>
     );
   return (

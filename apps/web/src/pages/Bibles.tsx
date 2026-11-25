@@ -3,6 +3,7 @@ import { BIBLE_ZIP_MAX_BYTES } from '@gp/core';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { listBibles } from '../db/queries.ts';
 import { isTextKey, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { BookOpenOutlineIcon } from '../ui/icons.tsx';
 import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 import { Library } from '../ui/Library.tsx';
@@ -78,7 +79,7 @@ export function Bibles() {
           )}
         </>
       }
-      loading={t('common.loading')}
+      loading={loadingText()}
       empty={{ icon: <BookOpenOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('bibles.empty'),
         // Where a translation comes from, here rather than in the footer, which an empty list does not show.
         text: t('bibles.emptyText'),

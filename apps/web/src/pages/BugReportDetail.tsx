@@ -3,6 +3,7 @@ import type { BugReport } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t, type TextKey } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import type { StepKind } from '../report/trail.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
@@ -58,7 +59,7 @@ export function BugReportDetail({ id }: { id: string }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'reports' })} title="" className="px-5" />
-        <div className={`px-7 ${report ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{report ?? t('common.loading')}</div>
+        <div className={`px-7 ${report ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{report ?? loadingText()}</div>
       </PageContainer>
     );
   const s = report.state;

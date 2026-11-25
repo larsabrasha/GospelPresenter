@@ -3,6 +3,7 @@ import type { MyBugReport, MyBugReportRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { ReportThread } from '../report/ReportThread.tsx';
 import { refreshUnread } from '../report/unread.ts';
 import { EmptySmall } from '../ui/Empty.tsx';
@@ -25,7 +26,7 @@ export function MyBugReports() {
     <PageContainer>
       <PageHeader title={t('myReports.title')} />
       {typeof reports === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{reports}</p>}
-      {reports === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {reports === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       {Array.isArray(reports) && (
         <div className={CARD}>
           {!reports.length && <EmptySmall icon={<BugIcon className="size-8 mb-2 text-stone-300 dark:text-stone-600" />} title={t('myReports.empty')} />}
@@ -63,7 +64,7 @@ export function MyBugReportPage({ id }: { id: string }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'myReports' })} title="" className="px-5" />
-        <div className={`px-7 ${report ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{report ?? t('common.loading')}</div>
+        <div className={`px-7 ${report ? 'text-red-500 dark:text-red-400' : 'loading-line text-stone-400'}`}>{report ?? loadingText()}</div>
       </PageContainer>
     );
   return (

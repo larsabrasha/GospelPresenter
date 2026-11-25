@@ -2,6 +2,7 @@ import { type Label, LIMITS, parsePartIds, type SongArrangement, type SongPart }
 import { useDataReading, useDb } from '../db/react.tsx';
 import { songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useSaveFailed } from '../ui/AutoSave.tsx';
@@ -46,7 +47,7 @@ export function SongArrangements({ id }: { id: string }) {
     return (
       <PageContainer>
         {header}
-        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{loadingText()}</div>
       </PageContainer>
     );
   const { arrangements, parts, labels } = data;

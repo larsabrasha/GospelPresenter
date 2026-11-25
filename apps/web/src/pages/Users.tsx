@@ -4,6 +4,7 @@ import { ACCOUNT_LIMITS, can, emailSchema, type InvitationResponse, type Invitat
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { copyText } from '../ui/copyText.ts';
 import { CopyField } from '../ui/CopyField.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
@@ -266,7 +267,7 @@ export function Users({ me, hostServer }: { me: Me; hostServer: boolean | null }
       {Array.isArray(users) && !!users.length && <ListSearch query={query} onChange={setQuery} />}
       {Array.isArray(users) && !!users.length && !shown.length && <NoMatch query={query} />}
       {/* No card until the list is here: an empty card while it comes from the server flashes by (Lars, 2026-11-05). */}
-      {users === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {users === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       <div className={`${CARD} ${!Array.isArray(users) || (!!users.length && !shown.length) ? 'hidden' : ''}`}>
         {empty && (
           <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} />

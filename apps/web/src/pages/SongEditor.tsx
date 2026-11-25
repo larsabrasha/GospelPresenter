@@ -3,6 +3,7 @@ import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { presentationsUsing, songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
@@ -88,7 +89,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
     return (
       <Frame onEscape={adding?.onCancel ?? onBack}>
         <DetailHeader {...back} title="" className="px-5" />
-        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{loadingText()}</div>
       </Frame>
     );
   const { song, parts, arrangements, labels } = data;

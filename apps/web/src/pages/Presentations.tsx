@@ -4,6 +4,7 @@ import { useData, useDb } from '../db/react.tsx';
 import { itemsOf, recentTemplates } from '../db/queries.ts';
 import { startPage, type StartList } from '../db/views.ts';
 import { locale, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { EmptyPicture } from '../ui/Empty.tsx';
@@ -283,7 +284,7 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
       {!lists && (
         <div className={CARD}>
-          <div className="loading-line px-4 py-3 text-stone-400">{t('common.loading')}</div>
+          <div className="loading-line px-4 py-3 text-stone-400">{loadingText()}</div>
         </div>
       )}
       {lists && !lists.length && (

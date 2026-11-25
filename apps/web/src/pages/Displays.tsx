@@ -3,6 +3,7 @@ import { type Display, displayCode, FIELD_RULES } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { useWaitedLong } from '../ui/syncState.ts';
@@ -219,7 +220,7 @@ export function Displays({ link }: { link: LiveLink }) {
     <PageContainer>
       {dialog}
       <PageHeader title={t('nav.displays')} />
-      {!all && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {!all && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       {all && (
         <>
           <OutputGroup title={t('screens.title')} label={t('screens.title')} add={t('screens.addTitle')} onAdd={() => setCreating('screen')}>

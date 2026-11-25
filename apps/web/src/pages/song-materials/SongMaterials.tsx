@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../../db/react.tsx';
 import { getSong, songMaterialsOf } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
+import { loadingText } from '../../ui/playful.ts';
 import { newId } from '../../ids.ts';
 import { linkSource, readSongFile, SONG_FILE_ACCEPT } from '../../media/songFiles.ts';
 import { formatBytes } from '../../ui/formatBytes.ts';
@@ -122,7 +123,7 @@ export function SongMaterials({ id }: { id: string }) {
   return (
     <PageContainer className="pb-8">
       <DetailHeader backHref={href({ page: 'song', id })} title={t('material.title')} className="px-5" />
-      {song && !missing ? <MaterialsEditor songId={id} /> : <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>}
+      {song && !missing ? <MaterialsEditor songId={id} /> : <div className="loading-line px-7 text-stone-400">{loadingText()}</div>}
     </PageContainer>
   );
 }

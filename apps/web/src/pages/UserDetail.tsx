@@ -3,6 +3,7 @@ import { ACCOUNT_LIMITS, accountRefusal, type AuthState, can, emailSchema, type 
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { language, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
@@ -104,7 +105,7 @@ export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; h
     return (
       <PageContainer>
         <DetailHeader backHref="/admin/users" title="" className="px-5" />
-        <div className={`px-7 ${user ? ERROR : 'loading-line text-stone-400'}`}>{user ?? t('common.loading')}</div>
+        <div className={`px-7 ${user ? ERROR : 'loading-line text-stone-400'}`}>{user ?? loadingText()}</div>
       </PageContainer>
     );
   }

@@ -2,6 +2,7 @@ import { FIELD_RULES } from '@gp/core';
 import { useRef, useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { fun, loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { FIRST_PART_LABEL } from './songEditorLook.ts';
 import { AddButton, RoundButton } from '../ui/AddButton.tsx';
@@ -91,8 +92,8 @@ export function Songs() {
           {songImport.dialog}
         </>
       }
-      loading={t('common.loading')}
-      empty={{ icon: <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('songs.emptyTitle'),
+      loading={loadingText()}
+      empty={{ icon: <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: fun(t('songs.emptyTitle'), t('fun.songsEmpty')),
         text: t('songs.emptyText'),
         action: (
           <>

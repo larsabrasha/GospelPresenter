@@ -3,6 +3,7 @@ import { CLASSIC, type CustomElement, type CustomPage } from '@gp/core';
 import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
+import { loadingText } from '../../ui/playful.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSavedIndicator, useTrySave } from '../../ui/AutoSave.tsx';
@@ -89,7 +90,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   );
 
   if (!slide || !pages || !h)
-    return <PageContainer>{slide === null ? <p className="px-5 text-stone-500">{t('slideEditor.missing')}</p> : <div className="loading-line px-5 text-stone-400">{t('common.loading')}</div>}</PageContainer>;
+    return <PageContainer>{slide === null ? <p className="px-5 text-stone-500">{t('slideEditor.missing')}</p> : <div className="loading-line px-5 text-stone-400">{loadingText()}</div>}</PageContainer>;
 
   const pageAt = Math.min(at, pages.length - 1);
   const page = pages[pageAt]!;

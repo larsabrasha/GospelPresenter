@@ -34,6 +34,7 @@ import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
+import { playful } from '../../ui/playful.ts';
 import { AddItemDialog, type AddChoice, type AddKind } from './AddItemDialog.tsx';
 import { useItemTexts } from './HeaderDialog.tsx';
 import { DetailsDialog } from './DetailsDialog.tsx';
@@ -145,6 +146,12 @@ export function PresentationEditor({
   useAutoOutputs(!!owner);
   // An output closed because the app's window was moved onto its display says so, so a dark projector is no surprise.
   useEffect(() => window.gpDesktop?.onOutputClosedHere((name) => toast(t('live.outputClosedHere', { name }))), [toast]);
+  // Lekfullt läge (ui/playful.ts): after Släck, the first slide shown again is greeted, here only, never on an output.
+  const wasBlack = useRef(pointer.black);
+  useEffect(() => {
+    if (presenting && wasBlack.current && !pointer.black && playful()) toast(t('fun.light'));
+    wasBlack.current = pointer.black;
+  }, [presenting, pointer.black, toast]);
   // The screen stays awake while this computer presents (Presentation.razor's wake lock).
   useWakeLock(!!owner);
 

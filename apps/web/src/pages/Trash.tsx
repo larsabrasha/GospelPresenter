@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { listTrash, type TrashEntry } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import {
@@ -196,7 +197,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
             </SelectionBar>
           )}
         </PageHeader>
-        {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>}
+        {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{loadingText()}</div>}
         {all && !entries.length && (
           <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
         )}

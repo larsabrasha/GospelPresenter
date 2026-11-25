@@ -3,6 +3,7 @@ import { blankPage, FIELD_RULES, type Overlay, type Theme } from '@gp/core';
 import { defaultTheme, listOverlays } from '../db/queries.ts';
 import { useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -69,7 +70,7 @@ export function Overlays() {
         done: (items) => (items.length === 1 ? t('overlays.removed', { name: items[0]!.name }) : t('overlays.removedMany', { n: items.length })),
       }}
       add={<AddButton label={t('common.create')} onClick={() => void create()} />}
-      loading={t('common.loading')}
+      loading={loadingText()}
       empty={{ icon: <SquaresOverlapIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('overlays.empty'),
         action: (
           <AppButton onClick={() => void create()} data-new="">

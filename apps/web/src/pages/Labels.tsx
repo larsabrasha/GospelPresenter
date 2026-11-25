@@ -3,6 +3,7 @@ import { DEFAULT_LABEL_COLOR, FIELD_RULES, type Label, labelKey } from '@gp/core
 import { listLabels } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
@@ -179,7 +180,7 @@ export function Labels() {
             !!labels?.length && <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
           )}
         </PageHeader>
-        {!labels && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+        {!labels && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
         {labels && !labels.length && (
           <div className={CARD}>
             <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')}>

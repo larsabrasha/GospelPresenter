@@ -4,6 +4,7 @@ import { listCustomSlides, type LibraryCustomSlide } from '../../db/customSlides
 import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
+import { loadingText } from '../../ui/playful.ts';
 import { newId } from '../../ids.ts';
 import { useDeckImport } from '../../media/deckImport.ts';
 import { DECK_ACCEPT } from '../../media/slides.ts';
@@ -120,7 +121,7 @@ export function CustomSlides() {
             )}
           </>
         }
-        loading={t('common.loading')}
+        loading={loadingText()}
         empty={{ icon: <SlideshowIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: t('customSlides.empty'),
           text: t('customSlides.emptyText'),
           action: (

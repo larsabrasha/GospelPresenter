@@ -3,6 +3,7 @@ import { accountRefusal, type Me, type PairedDevice, type UserRow } from '@gp/co
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { locale, t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
@@ -139,7 +140,7 @@ export function Devices({ me }: { me: Me }) {
       </PageHeader>
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
       {/* No card until the list is here (Users.tsx). */}
-      {devices === null && <div className="loading-line px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+      {devices === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       <div className={`${CARD} ${Array.isArray(devices) ? '' : 'hidden'}`}>
         {Array.isArray(devices) && !devices.length && (
           <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')}>

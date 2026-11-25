@@ -2,6 +2,7 @@ import { FIELD_RULES, type Label, parsePartIds, type SongArrangement as Arrangem
 import { useEffect, useRef } from 'react';
 import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
@@ -38,7 +39,7 @@ export function SongArrangement({ id, arrangementId }: { id: string; arrangement
       {arrangement ? (
         <ArrangementEditor arrangement={arrangement} title={title} named={data!.arrangements.length > 1} parts={data!.parts} labels={data!.labels} showSaved={saved.show} />
       ) : (
-        <div className="loading-line px-7 text-stone-400">{t('common.loading')}</div>
+        <div className="loading-line px-7 text-stone-400">{loadingText()}</div>
       )}
     </PageContainer>
   );

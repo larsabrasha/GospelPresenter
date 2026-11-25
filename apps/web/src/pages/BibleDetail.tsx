@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { listBibles, type InstalledBible } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { loadingText } from '../ui/playful.ts';
 import { isHostWindow } from '../hostWindow.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
@@ -41,7 +42,7 @@ export function BibleDetail({ id }: { id: string }) {
     return (
       <PageContainer>
         <DetailHeader backHref={href({ page: 'bibles' })} title="" className="px-5" />
-        <p className={`px-7 ${bibles ? 'text-stone-500 dark:text-stone-400' : 'loading-line text-stone-400'}`}>{bibles ? t('bibles.notFound') : t('common.loading')}</p>
+        <p className={`px-7 ${bibles ? 'text-stone-500 dark:text-stone-400' : 'loading-line text-stone-400'}`}>{bibles ? t('bibles.notFound') : loadingText()}</p>
       </PageContainer>
     );
 
