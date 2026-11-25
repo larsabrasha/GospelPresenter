@@ -15,24 +15,27 @@ import { ROUND_CLOSE } from '../../ui/glass.ts';
 import { useSongImport } from '../SongImport.tsx';
 import { href } from '../../ui/router.ts';
 import { useToast } from '../../ui/Toast.tsx';
-import { useStepped } from '../../ui/useStepped.ts';
+import { useWindowed } from '../../ui/windowed.ts';
 import type { TabProps } from './AddItemDialog.tsx';
 import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
 import { songsEmptyText, songsNoHitsText } from '../../ui/playful.ts';
 
 const NONE: Song[] = [];
+/** A song's row's height, its hairline in it. */
+const ROW = 52;
 
 /** A hit in the song list; drawn again only when its song, its choice or the query changes. */
-const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song: Song; chosen: boolean; query: string; onPick: (id: string) => void }) {
+const SongRow = memo(function SongRow({ song: s, chosen, query, onPick, place, of }: { song: Song; chosen: boolean; query: string; onPick: (id: string) => void; place: number; of: number }) {
   return (
-    <li className="border-b-[0.5px] border-separator last:border-b-0">
+    // Exactly ROW high, its hairline in it: the list draws only the rows in view (ui/windowed.ts).
+    <li className="h-[52px] border-b-[0.5px] border-separator last:border-b-0" aria-posinset={place} aria-setsize={of}>
       <AppButton
         variant="plain"
         aria-pressed={chosen}
         onClick={() => onPick(s.id)}
         // A row of one card of rows, as the start page's list (Lars, 2026-11-25), the chosen one blue; its focus ring
         // inside it, which the scrolling card would otherwise cut.
-        className={`w-full text-left px-4 h-[52px] flex flex-col justify-center cursor-pointer text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 ${
+        className={`w-full text-left px-4 h-full flex flex-col justify-center cursor-pointer text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 ${
           chosen ? 'bg-sky-500 text-white' : ROW_HOVER
         }`}
       >
@@ -97,7 +100,9 @@ export function SongTab({
   const again = inPresentation.some((i) => i.type === 'song' && i.sourceId === selected?.id);
   const effectiveId = selected?.id ?? null;
   // A long list is drawn in steps: 3 000 rows at once (a cleared search, after an add) held up the running order 300 ms.
-  const rows = useStepped(shown);
+  // Only the rows in view are drawn, a few more on either side (ui/windowed.ts): 900 songs drawn 300 at a time held the
+  // list's scroll on an iPhone (Lars, 2026-11-25).
+  const rows = useWindowed(list, shown.length, ROW);
   // Stable, so a row is not drawn again for a new handler.
   const select = useCallback((id: string | null) => {
     setSelectedId(id);
@@ -134,7 +139,7 @@ export function SongTab({
   const searchFor = (v: string) => {
     setQuery(v);
     select(v.trim() ? null : (songs?.[0]?.id ?? null));
-    list.current?.scrollTo(0, 0);
+    rows.toTop();
   };
 
   const add = async () => {
@@ -165,7 +170,7 @@ export function SongTab({
       const at = shown.findIndex((s) => s.id === effectiveId);
       const next = at === -1 ? (e.key === 'ArrowDown' ? 0 : shown.length - 1) : Math.min(shown.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)));
       select(shown[next]!.id);
-      list.current?.querySelectorAll('li')[next]?.scrollIntoView({ block: 'nearest' });
+      rows.scrollTo(next);
     }
   };
 
@@ -226,9 +231,11 @@ export function SongTab({
             </EmptyTab>
           )}
           <ul ref={list} className="md:flex-1 md:min-h-0 md:overflow-y-auto bg-surface rounded-xl border-[0.5px] border-separator empty:hidden" aria-label={t('nav.songs')}>
-            {rows.map((s) => (
-              <SongRow key={s.id} song={s} chosen={s.id === effectiveId} query={shownQuery} onPick={onPick} />
+            {rows.start > 0 && <li aria-hidden style={{ height: rows.start * ROW }} />}
+            {shown.slice(rows.start, rows.end).map((s, i) => (
+              <SongRow key={s.id} song={s} chosen={s.id === effectiveId} query={shownQuery} onPick={onPick} place={rows.start + i + 1} of={shown.length} />
             ))}
+            {rows.end < shown.length && <li aria-hidden style={{ height: (shown.length - rows.end) * ROW }} />}
           </ul>
           {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
           {/* Room under it for its shadow, which the scrolling column would cut. */}

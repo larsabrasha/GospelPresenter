@@ -233,9 +233,10 @@ async function timeInPage<A>(page: Page, act: (arg: A) => void, arg: A): Promise
  * Types one key into the add dialog's song search and measures, in the page,
  * how long until the list shows the hits of what was typed, `expected` (the
  * first names, how many, and the first one's marked words), and the browser
- * has laid it out: `screen`, once the first rows are right (what a screen
- * holds: the list draws a long one in steps), and `all`, once every hit is
- * there. Paint is not counted (the test windows are hidden).
+ * has laid it out: `screen`, once the first rows are right, and `all`, once
+ * the list holds every hit: the same moment, as the list draws only the rows in
+ * view and says how many it has (`aria-setsize`, ui/windowed.ts). Paint is not
+ * counted (the test windows are hidden).
  */
 async function timeKey(page: Page, value: string, expected: { first: string[]; count: number; marked: string[] }): Promise<{ screen: number; all: number }> {
   return page.evaluate(
@@ -243,14 +244,18 @@ async function timeKey(page: Page, value: string, expected: { first: string[]; c
       const dialog = document.querySelector('[role="dialog"]')!;
       const input = dialog.querySelector<HTMLInputElement>('input[aria-label="Sök på titel, författare eller textrad"]')!;
       const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-      const shown = (screen: boolean) => {
-        const items = [...dialog.querySelectorAll('ul[aria-label="Sånger"] > li')];
-        const names = items.slice(0, want.first.length).map((li) => li.querySelector('span')?.textContent ?? '');
+      const shown = () => {
+        // The rows drawn, not the room kept for the rest; how many there are, as each says.
+        const items = [...dialog.querySelectorAll('ul[aria-label="Sånger"] > li:not([aria-hidden])')];
+        const total = Number(items[0]?.getAttribute('aria-setsize') ?? 0);
+        // The first rows drawn, as many as the window shows (and a few more), against as many of the hits.
+        const n = Math.min(items.length, want.first.length);
+        const names = items.slice(0, n).map((li) => li.querySelector('span')?.textContent ?? '');
         const marked = [...(items[0]?.querySelector('span')?.querySelectorAll('mark') ?? [])].map((m) => m.textContent);
-        const count = screen ? items.length >= Math.min(want.count, 20) && items.length <= want.count : items.length === want.count;
-        return count && names.join('|') === want.first.join('|') && marked.join('|') === want.marked.join('|');
+        const count = total === want.count && n >= Math.min(want.count, 5);
+        return count && names.join('|') === want.first.slice(0, n).join('|') && marked.join('|') === want.marked.join('|');
       };
-      /** Resolves with the time `shown(screen)` first holds, after the layout. */
+      /** Resolves with the time `shown()` first holds, after the layout. */
       const when = (screen: boolean) =>
         new Promise<number>((resolve, reject) => {
           const done = () => {
@@ -259,7 +264,7 @@ async function timeKey(page: Page, value: string, expected: { first: string[]; c
             resolve(performance.now());
           };
           const mo = new MutationObserver(() => {
-            if (!shown(screen)) return;
+            if (!shown()) return;
             mo.disconnect();
             done();
           });
@@ -305,7 +310,7 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Sång', exact: true }).click(); // + is a menu (spec 03 2f)
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
-  await expect(picker.getByRole('list', { name: 'Sånger' }).getByRole('listitem')).toHaveCount(3000, { timeout: 10_000 });
+  await expect(picker.getByRole('list', { name: 'Sånger' }).getByRole('listitem').first()).toHaveAttribute('aria-setsize', '3000', { timeout: 10_000 });
   // The worker prepares the search texts a second after the songs arrive; a person takes longer than this to start typing.
   await page.waitForTimeout(1500); // measured as a person meets it: they start typing later than this
 

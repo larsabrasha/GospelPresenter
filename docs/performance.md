@@ -60,10 +60,11 @@ The numbers move by 20 % or more from run to run; the second keystroke, "he", ju
   again (about 0.1 s for 3 000 songs). The song tab asks for it when it opens, ahead of the first key. Preparing
   works out each character once and keeps it: 4.6 times faster than before. A table of the prepared texts, kept
   up to date by triggers, was tried first and dropped: more parts to keep right, and no faster in use.
-- **The song list in Lägg till** draws a new list in steps (`useStepped`): the first 60 rows at once, then
-  300 more per task, each step a transition that any other update goes ahead of, so the running order and the
-  keyboard are not held up by 3 000 new rows (300 ms in one go). Each row is drawn again only when it changes.
-  The whole list takes longer to be complete than before; what is on the screen is there sooner.
+- **The song list in Lägg till** draws only the rows in view and ten more on either side (`useWindowed`,
+  ui/windowed.ts, 2026-11-25), the rest kept as room above and below, and each row says how many there are
+  (`aria-setsize`). It replaced drawing a new list in steps of 300 (`useStepped`), which on an iPhone held the
+  list's scroll for seconds while 900 songs were drawn. With 3 000 songs a keystroke shows its hits in 2-23 ms
+  (9-30 ms at 4×), the whole list with them; a scroll step 4-5 ms. Each row is drawn again only when it changes.
 - **A running order's slides** are read with four queries for all its songs (`readItemSlides` in packages/core), not four for
   each song in turn: after every change, a presentation of 30 songs waited on 120 answers.
 - **The song library reloads only when the songs change** (`useSongSearch`; `SyncClient.onChange` gives the
