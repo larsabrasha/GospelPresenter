@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { Hono, type Context } from 'hono';
-import { LIVE_PING, LIVE_PONG, serverChangeTriggers, serverSyncDdl, type Poke, type Role } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, serverChangeTriggers, serverSyncDdl, type LegacyUser, type Poke, type Role } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -21,6 +21,7 @@ import { isAppPage, staticHeaders } from './static.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 import { Core } from '@gp/core/core';
 import { appCors } from './cors.ts';
+import { backupOrg, orgContent, type BackupBucket } from './backup-r2.ts';
 
 interface Env {
   DB: D1Database;
@@ -56,6 +57,10 @@ interface Env {
   RESEND_API_KEY?: string;
   MAIL_FROM?: string;
   APP_URL?: string;
+  /** The nightly backups (backup-r2.ts): a bucket of their own. Without it, the hourly trigger does nothing. */
+  BACKUPS?: R2Bucket;
+  /** How many files a backup run copies per organisation (default 15: the free plan's 50 reads and writes a run). */
+  BACKUP_BUDGET?: string;
 }
 
 function passkeysOf(env: Env): Passkeys | null {
@@ -197,6 +202,12 @@ export class OrgDurableObject extends DurableObject<Env> {
       this.live.dispose();
       await this.ctx.storage.deleteAll();
       return new Response(null, { status: 204 });
+    }
+    // The nightly backup (backup-r2.ts), started by the Worker's hourly trigger with the organisation's name and users.
+    if (new URL(request.url).pathname === '/internal/backup' && request.method === 'POST' && this.env.MEDIA && this.env.BACKUPS) {
+      const a = (await request.json()) as { orgId: string; orgName: string; users: LegacyUser[]; budget: number };
+      const report = await backupOrg({ ...a, read: () => this.org.queue.run(() => orgContent(this.org.store)), media: this.env.MEDIA as unknown as BackupBucket, backups: this.env.BACKUPS as unknown as BackupBucket });
+      return Response.json(report);
     }
     return this.app.fetch(request);
   }
@@ -378,7 +389,25 @@ worker.all('*', async (c) => {
   return toOrg(c, caller.orgId, { 'x-user': caller.ctx.userId, 'x-session': caller.sessionId, 'x-role': caller.ctx.role, 'x-org': caller.orgId });
 });
 
-export default worker;
+/** Each hour: every organisation's nightly backup, made by the first run of a day, the files copied a share a run. */
+async function backups(env: Env) {
+  if (!env.BACKUPS || !env.MEDIA) return;
+  const { accounts } = await globals(env);
+  for (const org of await d1Sql(env.DB).all('SELECT id, name FROM orgs ORDER BY id')) {
+    const orgId = String(org.id);
+    try {
+      const users = (await accounts.members.listUsers(orgId)).flatMap((u) => (u.email ? [{ name: u.name, email: u.email, role: u.role, google: [] }] : []));
+      const body = JSON.stringify({ orgId, orgName: String(org.name), users, budget: Number(env.BACKUP_BUDGET ?? 15) });
+      const res = await env.ORG.get(env.ORG.idFromName(orgId)).fetch('https://org/internal/backup', { method: 'POST', body });
+      const report = (await res.json()) as Record<string, unknown>;
+      if (report.made || report.copied || (report.gone as unknown[]).length) log({ event: 'backup', orgId, ...report });
+    } catch (e) {
+      log({ event: 'backup-failed', orgId, error: String(e) });
+    }
+  }
+}
+
+export default { fetch: worker.fetch, scheduled: (_e: ScheduledController, env: Env, ctx: ExecutionContext) => ctx.waitUntil(backups(env)) } satisfies ExportedHandler<Env>;
 
 /** `SUPER_ADMINS` as a list, or null without it. */
 function superAdminsOf(env: Env): string[] | null {

@@ -42,6 +42,15 @@ database_id = "bfbc3350-e582-423f-ab17-86ef90ad1878"
 binding = "MEDIA"
 bucket_name = "gp-staging-media"
 
+# The nightly backups (docs/cloudflare.md, "Backups"): each organisation's nights and files, thinned as backup-retention.ts keeps them.
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "gp-staging-backups"
+
+# Each hour: the day's first run makes each organisation's night, and every run copies a share of the files.
+[triggers]
+crons = ["17 * * * *"]
+
 [[durable_objects.bindings]]
 name = "ORG"
 class_name = "OrgDurableObject"

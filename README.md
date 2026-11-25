@@ -37,7 +37,8 @@ docker compose up -d
 docker compose logs app            # "Setup token: gpst_…"
 ```
 
-Then open `https://<GP_DOMAIN>`, and set up with the token.
+Then open `https://<GP_DOMAIN>`, and set up with the token. The app backs itself up each night while it runs, into
+`/data/backups`, thinned to about 34 nights a year (docs/self-hosting.md, "Backups").
 
 **With Docker alone**, to try it on this computer (`localhost` counts as secure, so passkeys work without https):
 
@@ -69,11 +70,13 @@ You need a Cloudflare account, a domain on it (`presenter.example.org` below), a
 npx wrangler login
 npx wrangler d1 create mychurch-global --location weur     # prints the database_id
 npx wrangler r2 bucket create mychurch-media
+npx wrangler r2 bucket create mychurch-backups
 cp wrangler.app.toml wrangler.mychurch.toml
 ```
 
 In `wrangler.mychurch.toml`, change `name` (`mychurch`), the `routes` pattern, `PASSKEY_RP_ID`, `PASSKEY_ORIGINS` and
-`GOOGLE_REDIRECT_BASE_URL` to the domain, and `database_name`, `database_id` and `bucket_name` to the two just made.
+`GOOGLE_REDIRECT_BASE_URL` to the domain, and `database_name`, `database_id` and the two `bucket_name`s to what you just
+made.
 Then the secrets, before the first deploy, so the setup page is never open without its token:
 
 ```sh
@@ -90,7 +93,8 @@ and the deploy, which builds the web app first and makes the domain's DNS record
 ```
 
 Open `https://presenter.example.org` and set up with the token. An update is `git pull`, then the same deploy; the
-databases migrate on their first request after it. E-mail, Google's client, logs, restores and why a deploy that
+databases migrate on their first request after it. Each night every organisation is backed up into the backups
+bucket, thinned as the Docker image's are, and `pnpm backup:zip` makes a night an export zip again. E-mail, Google's client, logs, restores and why a deploy that
 changed a schema cannot be rolled back: [`docs/cloudflare.md`](docs/cloudflare.md).
 
 ## The C# app (1.x)

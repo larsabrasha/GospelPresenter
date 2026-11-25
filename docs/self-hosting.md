@@ -55,16 +55,26 @@ between Saturday evening and Sunday's service.
 ## Backups
 
 All a church has is in the volume `data`: a SQLite file per organisation, a global one, and the files (pictures,
-sounds, videos) under `media/`. Stopped, it can be copied as it is:
+sounds, videos) under `media/`. The app backs it up itself each night, while it runs (Lars, 2026-11-25), into
+`/data/backups/{YYYY-MM-DD}/` (`apps/server/src/backup-node.ts`): every database copied with SQLite's `VACUUM INTO`,
+which reads one consistent state beside the server's own connection, and the files as hard links. A file is named by
+its hash and never written again, so a link costs no space, and it stays when the app later removes the original. A
+night costs about the databases' size, a few MB.
+
+The nights are thinned as Time Machine thins its own (`apps/server/src/backup-retention.ts`): every night for two
+weeks, then the newest of each week for eight weeks, then the newest of each month for a year; at most about 34. The
+app looks each hour, so the first look of a day (UTC) makes it. `GP_BACKUPS=off` turns it off, and `GP_BACKUP_DIR`
+puts the nights elsewhere, such as a second disk mounted into the container (a copy there, not a link, takes the
+files' space). A backup now, beside the running app:
 
 ```sh
-docker compose stop app
-docker run --rm -v gospel-presenter_data:/data -v "$PWD":/backup alpine tar czf /backup/gp-$(date +%F).tar.gz -C /data .
-docker compose start app
+docker compose exec app node node-server.mjs backup
 ```
 
-(`gospel-presenter_data` is the folder's name, then `_data`.) Exportera, under Organisationen, is a church's own
-copy without stopping anything (docs/import-from-1x.md, "From 2.0 itself").
+The backups are in the same volume as what they back up: a disk that fails takes both. Copy `backups/` off the machine
+too, now and then, or mount it from another disk. To go back to a night: stop the app, put that night's files in
+`/data` in place of the databases and `media/`, start it. Exportera, under Organisationen, is a church's own copy too
+(docs/import-from-1x.md, "From 2.0 itself").
 
 ## From 1.x, or from app.gospelpresenter.com
 

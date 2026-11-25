@@ -113,8 +113,23 @@ is not the server's stops syncing until it reloads (426), which the quiet swap d
 from Saturday evening to Sunday afternoon, and a commit that bumps a schema says so. Restores: D1 has Time Travel
 (`wrangler d1 time-travel restore <db> --timestamp …`, 30 days); a Durable Object's SQLite can be brought back to a
 point in time with `ctx.storage.getBookmarkForTime` and `onNextSessionRestoreBookmark`, which no route calls yet; R2 has
-no versions, so a purged file is gone, and so is an organisation deleted (`/internal/drop`). Until a scheduled export
-exists, Exportera under Organisationen is a church's copy of its data.
+no versions, so a purged file is gone, and so is an organisation deleted (`/internal/drop`). The nightly backups
+below keep both; Exportera under Organisationen is a church's own copy.
+
+**Backups (2026-11-25).** Each night, every organisation's rows, users and Bible texts, and its files, in a bucket of
+their own, bound as `BACKUPS` (`gp-apptest-backups`, `gp-staging-backups`, `gp-app-backups`;
+`apps/server/src/backup-r2.ts`). A cron trigger runs each hour (`[triggers]`, minute 17): the Worker lists the
+organisations in D1 and asks each one's object, with its name and its users, for `/internal/backup`. The day's (UTC)
+first run writes the night, `orgs/{org}/nights/{YYYY-MM-DD}.json`: the export zip's manifest, users and rows in one
+file, a few MB. Each file is kept once, `orgs/{org}/files/{hash}`, as long as a kept night names it, so a year of nights
+costs about one copy of the files. A copy is a read and a write, and a run may make only so many (50 subrequests on the
+free plan), so a run copies at most `BACKUP_BUDGET` files (15) and the next goes on: a first backup of many files takes
+some hours. A file a night names that the organisation no longer has is noted in `index.json` and not asked for again.
+The nights are thinned as the Docker image's are (`apps/server/src/backup-retention.ts`): every night for two weeks, the
+newest of each week for eight weeks, the newest of each month for a year. A run that did something writes a `backup`
+event to the logs, a failed one `backup-failed`. To go back to a night: `pnpm backup:zip -- --config
+apps/server/wrangler.app.toml --org <id> --night <day>` (`scripts/backup-zip.mjs`) fetches it with wrangler and writes an
+export zip, which Importera reads into an empty organisation (or adds to one, as an import does).
 
 **Logs (2026-11-04).** The Worker writes its events as JSON lines (`console.warn`; on Node, stderr): a refused
 sign-in (`passkey-refused`), an error a client caught nothing for (`client-error`), and since 2026-11-09 one the server

@@ -13,6 +13,7 @@
     "deploy:apptest": "node scripts/deploy.mjs apptest",
     "deploy:staging": "node scripts/deploy.mjs staging",
     "deploy:app": "node scripts/deploy.mjs app",
+    "backup:zip": "node --experimental-transform-types --disable-warning=ExperimentalWarning scripts/backup-zip.mjs",
     "screenshots": "GP_WEBSITE=\"$PWD/website/src/screenshots\" pnpm --filter @gp/desktop exec playwright test website"
   },
   "devDependencies": {
