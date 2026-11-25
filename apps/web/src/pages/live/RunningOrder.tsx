@@ -181,28 +181,30 @@ export function RunningOrder({
                 {ticking ? (
                   <AppButton
                     variant="plain"
-                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
+                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-start gap-2.5 px-2.5 min-h-9 py-2 touch:min-h-11 touch:py-3 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
                     aria-pressed={ticked.has(item.id)}
                     disabled={shown}
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    <ItemBadge type={item.type} />
+                    <ItemBadge type={item.type} className="-my-0.5" />
                     <RowTitle item={item} overlays={overlays} />
                   </AppButton>
                 ) : (
                   <>
                   <AppButton
                     variant="plain"
-                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-[inherit] focus:outline-none"
+                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-start gap-2.5 px-2.5 min-h-9 py-2 touch:min-h-11 touch:py-3 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-[inherit] focus:outline-none"
                     aria-pressed={selected}
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    <ItemBadge type={item.type} />
+                    {/* The symbol on the name's line, the comment or overlay under the name (Lars, 2026-11-25): its 24 px
+                        take the line's 20, so a row of one line is as tall as before. */}
+                    <ItemBadge type={item.type} className="-my-0.5" />
                     <RowTitle item={item} overlays={overlays} />
                     {problem && problem !== 'no-parts' && (
-                      <span className="text-amber-500">
+                      <span className="text-amber-500 mt-0.5">
                         <WarningIcon className="size-4" />
                         <span className="sr-only">⚠</span>
                       </span>
