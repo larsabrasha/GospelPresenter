@@ -44,7 +44,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
-  await details.getByLabel('Beskrivning').fill('Med nattvard');
+  await details.getByRole('textbox', { name: 'Beskrivning' }).fill('Med nattvard');
   await details.getByRole('button', { name: 'Spara' }).click();
   await page.setViewportSize(PHONE);
   await page.reload();

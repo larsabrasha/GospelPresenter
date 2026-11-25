@@ -380,12 +380,12 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await details.getByLabel('Datum').fill('2026-11-08');
   await details.getByLabel('Tid').fill('10:00');
   await details.getByLabel('Plats').fill('Stora salen');
-  await details.getByLabel('Beskrivning').fill('Med nattvard');
+  await details.getByRole('textbox', { name: 'Beskrivning' }).fill('Med nattvard');
   await details.getByRole('button', { name: 'Spara' }).click();
   await expect(page.getByTestId('schedule')).toHaveText('2026-11-08 10:00 · Stora salen');
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
-  await expect(details.getByLabel('Beskrivning')).toHaveValue('Med nattvard');
+  await expect(details.getByRole('textbox', { name: 'Beskrivning' })).toHaveValue('Med nattvard');
   await details.getByRole('button', { name: 'Avbryt' }).click();
   await openPresentations(page);
   await expect(page.getByRole('link', { name: /Gudstjänst/ })).toContainText('10:00 · Stora salen');

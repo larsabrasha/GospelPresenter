@@ -6,8 +6,11 @@ import { SquaresOverlapIcon } from '../../ui/icons.tsx';
 const OVERLAY_TINT = 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-300';
 /** The overlay chip under the running order's row (Lars, 2026-11-25). */
 export const OVERLAY_CHIP = `inline-flex items-center gap-1 min-w-0 max-w-full px-2 py-0.5 rounded-full text-[11px]/4 normal-case tracking-normal font-medium ${OVERLAY_TINT}`;
-/** An item's comment the same way, a neutral grey: an instruction for whoever runs it, not to be missed (Lars, 2026-11-25). */
-export const NOTE_CHIP = 'inline-flex items-center gap-1 min-w-0 max-w-full px-2 py-0.5 rounded-full text-[11px]/4 font-medium bg-stone-500/12 text-stone-600 dark:bg-white/10 dark:text-stone-300';
+/**
+ * An item's comment under its row: its icon and its words in grey, with no pill around them (Lars, 2026-11-25: the
+ * rounded grey behind each made the list busy).
+ */
+export const NOTE_CHIP = 'inline-flex items-center gap-1 min-w-0 max-w-full text-xs/4 text-stone-500 dark:text-stone-400';
 
 /** The overlay an item carries, on a line of its own under its heading, so it shows without opening the …. */
 export function OverlayChip({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {

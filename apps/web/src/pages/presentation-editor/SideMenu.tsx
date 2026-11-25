@@ -42,7 +42,7 @@ export function SideMenu({
     <aside ref={column} className="flex w-[300px] shrink-0 h-full pt-3 flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
       {/* The list's scrollbar room and padding too, so the box's edges line up with the rows' (Lars, 2026-11-02). */}
       {presentation.description && (
-        <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-3 overflow-hidden [scrollbar-gutter:stable]">
+        <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-4 overflow-hidden [scrollbar-gutter:stable]">
           <Description key={presentation.description} text={presentation.description} onEdit={onEditDescription} />
         </div>
       )}

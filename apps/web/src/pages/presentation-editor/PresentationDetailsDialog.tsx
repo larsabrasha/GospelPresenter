@@ -10,6 +10,7 @@ import { Dialog } from '../../ui/Dialog.tsx';
 import { Group, GROUP_ROW, PopUp } from '../../ui/Group.tsx';
 import { CheckIcon, CloseIcon } from '../../ui/icons.tsx';
 import { withMaxChars } from '../../ui/maxChars.ts';
+import { FloatingInput } from '../../ui/Floating.tsx';
 
 /** What the dialog edits; empty strings are cleared fields. */
 export interface PresentationDetails {
@@ -99,28 +100,26 @@ export function PresentationDetailsDialog({
           </AppButton>
         </div>
         <div className="bg-ground px-4 pt-2 pb-5 space-y-5 rounded-b-2xl">
+          {/* Each field's name in it, moving up as it is filled, as the song's card has (Lars, 2026-11-25: filled in,
+              nothing said what "Kyrksalen" was). */}
           <Group>
-            <div className={GROUP_ROW}>
-              <input
-                // The name first, ready to type over, and Enter saves.
-                // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog is for this
-                autoFocus
-                aria-label={t('presentation.name')}
-                placeholder={t('presentation.name')}
-                className={BARE}
-                value={d.name}
-                onFocus={(e) => e.currentTarget.select()}
-                onChange={withMaxChars(FIELD_RULES.name.max, set('name'))}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return;
-                  e.preventDefault();
-                  void save();
-                }}
-              />
-            </div>
-            <div className={GROUP_ROW}>
-              <input aria-label={t('presentation.location')} placeholder={t('presentation.location')} className={BARE} value={d.location} onChange={withMaxChars(FIELD_RULES.location.max, set('location'))} />
-            </div>
+            <FloatingInput
+              bare
+              label={t('presentation.name')}
+              // The name first, ready to type over, and Enter saves.
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog is for this
+              autoFocus
+              value={d.name}
+              maxChars={FIELD_RULES.name.max}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={set('name')}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                void save();
+              }}
+            />
+            <FloatingInput bare label={t('presentation.location')} value={d.location} maxChars={FIELD_RULES.location.max} onChange={set('location')} />
           </Group>
           <Group>
             <label className={GROUP_ROW}>
@@ -150,7 +149,7 @@ export function PresentationDetailsDialog({
               </label>
             </Group>
           )}
-          <Group>
+          <Group title={t('presentation.description')}>
             <textarea
               aria-label={t('presentation.description')}
               placeholder={t('presentation.description')}

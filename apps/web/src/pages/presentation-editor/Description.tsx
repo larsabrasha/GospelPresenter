@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { CAPTION } from '../../ui/Group.tsx';
 import { PencilIcon } from '../../ui/icons.tsx';
 
 /**
@@ -9,7 +10,9 @@ import { PencilIcon } from '../../ui/icons.tsx';
  * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field). Visa mer at the end of the
  * last line, and Visa mindre under the text at the same right edge, so the two stand where each other was (Lars,
  * 2026-11-25). Unfolded, `onEdit` adds a pencil at the left of Visa mindre, which opens Redigera detaljer: a pencil, as
- * the add dialog's song has, rather than a second word beside Visa mindre (Lars, 2026-11-25).
+ * the add dialog's song has, rather than a second word beside Visa mindre (Lars, 2026-11-25). Under the caption
+ * Beskrivning, as a group's, so a description that lists the service is not read as the running order under it (Lars,
+ * 2026-11-25).
  */
 export function Description({ text, className, onEdit }: { text: string; className?: string; onEdit?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +29,9 @@ export function Description({ text, className, onEdit }: { text: string; classNa
     return () => observer.disconnect();
   }, [open]);
   return (
-    <div className={`relative px-4 py-3 rounded-2xl bg-surface ${className ?? ''}`} data-testid="description">
+    <div role="group" aria-label={t('presentation.description')} className={`space-y-1.5 ${className ?? ''}`}>
+      <h3 className={CAPTION}>{t('presentation.description')}</h3>
+    <div className="relative px-4 py-3 rounded-2xl bg-surface" data-testid="description">
       <p ref={box} className={`text-[13px]/[18px] whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
@@ -64,6 +69,7 @@ export function Description({ text, className, onEdit }: { text: string; classNa
           </AppButton>
         )
       )}
+    </div>
     </div>
   );
 }
