@@ -76,7 +76,11 @@ function DialogFrame({
     else {
       const seen = (x: HTMLElement) => x.getClientRects().length > 0 && !x.matches(':disabled');
       const first = [...el.querySelectorAll<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')].find(seen);
-      (el.querySelector<HTMLElement>('[data-default]') ?? first)?.focus();
+      const target = el.querySelector<HTMLElement>('[data-default]') ?? first;
+      // Not a text field below `md`: a phone would bring its keyboard up over the dialog, or hold a field in focus with
+      // none (Lars, 2026-11-25: Lägg till sång's search; as useFocusWhenShown in ui/Picker.tsx). The box, then.
+      if (target?.matches('input:not([type=checkbox], [type=radio]), textarea') && matchMedia('(max-width: 767.98px)').matches) el.focus();
+      else target?.focus();
     }
   }, [page]);
   const close = onClose;
@@ -106,8 +110,9 @@ function DialogFrame({
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl ${FLOATING_EDGE} bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto'} ${className}`}
-        tabIndex={page ? -1 : undefined}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl ${FLOATING_EDGE} bg-surface text-stone-900 dark:text-stone-100 ${page ? 'sheet-in h-full flex flex-col overflow-hidden outline-none max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]' : 'overflow-auto outline-none'} ${className}`}
+        // Focusable, for what has no field to focus on a phone (below) and for a dialog of pages.
+        tabIndex={-1}
         data-dialog-box
         onKeyDown={(e) => {
           e.stopPropagation(); // keys in a dialog are the dialog's

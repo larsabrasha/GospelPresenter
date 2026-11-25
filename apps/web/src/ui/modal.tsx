@@ -44,8 +44,19 @@ export function ModalLayer({
   label,
   labelledBy,
   className,
+  leaving,
   ...rest
-}: { children: ReactNode; label?: string; labelledBy?: string; className?: string } & Omit<HTMLAttributes<HTMLDialogElement>, 'className' | 'children'> & {
+}: {
+  children: ReactNode;
+  label?: string;
+  labelledBy?: string;
+  className?: string;
+  /**
+   * On its way out (a sheet sliding away): no longer modal, so what is under it, or what a choice in it opened, is
+   * used at once; still drawn, over the page, and not to be touched, until it is taken down.
+   */
+  leaving?: boolean;
+} & Omit<HTMLAttributes<HTMLDialogElement>, 'className' | 'children'> & {
     [data: `data-${string}`]: string | undefined;
   }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -69,13 +80,24 @@ export function ModalLayer({
     changed();
     return () => {
       alive.current = false;
-      stack.splice(stack.indexOf(dialog), 1);
+      const at = stack.indexOf(dialog);
+      if (at !== -1) stack.splice(at, 1);
       changed();
       if (dialog.open) dialog.close();
       if (before instanceof HTMLElement && before.isConnected) before.focus({ preventScroll: true });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shown once for the time it is mounted; `before` is read once, as it was first drawn
   }, []);
+  useLayoutEffect(() => {
+    const dialog = ref.current!;
+    if (!leaving || !alive.current) return;
+    alive.current = false; // closed below on purpose: not shown modal again
+    const at = stack.indexOf(dialog);
+    if (at !== -1) stack.splice(at, 1);
+    changed();
+    dialog.close();
+    dialog.show();
+  }, [leaving]);
   const keys = (e: KeyboardEvent<HTMLDialogElement>) => {
     // The dialog's handlers, under this, took Escape as theirs or not; the browser's close is never asked for.
     if (e.key === 'Escape') e.preventDefault();
@@ -90,13 +112,14 @@ export function ModalLayer({
       tabIndex={-1}
       aria-label={label}
       aria-labelledby={labelledBy}
+      inert={leaving}
       onKeyDown={keys}
       onCancel={(e) => e.preventDefault()}
       // Closed by the browser regardless (a second Escape with nothing pressed between): shown again while it is mounted.
       onClose={() => {
         if (alive.current && ref.current && !ref.current.open) ref.current.showModal();
       }}
-      className={`fixed inset-0 m-0 p-0 border-0 w-full h-full max-w-none max-h-none bg-transparent text-inherit overflow-visible outline-none backdrop:bg-transparent ${className ?? ''}`}
+      className={`fixed inset-0 m-0 p-0 border-0 w-full h-full max-w-none max-h-none bg-transparent text-inherit overflow-visible outline-none backdrop:bg-transparent ${leaving ? 'z-[300] pointer-events-none' : ''} ${className ?? ''}`}
     >
       {children}
     </dialog>,

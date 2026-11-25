@@ -13,7 +13,7 @@ export function MenuGroup({ children }: { children: ReactNode }) {
 
 /** A choice in a sheet's menu, its icon first, as iOS 27 draws them; choosing it closes the sheet. */
 export function MenuRow({ icon, onClick, danger, disabled, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; children: ReactNode }) {
-  // The sheet slides away first, as on iOS, then the choice is carried out.
+  // The choice is carried out at once, as the sheet slides away (ui/Sheet.tsx).
   const dismiss = useSheetDismiss();
   return (
     <AppButton variant="plain" onClick={() => dismiss(onClick)} disabled={disabled} className={`${ROW} ${danger ? 'text-red-500' : ''} disabled:text-stone-400 disabled:cursor-default disabled:text-[15px]`}>

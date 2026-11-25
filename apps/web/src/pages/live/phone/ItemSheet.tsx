@@ -41,12 +41,12 @@ export function ItemSheet({ item, songs, arrangements, overlays, shownId, on, on
       <div className="flex flex-col gap-5">
         <MenuGroup>
           {offered.rename && (
-            <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (onClose(), on.onRename(item))}>
+            <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => on.onRename(item)}>
               {t('header.rename')}
             </MenuRow>
           )}
           {page && (
-            <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (onClose(), navigate(page))}>
+            <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => navigate(page)}>
               {t('presentation.editSong')}
             </MenuRow>
           )}
@@ -55,16 +55,16 @@ export function ItemSheet({ item, songs, arrangements, overlays, shownId, on, on
               {t('presentation.editImages')}
             </MenuRow>
           )}
-          <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => (onClose(), on.onNote(item))}>
+          <MenuRow icon={<CommentIcon className="size-5" />} onClick={() => on.onNote(item)}>
             {t('note.title')}
           </MenuRow>
         </MenuGroup>
         <ItemSettings item={item} arrangement={offered.arrangement} overlay={offered.overlay} />
         <MenuGroup>
-          <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (onClose(), on.onAddAfter(item))}>
+          <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => on.onAddAfter(item)}>
             {t('live.addAfter')}
           </MenuRow>
-          <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => (onClose(), on.onTick(item))}>
+          <MenuRow icon={<CheckSquareIcon className="size-5" />} onClick={() => on.onTick(item)}>
             {t('presentation.tick')}
           </MenuRow>
         </MenuGroup>

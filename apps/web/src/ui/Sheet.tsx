@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { DIMMED, dimmedAlpha, FLOATING_EDGE, ROUND_CLOSE } from './glass.ts';
@@ -20,16 +20,30 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
   const panel = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
-  /** Slides the sheet off the bottom of the screen (or fades it, centred) and the dimming away, then closes it and runs `then`. */
+  // Sliding away: no longer modal (ui/modal.tsx), so the page, or what the choice opened, is used at once.
+  const [going, setGoing] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  /**
+   * Runs `then`, and slides the sheet off the bottom of the screen (or fades it, centred) and the dimming away, then
+   * closes it. `then` at once, not after: what a choice opens (Lägg till sång) is there for the finger that comes next,
+   * over the sheet still going; a swipe begun on the sheet in its last 300 ms was lost to the list it opened (Lars,
+   * 2026-11-25: on an iPhone the songs would not scroll at first).
+   */
   const dismiss = (then?: () => void) => {
     if (leaving.current) return;
     leaving.current = true;
-    const done = () => {
+    const el = panel.current;
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       onClose();
       then?.();
-    };
-    const el = panel.current;
-    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+      return;
+    }
     el.getAnimations().forEach((a) => a.cancel()); // one still sliding in starts down from where it stands
     if (matchMedia('(width >= 40rem)').matches) {
       el.style.transition = `transform ${OUT_MS}ms ease-in, opacity ${OUT_MS}ms ease-in`;
@@ -44,7 +58,15 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
       shade.style.transition = `background-color ${OUT_MS}ms`;
       shade.style.backgroundColor = 'rgb(0 0 0 / 0)';
     }
-    setTimeout(done, OUT_MS);
+    // A choice lets go of the page at once; closed with ✕, outside or Escape it stays modal till it is gone, so a
+    // press that would open it again waits for it rather than being undone by its close.
+    if (then) {
+      setGoing(true);
+      then();
+    }
+    // Closed once out of sight, unless the choice took it down already (put another sheet in its place, say): its
+    // onClose would close that one.
+    setTimeout(() => alive.current && onClose(), OUT_MS);
   };
   // The page under it brightens as the sheet is pulled away.
   useSheetDrag(panel, bar, onClose, (progress, ms) => {
@@ -60,7 +82,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
   }, []);
   // In the browser's own modal (ui/modal.tsx): all behind it inert, the focus back where it was when it closes.
   return (
-    <ModalLayer labelledBy={titleId}>
+    <ModalLayer labelledBy={titleId} leaving={going}>
     <div
       ref={backdrop}
       data-overlay
