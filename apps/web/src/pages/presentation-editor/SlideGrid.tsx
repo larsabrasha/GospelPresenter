@@ -8,14 +8,18 @@ import { SlideView } from '../../ui/SlideView.tsx';
 
 /**
  * Arrangement pills, shown when a song has an arrangement of its own (spec 02): Original, then each arrangement, unnamed
- * ones read "Arrangemang 2", by their place.
+ * ones read "Arrangemang 2", by their place. "Arrangemang:" stands before them on their line, as "Överlägg:" does, so
+ * one who has not met arrangements knows what the pills choose between (Lars, 2026-11-25).
  */
 export function ArrangementPills({ arrangements, chosen, onChoose, className }: { arrangements: SongArrangement[]; chosen: string | null; onChoose: (id: string) => void; className?: string }) {
   if (!arrangements.length) return null;
   // Original first, the song's parts in their own order, beside an arrangement of its own (Lars, 2026-11-19).
   const pills = [{ id: ORIGINAL_ARRANGEMENT, title: t('song.original') }, ...arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }))];
   return (
-    <div className={`flex flex-wrap gap-1.5 ${className ?? ''}`} role="group" aria-label={t('song.arrangements')}>
+    <div className={`flex flex-wrap items-center gap-1.5 ${className ?? ''}`} role="group" aria-label={t('song.arrangements')}>
+      <span aria-hidden="true" className="mr-1 text-xs font-medium text-stone-500 dark:text-stone-400">
+        {t('song.arrangements')}:
+      </span>
       {pills.map((a) => (
         <AppButton
           key={a.id}

@@ -74,7 +74,7 @@ export function Inspector({
   return (
     <div className="space-y-5" data-testid="inspector">
       <Group>
-        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxChars={FIELD_RULES.name.max} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        <AutoSaveField bare autoSelect={nameNew} label={t('song.name')} maxChars={FIELD_RULES.name.max} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
       </Group>
       {hasBackground && (
         <Group title={t('slideEditor.page', { n: pageAt + 1 })}>
