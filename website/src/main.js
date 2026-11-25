@@ -1,13 +1,25 @@
 import "./style.css";
 import "./carousel.js";
 
-// Redirect to preferred language if on default path
-// Skip if the user has previously chosen a language manually
-if (location.pathname === "/" && !localStorage.getItem("lang")) {
-  const lang = navigator.language.slice(0, 2);
-  if (lang === "sv") {
-    location.replace("/sv/");
+/** The language chosen with EN / SV, or null: none chosen, or storage the browser refuses. */
+function chosenLang() {
+  try {
+    return localStorage.getItem("lang");
+  } catch {
+    return null;
   }
+}
+
+/** The first of Swedish and English in the browser's languages, in its order; English when it names neither. */
+function browserLang() {
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return langs.map((l) => l.slice(0, 2).toLowerCase()).find((l) => l === "sv" || l === "en") ?? "en";
+}
+
+// The front page in the visitor's language: the one chosen with EN / SV, else the browser's. An address that names a
+// language (/sv/) is left as it is.
+if (location.pathname === "/" && (chosenLang() ?? browserLang()) === "sv") {
+  location.replace("/sv/");
 }
 
 // Show navbar background on scroll
@@ -20,10 +32,14 @@ window.addEventListener("scroll", () => {
   navbar.classList.toggle("shadow-sm", scrolled);
 }, { passive: true });
 
-// Mark manual language choice when clicking a language link
+// A language chosen with EN / SV is kept, so the front page opens in it next time.
 document.querySelectorAll("[data-lang]").forEach((el) => {
   el.addEventListener("click", () => {
-    localStorage.setItem("lang", el.dataset.lang);
+    try {
+      localStorage.setItem("lang", el.dataset.lang);
+    } catch {
+      // Storage refused (a private window): the choice holds for this visit only.
+    }
   });
 });
 
