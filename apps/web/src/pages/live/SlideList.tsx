@@ -255,12 +255,13 @@ export function SlideList({
 
 /**
  * An item's comment for those who run it (spec 03 2f), under its name where its text starts, on a neutral grey card
- * where it is read in full, as its chip in the running order (Lars, 2026-11-25); never on a screen.
+ * where it is read in full, as its chip in the running order (Lars, 2026-11-25); never on a screen. The overlay's chip
+ * above it is the same size; its corners round one line to a pill as the chip's, and more lines to a card.
  */
 function ItemNote({ item }: { item: PresentationItem }) {
   if (!item.note) return null;
   return (
-    <p className="self-start max-w-full flex gap-1.5 rounded-xl px-3 py-1.5 text-[13px]/[18px] bg-stone-500/10 text-stone-700 dark:bg-white/[0.07] dark:text-stone-200 whitespace-pre-line" data-testid="item-note">
+    <p className="self-start max-w-full flex gap-1.5 rounded-[15px] px-3 py-1.5 text-[13px]/[18px] bg-stone-500/10 text-stone-700 dark:bg-white/[0.07] dark:text-stone-200 whitespace-pre-line" data-testid="item-note">
       <CommentIcon className="size-3.5 shrink-0 mt-0.5" />
       <span className="min-w-0">{item.note}</span>
     </p>
