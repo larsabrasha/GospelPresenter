@@ -250,7 +250,7 @@ export function SlideList({
 
 /**
  * An item's comment for those who run it (spec 03 2f), under its name where its text starts, on a note's warm yellow
- * where it is read in full (Lars, 2026-11-25; grey in the running order); never on a screen.
+ * where it is read in full, as its chip in the running order (Lars, 2026-11-25); never on a screen.
  */
 function ItemNote({ item }: { item: PresentationItem }) {
   if (!item.note) return null;

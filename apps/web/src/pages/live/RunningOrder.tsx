@@ -13,7 +13,7 @@ import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
 import type { AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 import { AddChoices } from './AddChoices.tsx';
-import { OVERLAY_CHIP } from './OverlayChip.tsx';
+import { NOTE_CHIP, OVERLAY_CHIP } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 
 
@@ -278,9 +278,9 @@ export function RunningOrder({
 }
 
 /**
- * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) in grey and the
- * overlay it carries as its purple chip, each on one line with its icon (Lars, 2026-11-25: colour only for what shows on
- * the screens); the whole note is above the item's slides. The
+ * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) as a yellow chip and
+ * the overlay it carries as a purple one, each on one line with its icon (Lars, 2026-11-25: colour for what shows on the
+ * screens and for what whoever runs it must not miss); the whole note is above the item's slides. The
  * kind's icon is centred on the lines, as iOS's lists centre it beside a title and a subtitle.
  */
 function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {
@@ -289,7 +289,7 @@ function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overla
     <span className="min-w-0 flex flex-col">
       <span className="truncate">{item.title}</span>
       {item.note && (
-        <span className="flex items-center gap-1 min-w-0 text-xs text-stone-500 dark:text-stone-400" data-testid="row-note">
+        <span className={`self-start mt-0.5 ${NOTE_CHIP}`} data-testid="row-note">
           <CommentIcon className="size-3 shrink-0" />
           <span className="truncate">{item.note}</span>
         </span>
