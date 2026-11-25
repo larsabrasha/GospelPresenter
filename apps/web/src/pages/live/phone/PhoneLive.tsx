@@ -9,7 +9,7 @@ import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { FloatingSearchButton } from '../../../ui/CommandPalette.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { PointIcon, PencilIcon, PlusIcon } from '../../../ui/icons.tsx';
+import { ItemBadge, PencilIcon, PlusIcon } from '../../../ui/icons.tsx';
 import { href } from '../../../ui/router.ts';
 import { Sheet } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
@@ -326,15 +326,15 @@ function AddKindSheet({ onChoose, onClose }: { onChoose: (choice: AddChoice) => 
     <Sheet title={t('presentation.addTitle')} onClose={onClose}>
       <div className="flex flex-col gap-5">
         <MenuGroup>
-          {addKinds().map(([kind, label, Icon]) => (
-            <MenuRow key={kind} icon={<Icon className="size-5" />} onClick={() => onChoose(kind)}>
+          {addKinds().map(([kind, label, , type]) => (
+            <MenuRow key={kind} icon={<ItemBadge type={type} />} onClick={() => onChoose(kind)}>
               {label}
             </MenuRow>
           ))}
         </MenuGroup>
         {/* Made, not chosen from a library: a group of its own, under the kinds (Lars, 2026-11-05). */}
         <MenuGroup>
-          <MenuRow icon={<PointIcon className="size-5" />} onClick={() => onChoose('header')}>
+          <MenuRow icon={<ItemBadge type="header" />} onClick={() => onChoose('header')}>
             {t('header.kind')}
           </MenuRow>
         </MenuGroup>

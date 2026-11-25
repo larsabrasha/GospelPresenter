@@ -7,7 +7,7 @@ import { useSaveFailed } from '../../ui/AutoSave.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { CheckboxIcon, EllipsisOutlineIcon, ItemIcon, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
+import { CheckboxIcon, EllipsisOutlineIcon, ItemBadge, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
 import { Dropdown } from '../../ui/Dropdown.tsx';
 import { SKY_TINT } from '../../ui/glass.ts';
 import { useSortable } from '../../ui/sortable.ts';
@@ -179,7 +179,7 @@ export function RunningOrder({
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    <ItemIcon type={item.type} className={`size-4 shrink-0 text-stone-400 ${item.note ? 'self-start mt-0.5' : ''}`} />
+                    <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
                     <RowTitle item={item} />
                   </AppButton>
                 ) : (
@@ -191,7 +191,7 @@ export function RunningOrder({
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    <ItemIcon type={item.type} className={`size-4 shrink-0 text-stone-400 ${item.note ? 'self-start mt-0.5' : ''}`} />
+                    <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
                     <RowTitle item={item} />
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">

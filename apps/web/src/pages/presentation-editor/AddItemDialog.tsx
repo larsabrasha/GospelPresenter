@@ -1,4 +1,4 @@
-import type { Theme } from '@gp/core';
+import type { PresentationItem, Theme } from '@gp/core';
 import { useState, type ReactNode } from 'react';
 import type { Db } from '../../db/db.ts';
 import { useDb } from '../../db/react.tsx';
@@ -58,14 +58,14 @@ function discardSong(db: Db, id: string) {
 
 /** The kinds an item is, each its name in +'s menu and its icon, Bildspel last: singular, as Keynote's Infoga names its
  * choices (Lars, 2026-11-05). */
-export function addKinds(): [AddKind, string, (p: { className?: string }) => ReactNode][] {
+export function addKinds(): [AddKind, string, (p: { className?: string }) => ReactNode, PresentationItem['type']][] {
   return [
-    ['songs', t('add.song'), MusicalNoteIcon],
-    ['bible', t('add.bible'), BookOpenIcon],
-    ['images', t('add.image'), PhotoIcon],
-    ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
-    ['video', t('presentation.videoTab'), VideoIcon],
-    ['slides', t('add.slides'), SlideshowIcon],
+    ['songs', t('add.song'), MusicalNoteIcon, 'song'],
+    ['bible', t('add.bible'), BookOpenIcon, 'bible'],
+    ['images', t('add.image'), PhotoIcon, 'image'],
+    ['audio', t('presentation.audioTab'), SpeakerWaveIcon, 'audio'],
+    ['video', t('presentation.videoTab'), VideoIcon, 'video'],
+    ['slides', t('add.slides'), SlideshowIcon, 'custom'],
   ];
 }
 

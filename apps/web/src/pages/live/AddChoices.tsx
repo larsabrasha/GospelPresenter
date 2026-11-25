@@ -1,7 +1,7 @@
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CONTEXT_ROW } from '../../ui/ContextMenu.tsx';
-import { PointIcon } from '../../ui/icons.tsx';
+import { ItemBadge } from '../../ui/icons.tsx';
 import { addKinds, type AddChoice } from '../presentation-editor/AddItemDialog.tsx';
 
 /**
@@ -11,15 +11,16 @@ import { addKinds, type AddChoice } from '../presentation-editor/AddItemDialog.t
 export function AddChoices({ onChoose }: { onChoose: (choice: AddChoice) => void }) {
   return (
     <>
-      {addKinds().map(([kind, label, Icon]) => (
+      {/* Each kind on its colour, as the running order's rows and Inställningar's libraries (Lars, 2026-11-25). */}
+      {addKinds().map(([kind, label, , type]) => (
         <AppButton key={kind} variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => onChoose(kind)}>
-          <Icon className="size-4 shrink-0 text-stone-500 dark:text-stone-400" />
+          <ItemBadge type={type} />
           {label}
         </AppButton>
       ))}
       <div className="h-px my-1 mx-1 bg-separator" />
       <AppButton variant="plain" role="menuitem" className={CONTEXT_ROW} onClick={() => onChoose('header')}>
-        <PointIcon className="size-4 shrink-0 text-stone-500 dark:text-stone-400" />
+        <ItemBadge type="header" />
         {t('header.kind')}
       </AppButton>
     </>

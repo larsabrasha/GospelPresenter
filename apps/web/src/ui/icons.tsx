@@ -672,21 +672,48 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
 }
 
 /**
- * A dot: a point of the programme that shows nothing (spec 03 2f). A dot, not lines of text, so a programme's points
- * stand out among the songs and pictures of the running order (Lars, 2026-11-25).
+ * A point of the programme that shows nothing (spec 03 2f): one line of an agenda, its bullet and its words, so it reads
+ * as "a point" at a glance (Lars, 2026-11-25).
  */
 export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="12" r="2.5" fill="currentColor" stroke="none" />
+      <path strokeLinecap="round" d="M11.5 12h8" />
     </Outline>
   );
 }
 
-/** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
+const ITEM_ICONS = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: PointIcon };
+
+/** The icon of an item's kind (Components/Presentations/Sidebar.razor). */
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
-  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon, video: VideoIcon, custom: SlideshowIcon, header: PointIcon }[type];
+  const Icon = ITEM_ICONS[type];
   return <Icon className={className} />;
+}
+
+/** Each kind's colour, as its library's in Inställningar (settingsLinks.ts); a programme point grey, as it shows nothing. */
+const ITEM_COLOURS: Record<PresentationItem['type'], string> = {
+  song: 'bg-blue-500',
+  bible: 'bg-amber-700',
+  image: 'bg-rose-500',
+  audio: 'bg-orange-500',
+  video: 'bg-purple-500',
+  custom: 'bg-orange-700',
+  header: 'bg-stone-500',
+};
+
+/**
+ * An item's kind in the running order as Inställningar draws a library: its icon white on a small tile of the
+ * library's colour (Lars, 2026-11-25: tried, so a kind is told at a glance); a programme point on grey.
+ */
+export function ItemBadge({ type, className = '' }: { type: PresentationItem['type']; className?: string }) {
+  const Icon = ITEM_ICONS[type];
+  return (
+    <span className={`size-6 shrink-0 rounded-md flex items-center justify-center text-white! ${ITEM_COLOURS[type]} ${className}`}>
+      <Icon className="size-3.5" />
+    </span>
+  );
 }
 
 // The admin pages (Pages/Admin/*.razor, Trash.razor, Components/DropZone.razor).
