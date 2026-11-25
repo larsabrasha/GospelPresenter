@@ -92,8 +92,7 @@ tapped shows nothing, and ▶ starts it.
   tried, Lars, 2026-11-03; none of it with less motion asked for) (Släck only blacks the outputs, and
   rests while they are black: a part tapped or a key shows one again, as ProPresenter's Clear; no "Visa igen").
   Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
-  shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
-  (Lars, 2026-11-01). An audio or video slide shown has its controls on the picture (see "Audio and video while
+  shown keeps a thin grey border, no words: → (or a pedal) shows the one after it (Lars, 2026-11-01). An audio or video slide shown has its controls on the picture (see "Audio and video while
   presenting" below).
 - **The running order** fills the rest, with no heading row; Lägg till is a round glass + floating at the bottom right, as iOS 27's Notes and Reminders put
   "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). + first asks which
@@ -103,7 +102,10 @@ tapped shows nothing, and ▶ starts it.
   has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). Every part of
   every item is shown with its whole text (pictures as thumbnails); a tap on a part shows it. Each item is a
   section whose heading (name, LIVE dot, kind, …) sticks at the top until the next pushes it away. The shown part
-  has a red ring and VISAS, the next NÄSTA; the ones before look as the rest (not dimmed), as one goes back to them.
+  has a red ring and VISAS; the ones before look as the rest (not dimmed), as one goes back to them. No NÄSTA on the
+  next (Lars, 2026-11-25: the slides' numbers say the order). The slide the arrows or a number made ready, which ↵
+  shows, has a blue outline and "Tryck Enter för att visa", and a number typed lights the number of the slide it names; nothing is said
+  over or under the live picture, and a number with no slide makes none ready.
 - **The list follows the shown part** only when it changed some other way than a tap in the list (the arrows,
   someone controlling it remotely), and only when the part is out of view: nothing moves under a finger.
 - **Markera** in an item's … opens the computer's running order in its select mode (Lars, 2026-11-02: one list, as

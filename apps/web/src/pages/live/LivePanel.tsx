@@ -28,7 +28,6 @@ export function LivePanel({
   overlay,
   theme,
   overlays,
-  cue,
   open = true,
   onFold,
 }: {
@@ -41,7 +40,6 @@ export function LivePanel({
   theme: Theme;
   overlays: Overlay[];
   /** The slide ↵ shows, said over the picture (useEditorKeys.ts). */
-  cue?: { text: string; problem: boolean } | null;
   /** Out, or folded off the right edge (ui/sidePanels.ts). */
   open?: boolean;
   /** Folds it away, by the toggle at its foot. */
@@ -56,7 +54,7 @@ export function LivePanel({
   // As wide at the right as at the left whatever the scrollbar, as the left column (app.css `--beside-scrollbar`).
   return (
     <aside ref={column} className="flex w-[340px] shrink-0 overflow-y-auto flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-safe-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
-      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} onClear={() => live.set({ black: true })} players={presenting} itemId={pointer.itemId} cue={cue} />
+      <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} onClear={() => live.set({ black: true })} players={presenting} itemId={pointer.itemId} />
       {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
       {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}

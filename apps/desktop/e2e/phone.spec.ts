@@ -118,25 +118,24 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await expect(liveOrder.locator('section')).toHaveCount(2);
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toBeVisible();
 
-  // A tap on a part shows it: VISAS on it, NÄSTA on the next, the picture on the outputs.
+  // A tap on a part shows it: VISAS on it (no NÄSTA on the next: Lars, 2026-11-25), the picture on the outputs.
   await liveOrder.getByRole('button', { name: /A ett/ }).click();
   await expect(picture).toContainText('A ett');
   await expect(liveOrder.getByRole('button', { name: /A ett/ })).toContainText('VISAS');
-  await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('NÄSTA');
+  await expect(liveOrder).not.toContainText('NÄSTA');
   // No arrows beside Släck (Lars, 2026-11-03): a tap on the next part shows it.
   await expect(page.getByRole('button', { name: 'Nästa bild' })).toHaveCount(0);
   await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(picture).toContainText('A två');
 
   // Släck blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not
-  // VISAS, nor the item's dot; NÄSTA still says what → shows. The bar has ■ to end it, and no LIVE beside the name.
+  // VISAS, nor the item's dot. The bar has ■ to end it, and no LIVE beside the name.
   await page.getByRole('button', { name: 'Släck' }).click();
   await expect(page.getByRole('button', { name: 'Släck', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
   await expect(live.getByRole('button', { name: 'Alternativ' })).not.toContainText('LIVE');
   await expect(live.getByRole('button', { name: 'Avsluta presentation' })).toBeVisible();
   await expect(liveOrder).not.toContainText('VISAS');
-  await expect(liveOrder.getByRole('button', { name: /B ett/ })).toContainText('NÄSTA');
   await expect(liveOrder.getByLabel('LIVE')).toHaveCount(0);
   // Only a grey border says where → goes on from.
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toHaveAttribute('data-rested', 'true');

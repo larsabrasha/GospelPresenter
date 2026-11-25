@@ -64,6 +64,7 @@ export function SlideGrid({
   picked,
   itemId,
   media,
+  typing = false,
 }: {
   /** The item the slides are of, for `data-slide`. */
   itemId?: string;
@@ -76,6 +77,8 @@ export function SlideGrid({
   shown?: { pointer: LivePointer; itemId: string; mark: (partIndex: number) => SlideMarkKind | null; onShow: (partIndex: number) => void };
   picked?: { partIndex: number | null; onPick: (partIndex: number) => void };
   media?: ReactNode;
+  /** While presenting, digits are being typed: the slide they name has its number lit (Lars, 2026-11-25). */
+  typing?: boolean;
 }) {
   const overlay = useShownOverlay(overlayId);
   const size = column ? '' : `w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1 ${FIT}`;
@@ -88,7 +91,8 @@ export function SlideGrid({
           const live = here && !shown.pointer.black;
           // Outlined in blue: before presenting the slide picked, while presenting the one ↵ shows (useEditorKeys.ts).
           const chosen = picked?.partIndex === i;
-          const mark = shown?.mark(i);
+          // VISAS on the slide shown; while presenting, ENTER on the one made ready, unless it is that one.
+          const mark = shown?.mark(i) === 'shown' ? 'shown' : shown && chosen ? 'enter' : null;
           return (
             <li key={s.key} className={`${size} flex relative`}>
               <AppButton
@@ -106,7 +110,7 @@ export function SlideGrid({
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
                 {/* Its number, for a number and ↵ to show it while presenting (Lars, 2026-11-07). */}
                 {!media && (
-                  <span className="absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md bg-black/55 px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white" aria-hidden>
+                  <span className={`absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white ${typing && chosen ? 'bg-sky-500' : 'bg-black/55'}`} aria-hidden>
                     {i + 1}
                   </span>
                 )}

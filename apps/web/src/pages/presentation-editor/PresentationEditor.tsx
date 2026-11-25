@@ -193,10 +193,6 @@ export function PresentationEditor({
   // Starta presentation by the desktop app's menu bar, as by F5 and ⌥⌘P.
   useAppCommand('start', start);
   useEditorKeys({ ticking, page, shown: presenting && pointer.itemId ? { itemId: pointer.itemId, partIndex: pointer.partIndex } : null, onCommand });
-  // Said over the live picture once the keys moved the outline: the slide ↵ shows, or that the number typed has none.
-  // The cue's words: the slide ↵ shows, or that the number typed has none.
-  const cueArgs = page.cue && { n: page.cue.n, item: items.find((i) => i.id === page.cue!.itemId)?.title ?? '' };
-  const cueText = page.cue && cueArgs && (page.cue.text === 'live.cued' ? { text: t('live.cued', cueArgs), problem: false } : { text: t('live.noSuchSlide', cueArgs), problem: true });
 
   if (!data) return null;
   const { presentation, slides, songs, theme, overlays } = data;
@@ -377,6 +373,7 @@ export function PresentationEditor({
               picked={picked}
               onPick={(p) => send({ type: 'show', ...p })}
               only={selectedId ?? liveItemId}
+              typing={!!presenting && !!page.state.typed}
             />
           </>
         )}
@@ -394,7 +391,6 @@ export function PresentationEditor({
             overlay={overlay}
             theme={theme}
             overlays={overlays}
-            cue={cueText}
             open={panels.open.right}
             onFold={() => panels.toggle('right')}
           />

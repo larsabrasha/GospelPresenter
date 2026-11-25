@@ -171,7 +171,6 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   const row = (name: string) => page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name, exact: true });
   const shown = output.getByTestId('slide-text');
-  const cue = page.getByTestId('live-cue');
 
   const ready = page.locator('[data-picked="true"]');
 
@@ -187,18 +186,20 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
   await page.keyboard.press(' ');
   await expect(shown).toHaveText('B ett');
 
-  // ⌘↑ marks Sång A and makes its first slide ready, said over the picture; → moves it; nothing shows until ↵, and
-  // then the outline is gone.
+  // ⌘↑ marks Sång A and makes its first slide ready, "Tryck Enter för att visa" on it; → moves it; nothing shows until
+  // ↵, and then the outline and the words are gone.
   await page.keyboard.press('ControlOrMeta+ArrowUp');
   await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
-  await expect(cue).toHaveText('↵ Sång A · bild 1');
+  await expect(ready).toHaveAttribute('aria-label', 'Sång A 1');
+  await expect(ready).toContainText('Tryck Enter för att visa');
   await page.keyboard.press('ArrowRight');
-  await expect(cue).toHaveText('↵ Sång A · bild 2');
+  await expect(ready).toHaveAttribute('aria-label', 'Sång A 2');
+  await expect(ready).toContainText('Tryck Enter för att visa');
   await expect(shown).toHaveText('B ett');
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A två');
-  await expect(cue).toHaveCount(0);
   await expect(ready).toHaveCount(0);
+  await expect(page.getByTestId('live-slides')).not.toContainText('Tryck Enter för att visa');
 
   // ↓ makes ready the slide under the one shown, as they stand: here the next item's first; Escape lets it go.
   await page.keyboard.press('ArrowDown');
@@ -208,13 +209,15 @@ test('while presenting ↵ shows the next slide, or one the arrows or a number m
   await expect(row('Sång A')).toHaveAttribute('aria-pressed', 'true');
   await expect(shown).toHaveText('A två');
 
-  // A number makes that slide of the item marked ready, and ↵ shows it; a slide it does not have is said, and shows nothing.
+  // A number makes that slide of the item marked ready, "Tryck Enter för att visa" on it and its number lit, and ↵ shows it; a slide it does
+  // not have makes none ready, and shows nothing.
   await page.keyboard.press('1');
-  await expect(cue).toHaveText('↵ Sång A · bild 1');
+  await expect(ready).toHaveAttribute('aria-label', 'Sång A 1');
+  await expect(ready).toContainText('Tryck Enter för att visa');
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A ett');
   await page.keyboard.press('9');
-  await expect(cue).toHaveText('Sång A har ingen bild 9');
+  await expect(ready).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(shown).toHaveText('A ett');
   await page.keyboard.press('Escape');

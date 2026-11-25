@@ -25,13 +25,17 @@ export function tileClass({ selected, live, rested, interactive = true }: { sele
   return `${BASE} cursor-pointer ${mark}`;
 }
 
-/** VISAS or NÄSTA on a slide while presenting (`slideMarks` in packages/core), on a computer's tile and a phone's row. */
-export function SlideMark({ kind, className }: { kind: SlideMarkKind; className?: string }) {
+/**
+ * A mark on a slide while presenting: VISAS on the one shown (`slideMarks` in packages/core), on a computer's tile and a
+ * phone's row, and "Tryck Enter för att visa" on the one the arrows or a number made ready (Lars, 2026-11-25: in place
+ * of a line under the live picture; NÄSTA is no longer drawn, the slides' numbers say the order).
+ */
+export function SlideMark({ kind, className }: { kind: SlideMarkKind | 'enter'; className?: string }) {
   return (
     <span
-      className={`shrink-0 text-[11px]/4 font-bold tracking-wide px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'bg-red-600 text-white' : 'bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
+      className={`shrink-0 text-[11px]/4 font-bold tracking-wide px-2 py-0.5 rounded-lg pointer-events-none ${kind === 'shown' ? 'bg-red-600 text-white' : kind === 'enter' ? 'bg-sky-500 text-white tracking-normal' : 'bg-sky-500/15 text-sky-500'} ${className ?? ''}`}
     >
-      {kind === 'shown' ? t('live.shownBadge') : t('live.nextBadge')}
+      {kind === 'shown' ? t('live.shownBadge') : kind === 'enter' ? t('live.enterBadge') : t('live.nextBadge')}
     </span>
   );
 }

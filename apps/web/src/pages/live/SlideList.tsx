@@ -52,6 +52,7 @@ export function SlideList({
   header,
   template = false,
   only,
+  typing = false,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -85,6 +86,8 @@ export function SlideList({
   template?: boolean;
   /** On a computer: the item selected, the only one shown (null: the first). */
   only?: string | null;
+  /** While presenting, digits are being typed: the slide they name has its number lit. */
+  typing?: boolean;
 }) {
   const wide = useWide();
   const box = useRef<HTMLDivElement>(null);
@@ -107,7 +110,9 @@ export function SlideList({
   // One item on a computer: the one selected, or the first when none is (or it is gone).
   const at = only === undefined ? -1 : Math.max(0, items.findIndex((i) => i.id === only));
   const listed = only === undefined ? items : items.slice(at, at + 1);
-  const markOf = slideMarks(slideOrderOf(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 }))), pointer);
+  // VISAS only: NÄSTA is not drawn, the slides' numbers say the order (Lars, 2026-11-25).
+  const marks = slideMarks(slideOrderOf(items.map((i) => ({ itemId: i.id, parts: slides.get(i.id)?.slides.length ?? 0 }))), pointer);
+  const markOf = (itemId: string, partIndex: number): SlideMarkKind | null => (marks(itemId, partIndex) === 'shown' ? 'shown' : null);
   const show =
     onShow &&
     ((itemId: string, partIndex: number) => {
@@ -212,6 +217,7 @@ export function SlideList({
                 shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
                 picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
                 media={!onShow && (set.audio || set.video) ? <MediaPreview itemId={item.id} set={set} /> : undefined}
+                typing={typing}
               />
             ) : (
               // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are
@@ -253,7 +259,7 @@ function ItemNote({ item }: { item: PresentationItem }) {
   );
 }
 
-/** A part on a phone: its name and its whole text (a picture or a video drawn small), VISAS or NÄSTA at its right. */
+/** A part on a phone: its name and its whole text (a picture or a video drawn small), VISAS at its right. */
 function PartRow({
   slide,
   partIndex,
@@ -298,7 +304,7 @@ function PartRow({
         </span>
       )}
       <span className="flex-1 min-w-0 flex flex-col gap-1.5">
-        {/* One height with or without VISAS and NÄSTA, so a row keeps its size as they move (Lars, 2026-11-02). */}
+        {/* One height with or without VISAS, so a row keeps its size as it moves (Lars, 2026-11-02). */}
         <span className="h-5 flex items-center justify-between gap-2">
           {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one by its number. */}
           {slide.label ? (
