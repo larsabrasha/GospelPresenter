@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { FILES } from './source.ts';
 
-/** A command-line entry point: it prints where the server listens. */
-const PRINTS = new Set(['apps/desktop/src/serve.ts']);
+/** Command-line entry points: they print where the server listens, and the setup token. */
+const PRINTS = new Set(['apps/desktop/src/serve.ts', 'apps/server/src/standalone.ts']);
 
 describe('logging', () => {
   it('leaves no console.log in the shipped code', () => {

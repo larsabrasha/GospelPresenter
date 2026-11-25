@@ -13,6 +13,8 @@
       "project": ["src/**/*.{ts,tsx,css}", "sw/**/*.ts", "test/**/*.ts"]
     },
     "apps/server": {
+      // The server on its own, which build-node.mjs bundles for the Docker image (docs/self-hosting.md).
+      "entry": ["src/standalone.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "apps/desktop": {

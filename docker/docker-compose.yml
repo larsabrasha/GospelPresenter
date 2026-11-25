@@ -1,0 +1,38 @@
+# Gospel Presenter on a church's own machine (docs/self-hosting.md): the app, and Caddy in front of it, which gets the
+# https certificate for GP_DOMAIN by itself. Put this file and a .env (from .env.example) in one folder, then:
+#   docker compose up -d
+#   docker compose logs app        # the setup token, until setup is done
+services:
+  app:
+    image: ghcr.io/larsabrasha/gospelpresenter-server:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Passkeys and Google answer only on the address the app is used at.
+      GP_PASSKEY_RP_ID: ${GP_DOMAIN:?set GP_DOMAIN in .env}
+      GP_PASSKEY_ORIGINS: https://${GP_DOMAIN}
+      GP_GOOGLE_REDIRECT_BASE_URL: https://${GP_DOMAIN}
+      GP_APP_URL: https://${GP_DOMAIN}
+      # Caddy, on Compose's own network, names the client: the app's port is not published, so only Caddy reaches it.
+      GP_TRUSTED_PROXIES: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
+    volumes:
+      - data:/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${GP_DOMAIN} --to app:8080
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy:/data
+    depends_on:
+      - app
+
+volumes:
+  # Everything the church has: back this one up.
+  data:
+  # Caddy's certificates.
+  caddy:

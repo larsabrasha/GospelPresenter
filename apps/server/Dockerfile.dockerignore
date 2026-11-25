@@ -1,0 +1,23 @@
+# Only what the Dockerfile copies: the workspace files, and core's, sync's, the web app's and the server's sources.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!packages/core/package.json
+!packages/core/tsconfig.json
+!packages/core/src
+!packages/sync/package.json
+!packages/sync/tsconfig.json
+!packages/sync/src
+!apps/web/package.json
+!apps/web/tsconfig.json
+!apps/web/index.html
+!apps/web/vite.config.ts
+!apps/web/public
+!apps/web/src
+!apps/web/sw
+!apps/server/package.json
+!apps/server/tsconfig.json
+!apps/server/build-node.mjs
+!apps/server/src

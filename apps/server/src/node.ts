@@ -38,6 +38,7 @@ import { appCors } from './cors.ts';
 import { Core } from '@gp/core/core';
 
 export { mailConfigFrom, type MailConfig } from './mail.ts';
+export { signInFromEnv } from './node-env.ts';
 export type { PptxPages } from './pptx-routes.ts';
 
 const require = createRequire(import.meta.url);

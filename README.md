@@ -18,6 +18,41 @@ and in a phone app.
 | [`research/`](research/) | What was tried before the rewrite was decided; the spikes' code is in git's history |
 | [`Assets/`](Assets/), [`scripts/`](scripts/) | The app icon's designs; the app's own scripts, and those the ADRs and the spec name |
 
+## Running it on your own machine
+
+One image, `ghcr.io/larsabrasha/gospelpresenter-server`: the server with the web app beside it, everything a church
+has in its `/data` volume. Passkeys and Google need https on a real address, so for a church the app runs behind a
+proxy that gives it one; the details, Google, e-mail, updates and backups are in
+[`docs/self-hosting.md`](docs/self-hosting.md).
+
+**With Docker Compose**, the app and [Caddy](https://caddyserver.com) in front of it, which gets the certificate by
+itself. The machine needs a domain pointing at it, with ports 80 and 443 open:
+
+```sh
+mkdir gospel-presenter && cd gospel-presenter
+curl -fsSLO https://raw.githubusercontent.com/larsabrasha/GospelPresenter/main/docker/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/larsabrasha/GospelPresenter/main/docker/.env.example
+# set GP_DOMAIN in .env (and Google or e-mail, if you want them)
+docker compose up -d
+docker compose logs app            # "Setup token: gpst_…"
+```
+
+Then open `https://<GP_DOMAIN>`, and set up with the token.
+
+**With Docker alone**, to try it on this computer (`localhost` counts as secure, so passkeys work without https):
+
+```sh
+docker run -d --name gospel-presenter --restart unless-stopped \
+  -p 8080:8080 -v gospel-presenter-data:/data \
+  -e GP_PASSKEY_RP_ID=localhost -e GP_PASSKEY_ORIGINS=http://localhost:8080 \
+  ghcr.io/larsabrasha/gospelpresenter-server:latest
+docker logs gospel-presenter       # "Setup token: gpst_…"
+```
+
+Then open `http://localhost:8080`. Behind a proxy of your own, set `GP_PASSKEY_RP_ID` to the domain,
+`GP_PASSKEY_ORIGINS` to `https://<domain>` and `GP_TRUSTED_PROXIES` to the proxy's address. Built from a checkout:
+`docker build -f apps/server/Dockerfile -t gospelpresenter-server .`
+
 ## The C# app (1.x)
 
 The app before this one, in C# (Blazor and MAUI) with PostgreSQL and Garage, is kept at the tag
@@ -97,6 +132,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [desktop-app.md](docs/desktop-app.md) | The desktop app's packages: making them, what they hold, signing, what was tried and what is left |
 | [phone-app.md](docs/phone-app.md) | The Capacitor app for iOS and Android: which server it talks to and how a church changes it, CORS for its origins, its sign-in, and updates from the server outside the App Store |
 | [import-from-1x.md](docs/import-from-1x.md) | The one-way import from the current app: the export zip, the import in Inställningar, and what maps to what |
+| [self-hosting.md](docs/self-hosting.md) | Running it on a church's own machine with Docker Compose: the image, Caddy, the settings, updates and backups |
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |
 | [performance.md](docs/performance.md) | How fast the most used flows are, measured before and after, and what made them so |
 | [scenarios.md](docs/scenarios.md) | What a church does with the app, most common first, and the e2e tests that run each scenario, whole Sundays included |
