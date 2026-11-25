@@ -31,15 +31,16 @@ export function Description({ text, className, onEdit }: { text: string; classNa
         {text}
       </p>
       {open ? (
-        <div className="mt-0.5 flex items-center justify-between gap-3">
+        // The pencil's 32 px reach down into the card's padding, never up over the text (Lars, 2026-11-25).
+        <div className="mt-1 -mb-2 flex items-center justify-between gap-3">
           {onEdit ? (
             <AppButton
               variant="plain"
               onClick={onEdit}
               aria-label={t('presentation.descriptionEdit')}
               title={t('presentation.descriptionEdit')}
-              // Its pencil where the text starts, a finger's room around it that does not make the row taller.
-              className="-ml-2 -my-2 size-8 rounded-full flex items-center justify-center text-sky-500 hover:text-sky-600 hover:bg-raised-2 cursor-pointer"
+              // Its pencil where the text starts, a finger's room around it.
+              className="-ml-2 size-8 rounded-full flex items-center justify-center text-sky-500 hover:text-sky-600 hover:bg-raised-2 cursor-pointer"
             >
               <PencilIcon className="size-4" />
             </AppButton>
