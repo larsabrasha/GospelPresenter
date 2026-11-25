@@ -7,7 +7,7 @@ import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
 import { autoOutputsSetting, setAutoOutputsSetting } from '../live/autoOutputs.ts';
-import { setPlayful, usePlayful } from '../ui/playful.ts';
+import { PLAYFUL_PAUSED, setPlayful, usePlayful } from '../ui/playful.ts';
 import { StorageRow } from './Storage.tsx';
 import { Profile } from './settings/Profile.tsx';
 import type { Me } from '@gp/core';
@@ -150,7 +150,7 @@ export function Settings({ me, onMe }: { me: Me; onMe: (m: Me) => void }) {
 
 /**
  * Den här enheten: Lagring, a page of its own as iOS's iPhone-lagring (Lars, 2026-11-03), in the desktop app its
- * switch, and Lekfullt läge (ui/playful.ts).
+ * switch, and Lekfullt läge (ui/playful.ts), while it is not paused.
  */
 function DeviceGroup() {
   const on = usePlayful();
@@ -158,7 +158,7 @@ function DeviceGroup() {
     <Group title={t('settings.thisDevice')}>
       <StorageRow />
       <AutoOutputs />
-      <SwitchRow title={t('settings.playful')} description={t('settings.playfulDescription')} checked={on} onChange={setPlayful} />
+      {!PLAYFUL_PAUSED && <SwitchRow title={t('settings.playful')} description={t('settings.playfulDescription')} checked={on} onChange={setPlayful} />}
     </Group>
   );
 }

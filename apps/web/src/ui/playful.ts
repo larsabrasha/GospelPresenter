@@ -7,8 +7,15 @@ import { t } from '../i18n.ts';
 const KEY = 'gp.playful';
 const CHANGED = 'gp-playful';
 
+/**
+ * Paused (Lars, 2026-11-25: kept, not taken away): off on every device, a switch on or not, and its switch in Mina
+ * inställningar not shown. False brings both back as they were.
+ */
+export const PLAYFUL_PAUSED = true;
+
 /** Whether Lekfullt läge is on on this device. */
 export function playful(): boolean {
+  if (PLAYFUL_PAUSED) return false;
   try {
     return localStorage.getItem(KEY) === '1';
   } catch {

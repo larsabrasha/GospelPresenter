@@ -9,7 +9,9 @@ vi.stubGlobal('localStorage', {
 });
 vi.stubGlobal('window', new EventTarget());
 
-const { fun, funPick, loadingText, playful, setPlayful } = await import('../src/ui/playful.ts');
+const { fun, funPick, loadingText, playful, setPlayful, PLAYFUL_PAUSED } = await import('../src/ui/playful.ts');
+/** The tests of it turned on, while it is paused (PLAYFUL_PAUSED): left out, kept for when it comes back. */
+const whileOn = it.skipIf(PLAYFUL_PAUSED);
 
 describe('Lekfullt läge', () => {
   beforeEach(() => store.clear());
@@ -22,13 +24,13 @@ describe('Lekfullt läge', () => {
     expect([fun('Offline', 'Ingen täckning i kryptan'), loadingText()]).toEqual(['Offline', 'Laddar...']);
   });
 
-  it('gives the joke while on', () => {
+  whileOn('gives the joke while on', () => {
     setPlayful(true);
 
     expect(fun('Offline', 'Ingen täckning i kryptan')).toBe('Ingen täckning i kryptan');
   });
 
-  it('waits in a church way while on', () => {
+  whileOn('waits in a church way while on', () => {
     setPlayful(true);
 
     expect(['Stämmer gitarren...', 'Letar efter psalmboken...', 'Räknar kollekten...', 'Värmer upp kören...']).toContain(loadingText());
@@ -38,13 +40,13 @@ describe('Lekfullt läge', () => {
     expect(funPick('Synkad', ['I harmoni', 'Samstämd'])).toBe('Synkad');
   });
 
-  it('picks one of the jokes while on', () => {
+  whileOn('picks one of the jokes while on', () => {
     setPlayful(true);
 
     expect(['I harmoni', 'Samstämd']).toContain(funPick('Synkad', ['I harmoni', 'Samstämd']));
   });
 
-  it('keeps the same joke for ten seconds', () => {
+  whileOn('keeps the same joke for ten seconds', () => {
     setPlayful(true);
     vi.useFakeTimers({ now: 20_000 });
 
@@ -54,6 +56,12 @@ describe('Lekfullt läge', () => {
     vi.useRealTimers();
 
     expect(later).toBe(first);
+  });
+
+  it.runIf(PLAYFUL_PAUSED)('stays off while paused, turned on or not', () => {
+    setPlayful(true);
+
+    expect([playful(), fun('Offline', 'Ingen täckning i kryptan')]).toEqual([false, 'Offline']);
   });
 
   it('is off again once turned off', () => {

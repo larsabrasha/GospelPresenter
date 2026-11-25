@@ -17,7 +17,8 @@ by a new version of the app:
   computer's own monospace font, left and from the top, under a prompt ("gp@kyrkan:~$ sjung --vers", "läs --högt"
   for a Bible text) that the slide draws for this id, with a blinking cursor after the text. Offered in Teman and a
   presentation's details only while Lekfullt läge is on, or where it is chosen already (`PLAYFUL_THEME_IDS`); a copy
-  keeps the colours and the type, not the prompt and the cursor.
+  keeps the colours and the type, not the prompt and the cursor. Lekfullt läge is paused (Lars, 2026-11-25:
+  `PLAYFUL_PAUSED`): off everywhere and its switch not shown, so Terminal is offered only where it is chosen already.
 
 Spec 05's Midnatt, Dagsljus and Norrsken, and Norrsken's picture, are gone: no church used them (Lars). A
 presentation or a default that still names one shows Mörkt, as any unknown id does.
