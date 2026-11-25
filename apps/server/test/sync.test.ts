@@ -366,17 +366,22 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
   it('a first sync larger than one pull page is staged and applied in one rebase', async () => {
     // Two pages and part of a third: songs of nine parts, ten rows each (songs are capped at 5 000).
     const n = 2 * PULL_PAGE + 200;
+    // Pushed a hundred songs (1 000 mutations) at a time: one push of all 10 200 took 4-7 s on CI, and workerd under
+    // Miniflare now and then reset its connection (ECONNRESET) on the workers adapter. The pull is what is tested here.
+    let pushMs = 0;
     for (let i = 0; i < n / 10; i++) {
       const id = `S${String(i).padStart(4, '0')}`;
       await fx.alice.client.mutate('createSong', { id, name: `Song ${i}` });
       for (let k = 0; k < 9; k++) await fx.alice.client.mutate('addSongPart', { id: `${id}-${k}`, songId: id, labelText: null, content: `Rad ${k}` });
+      if ((i + 1) % 100 === 0 || i + 1 === n / 10) {
+        const pushStart = performance.now();
+        await fx.alice.client.push();
+        pushMs += performance.now() - pushStart;
+      }
     }
-    let start = performance.now();
-    await fx.alice.client.push();
-    const pushMs = performance.now() - start;
     const fresh = await device(fx.h, fx.org, 'carol', 'user');
     fx.track(fresh);
-    start = performance.now();
+    const start = performance.now();
     await fresh.client.pull();
     const pullMs = performance.now() - start;
     const dump = await fresh.client.dump();

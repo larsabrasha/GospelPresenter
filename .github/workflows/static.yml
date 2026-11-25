@@ -23,11 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Built and deployed in two jobs: in one, deploy-pages asked for the artifact a moment after it was uploaded and now
+  # and then found none ("No artifacts named github-pages"), so the first run after a push failed.
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,6 +49,13 @@ jobs:
         with:
           # Upload dist folder
           path: website/dist
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
