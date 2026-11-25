@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
-import { songHistory, SONG_HISTORY_READS } from '../db/views.ts';
+import { songHistory, SONG_HISTORY_READS, songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
 import { loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -14,18 +14,22 @@ import { href, navigate } from '../ui/router.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useGoneSong } from './songPage.ts';
-import { versionClock, versionDay, versionSlides, versionTime } from './songHistory.ts';
+import { currentSlides, versionClock, versionDay, versionSlides, versionTime } from './songHistory.ts';
 
 /**
  * Historik (spec 02 `/admin/songs/{id}/history`; SongHistory.razor): the song's versions, newest first, and
  * the chosen one's parts as slides in the organisation's default theme; Återställ version gives the song
- * that version, after a question, and goes back to the song (SONG-R22).
+ * that version, after a question, and goes back to the song (SONG-R22). A version is kept before each change, so the
+ * song as it is now is none of them: it heads the list as Nuvarande version, marked green and shown first, with
+ * nothing to restore (Lars, 2026-11-25: which one was the current was not clear).
  */
 export function SongHistory({ id }: { id: string }) {
   const db = useDb();
   const trySave = useTrySave();
   const { dialog, ask } = useConfirm();
   const data = useDataReading((d) => songHistory(d, id), [id], SONG_HISTORY_READS);
+  const page = useDataReading((d) => songPage(d, id), [id], SONG_PAGE_READS);
+  /** The version chosen, or null for the song as it is now. */
   const [chosen, setChosen] = useState<string | null>(null);
   /** A version opened on its own, where the column is too narrow to show it beside the list. */
   const [viewing, setViewing] = useState(false);
@@ -44,7 +48,7 @@ export function SongHistory({ id }: { id: string }) {
   const missing = useGoneSong(!!data, data?.song);
 
   const header = <DetailHeader backHref={href({ page: 'song', id })} title={t('history.title')} className="px-5" />;
-  if (!data || missing)
+  if (!data || !page?.song || missing)
     return (
       <PageContainer maxWidthClass="max-w-[1200px]">
         {header}
@@ -53,9 +57,13 @@ export function SongHistory({ id }: { id: string }) {
     );
 
   const { versions, theme } = data;
-  // The newest until one is chosen, and again if the chosen one is dropped (SONG-R21).
-  const version = versions.find((v) => v.id === chosen) ?? versions[0];
-  const shown = version && versionSlides(version);
+  // The song as it is now until a version is chosen, and again if the chosen one is dropped (SONG-R21).
+  const version = versions.find((v) => v.id === chosen) ?? null;
+  const shown = version ? versionSlides(version) : currentSlides(page.song, page.parts, page.labels);
+  const choose = (versionId: string | null) => {
+    setChosen(versionId);
+    setViewing(true);
+  };
   // The versions in runs by day, newest first as they come.
   const days: { heading: string; versions: typeof versions }[] = [];
   for (const v of versions) {
@@ -84,7 +92,7 @@ export function SongHistory({ id }: { id: string }) {
     <PageContainer maxWidthClass="max-w-[1200px]">
       {dialog}
       {header}
-      {!version ? (
+      {!versions.length ? (
         <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <ClockIcon className="size-12 mb-3" />
           <span className="text-sm">{t('history.empty')}</span>
@@ -96,6 +104,24 @@ export function SongHistory({ id }: { id: string }) {
         <div className="@container">
           <div className="flex flex-col @xl:flex-row gap-4">
             <section className={`w-full @xl:w-72 shrink-0 self-start space-y-4 ${viewing ? '@max-xl:hidden' : ''}`} aria-label={t('history.versions')}>
+              <ul className={CARD}>
+                <li>
+                  <AppButton
+                    variant="plain"
+                    data-testid="version-current"
+                    aria-pressed={!version}
+                    onClick={() => choose(null)}
+                    className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate dark:text-stone-100">{page.song.name}</span>
+                      <CurrentChip />
+                    </span>
+                    {!version && <CheckIcon className="size-4 shrink-0 text-sky-500 @max-xl:hidden" />}
+                    <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600 @xl:hidden" />
+                  </AppButton>
+                </li>
+              </ul>
               {days.map((day) => (
                 <div key={day.heading} className="space-y-1.5">
                   <h2 className={CAPTION}>{day.heading}</h2>
@@ -105,11 +131,8 @@ export function SongHistory({ id }: { id: string }) {
                         <AppButton
                           variant="plain"
                           data-testid="version"
-                          aria-pressed={v.id === version.id}
-                          onClick={() => {
-                            setChosen(v.id);
-                            setViewing(true);
-                          }}
+                          aria-pressed={v.id === version?.id}
+                          onClick={() => choose(v.id)}
                           className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}
                         >
                           <span className="min-w-0">
@@ -117,7 +140,7 @@ export function SongHistory({ id }: { id: string }) {
                             <span className="block text-xs text-stone-400">{versionClock(v.createdAt)}</span>
                           </span>
                           {/* The one shown, ticked where it is shown beside the list; a chevron where it opens. */}
-                          {v.id === version.id && <CheckIcon className="size-4 shrink-0 text-sky-500 @max-xl:hidden" />}
+                          {v.id === version?.id && <CheckIcon className="size-4 shrink-0 text-sky-500 @max-xl:hidden" />}
                           <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600 @xl:hidden" />
                         </AppButton>
                       </li>
@@ -133,16 +156,18 @@ export function SongHistory({ id }: { id: string }) {
               </AppButton>
               <div className="flex items-start justify-between mb-2 px-1 gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm dark:text-stone-100 truncate">{shown!.name}</div>
-                  {shown!.author && <div className="text-xs text-stone-400 truncate">{shown!.author}</div>}
-                  <div className="text-xs text-stone-400 mt-0.5">{versionTime(version.createdAt)}</div>
+                  <div className="font-semibold text-sm dark:text-stone-100 truncate">{shown.name}</div>
+                  {shown.author && <div className="text-xs text-stone-400 truncate">{shown.author}</div>}
+                  {version ? <div className="text-xs text-stone-400 mt-0.5">{versionTime(version.createdAt)}</div> : <CurrentChip />}
                 </div>
-                <AppButton className="shrink-0" onClick={restore}>
-                  {t('history.restore')}
-                </AppButton>
+                {version && (
+                  <AppButton className="shrink-0" onClick={restore}>
+                    {t('history.restore')}
+                  </AppButton>
+                )}
               </div>
               <div className="flex flex-col gap-2">
-                {shown!.slides.map((s) => (
+                {shown.slides.map((s) => (
                   <div key={s.key} className={`${tileClass({ interactive: false })} w-full max-w-[480px]`}>
                     <SlideView slide={s} theme={theme} credits={false} />
                   </div>
@@ -153,5 +178,15 @@ export function SongHistory({ id }: { id: string }) {
         </div>
       )}
     </PageContainer>
+  );
+}
+
+/** "Nuvarande version", green: the song as it is now, among the versions kept before its changes. */
+function CurrentChip() {
+  return (
+    <span className="mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]/4 font-medium bg-green-500/15 text-green-700 dark:text-green-400">
+      <CheckIcon className="size-3" />
+      {t('history.current')}
+    </span>
   );
 }

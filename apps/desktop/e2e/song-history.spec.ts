@@ -34,6 +34,12 @@ test('a changed part is kept in the history, shown as slides, and restored', asy
   const preview = page.getByRole('region', { name: 'Förhandsvisning' });
   await expect(versions.getByTestId('version')).toHaveCount(1);
   await expect(versions.getByRole('heading', { name: 'Idag' })).toBeVisible();
+  // The song as it is now heads the list and is shown first, marked, with nothing to restore (Lars, 2026-11-25).
+  await expect(versions.getByTestId('version-current')).toHaveAttribute('aria-pressed', 'true');
+  await expect(preview).toContainText('Nuvarande version');
+  await expect(preview).toContainText('Ändrad');
+  await expect(preview.getByRole('button', { name: 'Återställ version' })).toHaveCount(0);
+  await versions.getByTestId('version').click();
   await expect(preview).toContainText('Ett');
   await expect(preview).toContainText('Två');
   await expect(preview).toContainText('Verse');

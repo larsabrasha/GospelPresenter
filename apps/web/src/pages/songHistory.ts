@@ -1,4 +1,4 @@
-import { DEFAULT_LABEL_COLOR, parseSongSnapshot, type Slide, type SongVersion } from '@gp/core';
+import { DEFAULT_LABEL_COLOR, parseSongSnapshot, type Label, type Slide, type Song, type SongPart, type SongVersion } from '@gp/core';
 import { locale, t } from '../i18n.ts';
 
 // What the history page shows of a version (SongHistory.razor): when it is from, and its parts as slides.
@@ -35,20 +35,33 @@ export function versionClock(at: number): string {
   return clock.format(at);
 }
 
+type Shown = { name: string; author: string | null; slides: Slide[] };
+
+/** A part as a slide, with its label. */
+const partSlide = (id: string, content: string, labelText: string | null | undefined, labelColor: string | null | undefined): Slide => ({
+  key: id,
+  kind: 'song',
+  text: content,
+  verses: null,
+  image: null,
+  label: labelText ? { text: labelText, color: labelColor ?? DEFAULT_LABEL_COLOR } : null,
+  credits: null,
+});
+
 /** The version's name and author, and a slide per part in order, with its label as it was then. */
-export function versionSlides(v: SongVersion): { name: string; author: string | null; slides: Slide[] } {
+export function versionSlides(v: SongVersion): Shown {
   const s = parseSongSnapshot(v.data);
+  return { name: s.name, author: s.author, slides: s.parts.map((p) => partSlide(p.id, p.content, p.labelText, p.labelColor)) };
+}
+
+/** The song as it is now, shown as a version is: the one the history's list starts with (Lars, 2026-11-25). */
+export function currentSlides(song: Song, parts: SongPart[], labels: Map<string, Label>): Shown {
   return {
-    name: s.name,
-    author: s.author,
-    slides: s.parts.map((p) => ({
-      key: p.id,
-      kind: 'song',
-      text: p.content,
-      verses: null,
-      image: null,
-      label: p.labelText ? { text: p.labelText, color: p.labelColor ?? DEFAULT_LABEL_COLOR } : null,
-      credits: null,
-    })),
+    name: song.name,
+    author: song.author,
+    slides: parts.map((p) => {
+      const label = p.labelId ? labels.get(p.labelId) : undefined;
+      return partSlide(p.id, p.content, label?.text, label?.color);
+    }),
   };
 }
