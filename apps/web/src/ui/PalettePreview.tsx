@@ -57,10 +57,11 @@ function RunningOrder({ id }: { id: string }) {
 }
 
 export function PalettePreview({ of }: { of: PreviewOf | null }) {
-  // With nothing to preview its panel stays, empty, so nothing beside it moves.
-  if (!of) return <div className="h-full rounded-xl bg-raised/60 dark:bg-white/[0.04]" />;
+  // With nothing to preview its panel stays, empty, so nothing beside it moves. Its corner by the palette's follows that
+  // one: 35 px less the 12 between them (CommandPalette.tsx).
+  if (!of) return <div className="h-full rounded-xl rounded-br-[23px] bg-raised/60 dark:bg-white/[0.04]" />;
   return (
-    <div key={`${of.kind}:${of.id}`} className="dialog-in h-full overflow-y-auto rounded-xl bg-raised/60 dark:bg-white/[0.04] p-4 space-y-3" data-testid="palette-preview">
+    <div key={`${of.kind}:${of.id}`} className="dialog-in h-full overflow-y-auto rounded-xl rounded-br-[23px] bg-raised/60 dark:bg-white/[0.04] p-4 space-y-3" data-testid="palette-preview">
       <p className="font-semibold truncate">{of.title}</p>
       {of.kind === 'presentation' && (of.when || of.place) && (
         <div className="space-y-1 text-sm text-stone-500 dark:text-stone-400">

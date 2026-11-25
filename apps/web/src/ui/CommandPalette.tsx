@@ -239,7 +239,8 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
   return (
     // At the top on a phone, as iPhone's Spotlight, above the keyboard it brings up.
     // As wide from the first moment, its preview's room kept: it grew when the presentations came, a jolt (Lars, 2026-11-07).
-    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass="sm:max-w-3xl max-w-xl max-sm:self-start" hideTitle>
+    // Its corners follow the field's (Lars, 2026-11-25): the field's 23 px radius and the 12 px around it, as Spotlight's.
+    <Dialog title={t('palette.title')} onClose={onClose} maxWidthClass="sm:max-w-3xl max-w-xl max-sm:self-start rounded-[35px]!" hideTitle>
       <div
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
