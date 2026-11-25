@@ -79,7 +79,8 @@ function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route
             href={href(MINE.route)}
             aria-current={mine ? 'page' : undefined}
             aria-label={t('nav.settings')}
-            className={`flex items-center gap-3.5 split:gap-3 p-3 split:p-2 rounded-[22px] split:rounded-full no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 split:bg-sky-500 split:text-white' : 'bg-surface split:bg-transparent split:hover:bg-black/5 dark:split:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
+            // Two lines, so the running order's corners when marked, not an oval (Lars, 2026-11-25).
+            className={`flex items-center gap-3.5 split:gap-3 p-3 split:p-2 rounded-[22px] split:rounded-[20px] no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 split:bg-sky-500 split:text-white' : 'bg-surface split:bg-transparent split:hover:bg-black/5 dark:split:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
           >
             <Avatar name={me.name} className="size-14 text-xl split:size-10 split:text-base" />
             <span className="flex-1 min-w-0 flex flex-col">

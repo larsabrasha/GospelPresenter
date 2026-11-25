@@ -278,7 +278,9 @@ function Palette({ me, host, onClose }: { me: Me; host: boolean; onClose: () => 
                     aria-selected={on}
                     data-hit={i}
                     tabIndex={-1}
-                    className={`w-full flex items-center gap-3 px-4 min-h-10 py-1.5 rounded-lg text-left text-sm cursor-pointer ${on ? 'bg-sky-500 text-white' : 'hover:bg-raised'}`}
+                    // Marked as the running order marks its row: a pill on one line, the same corners on two (Lars,
+                    // 2026-11-25).
+                    className={`w-full flex items-center gap-3 px-4 min-h-10 py-1.5 rounded-[20px] text-left text-sm cursor-pointer ${on ? 'bg-sky-500 text-white' : 'hover:bg-raised'}`}
                     onPointerMove={() => i !== marked && setAt(i)}
                     onClick={() => run(hit)}
                   >
