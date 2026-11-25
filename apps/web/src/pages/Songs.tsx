@@ -2,7 +2,7 @@ import { FIELD_RULES } from '@gp/core';
 import { useRef, useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
-import { fun, loadingText } from '../ui/playful.ts';
+import { loadingText, songsEmptyText, songsNoHitsText, trashedText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { FIRST_PART_LABEL } from './songEditorLook.ts';
 import { AddButton, RoundButton } from '../ui/AddButton.tsx';
@@ -69,7 +69,7 @@ export function Songs() {
       rename={{ title: t('library.renameTitle'), label: t('song.name'), maxChars: FIELD_RULES.name.max, run: (s, name) => db.mutate('updateSong', { id: s.id, name }) }}
       remove={{
         ask: (items) => (items.length === 1 ? { text: t('song.trashConfirm', { name: items[0]!.name }), bold: items[0]!.name } : { text: t('library.trashMany', { n: items.length }) }),
-        done: (items) => (items.length === 1 ? t('song.trashed', { name: items[0]!.name }) : t('library.trashedMany', { n: items.length })),
+        done: (items) => (items.length === 1 ? trashedText(t('song.trashed', { name: items[0]!.name }), items[0]!.name) : t('library.trashedMany', { n: items.length })),
         run: (s) => db.mutate('trashSong', { id: s.id, at: Date.now() }),
       }}
       add={
@@ -93,7 +93,7 @@ export function Songs() {
         </>
       }
       loading={loadingText()}
-      empty={{ icon: <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: fun(t('songs.emptyTitle'), t('fun.songsEmpty')),
+      empty={{ icon: <MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />, title: songsEmptyText(),
         text: t('songs.emptyText'),
         action: (
           <>
@@ -107,7 +107,7 @@ export function Songs() {
           </>
         ),
       }}
-      noMatch={t('songs.noHits')}
+      noMatch={songsNoHitsText()}
       count={(n) => t(n === 1 ? 'songs.count.one' : 'songs.count.many', { n })}
       drop={{ label: t('songs.import.drop'), accept: '.pro', onFiles: (files) => void (songImport.busy || songImport.files(files)) }}
       testId="songs"

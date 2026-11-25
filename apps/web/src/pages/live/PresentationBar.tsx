@@ -15,6 +15,7 @@ import { PresentationMenu } from '../presentation-editor/PresentationMenu.tsx';
 import { markLiveStarting, playLiveLeaving } from './liveMotion.ts';
 import { SyncCloud } from '../../TopBar.tsx';
 import { GREEN_SHADOW, LIFTED, RED_SHADOW, ROUND_BACK } from '../../ui/glass.ts';
+import { fun, funPick } from '../../ui/playful.ts';
 
 // Round, as every button of the 2.0 layout; on a phone an icon alone, its words for screen readers. 36 px to a mouse
 // and 44 to a finger at every width, as the ‹ beside them (Lars, 2026-11-02).
@@ -62,7 +63,7 @@ export function PresentationBar({
   const rest = presentation.isTemplate ? templateDetails(presentation) : [presentation.time, presentation.location].filter(Boolean).join(' · ');
   const when = date || rest;
   const end = async () => {
-    const ok = await ask({ title: t('live.end'), text: t('live.endText'), confirm: t('live.end'), compact: true });
+    const ok = await ask({ title: funPick(t('live.end'), [t('fun.endTitle1'), t('fun.endTitle2'), t('fun.endTitle3')]), text: t('live.endText'), confirm: fun(t('live.end'), t('fun.endConfirm')), compact: true });
     if (!ok) return;
     // The picture fades and its area closes first (liveMotion.ts), then the presentation ends.
     await playLiveLeaving();

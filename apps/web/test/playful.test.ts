@@ -9,7 +9,7 @@ vi.stubGlobal('localStorage', {
 });
 vi.stubGlobal('window', new EventTarget());
 
-const { fun, loadingText, playful, setPlayful } = await import('../src/ui/playful.ts');
+const { fun, funPick, loadingText, playful, setPlayful } = await import('../src/ui/playful.ts');
 
 describe('Lekfullt läge', () => {
   beforeEach(() => store.clear());
@@ -32,6 +32,28 @@ describe('Lekfullt läge', () => {
     setPlayful(true);
 
     expect(['Stämmer gitarren...', 'Letar efter psalmboken...', 'Räknar kollekten...', 'Värmer upp kören...']).toContain(loadingText());
+  });
+
+  it('picks the plain text among several jokes while off', () => {
+    expect(funPick('Synkad', ['I harmoni', 'Samstämd'])).toBe('Synkad');
+  });
+
+  it('picks one of the jokes while on', () => {
+    setPlayful(true);
+
+    expect(['I harmoni', 'Samstämd']).toContain(funPick('Synkad', ['I harmoni', 'Samstämd']));
+  });
+
+  it('keeps the same joke for ten seconds', () => {
+    setPlayful(true);
+    vi.useFakeTimers({ now: 20_000 });
+
+    const first = funPick('Synkad', ['I harmoni', 'Samstämd', 'Alla på samma vers']);
+    vi.setSystemTime(29_999);
+    const later = funPick('Synkad', ['I harmoni', 'Samstämd', 'Alla på samma vers']);
+    vi.useRealTimers();
+
+    expect(later).toBe(first);
   });
 
   it('is off again once turned off', () => {

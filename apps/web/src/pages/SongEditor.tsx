@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useDataReading, useDb } from '../db/react.tsx';
 import { presentationsUsing, songPage, SONG_PAGE_READS } from '../db/views.ts';
 import { t } from '../i18n.ts';
-import { loadingText } from '../ui/playful.ts';
+import { loadingText, trashedText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
@@ -122,7 +122,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
       saveFailed();
       return;
     }
-    toast(t('song.trashed', { name: song.name }));
+    toast(trashedText(t('song.trashed', { name: song.name }), song.name));
     if (onBack) onBack();
     else navigate({ page: 'songs' });
   };

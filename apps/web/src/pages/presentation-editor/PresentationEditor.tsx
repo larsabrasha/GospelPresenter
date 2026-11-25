@@ -34,7 +34,7 @@ import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { playful } from '../../ui/playful.ts';
+import { playful, trashedText } from '../../ui/playful.ts';
 import { AddItemDialog, type AddChoice, type AddKind } from './AddItemDialog.tsx';
 import { useItemTexts } from './HeaderDialog.tsx';
 import { DetailsDialog } from './DetailsDialog.tsx';
@@ -221,7 +221,7 @@ export function PresentationEditor({
     void ask(
       deleteAsk(t(template ? 'templates.trashConfirm' : 'presentation.trashConfirm', { name: presentation.name }), presentation.name, async () => {
         if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
-        toast(t('presentation.trashed', { name: presentation.name }));
+        toast(trashedText(t('presentation.trashed', { name: presentation.name }), presentation.name));
         if (template) backToTemplates();
         else navigate({ page: 'presentations' });
       }),

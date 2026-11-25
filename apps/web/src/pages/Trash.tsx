@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { listTrash, type TrashEntry } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { loadingText } from '../ui/playful.ts';
+import { errorText, funPick, loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import {
@@ -112,7 +112,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     try {
       await fn();
     } catch {
-      toast(t('common.error'));
+      toast(errorText());
     }
   };
 
@@ -199,7 +199,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
         </PageHeader>
         {!all && <div className="loading-line px-5 py-4 text-stone-400 text-sm">{loadingText()}</div>}
         {all && !entries.length && (
-          <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={t('trash.emptyTitle')} />
+          <EmptySmall icon={<TrashIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />} title={funPick(t('trash.emptyTitle'), [t('fun.trashEmpty1'), t('fun.trashEmpty2'), t('fun.trashEmpty3')])} />
         )}
         {/* As the other lists (Lars, 2026-11-03): the kinds and the search under the title, the list alone in its card,
             how many under it, and Töm papperskorgen as a red row last. */}

@@ -7,6 +7,7 @@ import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
 import { WarningIcon } from '../../ui/icons.tsx';
 import { AudioOverlay, SHADE } from './MediaControls.tsx';
 import { PlayerControls } from './PlayerControls.tsx';
+import { errorText } from '../../ui/playful.ts';
 
 /**
  * Before presenting, an audio or video item's preview on its own tile, as the live picture has it while presenting
@@ -36,7 +37,7 @@ function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; na
       ) : (
         <div className={SHADE} data-testid="audio-preview">
           <p className="text-sm font-medium truncate drop-shadow">{name}</p>
-          <p className="text-sm drop-shadow">{url === null ? t('common.error') : t('presentation.audioFetching')}</p>
+          <p className="text-sm drop-shadow">{url === null ? errorText() : t('presentation.audioFetching')}</p>
         </div>
       )}
     </div>

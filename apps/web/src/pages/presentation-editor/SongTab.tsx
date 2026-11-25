@@ -17,6 +17,7 @@ import { useToast } from '../../ui/Toast.tsx';
 import { useStepped } from '../../ui/useStepped.ts';
 import type { TabProps } from './AddItemDialog.tsx';
 import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
+import { songsEmptyText, songsNoHitsText } from '../../ui/playful.ts';
 
 const NONE: Song[] = [];
 
@@ -179,7 +180,7 @@ export function SongTab({
       <DropZone className="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-sm gap-3 select-none" {...drop}>
         {notices}
         <MusicalNoteOutlineIcon className="size-12 mb-1 text-stone-300 dark:text-stone-600" />
-        <p className="text-stone-400 dark:text-stone-500">{t('songs.emptyTitle')}</p>
+        <p className="text-stone-400 dark:text-stone-500">{songsEmptyText()}</p>
         <AppButton variant="secondary" href={href({ page: 'songs' })} className="flex items-center gap-1.5">
           <AdjustmentsIcon className="size-4" />
           {t('presentation.manageSongs')}
@@ -205,7 +206,7 @@ export function SongTab({
         <div className="w-full md:w-1/2 min-w-0 flex flex-col md:pr-3 md:min-h-0">
           {songs && !shown.length && (
             <EmptyTab icon={<MusicalNoteOutlineIcon className="size-12 mb-1 text-stone-300 dark:text-stone-600" />}>
-              <p>{t('songs.noHits')}</p>
+              <p>{songsNoHitsText()}</p>
               {create}
             </EmptyTab>
           )}

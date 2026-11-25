@@ -9,6 +9,7 @@ import { Dropdown } from './Dropdown.tsx';
 import { useLookGestures } from './lookGestures.ts';
 import { useSheetDrag } from './sheetDrag.ts';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EllipsisIcon, SpeakerWaveIcon } from './icons.tsx';
+import { errorText } from './playful.ts';
 
 // A library item looked at, as Quick Look on a Mac (Lars, 2026-11-04): the picture as large as the window lets it,
 // a video or a sound that plays, the item's name and its ⋯ menu at the top, ← and → (and the arrows under it) to the
@@ -34,7 +35,7 @@ function Sound({ hash, name }: { hash: string; name: string }) {
       {url ? (
         <audio src={url} controls autoPlay className="w-full" aria-label={name} data-testid="quick-look-audio" />
       ) : (
-        <p className="text-stone-400">{url === null ? t('common.error') : t('presentation.audioFetching')}</p>
+        <p className="text-stone-400">{url === null ? errorText() : t('presentation.audioFetching')}</p>
       )}
     </div>
   );

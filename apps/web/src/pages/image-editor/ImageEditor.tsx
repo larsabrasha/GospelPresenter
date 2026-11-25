@@ -9,6 +9,7 @@ import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, CheckIcon, CloseIcon } from '../../ui/icons.tsx';
 import { CropFrame } from './CropFrame.tsx';
+import { errorText } from '../../ui/playful.ts';
 
 // A library picture's editor (MEDIA-R19, docs/media-and-files.md "Editing a picture"), as Photos' crop view on an
 // iPhone: the whole picture with the crop's frame over it, straightened by a slider, turned a quarter to the left,
@@ -194,7 +195,7 @@ export function ImageEditor({ image, onClose }: { image: LibraryImage; onClose: 
       {/* Clipped here, so the dimming round the crop stops at the stage and its corners reach past the picture. */}
       <div ref={stage} className="relative flex-1 min-h-0 flex items-center justify-center select-none overflow-hidden">
         {bitmap === undefined && <p className="text-stone-400">{t('images.fetching')}</p>}
-        {bitmap === null && <p className="text-stone-400">{t('common.error')}</p>}
+        {bitmap === null && <p className="text-stone-400">{errorText()}</p>}
         {bitmap && (
           <div className="relative" style={{ width: drawn.width, height: drawn.height }}>
             <canvas ref={drawing} className="block size-full" data-testid="image-editor-canvas" />

@@ -14,6 +14,7 @@ import { useRovingList } from '../ui/listNav.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { funPick } from '../ui/playful.ts';
 
 /** How many slides the preview draws; a long passage says how many more there are. */
 const PREVIEW_SLIDES = 12;
@@ -399,7 +400,7 @@ export function BibleTab({
           {books === null && <p className="py-8 text-center text-sm text-stone-400">{t('bible.unavailable')}</p>}
           {books && query.trim() && found && !found.length && (
             <div className="text-center text-stone-400 text-sm py-2">
-              <p>{t('bible.noHits')}</p>
+              <p>{funPick(t('bible.noHits'), [t('fun.bibleNoHits1'), t('fun.bibleNoHits2')])}</p>
               <div className="text-xs mt-6">
                 <p>{t('bible.tryReference')}</p>
                 <p className="mt-1 text-stone-500 dark:text-stone-400">{t('bible.examples')}</p>

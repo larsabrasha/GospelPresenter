@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { syncStatus as coreSyncStatus, type SyncStatus } from '@gp/core/core';
 import type { DbStatus } from '../db/protocol.ts';
 import { t } from '../i18n.ts';
-import { fun } from './playful.ts';
+import { fun, funPick } from './playful.ts';
 
 /** A text of the core's, by its code. */
 type StatusText = SyncStatus['texts'][number];
@@ -19,7 +19,7 @@ function syncStatus(s: DbStatus | null, waitedLong: boolean): SyncStatus {
 function word(text: StatusText): string {
   switch (text.code) {
     case 'idle':
-      return t('status.idle');
+      return funPick(t('status.idle'), [t('fun.idle1'), t('fun.idle2'), t('fun.idle3')]);
     case 'syncing':
       return t('status.syncing');
     case 'offline':

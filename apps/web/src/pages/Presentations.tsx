@@ -4,7 +4,7 @@ import { useData, useDb } from '../db/react.tsx';
 import { itemsOf, recentTemplates } from '../db/queries.ts';
 import { startPage, type StartList } from '../db/views.ts';
 import { locale, t } from '../i18n.ts';
-import { loadingText } from '../ui/playful.ts';
+import { funPick, loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
 import { AddButton } from '../ui/AddButton.tsx';
 import { EmptyPicture } from '../ui/Empty.tsx';
@@ -288,7 +288,7 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
         </div>
       )}
       {lists && !lists.length && (
-        <EmptyPicture picture={<PresentationsPicture />} title={t('presentations.emptyTitle')} text={t('presentations.emptyText')}>
+        <EmptyPicture picture={<PresentationsPicture />} title={funPick(t('presentations.emptyTitle'), [t('fun.presentationsEmpty1'), t('fun.presentationsEmpty2')])} text={t('presentations.emptyText')}>
           <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
         </EmptyPicture>
       )}
