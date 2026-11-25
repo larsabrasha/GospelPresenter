@@ -125,10 +125,9 @@
   100% { transform: scale(1); }
 }
 .added-pop { animation: added-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* A ring only, never a change of size: a row keeps its place and its touch size while it glows. */
 @keyframes added-glow {
-  0% { box-shadow: 0 0 0 0 rgb(14 165 233 / 0.7); transform: scale(0.97); }
-  25% { transform: scale(1.02); }
-  45% { transform: scale(1); }
+  0% { box-shadow: 0 0 0 0 rgb(14 165 233 / 0.7); }
   100% { box-shadow: 0 0 0 10px rgb(14 165 233 / 0); }
 }
 .added-glow { animation: added-glow 1.2s ease-out 2; }
