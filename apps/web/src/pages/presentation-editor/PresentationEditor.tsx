@@ -343,7 +343,7 @@ export function PresentationEditor({
         )}
         {!phone && (
           <>
-            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} open={panels.open.left} onFold={() => panels.toggle('left')}>
+            <SideMenu presentation={presentation} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)} open={panels.open.left} onFold={() => panels.toggle('left')} onEditDescription={can(role, 'ManagePresentations') ? () => setDetails(true) : undefined}>
               <RunningOrder
                 items={items}
                 slides={slides}

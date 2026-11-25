@@ -278,8 +278,9 @@ export function RunningOrder({
 }
 
 /**
- * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) and the overlay it
- * carries, each on one line with its icon, in grey (Lars, 2026-11-25); the whole note is above the item's slides. The
+ * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) in grey and the
+ * overlay it carries as its purple chip, each on one line with its icon (Lars, 2026-11-25: colour only for what shows on
+ * the screens); the whole note is above the item's slides. The
  * kind's icon is centred on the lines, as iOS's lists centre it beside a title and a subtitle.
  */
 function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {

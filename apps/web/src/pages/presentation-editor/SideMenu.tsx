@@ -19,6 +19,7 @@ export function SideMenu({
   onOffline,
   open = true,
   onFold,
+  onEditDescription,
   children,
 }: {
   presentation: Presentation;
@@ -30,6 +31,8 @@ export function SideMenu({
   open?: boolean;
   /** Folds it away, by the toggle at its foot. */
   onFold?: () => void;
+  /** Redigera in the unfolded description: Redigera detaljer, for whoever may change the presentation. */
+  onEditDescription?: () => void;
   children: ReactNode;
 }) {
   const keep = useKeepOffline(presentation);
@@ -40,7 +43,7 @@ export function SideMenu({
       {/* The list's scrollbar room and padding too, so the box's edges line up with the rows' (Lars, 2026-11-02). */}
       {presentation.description && (
         <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-3 overflow-hidden [scrollbar-gutter:stable]">
-          <Description key={presentation.description} text={presentation.description} />
+          <Description key={presentation.description} text={presentation.description} onEdit={onEditDescription} />
         </div>
       )}
       {children}

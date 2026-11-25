@@ -248,11 +248,14 @@ export function SlideList({
   );
 }
 
-/** An item's comment for those who run it (spec 03 2f), under its name where its text starts; never on a screen. */
+/**
+ * An item's comment for those who run it (spec 03 2f), under its name where its text starts, on a note's warm yellow
+ * where it is read in full (Lars, 2026-11-25; grey in the running order); never on a screen.
+ */
 function ItemNote({ item }: { item: PresentationItem }) {
   if (!item.note) return null;
   return (
-    <p className="flex gap-1.5 px-4 text-[13px]/[18px] text-stone-500 dark:text-stone-400 whitespace-pre-line" data-testid="item-note">
+    <p className="self-start max-w-full flex gap-1.5 rounded-xl px-3 py-1.5 text-[13px]/[18px] bg-amber-500/12 text-amber-800 dark:text-amber-200 whitespace-pre-line" data-testid="item-note">
       <CommentIcon className="size-3.5 shrink-0 mt-0.5" />
       <span className="min-w-0">{item.note}</span>
     </p>

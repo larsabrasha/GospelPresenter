@@ -7,9 +7,9 @@ import { AppButton } from '../../ui/AppButton.tsx';
  * lines, and Visa mer when there is more, which unfolds the rest. A flat card a step lighter than the column, as a group
  * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field). Visa mer at the end of the
  * last line, and Visa mindre under the text at the same right edge, so the two stand where each other was (Lars,
- * 2026-11-25).
+ * 2026-11-25). Unfolded, `onEdit` adds Redigera at the left of Visa mindre, which opens Redigera detaljer.
  */
-export function Description({ text, className }: { text: string; className?: string }) {
+export function Description({ text, className, onEdit }: { text: string; className?: string; onEdit?: () => void }) {
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
   const box = useRef<HTMLParagraphElement>(null);
@@ -28,16 +28,31 @@ export function Description({ text, className }: { text: string; className?: str
       <p ref={box} className={`text-[13px]/[18px] whitespace-pre-line text-stone-500 dark:text-stone-400 ${open ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
-      {(more || open) && (
-        <AppButton
-          variant="plain"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-          // Folded, over the end of the last line, the words under it fading into the card.
-          className={`text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer ${open ? 'mt-0.5 block ml-auto' : 'absolute right-4 bottom-2.5 pl-8 bg-linear-to-r from-transparent via-surface via-40% to-surface'}`}
-        >
-          {open ? t('presentation.descriptionLess') : t('presentation.descriptionMore')}
-        </AppButton>
+      {open ? (
+        <div className="mt-0.5 flex items-center justify-between gap-3">
+          {onEdit ? (
+            <AppButton variant="plain" onClick={onEdit} className="text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer">
+              {t('presentation.descriptionEdit')}
+            </AppButton>
+          ) : (
+            <span />
+          )}
+          <AppButton variant="plain" aria-expanded onClick={() => setOpen(false)} className="text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer">
+            {t('presentation.descriptionLess')}
+          </AppButton>
+        </div>
+      ) : (
+        more && (
+          <AppButton
+            variant="plain"
+            aria-expanded={false}
+            onClick={() => setOpen(true)}
+            // Over the end of the last line, the words under it fading into the card.
+            className="absolute right-4 bottom-2.5 pl-8 bg-linear-to-r from-transparent via-surface via-40% to-surface text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer"
+          >
+            {t('presentation.descriptionMore')}
+          </AppButton>
+        )
       )}
     </div>
   );
