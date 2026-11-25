@@ -103,7 +103,7 @@ const GROUPS: { title: TextKey | null; rows: Row[] }[] = [
       row('images', 'nav.images', PhotoIcon, 'bg-rose-500', 'search.images'),
       row('audios', 'nav.audios', SpeakerWaveIcon, 'bg-orange-500', 'search.audios'),
       row('videos', 'nav.videos', VideoIcon, 'bg-purple-500', 'search.videos'),
-      row('customSlides', 'nav.customSlides', SlideshowIcon, 'bg-orange-700', 'search.customSlides'),
+      row('customSlides', 'nav.customSlides', SlideshowIcon, 'bg-teal-600', 'search.customSlides'),
     ],
   },
   {

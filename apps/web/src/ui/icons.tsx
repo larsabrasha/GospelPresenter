@@ -678,7 +678,7 @@ export function CommentIcon({ className, strokeWidth = 1.5 }: StrokeIconProps) {
 export function PointIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>
-      <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none" />
     </Outline>
   );
 }
@@ -698,7 +698,7 @@ const ITEM_COLOURS: Record<PresentationItem['type'], string> = {
   image: 'bg-rose-500',
   audio: 'bg-orange-500',
   video: 'bg-purple-500',
-  custom: 'bg-orange-700',
+  custom: 'bg-teal-600',
   header: 'bg-stone-500',
 };
 
