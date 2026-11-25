@@ -145,6 +145,8 @@ export function RunningOrder({
           const problem = slides.get(item.id)?.problem;
           const shown = item.id === shownId;
           const selected = item.id === selectedId;
+          // A second line, its note or its overlay: the row's pill is a rounded card, as tall as the two lines.
+          const twoLines = !!item.note || overlays.some((o) => o.id === item.overlayId);
           return (
             <li
               key={item.id}
@@ -166,7 +168,7 @@ export function RunningOrder({
               {/* Centred in the 20px room left of the row. */}
               {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
               <div
-                className={`flex items-center pl-1 pr-1.5 touch:pr-0 ${item.note ? 'rounded-2xl' : 'rounded-full'} ${
+                className={`flex items-center pl-1 pr-1.5 touch:pr-0 ${twoLines ? 'rounded-2xl' : 'rounded-full'} ${
                   // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white. While ticking, as
                   // iOS's lists in edit mode, only the ticks and a light tint mark rows (Lars, 2026-11-03: the blue hid the tick).
                   ticking ? (ticked.has(item.id) ? 'bg-sky-500/12 dark:bg-sky-400/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10')
@@ -182,7 +184,7 @@ export function RunningOrder({
                     onClick={(e) => tick(item.id, e.shiftKey)}
                   >
                     <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                    <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
+                    <ItemBadge type={item.type} />
                     <RowTitle item={item} overlays={overlays} />
                   </AppButton>
                 ) : (
@@ -194,7 +196,7 @@ export function RunningOrder({
                     aria-current={shown ? 'true' : undefined}
                     onClick={() => onSelect(item.id)}
                   >
-                    <ItemBadge type={item.type} className={item.note ? 'self-start' : ''} />
+                    <ItemBadge type={item.type} />
                     <RowTitle item={item} overlays={overlays} />
                     {problem && problem !== 'no-parts' && (
                       <span className="text-amber-500">
@@ -276,13 +278,9 @@ export function RunningOrder({
 }
 
 /**
- * A row's name, and under it its comment in grey on one line (spec 03 2f): what those who run the service need as the
- * item comes, seen without a hover, as Reminders shows a note (Lars, 2026-11-05). The kind's icon then stays on the
- * name's line (`self-start`), not centred on the two.
- */
-/**
- * A row's title, and under it its note and the overlay it carries, each with its icon, as above the item's slides (Lars,
- * 2026-11-25), as the row's own lines in the same grey.
+ * A row's title, and under it its note (spec 03 2f, as Reminders shows a note: Lars, 2026-11-05) and the overlay it
+ * carries, each on one line with its icon, in grey (Lars, 2026-11-25); the whole note is above the item's slides. The
+ * kind's icon is centred on the lines, as iOS's lists centre it beside a title and a subtitle.
  */
 function RowTitle({ item, overlays }: { item: PresentationItem; overlays: Overlay[] }) {
   const overlay = item.overlayId ? overlays.find((o) => o.id === item.overlayId) : undefined;
