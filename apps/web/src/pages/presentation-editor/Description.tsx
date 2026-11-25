@@ -5,8 +5,9 @@ import { AppButton } from '../../ui/AppButton.tsx';
 /**
  * A presentation's description at the top of its running order, where it is plain to see (Lars, 2026-11-01): three
  * lines, and Visa mer when there is more, which unfolds the rest. A flat card a step lighter than the column, as a group
- * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field); its mer at the end of the
- * last line, as the App Store's.
+ * in iOS's Settings, with no shadow or border (Lars, 2026-11-02: a sunken box read as a field). Visa mer at the end of the
+ * last line, and Visa mindre under the text at the same right edge, so the two stand where each other was (Lars,
+ * 2026-11-25).
  */
 export function Description({ text, className }: { text: string; className?: string }) {
   const [open, setOpen] = useState(false);
@@ -33,7 +34,7 @@ export function Description({ text, className }: { text: string; className?: str
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           // Folded, over the end of the last line, the words under it fading into the card.
-          className={`text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer ${open ? 'mt-0.5' : 'absolute right-3 bottom-2.5 pl-8 bg-linear-to-r from-transparent via-surface via-40% to-surface'}`}
+          className={`text-[13px]/[18px] font-medium text-sky-500 hover:text-sky-600 cursor-pointer ${open ? 'mt-0.5 block ml-auto' : 'absolute right-4 bottom-2.5 pl-8 bg-linear-to-r from-transparent via-surface via-40% to-surface'}`}
         >
           {open ? t('presentation.descriptionLess') : t('presentation.descriptionMore')}
         </AppButton>
