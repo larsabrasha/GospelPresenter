@@ -50,8 +50,17 @@ export function PopUp({ children, ...rest }: SelectHTMLAttributes<HTMLSelectElem
   );
 }
 
-/** A row that opens something, a sheet by `onClick` or a page by `href`: its name, what it holds in grey, and ›. */
-export function OpeningRow({ label, value, onClick, href, testId }: { label: string; value?: string; onClick?: () => void; href?: string; testId?: string }) {
+/** An opening row's symbol: white on a coloured square, as Inställningar's rows have it (pages/settings/settingsLinks.ts). */
+interface RowIcon {
+  icon: (p: { className?: string }) => ReactNode;
+  colour: string;
+}
+
+/**
+ * A row that opens something, a sheet by `onClick` or a page by `href`: its symbol when it has one, its name, what it
+ * holds in grey, and ›.
+ */
+export function OpeningRow({ label, value, onClick, href, testId, icon }: { label: string; value?: string; onClick?: () => void; href?: string; testId?: string; icon?: RowIcon }) {
   return (
     <AppButton
       variant="plain"
@@ -59,7 +68,14 @@ export function OpeningRow({ label, value, onClick, href, testId }: { label: str
       data-testid={testId}
       className={`${GROUP_ROW} w-full text-left no-underline text-inherit cursor-pointer hover:bg-stone-200/60 dark:hover:bg-white/[0.06]`}
     >
-      <span className="shrink-0">{label}</span>
+      <span className="shrink-0 flex items-center gap-3">
+        {icon && (
+          <span className={`shrink-0 size-7 rounded-md flex items-center justify-center text-white ${icon.colour}`}>
+            <icon.icon className="size-4" />
+          </span>
+        )}
+        {label}
+      </span>
       <span className="flex-1 min-w-0 flex items-center justify-end gap-2 text-stone-500 dark:text-stone-400">
         {value && <span className="truncate tabular-nums">{value}</span>}
         <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />

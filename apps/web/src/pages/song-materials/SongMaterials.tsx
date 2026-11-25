@@ -109,7 +109,7 @@ function Title({ m }: { m: SongMaterial }) {
 /** Noter och länkar on a song's page: one row with how many there are, that pushes their page in. */
 export function SongMaterialsRow({ songId }: { songId: string }) {
   const count = useDataReading((d) => songMaterialsOf(d, [songId]), [songId], ['song_materials'])?.length ?? 0;
-  return <OpeningRow label={t('material.title')} value={count ? String(count) : t('material.none')} href={href({ page: 'songMaterials', id: songId })} />;
+  return <OpeningRow icon={{ icon: MusicalNoteIcon, colour: 'bg-green-500' }} label={t('material.title')} value={count ? String(count) : t('material.none')} href={href({ page: 'songMaterials', id: songId })} />;
 }
 
 /**

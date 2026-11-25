@@ -10,7 +10,7 @@ import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.
 import { useJustCreated } from '../ui/justCreated.ts';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { ChevronDownIcon, ChevronUpIcon, ClockIcon, PlusIcon, QueueListIcon, TrashIcon } from '../ui/icons.tsx';
 import { DANGER_ROW, Group, OpeningRow, TEXT_ACTION } from '../ui/Group.tsx';
 import { MoreMenu } from '../ui/MoreMenu.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
@@ -269,13 +269,14 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           {t('song.addPart')}
         </AppButton>
         {/* What is done to a song less often, as rows that push a page in, as iOS's Settings (Lars, 2026-11-03): its
-            arrangements, its sheet music and links, its history; then Ta bort sång as a red row of its own. A song just
+            arrangements, its sheet music and links, its history, each with its symbol on a coloured square as Inställningar's
+            rows (Lars, 2026-11-25); then Ta bort sång as a red row of its own. A song just
             made in the add dialog has none of them: a page pushed in would leave the dialog. */}
         {!adding && (
           <Group>
-            {!!parts.length && <OpeningRow label={t('song.arrangements')} value={arrangementSummary(arrangements, parts, labels)} href={href({ page: 'songArrangements', id })} />}
+            {!!parts.length && <OpeningRow icon={{ icon: QueueListIcon, colour: 'bg-sky-500' }} label={t('song.arrangements')} value={arrangementSummary(arrangements, parts, labels)} href={href({ page: 'songArrangements', id })} />}
             <SongMaterialsRow songId={id} />
-            <OpeningRow label={t('song.history')} href={href({ page: 'songHistory', id })} />
+            <OpeningRow icon={{ icon: ClockIcon, colour: 'bg-stone-500' }} label={t('song.history')} href={href({ page: 'songHistory', id })} />
           </Group>
         )}
         {!adding && (

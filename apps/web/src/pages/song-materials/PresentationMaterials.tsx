@@ -3,6 +3,8 @@ import { useDataReading } from '../../db/react.tsx';
 import { songMaterialsOf } from '../../db/views.ts';
 import { t } from '../../i18n.ts';
 import { PageDialog } from '../../ui/Dialog.tsx';
+import { EmptySmall } from '../../ui/Empty.tsx';
+import { MusicalNoteOutlineIcon } from '../../ui/icons.tsx';
 import { MaterialList } from './SongMaterials.tsx';
 
 /**
@@ -19,7 +21,12 @@ export function PresentationMaterials({ items, onClose }: { items: PresentationI
   return (
     <PageDialog title={t('material.title')} onClose={onClose}>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6" data-testid="presentation-materials">
-        {!withMaterial.length && <p className="text-sm text-stone-500 dark:text-stone-400">{t('material.presentationEmpty')}</p>}
+        {/* None yet: the libraries' empty state, a note and a heading in the middle, and where they are added (Lars, 2026-11-25). */}
+        {!withMaterial.length && (
+          <div className="h-full flex items-center justify-center">
+            <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('material.presentationEmptyTitle')} text={t('material.presentationEmpty')} />
+          </div>
+        )}
         {withMaterial.map((s) => (
           <section key={s.sourceId} aria-label={s.title} className="space-y-2">
             <h3 className="px-4 text-sm font-semibold text-stone-500 dark:text-stone-400">{s.title}</h3>

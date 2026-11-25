@@ -5,7 +5,10 @@ import { AppButton } from './AppButton.tsx';
 import { Dialog, DialogButtons } from './Dialog.tsx';
 import { FloatingInput } from './Floating.tsx';
 
-/** Asks for a name (Components/Presentations/NameDialog.razor): a passkey's, or a library item's new one. */
+/**
+ * Asks for a name (Components/Presentations/NameDialog.razor): a passkey's, or a library item's new one. As narrow as
+ * a dialog of one field is (Lars, 2026-11-25: the old app's max-w-2xl was too wide).
+ */
 export function NameDialog({
   title,
   text,
@@ -27,7 +30,7 @@ export function NameDialog({
   const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   return (
-    <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
+    <Dialog title={title} onClose={onClose}>
       {text && <p className="text-sm text-stone-600 dark:text-stone-300">{text}</p>}
       <form
         className="space-y-4"

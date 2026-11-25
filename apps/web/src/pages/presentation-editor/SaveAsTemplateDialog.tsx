@@ -13,7 +13,7 @@ import { useToast } from '../../ui/Toast.tsx';
  * "Spara som mall" (PRES-R31, Pages/Presentation.razor's NameDialog): a name,
  * prefilled with the presentation's, then a template of its items and theme:
  * the items shown here, each copy with an id of its own. The editor stays on
- * the presentation.
+ * the presentation. As narrow as a dialog of one field is (Lars, 2026-11-25: the old app's max-w-2xl was too wide).
  */
 export function SaveAsTemplateDialog({ presentation, items, onClose }: { presentation: Presentation; items: PresentationItem[]; onClose: () => void }) {
   const db = useDb();
@@ -22,7 +22,7 @@ export function SaveAsTemplateDialog({ presentation, items, onClose }: { present
   const [name, setName] = useState(presentation.name);
   const [saving, setSaving] = useState(false);
   return (
-    <Dialog title={t('templates.saveAs')} onClose={onClose} maxWidthClass="max-w-2xl">
+    <Dialog title={t('templates.saveAs')} onClose={onClose}>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
