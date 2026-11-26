@@ -247,15 +247,32 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
   66% { transform: translate(-30px, -20px) scale(1.1); }
 }
 
+/*
+ * Each blob a radial gradient, not a blurred disc (Lars, 2026-11-26: the blur showed bands): a browser dithers a
+ * gradient, and draws no blur filter's output so, which over the 15-odd greys this soft a light spans makes rings.
+ * The stops follow a 120 px blur of the old discs (600, 500 and 450 px), each centre where it was, so it looks the same.
+ */
 .animated-bg { position: relative; overflow: hidden; }
 .animated-bg::before,
-.animated-bg::after { content: ""; position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; }
-.animated-bg::before { width: 600px; height: 600px; background: #0ea5e9; top: -200px; left: -100px; opacity: 0.15; animation: blob-1 18s ease-in-out infinite; }
-.animated-bg::after { width: 500px; height: 500px; background: #38bdf8; top: -100px; right: -100px; opacity: 0.12; animation: blob-2 22s ease-in-out infinite; }
-.blob-3 { position: absolute; width: 450px; height: 450px; background: #0ea5e9; border-radius: 50%; filter: blur(120px); opacity: 0.1; top: 200px; left: 50%; transform: translateX(-50%); animation: blob-3 20s ease-in-out infinite; pointer-events: none; }
-:where(.dark, .dark *) .animated-bg::before { background: #0284c7; opacity: 0.2; }
-:where(.dark, .dark *) .animated-bg::after { background: #0ea5e9; opacity: 0.15; }
-:where(.dark, .dark *) .blob-3 { background: #0284c7; opacity: 0.12; }
+.animated-bg::after,
+.blob-3 {
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--blob) / var(--alpha)) 0%,
+    rgb(var(--blob) / calc(var(--alpha) * 0.85)) 30%,
+    rgb(var(--blob) / calc(var(--alpha) * 0.45)) 58%,
+    rgb(var(--blob) / calc(var(--alpha) * 0.15)) 80%,
+    rgb(var(--blob) / 0) 100%
+  );
+}
+.animated-bg::before { content: ""; --blob: 14 165 233; --alpha: 0.15; width: 1080px; height: 1080px; top: -440px; left: -340px; animation: blob-1 18s ease-in-out infinite; }
+.animated-bg::after { content: ""; --blob: 56 189 248; --alpha: 0.12; width: 980px; height: 980px; top: -340px; right: -340px; animation: blob-2 22s ease-in-out infinite; }
+.blob-3 { --blob: 14 165 233; --alpha: 0.1; width: 930px; height: 930px; top: -40px; left: 50%; transform: translateX(-50%); animation: blob-3 20s ease-in-out infinite; }
+:where(.dark, .dark *) .animated-bg::before { --blob: 2 132 199; --alpha: 0.2; }
+:where(.dark, .dark *) .animated-bg::after { --blob: 14 165 233; --alpha: 0.15; }
+:where(.dark, .dark *) .blob-3 { --blob: 2 132 199; --alpha: 0.12; }
 
 /* The card around an empty list (ui/Empty.tsx): no card of its own, quiet, and no rival to an intro card above it. */
 :has(> [data-empty-list]) {
