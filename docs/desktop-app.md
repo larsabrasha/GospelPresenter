@@ -1,7 +1,7 @@
 # The desktop app's packages
 
 The desktop app packaged as D32 decides (ADR 0007): electron-builder, a `.dmg` to install and a `.zip` for the
-updater on macOS, an NSIS installer on Windows and an AppImage on Linux. Version 2.0.0-beta.1 (Lars, 2026-10-31: the
+updater on macOS, an NSIS installer on Windows and an AppImage on Linux. Version 2.0.0-beta.2 (Lars, 2026-10-31: the
 rewrite ships as 2.0), app id `com.gospelpresenter.desktop` (the phone app's is `com.gospelpresenter.app`, a separate
 app).
 

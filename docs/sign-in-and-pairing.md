@@ -6,6 +6,16 @@ its `sub`, and passkeys, by their credential id. One user may have both kinds, a
 way lands on the same user. The email is only filled in, and never used to find a user (spec 01,
 AUTH-R4). There is no self-registration: a Google account or passkey that is not linked is refused.
 
+**The desktop app's first start** (D8; Lars, 2026-11-26) asks where to go first: Logga in, with one's account on our
+cloud (app.gospelpresenter.com), first and largest; Annan server…, a church's own server or the computer that is its
+host, by its address; or Använd bara den här datorn, which makes this computer the host and goes on to its setup
+below. A server is taken only once it answers (`/api/pair/status`), and the app then opens it, as a client of it: its
+sign-in, or pairing with a code when it is a desktop host. The choice is kept for the next start
+(`connection.json` in the app's data folder, `apps/desktop/src/connection.ts`; `GP_SERVER` in the environment wins). A
+server's sign-in and pairing pages in the app have Byt server, back to this computer; a host's sign-in has Använd en
+server i stället. Each origin keeps its own data (D3). Only the host's own page may send the app to a server, never
+a server's page. A server that does not answer when the app opens it gets a dialog: try again, or this computer.
+
 The first start of the host shows "Välkommen!": the person names themselves and the church, and setup
 answers with an invite for its first Admin, who has the Superadmin mark, and who accepts it by making a passkey or
 signing in with Google. Setup is done when that link exists; until then it can be done again, and finishes the same

@@ -7,6 +7,7 @@ import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
+import { LeaveServer } from './DesktopConnect.tsx';
 
 /**
  * A device the desktop host has not paired sees only this (ADR 0007,
@@ -78,6 +79,8 @@ export function Pair({ paired, dev, onSignedIn }: { paired: boolean; dev: boolea
           {t('pair.submit')}
         </AppButton>
       </form>
+      {/* The desktop app pointed at a host on the LAN: back to this computer's own start. */}
+      <LeaveServer />
     </AuthCard>
   );
 }

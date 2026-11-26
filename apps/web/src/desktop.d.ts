@@ -21,6 +21,17 @@ interface Window {
     onMenu?(cb: (command: string) => void): () => void;
     /** This app runs the host (the embedded server), rather than being a client of another machine's server. */
     isHost: boolean;
+    /** Our cloud's address, which the first start offers first. Absent before this version. */
+    cloud?: string;
+    /**
+     * From the host's own page: makes the app a client of the server typed (`app.gospelpresenter.com`, a LAN host's
+     * address), kept for the next start, the window going there. Refused unless it is a server's address that answers.
+     */
+    connectServer?(typed: string): Promise<'ok' | 'invalid' | 'unreachable' | 'refused'>;
+    /** From a server's sign-in page: back to this machine as the host ("Byt server"). */
+    leaveServer?(): Promise<boolean>;
+    /** The environment (`GP_SERVER`) decides the server: no page offers to change it. */
+    serverFixed?: boolean;
     /** This machine's name, for the server's device lists. */
     deviceName: string;
     /** The window as it shows now, as a JPEG data URL ("Rapportera fel", docs/bug-reports.md). Absent before this version. */

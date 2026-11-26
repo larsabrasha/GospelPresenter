@@ -71,7 +71,7 @@
   "faq_q17": "Hur kan jag bidra eller rapportera fel?",
   "faq_a17": "All utveckling sker öppet på GitHub. Där kan du rapportera buggar, föreslå funktioner eller bidra med kod. Pull requests och feedback är välkomna.",
   "downloadTitle": "Hämta skrivbordsappen",
-  "downloadIntro": "Skrivbordsappen är i beta. Den kör Gospel Presenter på kyrkans egen dator, med macOS, Windows eller Linux. Sånger, presentationer och media ligger på datorn, så en gudstjänst fungerar helt utan internet. Kyrkans mobiler, surfplattor och skärmar ansluter till den i det egna nätverket med en kod. Du loggar in med Google eller en passkey. Appen uppdaterar sig inte själv än, så kom tillbaka hit för nya versioner.",
+  "downloadIntro": "Skrivbordsappen är i beta, för macOS, Windows och Linux. Logga in med ditt konto, med Google eller en passkey, så finns det du har på webben även här, och visningen går till kyrkans skärmar. Vill ni klara er utan internet och utan vår server kan datorn i stället bli kyrkans egen värd, som mobiler och skärmar ansluter till i det egna nätverket. Appen uppdaterar sig inte själv än, så kom tillbaka hit för nya versioner.",
   "downloadForMac": "Ladda ner för Mac",
   "downloadForMacIntel": "Mac med Intel-processor",
   "downloadForWindows": "Ladda ner för Windows",

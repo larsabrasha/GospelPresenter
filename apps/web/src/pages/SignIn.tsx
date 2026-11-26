@@ -8,7 +8,9 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { GoogleIcon } from '../ui/icons.tsx';
 import { appVersion } from '../version.ts';
+import { SMALL_ACTION } from '../ui/Group.tsx';
 import { AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
+import { DesktopConnect, LeaveServer } from './DesktopConnect.tsx';
 import { ServerChoice } from './ServerChoice.tsx';
 
 /** The sign-in buttons of SignIn.razor: Google white with its G, any other way sky blue. */
@@ -199,6 +201,12 @@ function Recover() {
  */
 export function SignIn({ error, methods, onSignedIn }: { error: string | null; methods: AuthState | null; onSignedIn: (r: SignInResponse) => void }) {
   const version = appVersion();
+  // The desktop host's sign-in offers its first start's choice again: an account on a server instead (DesktopConnect),
+  // and "Använd bara den här datorn" back here. A server's sign-in in the desktop app offers "Byt server" (LeaveServer).
+  const desktop = window.gpDesktop;
+  const canConnect = !!desktop?.isHost && !!desktop.connectServer && !desktop.serverFixed;
+  const [connect, setConnect] = useState(false);
+  if (connect) return <DesktopConnect onLocal={() => setConnect(false)} />;
   return (
     <SignInChoices
       title={t('auth.signIn')}
@@ -210,6 +218,14 @@ export function SignIn({ error, methods, onSignedIn }: { error: string | null; m
       footer={
         <>
           {methods?.mail && <Recover />}
+          {canConnect && (
+            <div className="pt-6 flex justify-center">
+              <AppButton variant="plain" className={SMALL_ACTION} onClick={() => setConnect(true)}>
+                {t('desktop.useServerInstead')}
+              </AppButton>
+            </div>
+          )}
+          <LeaveServer />
           {version && <p className="pt-16 text-xs text-stone-400 dark:text-stone-500 text-center">{version}</p>}
           <ServerChoice />
         </>

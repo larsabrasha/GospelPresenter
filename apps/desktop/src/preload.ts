@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('gpDesktop', {
     return () => void ipcRenderer.off('displays-changed', on);
   },
   isHost: Boolean(ipcRenderer.sendSync('is-host')),
+  cloud: String(ipcRenderer.sendSync('cloud')),
+  connectServer: (typed: string) => ipcRenderer.invoke('connect-server', typed) as Promise<'ok' | 'invalid' | 'unreachable' | 'refused'>,
+  leaveServer: () => ipcRenderer.invoke('leave-server') as Promise<boolean>,
+  serverFixed: Boolean(ipcRenderer.sendSync('server-fixed')),
   /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */
   macFrame: process.platform === 'darwin',
   /** A choice in the menu bar the page has no key for (Inställningar…). */

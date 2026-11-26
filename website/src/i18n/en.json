@@ -71,7 +71,7 @@
   "faq_q17": "How can I contribute or report bugs?",
   "faq_a17": "All development happens openly on GitHub. There you can report bugs, suggest features, or contribute code. Pull requests and feedback are welcome.",
   "downloadTitle": "Get the desktop app",
-  "downloadIntro": "The desktop app is in beta. It runs Gospel Presenter on the church's own computer, with macOS, Windows or Linux. Songs, presentations and media live on that computer, so a service works with no internet at all. The church's phones, tablets and screens connect to it on your own network with a code. You sign in with Google or a passkey. The app does not update itself yet, so come back here for new versions.",
+  "downloadIntro": "The desktop app is in beta, for macOS, Windows and Linux. Sign in with your account, with Google or a passkey, and what you have on the web is here too, shown on the church's screens. If you would rather manage without the internet and without our server, the computer can instead become the church's own host, which phones and screens connect to on your own network. The app does not update itself yet, so come back here for new versions.",
   "downloadForMac": "Download for Mac",
   "downloadForMacIntel": "Mac with an Intel processor",
   "downloadForWindows": "Download for Windows",

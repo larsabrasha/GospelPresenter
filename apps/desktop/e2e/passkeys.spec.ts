@@ -34,7 +34,9 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   const page = host.page;
   browser = await passkeyBrowser();
 
-  // D19 with a passkey: the system browser makes it, at localhost (never 127.0.0.1, which cannot be an RP ID).
+  // D19 with a passkey: the system browser makes it, at localhost (never 127.0.0.1, which cannot be an RP ID). This
+  // computer alone, not an account on a server (the first start's choice).
+  await page.getByRole('button', { name: 'Använd bara den här datorn' }).click();
   await page.getByLabel('Ditt namn').fill('Anna');
   await page.getByLabel('Organisationens namn').fill('Lilla Kyrkan');
   await page.getByRole('button', { name: 'Kom igång' }).click();

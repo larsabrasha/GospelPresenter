@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
+import { DesktopConnect } from './DesktopConnect.tsx';
 import { methodsText, SignInChoices } from './SignIn.tsx';
 
 /**
@@ -24,11 +25,15 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState<string | null>(null);
+  // The desktop app first asks where to go: an account on a server, or this computer alone (DesktopConnect).
+  const desktop = window.gpDesktop;
+  const [local, setLocal] = useState(!desktop?.isHost || !desktop.connectServer || !!desktop.serverFixed);
 
   useEffect(() => {
     void window.gpDesktop?.setupToken().then(setHostToken);
   }, []);
 
+  if (!local) return <DesktopConnect onLocal={() => setLocal(true)} />;
   if (invite) {
     return (
       <SignInChoices title={t('setup.title')} invite={invite} methods={methods} autoStart onSignedIn={onSignedIn}>

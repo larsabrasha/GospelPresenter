@@ -212,6 +212,8 @@ export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', 
 export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
   const page = d.page;
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
+  // The first start offers an account on a server first; this computer alone is the host (Lars, 2026-11-26).
+  await page.getByRole('button', { name: 'Använd bara den här datorn' }).click();
   await expect(page.getByLabel('Installationskod')).toHaveCount(0); // the host hands it over
   await page.getByLabel('Ditt namn').fill(who.name);
   await page.getByLabel('Organisationens namn').fill(who.org);
