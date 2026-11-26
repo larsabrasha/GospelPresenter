@@ -47,6 +47,12 @@ writes the change log and pokes the devices as a push does, and is refused as it
 found, no permission, a limit) or arguments that do not read come back as the tool's error (`isError`), which the
 assistant reads; an unknown tool is JSON-RPC's -32602.
 
+Each tool's annotations say whether it only reads (`readOnlyHint`) or removes what cannot be brought back
+(`destructiveHint`, `remove_item` alone), so a client can run the reads without asking. The changes reach
+presentations only (Lars, 2026-11-26): a template, or an item of one, is `not-found`, Admin or not; templates wait for a
+later round. A change answers with the presentation as `get_presentation` gives it after the change, and the new
+item's id where it made one. A presentation shown live changes on the screens as an edit in the app does (D7).
+
 | Tool | What |
 |---|---|
 | `search_songs` | The songs that match name, author or lyrics, best first (SONG-R30's ranking); reads the library each call |
@@ -54,21 +60,29 @@ assistant reads; an unknown tool is JSON-RPC's -32602.
 | `get_song` | A song, its parts with their labels, its arrangements; not a trashed song or a draft |
 | `list_presentations` | The presentations, latest date first |
 | `get_presentation` | A presentation and its running order |
-| `list_templates` | The templates |
+| `list_templates` | The templates, their weekday 0 (Sunday) to 6 |
 | `create_presentation` | A presentation, empty or from a template, with date, time, place and description |
+| `update_presentation` | Its name, date, time, place or description; a field left out is kept, null clears it (the old app's `rename_presentation` and `update_presentation_event`) |
 | `add_song_to_presentation` | A song, in an arrangement or not, after an item or at the end |
+| `add_header_to_presentation` | A heading, after an item or at the end |
+| `reorder_items` | The running order anew: every item once, or refused (`invalid-order`) rather than one left out going last |
+| `rename_item` | An item's title; a song keeps its name (PRES-R36) |
+| `set_item_note` | An item's note for those who run it; empty removes it |
+| `update_item_arrangement` | The arrangement a song item shows; null is the song's default |
+| `remove_item` | An item, for good, as in the app; its description asks the assistant to ask first |
 | `list_bibles` | The translations |
 | `get_bible_verses` | The verses of a reference as the Bible tab reads one ("Joh 3:16-18", "Ps 23") |
 | `add_bible_text_to_presentation` | A passage, its slides made as the app makes them |
 
 ## Not yet
 
-- The old app's other tools: renaming a presentation or an item, moving and removing items, an item's arrangement,
-  a song's parts, the time and place of a presentation (`update_presentation_event`), the books and chapters of a
-  translation and a search in its text.
+- Songs and media (a song from pasted text, the media library's files and own slides into a presentation), then
+  overviews (when a song was last sung) and the old app's `get_bible_books`, `get_bible_chapters` and `search_bible`
+  (TODO.md "MCP and a CLI"). The old app's `reorder_item_parts` and `remove_item_part` are a song's arrangement here.
+- Templates: reading and changing their running order.
 - OAuth, which claude.ai's and Claude Desktop's own connectors ask for; until then a client sends the key as a header
   (Claude Code), or goes through a bridge such as `mcp-remote`.
 - A CLI with the same operations (TODO.md "MCP and a CLI").
 - The switch in the Mac app's settings.
-- Tried against the desktop host in a browser on 2026-11-25; not tried on Cloudflare (the Worker's route is tested in
-  workerd) nor from a real MCP client.
+- Tried against the desktop host in a browser on 2026-11-25, and on production with curl and Claude Code on
+  2026-11-26 (the reads). On Cloudflare `GET /api/mcp` without a key is 401, not 405: the Worker checks the key first.

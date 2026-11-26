@@ -39,6 +39,15 @@ for (const adapter of adapters) {
       expect(r.status).toBe(200);
       return r.body;
     }
+    /** An Admin of `org` with MCP on and a key: their id, and the key's secret. */
+    async function adminKey() {
+      const adminId = `ad-${crypto.randomUUID()}`;
+      const admin = await setRole(h, adminId, org, 'admin');
+      expect((await setMcp(adminId, true)).status).toBe(200);
+      const r = await makeKey(admin);
+      expect(r.status).toBe(200);
+      return { adminId, secret: r.body.secret };
+    }
     let rpcId = 0;
     const rpc = (key: string | null, method: string, params?: unknown) =>
       api<Rpc>(h, 'POST', '/api/mcp', { ...(key ? { token: key } : {}), body: { jsonrpc: '2.0', id: ++rpcId, method, ...(params === undefined ? {} : { params }) } });
@@ -121,24 +130,6 @@ for (const adapter of adapters) {
       expect((await api<McpKeyRow[]>(h, 'GET', '/api/auth/mcp-keys', { token: anna.token })).body).toEqual([]);
     });
 
-    it('a key acts with the role its maker has now: a demoted Admin can no longer do what only an Admin may', async () => {
-      const adminId = `ad-${crypto.randomUUID()}`;
-      const admin = await setRole(h, adminId, org, 'admin');
-      await setMcp(adminId, true);
-      const { secret } = (await makeKey(admin)).body;
-      const d = await device(h, org, adminId, 'admin');
-      await d.client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
-      await d.client.mutate('createTemplate', { id: 'T', name: 'Söndag' });
-      await d.client.sync();
-      await d.client.close();
-      await setRole(h, adminId, org, 'user');
-
-      // Changing a template is an Admin's (D24).
-      const r = await call<{ error: string }>(secret, 'add_song_to_presentation', { presentationId: 'T', songId: 'S1' });
-
-      expect(r).toMatchObject({ isError: true, value: { error: 'forbidden' } });
-    });
-
     it('a deleted key is 401', async () => {
       const { key, secret } = await annaKey();
 
@@ -180,6 +171,15 @@ for (const adapter of adapters) {
 
       expect(tools.map((t) => t.name)).toContain('add_song_to_presentation');
       expect(tools.every((t) => t.inputSchema.type === 'object')).toBe(true);
+    });
+
+    it('tools/list marks the tools that only read, and the one that removes', async () => {
+      const { secret } = await annaKey();
+
+      const tools = (await rpc(secret, 'tools/list')).body.result!.tools as { name: string; annotations: { readOnlyHint: boolean; destructiveHint: boolean } }[];
+      const hints = Object.fromEntries(tools.map((t) => [t.name, [t.annotations.readOnlyHint, t.annotations.destructiveHint]]));
+
+      expect([hints.get_song, hints.add_song_to_presentation, hints.remove_item]).toEqual([[true, false], [false, false], [false, true]]);
     });
 
     it('a batch is answered message by message, without answers to its notifications', async () => {
@@ -256,10 +256,7 @@ for (const adapter of adapters) {
     });
 
     it("create_presentation from a template copies the template's running order", async () => {
-      const adminId = `ad-${crypto.randomUUID()}`;
-      const admin = await setRole(h, adminId, org, 'admin');
-      await setMcp(adminId, true);
-      const { secret } = (await makeKey(admin)).body;
+      const { adminId, secret } = await adminKey();
       const d = await device(h, org, adminId, 'admin');
       await d.client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
       await d.client.mutate('createTemplate', { id: 'T', name: 'Söndag' });
@@ -288,7 +285,139 @@ for (const adapter of adapters) {
 
       const added = await call<{ title: string }>(secret, 'add_bible_text_to_presentation', { presentationId: 'P', bibleId: bibleId('B2000'), reference: 'Joh 3:16-17' });
 
-      expect(added).toEqual({ value: { itemId: expect.any(String), title: 'Johannes 3:16-17' }, isError: false });
+      expect(added).toMatchObject({ value: { itemId: expect.any(String), title: 'Johannes 3:16-17' }, isError: false });
+    });
+
+    // ------------------------------------------------------------ changing a running order (docs/mcp.md, round 1)
+
+    type Presentation = { name: string; eventDate: string | null; time: string | null; location: string | null; items: { id: string; type: string; title: string; note: string | null; arrangementId: string | null }[] };
+    type Changed = { presentation: Presentation };
+
+    /**
+     * Anna's presentation P on 29 November at 11:00 in Kyrkan: the song S1 (item I1, with the arrangement A1 to choose),
+     * then the heading Kollekt (I2) and the song S1 again (I3).
+     */
+    async function runningOrder() {
+      const d = await device(h, org, anna.id, 'user');
+      await d.client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
+      await d.client.mutate('addSongPart', { id: 'SP1', songId: 'S1', labelText: 'Vers 1', content: 'Härlig är jorden' });
+      await d.client.mutate('createArrangement', { id: 'A1', songId: 'S1', name: 'Kort', partIds: ['SP1'] });
+      await d.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: '2026-11-29', time: '11:00', location: 'Kyrkan' });
+      await d.client.mutate('addSongToPresentation', { itemId: 'I1', presentationId: 'P', songId: 'S1' });
+      await d.client.mutate('addHeaderToPresentation', { itemId: 'I2', presentationId: 'P', title: 'Kollekt' });
+      await d.client.mutate('addSongToPresentation', { itemId: 'I3', presentationId: 'P', songId: 'S1' });
+      await d.client.sync();
+      await d.client.close();
+    }
+    const ids = (p: Presentation) => p.items.map((i) => i.id);
+
+    it('update_presentation changes the fields it names and keeps the others', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'update_presentation', { presentationId: 'P', name: 'Första advent', time: '10:00' });
+
+      expect(r.value.presentation).toMatchObject({ name: 'Första advent', eventDate: '2026-11-29', time: '10:00', location: 'Kyrkan' });
+    });
+
+    it('update_presentation clears a field given as null', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'update_presentation', { presentationId: 'P', location: null });
+
+      expect(r.value.presentation.location).toBeNull();
+    });
+
+    it('add_header_to_presentation adds a heading after the item named', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed & { itemId: string }>(secret, 'add_header_to_presentation', { presentationId: 'P', title: 'Predikan', afterItemId: 'I1' });
+
+      expect(r.value.presentation.items[1]).toMatchObject({ id: r.value.itemId, type: 'header', title: 'Predikan' });
+    });
+
+    it('reorder_items puts the running order in the order given', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'reorder_items', { presentationId: 'P', itemIds: ['I3', 'I1', 'I2'] });
+
+      expect(ids(r.value.presentation)).toEqual(['I3', 'I1', 'I2']);
+    });
+
+    it('reorder_items refuses a list that leaves an item out, rather than putting it last', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<{ error: string }>(secret, 'reorder_items', { presentationId: 'P', itemIds: ['I3', 'I1'] });
+
+      expect(r).toMatchObject({ isError: true, value: { error: 'invalid-order' } });
+    });
+
+    it('rename_item renames the item, not its song', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      await call(secret, 'rename_item', { itemId: 'I1', title: 'Inledningssång' });
+
+      const song = await call<{ name: string }>(secret, 'get_song', { songId: 'S1' });
+      const p = await call<Presentation>(secret, 'get_presentation', { presentationId: 'P' });
+      expect([p.value.items[0]!.title, song.value.name]).toEqual(['Inledningssång', 'Härlig är jorden']);
+    });
+
+    it('set_item_note sets the note of the item', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'set_item_note', { itemId: 'I2', note: 'Swish 123 456' });
+
+      expect(r.value.presentation.items[1]!.note).toBe('Swish 123 456');
+    });
+
+    it("update_item_arrangement chooses one of the song's arrangements for the item", async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'update_item_arrangement', { itemId: 'I1', arrangementId: 'A1' });
+
+      expect(r.value.presentation.items[0]!.arrangementId).toBe('A1');
+    });
+
+    it('remove_item removes the item from the running order', async () => {
+      const { secret } = await annaKey();
+      await runningOrder();
+
+      const r = await call<Changed>(secret, 'remove_item', { itemId: 'I2' });
+
+      expect(ids(r.value.presentation)).toEqual(['I1', 'I3']);
+    });
+
+    it("a template's running order is not changed through MCP, even by an Admin", async () => {
+      const { adminId, secret } = await adminKey();
+      const d = await device(h, org, adminId, 'admin');
+      await d.client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
+      await d.client.mutate('createTemplate', { id: 'T', name: 'Söndag' });
+      await d.client.sync();
+      await d.client.close();
+
+      const r = await call<{ error: string }>(secret, 'add_song_to_presentation', { presentationId: 'T', songId: 'S1' });
+
+      expect(r).toMatchObject({ isError: true, value: { error: 'not-found' } });
+    });
+
+    it("an item of a template is not found by the item tools", async () => {
+      const { adminId, secret } = await adminKey();
+      const d = await device(h, org, adminId, 'admin');
+      await d.client.mutate('createTemplate', { id: 'T', name: 'Söndag' });
+      await d.client.mutate('addHeaderToPresentation', { itemId: 'TI', presentationId: 'T', title: 'Kollekt' });
+      await d.client.sync();
+      await d.client.close();
+
+      const r = await call<{ error: string }>(secret, 'remove_item', { itemId: 'TI' });
+
+      expect(r).toMatchObject({ isError: true, value: { error: 'not-found' } });
     });
 
     it("a mutator's refusal is the tool's error, not the request's", async () => {

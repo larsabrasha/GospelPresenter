@@ -196,6 +196,19 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.mcpKeys.authenticate(made.secret)).toBeNull();
   });
 
+  it('an MCP key acts with the role its maker has now: a demoted Admin\'s key is a User\'s (D27)', async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    await accounts.members.setRole(bo, orgId, 'admin');
+    await accounts.mcpKeys.setEnabled(bo, true);
+    const made = await accounts.mcpKeys.create(bo, orgId, 'Claude');
+    if (typeof made === 'string') throw new Error(made);
+
+    await accounts.members.setRole(bo, orgId, 'user');
+
+    expect((await accounts.mcpKeys.authenticate(made.secret))?.role).toBe('user');
+  });
+
   it('a Superadmin makes no MCP key in an organisation they are not a member of', async () => {
     const { accounts, userId } = await fresh(driver);
     const other = await accounts.members.createOrg('Stora Kyrkan');

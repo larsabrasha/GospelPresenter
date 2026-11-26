@@ -16,8 +16,8 @@ swap: [Updating](lan-https-and-addresses.md#starting-the-app-without-the-host)):
    protocol and schema version but not the app's version.
 3. **MCP**: the first round is built on 2026-11-25 as an experiment a Superadmin turns on per person
    ([mcp.md](mcp.md)): keys, the endpoint, and tools to read songs, Bibles and presentations, make presentations and
-   add songs and Bible texts. Left: renaming, moving and removing items, an item's arrangement, time and place, and
-   OAuth for claude.ai's connectors.
+   change their running order (2026-11-26). Left: songs and media, templates, the Bible's search, and OAuth for
+   claude.ai's connectors.
 4. **Your own sessions**: listing and revoking your devices' sessions (D23; removing the user or pairing again are
    the ways today).
 5. **Sign-in**: passkey autofill (conditional mediation: the sign-in page has a button, no username field); more

@@ -30,12 +30,14 @@ may be enough, with Skriv ut in the page's … menu; on a phone the share sheet 
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare
 and the rest) inside the dialog, and are listed in the keyboard help.
 
-## MCP and a CLI (from Lars 2026-10-31; MCP's first round built 2026-11-25)
+## MCP and a CLI (from Lars 2026-10-31; MCP's first round built 2026-11-25, the second 2026-11-26)
 
-MCP is built as an experiment a Superadmin turns on per person, with its first eleven tools (docs/mcp.md). Left of
-the current app's: `rename_presentation`, `reorder_items`, `rename_item`, `remove_item`, `update_item_arrangement`,
-`reorder_item_parts`, `remove_item_part`, `update_presentation_event`, `get_bible_books`, `get_bible_chapters` and
-`search_bible`; and OAuth for claude.ai's connectors.
+MCP is built as an experiment a Superadmin turns on per person, with 18 tools (docs/mcp.md): reading, making
+presentations and changing their running order. Left of the current app's: `get_bible_books`, `get_bible_chapters`
+and `search_bible` (`reorder_item_parts` and `remove_item_part` are an arrangement's in the new app). Next, as Lars
+chose on 2026-11-26: songs and media (a song made from pasted text, the media library's files and own slides into a
+presentation), then overviews (when a song was last sung) and the Bible's search; templates; OAuth for claude.ai's
+connectors.
 
 A CLI is new, as `cli/` in Lars's bygg app: the same operations from a terminal (and scripts), with the same API
 keys. One set of operations behind both, so MCP and the CLI cannot drift apart. Not decided yet: its name and how it
