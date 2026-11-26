@@ -70,6 +70,19 @@
   "faq_a16": "Gospel Presenter är under aktiv utveckling. Det betyder att funktioner tillkommer löpande, att saker kan ändras och att buggar kan förekomma. Prova gärna verktyget, men räkna med att det fortfarande mognar. Återkoppling hjälper oss att prioritera rätt.",
   "faq_q17": "Hur kan jag bidra eller rapportera fel?",
   "faq_a17": "All utveckling sker öppet på GitHub. Där kan du rapportera buggar, föreslå funktioner eller bidra med kod. Pull requests och feedback är välkomna.",
-  "desktopTitle": "Skrivbordsappen",
-  "desktopComing": "En ny skrivbordsapp är på gång, byggd för den nya versionen av Gospel Presenter. Tills den är klar använder du Gospel Presenter i webbläsaren, på vilken dator som helst."
+  "downloadTitle": "Hämta skrivbordsappen",
+  "downloadIntro": "Skrivbordsappen är i beta. Den kör Gospel Presenter på kyrkans egen dator, med macOS, Windows eller Linux. Sånger, presentationer och media ligger på datorn, så en gudstjänst fungerar helt utan internet. Kyrkans mobiler, surfplattor och skärmar ansluter till den i det egna nätverket med en kod. Du loggar in med Google eller en passkey. Appen uppdaterar sig inte själv än, så kom tillbaka hit för nya versioner.",
+  "downloadForMac": "Ladda ner för Mac",
+  "downloadForMacIntel": "Mac med Intel-processor",
+  "downloadForWindows": "Ladda ner för Windows",
+  "downloadForLinux": "Ladda ner för Linux",
+  "downloadVersion": "Version",
+  "downloadAllReleases": "Alla filer, även .deb, .rpm och .pacman",
+  "downloadUnknownVersion": "Öppna versionssidan för att ladda ner senaste versionen",
+  "downloadUseWeb": "Öppna webbappen",
+  "downloadNoBuildForPlatform": "Den här versionen har inget bygge för din dator. Använd Gospel Presenter i webbläsaren så länge.",
+  "downloadOtherPlatform": "Skrivbordsappen är till för datorer. På mobil eller surfplatta använder du Gospel Presenter i webbläsaren.",
+  "downloadUnsignedTitle": "Första starten kräver ett extra steg",
+  "downloadUnsignedMac": "Appen är inte signerad med ett Apple-certifikat än, så macOS stoppar den första gången. Öppna den nedladdade filen. Om macOS vägrar: gå till Systeminställningar, sedan Integritet och säkerhet, bläddra nedåt och välj Öppna ändå. Det gör du bara en gång.",
+  "downloadUnsignedWindows": "Appen är inte signerad än, så Windows varnar första gången. Välj Mer information och sedan Kör ändå. Det gör du bara en gång."
 }

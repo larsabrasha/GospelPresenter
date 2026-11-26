@@ -1,5 +1,9 @@
 import "./style.css";
 import "./carousel.js";
+import { initDownload } from "./download.js";
+
+// The desktop app's download, filled in from the GitHub Releases API.
+initDownload();
 
 /** The language chosen with EN / SV, or null: none chosen, or storage the browser refuses. */
 function chosenLang() {
