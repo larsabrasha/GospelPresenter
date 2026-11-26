@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 11;
+export const GLOBAL_SCHEMA_VERSION = 12;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -193,7 +193,13 @@ const mcpKeysDdl = [
   `CREATE INDEX IF NOT EXISTS mcp_keys_user ON mcp_keys (user_id)`,
 ];
 
-const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl, ...mcpKeysDdl];
+/**
+ * Version 12: the desktop app used without an account (Lars, 2026-11-26): the person who set the computer up so, whom
+ * its own window is without signing in (docs/sign-in-and-pairing.md). Its row finishes setup as a login does.
+ */
+const hostOwnerDdl = `CREATE TABLE IF NOT EXISTS host_owner (user_id TEXT PRIMARY KEY NOT NULL)`;
+
+const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl, ...mcpKeysDdl, hostOwnerDdl];
 
 const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -248,6 +254,8 @@ const globalMigrations: Record<number, string[]> = {
   ],
   // The MCP experiment, off for everyone until a Superadmin turns it on.
   11: [`ALTER TABLE users ADD COLUMN mcp INTEGER NOT NULL DEFAULT 0`, ...mcpKeysDdl],
+  // The desktop app without an account.
+  12: [hostOwnerDdl],
 };
 
 /**

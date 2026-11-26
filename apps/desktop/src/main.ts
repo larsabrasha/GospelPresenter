@@ -18,8 +18,10 @@ import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import type { GoogleConfig } from '@gp/server';
 import { mailConfigFrom, type RunningServer } from '@gp/server/node';
-import { answers, CLOUD, savedServer, saveServer, serverUrl } from './connection.ts';
-import { lanUrls, pageUrl, startHost } from './host.ts';
+import { answers, CLOUD, savedLan, saveLan, savedServer, saveServer, serverUrl } from './connection.ts';
+import { chooseLan, lanUrls, onLan, pageUrl, startHost } from './host.ts';
+import { pptxPages, pptxProgram } from './pptx.ts';
+import { MAX_SLIDE_PAGES } from '@gp/core';
 import { setAppMenu } from './menu.ts';
 import { allowsPermission } from './permissions.ts';
 import { outputWindows } from './outputs.ts';
@@ -230,6 +232,7 @@ async function reconnect(server: string | null) {
 }
 
 app.whenReady().then(async () => {
+  chooseLan(savedLan(app.getPath('userData')));
   await connect(process.env.GP_SERVER?.replace(/\/$/, '') ?? savedServer(app.getPath('userData')));
   ipcMain.on('open-output', (_e, target: unknown) => typeof target === 'string' && outputs.show(target));
   ipcMain.on('close-output', (_e, target: unknown) => outputs.hide(typeof target === 'string' ? target : undefined));
@@ -256,9 +259,30 @@ app.whenReady().then(async () => {
     return true;
   });
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));
+  // A PowerPoint deck drawn here, on this computer, whichever server the app is a client of (docs/powerpoint-deckcraft.md;
+  // Lars, 2026-11-26): the cloud draws none. The page keeps the pages as a PDF's, which the server checks as it does those.
+  const program = pptxProgram(here);
+  const drawDeck = program ? pptxPages(program) : null;
+  ipcMain.handle('draw-pptx', async (_e, deck: unknown) => {
+    if (!drawDeck) return 'unavailable';
+    if (!(deck instanceof Uint8Array)) return 'invalid';
+    return drawDeck(deck, MAX_SLIDE_PAGES).catch(() => 'invalid' as const);
+  });
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);
   ipcMain.handle('lan-urls', () => (host ? lanUrls(host.port, host.tls?.port ?? null) : []));
+  // Enheter i nätverket's switch: the church's phones and screens may reach this computer, or only itself. Kept for the
+  // next start; the host's server starts again bound so, the window keeping its session. Answers the addresses.
+  ipcMain.handle('lan', () => !!host && onLan());
+  ipcMain.handle('set-lan', async (_e, on: unknown) => {
+    if (!host || typeof on !== 'boolean') return [];
+    saveLan(app.getPath('userData'), on);
+    chooseLan(on);
+    await host.close();
+    host = null;
+    await connect(null);
+    return lanUrls(host!.port, host!.tls?.port ?? null);
+  });
   // The disk the app's data is on, for the cache limit's range (Lagring på den här enheten).
   ipcMain.handle('disk-space', async () => {
     const s = await statfs(app.getPath('userData'));

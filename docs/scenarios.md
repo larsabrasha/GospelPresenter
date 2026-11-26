@@ -54,8 +54,8 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 
 | Scenario | Tests |
 | --- | --- |
-| First setup and sign-in | `milestone3.spec.ts`: "sign-in", `passkeys.spec.ts`: "desktop host: set up with a passkey" |
-| The desktop app's first start: an account on a server, or this computer alone | `desktop-connect.spec.ts`: "the first start offers the cloud first", `desktop-connect.spec.ts`: "the server chosen is kept" |
+| First setup and sign-in | `milestone3.spec.ts`: "sign-in", `passkeys.spec.ts`: "the computer without an account: a passkey added" |
+| The desktop app's first start: an account on a server, or this computer alone | `desktop-connect.spec.ts`: "the first start offers the cloud first", `desktop-connect.spec.ts`: "the server chosen is kept", `desktop-connect.spec.ts`: "the computer used without an account", `desktop-connect.spec.ts`: "Enheter i nätverket lets" |
 | Add a user and invite them | `milestone3.spec.ts`: "creating a person on the host", `milestone3.spec.ts`: "invites on the host", `mail.spec.ts`: "a link is mailed" |
 | Connect a second computer | `milestone3.spec.ts`: "pairing" |
 | A user removed or demoted | `milestone3.spec.ts`: "membership" |

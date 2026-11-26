@@ -2,7 +2,7 @@
 // or this computer alone as the host; the choice kept for the next start, and "Byt server" back.
 import { expect, test } from '@playwright/test';
 import { type Desktop, launch } from './apps.ts';
-import { setUpHost, signOut } from './flows.ts';
+import { openAdmin, setUpHost, signOut } from './flows.ts';
 
 let apps: Desktop[] = [];
 test.afterEach(async () => {
@@ -30,7 +30,7 @@ test('the first start offers the cloud first, refuses a server that does not ans
   await page.getByRole('button', { name: 'Använd', exact: true }).click();
 
   // The other computer is a host: this app pairs with it, as a phone does.
-  await expect(page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   expect(page.url().startsWith(other.base)).toBe(true);
 });
 
@@ -42,27 +42,41 @@ test('the server chosen is kept for the next start, and Byt server goes back to 
   await first.page.getByRole('button', { name: 'Annan server…' }).click();
   await first.page.getByLabel('Serverns adress').fill(other.base);
   await first.page.getByRole('button', { name: 'Använd', exact: true }).click();
-  await expect(first.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await expect(first.page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   await first.app.close();
 
   const again = await launch({ dataDir: first.dataDir });
   apps.push(again);
-  await expect(again.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await expect(again.page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   await again.page.getByRole('button', { name: 'Byt server' }).click();
 
-  await expect(again.page.getByRole('button', { name: 'Använd bara den här datorn' })).toBeVisible();
+  await expect(again.page.getByRole('button', { name: 'Använd utan konto' })).toBeVisible();
   expect(again.page.url().startsWith(other.base)).toBe(false);
 });
 
-test("a host already set up offers a server instead, and Använd bara den här datorn back to its own sign-in", async () => {
+test('the computer used without an account is set up with two names, and comes back in after signing out without signing in', async () => {
   const host = await launch();
   apps.push(host);
-  await setUpHost(host);
-  await signOut(host.page);
+  await setUpHost(host, { name: 'Anna', org: 'Lilla Kyrkan', google: null });
 
-  await host.page.getByRole('button', { name: 'Använd en server i stället' }).click();
-  await expect(host.page.getByRole('button', { name: 'Logga in', exact: true })).toBeVisible();
-  await host.page.getByRole('button', { name: 'Använd bara den här datorn' }).click();
+  await signOut(host.page, { toSignIn: false });
+  await expect(host.page.getByRole('heading', { name: 'Välkommen tillbaka!' })).toBeVisible();
+  await host.page.getByRole('button', { name: 'Fortsätt på den här datorn' }).click();
 
-  await expect(host.page.getByRole('button', { name: 'Använd en server i stället' })).toBeVisible();
+  await expect(host.page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
+});
+
+test('Enheter i nätverket lets the church\'s phones and screens in, and connecting a device turns it on', async () => {
+  const host = await launch();
+  apps.push(host);
+  await setUpHost(host, { name: 'Anna', org: 'Lilla Kyrkan', google: null });
+  await openAdmin(host.page, 'Enheter i nätverket');
+  const lan = host.page.getByRole('switch', { name: 'Låt mobiler och skärmar ansluta' });
+  await expect(lan).not.toBeChecked();
+
+  await host.page.getByRole('button', { name: 'Anslut enhet' }).first().click();
+  await host.page.getByRole('dialog', { name: 'Anslut enhet' }).getByRole('button', { name: 'Visa kod' }).click();
+
+  await expect(host.page.getByRole('img', { name: 'QR-kod för att ansluta enheten' })).toBeVisible();
+  await expect(lan).toBeChecked();
 });

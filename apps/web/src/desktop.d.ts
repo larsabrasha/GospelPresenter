@@ -32,6 +32,11 @@ interface Window {
     leaveServer?(): Promise<boolean>;
     /** The environment (`GP_SERVER`) decides the server: no page offers to change it. */
     serverFixed?: boolean;
+    /**
+     * Draws a PowerPoint deck's pages on this computer (crates/gp-pptx), whichever server the app uses: every slide at
+     * every click, a JPEG and a thumbnail each. `unavailable` without the program. Absent before this version.
+     */
+    drawPptx?(deck: Uint8Array): Promise<{ charts: boolean; pages: { full: Uint8Array; thumb: Uint8Array }[] } | 'invalid' | 'pages' | 'unavailable'>;
     /** This machine's name, for the server's device lists. */
     deviceName: string;
     /** The window as it shows now, as a JPEG data URL ("Rapportera fel", docs/bug-reports.md). Absent before this version. */
@@ -40,6 +45,10 @@ interface Window {
     setupToken(): Promise<string | null>;
     /** Addresses other devices on the LAN can open, when the host listens there. */
     lanUrls(): Promise<string[]>;
+    /** Whether this computer lets the church's phones and screens in on the network (Enheter i nätverket). Absent before this version. */
+    lan?(): Promise<boolean>;
+    /** Lets them in, or only this computer; kept for the next start. Answers the addresses they open. */
+    setLan?(on: boolean): Promise<string[]>;
     /** The size and free room of the disk the app's data is on, in bytes (`fs.statfs`). */
     diskSpace(): Promise<{ total: number; free: number }>;
     /** The scheme this installation receives its sign-in on (spec 01 device sign-in, ADR 0005). */

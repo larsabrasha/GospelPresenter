@@ -1,5 +1,14 @@
 # The LAN, https, the service worker, a reverse proxy and addresses
 
+## On the network or not
+
+The desktop app used without an account serves only its own window (127.0.0.1) until it is let on the network
+(Lars, 2026-11-26): Enheter i nätverket has a switch, Låt mobiler och skärmar ansluta, and Anslut enhet turns it on
+first. The choice is kept (`lan` in `connection.json`, `apps/desktop/src/connection.ts`); turning it restarts the
+embedded server on the addresses chosen (`chooseLan`, `apps/desktop/src/host.ts`) and reloads the window.
+`GP_LAN=1` in the environment keeps it on whatever the switch says. The page and its switch are there only when the
+app is used without an account; a church on our cloud or its own server reaches its devices through that server.
+
 ## A tablet over plain http
 
 A phone or tablet that opens the desktop host at its LAN address over http is not a secure context (ADR 0007

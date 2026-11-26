@@ -9,7 +9,13 @@ import { startNodeServer, type MailConfig } from '@gp/server/node';
 import { pptxPages, pptxProgram } from './pptx.ts';
 
 /** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
-export const onLan = () => process.env.GP_LAN === '1';
+/** Whether the church's phones and screens may reach this computer: set in the app (Enheter i nätverket), or GP_LAN=1. */
+let lanChosen = false;
+export const onLan = () => process.env.GP_LAN === '1' || lanChosen;
+/** The app's own choice, kept by the main process (connection.ts); the host's server binds to it when it next starts. */
+export function chooseLan(on: boolean) {
+  lanChosen = on;
+}
 
 /** The https port when a certificate is given: the http port's neighbour by default. */
 const TLS_PORT = 47843;

@@ -127,6 +127,12 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
     rmSync(dataDir, { recursive: true, force: true });
   });
 
+  it('a host set up with a sign-in before there was a way without an account: its window comes in as its first Superadmin', async () => {
+    const r = await req<SignInResponse>('POST', '/api/auth/host-window', { device: HOST, body: { deviceName: 'Värddatorn' } });
+
+    expect(r.body.me.userId).toBe(admin.me.userId);
+  });
+
   it('an unpaired device is refused everywhere but the pairing itself, also with a valid session token', async () => {
     expect((await req<PairStatus>('GET', '/api/pair/status')).body).toEqual({ required: true, paired: false, host: false, dev: false });
     expect((await req<PairStatus>('GET', '/api/pair/status', { device: HOST })).body).toEqual({ required: true, paired: true, host: true, dev: false });
@@ -307,5 +313,59 @@ describe('a development host (GP_DEV_PAIR=1)', () => {
     const r = await req('POST', '/api/pair/dev', { body: { name: 'iPhone' } });
 
     expect(r).toEqual({ status: 400, body: { error: 'pair-code-invalid' } });
+  });
+});
+
+describe('the desktop app used without an account', () => {
+  const HOST = 'gphost_' + 'o'.repeat(43);
+  let server: RunningServer;
+  let dataDir: string;
+  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], dropMedia: async () => {}, close: async () => {} };
+  const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
+    api<T>(host, method, path, { token: opts.token, body: opts.body, headers: opts.device ? { 'x-gp-device': opts.device } : {} });
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'gp-owner-'));
+    server = await startNodeServer({ dataDir, driver: 'node:sqlite', pairing: { hostToken: HOST }, log: () => undefined });
+    host.url = server.url;
+  });
+  afterEach(async () => {
+    await server?.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+
+  it("its own window sets it up with the person's and the church's names and is in, an Admin, with no sign-in", async () => {
+    const r = await req<SignInResponse>('POST', '/api/auth/host-window', { device: HOST, body: { deviceName: 'Kyrkans dator', name: 'Anna', orgName: 'Lilla Kyrkan' } });
+
+    expect(r.status).toBe(200);
+    expect(r.body.me).toMatchObject({ name: 'Anna', orgName: 'Lilla Kyrkan', role: 'admin', superAdmin: true });
+  });
+
+  it('is set up once it has been so: setup is no longer asked', async () => {
+    await req('POST', '/api/auth/host-window', { device: HOST, body: { name: 'Anna', orgName: 'Lilla Kyrkan' } });
+
+    const state = await req<{ setupRequired: boolean }>('GET', '/api/auth/state', { device: HOST });
+
+    expect(state.body.setupRequired).toBe(false);
+  });
+
+  it('its own window comes in again as the same person, without the names', async () => {
+    const first = await req<SignInResponse>('POST', '/api/auth/host-window', { device: HOST, body: { name: 'Anna', orgName: 'Lilla Kyrkan' } });
+
+    const again = await req<SignInResponse>('POST', '/api/auth/host-window', { device: HOST, body: {} });
+
+    expect(again.body.me.userId).toBe(first.body.me.userId);
+  });
+
+  it('asks for the names the first time', async () => {
+    const r = await req('POST', '/api/auth/host-window', { device: HOST, body: { name: 'Anna' } });
+
+    expect(r).toEqual({ status: 400, body: { error: 'invalid-request' } });
+  });
+
+  it('is refused to anything but its own window', async () => {
+    for (const device of [undefined, 'gppd_forged', 'gphost_' + 'x'.repeat(43)]) {
+      const r = await req('POST', '/api/auth/host-window', { device, body: { name: 'Eve', orgName: 'Eves kyrka' } });
+      expect(r.status).toBe(403);
+    }
   });
 });

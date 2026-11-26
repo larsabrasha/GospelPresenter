@@ -54,6 +54,13 @@ const bytesOf = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charC
  * `charts`: a slide has a chart, which may not look as in PowerPoint.
  */
 async function drawPptx(file: File, target: SlidesTarget): Promise<{ slides: SlidesImport; charts: boolean }> {
+  // The desktop app draws it on this computer, whichever server it is a client of (Lars, 2026-11-26: the cloud draws
+  // none); the pages then go to the server as a PDF's do.
+  const local = await window.gpDesktop?.drawPptx?.(new Uint8Array(await file.arrayBuffer()));
+  if (local && local !== 'unavailable') {
+    if (local === 'invalid' || local === 'pages' || !local.pages.length) throw new SlidesRefused(local === 'pages' ? 'pages' : 'invalid');
+    return { slides: { ...target, fileName: file.name, contentType: 'image/jpeg', pages: local.pages }, charts: local.charts };
+  }
   // Asked first, so a deck of up to 50 MB is not sent to a server that cannot draw it (the cloud, over a phone's data).
   if ((await fetch(serverUrl('/api/slides/pptx'), { headers: authHeaders() })).status === 404) throw new SlidesRefused('powerpoint');
   const res = await fetch(serverUrl('/api/slides/pptx'), { method: 'POST', headers: { 'content-type': 'application/octet-stream', ...authHeaders() }, body: file });

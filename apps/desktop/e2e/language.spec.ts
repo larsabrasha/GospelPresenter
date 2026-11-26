@@ -26,5 +26,7 @@ test('English chosen under Mina inställningar shows the app in English, after a
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Close', exact: true }).first().click();
   await page.getByTestId('me').click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await expect(page.getByRole('button', { name: 'Continue on this computer' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign in as someone else here' }).click();
   await expect(page.getByRole('button', { name: /Sign in with/ }).first()).toBeVisible();
 });

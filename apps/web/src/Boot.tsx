@@ -5,6 +5,7 @@ import { errorText } from './auth/errors.ts';
 import { deviceName, saveDeviceToken, saveSession, storedSession } from './auth/session.ts';
 import { t } from './i18n.ts';
 import { AUTH_TEXT, AuthCard, FormError, Starting } from './pages/AuthCard.tsx';
+import { DesktopStart } from './pages/DesktopStart.tsx';
 import { Invite } from './pages/Invite.tsx';
 import { Pair } from './pages/Pair.tsx';
 import { Setup } from './pages/Setup.tsx';
@@ -29,9 +30,9 @@ function signedIn(r: SignInResponse) {
 /** What Boot was opened for, from the address. */
 export type BootFor = { invite: string } | { signedIn: true } | { error: string | null };
 
-type Screen = 'loading' | 'offline' | 'pair' | 'repair' | 'setup' | 'signin' | 'invite' | 'handoff';
+type Screen = 'loading' | 'offline' | 'pair' | 'repair' | 'desktop' | 'setup' | 'signin' | 'invite' | 'handoff';
 /** The screen, how one signs in here, and whether a development host pairs without a code. */
-type View = { screen: Screen; state?: AuthState; dev?: boolean };
+type View = { screen: Screen; state?: AuthState; dev?: boolean; back?: boolean };
 
 /** Which screen comes first: pairing, then an invite, a web sign-in coming back, setup or sign-in; and how one signs in here. */
 async function firstScreen(boot: BootFor): Promise<View> {
@@ -52,6 +53,9 @@ async function firstScreen(boot: BootFor): Promise<View> {
     }
     // A device paired with a desktop host signs in by pairing again; only the host's own window signs in itself.
     if (host && !pair.body.host) return { screen: 'repair', dev: pair.body.dev };
+    // The desktop app's own computer: its start, an account on a server or none (DesktopStart; Lars, 2026-11-26).
+    const desktop = window.gpDesktop;
+    if (host && desktop?.isHost && desktop.connectServer && !desktop.serverFixed) return { screen: 'desktop', state };
     return { screen: state?.setupRequired ? 'setup' : 'signin', state };
   } catch {
     return { screen: 'offline' };
@@ -114,11 +118,20 @@ export function Boot({ boot }: { boot: BootFor }) {
       return <Invite token={(boot as { invite: string }).invite} methods={methods} onSignedIn={signedIn} />;
     case 'handoff':
       return <Handoff />;
+    case 'desktop':
+      return <DesktopStart setUp={!methods?.setupRequired} onSignedIn={signedIn} onSignInHere={() => setView({ ...view, screen: 'signin', back: true })} />;
     case 'setup':
       return <Setup methods={methods} onSignedIn={signedIn} />;
     case 'signin': {
       const code = 'error' in boot ? boot.error : null;
-      return <SignIn error={code ? errorText({ error: code, body: null }) : null} methods={methods} onSignedIn={signedIn} />;
+      return (
+        <SignIn
+          error={code ? errorText({ error: code, body: null }) : null}
+          methods={methods}
+          onSignedIn={signedIn}
+          onBack={view.back ? () => setView({ ...view, screen: 'desktop', back: false }) : undefined}
+        />
+      );
     }
   }
 }

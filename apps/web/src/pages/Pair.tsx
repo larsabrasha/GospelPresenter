@@ -7,7 +7,7 @@ import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
-import { LeaveServer } from './DesktopConnect.tsx';
+import { LeaveServer } from './DesktopStart.tsx';
 
 /**
  * A device the desktop host has not paired sees only this (ADR 0007,

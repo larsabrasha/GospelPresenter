@@ -88,6 +88,17 @@ export const setupRequest = z.object({
   orgName: z.string().trim().min(1).max(ACCOUNT_LIMITS.orgName),
 });
 
+/**
+ * `POST /api/auth/host-window`: the desktop app used without an account (Lars, 2026-11-26), from its own window only:
+ * in as the computer's owner without signing in; the first time with the person's and the church's names, which set it
+ * up so.
+ */
+export const hostWindowRequest = z.object({
+  deviceName,
+  name: personName.optional(),
+  orgName: z.string().trim().min(1).max(ACCOUNT_LIMITS.orgName).optional(),
+});
+
 export interface SetupResponse {
   /** The first Admin's invite: accepting it with Google or a passkey finishes setup. */
   inviteToken: string;

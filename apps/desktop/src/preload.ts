@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('gpDesktop', {
   connectServer: (typed: string) => ipcRenderer.invoke('connect-server', typed) as Promise<'ok' | 'invalid' | 'unreachable' | 'refused'>,
   leaveServer: () => ipcRenderer.invoke('leave-server') as Promise<boolean>,
   serverFixed: Boolean(ipcRenderer.sendSync('server-fixed')),
+  drawPptx: (deck: Uint8Array) =>
+    ipcRenderer.invoke('draw-pptx', deck) as Promise<{ charts: boolean; pages: { full: Uint8Array; thumb: Uint8Array }[] } | 'invalid' | 'pages' | 'unavailable'>,
   /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */
   macFrame: process.platform === 'darwin',
   /** A choice in the menu bar the page has no key for (Inställningar…). */
@@ -39,6 +41,8 @@ contextBridge.exposeInMainWorld('gpDesktop', {
   capturePage: () => ipcRenderer.invoke('capture-page') as Promise<string | null>,
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,
+  lan: () => ipcRenderer.invoke('lan') as Promise<boolean>,
+  setLan: (on: boolean) => ipcRenderer.invoke('set-lan', on) as Promise<string[]>,
   diskSpace: () => ipcRenderer.invoke('disk-space') as Promise<{ total: number; free: number }>,
   callbackScheme: String(ipcRenderer.sendSync('callback-scheme')),
   openSignIn: (path: string) => ipcRenderer.invoke('open-sign-in', path) as Promise<boolean>,

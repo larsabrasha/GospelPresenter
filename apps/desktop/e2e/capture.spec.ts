@@ -486,7 +486,7 @@ test('capture every page', async () => {
         return output;
       },
     ],
-    ['pair', (theme, width, height) => beside(host!.base, theme, width, height).then(async (p) => (await p.getByRole('heading', { name: 'Anslut till värddatorn' }).waitFor(), p))],
+    ['pair', (theme, width, height) => beside(host!.base, theme, width, height).then(async (p) => (await p.getByRole('heading', { name: 'Anslut till kyrkans dator' }).waitFor(), p))],
   ];
 
   for (const theme of THEMES) {

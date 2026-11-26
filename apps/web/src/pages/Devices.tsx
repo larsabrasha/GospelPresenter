@@ -9,6 +9,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingSelect } from '../ui/Floating.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
+import { Group, SwitchRow } from '../ui/Group.tsx';
 import { DevicesPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -132,19 +133,41 @@ export function Devices({ me }: { me: Me }) {
   useEffect(() => {
     void fetchDevices().then(setDevices);
   }, []);
+  // Whether the church's phones and screens may reach this computer (Lars, 2026-11-26): off until it is turned on here,
+  // and on by itself when a device is connected, which needs it.
+  const desktop = window.gpDesktop;
+  const [lan, setLan] = useState<boolean | null>(null);
+  useEffect(() => {
+    void desktop?.lan?.().then(setLan);
+  }, [desktop]);
+  const turnLan = async (on: boolean) => {
+    await desktop?.setLan?.(on);
+    setLan(on);
+  };
+  const pair = async () => {
+    if (lan === false) await turnLan(true);
+    setChoosing(true);
+  };
 
   return (
     <PageContainer>
       <PageHeader title={t('devices.title')}>
-        <AddButton label={t('devices.pair')} onClick={() => setChoosing(true)} />
+        <AddButton label={t('devices.pair')} onClick={() => void pair()} />
       </PageHeader>
+      {lan !== null && (
+        <div className="px-4 pb-4">
+          <Group footer={t(lan ? 'devices.lanFooter' : 'devices.lanOff')}>
+            <SwitchRow title={t('devices.lan')} checked={lan} onChange={(on) => void turnLan(on)} />
+          </Group>
+        </div>
+      )}
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
       {/* No card until the list is here (Users.tsx). */}
       {devices === null && <div className="loading-line px-7 py-4 text-stone-400">{loadingText()}</div>}
       <div className={`${CARD} ${Array.isArray(devices) ? '' : 'hidden'}`}>
         {Array.isArray(devices) && !devices.length && (
           <EmptyPicture picture={<DevicesPicture className={PICTURE} />} title={t('devices.empty')}>
-            <AppButton onClick={() => setChoosing(true)}>{t('devices.emptyPair')}</AppButton>
+            <AppButton onClick={() => void pair()}>{t('devices.emptyPair')}</AppButton>
           </EmptyPicture>
         )}
         <ul aria-label={t('devices.title')}>

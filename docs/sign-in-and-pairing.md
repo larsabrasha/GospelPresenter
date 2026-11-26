@@ -6,21 +6,31 @@ its `sub`, and passkeys, by their credential id. One user may have both kinds, a
 way lands on the same user. The email is only filled in, and never used to find a user (spec 01,
 AUTH-R4). There is no self-registration: a Google account or passkey that is not linked is refused.
 
-**The desktop app's first start** (D8; Lars, 2026-11-26) asks where to go first: Logga in, with one's account on our
-cloud (app.gospelpresenter.com), first and largest; Annan server…, a church's own server or the computer that is its
-host, by its address; or Använd bara den här datorn, which makes this computer the host and goes on to its setup
-below. A server is taken only once it answers (`/api/pair/status`), and the app then opens it, as a client of it: its
-sign-in, or pairing with a code when it is a desktop host. The choice is kept for the next start
+**The desktop app's first start** (D8; Lars, 2026-11-26) asks where to go: Logga in, with one's account on our cloud
+(app.gospelpresenter.com), first and largest; Annan server…, a church's own server or another computer used without
+an account, by its address; or Använd utan konto, for a church that does not want to depend on the internet, or has
+none. A server is taken only once it answers (`/api/pair/status`), and the app then opens it, as a client of it: its
+sign-in, or pairing with a code when it is another desktop app. The choice is kept for the next start
 (`connection.json` in the app's data folder, `apps/desktop/src/connection.ts`; `GP_SERVER` in the environment wins). A
-server's sign-in and pairing pages in the app have Byt server, back to this computer; a host's sign-in has Använd en
-server i stället. Each origin keeps its own data (D3). Only the host's own page may send the app to a server, never
-a server's page. A server that does not answer when the app opens it gets a dialog: try again, or this computer.
+server's sign-in and pairing pages in the app have Byt server, back to this computer. Each origin keeps its own data
+(D3). Only the computer's own page may send the app to a server, never a server's page. A server that does not answer
+when the app opens it gets a dialog: try again, or this computer. The UI never says host or server for this computer.
 
-The first start of the host shows "Välkommen!": the person names themselves and the church, and setup
+**Used without an account**, the computer's own window never signs in (Lars, 2026-11-26): whoever sits at the
+computer is its owner. The first time, the person names themselves and the church, and Kom igång posts them to
+`POST /api/auth/host-window` (`apps/server/src/auth/sign-in-routes.ts`), which answers only the computer's own window
+(its host token, below): it sets up the church with that person as its first Admin and Superadmin, keeps them as the
+owner (`host_owner`, `apps/server/src/global/desktop-owner.ts`), and answers with a session. Setup is then done, with
+no login linked. Later the same route takes the window back in as the owner, also after signing out: the start page
+says Välkommen tillbaka! with Fortsätt på den här datorn, and Logga in som någon annan här for another member, by
+Google or a passkey. A computer set up before the owner was kept lets its first Superadmin in. The owner may link
+Google or a passkey under Inloggning, to sign in elsewhere. A church's own server keeps the setup below.
+
+The first start of a server shows "Välkommen!": the person names themselves and the church, and setup
 answers with an invite for its first Admin, who has the Superadmin mark, and who accepts it by making a passkey or
 signing in with Google. Setup is done when that link exists; until then it can be done again, and finishes the same
-person rather than making a second church. The host window gets the setup token from the main process; a server
-without one prints it (`Setup token: …`) and the setup form asks for it (D19).
+person rather than making a second church. A server without a setup token prints one (`Setup token: …`) and the
+setup form asks for it (D19).
 
 After that the account is the person's ([accounts-and-roles.md](accounts-and-roles.md)): an organisation invites an
 address, and the person accepts with an account they have or makes one. Användare → Bjud in takes an address and a role
@@ -136,7 +146,7 @@ strip under the top bar asks it to sign in again (SYNC-A15).
 The desktop host refuses every API request from a device it has not paired, on localhost too: only
 the static app and `/api/pair/status`, `/api/pair/claim` answer (and the sign-in above, from the host machine).
 Its own window's requests carry a host token that the Electron main process adds and no page sees. On
-the host, Enheter → Anslut enhet asks who the device signs in as (the admin, or a member whose account they may
+the host, Enheter i nätverket → Anslut enhet asks who the device signs in as (the admin, or a member whose account they may
 reset: one only the host has, and no Superadmin), and shows a six-digit code (10 minutes, one use, dead after five wrong guesses); the
 other device types it and gets a device token (`gppd_…`) and a session as that member. Pairing is how
 a device signs in to a host, also after its session ends. Enheter also disconnects a device, which

@@ -26,7 +26,10 @@ its crates come from git at pinned commits, not crates.io.
 - **The desktop host** builds the program beside its bundle (`apps/desktop/build.mjs`; `electron-builder.yml` puts it
   among a package's resources) and gives the server `POST /api/slides/pptx` (`apps/server/src/pptx-routes.ts`): the
   deck in, its pages out, one deck drawn at a time. The route is only where a host draws decks: the cloud has none
-  and answers 404, which the page asks first (`GET`), so a deck is never sent for nothing.
+  and answers 404, which the page asks first (`GET`), so a deck is never sent for nothing. The desktop app also
+  draws a deck itself whatever server it is a client of, our cloud included (Lars, 2026-11-26): its main process runs
+  the same program for the page (`drawPptx` in the preload, `draw-pptx` in `apps/desktop/src/main.ts`), and the page
+  asks it before the server.
 - **The web** (`apps/web/src/media/slides.ts`) takes a `.pptx` where it takes a PDF: the host draws it and the pages
   are kept as a PDF's (`addSlides`), so they sync, show and are replaced as those do; a 404 asks for a PDF, a `.ppt`
   for a `.pptx` or a PDF, and a deck with a chart is kept with a notice that a PDF may show it better (PRES-R11).

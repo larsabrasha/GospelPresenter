@@ -59,16 +59,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setTimeout(() => setLeaving(null), SHOW_MS + OUT_MS),
     ];
   }, []);
+  const onTop = !!(shown || leaving);
   return (
     <ToastContext value={show}>
       {children}
       {/* Warnings in a region of their own, so a screen reader says them at once rather than after what it is reading.
           While one shows, in the topmost modal when one is open (ui/modal.tsx): under it, in the page, it would be hidden
-          and inert. Empty, the regions stay in the page, out of a dialog's own alerts. */}
-      <MaybeOnTop on={!!(shown || leaving)}>
+          and inert. Empty, the regions stay in the page, out of a dialog's own alerts; on top, only the one showing. */}
+      <MaybeOnTop on={onTop}>
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[150] grid pointer-events-none *:col-start-1 *:row-start-1 *:justify-self-center">
-        <div role="alert">{shown?.kind === 'warning' && toastItem(shown, false)}</div>
-        <div role="status">{shown?.kind === 'success' && toastItem(shown, false)}</div>
+        {(!onTop || shown?.kind === 'warning') && <div role="alert">{shown?.kind === 'warning' && toastItem(shown, false)}</div>}
+        {(!onTop || shown?.kind === 'success') && <div role="status">{shown?.kind === 'success' && toastItem(shown, false)}</div>}
         {leaving && <div aria-hidden="true">{toastItem(leaving, true)}</div>}
       </div>
       </MaybeOnTop>

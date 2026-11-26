@@ -94,6 +94,13 @@ Decided (Lars, 2026-10-31), for the ADR to write before building:
   it has (signing a challenge with its key), so another computer that got the old address is not taken for it.
   No local address answering quickly means the cloud; on a blocked network it is only a little slower.
 
+A smaller step toward this, an idea (Lars, 2026-11-26; not decided): a desktop app signed in to the cloud also lets
+the church's phones and screens in over its network, as one used without an account does (Enheter i nätverket, the
+switch, pairing with a code), so live and remote control go on when the internet is down. The desktop app keeps the
+cloud's data and the live state; the devices on the network would go through it, and it through the cloud. Open:
+whose session a paired device gets, how its changes reach the cloud (through the desktop app's sync, as its own), and
+whether it is more than the mirror above.
+
 ## Offline: what a device keeps that the server has not (from Lars 2026-10-31; not started)
 
 On a phone people expect everything to happen on the server; that a device can hold something of its own is new

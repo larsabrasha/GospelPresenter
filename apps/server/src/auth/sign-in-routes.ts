@@ -2,7 +2,7 @@
 // system browser (which may also run a passkey), and the web handover.
 import type { Hono } from 'hono';
 import { deleteCookie, getCookie } from 'hono/cookie';
-import { ACCOUNT_LIMITS, googleBeginRequest, googleFinishRequest, isCallbackScheme, setupRequest, type AuthError, type AuthState, type SetupResponse } from '@gp/core';
+import { ACCOUNT_LIMITS, googleBeginRequest, googleFinishRequest, hostWindowRequest, isCallbackScheme, setupRequest, type AuthError, type AuthState, type SetupResponse } from '@gp/core';
 import { constantTimeEqual, newSecret } from '../crypto.ts';
 import { LOGIN_FLOW, PASSKEY_FLOW, THROTTLE } from '../global/index.ts';
 import { body, fail, FLOW_COOKIE, HANDOFF_COOKIE, type AuthKit } from './kit.ts';
@@ -33,6 +33,29 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     const r = await accounts.members.setup({ name: a.name, orgName: a.orgName });
     if (r === 'setup-done') return fail(c, 409, 'setup-done');
     return c.json({ inviteToken: r.inviteToken } satisfies SetupResponse);
+  });
+
+  /**
+   * The desktop app used without an account (Lars, 2026-11-26; docs/sign-in-and-pairing.md): its own window, known by
+   * the host token only the main process holds, is the computer's owner without signing in. The first time, the
+   * person's and the church's names set it up so. Never a paired device, never anything but a desktop host.
+   */
+  app.post('/api/auth/host-window', async (c) => {
+    if (!deps.pairing || (await deviceOf(c.req.raw, accounts, deps.pairing)) !== 'host') return fail(c, 403, 'forbidden');
+    const a = await body(c, hostWindowRequest);
+    if (!a) return fail(c, 400, 'invalid-request');
+    let owner: string | null;
+    if (await accounts.members.setupDone()) owner = await accounts.desktopOwner.owner();
+    else {
+      if (!a.name || !a.orgName) return fail(c, 400, 'invalid-request');
+      const r = await accounts.desktopOwner.setup({ name: a.name, orgName: a.orgName });
+      if (r === 'setup-done') return fail(c, 409, 'setup-done');
+      owner = r.userId;
+    }
+    const who = owner ? await accounts.signIn.signedInAs(owner) : 'not-a-member';
+    if (who === 'not-a-member') return fail(c, 403, 'forbidden');
+    const r = await signedIn(who.userId, who.orgId, a.deviceName);
+    return r ? c.json(r) : fail(c, 403, 'forbidden');
   });
 
   /**

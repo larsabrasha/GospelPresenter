@@ -54,9 +54,12 @@ export class MemberService {
     return (await this.sql.all(`SELECT 1 FROM users u WHERE u.id = ? AND ${this.superSql}`, [userId])).length > 0;
   }
 
-  /** Whether the first run is finished: some user has linked a sign-in (AUTH-R12). */
+  /**
+   * Whether the first run is finished: some user has linked a sign-in (AUTH-R12), or a desktop app was set up without
+   * an account (desktop-owner.ts).
+   */
   async setupDone(): Promise<boolean> {
-    return (await this.sql.all('SELECT 1 FROM user_logins LIMIT 1')).length > 0;
+    return (await this.sql.all('SELECT 1 FROM user_logins UNION ALL SELECT 1 FROM host_owner LIMIT 1')).length > 0;
   }
 
   /**
@@ -462,6 +465,7 @@ export class MemberService {
       ['DELETE FROM user_logins WHERE user_id = ?', [userId]],
       ['DELETE FROM sessions WHERE user_id = ?', [userId]],
       ['DELETE FROM mcp_keys WHERE user_id = ?', [userId]],
+      ['DELETE FROM host_owner WHERE user_id = ?', [userId]],
       ['DELETE FROM invites WHERE user_id = ?', [userId]],
       ['DELETE FROM email_links WHERE user_id = ?', [userId]],
       ['DELETE FROM memberships WHERE user_id = ?', [userId]],

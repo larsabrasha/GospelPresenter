@@ -374,6 +374,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
     'bug_report_messages',
     'bug_reports',
     'email_links',
+    'host_owner',
     'invitations',
     'invites',
     'login_flows',

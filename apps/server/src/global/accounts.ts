@@ -7,6 +7,7 @@ import { InvitationService } from './invitations.ts';
 import { LegacyUserService } from './legacy-users.ts';
 import { LoginService } from './logins.ts';
 import { McpKeyService } from './mcp-keys.ts';
+import { DesktopOwnerService } from './desktop-owner.ts';
 import { MemberService } from './members.ts';
 import { PairingService } from './pairing.ts';
 import { PasskeyService } from './passkeys.ts';
@@ -48,6 +49,7 @@ export class Accounts {
   readonly bugReports: BugReportService;
   /** The MCP experiment and its keys (docs/mcp.md). */
   readonly mcpKeys: McpKeyService;
+  readonly desktopOwner: DesktopOwnerService;
   /** Debug servers and tests only. */
   readonly debug: DebugService;
 
@@ -67,6 +69,7 @@ export class Accounts {
     this.legacy = new LegacyUserService(sql, now, this.members);
     this.bugReports = new BugReportService(sql, now);
     this.mcpKeys = new McpKeyService(sql, now);
+    this.desktopOwner = new DesktopOwnerService(sql, this.members);
     this.debug = new DebugService(sql, now, this.members);
   }
 }

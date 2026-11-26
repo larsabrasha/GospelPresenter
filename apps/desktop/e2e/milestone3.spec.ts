@@ -42,7 +42,8 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   // A callback nobody waits for, or for another installation's scheme, is ignored (spec 06).
   await host.app.evaluate(({ app }) => app.emit('open-url', { preventDefault() {} }, 'gospelpresenter-local://auth#token=gpdt_' + 'x'.repeat(43)));
   await host.app.evaluate(({ app }) => app.emit('open-url', { preventDefault() {} }, 'gospelpresenter://auth#token=gpdt_' + 'y'.repeat(43)));
-  expect(host.events.filter((e) => e.event === 'sign-in-callback').map((e) => e.accepted)).toEqual([true, true, false]);
+  // Anna's sign-in above is the one accepted: the computer's own setup needs no sign-in, so it sends no callback.
+  expect(host.events.filter((e) => e.event === 'sign-in-callback').map((e) => e.accepted)).toEqual([true, false]);
 
   // A restart opens straight into the app (spec 06: no sign-in flash) without asking Google: the internet is needed only to sign in.
   const { dataDir, port } = host;
@@ -75,7 +76,7 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
 
   second = await launch({ server: host.base });
   const device = second.page;
-  await expect(device.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await expect(device.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   // A wrong code is refused (and counts towards killing the real one).
   await device.getByLabel('Kod').fill('000000');
   await device.getByRole('button', { name: 'Anslut' }).click();
@@ -91,18 +92,18 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   // Only the host pairs devices: the paired desktop has no Enheter.
   const deviceMenu = await adminMenu(device);
   await expect(deviceMenu.getByRole('link', { name: 'Användare' })).toBeVisible();
-  await expect(deviceMenu.getByRole('link', { name: 'Enheter' })).toHaveCount(0);
+  await expect(deviceMenu.getByRole('link', { name: 'Enheter i nätverket' })).toHaveCount(0);
 
   // The host disconnects it; its next change is kept but not synced, and it says why.
-  await openAdmin(host.page, 'Enheter');
-  await expect(host.page.getByRole('list', { name: 'Enheter' }).getByText('Andra datorn')).toBeVisible();
+  await openAdmin(host.page, 'Enheter i nätverket');
+  await expect(host.page.getByRole('list', { name: 'Enheter i nätverket' }).getByText('Andra datorn')).toBeVisible();
   await host.page.getByRole('button', { name: 'Koppla från' }).click();
   await host.page.getByRole('dialog', { name: 'Koppla från' }).getByRole('button', { name: 'Koppla från' }).click();
   await expect(host.page.getByText('Frånkopplad')).toBeVisible();
   await device.getByRole('button', { name: 'Lägg till del' }).click();
   await device.getByLabel('Delar 2', { exact: true }).fill('Ett ögonblick i sänder');
   await device.getByLabel('Delar 2', { exact: true }).blur();
-  await expect(device.getByTestId('sync-warnings')).toContainText('Enheten är inte längre ansluten till värddatorn', { timeout: 10_000 });
+  await expect(device.getByTestId('sync-warnings')).toContainText('Enheten är inte längre ansluten till kyrkans dator', { timeout: 10_000 });
   await expect(device.getByTestId('status')).toContainText(/ändringa?r? väntar/);
 
   // Paired again as Cia, it is signed in again, and the waiting change lands.
@@ -146,10 +147,10 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
   await expect(second.page.getByTestId('sync-warnings')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
   await second.page.getByTestId('sync-warnings').getByRole('button', { name: 'Logga in igen' }).click();
-  await expect(second.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
-  await expect(second.page.getByText('Be någon vid värddatorn om en ny kod')).toBeVisible();
+  await expect(second.page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
+  await expect(second.page.getByText('Be någon vid kyrkans dator om en ny kod')).toBeVisible();
   // Dan cannot be chosen any more.
-  await openAdmin(host.page, 'Enheter');
+  await openAdmin(host.page, 'Enheter i nätverket');
   await host.page.getByRole('button', { name: 'Anslut enhet' }).click();
   await expect(host.page.getByLabel('Logga in som').locator('option')).toHaveText(['Anna']);
 });

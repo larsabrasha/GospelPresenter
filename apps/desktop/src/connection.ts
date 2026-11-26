@@ -9,19 +9,37 @@ export const CLOUD = 'https://app.gospelpresenter.com';
 
 const file = (dataDir: string) => join(dataDir, 'connection.json');
 
-/** The server saved, or null: this machine is the host. */
-export function savedServer(dataDir: string): string | null {
+/** What connection.json holds: the server, and whether this computer lets the church's devices in (Enheter i nätverket). */
+function saved(dataDir: string): { server?: unknown; lan?: unknown } {
   try {
-    const server: unknown = (JSON.parse(readFileSync(file(dataDir), 'utf8')) as { server?: unknown }).server;
-    return typeof server === 'string' && serverUrl(server) === server ? server : null;
+    return JSON.parse(readFileSync(file(dataDir), 'utf8')) as { server?: unknown; lan?: unknown };
   } catch {
-    return null;
+    return {};
   }
 }
 
-export function saveServer(dataDir: string, server: string | null) {
-  if (server) writeFileSync(file(dataDir), JSON.stringify({ server }));
+function save(dataDir: string, value: { server?: string; lan?: boolean }) {
+  if (value.server || value.lan) writeFileSync(file(dataDir), JSON.stringify(value));
   else rmSync(file(dataDir), { force: true });
+}
+
+/** The server saved, or null: this machine is the host. */
+export function savedServer(dataDir: string): string | null {
+  const { server } = saved(dataDir);
+  return typeof server === 'string' && serverUrl(server) === server ? server : null;
+}
+
+export function saveServer(dataDir: string, server: string | null) {
+  save(dataDir, { server: server ?? undefined, lan: savedLan(dataDir) || undefined });
+}
+
+/** Whether this computer, used without an account, lets the church's phones and screens in on the network. */
+export function savedLan(dataDir: string): boolean {
+  return saved(dataDir).lan === true;
+}
+
+export function saveLan(dataDir: string, lan: boolean) {
+  save(dataDir, { server: savedServer(dataDir) ?? undefined, lan: lan || undefined });
 }
 
 /** Whether a host name is this machine or the local network, where a desktop host is reached over plain http. */

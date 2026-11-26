@@ -4,10 +4,10 @@
 // authenticator (CDP WebAuthn) in place of Touch ID. In a plain browser it
 // runs in the page, against the Node server started as `serve` does.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { TestBrowser } from '../../server/test/fake-google.ts';
 import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, testPort, type Desktop, type PasskeyBrowser } from './apps.ts';
-import { ANNA, openAdmin, setUpHost, signInWithGoogle, signOut } from './flows.ts';
+import { ANNA, openLogins, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 import { testDir } from './temp.ts';
 
 let host: Desktop | undefined;
@@ -21,37 +21,25 @@ test.afterEach(async () => {
   host = server = browser = undefined;
 });
 
-/** Inloggningsmetoder, under Mina inställningar in Inställningar. */
-async function openLogins(page: Page) {
-  await openAdmin(page, 'Mina inställningar');
-  await page.getByRole('link', { name: 'Inloggningsmetoder' }).click();
-  await expect(page.getByRole('heading', { name: 'Inloggningsmetoder' })).toBeVisible();
-  return page.getByRole('list', { name: 'Inloggningsmetoder' }).getByRole('listitem');
-}
-
-test('desktop host: set up with a passkey, link Google from the session; either signs in as the same user; the last method stays', async () => {
+test('the computer without an account: a passkey added, Google linked from the session; either signs in as the same user; the last method stays', async () => {
   host = await launch();
   const page = host.page;
   browser = await passkeyBrowser();
+  await setUpHost(host, { name: 'Anna', org: 'Lilla Kyrkan', google: null });
 
-  // D19 with a passkey: the system browser makes it, at localhost (never 127.0.0.1, which cannot be an RP ID). This
-  // computer alone, not an account on a server (the first start's choice).
-  await page.getByRole('button', { name: 'Använd bara den här datorn' }).click();
-  await page.getByLabel('Ditt namn').fill('Anna');
-  await page.getByLabel('Organisationens namn').fill('Lilla Kyrkan');
-  await page.getByRole('button', { name: 'Kom igång' }).click();
-  await page.getByRole('button', { name: 'Skapa passkey' }).click();
-  await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
+  // A passkey made in the system browser, at localhost (never 127.0.0.1, which cannot be an RP ID).
+  let rows = await openLogins(page);
+  await expect(rows).toHaveCount(0);
+  await page.getByRole('button', { name: 'Lägg till passkey' }).click();
+  await page.getByRole('dialog', { name: 'Lägg till passkey' }).getByLabel('Namn').fill('Annas Mac');
+  await page.getByRole('dialog', { name: 'Lägg till passkey' }).getByRole('button', { name: 'Spara' }).click();
   const made = await browserPasskey(host, browser!);
   expect(made.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/auth/passkey/start\\?flow=`));
   expect(made.result).toBe('ok');
-  expect(made.link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
 
   // Only a passkey: it cannot be removed.
-  let rows = await openLogins(page);
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText('Passkey');
+  await expect(rows.first()).toContainText('Annas Mac');
   await expect(rows.first().getByRole('button', { name: 'Ta bort' })).toBeDisabled();
   await expect(page.getByText('Det här är ditt enda sätt att logga in')).toBeVisible();
   // Link Google from this session, in the system browser (Google's own sign-in stays on 127.0.0.1).

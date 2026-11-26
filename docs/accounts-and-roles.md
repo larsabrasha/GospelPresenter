@@ -102,9 +102,11 @@ Everything else an Admin does (invites, removing a member, the songs, the presen
 nothing more. A paired device, such as the image computer, cannot give one; those things are done from one's own
 phone or computer.
 
-**The desktop host**, which sends no mail, and where only the host's own window signs in, so an invitation could not
-be accepted from another device: an Admin makes people there (Användare → Skapa: a name, maybe an unconfirmed
-address, a role), and may reset (a new link that replaces the logins) or pair a device as a person whose only
+**The desktop host** (the desktop app used without an account), which sends no mail, and where only the host's own
+window signs in, so an invitation could not be accepted from another device. That window is its owner's without
+signing in, a Superadmin made at the first start (Lars, 2026-11-26; `host_owner`,
+[sign-in-and-pairing.md](sign-in-and-pairing.md)); another member signs in there with Google or a passkey. An Admin makes people there (Användare → Skapa: a name,
+maybe an unconfirmed address, a role), and may reset (a new link that replaces the logins) or pair a device as a person whose only
 membership is the host's organisation and who is no Superadmin; anyone else asks a Superadmin.
 
 **The 1.x import** makes invitations for the users it brings, valid for 90 days, not accounts with linked Google ids.

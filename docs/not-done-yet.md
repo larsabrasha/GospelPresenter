@@ -44,6 +44,10 @@ whose e-mail address they knew, a SuperAdmin's too. That was closed on 2026-11-0
 
 Not planned for 2.0 (Lars, 2026-11-08, unless said otherwise):
 
+- A desktop app signed in to the cloud that also lets the church's phones and screens in over its network, for live
+  and remote control without the internet: an idea (Lars, 2026-11-26), in TODO.md under "A phone works everywhere".
+  Today a church chooses: an account (the cloud, or its own server), or the desktop app used without an account,
+  which alone serves its network.
 - The organisation's logo (its first letter stands in) and the welcome modal.
 - Undoing an addition, a move or a removal in a presentation (docs/layout-2-0.md's line with Ångra); a removed
   item is deleted at once, so removing asks first.

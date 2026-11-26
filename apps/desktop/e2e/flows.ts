@@ -1,7 +1,7 @@
 // Steps the e2e tests share, written as a user would do them.
 import { expect, type Locator, type Page } from '@playwright/test';
-import type { FakeAccount } from '../../server/test/fake-google.ts';
-import { browserSignIn, type Desktop } from './apps.ts';
+import { TestBrowser, type FakeAccount } from '../../server/test/fake-google.ts';
+import { browserSignIn, fakeGoogle, opened, type Desktop } from './apps.ts';
 
 /**
  * Drags `handle` with the mouse until its row is just past `target`'s middle,
@@ -75,10 +75,12 @@ export async function openPresentations(page: Page) {
 }
 
 /** Logga ut, in the menu behind the user's picture in the bar. */
-export async function signOut(page: Page) {
+export async function signOut(page: Page, { toSignIn = true } = {}) {
   await closeAdmin(page);
   await page.getByTestId('me').click();
   await page.getByRole('menuitem', { name: 'Logga ut' }).click();
+  // The church's computer then shows its start (DesktopStart); its own sign-in is behind "Logga in som någon annan här".
+  if (toSignIn) await toHostSignIn(page);
 }
 
 /** Sånger's + (Ny sång), or Skriv in en sång while the list is empty: the song is made at once and opens with its name picked. */
@@ -205,26 +207,48 @@ export async function pickItem(page: Page, name: string | RegExp) {
 export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' };
 
 /**
- * First run on the host (D19): the host's own window gets the setup token,
- * so the person only fills in who they are, then signs in with Google in
- * the system browser (once, with internet). passkeys.spec.ts sets up with a passkey.
+ * First run on the church's computer, used without an account (Lars, 2026-11-26): the person and the church, and in.
+ * Then, unless `google` is null, the person links their Google account under Mina inställningar, in the system
+ * browser, so they have a way to sign in again and an e-mail address, as most tests here need.
  */
-export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
+export async function setUpHost(d: Desktop, who: { name: string; org: string; google: FakeAccount | null } = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
   const page = d.page;
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
-  // The first start offers an account on a server first; this computer alone is the host (Lars, 2026-11-26).
-  await page.getByRole('button', { name: 'Använd bara den här datorn' }).click();
-  await expect(page.getByLabel('Installationskod')).toHaveCount(0); // the host hands it over
+  await page.getByRole('button', { name: 'Använd utan konto' }).click();
   await page.getByLabel('Ditt namn').fill(who.name);
   await page.getByLabel('Organisationens namn').fill(who.org);
   await page.getByRole('button', { name: 'Kom igång' }).click();
-  // The host offers a passkey and Google; this is the Google way.
-  await page.getByRole('button', { name: 'Logga in med Google' }).click();
-  await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
-  const { link } = await browserSignIn(d, who.google);
-  expect(link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
   await expect(page.getByTestId('me')).toHaveAccessibleName(`${who.name} · ${who.org}`);
   await page.getByTestId('status').waitFor();
+  if (who.google) await linkGoogle(d, who.google);
+}
+
+/** Inloggningsmetoder, under Mina inställningar in Inställningar: its rows. */
+export async function openLogins(page: Page) {
+  await openAdmin(page, 'Mina inställningar');
+  await page.getByRole('link', { name: 'Inloggningsmetoder' }).click();
+  await expect(page.getByRole('heading', { name: 'Inloggningsmetoder' })).toBeVisible();
+  return page.getByRole('list', { name: 'Inloggningsmetoder' }).getByRole('listitem');
+}
+
+/** Links `who`'s Google account to the signed-in person, in the system browser, and goes back to the start page. */
+async function linkGoogle(d: Desktop, who: FakeAccount) {
+  const rows = await openLogins(d.page);
+  const before = await rows.count();
+  await d.page.getByRole('button', { name: 'Koppla Google-konto' }).click();
+  const url = await opened(d);
+  (await fakeGoogle()).next(who);
+  expect((await new TestBrowser().open(url)).html).toContain('Google-kontot är kopplat');
+  await expect(rows).toHaveCount(before + 1, { timeout: 5_000 });
+  await closeAdmin(d.page);
+}
+
+/** From the church's computer's start (DesktopStart) to its own sign-in: "Logga in som någon annan här". */
+async function toHostSignIn(page: Page) {
+  const other = page.getByRole('button', { name: 'Logga in som någon annan här' });
+  await expect(page.getByRole('heading', { name: 'Logga in' }).or(other)).toBeVisible();
+  if (await other.isVisible()) await other.click();
+  await expect(page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
 }
 
 /**
@@ -239,7 +263,7 @@ export async function superMode(page: Page) {
 
 /** "Logga in med Google" in the app, finished in the system browser as `who`. */
 export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
-  await expect(d.page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
+  await toHostSignIn(d.page);
   await d.page.getByRole('button', { name: 'Logga in med Google' }).click();
   return browserSignIn(d, who);
 }
@@ -267,8 +291,8 @@ export async function createUser(page: Page, name: string, email: string, role: 
  * host for the member it signs the device in as, typed on the device.
  */
 export async function pair(host: Page, device: Page, name: string, as?: string) {
-  await expect(device.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
-  await openAdmin(host, 'Enheter');
+  await expect(device.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
+  await openAdmin(host, 'Enheter i nätverket');
   await host.getByRole('button', { name: 'Anslut enhet' }).click();
   const choose = host.getByRole('dialog', { name: 'Anslut enhet' });
   if (as) await choose.getByLabel('Logga in som').selectOption({ label: as });
