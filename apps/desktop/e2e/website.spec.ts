@@ -232,10 +232,17 @@ for (const lang of ['sv', 'en'] as const) {
       const presentation = new URL(page.url()).pathname;
       await page.evaluate((l) => localStorage.setItem('language', l), lang);
 
-      // A phone shows every item's parts in one column: there is no list to pick from.
+      // A phone shows the running order in one column, each item a row (Lars, 2026-11-26): there is no list to pick
+      // from, and the first item is opened instead, so the picture shows its parts among the other rows.
       let phone = false;
+      const openFirst = async (p: Page) => {
+        const title = content.songs[0]!.title;
+        const row = p.getByRole('region', { name: title }).getByRole('button', { name: title, exact: true, expanded: false });
+        if (await row.count()) await row.click();
+      };
       const pickItem = async (p: Page) => {
         if (!phone) await p.getByRole('list', { name: t('presentation.items') }).getByRole('button').first().click();
+        else await openFirst(p);
       };
       const openAdd = async (p: Page, kind: string) => {
         await p.getByRole('button', { name: t('presentation.add'), exact: true }).click();
@@ -251,8 +258,10 @@ for (const lang of ['sv', 'en'] as const) {
           await start.click();
         }
         const [first] = content.songs;
-        if (phone) await p.getByRole('region', { name: first!.title }).getByRole('button', { name: first!.parts[0]![0] }).click();
-        else await p.getByRole('button', { name: `${first!.title} 1`, exact: true }).click();
+        if (phone) {
+          await openFirst(p);
+          await p.getByRole('region', { name: first!.title }).getByRole('button', { name: first!.parts[0]![0] }).click();
+        } else await p.getByRole('button', { name: `${first!.title} 1`, exact: true }).click();
         await livePictureSettled(p, first!.parts[0]![1].split('\n')[0]!);
       };
       // The live picture beside the slides (on a phone, over them) fades in out of a blur after its column slides in
