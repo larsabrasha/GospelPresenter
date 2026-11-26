@@ -4,6 +4,7 @@
   "version": "2.0.0-beta.1",
   "description": "Gospel Presenter: songs, Bible texts and pictures on the church's screens",
   "author": "Gospel Presenter",
+  "homepage": "https://gospelpresenter.com",
   "private": true,
   "type": "module",
   "main": "dist/main.mjs",
