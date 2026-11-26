@@ -14,6 +14,8 @@ export * from './item-slides.ts';
 export * from './trash.ts';
 export * from './search.ts';
 export * from './accounts.ts';
+export * from './mcp-keys.ts';
+export * from './mcp-tools.ts';
 export * from './platform.ts';
 export * from './bible-books.ts';
 export * from './bible.ts';

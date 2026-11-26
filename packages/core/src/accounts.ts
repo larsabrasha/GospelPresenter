@@ -257,6 +257,8 @@ export interface Me {
   superAdmin: boolean;
   /** When superadminläge turns itself off; null while it is off. */
   superUntil: number | null;
+  /** A Superadmin turned the MCP experiment on for them: they make MCP keys (mcp-keys.ts). */
+  mcp: boolean;
   orgId: string;
   orgName: string;
   sessionId: string;
@@ -336,6 +338,8 @@ export interface UserRow {
   onlyHere: boolean;
   /** The account has the Superadmin mark. */
   superAdmin: boolean;
+  /** The MCP experiment is on for them (mcp-keys.ts). */
+  mcp: boolean;
 }
 
 export interface PairStatus {

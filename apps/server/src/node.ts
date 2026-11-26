@@ -20,6 +20,7 @@ import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { authenticateMcp, mcpRoutes } from './mcp.ts';
 import { capBodies } from './body-cap.ts';
 import { logServerErrors } from './server-error.ts';
 import { endIfGone, LIVE_SESSION_CHECK_MS, liveTokenHash, recheckDue } from './live-session.ts';
@@ -350,6 +351,14 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     if (caller instanceof Response) return caller;
     return { caller, org: openOrg(caller.orgId) };
   };
+  // An MCP key names its organisation as a session does (docs/mcp.md).
+  app.route(
+    '/',
+    mcpRoutes(async (c) => {
+      const caller = await authenticateMcp(c.req.raw, accounts);
+      return caller instanceof Response ? caller : { caller, org: openOrg(caller.orgId) };
+    }, log),
+  );
   app.route('/', screenStartRoutes({ screens, accounts, clientAddress }));
   app.route('/', screenPairRoutes(resolveCaller, { screens, accounts, clientAddress }));
   app.route(

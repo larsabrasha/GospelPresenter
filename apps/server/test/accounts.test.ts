@@ -182,6 +182,31 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.members.invite('gpin_unknown')).toEqual({ state: 'invalid' });
   });
 
+  it("using a reset link deletes the user's MCP keys, so one a stolen session made does not outlast it", async () => {
+    const { accounts, orgId, userId } = await fresh(driver);
+    const bo = await newMember(accounts, orgId, userId, 'bo');
+    await accounts.mcpKeys.setEnabled(bo, true);
+    const made = await accounts.mcpKeys.create(bo, orgId, 'Claude');
+    if (typeof made === 'string') throw new Error(made);
+    const reset = await accounts.members.createInvite(bo, orgId);
+    if (reset === 'limit') throw new Error('limit');
+
+    await accounts.signIn.signInWithGoogle(google('bo-new'), await sha256(reset));
+
+    expect(await accounts.mcpKeys.authenticate(made.secret)).toBeNull();
+  });
+
+  it('a Superadmin makes no MCP key in an organisation they are not a member of', async () => {
+    const { accounts, userId } = await fresh(driver);
+    const other = await accounts.members.createOrg('Stora Kyrkan');
+    if (other === 'limit') throw new Error('limit');
+    await accounts.mcpKeys.setEnabled(userId, true);
+
+    const r = await accounts.mcpKeys.create(userId, other, 'Claude');
+
+    expect(r).toBe('forbidden');
+  });
+
   it('at most 20 unused reset links per user (AUTH-R3); members and invitations together at most 100 per organisation (ORG-R10)', async () => {
     const { accounts, orgId, userId } = await fresh(driver);
     const bo = await newMember(accounts, orgId, userId, 'bo');

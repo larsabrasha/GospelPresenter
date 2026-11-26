@@ -446,7 +446,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const other = await setRole(h, `ko-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
     expect(await api(h, 'GET', `/api/users/${ka.id}`, as(admin))).toEqual({
       status: 200,
-      body: { id: ka.id, name: 'Ka', email: 'ka@gmail.com', role: 'user', active: true, invite: null, onlyHere: true, superAdmin: false } satisfies UserRow,
+      body: { id: ka.id, name: 'Ka', email: 'ka@gmail.com', role: 'user', active: true, invite: null, onlyHere: true, superAdmin: false, mcp: false } satisfies UserRow,
     });
     expect((await api(h, 'GET', `/api/users/${ka.id}`, as(ka))).status).toBe(403);
     expect(await api(h, 'GET', `/api/users/${ka.id}`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
@@ -579,6 +579,17 @@ describe.each(adapters)('%s adapter, a session that is no longer fresh', (adapte
     await new Promise((r) => setTimeout(r, 1200)); // past the harness's fresh sign-in time, on the server's own clock
 
     const r = await api(h, 'POST', '/api/import/users', { token, body: [{ name: 'Eve', email: 'eve@evil.se', role: 'admin', google: ['sub-eve'] }] });
+
+    expect(r).toEqual({ status: 403, body: { error: 'reauth-required' } });
+  });
+
+  it('making an MCP key needs a fresh sign-in: a stale session leaves no key behind (docs/mcp.md)', async () => {
+    const token = await setRole(h, 'stale-mcp', 'org-stale-mcp', 'user');
+    const su = await setRole(h, 'stale-su', 'org-stale-mcp', 'superAdmin');
+    expect((await api(h, 'PUT', '/api/users/stale-mcp/mcp', { token: su, body: { enabled: true } })).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 1200)); // past the harness's fresh sign-in time, on the server's own clock
+
+    const r = await api(h, 'POST', '/api/auth/mcp-keys', { token, body: { name: 'Claude' } });
 
     expect(r).toEqual({ status: 403, body: { error: 'reauth-required' } });
   });

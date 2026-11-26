@@ -10,6 +10,7 @@ import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
 import { FloatingInput } from '../../ui/Floating.tsx';
 import { ACTION_ROW, GROUP_ROW, Group, SwitchRow } from '../../ui/Group.tsx';
 import { useToast } from '../../ui/Toast.tsx';
+import { McpKeys } from './McpKeys.tsx';
 
 /** A new address of one's own: where the server mails, a link goes to it, and it is used once the link is opened. */
 function EmailDialog({ me, onMe, onClose }: { me: Me; onMe: (m: Me) => void; onClose: () => void }) {
@@ -132,6 +133,7 @@ export function Profile({ me, onMe }: { me: Me; onMe: (m: Me) => void }) {
           <SwitchRow title={t('superMode.title')} checked={me.role === 'superAdmin'} onChange={(on) => void setSuperMode(on).then((e) => e && toast(e))} />
         </Group>
       )}
+      {me.mcp && <McpKeys />}
       {changing && <EmailDialog me={me} onMe={onMe} onClose={() => setChanging(false)} />}
     </>
   );

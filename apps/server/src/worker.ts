@@ -8,6 +8,7 @@ import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import { authenticateMcp, mcpRoutes } from './mcp.ts';
 import { capBodies } from './body-cap.ts';
 import { logServerErrors } from './server-error.ts';
 import { endIfGone, LIVE_SESSION_CHECK_MS, liveTokenHash, recheckDue } from './live-session.ts';
@@ -172,6 +173,8 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.accounts = accountsOf(env);
     this.liveSessionCheckMs = env.LIVE_SESSION_CHECK_MS ? Number(env.LIVE_SESSION_CHECK_MS) : LIVE_SESSION_CHECK_MS;
     this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: this.accounts, clientAddress }));
+    // The Worker checked the MCP key in D1 and names its maker as it names a session's user.
+    this.app.route('/', mcpRoutes(resolveCaller, log));
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -377,6 +380,14 @@ worker.all('*', async (c, next) => {
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(staticHeaders(c.req.path))) out.headers.set(k, v);
   return out;
+});
+
+// MCP (docs/mcp.md): the key, checked in D1, names its maker and organisation, whose object answers.
+worker.all('/api/mcp', async (c) => {
+  const { accounts } = await globals(c.env);
+  const caller = await authenticateMcp(c.req.raw, accounts);
+  if (caller instanceof Response) return caller;
+  return toOrg(c, caller.orgId, { 'x-user': caller.ctx.userId, 'x-session': caller.sessionId, 'x-role': caller.ctx.role, 'x-org': caller.orgId });
 });
 
 worker.all('*', async (c) => {

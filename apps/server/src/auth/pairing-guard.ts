@@ -29,6 +29,8 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
 const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/', '/api/play/'];
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
 const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim', '/api/pair/dev']);
+/** An assistant's MCP requests (docs/mcp.md): the bearer key is their credential, checked by the route; no device sends them. */
+const KEYED_PATHS = new Set(['/api/mcp']);
 /**
  * The host's own sign-in, which runs in the system browser of the host's
  * machine (spec 01 device sign-in): Google, or a passkey ceremony. That
@@ -58,7 +60,7 @@ function isLoopback(address: string): boolean {
 export function pairingGuard(accounts: Accounts, pairing: Pairing, clientAddress: (c: Context) => string): MiddlewareHandler {
   return async (c, next) => {
     // Public outputs and screens are for anyone on the LAN, paired or not (spec 04 §5, §6): a TV is no device that signs in.
-    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path) || ANONYMOUS_PREFIXES.some((p) => c.req.path.startsWith(p)) || c.req.path === '/api/screen') return next();
+    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path) || KEYED_PATHS.has(c.req.path) || ANONYMOUS_PREFIXES.some((p) => c.req.path.startsWith(p)) || c.req.path === '/api/screen') return next();
     if (LOOPBACK_PATHS.has(c.req.path) && isLoopback(clientAddress(c))) return next();
     if (!(await deviceOf(c.req.raw, accounts, pairing))) return c.json({ error: 'device-not-paired' satisfies AuthError }, 403);
     return next();

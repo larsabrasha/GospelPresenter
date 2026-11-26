@@ -64,6 +64,20 @@ describe('desktop host: sign-in only from this machine', () => {
   });
 });
 
+describe('desktop host: an MCP request', () => {
+  it('reaches its route from a device that is not paired, as its bearer key is its credential (docs/mcp.md)', async () => {
+    const sql = nodeGlobalSql(openSqlite(':memory:', 'better-sqlite3'));
+    await migrateGlobal(sql);
+    const app = new Hono();
+    app.use('*', pairingGuard(new Accounts(sql), { hostToken: 'gphost_x' }, () => '192.168.1.20'));
+    app.all('*', (c) => c.text('reached'));
+
+    const r = await app.request('/api/mcp', { method: 'POST' });
+
+    expect(r.status).toBe(200);
+  });
+});
+
 describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing, %s', (driver) => {
   const HOST = 'gphost_' + 'h'.repeat(43);
   const HOST_PASSKEY_ORIGIN = 'http://localhost:47800';

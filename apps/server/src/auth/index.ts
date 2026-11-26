@@ -12,6 +12,7 @@ import { debugRoutes } from './debug-routes.ts';
 import { invitationRoutes } from './invitation-routes.ts';
 import { authKit, type AuthDeps } from './kit.ts';
 import { loginRoutes } from './login-routes.ts';
+import { mcpKeyRoutes } from './mcp-key-routes.ts';
 import { orgRoutes } from './org-routes.ts';
 import { pairingRoutes } from './pairing-routes.ts';
 import { passkeyRoutes } from './passkey-routes.ts';
@@ -31,6 +32,7 @@ export function authRoutes(deps: AuthDeps) {
   loginRoutes(app, kit);
   accountRoutes(app, kit);
   userRoutes(app, kit);
+  mcpKeyRoutes(app, kit);
   invitationRoutes(app, kit);
   orgRoutes(app, kit);
   pairingRoutes(app, kit);

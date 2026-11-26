@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 10;
+export const GLOBAL_SCHEMA_VERSION = 11;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -110,8 +110,9 @@ const usersEmailIndex = [
 const accountDdl = [
   `CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   // `super_admin`: the Superadmin mark, which counts where the server's configuration names no Superadmins (a desktop host).
+  // `mcp`: a Superadmin turned the MCP experiment on for them (version 11).
   `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL, last_org_id TEXT,
-     email_confirmed INTEGER NOT NULL DEFAULT 0, super_admin INTEGER NOT NULL DEFAULT 0)`,
+     email_confirmed INTEGER NOT NULL DEFAULT 0, super_admin INTEGER NOT NULL DEFAULT 0, mcp INTEGER NOT NULL DEFAULT 0)`,
   ...usersEmailIndex,
   ...loginDdl,
   // `super_until`: superadminläge is on for this session until then.
@@ -182,7 +183,17 @@ const bugReportsDdl = [
   `CREATE INDEX IF NOT EXISTS bug_report_messages_report ON bug_report_messages (report_id, created_at)`,
 ];
 
-const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl];
+/**
+ * Version 11: MCP keys (docs/mcp.md). A key is its maker's, in one organisation; only its hash is stored, as for every
+ * secret. It works while the experiment is on for its maker (`users.mcp`) and they are a member there.
+ */
+const mcpKeysDdl = [
+  `CREATE TABLE IF NOT EXISTS mcp_keys (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL,
+     org_id TEXT NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS mcp_keys_user ON mcp_keys (user_id)`,
+];
+
+const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl, ...mcpKeysDdl];
 
 const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -235,6 +246,8 @@ const globalMigrations: Record<number, string[]> = {
     `DELETE FROM invites WHERE used_at IS NULL AND user_id IN (SELECT user_id FROM user_logins)`,
     ...accountsDdlV10,
   ],
+  // The MCP experiment, off for everyone until a Superadmin turns it on.
+  11: [`ALTER TABLE users ADD COLUMN mcp INTEGER NOT NULL DEFAULT 0`, ...mcpKeysDdl],
 };
 
 /**

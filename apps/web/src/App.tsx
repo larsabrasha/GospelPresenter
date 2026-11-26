@@ -125,18 +125,14 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
   // A file dropped outside a drop zone must not make the browser open it and leave the app.
   useDropGuard();
   const viewUsers = can(me.role, 'ViewUsers');
+  const onMe = (m: Me) => {
+    updateMe(m);
+    setMe(m);
+  };
   const admin = (
     <>
       {(route.page === 'songs' || route.page === 'admin') && <Songs />}
-      {route.page === 'settings' && (
-        <Settings
-          me={me}
-          onMe={(m) => {
-            updateMe(m);
-            setMe(m);
-          }}
-        />
-      )}
+      {route.page === 'settings' && <Settings me={me} onMe={onMe} />}
       {route.page === 'logins' && <Logins error={route.error} />}
       {route.page === 'storage' && <Storage />}
       {route.page === 'myReports' && <MyBugReports />}
@@ -144,7 +140,7 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} hostServer={hostServer} /> : <Refused text={t('users.forbidden')} />)}
-      {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} hostServer={!!hostServer} /> : <Refused text={t('users.forbidden')} />)}
+      {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} onMe={onMe} host={host} hostServer={!!hostServer} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'devices' && (!host ? <Refused text={t('devices.onlyHost')} /> : can(me.role, 'ManageUsers') ? <Devices me={me} /> : <Refused text={t('error.forbidden')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'bible' && (can(me.role, 'ManageBibles') ? <BibleDetail key={route.id} id={route.id} /> : <Refused text={t('bibles.forbidden')} />)}

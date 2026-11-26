@@ -184,7 +184,7 @@ export class MemberService {
 
   async me(s: Pick<SessionInfo, 'sessionId' | 'userId' | 'orgId'> & { role: Role }): Promise<Me | null> {
     const [r] = await this.sql.all(
-      `SELECT u.name, u.email, u.email_confirmed, o.name AS org_name, ${this.superSql} AS super_admin,
+      `SELECT u.name, u.email, u.email_confirmed, u.mcp, o.name AS org_name, ${this.superSql} AS super_admin,
          (SELECT super_until FROM sessions WHERE id = ?) AS super_until
        FROM users u JOIN orgs o ON o.id = ? WHERE u.id = ?`,
       [s.sessionId, s.orgId, s.userId],
@@ -199,6 +199,7 @@ export class MemberService {
       role: s.role,
       superAdmin: Number(r.super_admin) === 1,
       superUntil,
+      mcp: Number(r.mcp) === 1,
       orgId: s.orgId,
       orgName: String(r.org_name),
       sessionId: s.sessionId,
@@ -284,6 +285,7 @@ export class MemberService {
       ['DELETE FROM invites WHERE org_id = ?', [orgId]],
       ['DELETE FROM invitations WHERE org_id = ?', [orgId]],
       ['DELETE FROM sessions WHERE org_id = ?', [orgId]],
+      ['DELETE FROM mcp_keys WHERE org_id = ?', [orgId]],
       ['DELETE FROM pair_codes WHERE org_id = ?', [orgId]],
       ['DELETE FROM watch_codes WHERE org_id = ?', [orgId]],
       ['DELETE FROM screens WHERE org_id = ?', [orgId]],
@@ -328,7 +330,7 @@ export class MemberService {
   private async userRows(orgId: string, userId: string | null): Promise<UserRow[]> {
     const now = this.now();
     const rows = await this.sql.all(
-      `SELECT u.id, u.name, u.email, m.role, EXISTS (SELECT 1 FROM user_logins l WHERE l.user_id = u.id) AS active, ${this.superSql} AS super_admin,
+      `SELECT u.id, u.name, u.email, u.mcp, m.role, EXISTS (SELECT 1 FROM user_logins l WHERE l.user_id = u.id) AS active, ${this.superSql} AS super_admin,
          NOT EXISTS (SELECT 1 FROM memberships o WHERE o.user_id = u.id AND o.org_id <> m.org_id) AS only_here,
          (SELECT max(expires_at) FROM invites i WHERE i.user_id = u.id AND i.org_id = m.org_id AND i.used_at IS NULL) AS invite_expires
        FROM memberships m JOIN users u ON u.id = m.user_id
@@ -344,6 +346,7 @@ export class MemberService {
       invite: r.invite_expires === null ? null : { expiresAt: Number(r.invite_expires), expired: Number(r.invite_expires) <= now },
       onlyHere: Number(r.only_here) === 1,
       superAdmin: Number(r.super_admin) === 1,
+      mcp: Number(r.mcp) === 1,
     }));
   }
 
@@ -442,6 +445,7 @@ export class MemberService {
     const rest: [string, unknown[]][] = other
       ? [
           ['DELETE FROM sessions WHERE user_id = ? AND org_id = ?', [userId, orgId]],
+          ['DELETE FROM mcp_keys WHERE user_id = ? AND org_id = ?', [userId, orgId]],
           ['DELETE FROM invites WHERE user_id = ? AND org_id = ?', [userId, orgId]],
           ['UPDATE users SET last_org_id = NULL WHERE id = ? AND last_org_id = ?', [userId, orgId]],
         ]
@@ -457,6 +461,7 @@ export class MemberService {
     return [
       ['DELETE FROM user_logins WHERE user_id = ?', [userId]],
       ['DELETE FROM sessions WHERE user_id = ?', [userId]],
+      ['DELETE FROM mcp_keys WHERE user_id = ?', [userId]],
       ['DELETE FROM invites WHERE user_id = ?', [userId]],
       ['DELETE FROM email_links WHERE user_id = ?', [userId]],
       ['DELETE FROM memberships WHERE user_id = ?', [userId]],

@@ -13,7 +13,7 @@ import { KeyPicture, LinkIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
+import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group, SwitchRow } from '../ui/Group.tsx';
 import { acceptHere, inviteUrl, timeLeft } from './Users.tsx';
 import { copyText } from '../ui/copyText.ts';
 
@@ -46,7 +46,7 @@ async function fetchDetail(path: string): Promise<Detail> {
  * list. The server checks every change again; the page only stops offering
  * what it would refuse. Not here yet: the profile picture (profiles come later).
  */
-export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; host: boolean; hostServer: boolean }) {
+export function UserDetail({ id, me, onMe, host, hostServer }: { id: string; me: Me; onMe: (m: Me) => void; host: boolean; hostServer: boolean }) {
   const [user, setUser] = useState<UserRow | string | null>(null);
   const [logins, setLogins] = useState<LoginMethod[] | string | null>(null);
   /** The new invite's link, shown once (AUTH-R13): only until the page is left. A user just made comes with theirs. */
@@ -176,6 +176,20 @@ export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; h
       navigate({ page: 'users' });
     } catch {
       setDeleteError(t('auth.offline'));
+    }
+  };
+
+  /** The MCP experiment (docs/mcp.md), which only a Superadmin turns on or off; off deletes the user's keys. */
+  const setMcp = async (enabled: boolean) => {
+    try {
+      const r = await api('PUT', `${path}/mcp`, { enabled });
+      if (r.error) return toast(errorText(r));
+      setUser({ ...user, mcp: enabled });
+      // Your own: Mina inställningar shows or hides its keys at once, not after a reload.
+      if (self) onMe({ ...me, mcp: enabled });
+      saved.show();
+    } catch {
+      toast(t('auth.offline'));
     }
   };
 
@@ -379,6 +393,12 @@ export function UserDetail({ id, me, host, hostServer }: { id: string; me: Me; h
               )}
             </>
           )}
+        </Group>
+      )}
+
+      {canEdit && (
+        <Group footer={t('mcp.switchFooter')}>
+          <SwitchRow title={t('mcp.switch')} checked={user.mcp} onChange={(on) => void setMcp(on)} />
         </Group>
       )}
 

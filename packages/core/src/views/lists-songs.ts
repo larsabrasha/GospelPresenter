@@ -19,6 +19,16 @@ export async function songsView(args: unknown, sql: RunSql) {
   return sortRows(langOf(a), await select(sql, SONG, 'songs WHERE deleted_at IS NULL AND draft IS NULL'), [['name', 'name']]);
 }
 
+/** The library's lyrics (no trashed song, no draft): each song's parts' texts in order, by the song's id. */
+export async function libraryLyrics(sql: RunSql): Promise<Map<string, string[]>> {
+  const lyrics = new Map<string, string[]>();
+  for (const [songId, content] of await sql('SELECT p.song_id, p.content FROM song_parts p JOIN songs s ON s.id = p.song_id WHERE s.deleted_at IS NULL AND s.draft IS NULL ORDER BY p.song_id, p.sort, p.id', [])) {
+    const own = lyrics.get(strOrEmpty(songId)) ?? lyrics.set(strOrEmpty(songId), []).get(strOrEmpty(songId))!;
+    own.push(strOrEmpty(content));
+  }
+  return lyrics;
+}
+
 /** The library as search reads it, in the shell's order: each song's id and prepared texts; null until prepared. */
 let library: { ids: string[]; prepared: PreparedSong[] } | null = null;
 
@@ -30,11 +40,7 @@ export async function songSearchPrepare(args: unknown, sql: RunSql) {
   const order = argsOf(args).order;
   if (!Array.isArray(order) || !order.every((id) => typeof id === 'string')) throw new MutationError('invalid-args', 'order');
   const songs = new Map((await sql('SELECT id, name, author FROM songs WHERE deleted_at IS NULL AND draft IS NULL', [])).map((r) => [strOrEmpty(r[0]), [strOrEmpty(r[1]), strOrEmpty(r[2])]]));
-  const lyrics = new Map<string, string[]>();
-  for (const [songId, content] of await sql('SELECT p.song_id, p.content FROM song_parts p JOIN songs s ON s.id = p.song_id WHERE s.deleted_at IS NULL AND s.draft IS NULL ORDER BY p.song_id, p.sort, p.id', [])) {
-    const own = lyrics.get(strOrEmpty(songId)) ?? lyrics.set(strOrEmpty(songId), []).get(strOrEmpty(songId))!;
-    own.push(strOrEmpty(content));
-  }
+  const lyrics = await libraryLyrics(sql);
   const next: NonNullable<typeof library> = { ids: [], prepared: [] };
   for (const id of order as string[]) {
     const song = songs.get(id);

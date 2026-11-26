@@ -30,18 +30,12 @@ may be enough, with Skriv ut in the page's … menu; on a phone the share sheet 
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare
 and the rest) inside the dialog, and are listed in the keyboard help.
 
-## MCP and a CLI (from Lars 2026-10-31; not started)
+## MCP and a CLI (from Lars 2026-10-31; MCP's first round built 2026-11-25)
 
-Neither is in the rewrite yet. MCP is the current app's (spec 01 "`/admin/api-keys`" and "MCP endpoint `/mcp`"):
-`POST /mcp` with `Authorization: Bearer <key>`, the key acting as role User in its organisation whatever its
-owner's role (PERM-R8, E17), at most 10 keys per user (AUTH-R14), shown once (AUTH-R13), and the page to make and
-delete keys, with the JSON snippet for an MCP client. Its tools are the current app's: Bibles (`list_bibles`,
-`get_bible_books`, `get_bible_chapters`, `get_bible_verses`, `search_bible`), songs (`search_songs`, `list_songs`,
-`get_song`) and presentations (`list_presentations`, `get_presentation`, `create_presentation`, `list_templates`,
-`add_song_to_presentation`, `add_bible_text_to_presentation`, `rename_presentation`, `reorder_items`,
-`rename_item`, `remove_item`, `update_item_arrangement`, `reorder_item_parts`, `remove_item_part`,
-`update_presentation_event`). In the rewrite they run on the server against the organisation's database through
-the same mutators as the clients, so a change reaches every device as any other, on Node and on Workers.
+MCP is built as an experiment a Superadmin turns on per person, with its first eleven tools (docs/mcp.md). Left of
+the current app's: `rename_presentation`, `reorder_items`, `rename_item`, `remove_item`, `update_item_arrangement`,
+`reorder_item_parts`, `remove_item_part`, `update_presentation_event`, `get_bible_books`, `get_bible_chapters` and
+`search_bible`; and OAuth for claude.ai's connectors.
 
 A CLI is new, as `cli/` in Lars's bygg app: the same operations from a terminal (and scripts), with the same API
 keys. One set of operations behind both, so MCP and the CLI cannot drift apart. Not decided yet: its name and how it

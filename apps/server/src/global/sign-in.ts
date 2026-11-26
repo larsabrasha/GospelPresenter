@@ -195,7 +195,7 @@ export class SignInService {
 
   /**
    * Uses a reset link with `login`, a Google account or a new passkey. It replaces every login the user had and
-   * revokes their sessions: whoever held the old passkey or Google account is out. Only setup, "Glömt hur du loggar
+   * revokes their sessions and MCP keys: whoever held the old passkey or Google account is out. Only setup, "Glömt hur du loggar
    * in?" (to a confirmed address) and a Superadmin make one, and on a desktop host an Admin for someone whose only
    * membership is the host's (docs/accounts-and-roles.md). A login already linked to another user is refused (spec 01
    * E4 says otherwise; docs/assumptions.md). The link is used in the same batch, so it is spent only by a link that
@@ -227,6 +227,8 @@ export class SignInService {
           [provider, subject, now, now, name, publicKey, signCount, transports, inviteHash, nonce],
         ],
         [`UPDATE sessions SET revoked_at = ? WHERE user_id = ${used} AND revoked_at IS NULL`, [now, inviteHash, nonce]],
+        // An MCP key acts as the user too: one a stolen session made must not outlast the reset.
+        [`DELETE FROM mcp_keys WHERE user_id = ${used}`, [inviteHash, nonce]],
       ]);
     } catch (e) {
       if (/UNIQUE/i.test(String(e))) return 'login-taken'; // linked to someone else meanwhile; the batch rolled back
