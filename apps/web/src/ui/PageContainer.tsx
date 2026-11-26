@@ -169,8 +169,9 @@ function IntroCard({ title, intro }: { title: string; intro: PageIntro }) {
  */
 function Title({ title, menu, className }: { title: string; menu?: ReactNode; className: string }) {
   if (!menu) return <h1 className={className}>{title}</h1>;
+  // Not cut at its edge, as `truncate` would: the menu opens out of it. The name is shortened in its own span instead.
   return (
-    <h1 className={`${className} min-w-0`}>
+    <h1 className={`${className.replace(/\btruncate\b/, '')} min-w-0`}>
       <Dropdown
         className="relative min-w-0"
         menuClassName="min-w-48 left-0"

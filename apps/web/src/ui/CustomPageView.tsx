@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { CustomElement, CustomPage, Theme } from '@gp/core';
+import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { useLocalUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
 
@@ -35,13 +35,15 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
     const main = mainCss(theme, 'song');
     // As tall as its words at least, as Keynote's text box: a larger size grows the box with the text, so the box and
     // its handles stay round the words and a tap on them picks it (Lars, 2026-11-26). The words start at its top either way.
-    const { height, ...rest } = box;
+    // Its least height no more than to the slide's foot, so a box made taller once does not reach past it.
+    const { height, top, ...rest } = box as CSSProperties & { height: number; top: number };
     return (
       <div
         data-element={e.id}
         style={{
           ...rest,
-          minHeight: height,
+          top,
+          minHeight: Math.max(0, Math.min(height, CANVAS.height - top)),
           ...main,
           fontSize: e.size,
           fontWeight: e.bold ? 700 : main.fontWeight,

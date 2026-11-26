@@ -1137,3 +1137,24 @@ export function MapPinIcon({ className }: IconProps) {
     </Outline>
   );
 }
+
+/** A paragraph's lines lined up left, in the middle or right, as Keynote's alignment (Lars, 2026-11-26). */
+export function TextAlignIcon({ align, className }: IconProps & { align: 'left' | 'center' | 'right' }) {
+  const short = { left: 'M3', center: 'M6', right: 'M9' }[align];
+  return (
+    <Outline className={className} strokeWidth={2}>
+      <path strokeLinecap="round" d={`M3 6h18${short} 10h12M3 14h18${short} 18h12`} />
+    </Outline>
+  );
+}
+
+/** Two lines of text at the top, the middle or the foot of a box, as Keynote's vertical alignment. */
+export function TextPlaceIcon({ place, className }: IconProps & { place: 'top' | 'middle' | 'bottom' }) {
+  const y = { top: 7.5, middle: 10.5, bottom: 13.5 }[place];
+  return (
+    <Outline className={className}>
+      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="2.5" />
+      <path strokeLinecap="round" strokeWidth={2} d={`M7.5 ${y}h9M7.5 ${y + 3}h6`} />
+    </Outline>
+  );
+}

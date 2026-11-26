@@ -85,12 +85,14 @@ list has it, ticks own themes to delete together; the built-in ones are greyed u
 
 The editor (`pages/theme-editor/`) is the slideshows' (Lars, 2026-11-26, as Keynote's): Ångra and Gör om in a
 capsule above the slide (⌘Z, ⇧⌘Z) and Format's brush at the right, which shows and hides Format: a panel beside the
-slide where the editor's column is 640 px or wider, the slide narrower and never covered, else a popover under the
-brush, or a sheet on a phone. The three kinds of slide (Sång, Bibeltext, Bild och video) are pictures of them in the
-theme, as Keynote's slide navigator: a column at the left of the slide from 960 px, a row under it otherwise. The
+slide where the editor's column is 640 px or wider, the slide narrower and never covered, else under the slide,
+which stays in view as Format scrolls, or a sheet on a phone. The three kinds of slide (Sång, Bibeltext, Bild och video) are a segmented
+control in the toolbar between them, as a macOS app switches its view (Kalender's Dag | Vecka | Månad); on a phone a
+row of its own under the toolbar. Pictures of the kinds under the slide were black slides alike, not taken for a
+choice (Lars, 2026-11-26). The
 theme is renamed from its title's menu (Byt namn…); its name is in Format only just after it was made. The slide is a
-sample of the kind, drawn as every output draws it; the boxes of its texts are dashed. Format lists the slide's parts
-at its top (Bakgrund, Text, Källa), so what can be changed is in view; a part picked there or by a tap on the slide
+sample of the kind, drawn as every output draws it; the boxes of its texts are dashed. Format has the slide's parts
+as tabs at its top (Bakgrund | Text | Källa), so what can be changed is in view; a part picked there or by a tap on the slide
 (the main text or the credits) shows its look, and its handles drag and size its box, lined up with the stage's edges
 and middle; Bakgrund, or a tap beside the texts, the kind's background. By the keyboard as the slideshows' editor: with focus on the slide, Tab
 picks the main text, then the credits, an arrow moves the picked box a point (⇧ ten), and Escape picks none

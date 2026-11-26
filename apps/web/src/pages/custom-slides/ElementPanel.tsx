@@ -1,11 +1,12 @@
 import type { ReactNode, RefObject } from 'react';
 import { CUSTOM_LIMITS, type CustomElement } from '@gp/core';
 import { t, type TextKey } from '../../i18n.ts';
-import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
+import { ALIGN_CHOICES, ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { ACTION_ROW, GROUP_ROW, Group, PopUp } from '../../ui/Group.tsx';
 import { withMaxChars } from '../../ui/maxChars.ts';
-import type { Corner } from './slideModel.ts';
+import { FormatTabs } from './EditorChrome.tsx';
+import { placeOf, type Across, type Down, type Place } from './slideModel.ts';
 
 /**
  * A text's sizes, on the 1920×1080 slide: from a line under the song's words to a heading, as Keynote's menu of sizes
@@ -16,13 +17,54 @@ const SIZES = [32, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240];
 /** The sizes, with a size of its own the text has (set before this menu) in its place among them. */
 const sizesWith = (size: number) => (SIZES.includes(size) ? SIZES : [...SIZES, size].toSorted((a, b) => a - b));
 
-/** The four corners, each a button drawn as an arrow toward it. */
-const CORNERS: [Corner, TextKey, string][] = [
-  ['topLeft', 'slideEditor.topLeft', '↖'],
-  ['topRight', 'slideEditor.topRight', '↗'],
-  ['bottomLeft', 'slideEditor.bottomLeft', '↙'],
-  ['bottomRight', 'slideEditor.bottomRight', '↘'],
+/** The nine places on the slide, across and down, each with its name. */
+const PLACES: [Across, Down, TextKey][] = [
+  ['left', 'top', 'slideEditor.topLeft'],
+  ['center', 'top', 'slideEditor.topCenter'],
+  ['right', 'top', 'slideEditor.topRight'],
+  ['left', 'middle', 'slideEditor.middleLeft'],
+  ['center', 'middle', 'slideEditor.middle'],
+  ['right', 'middle', 'slideEditor.middleRight'],
+  ['left', 'bottom', 'slideEditor.bottomLeft'],
+  ['center', 'bottom', 'slideEditor.bottomCenter'],
+  ['right', 'bottom', 'slideEditor.bottomRight'],
 ];
+const ACROSS: Record<Across, string> = { left: '14%', center: '50%', right: '86%' };
+const DOWN: Record<Down, string> = { top: '20%', middle: '50%', bottom: '80%' };
+
+/**
+ * Placering på sliden: a small slide with a point at each of the nine places, the element's own filled, its name under
+ * it; a press puts the element there (Lars, 2026-11-26: as Keynote's and Figma's, plainer than arrows).
+ */
+function PlacePad({ element, onPlace }: { element: CustomElement; onPlace: (place: Place) => void }) {
+  const at = placeOf(element);
+  const name = at && PLACES.find(([a, d]) => a === at.across && d === at.down)?.[2];
+  return (
+    <Group title={t('slideEditor.place')}>
+      <div className="flex flex-col items-center gap-2 p-3">
+        <div className="relative w-48 aspect-video rounded-lg bg-stone-800 dark:bg-black" role="radiogroup" aria-label={t('slideEditor.place')}>
+          {PLACES.map(([across, down, key]) => {
+            const on = at?.across === across && at.down === down;
+            return (
+              <AppButton
+                key={key}
+                variant="plain"
+                role="radio"
+                aria-checked={on}
+                aria-label={t(key)}
+                title={t(key)}
+                className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full cursor-pointer ${on ? 'bg-sky-500 ring-[3px] ring-sky-500/35' : 'bg-white/20 hover:bg-white/40'}`}
+                style={{ left: ACROSS[across], top: DOWN[down] }}
+                onClick={() => onPlace({ across, down })}
+              />
+            );
+          })}
+        </div>
+        <p className="h-4 text-xs text-stone-500 dark:text-stone-400">{name ? t(name) : ''}</p>
+      </div>
+    </Group>
+  );
+}
 
 // What the picked element is, to change (docs/custom-slides.md): its words, size and colour, its fill and outline,
 // its picture, its place in the drawing order; and, with nothing picked, the page's background and the page itself.
@@ -42,7 +84,7 @@ export function ElementPanel({
   textRef,
   onChange,
   onReorder,
-  onCorner,
+  onPlace,
   layers,
   onDuplicate,
   onRemove,
@@ -53,7 +95,7 @@ export function ElementPanel({
   textRef: RefObject<HTMLTextAreaElement | null>;
   onChange: (patch: Partial<CustomElement>) => void;
   onReorder: (to: 'top' | 'bottom') => void;
-  onCorner: (corner: Corner) => void;
+  onPlace: (place: Place) => void;
   /** The page's elements in their drawing order, in Ordna. */
   layers: ReactNode;
   onDuplicate: () => void;
@@ -91,7 +133,7 @@ export function ElementPanel({
               <OnOff label={t('slideEditor.italic')} on={e.italic} onChange={(italic) => onChange({ italic })} />
             </span>
           </div>
-          <Segments label={t('slideEditor.align')} value={e.align} options={[['left', 'slideEditor.left'], ['center', 'slideEditor.center'], ['right', 'slideEditor.right']]} onChange={(align) => onChange({ align })} />
+          <Segments label={t('slideEditor.align')} value={e.align} options={ALIGN_CHOICES} onChange={(align) => onChange({ align })} />
           <ColorChoice label={t('slideEditor.color')} value={e.color} empty="theme" onChange={(color) => onChange({ color })} />
         </Group>
       )}
@@ -119,18 +161,7 @@ export function ElementPanel({
       )}
       {tab === 'arrange' && (
         <>
-          <Group>
-            <div className={GROUP_ROW}>
-              <span>{t('slideEditor.corner')}</span>
-              <span className="flex gap-1">
-                {CORNERS.map(([corner, key, arrow]) => (
-                  <AppButton key={corner} variant="plain" aria-label={t(key)} title={t(key)} className="size-8 rounded-full bg-raised text-[15px] cursor-pointer hover:bg-raised-2" onClick={() => onCorner(corner)}>
-                    {arrow}
-                  </AppButton>
-                ))}
-              </span>
-            </div>
-          </Group>
+          <PlacePad element={e} onPlace={onPlace} />
           {layers}
           {/* One step forward or back is a drag in the list, or Alt+↑/↓ (Lars, 2026-11-05). */}
           <Group>
@@ -159,22 +190,7 @@ export function ElementPanel({
   );
 }
 
-/** The inspector's tabs, as Keynote's: the chosen one filled in the app's colour (Lars, 2026-11-26). */
-export function InspectorTabs({ tabs, value, onChange }: { tabs: InspectorTab[]; value: InspectorTab; onChange: (tab: InspectorTab) => void }) {
-  return (
-    <div className="flex w-full rounded-full bg-stone-200 dark:bg-raised p-0.5" role="tablist">
-      {tabs.map((tab) => (
-        <AppButton
-          key={tab}
-          variant="plain"
-          role="tab"
-          aria-selected={value === tab}
-          className={`flex-1 h-8 px-3 rounded-full text-[13px] cursor-pointer ${value === tab ? 'bg-sky-500 text-white font-medium' : 'text-stone-600 dark:text-stone-300'}`}
-          onClick={() => onChange(tab)}
-        >
-          {t(TAB_TEXT[tab])}
-        </AppButton>
-      ))}
-    </div>
-  );
+/** The inspector's tabs for an element (FormatTabs). */
+export function InspectorTabs({ tabs, value, onChange, label }: { tabs: InspectorTab[]; value: InspectorTab; onChange: (tab: InspectorTab) => void; label?: string }) {
+  return <FormatTabs label={label} tabs={tabs.map((tab) => [tab, TAB_TEXT[tab]])} value={value} onChange={onChange} />;
 }

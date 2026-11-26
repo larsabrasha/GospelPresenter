@@ -111,18 +111,33 @@ export function nextBeneath(stack: readonly string[], picked: string | null): st
   return at < 0 ? stack[0]! : stack[(at + 1) % stack.length]!;
 }
 
-export type Corner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+/** Where on the slide, across and down: nine places, the corners, the middles of the edges and the middle. */
+export type Across = 'left' | 'center' | 'right';
+export type Down = 'top' | 'middle' | 'bottom';
+export interface Place {
+  across: Across;
+  down: Down;
+}
 
-/** The slide's own margin for a corner: 5 % of its height, the same from the top and the side. */
-const CORNER_INSET = Math.round(H * 0.05);
+/** The slide's own margin: 5 % of its height, the same from the top and the side. */
+const INSET = Math.round(H * 0.05);
+
+const left = (e: CustomElement, across: Across) => (across === 'left' ? INSET : across === 'right' ? W - e.w - INSET : Math.round((W - e.w) / 2));
+const top = (e: CustomElement, down: Down) => (down === 'top' ? INSET : down === 'bottom' ? H - e.h - INSET : Math.round((H - e.h) / 2));
 
 /**
- * The element put in `corner`, as far from the top or foot as from the side (Lars, 2026-11-26); a text lined up to
- * that side as well, so its words start or end at the margin and not inside a wider box.
+ * The element put at `place`, as far from the top or foot as from the side (Lars, 2026-11-26: nine points on a small
+ * slide, as Keynote's); a text lined up to that side as well, so its words start or end at the margin and not inside a
+ * wider box.
  */
-export function inCorner(e: CustomElement, corner: Corner): Partial<CustomElement> {
-  const left = corner === 'topLeft' || corner === 'bottomLeft';
-  const top = corner === 'topLeft' || corner === 'topRight';
-  const place = { x: left ? CORNER_INSET : W - e.w - CORNER_INSET, y: top ? CORNER_INSET : H - e.h - CORNER_INSET };
-  return e.kind === 'text' ? { ...place, align: left ? 'left' : 'right' } : place;
+export function placedAt(e: CustomElement, place: Place): Partial<CustomElement> {
+  const at = { x: left(e, place.across), y: top(e, place.down) };
+  return e.kind === 'text' ? { ...at, align: place.across } : at;
+}
+
+/** Which of the nine places the element is at, if any (a point either way, for rounding). */
+export function placeOf(e: CustomElement): Place | null {
+  const across = (['left', 'center', 'right'] as const).find((a) => Math.abs(e.x - left(e, a)) <= 1);
+  const down = (['top', 'middle', 'bottom'] as const).find((d) => Math.abs(e.y - top(e, d)) <= 1);
+  return across && down ? { across, down } : null;
 }

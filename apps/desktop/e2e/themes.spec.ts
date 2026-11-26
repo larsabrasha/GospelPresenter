@@ -110,3 +110,43 @@ test("a theme's menu, right-clicked on its tile or from its ⋯; a tap opens an 
   await expect(page.getByRole('button', { name: 'Kopia av Ljust', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Välj', exact: true })).toHaveCount(0);
 });
+
+test("a theme is renamed from its title's menu, the menu shown whole under the title", async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Teman');
+  await page.getByRole('button', { name: 'Nytt tema' }).click();
+  await nameNew(page, 'Söndag');
+  const title = page.getByRole('heading', { name: 'Söndag' }).filter({ visible: true }).getByRole('button');
+
+  await title.click();
+  const rename = page.getByRole('menuitem', { name: 'Byt namn…' });
+  // Whole: the title once cut it off at its own edge, and the press found nothing.
+  await expect.poll(() => rename.evaluate((el) => document.elementFromPoint(el.getBoundingClientRect().right - 8, el.getBoundingClientRect().bottom - 8) === el || el.contains(document.elementFromPoint(el.getBoundingClientRect().right - 8, el.getBoundingClientRect().bottom - 8)))).toBe(true);
+  await rename.click();
+  const dialog = page.getByRole('dialog', { name: 'Byt namn' });
+  await dialog.getByLabel('Namn').fill('Högtid');
+  await dialog.getByRole('button', { name: 'Spara' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Högtid' }).filter({ visible: true })).toBeVisible();
+});
+
+test("the kind of slide edited is chosen in the toolbar's Slidetyp, and Format follows it", async () => {
+  // Arrange
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Teman');
+  await page.getByRole('button', { name: 'Nytt tema' }).click();
+  await nameNew(page, 'Söndag');
+  const kinds = page.getByRole('radiogroup', { name: 'Slidetyp' });
+  await expect(kinds.getByRole('radio', { name: 'Sång' })).toHaveAttribute('aria-checked', 'true');
+
+  // Act
+  await kinds.getByRole('radio', { name: 'Bibeltext' }).click();
+
+  // Assert
+  await expect(kinds.getByRole('radio', { name: 'Bibeltext' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByText('Bakgrund för bibeltext').filter({ visible: true })).toBeVisible();
+});

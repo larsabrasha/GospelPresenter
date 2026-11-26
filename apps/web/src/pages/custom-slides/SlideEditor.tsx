@@ -16,7 +16,7 @@ import { DetailHeader, PageContainer } from '../../ui/PageContainer.tsx';
 import { href } from '../../ui/router.ts';
 import { readEdited, renameEdited, savePages, type EditedKind } from './edited.ts';
 import { EditorCanvas } from './EditorCanvas.tsx';
-import { FormatButton, GROUP, TOOL, UndoRedo, useWide } from './EditorChrome.tsx';
+import { FormatButton, GROUP, FormatPanel, STAYS, STAYS_ABOVE, TOOL, UndoRedo, useWide } from './EditorChrome.tsx';
 import { FormatSheet } from './FormatSheet.tsx';
 import { useJustCreated } from '../../ui/justCreated.ts';
 import * as history from './history.ts';
@@ -60,9 +60,10 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const column = useRef<HTMLDivElement>(null);
   const wide = useWide(column) && !phone;
   const [renaming, setRenaming] = useState(false);
-  // Open beside the page on a computer until closed; on a phone and in a popover only when asked for, or just made.
+  // Open on a computer until closed (beside the page, or under it where narrow); on a phone only when asked for, or just made.
   const [formatChoice, setFormatOpen] = useState<boolean | null>(isNew ? true : null);
-  const formatOpen = formatChoice ?? wide;
+  const formatOpen = formatChoice ?? !phone;
+  const stacked = formatOpen && !wide && !phone;
   const [adding, setAdding] = useState(false);
   const [behind, setBehind] = useBehind();
   const [tabsSlot, setTabsSlot] = useState<HTMLDivElement | null>(null);
@@ -200,7 +201,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
       onPage={onPage}
       onElement={(key, patch) => element && onPage(`${element.id}:${key}`, (p) => model.changeElement(p, element.id, patch))}
       onReorder={(to) => element && onPage('', (p) => model.reorderElement(p, element.id, to))}
-      onCorner={(corner) => element && onPage('', (p) => model.changeElement(p, element.id, model.inCorner(element, corner)))}
+      onPlace={(place) => element && onPage('', (p) => model.changeElement(p, element.id, model.placedAt(element, place)))}
       onMoveLayer={(from, to) => onPage('', (p) => model.moveElement(p, from, to))}
       onPick={pick}
       onDuplicate={duplicate}
@@ -271,9 +272,9 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
               <div className={GROUP}>{formatButton}</div>
             </div>
           )}
-          {/* Format as a popover under the brush where the column is narrow, as a sheet on a phone (its tabs at the
-              head); beside the page where it is wide. */}
-          {formatOpen && !wide && (
+          {/* Format beside the page where the column is wide, under it where narrow, and a sheet on a phone (its tabs
+              at the head): never over the page. */}
+          {formatOpen && phone && (
             <FormatSheet title={t('slideEditor.format')} hideFrom="" head={phone && element ? <div ref={setTabsSlot} className="w-full" /> : undefined} onClose={() => setFormatOpen(false)}>
               {inspector}
             </FormatSheet>
@@ -284,7 +285,8 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
             </FormatSheet>
           )}
           <div className="flex gap-4 items-start">
-            <div className="flex-1 min-w-0 space-y-3">
+            <div className={`flex-1 min-w-0 space-y-3 ${formatOpen && wide ? STAYS : ''}`}>
+              <div className={stacked ? STAYS_ABOVE : ''}>
               <EditorCanvas
                 page={page}
                 theme={theme}
@@ -296,13 +298,11 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
                 onEditText={setWriting}
                 behind={overlay ? behindSlide(behind) : undefined}
               />
+              </div>
               {overlay && <BehindPicker value={behind} onChange={setBehind} className="max-w-md" />}
+              {stacked && <FormatPanel beside={false}>{inspector}</FormatPanel>}
             </div>
-            {formatOpen && wide && (
-              <aside className="w-80 shrink-0" aria-label={t('slideEditor.format')} data-testid="format-panel">
-                {inspector}
-              </aside>
-            )}
+            {formatOpen && wide && <FormatPanel beside>{inspector}</FormatPanel>}
           </div>
         </div>
       </div>

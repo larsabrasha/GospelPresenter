@@ -7,7 +7,7 @@ import { AutoSaveField } from '../../ui/AutoSave.tsx';
 import { ACTION_ROW, Group } from '../../ui/Group.tsx';
 import { ColorChoice } from '../../ui/FormatControls.tsx';
 import { LayerList } from './LayerList.tsx';
-import type { Corner } from './slideModel.ts';
+import type { Place } from './slideModel.ts';
 import { ElementPanel, elementTabs, InspectorTabs, type InspectorTab } from './ElementPanel.tsx';
 
 // Keynote's Format (docs/custom-slides.md): with an element picked, its tabs (Text or Stil or Bild, and Ordna); with
@@ -27,7 +27,7 @@ export function Inspector({
   onPage,
   onElement,
   onReorder,
-  onCorner,
+  onPlace,
   onMoveLayer,
   onPick,
   onDuplicate,
@@ -48,7 +48,7 @@ export function Inspector({
   onPage: (key: string, fn: (page: CustomPage) => CustomPage) => void;
   onElement: (key: string, patch: Partial<CustomElement>) => void;
   onReorder: (to: 'up' | 'down' | 'top' | 'bottom') => void;
-  onCorner: (corner: Corner) => void;
+  onPlace: (place: Place) => void;
   onMoveLayer: (from: number, to: number) => void;
   onPick: (id: string) => void;
   onDuplicate: () => void;
@@ -63,7 +63,8 @@ export function Inspector({
     const tab = tabs.includes(chosen) ? chosen : tabs[0]!;
     return (
       <div className="space-y-4" data-testid="inspector">
-        {tabsInto ? createPortal(<InspectorTabs tabs={tabs} value={tab} onChange={setChosen} />, tabsInto) : <InspectorTabs tabs={tabs} value={tab} onChange={setChosen} />}
+        {/* On a phone the tabs are the sheet's head, where Format is said already; elsewhere titled Format. */}
+        {tabsInto ? createPortal(<InspectorTabs tabs={tabs} value={tab} onChange={setChosen} />, tabsInto) : <InspectorTabs label={t('slideEditor.format')} tabs={tabs} value={tab} onChange={setChosen} />}
         <ElementPanel
           element={element}
           tab={tab}
@@ -71,7 +72,7 @@ export function Inspector({
           // What changed is the step's kind: a slider pulled is one step, a colour then another.
           onChange={(patch) => onElement(Object.keys(patch).join(','), patch)}
           onReorder={onReorder}
-          onCorner={onCorner}
+          onPlace={onPlace}
           layers={<LayerList page={page} picked={element.id} onPick={onPick} onMove={onMoveLayer} />}
           onDuplicate={onDuplicate}
           onRemove={onRemove}

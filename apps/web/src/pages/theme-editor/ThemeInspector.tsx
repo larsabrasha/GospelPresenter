@@ -2,13 +2,15 @@ import { type Background, FONT_STACKS, type TextStyle, THEME_LIMITS, type ThemeD
 import { locale, t, type TextKey } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
-import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
+import { ALIGN_CHOICES, ColorChoice, OnOff, PLACE_CHOICES, Segments, Slider } from '../../ui/FormatControls.tsx';
 import { ACTION_ROW, GROUP_ROW, Group } from '../../ui/Group.tsx';
+import { FormatTabs } from '../custom-slides/EditorChrome.tsx';
 import { backgroundIn, defaultArea, joinColor, splitColor, type EditedKind, type TextRole } from './themeModel.ts';
 
-// The theme editor's Format (docs/themes.md), as the slideshows' editor's: the slide's parts in a list at the top
-// (Bakgrund, Text, Källa; Lars 2026-11-26), so what can be changed is in view and not to be guessed by tapping; under
-// them the picked part's look and place, or the kind's background; and the theme's name only just after it was made.
+// The theme editor's Format (docs/themes.md), as the slideshows' editor's: the slide's parts as tabs at the top
+// (Bakgrund | Text | Källa; Lars 2026-11-26), following what is picked on the slide, so what can be changed is in view
+// and not to be guessed by tapping; under them the picked part's look and place, or the kind's background; and the
+// theme's name only just after it was made.
 
 const FONTS: [string, string][] = [
   [FONT_STACKS.tahoma, 'Tahoma'],
@@ -57,8 +59,8 @@ function TextPanel({ kind, role, style, onText }: { kind: 'song' | 'bible'; role
           onChange={(w) => onText('fontWeight', { fontWeight: Number(w) })}
         />
         <Slider label={t('themeEditor.lineHeight')} value={Math.round(style.lineHeight * 10)} min={8} max={25} shown={style.lineHeight.toLocaleString(locale(), { minimumFractionDigits: 1 })} onChange={(n) => onText('lineHeight', { lineHeight: n / 10 })} />
-        <Segments label={t('slideEditor.align')} value={style.align} options={[['left', 'slideEditor.left'], ['center', 'slideEditor.center'], ['right', 'slideEditor.right']]} onChange={(align) => onText('align', { align })} />
-        <Segments label={t('themeEditor.placement')} value={style.valign} options={[['top', 'themeEditor.top'], ['middle', 'themeEditor.middle'], ['bottom', 'themeEditor.bottom']]} onChange={(valign) => onText('valign', { valign })} />
+        <Segments label={t('slideEditor.align')} value={style.align} options={ALIGN_CHOICES} onChange={(align) => onText('align', { align })} />
+        <Segments label={t('themeEditor.placement')} value={style.valign} options={PLACE_CHOICES} onChange={(valign) => onText('valign', { valign })} />
         <ColorWithOpacity label={t('slideEditor.color')} value={style.color} onChange={(color) => onText('color', { color })} />
       </Group>
       <Group>
@@ -127,7 +129,7 @@ export function ThemeInspector({
   onChoosePicture: () => void;
   onPick: (role: TextRole | null) => void;
 }) {
-  const parts = kind !== 'media' && <PartList picked={picked} onPick={onPick} />;
+  const parts = kind !== 'media' && <PartTabs picked={picked} onPick={onPick} />;
   if (picked && kind !== 'media')
     return (
       <div className="space-y-5">
@@ -149,30 +151,15 @@ export function ThemeInspector({
   );
 }
 
-const PARTS: [TextRole | null, TextKey][] = [
-  [null, 'slideEditor.background'],
+type Part = TextRole | 'background';
+
+const PARTS: [Part, TextKey][] = [
+  ['background', 'slideEditor.background'],
   ['main', 'themeEditor.mainText'],
   ['credits', 'themeEditor.credits'],
 ];
 
-/** The slide's parts, the picked one filled in the app's colour, as a row picked in a list on iOS. */
-function PartList({ picked, onPick }: { picked: TextRole | null; onPick: (role: TextRole | null) => void }) {
-  return (
-    <Group title={t('themeEditor.parts')}>
-      <div role="radiogroup" aria-label={t('themeEditor.parts')} className="flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator">
-        {PARTS.map(([role, key]) => (
-          <AppButton
-            key={key}
-            variant="plain"
-            role="radio"
-            aria-checked={picked === role}
-            className={`h-11 px-4 flex items-center text-left cursor-pointer ${picked === role ? 'bg-sky-500 text-white' : 'hover:bg-raised'}`}
-            onClick={() => onPick(role)}
-          >
-            {t(key)}
-          </AppButton>
-        ))}
-      </div>
-    </Group>
-  );
+/** The slide's parts as Format's tabs (Lars, 2026-11-26), following what is picked on the slide. */
+function PartTabs({ picked, onPick }: { picked: TextRole | null; onPick: (role: TextRole | null) => void }) {
+  return <FormatTabs label={t('themeEditor.change')} tabs={PARTS} value={picked ?? 'background'} onChange={(p) => onPick(p === 'background' ? null : p)} />;
 }

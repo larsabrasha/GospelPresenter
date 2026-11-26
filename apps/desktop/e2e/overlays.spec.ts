@@ -180,7 +180,7 @@ test("on a phone an item's overlay is a row of its sheet, the chosen one in grey
   await expect(order.getByRole('region', { name: 'Sång A' })).toContainText('Kollekt');
 });
 
-test('the overlay is edited over a song, a Bible text or the black screen, as chosen under Exempelslide', async () => {
+test('the overlay is edited over a song, a Bible text or nothing, a checkerboard, as chosen under Exempelslide', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -191,13 +191,14 @@ test('the overlay is edited over a song, a Bible text or the black screen, as ch
   await expect(canvas).toContainText('Amazing grace');
   await behind.getByRole('radio', { name: 'Bibeltext' }).click();
   await expect(canvas).toContainText('Ty så älskade Gud världen');
-  await behind.getByRole('radio', { name: 'Svart' }).click();
+  await behind.getByRole('radio', { name: 'Ingen' }).click();
 
   await expect(canvas).not.toContainText('Ty så älskade Gud världen');
+  await expect(canvas.getByTestId('see-through')).toBeVisible();
   await expect(canvas).toContainText('Swish 123 45');
 });
 
-test('Placera i hörn puts the picked text in the corner, as far from the top as from the side, lined up to that side', async () => {
+test('a point of Placering på sliden puts the picked text there, as far from the top as from the side, lined up to that side', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -206,7 +207,7 @@ test('Placera i hörn puts the picked text in the corner, as far from the top as
   const text = canvas.locator('[data-element]').filter({ hasText: 'Swish 123 45' });
 
   await page.getByRole('tab', { name: 'Ordna' }).filter({ visible: true }).click();
-  await page.getByRole('button', { name: 'Uppe till vänster' }).filter({ visible: true }).click();
+  await page.getByRole('radio', { name: 'Uppe till vänster' }).filter({ visible: true }).click();
 
   const [box, slide] = [(await text.boundingBox())!, (await canvas.boundingBox())!];
   const inset = slide.height * 0.05;
@@ -214,4 +215,26 @@ test('Placera i hörn puts the picked text in the corner, as far from the top as
   expect(Math.abs(box.y - slide.y - inset)).toBeLessThan(2);
   await page.getByRole('tab', { name: 'Text' }).filter({ visible: true }).click();
   await expect(page.getByRole('radiogroup', { name: 'Justering' }).getByRole('radio', { name: 'Vänster' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('a text box is made taller by its bottom handle, and lower again', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
+  const text = page.getByTestId('slide-canvas').locator('[data-element]').filter({ hasText: 'Swish 123 45' });
+  const handle = page.locator('.moveable-control.moveable-s');
+  const drag = async (by: number) => {
+    const b = (await handle.boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 + by, { steps: 8 });
+    await page.mouse.up();
+  };
+  await drag(60);
+  const taller = (await text.boundingBox())!.height;
+
+  await drag(-40);
+
+  await expect.poll(async () => (await text.boundingBox())!.height).toBeLessThan(taller - 20);
 });

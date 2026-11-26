@@ -11,20 +11,20 @@ import { NameDialog } from '../../ui/NameDialog.tsx';
 import { usePhone } from '../../ui/usePhone.ts';
 import { DetailHeader, PageContainer } from '../../ui/PageContainer.tsx';
 import { href } from '../../ui/router.ts';
-import { FormatButton, GROUP, UndoRedo, useWide } from '../custom-slides/EditorChrome.tsx';
-import { SlideView } from '../../ui/SlideView.tsx';
+import { FormatButton, GROUP, FormatPanel, Segmented, STAYS, STAYS_ABOVE, UndoRedo, useWide } from '../custom-slides/EditorChrome.tsx';
 import { FormatSheet } from '../custom-slides/FormatSheet.tsx';
 import * as history from '../custom-slides/history.ts';
 import { ImagePicker } from '../custom-slides/ImagePicker.tsx';
 import { ThemeCanvas } from './ThemeCanvas.tsx';
 import { ThemeInspector } from './ThemeInspector.tsx';
 import { useJustCreated } from '../../ui/justCreated.ts';
-import { SAMPLES, withBackground, withText, type EditedKind, type TextRole } from './themeModel.ts';
+import { withBackground, withText, type EditedKind, type TextRole } from './themeModel.ts';
 
 // An own theme's editor (docs/themes.md), as the slideshows' and overlays' (Lars, 2026-11-26): Ångra and Gör om in a
 // capsule above the slide, Format's brush at the right; Format a panel beside the slide where there is room, the slide
-// narrower and never covered, else a popover, or on a phone a sheet; the three kinds of slide (Sång, Bibeltext, Bild och
-// video) a row of choices under it. The theme is renamed from its title's menu. A tap on a text picks it, as its row in
+// narrower and never covered, else under it, or on a phone a sheet; the three kinds of slide (Sång, Bibeltext, Bild och
+// video) a segmented control in the toolbar, as a macOS view's, where the eye already is: three pictures of black slides
+// under it were not taken for a choice (Lars, 2026-11-26); on a phone a row of its own under the toolbar. The theme is renamed from its title's menu. A tap on a text picks it, as its row in
 // Format's list of the parts does, to change its look and to drag or size its box. It saves as it goes, the whole
 // definition, half a second after the last change.
 
@@ -34,32 +34,6 @@ const KINDS: [EditedKind, TextKey][] = [
   ['bible', 'themeEditor.bible'],
   ['media', 'themeEditor.media'],
 ];
-
-/**
- * The three kinds of slide, each a picture of it in the theme, to open in the editor: as Keynote's slide navigator, a
- * column at the left of the slide where there is room, else a row under it (Lars, 2026-11-26).
- */
-function KindNavigator({ theme, at, onOpen, column = false }: { theme: Theme; at: EditedKind; onOpen: (kind: EditedKind) => void; column?: boolean }) {
-  return (
-    <div className={`flex gap-3 p-1 ${column ? 'flex-col w-32 shrink-0' : 'overflow-x-auto [scrollbar-width:none]'}`} role="listbox" aria-label={t('themeEditor.kinds')}>
-      {KINDS.map(([kind, label]) => (
-        <div key={kind} className="shrink-0">
-          <AppButton
-            variant="plain"
-            role="option"
-            aria-selected={kind === at}
-            aria-label={t(label)}
-            className={`block ${column ? 'w-full' : 'w-28'} aspect-video rounded-lg overflow-hidden cursor-pointer ring-[3px] ${kind === at ? 'ring-sky-500' : 'ring-transparent'}`}
-            onClick={() => onOpen(kind)}
-          >
-            <SlideView slide={SAMPLES[kind]} theme={theme} label={false} />
-          </AppButton>
-          <p className="mt-1 text-xs text-center text-stone-500 dark:text-stone-400">{t(label)}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 const typing = (e: ReactKeyboardEvent) => e.target instanceof HTMLElement && !!e.target.closest('input, textarea, select, [contenteditable]');
 
@@ -78,11 +52,11 @@ export function ThemeEditor({ id }: { id: string }) {
   const phone = usePhone();
   const column = useRef<HTMLDivElement>(null);
   const wide = useWide(column) && !phone;
-  // The kinds in a column at the left only where the slide keeps a good width beside them and Format.
-  const roomy = useWide(column, 960) && !phone;
-  // Open beside the slide on a computer until closed; as a popover or a sheet only when asked for, or just made.
+  // Open on a computer until closed (beside the slide, or under it where narrow); on a phone only when asked for, or just made.
   const [formatChoice, setFormatOpen] = useState<boolean | null>(isNew ? true : null);
-  const formatOpen = formatChoice ?? wide;
+  const formatOpen = formatChoice ?? !phone;
+  // Too narrow for Format beside the slide, and no phone: Format under it, never over it.
+  const stacked = formatOpen && !wide && !phone;
   const [renaming, setRenaming] = useState(false);
   const [choosing, setChoosing] = useState(false);
   /** Changes not saved yet: while there are some, the theme as stored is not taken over. */
@@ -170,6 +144,7 @@ export function ThemeEditor({ id }: { id: string }) {
   );
   const undoRedo = <UndoRedo canUndo={!!h.past.length} canRedo={!!h.future.length} onUndo={() => step(history.undo)} onRedo={() => step(history.redo)} />;
   const formatButton = <FormatButton open={formatOpen} onToggle={() => setFormatOpen(!formatOpen)} />;
+  const kinds = <Segmented label={t('themeEditor.kinds')} value={kind} choices={KINDS} onChange={open} />;
 
   return (
     <PageContainer maxWidthClass="max-w-[1400px]" className="pb-8">
@@ -186,35 +161,35 @@ export function ThemeEditor({ id }: { id: string }) {
       />
       <div ref={column} className="relative space-y-3" onKeyDown={onKeyDown}>
         {phone ? (
-          <div className="flex justify-end" role="toolbar" aria-label={t('slideEditor.format')}>
-            <div className={GROUP}>
-              {undoRedo}
-              {formatButton}
+          <>
+            <div className="flex justify-end" role="toolbar" aria-label={t('slideEditor.format')}>
+              <div className={GROUP}>
+                {undoRedo}
+                {formatButton}
+              </div>
             </div>
-          </div>
+            {kinds}
+          </>
         ) : (
           <div className="flex items-center gap-2" role="toolbar" aria-label={t('slideEditor.format')}>
             <div className={GROUP}>{undoRedo}</div>
-            <span className="flex-1" />
+            <div className="flex-1 min-w-0 flex justify-center">{kinds}</div>
             <div className={GROUP}>{formatButton}</div>
           </div>
         )}
-        {formatOpen && !wide && (
+        {formatOpen && phone && (
           <FormatSheet title={t('slideEditor.format')} hideFrom="" onClose={() => setFormatOpen(false)}>
             {inspector}
           </FormatSheet>
         )}
         <div className="flex gap-4 items-start">
-          {roomy && <KindNavigator theme={theme} at={kind} onOpen={open} column />}
-          <div className="flex-1 min-w-0 space-y-3">
-            <ThemeCanvas theme={theme} kind={kind} picked={picked} onPick={pickPart} onArea={(role, area, run) => kind !== 'media' && change(run ? `${kind}:${role}:area` : '', (d) => withText(d, kind, role, { area }))} />
-            {!roomy && <KindNavigator theme={theme} at={kind} onOpen={open} />}
+          <div className={`flex-1 min-w-0 space-y-3 ${formatOpen && wide ? STAYS : ''}`}>
+            <div className={stacked ? STAYS_ABOVE : ''}>
+              <ThemeCanvas theme={theme} kind={kind} picked={picked} onPick={pickPart} onArea={(role, area, run) => kind !== 'media' && change(run ? `${kind}:${role}:area` : '', (d) => withText(d, kind, role, { area }))} />
+            </div>
+            {stacked && <FormatPanel beside={false}>{inspector}</FormatPanel>}
           </div>
-          {formatOpen && wide && (
-            <aside className="w-80 shrink-0" aria-label={t('slideEditor.format')} data-testid="format-panel">
-              {inspector}
-            </aside>
-          )}
+          {formatOpen && wide && <FormatPanel beside>{inspector}</FormatPanel>}
         </div>
       </div>
       {renaming && (

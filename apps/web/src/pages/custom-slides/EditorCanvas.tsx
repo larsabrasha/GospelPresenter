@@ -68,7 +68,7 @@ export function EditorCanvas({
   onPick: (id: string | null) => void;
   onChange: (id: string, patch: Partial<CustomElement>) => void;
   onEditText: (on: boolean) => void;
-  /** An overlay's: the slide drawn under it as it will be shown, null for the black screen (OverlayBehind.tsx). */
+  /** An overlay's: the slide drawn under it as it will be shown, null for none, a checkerboard (OverlayBehind.tsx). */
   behind?: Slide | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -182,8 +182,12 @@ export function EditorCanvas({
   const resizeEnd = ({ lastEvent, target: el }: OnResizeEnd) => {
     if (!lastEvent || !element) return;
     el.style.transform = '';
-    // A text's box is drawn with a least height, not a height: the one set while sizing would hold it.
-    if (element.kind === 'text') el.style.height = '';
+    // A text's box is drawn with a least height, not a height: the one set while sizing would hold it; its least
+    // height, let go while sizing, is drawn anew from the new size.
+    if (element.kind === 'text') {
+      el.style.height = '';
+      el.style.minHeight = '';
+    }
     const [left, top] = drawnLeftTop(element);
     const [tx, ty] = lastEvent.drag.beforeTranslate;
     onChange(element.id, boxAfter(element, left + tx, top + ty, lastEvent.width, lastEvent.height));
@@ -211,7 +215,13 @@ export function EditorCanvas({
           <div ref={setStage} className="absolute left-0 top-0 origin-top-left" style={{ width: CANVAS.width, height: CANVAS.height, transform: `scale(${scale})`, ...stageCss(theme, 'song') }}>
             {behind !== undefined && (
               <div className="absolute inset-0">
-                <SlideView slide={behind} theme={theme} label={false} />
+                {behind ? (
+                  <SlideView slide={behind} theme={theme} label={false} />
+                ) : (
+                  // Nothing under the overlay: a dark checkerboard, as an image editor shows see-through, dark so white
+                  // words still read on it.
+                  <div className="absolute inset-0 bg-[repeating-conic-gradient(#3f3f46_0_25%,#27272a_0_50%)] bg-size-[96px_96px]" data-testid="see-through" />
+                )}
               </div>
             )}
             <CustomPageView page={page} theme={theme} hide={writing?.id} />
@@ -236,6 +246,11 @@ export function EditorCanvas({
               el.style.transform = transform;
             }}
             onDragEnd={dragEnd}
+            // A text's box has a least height, its stored one, which Moveable keeps as the least it may be sized to: none
+            // while it is sized, or it could only be made taller (Lars, 2026-11-26).
+            onResizeStart={({ target: el }) => {
+              el.style.minHeight = '0px';
+            }}
             onResize={({ target: el, width, height, drag }) => {
               el.style.width = `${width}px`;
               el.style.height = `${height}px`;
