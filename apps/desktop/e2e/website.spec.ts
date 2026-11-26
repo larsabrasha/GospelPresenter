@@ -8,7 +8,7 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 import { makeZip, utf8Encode } from '../../../packages/core/src/index.ts';
 import { texts, type Language } from '../../web/src/i18n.ts';
 import { launch, MUTED, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, backToSong, createOverlay, createPresentation, createSong, openAdmin, openArrangement, pickItem, setUpHost } from './flows.ts';
 
 const out = process.env.GP_WEBSITE;
 test.skip(!out, 'only with GP_WEBSITE=<directory>');
@@ -26,8 +26,15 @@ interface Song {
   parts: [string, string][];
 }
 
-/** What a church in each language has: its songs, its Bible, its services and the search that finds several songs. */
-const CONTENT: Record<Language, { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string }> = {
+/**
+ * What a church in each language has: its songs, its Bible, its services and the search that finds several songs; and
+ * what shows the features on today's service (Lars, 2026-11-26): its description, and on its third song (ARRANGED) an
+ * arrangement with the chorus again at the end, a comment and an overlay.
+ */
+const CONTENT: Record<
+  Language,
+  { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string; description: string; comment: string; overlay: [string, string] }
+> = {
   sv: {
     org: 'Lilla Kyrkan',
     songs: [
@@ -53,6 +60,7 @@ const CONTENT: Record<Language, { org: string; songs: Song[]; bible: [string, st
         parts: [
           ['Verse 1', 'O store Gud, när jag den värld beskådar\nsom du har skapat med ditt allmaktsord,\nhur där din visdom väver livets trådar\noch alla väsen mättas vid ditt bord:'],
           ['Chorus', 'Då brister själen ut i lovsångsljud:\nO store Gud! O store Gud!'],
+          ['Verse 2', 'När jag hör åskans röst och stormens susning\noch blixtens klingor springa fram ur sky,\nnär regnets kalla, friska vindar susa\noch löftets båge glänser ny:'],
         ],
       },
       {
@@ -83,6 +91,9 @@ const CONTENT: Record<Language, { org: string; songs: Song[]; bible: [string, st
     ],
     phones: 'Mobiler',
     search: 'Gud',
+    description: 'Med dop, och kyrkkaffe efteråt',
+    comment: 'Kören sjunger med i sista refrängen',
+    overlay: ['Kollekt', 'Swish 123 456 78 90'],
   },
   en: {
     org: 'Grace Chapel',
@@ -110,6 +121,7 @@ const CONTENT: Record<Language, { org: string; songs: Song[]; bible: [string, st
         parts: [
           ['Verse 1', 'When peace, like a river, attendeth my way,\nWhen sorrows like sea billows roll;\nWhatever my lot, Thou hast taught me to say,\nIt is well, it is well with my soul.'],
           ['Chorus', 'It is well with my soul,\nIt is well, it is well with my soul.'],
+          ['Verse 2', 'Though Satan should buffet, though trials should come,\nLet this blest assurance control,\nThat Christ hath regarded my helpless estate,\nAnd hath shed His own blood for my soul.'],
         ],
       },
       {
@@ -140,10 +152,16 @@ const CONTENT: Record<Language, { org: string; songs: Song[]; bible: [string, st
     ],
     phones: 'Phones',
     search: 'grace',
+    description: 'With a baptism, and coffee afterwards',
+    comment: 'The choir joins in on the last chorus',
+    overlay: ['Offering', 'gracechapel.org/give'],
   },
 };
 
 // The 66 books, so the Bible tab lists them all; each holds one verse (the three above where they belong).
+/** The song of today's service that has an arrangement, a comment and an overlay: its third, with a chorus. */
+const ARRANGED = 2;
+
 const BOOKS = (
   'GEN EXO LEV NUM DEU JOS JDG RUT 1SA 2SA 1KI 2KI 1CH 2CH EZR NEH EST JOB PSA PRO ECC SNG ISA JER LAM EZK DAN HOS JOL AMO OBA JON MIC NAM HAB ZEP HAG ZEC MAL ' +
   'MAT MRK LUK JHN ACT ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT PHM HEB JAS 1PE 2PE 1JN 2JN 3JN JUD REV'
@@ -198,11 +216,31 @@ for (const lang of ['sv', 'en'] as const) {
       const page = host.page;
       // Filled in Swedish, as the steps in flows.ts are; shown in the language afterwards.
       await setUpHost(host, { name: lang === 'sv' ? 'Anna' : 'Anne', org: content.org, google: { sub: 'google-anna', email: 'anna@example.org', name: 'Anna' } });
-      for (const song of content.songs) {
+      for (const [i, song] of content.songs.entries()) {
         await createSong(page, song.title, song.parts);
         await page.getByLabel('Upphovspersoner').fill(song.authors);
         await page.getByLabel('Upphovspersoner').blur();
+        if (i !== ARRANGED) continue;
+        // Its arrangement: the parts in their order, then the chorus again.
+        await openArrangement(page);
+        await page.getByRole('group', { name: 'Arrangemang' }).getByRole('button', { name: 'Lägg till Chorus' }).click();
+        await backToSong(page);
       }
+      await createOverlay(page, content.overlay[0], content.overlay[1]);
+      // Its text dragged from the middle, where it is put, to the foot of the slide, under a song's lines.
+      const canvas = page.getByTestId('slide-canvas');
+      const text = canvas.locator('[data-element]').filter({ hasText: content.overlay[1] }).first();
+      // Again until it is there: a press while the editor still takes the typed text in selects, and moves nothing.
+      await expect(async () => {
+        const [from, slide] = [(await text.boundingBox())!, (await canvas.boundingBox())!];
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(from.x + from.width / 2, slide.y + slide.height * 0.94 - from.height / 2, { steps: 10 });
+        await page.mouse.up();
+        const moved = (await text.boundingBox())!;
+        expect(moved.y + moved.height).toBeGreaterThan(slide.y + slide.height * 0.85);
+      }).toPass({ timeout: 10_000 });
+      await expect(page.getByTestId('saved')).toBeVisible();
       await openAdmin(page, 'Biblar');
       await page.getByTestId('bible-file').setInputFiles({ name: 'bible.zip', mimeType: 'application/zip', buffer: Buffer.from(bibleZip(content.bible)) });
       await expect(page.getByTestId('bible-import-message')).toBeVisible();
@@ -230,17 +268,44 @@ for (const lang of ['sv', 'en'] as const) {
         content.songs.slice(0, 3).map((s) => s.title),
       );
       const presentation = new URL(page.url()).pathname;
+      await page.getByRole('button', { name: 'Alternativ' }).click();
+      await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
+      const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
+      await details.getByRole('textbox', { name: 'Beskrivning' }).fill(content.description);
+      await details.getByRole('button', { name: 'Spara' }).click();
+      const arranged = content.songs[ARRANGED]!.title;
+      await pickItem(page, arranged);
+      const itemMenu = page.getByTestId('live-slides').getByRole('button', { name: `Fler val för ${arranged}` });
+      await itemMenu.click();
+      await page.getByRole('menuitem', { name: /^Arrangemang/ }).click();
+      await page.getByRole('menuitemradio', { name: 'Arrangemang 1' }).click();
+      await itemMenu.click();
+      await page.getByRole('menuitem', { name: /^Överlägg/ }).click();
+      await page.getByRole('menuitemradio', { name: content.overlay[0] }).click();
+      await page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem').nth(ARRANGED).click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Kommentar' }).click();
+      await page.getByRole('dialog', { name: 'Kommentar' }).getByLabel('Kommentar').fill(content.comment);
+      await page.getByRole('dialog', { name: 'Kommentar' }).getByRole('button', { name: 'Spara' }).click();
+      await expect(page.getByRole('region', { name: arranged }).getByTestId('item-note')).toHaveText(content.comment);
       await page.evaluate((l) => localStorage.setItem('language', l), lang);
 
       // A phone shows the running order in one column, each item a row (Lars, 2026-11-26): there is no list to pick
       // from, and the first item is opened instead, so the picture shows its parts among the other rows.
       let phone = false;
-      const openFirst = async (p: Page) => {
-        const title = content.songs[0]!.title;
-        const row = p.getByRole('region', { name: title }).getByRole('button', { name: title, exact: true, expanded: false });
+      const openRow = async (p: Page, title: string) => {
+        // Its name begins with the title; a comment and an overlay follow it.
+        const name = new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+        const row = p.getByRole('region', { name: title }).getByRole('button', { name, expanded: false }).first();
         if (await row.count()) await row.click();
       };
-      const pickItem = async (p: Page) => {
+      const openFirst = (p: Page) => openRow(p, content.songs[0]!.title);
+      // The song with the arrangement, the comment and the overlay, so the picture shows them.
+      const showArranged = async (p: Page) => {
+        // By its place: its name now holds its comment and overlay too.
+        if (!phone) await p.getByRole('list', { name: t('presentation.items') }).getByRole('listitem').nth(ARRANGED).getByRole('button').first().click();
+        else await openRow(p, arranged);
+      };
+      const pickFirst = async (p: Page) => {
         if (!phone) await p.getByRole('list', { name: t('presentation.items') }).getByRole('button').first().click();
         else await openFirst(p);
       };
@@ -254,7 +319,7 @@ for (const lang of ['sv', 'en'] as const) {
       const goLive = async (p: Page) => {
         const start = p.getByRole('button', { name: t('presentation.start') });
         if (await start.count()) {
-          await pickItem(p);
+          await pickFirst(p);
           await start.click();
         }
         const [first] = content.songs;
@@ -298,7 +363,7 @@ for (const lang of ['sv', 'en'] as const) {
       const views: [string, string, (p: Page) => Promise<unknown>][] = [
         ['home', '/', async () => {}],
         ['songs', '/admin/songs', closeAdminMenu],
-        ['presentation', presentation, pickItem],
+        ['presentation', presentation, showArranged],
         [
           'add-song',
           presentation,
