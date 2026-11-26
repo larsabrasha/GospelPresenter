@@ -60,6 +60,8 @@ linux:
   # An AppImage is decompressed at every start: gzip, not xz. The fpm targets name their own below, as fpm takes
   # gz/xz/… and not "normal".
   compression: normal
+  # The program's name; package.json's, @gp/desktop, is no file name.
+  executableName: gospel-presenter
   # deb and rpm refuse to build without a maintainer's address; noreply, a contact that says "not by mail".
   maintainer: Gospel Presenter <noreply@gospelpresenter.com>
   # The application menu's name; without it, the product name with dashes.

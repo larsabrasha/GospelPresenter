@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const commit = execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { encoding: 'utf8' }).trim();
 const env = { ...process.env, GP_RELEASE: '1', GP_COMMIT: commit };
+// On Windows pnpm is pnpm.cmd, which only a shell starts.
+const shell = process.platform === 'win32';
 
-execFileSync('pnpm', ['exec', 'turbo', 'run', 'build', '--filter=@gp/desktop...'], { cwd: root, env, stdio: 'inherit' });
-execFileSync('pnpm', ['exec', 'electron-builder', ...process.argv.slice(2).filter((a) => a !== '--')], { env, stdio: 'inherit' });
+execFileSync('pnpm', ['exec', 'turbo', 'run', 'build', '--filter=@gp/desktop...'], { cwd: root, env, stdio: 'inherit', shell });
+execFileSync('pnpm', ['exec', 'electron-builder', ...process.argv.slice(2).filter((a) => a !== '--')], { env, stdio: 'inherit', shell });
