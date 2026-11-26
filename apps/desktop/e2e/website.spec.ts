@@ -8,7 +8,8 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 import { makeZip, utf8Encode } from '../../../packages/core/src/index.ts';
 import { texts, type Language } from '../../web/src/i18n.ts';
 import { launch, MUTED, type Desktop } from './apps.ts';
-import { addSongs, backToSong, createOverlay, createPresentation, createSong, openAdmin, openArrangement, pickItem, setUpHost } from './flows.ts';
+import { addSongs, backToSong, createOverlay, createPresentation, createSong, nameNew, openAdmin, openArrangement, pair, pickItem, setUpHost } from './flows.ts';
+import { backdropPng, sermonFile, sermonPdf } from './website-art.ts';
 
 const out = process.env.GP_WEBSITE;
 test.skip(!out, 'only with GP_WEBSITE=<directory>');
@@ -33,7 +34,7 @@ interface Song {
  */
 const CONTENT: Record<
   Language,
-  { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string; description: string; comment: string; overlay: [string, string] }
+  { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string; description: string; comment: string; overlay: [string, string]; theme: string; phone: string }
 > = {
   sv: {
     org: 'Lilla Kyrkan',
@@ -92,6 +93,8 @@ const CONTENT: Record<
     phones: 'Mobiler',
     search: 'Gud',
     description: 'Med dop, och kyrkkaffe efteråt',
+    theme: 'Söndag',
+    phone: 'Annas mobil',
     comment: 'Kören sjunger med i sista refrängen',
     overlay: ['Kollekt', 'Swish 123 456 78 90'],
   },
@@ -153,14 +156,18 @@ const CONTENT: Record<
     phones: 'Phones',
     search: 'grace',
     description: 'With a baptism, and coffee afterwards',
+    theme: 'Sunday',
+    phone: "Anne's phone",
     comment: 'The choir joins in on the last chorus',
-    overlay: ['Offering', 'gracechapel.org/give'],
+    overlay: ['Offering', 'example.org/give'],
   },
 };
 
 // The 66 books, so the Bible tab lists them all; each holds one verse (the three above where they belong).
 /** The song of today's service that has an arrangement, a comment and an overlay: its third, with a chorus. */
 const ARRANGED = 2;
+/** The sermon's slideshow, after the three songs. */
+const SERMON = 3;
 
 const BOOKS = (
   'GEN EXO LEV NUM DEU JOS JDG RUT 1SA 2SA 1KI 2KI 1CH 2CH EZR NEH EST JOB PSA PRO ECC SNG ISA JER LAM EZK DAN HOS JOL AMO OBA JON MIC NAM HAB ZEP HAG ZEC MAL ' +
@@ -212,6 +219,7 @@ for (const lang of ['sv', 'en'] as const) {
     const content = CONTENT[lang];
     const t = (key: keyof (typeof texts)['sv']) => texts[lang][key];
     const host: Desktop = await launch();
+    let remote: Desktop | undefined;
     try {
       const page = host.page;
       // Filled in Swedish, as the steps in flows.ts are; shown in the language afterwards.
@@ -236,14 +244,44 @@ for (const lang of ['sv', 'en'] as const) {
         const [from, slide] = [(await text.boundingBox())!, (await canvas.boundingBox())!];
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
-        const [x, y] = [slide.x + slide.width * 0.04 + from.width / 2, slide.y + slide.height * 0.05 + from.height / 2];
+        const inset = slide.height * 0.05;
+        const [x, y] = [slide.x + inset + from.width / 2, slide.y + inset + from.height / 2];
         await page.mouse.move(x, y, { steps: 10 });
         await page.mouse.up();
         const moved = (await text.boundingBox())!;
-        expect(moved.x).toBeLessThan(slide.x + slide.width * 0.1);
+        expect(moved.x, JSON.stringify({ from, slide, moved })).toBeLessThan(slide.x + slide.width * 0.1);
         expect(moved.y).toBeLessThan(slide.y + slide.height * 0.1);
       }).toPass({ timeout: 10_000 });
+      // Left aligned, so the text starts where its box does, as far from the side as from the top.
+      await page.getByRole('radiogroup', { name: 'Justering' }).getByRole('radio', { name: 'Vänster' }).click();
       await expect(page.getByTestId('saved')).toBeVisible();
+      const overlayEditor = new URL(page.url()).pathname;
+      // The church's own theme, a picture behind its songs, made the default: every slide in the pictures shows it.
+      browser ??= await chromium.launch({ args: MUTED });
+      await openAdmin(page, 'Teman');
+      await page.getByRole('button', { name: 'Nytt tema' }).click();
+      await nameNew(page, content.theme);
+      await expect(page.getByTestId('theme-canvas')).toBeVisible();
+      // The background's panel, nothing picked; where the editor is narrow it is in Format's sheet.
+      const choose = page.getByRole('button', { name: 'Välj bakgrundsbild' }).filter({ visible: true });
+      if (!(await choose.count())) await page.getByRole('button', { name: 'Format', exact: true }).click();
+      await choose.click();
+      await page.getByRole('dialog', { name: 'Välj bild' }).getByTestId('picture-file').setInputFiles({ name: 'backdrop.png', mimeType: 'image/png', buffer: await backdropPng(browser) });
+      await expect(page.getByRole('button', { name: 'Byt bakgrundsbild' }).filter({ visible: true })).toBeVisible();
+      await expect(page.getByTestId('saved')).toBeVisible();
+      if (await page.getByTestId('format-sheet').isVisible()) await page.keyboard.press('Escape');
+      await openAdmin(page, 'Teman');
+      await page.getByRole('button', { name: `Fler val för ${content.theme}` }).click();
+      await page.getByRole('menuitem', { name: 'Använd som standard' }).click();
+      await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
+      // A phone of the church's, paired with this computer, to control from (the remote picture).
+      remote = await launch({ server: host.base });
+      await pair(page, remote.page, content.phone);
+      // Pairing let the network in; off again, so no picture's QR code holds this machine's address on it.
+      await openAdmin(page, 'Enheter i nätverket');
+      const lan = page.getByRole('switch', { name: 'Låt mobiler och skärmar ansluta' });
+      if (await lan.isChecked()) await lan.click();
+      await expect(lan).not.toBeChecked();
       await openAdmin(page, 'Biblar');
       await page.getByTestId('bible-file').setInputFiles({ name: 'bible.zip', mimeType: 'application/zip', buffer: Buffer.from(bibleZip(content.bible)) });
       await expect(page.getByTestId('bible-import-message')).toBeVisible();
@@ -270,6 +308,13 @@ for (const lang of ['sv', 'en'] as const) {
         page,
         content.songs.slice(0, 3).map((s) => s.title),
       );
+      // The sermon's slideshow after the songs, a PDF as a church exports one from PowerPoint or Keynote.
+      await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Bildspel', exact: true }).click();
+      const deck = page.getByRole('dialog', { name: 'Lägg till' });
+      await deck.getByTestId('slides-file').setInputFiles({ name: sermonFile(lang), mimeType: 'application/pdf', buffer: await sermonPdf(browser, lang) });
+      await expect(page.getByRole('status').getByText(`"${sermonFile(lang)}" har lagts till`)).toBeVisible({ timeout: 15_000 });
+      await deck.getByRole('button', { name: 'Stäng' }).click();
       const presentation = new URL(page.url()).pathname;
       await page.getByRole('button', { name: 'Alternativ' }).click();
       await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
@@ -368,6 +413,14 @@ for (const lang of ['sv', 'en'] as const) {
         ['songs', '/admin/songs', closeAdminMenu],
         ['presentation', presentation, showArranged],
         [
+          'slideshow',
+          presentation,
+          async (p) => {
+            if (!phone) await p.getByRole('list', { name: t('presentation.items') }).getByRole('listitem').nth(SERMON).getByRole('button').first().click();
+            else await openRow(p, sermonFile(lang));
+          },
+        ],
+        [
           'add-song',
           presentation,
           async (p) => {
@@ -376,6 +429,7 @@ for (const lang of ['sv', 'en'] as const) {
           },
         ],
         ['bible', presentation, (p) => openAdd(p, t('add.bible'))],
+        ['overlay-editor', overlayEditor, closeAdminMenu],
         ['presentation-live', presentation, goLive],
         // Still live: Fjärrstyrning switched on, its QR code for whoever is to control from a phone.
         [
@@ -385,12 +439,19 @@ for (const lang of ['sv', 'en'] as const) {
             await p.locator('[data-testid="remote-status"]:visible').first().click();
             const sheet = p.getByRole('dialog', { name: t('live.remote'), exact: true });
             await sheet.getByLabel(t('remote.allow')).check();
-            await expect(sheet.getByRole('img', { name: t('remote.qr') })).toBeVisible();
+            const qr = sheet.getByRole('img', { name: t('remote.qr') });
+            await expect(qr).toBeVisible();
+            controlLink = (await qr.getAttribute('data-value'))!;
+            // The code in the picture holds this machine's own address, never one on its network.
+            expect(new URL(controlLink).origin).toBe(new URL(host.base).origin);
           },
         ],
       ];
 
+      let controlLink = '';
       const cdp = await page.context().newCDPSession(page);
+      const remotePage = remote.page;
+      const remoteCdp = await remotePage.context().newCDPSession(remotePage);
       for (const theme of THEMES) {
         for (const [viewport, width, height] of VIEWPORTS) {
           await page.evaluate((th) => localStorage.setItem('theme', th), theme);
@@ -428,6 +489,14 @@ for (const lang of ['sv', 'en'] as const) {
           const remoteSheet = page.getByRole('dialog', { name: t('live.remote'), exact: true });
           if (await remoteSheet.isVisible()) await remoteSheet.getByRole('button', { name: t('common.close'), exact: true }).first().click();
           await expect(remoteSheet).toHaveCount(0);
+          // The phone that scanned the QR code, controlling what the computer presents.
+          await remoteCdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: SCALE, mobile: false });
+          await remoteCdp.send('Emulation.setScrollbarsHidden', { hidden: true });
+          await remotePage.evaluate(([th, l]) => (localStorage.setItem('theme', th), localStorage.setItem('language', l)), [theme, lang] as const);
+          const link = new URL(controlLink);
+          await remotePage.goto(`${host.base}${link.pathname}${link.search}`);
+          await livePictureSettled(remotePage, content.songs[0]!.parts[0]![1].split('\n')[0]!);
+          await shoot(remotePage, 'control');
           // Still live: a phone in the pews that follows the public output. On a phone the outputs are in Visning's sheet.
           if (phone) await page.getByRole('button', { name: t('live.display'), exact: true }).click();
           const toggle = page.getByRole('list', { name: t('live.outputs') }).getByLabel(content.phones);
@@ -449,6 +518,7 @@ for (const lang of ['sv', 'en'] as const) {
         }
       }
     } finally {
+      await remote?.app.close();
       await host.app.close();
     }
   });
