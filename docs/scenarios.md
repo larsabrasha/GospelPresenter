@@ -14,7 +14,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Give the band sheet music, a recording and a Spotify link on a song, gathered under Sunday's presentation | `song-materials.spec.ts`: "a song carries sheet music and links" |
 | Present on the projector (its own switch under Utgångar), and Avsluta closes it | `milestone6.spec.ts`: "the output window is a switch" |
 | Keep presenting through a reload; only Avsluta stops | `editor.spec.ts`: "a reload while presenting" |
-| Present from a phone: the picture, Släck, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
+| Present from a phone: the picture, Släck, each item a row opened by a tap, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |
 | Change the running order while live on a computer: drag a row, its menu, Lägg till efter, Delete | `live-order.spec.ts`: "presenting on a computer" |
 | Make the running order the whole service with points that show nothing, and leave a comment for those running it; presenting steps over a point | `programme-points.spec.ts`: "a programme point from +", "an item's comment" |
@@ -24,7 +24,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Phones follow on a public output | `watch.spec.ts`: "a public output follows" |
 | Overlays (the collection, a welcome) | `overlays.spec.ts`: "an item carries its overlay" |
 | Audio and video during the service | `audio.spec.ts`: "live: an audio slide plays alone", `video.spec.ts`: "live: the output window plays the video" |
-| Someone else drives from a second computer or a phone | `remote.spec.ts`: "a second computer takes control", `remote.spec.ts`: "a phone on the LAN" |
+| Someone else drives from a second computer or a phone | `remote.spec.ts`: "a second computer takes control", `remote.spec.ts`: "a phone on the LAN", `remote.spec.ts`: "a phone controlling remotely sees each item as a row" |
 | A clicker: next, previous and black from its keys | `milestone6.spec.ts`: "a clicker's keys" |
 | The presenting computer drops out mid-service | `remote.spec.ts`: "when the presenting computer drops out" |
 | The CCLI report | `ccli.spec.ts`: "a song with a CCLI number" |

@@ -215,3 +215,36 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await page.getByRole('combobox', { name: 'Fjärrstyrning av presentationer' }).selectOption({ label: 'Aldrig' });
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0, { timeout: 5_000 });
 });
+
+test('a phone controlling remotely sees each item as a row, the shown one open and following, and keeps open the one it opened', async () => {
+  const { owner: hostApp, other: secondApp } = await hostWithSecond();
+  const page = hostApp.page;
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
+  await createSong(page, 'Sång C', [['Verse 1', 'C ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A', 'Sång B', 'Sång C']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await pickItem(page, 'Sång A');
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await (await remoteSwitch(page)).check();
+  await page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true }).getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  const phone = secondApp.page;
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await openPresentations(phone);
+  await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
+  const order = phone.getByTestId('live-order');
+
+  // The shown item open, the others a row each (Lars, 2026-11-26).
+  await expect(order.getByRole('button', { name: /A ett/ })).toBeVisible({ timeout: 5_000 });
+  await expect(order.getByRole('button', { name: /B ett/ })).toHaveCount(0);
+  await expect(order.getByRole('button', { name: /Sång C\s*1 del/ })).toBeVisible();
+
+  // The phone opens Sång C to be ready; the host shows Sång B: B opens, A closes, C stays open.
+  await order.getByRole('button', { name: /Sång C\s*1 del/ }).click();
+  await pickItem(page, 'Sång B');
+  await page.getByRole('button', { name: 'Sång B 1' }).click();
+  await expect(order.getByRole('button', { name: /B ett/ })).toContainText('VISAS', { timeout: 5_000 });
+  await expect(order.getByRole('button', { name: /C ett/ })).toBeVisible();
+  await expect(order.getByRole('button', { name: /A ett/ })).toHaveCount(0);
+});

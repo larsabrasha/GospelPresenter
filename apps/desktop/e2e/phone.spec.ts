@@ -1,6 +1,6 @@
 // The presentation on a phone (390×844), one view before and while presenting (docs/layout-2-0.md): the running
-// order with every part's text and Lägg till's song preview over the add dialog; presenting adds the picture and
-// Släck.
+// order, each item a row opened to its parts' text, and Lägg till's song preview over the add dialog; presenting adds
+// the picture and Släck.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
@@ -49,11 +49,14 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await page.setViewportSize(PHONE);
   await page.reload();
 
-  // Before presenting: the running order with every part's text, ▶ in the bar, and no picture yet.
+  // Before presenting: the running order, each item one row with how many parts it has (Lars, 2026-11-26: an
+  // overview, for someone given a link to control it too); a tap opens its parts. ▶ in the bar, and no picture yet.
   const live = page.getByTestId('phone-live');
   const picture = page.getByTestId('phone-live-picture');
   const liveOrder = page.getByTestId('live-order');
   const start = live.getByRole('button', { name: 'Starta presentation' });
+  await expect(liveOrder.getByText('A två')).toHaveCount(0);
+  await liveOrder.getByRole('button', { name: /Sång A\s*2 delar/ }).click();
   await expect(liveOrder.getByText('A två')).toBeVisible();
   // With no side column, the description stands at the top of the list (Lars, 2026-11-03).
   await expect(liveOrder.getByTestId('description')).toContainText('Med nattvard');
@@ -116,7 +119,11 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await onScreen(picture);
   await onScreen(page.getByRole('button', { name: 'Släck' }));
   await expect(liveOrder.locator('section')).toHaveCount(2);
+  // Sång B, just added, is the item open; a tap on Sång A's row opens it and closes Sång B, showing nothing.
+  await liveOrder.getByRole('button', { name: /Sång A\s*2 delar/ }).click();
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toBeVisible();
+  await expect(liveOrder.getByRole('button', { name: /B ett/ })).toHaveCount(0);
+  await expect(picture).not.toContainText('A ett');
 
   // A tap on a part shows it: VISAS on it (no NÄSTA on the next: Lars, 2026-11-25), the picture on the outputs.
   await liveOrder.getByRole('button', { name: /A ett/ }).click();

@@ -99,8 +99,20 @@ tapped shows nothing, and ▶ starts it.
   kind, a menu with Sång first, Bildspel last and under a line Programpunkt (spec 03 2f), then opens that kind's dialog alone,
   without a row of tabs (Lars, 2026-11-04: six tabs do not fit a phone); on a computer the running order's Lägg till is
   the same menu (Lars, 2026-11-05: as ProPresenter's and Planning Center's +, a computer as a phone). An item's parts are one group of rows with hairlines, as iOS's inset grouped lists, and the foot of the list
-  has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). Every part of
-  every item is shown with its whole text (pictures as thumbnails); a tap on a part shows it. Each item is a
+  has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). An overview
+  (Lars, 2026-11-26, for anyone given a link to control it too, who must find their way at once): each item is one
+  row, its kind's icon, title and number of parts, until a tap opens it, which shows nothing on the screens; a
+  programme point is a row too, with its icon and nothing to open. An open item keeps the same row, its chevron › turned
+  to ⌄ as Notes' sections, its parts under it and the row sticking at the top while they scroll (Lars, 2026-11-26); the
+  chevron is at the far right, the … left of it, both at the same place in every row, and the shown item's row has the
+  red dot at its left. Open are the item shown, following the shown part from item to item however it moves, and the
+  one the user opened, kept open when the shown one moves on; opening another closes the one opened before, and an item
+  just added opens. A tap on an open row closes it, the shown one's too, which opens again with the next item shown.
+  While the user has
+  another item open the list neither follows the shown part nor moves what they look at, and when the shown part is
+  out of view a red "Till det som visas" at the foot glides to it. A part's number is at its foot at the right, VISAS
+  before it, as a computer's tile has its number (Lars, 2026-11-26). An open item's parts show their whole text
+  (pictures as thumbnails); a tap on a part shows it. Each item is a
   section whose heading (name, LIVE dot, kind, …) sticks at the top until the next pushes it away. The shown part
   has a red ring and VISAS; the ones before look as the rest (not dimmed), as one goes back to them. No NÄSTA on the
   next (Lars, 2026-11-25: the slides' numbers say the order). The slide the arrows or a number made ready, which ↵

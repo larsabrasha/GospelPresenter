@@ -6,9 +6,10 @@ import { followsShown } from '../../live/liveList.ts';
  * `data-current="true"`; before presenting the one picked, `data-picked="true"`), once for each slide shown, there at once on opening and glided to after (Lars,
  * 2026-11-02), unless it was tapped where it already shows (liveList.ts `followsShown`); and at once to an item's
  * section (`data-item`) each time a new `toItem` is given, the same item chosen again too. `margin` is the room kept above the
- * slide under its section's sticky heading. Returns what to call when a tap shows a slide.
+ * slide under its section's sticky heading. With `hold` (a phone's user looking at another item, Lars 2026-11-26) a
+ * new slide shown is not followed. Returns what to call when a tap shows a slide.
  */
-export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: string, margin: number, toItem: { id: string } | null) {
+export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: string, margin: number, toItem: { id: string } | null, hold = false) {
   const tapped = useRef(false);
   const followed = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -20,13 +21,13 @@ export function useFollowShown(box: RefObject<HTMLElement | null>, shownKey: str
     const slide = el?.querySelector<HTMLElement>(shownKey.startsWith('picked:') ? '[data-picked="true"]' : '[data-current="true"], [data-picked="true"]');
     const byTap = tapped.current;
     tapped.current = false;
-    if (!el || !slide) return;
+    if (!el || !slide || (hold && !opening)) return;
     const top = slide.getBoundingClientRect().top - el.getBoundingClientRect().top;
     // The sticky heading as it is drawn (an item's … makes it taller), so the slide's ring is never under it.
-    const heading = slide.closest('section')?.querySelector('h3')?.offsetHeight ?? 0;
+    const heading = slide.closest('section')?.querySelector<HTMLElement>('[data-heading]')?.offsetHeight ?? 0;
     if (followsShown({ byTap, top, bottom: top + slide.offsetHeight, viewHeight: el.clientHeight, headingHeight: heading }))
       el.scrollTo({ top: el.scrollTop + top - heading - margin, behavior: opening ? 'instant' : 'smooth' });
-  }, [box, shownKey, margin]);
+  }, [box, shownKey, margin, hold]);
 
   useEffect(() => {
     const el = box.current;

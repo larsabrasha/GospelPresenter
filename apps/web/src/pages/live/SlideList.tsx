@@ -14,6 +14,7 @@ import { PILL } from '../songEditorLook.ts';
 import { OverlayChip } from './OverlayChip.tsx';
 import { ItemContextMenu, type ItemMenuSource, type OpenItemMenu } from './ItemContextMenu.tsx';
 import { useFollowShown } from './followShown.ts';
+import { ItemRow, ToShownButton, useItemOverview, useKeepInPlace } from './phone/ItemOverview.tsx';
 
 /** A slide picked before presenting: outlined in blue, shown nowhere. */
 export type SlidePick = { itemId: string; partIndex: number };
@@ -105,8 +106,14 @@ export function SlideList({
     setOwnPicked(null);
   }
   const picked = pickedShown === undefined ? ownPicked : pickedShown;
-  // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next.
-  const markTapped = useFollowShown(box, !picked ? `${pointer.itemId}/${pointer.partIndex}` : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem);
+  // A phone's overview (Lars, 2026-11-26): items closed to a row each, the shown one and the one opened open.
+  const overview = !wide && only === undefined;
+  const shownKey = `${pointer.itemId}/${pointer.partIndex}`;
+  const fold = useItemOverview({ overview, shownId: onShow ? pointer.itemId : null, toItem });
+  useKeepInPlace(box, fold.hold ? fold.opened : null);
+  // It scrolls into view as a slide shown does, the one shown while presenting, unless one is outlined to show next;
+  // not while the user looks at another item on a phone (`hold`).
+  const markTapped = useFollowShown(box, !picked ? shownKey : `picked:${picked.itemId}/${picked.partIndex}`, wide ? 16 : 56, toItem, fold.hold);
   // One item on a computer: the one selected, or the first when none is (or it is gone).
   const at = only === undefined ? -1 : Math.max(0, items.findIndex((i) => i.id === only));
   const listed = only === undefined ? items : items.slice(at, at + 1);
@@ -125,15 +132,15 @@ export function SlideList({
   };
 
   // `elevated` on a computer: a step lighter in dark mode, so black slides stand out from the ground (app.css).
-  /** An item's …: on a phone its sheet (`onItemMenu`), on a computer its menu under the button. */
-  const itemMenuButton = (item: PresentationItem) =>
+  /** An item's …: on a phone its sheet (`onItemMenu`), on a computer its menu under the button; `row`: on a phone's row. */
+  const itemMenuButton = (item: PresentationItem, place: 'heading' | 'row' = 'heading') =>
     onItemMenu ? (
       <AppButton
         variant="plain"
         aria-label={t('live.itemMore', { title: item.title })}
         onClick={() => onItemMenu(item)}
         // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
-        className="ml-auto -mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300"
+        className={`${place === 'row' ? '' : 'ml-auto -mr-3 -mt-5 -mb-2'} size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-stone-600 dark:text-stone-300`}
       >
         <EllipsisIcon className="size-5" />
       </AppButton>
@@ -153,6 +160,45 @@ export function SlideList({
           <EllipsisIcon className="size-4" />
         </AppButton>
       )
+    );
+
+  /** An item's parts: its pictures edited in place, a computer's tiles, or a phone's rows with their whole text. */
+  const partsOf = (item: PresentationItem, set: ItemSlides | undefined, editing: boolean) =>
+    set && editing ? (
+      <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
+    ) : !set?.slides.length ? null : wide || (!onShow && (set.audio || set.video)) ? (
+      // Before presenting, an audio or video item's one tile carries its preview's controls, as the live picture
+      // does while presenting (MediaPreview.tsx), on a phone too; while presenting they are on the live picture.
+      <SlideGrid
+        itemId={item.id}
+        slides={set.slides}
+        label={item.title}
+        theme={theme}
+        overlayId={item.overlayId}
+        shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
+        picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
+        media={!onShow && (set.audio || set.video) ? <MediaPreview itemId={item.id} set={set} /> : undefined}
+        typing={typing}
+      />
+    ) : (
+      // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are
+      // lines of their own from where the text starts, as the sheets' groups draw them (INSET_HAIRLINES), not
+      // borders, which would follow a row's rounding, kept for the shown part's ring.
+      <div className={`rounded-2xl overflow-hidden bg-surface ${PART_HAIRLINES}`}>
+        {set.slides.map((slide, partIndex) => (
+          <PartRow
+            key={slide.key}
+            slide={slide}
+            partIndex={partIndex}
+            theme={theme}
+            current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
+            rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
+            mark={markOf(item.id, partIndex)}
+            picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
+            onShow={show ? () => show(item.id, partIndex) : () => pick({ itemId: item.id, partIndex })}
+          />
+        ))}
+      </div>
     );
 
   return (
@@ -176,6 +222,29 @@ export function SlideList({
         const set = slides.get(item.id);
         const song = item.type === 'song' ? songs.get(item.sourceId) : undefined;
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
+        // A phone's overview: the item's row, the same closed and open, sticking at the top while its parts scroll under
+        // it as a heading did; a programme point (a heading item) has no parts and nothing to open.
+        if (overview) {
+          const open = item.type !== 'header' && fold.isOpen(item.id);
+          return (
+            <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5">
+              <div data-heading className="sticky -top-px z-[2] -mx-4 px-4 pt-[calc(0.5rem+1px)] bg-ground">
+                <ItemRow
+                  item={item}
+                  parts={set?.slides.length ?? 0}
+                  overlays={overlays}
+                  open={open}
+                  shown={item.id === pointer.itemId && !pointer.black}
+                  marked={item.id === markedId}
+                  onToggle={item.type === 'header' ? undefined : () => fold.toggle(item.id)}
+                  menuButton={itemMenuButton(item, 'row')}
+                />
+              </div>
+              <ItemWarnings item={item} set={set} songName={song?.name} />
+              {open && partsOf(item, set, editing)}
+            </section>
+          );
+        }
         return (
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
             {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It
@@ -183,6 +252,7 @@ export function SlideList({
                 scroll lands between pixels (Lars, 2026-11-02). Its name starts where the rows' text does, as the start
                 page's captions (Lars, 2026-11-03). */}
             <h3
+              data-heading
               className={`sticky -top-px z-[2] -mx-4 lg:-mx-6 pl-8 pr-5 lg:pl-10 lg:pr-6 pt-[calc(1.25rem+1px)] lg:pt-[calc(0.875rem+1px)] pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
             >
               {/* The item's name, not renamed here: that confused (Lars, 2026-11-02). */}
@@ -208,45 +278,11 @@ export function SlideList({
               <ItemNote item={item} />
             </div>
             <ItemWarnings item={item} set={set} songName={song?.name} />
-            {set && editing ? (
-              <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
-            ) : !set?.slides.length ? null : wide || (!onShow && (set.audio || set.video)) ? (
-              // Before presenting, an audio or video item's one tile carries its preview's controls, as the live picture
-              // does while presenting (MediaPreview.tsx), on a phone too; while presenting they are on the live picture.
-              <SlideGrid
-                itemId={item.id}
-                slides={set.slides}
-                label={item.title}
-                theme={theme}
-                overlayId={item.overlayId}
-                shown={show && { pointer, itemId: item.id, mark: (partIndex) => markOf(item.id, partIndex), onShow: (partIndex) => show(item.id, partIndex) }}
-                picked={{ partIndex: picked?.itemId === item.id ? picked.partIndex : null, onPick: (partIndex) => pick({ itemId: item.id, partIndex }) }}
-                media={!onShow && (set.audio || set.video) ? <MediaPreview itemId={item.id} set={set} /> : undefined}
-                typing={typing}
-              />
-            ) : (
-              // An item's parts as one group of rows, as iOS's inset grouped lists (Lars, 2026-11-04). The hairlines are
-              // lines of their own from where the text starts, as the sheets' groups draw them (INSET_HAIRLINES), not
-              // borders, which would follow a row's rounding, kept for the shown part's ring.
-              <div className={`rounded-2xl overflow-hidden bg-surface ${PART_HAIRLINES}`}>
-              {set.slides.map((slide, partIndex) => (
-                <PartRow
-                  key={slide.key}
-                  slide={slide}
-                  partIndex={partIndex}
-                  theme={theme}
-                  current={!pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
-                  rested={pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex}
-                  mark={markOf(item.id, partIndex)}
-                  picked={!show && picked?.itemId === item.id && picked.partIndex === partIndex}
-                  onShow={show ? () => show(item.id, partIndex) : () => pick({ itemId: item.id, partIndex })}
-                />
-              ))}
-              </div>
-            )}
+            {partsOf(item, set, editing)}
           </section>
         );
       })}
+      <ToShownButton key={shownKey} box={box} active={fold.hold && !!onShow} />
       {footer && <div className="mt-auto flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
       {menu && menuSource && <ItemContextMenu menu={menu} source={menuSource} onClose={() => setMenu(null)} />}
     </div>
