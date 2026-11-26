@@ -2,7 +2,7 @@
 // item put in order, a slideshow's slide, its elements picked with Tab and moved with the arrows, and the live keys.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, nameNew, openAdmin, pickItem, setUpHost } from './flows.ts';
+import { addSongs, addToSlide, createPresentation, createSong, nameNew, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -89,9 +89,8 @@ test("a slideshow's elements are picked by Tab on the slide, moved by the arrows
   await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
   await nameNew(page, 'Tangenter');
   const canvas = page.getByTestId('slide-canvas');
-  for (const kind of ['Text', 'Rektangel']) {
-    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-    await page.getByRole('menuitem', { name: kind, exact: true }).click();
+  for (const kind of ['Text', 'Rektangel'] as const) {
+    await addToSlide(page, kind);
   }
   await canvas.press('Escape'); // the rectangle, just added, is picked
   const handles = page.locator('.moveable-control-box');

@@ -143,13 +143,29 @@ export async function createOverlay(page: Page, title: string, text: string) {
   // + (Skapa), or Nytt överlägg while the list is empty, whose own button stands alone then.
   await page.getByRole('button', { name: /^(Skapa|Nytt överlägg)$/ }).click();
   await nameNew(page, title);
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
+  await addToSlide(page, 'Text');
   const field = page.getByRole('textbox', { name: 'Text', exact: true });
   if (!(await field.isVisible())) await page.getByRole('button', { name: 'Format', exact: true }).click();
   await field.fill(text);
   await expect(page.getByTestId('slide-canvas')).toContainText(text);
   await expect(page.getByTestId('saved')).toBeVisible();
+}
+
+/**
+ * Puts a text, a picture or a shape on the slide being edited: from the toolbar on a computer (Form a menu of the
+ * shapes), from +'s sheet on a phone.
+ */
+export async function addToSlide(page: Page, kind: 'Text' | 'Bild' | 'Rektangel' | 'Rundad rektangel' | 'Ellips' | 'Linje') {
+  const plus = page.getByRole('toolbar', { name: 'Lägg till' }).getByRole('button', { name: 'Lägg till', exact: true });
+  if (await plus.isVisible()) {
+    await plus.click();
+    await page.getByTestId('insert-choices').getByRole('button', { name: kind, exact: true }).click();
+  } else if (kind === 'Text') await page.getByRole('button', { name: 'Lägg till text' }).click();
+  else if (kind === 'Bild') await page.getByRole('button', { name: 'Lägg till bild' }).click();
+  else {
+    await page.getByRole('button', { name: 'Lägg till form' }).click();
+    await page.getByRole('menuitem', { name: kind, exact: true }).click();
+  }
 }
 
 export async function createSong(page: Page, name: string, parts: [string, string][]) {

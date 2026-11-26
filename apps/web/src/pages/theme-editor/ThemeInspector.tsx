@@ -6,8 +6,9 @@ import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.ts
 import { ACTION_ROW, GROUP_ROW, Group } from '../../ui/Group.tsx';
 import { backgroundIn, defaultArea, joinColor, splitColor, type EditedKind, type TextRole } from './themeModel.ts';
 
-// The theme editor's Format (docs/themes.md), as the slideshows' editor's: with the main text or the credits picked,
-// their look and where they sit; with none, the theme's name and the kind's background.
+// The theme editor's Format (docs/themes.md), as the slideshows' editor's: the slide's parts in a list at the top
+// (Bakgrund, Text, Källa; Lars 2026-11-26), so what can be changed is in view and not to be guessed by tapping; under
+// them the picked part's look and place, or the kind's background; and the theme's name only just after it was made.
 
 const FONTS: [string, string][] = [
   [FONT_STACKS.tahoma, 'Tahoma'],
@@ -111,6 +112,7 @@ export function ThemeInspector({
   onText,
   onBackground,
   onChoosePicture,
+  onPick,
 }: {
   name: string;
   /** Just made: the name is focused and picked, to type over. */
@@ -123,15 +125,54 @@ export function ThemeInspector({
   onText: (key: string, patch: Partial<TextStyle>) => void;
   onBackground: (key: string, patch: Partial<Background>) => void;
   onChoosePicture: () => void;
+  onPick: (role: TextRole | null) => void;
 }) {
-  if (picked && kind !== 'media') return <TextPanel key={`${kind}:${picked}`} kind={kind} role={picked} style={definition[kind][picked]} onText={onText} />;
+  const parts = kind !== 'media' && <PartList picked={picked} onPick={onPick} />;
+  if (picked && kind !== 'media')
+    return (
+      <div className="space-y-5">
+        {parts}
+        <TextPanel key={`${kind}:${picked}`} kind={kind} role={picked} style={definition[kind][picked]} onText={onText} />
+      </div>
+    );
   return (
     <div className="space-y-5" data-testid="theme-inspector">
-      <Group>
-        <AutoSaveField autoSelect={nameNew} label={t('song.name')} maxChars={THEME_LIMITS.name} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
-      </Group>
+      {/* Bare, as the slide editor's: the card is its box, which cut a box of its own and its focus ring. */}
+      {nameNew && (
+        <Group>
+          <AutoSaveField bare autoSelect label={t('song.name')} maxChars={THEME_LIMITS.name} value={name} onSave={(v) => (v.trim() ? onRename(v) : undefined)} onSaved={onSaved} />
+        </Group>
+      )}
+      {parts}
       <BackgroundPanel kind={kind} background={backgroundIn(definition, kind)} onBackground={onBackground} onChoosePicture={onChoosePicture} />
-      {kind !== 'media' && <p className="px-4 text-[13px] text-stone-500 dark:text-stone-400">{t('themeEditor.pickHint')}</p>}
     </div>
+  );
+}
+
+const PARTS: [TextRole | null, TextKey][] = [
+  [null, 'slideEditor.background'],
+  ['main', 'themeEditor.mainText'],
+  ['credits', 'themeEditor.credits'],
+];
+
+/** The slide's parts, the picked one filled in the app's colour, as a row picked in a list on iOS. */
+function PartList({ picked, onPick }: { picked: TextRole | null; onPick: (role: TextRole | null) => void }) {
+  return (
+    <Group title={t('themeEditor.parts')}>
+      <div role="radiogroup" aria-label={t('themeEditor.parts')} className="flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator">
+        {PARTS.map(([role, key]) => (
+          <AppButton
+            key={key}
+            variant="plain"
+            role="radio"
+            aria-checked={picked === role}
+            className={`h-11 px-4 flex items-center text-left cursor-pointer ${picked === role ? 'bg-sky-500 text-white' : 'hover:bg-raised'}`}
+            onClick={() => onPick(role)}
+          >
+            {t(key)}
+          </AppButton>
+        ))}
+      </div>
+    </Group>
   );
 }

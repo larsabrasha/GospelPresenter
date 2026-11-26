@@ -33,11 +33,15 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
   const box = elementBox(e);
   if (e.kind === 'text') {
     const main = mainCss(theme, 'song');
+    // As tall as its words at least, as Keynote's text box: a larger size grows the box with the text, so the box and
+    // its handles stay round the words and a tap on them picks it (Lars, 2026-11-26). The words start at its top either way.
+    const { height, ...rest } = box;
     return (
       <div
         data-element={e.id}
         style={{
-          ...box,
+          ...rest,
+          minHeight: height,
           ...main,
           fontSize: e.size,
           fontWeight: e.bold ? 700 : main.fontWeight,

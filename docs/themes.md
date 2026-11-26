@@ -83,13 +83,16 @@ for an own theme, Duplicera, and Ta bort tema red, asked first; a right click or
 same menu. A tap on an own theme opens its editor; a built-in one says what it is for as its tooltip. Välj, as every
 list has it, ticks own themes to delete together; the built-in ones are greyed under it.
 
-The editor (`pages/theme-editor/`) is the slideshows' (Lars, 2026-11-04): Ångra and Gör om above the slide (⌘Z,
-⇧⌘Z), the three kinds of slide (Sång, Bibeltext, Bild och video) where the slideshows' editor has its pages, and
-Format at the right where the editor is wide (`@4xl`), else a popover under the brush, or a sheet on a phone, as
-the slideshows' editor has it. The slide is a sample of the kind, drawn as
-every output draws it; the boxes of its texts are dashed. A tap on the main text or the credits picks it: its handles
-drag and size its box, lined up with the stage's edges and middle, and Format has its look; a tap beside them, the
-theme's name and the kind's background. By the keyboard as the slideshows' editor: with focus on the slide, Tab
+The editor (`pages/theme-editor/`) is the slideshows' (Lars, 2026-11-26, as Keynote's): Ångra and Gör om in a
+capsule above the slide (⌘Z, ⇧⌘Z) and Format's brush at the right, which shows and hides Format: a panel beside the
+slide where the editor's column is 640 px or wider, the slide narrower and never covered, else a popover under the
+brush, or a sheet on a phone. The three kinds of slide (Sång, Bibeltext, Bild och video) are pictures of them in the
+theme, as Keynote's slide navigator: a column at the left of the slide from 960 px, a row under it otherwise. The
+theme is renamed from its title's menu (Byt namn…); its name is in Format only just after it was made. The slide is a
+sample of the kind, drawn as every output draws it; the boxes of its texts are dashed. Format lists the slide's parts
+at its top (Bakgrund, Text, Källa), so what can be changed is in view; a part picked there or by a tap on the slide
+(the main text or the credits) shows its look, and its handles drag and size its box, lined up with the stage's edges
+and middle; Bakgrund, or a tap beside the texts, the kind's background. By the keyboard as the slideshows' editor: with focus on the slide, Tab
 picks the main text, then the credits, an arrow moves the picked box a point (⇧ ten), and Escape picks none
 (`e2e/keyboard.spec.ts`). It saves as it goes, the whole definition, half a second after the last
 change, and at once on leaving.

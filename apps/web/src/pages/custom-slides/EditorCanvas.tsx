@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type TouchEvent } from 'react';
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
-import { CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
+import { CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Slide, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { mainCss, stageCss } from '../../themes.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
+import { SlideView } from '../../ui/SlideView.tsx';
 import { arrowNudge, CANVAS_FOCUS, nextInTurn } from '../../ui/canvasKeys.ts';
 import { HoldMenu } from '../../ui/RemoveMenu.tsx';
 import { withMaxChars } from '../../ui/maxChars.ts';
@@ -55,6 +56,7 @@ export function EditorCanvas({
   onPick,
   onChange,
   onEditText,
+  behind,
 }: {
   page: CustomPage;
   theme: Theme;
@@ -66,6 +68,8 @@ export function EditorCanvas({
   onPick: (id: string | null) => void;
   onChange: (id: string, patch: Partial<CustomElement>) => void;
   onEditText: (on: boolean) => void;
+  /** An overlay's: the slide drawn under it as it will be shown, null for the black screen (OverlayBehind.tsx). */
+  behind?: Slide | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
@@ -178,6 +182,8 @@ export function EditorCanvas({
   const resizeEnd = ({ lastEvent, target: el }: OnResizeEnd) => {
     if (!lastEvent || !element) return;
     el.style.transform = '';
+    // A text's box is drawn with a least height, not a height: the one set while sizing would hold it.
+    if (element.kind === 'text') el.style.height = '';
     const [left, top] = drawnLeftTop(element);
     const [tx, ty] = lastEvent.drag.beforeTranslate;
     onChange(element.id, boxAfter(element, left + tx, top + ty, lastEvent.width, lastEvent.height));
@@ -203,6 +209,11 @@ export function EditorCanvas({
       >
         <div className="absolute inset-0 overflow-hidden rounded-xl ring-1 ring-separator shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
           <div ref={setStage} className="absolute left-0 top-0 origin-top-left" style={{ width: CANVAS.width, height: CANVAS.height, transform: `scale(${scale})`, ...stageCss(theme, 'song') }}>
+            {behind !== undefined && (
+              <div className="absolute inset-0">
+                <SlideView slide={behind} theme={theme} label={false} />
+              </div>
+            )}
             <CustomPageView page={page} theme={theme} hide={writing?.id} />
             {writing && <InlineText element={writing} theme={theme} onChange={(text) => onChange(writing.id, { text })} onDone={() => onEditText(false)} />}
           </div>

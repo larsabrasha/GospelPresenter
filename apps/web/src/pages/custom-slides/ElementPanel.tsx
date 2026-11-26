@@ -3,8 +3,26 @@ import { CUSTOM_LIMITS, type CustomElement } from '@gp/core';
 import { t, type TextKey } from '../../i18n.ts';
 import { ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { ACTION_ROW, GROUP_ROW, Group } from '../../ui/Group.tsx';
+import { ACTION_ROW, GROUP_ROW, Group, PopUp } from '../../ui/Group.tsx';
 import { withMaxChars } from '../../ui/maxChars.ts';
+import type { Corner } from './slideModel.ts';
+
+/**
+ * A text's sizes, on the 1920×1080 slide: from a line under the song's words to a heading, as Keynote's menu of sizes
+ * (Lars, 2026-11-26: a slider to 400 made sizes no slide wants easy to land on).
+ */
+const SIZES = [32, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240];
+
+/** The sizes, with a size of its own the text has (set before this menu) in its place among them. */
+const sizesWith = (size: number) => (SIZES.includes(size) ? SIZES : [...SIZES, size].toSorted((a, b) => a - b));
+
+/** The four corners, each a button drawn as an arrow toward it. */
+const CORNERS: [Corner, TextKey, string][] = [
+  ['topLeft', 'slideEditor.topLeft', '↖'],
+  ['topRight', 'slideEditor.topRight', '↗'],
+  ['bottomLeft', 'slideEditor.bottomLeft', '↙'],
+  ['bottomRight', 'slideEditor.bottomRight', '↘'],
+];
 
 // What the picked element is, to change (docs/custom-slides.md): its words, size and colour, its fill and outline,
 // its picture, its place in the drawing order; and, with nothing picked, the page's background and the page itself.
@@ -24,6 +42,7 @@ export function ElementPanel({
   textRef,
   onChange,
   onReorder,
+  onCorner,
   layers,
   onDuplicate,
   onRemove,
@@ -34,6 +53,7 @@ export function ElementPanel({
   textRef: RefObject<HTMLTextAreaElement | null>;
   onChange: (patch: Partial<CustomElement>) => void;
   onReorder: (to: 'top' | 'bottom') => void;
+  onCorner: (corner: Corner) => void;
   /** The page's elements in their drawing order, in Ordna. */
   layers: ReactNode;
   onDuplicate: () => void;
@@ -54,7 +74,16 @@ export function ElementPanel({
               onChange={withMaxChars(CUSTOM_LIMITS.text, (ev) => onChange({ text: ev.target.value }))}
             />
           </div>
-          <Slider label={t('slideEditor.size')} value={e.size} min={10} max={400} onChange={(size) => onChange({ size })} />
+          <div className={GROUP_ROW}>
+            <span>{t('slideEditor.size')}</span>
+            <PopUp aria-label={t('slideEditor.size')} value={e.size} onChange={(ev) => onChange({ size: Number(ev.target.value) })}>
+              {sizesWith(e.size).map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </PopUp>
+          </div>
           <div className={GROUP_ROW}>
             <span>{t('slideEditor.style')}</span>
             <span className="flex gap-2">
@@ -90,6 +119,18 @@ export function ElementPanel({
       )}
       {tab === 'arrange' && (
         <>
+          <Group>
+            <div className={GROUP_ROW}>
+              <span>{t('slideEditor.corner')}</span>
+              <span className="flex gap-1">
+                {CORNERS.map(([corner, key, arrow]) => (
+                  <AppButton key={corner} variant="plain" aria-label={t(key)} title={t(key)} className="size-8 rounded-full bg-raised text-[15px] cursor-pointer hover:bg-raised-2" onClick={() => onCorner(corner)}>
+                    {arrow}
+                  </AppButton>
+                ))}
+              </span>
+            </div>
+          </Group>
           {layers}
           {/* One step forward or back is a drag in the list, or Alt+↑/↓ (Lars, 2026-11-05). */}
           <Group>
@@ -118,17 +159,17 @@ export function ElementPanel({
   );
 }
 
-/** The inspector's tabs, as iOS's segmented control. */
+/** The inspector's tabs, as Keynote's: the chosen one filled in the app's colour (Lars, 2026-11-26). */
 export function InspectorTabs({ tabs, value, onChange }: { tabs: InspectorTab[]; value: InspectorTab; onChange: (tab: InspectorTab) => void }) {
   return (
-    <div className="flex rounded-full bg-raised p-0.5" role="tablist">
+    <div className="flex w-full rounded-full bg-stone-200 dark:bg-raised p-0.5" role="tablist">
       {tabs.map((tab) => (
         <AppButton
           key={tab}
           variant="plain"
           role="tab"
           aria-selected={value === tab}
-          className={`flex-1 h-8 px-3 rounded-full text-[13px] cursor-pointer ${value === tab ? 'bg-surface dark:bg-raised-2 shadow font-medium' : 'text-stone-500 dark:text-stone-400'}`}
+          className={`flex-1 h-8 px-3 rounded-full text-[13px] cursor-pointer ${value === tab ? 'bg-sky-500 text-white font-medium' : 'text-stone-600 dark:text-stone-300'}`}
           onClick={() => onChange(tab)}
         >
           {t(TAB_TEXT[tab])}

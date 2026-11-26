@@ -2,7 +2,7 @@
 // from +, undone and done again, and the slideshow added to a presentation from Lägg till's Bildspel, drawn there.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { closeAdmin, createPresentation, nameNew, openAdmin, setUpHost } from './flows.ts';
+import { addToSlide, closeAdmin, createPresentation, nameNew, openAdmin, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -22,10 +22,8 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   const canvas = page.getByTestId('slide-canvas');
   await expect(canvas).toBeVisible();
 
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Rektangel', exact: true }).click();
+  await addToSlide(page, 'Text');
+  await addToSlide(page, 'Rektangel');
   await expect(canvas.locator('[data-element]')).toHaveCount(2);
   await expect(canvas).toContainText('Text');
 
@@ -36,8 +34,7 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await expect(page.getByTestId('saved')).toBeVisible();
 
   // A picture from this device is the slideshow's own: drawn on the page, and not put in Bilder.
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
+  await addToSlide(page, 'Bild');
   await page.getByRole('dialog', { name: 'Välj bild' }).getByTestId('picture-file').setInputFiles({ name: 'Swish.png', mimeType: 'image/png', buffer: solidPng(640, 360, [14, 165, 233]) });
   await expect(canvas.locator('img[data-element]')).toHaveCount(1);
   await expect(page.getByTestId('saved')).toBeVisible();
@@ -72,17 +69,16 @@ test('an element covered by another is picked by a tap again or from Lager, and 
   await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
   await nameNew(page, 'Lager');
   const canvas = page.getByTestId('slide-canvas');
-  for (const kind of ['Text', 'Rektangel']) {
-    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-    await page.getByRole('menuitem', { name: kind, exact: true }).click();
+  for (const kind of ['Text', 'Rektangel'] as const) {
+    await addToSlide(page, kind);
   }
   const ids = () => canvas.locator('[data-element]').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-element')));
   const [textId, rectId] = await ids();
   // Format is a column or a popover by the editor's width; the inspector is drawn in one of them.
   const shown = (name: string) => page.getByRole('tab', { name, exact: true }).filter({ visible: true });
   const openFormat = async () => {
-    const brush = page.getByRole('button', { name: 'Format', exact: true });
-    if (await brush.isVisible()) await brush.click();
+    // The brush shows and hides it: pressed only when no inspector is in view.
+    if (!(await page.getByTestId('inspector').filter({ visible: true }).count())) await page.getByRole('button', { name: 'Format', exact: true }).click();
   };
 
   // The middle of the page has the rectangle over the text: a tap picks the rectangle, a tap again the text.

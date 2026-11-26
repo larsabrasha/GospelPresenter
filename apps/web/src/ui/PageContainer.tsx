@@ -5,7 +5,8 @@ import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
 import { useSplit } from './useWide.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
-import { ChevronLeftIcon } from './icons.tsx';
+import { ChevronDownIcon, ChevronLeftIcon } from './icons.tsx';
+import { Dropdown } from './Dropdown.tsx';
 import { ROUND_BACK } from './glass.ts';
 
 const Filled = createContext(false);
@@ -162,16 +163,44 @@ function IntroCard({ title, intro }: { title: string; intro: PageIntro }) {
  * button with `onBack`; with neither, the title alone (Profile.razor). In Inställningar the title and Sparad go to
  * its bar at every width, and the page shows no heading of its own: never the name twice (Lars, 2026-11-04).
  */
+/**
+ * A page's title; with `menu`, a button with ⌄ that opens it, as the document's name in Keynote and Pages on an iPad
+ * (Lars, 2026-11-26: Byt namn… there, not in Format).
+ */
+function Title({ title, menu, className }: { title: string; menu?: ReactNode; className: string }) {
+  if (!menu) return <h1 className={className}>{title}</h1>;
+  return (
+    <h1 className={`${className} min-w-0`}>
+      <Dropdown
+        className="relative min-w-0"
+        menuClassName="min-w-48 left-0"
+        button={{ className: 'flex items-center gap-1 min-w-0 max-w-full px-1.5 rounded-lg cursor-pointer hover:bg-stone-200/70 dark:hover:bg-raised-2' }}
+        trigger={
+          <>
+            <span className="truncate">{title}</span>
+            <ChevronDownIcon className="size-4 shrink-0 text-stone-500" />
+          </>
+        }
+      >
+        {menu}
+      </Dropdown>
+    </h1>
+  );
+}
+
 export function DetailHeader({
   backHref,
   onBack,
   title,
+  menu,
   saved,
   className,
 }: {
   backHref?: string;
   onBack?: () => void;
   title: string;
+  /** The title's menu: the title is then a button that opens it. */
+  menu?: ReactNode;
   saved?: ReactNode;
   className?: string;
 }) {
@@ -191,14 +220,14 @@ export function DetailHeader({
         slot &&
         createPortal(
           <>
-            <h1 className="min-w-0 font-semibold text-[17px] truncate">{title}</h1>
+            <Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px] truncate" />
             {saved}
           </>,
           slot,
         )}
       {toPhoneBar && (
         <>
-          {phone.title && title && createPortal(<h1 className="min-w-0 font-semibold text-[17px] truncate">{title}</h1>, phone.title)}
+          {phone.title && title && createPortal(<Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px] truncate" />, phone.title)}
           {phone.saved && createPortal(saved, phone.saved)}
         </>
       )}
@@ -216,7 +245,7 @@ export function DetailHeader({
           <ChevronLeftIcon className="size-5" />
         </AppButton>
       )}
-      <h1 className="text-xl/7 font-bold dark:text-stone-100 truncate max-w-[60%]">{title}</h1>
+      <Title title={title} menu={menu} className="text-xl/7 font-bold dark:text-stone-100 truncate max-w-[60%]" />
       {saved}
     </div>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { CLASSIC, type CustomElement, type CustomPage } from '@gp/core';
+import { CLASSIC, FIELD_RULES, type CustomElement, type CustomPage } from '@gp/core';
 import { defaultTheme } from '../../db/queries.ts';
 import { useData, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -8,29 +8,34 @@ import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSavedIndicator, useTrySave } from '../../ui/AutoSave.tsx';
 import { CONTEXT_ROW } from '../../ui/ContextMenu.tsx';
-import { ArrowUturnLeftIcon, ArrowUturnRightIcon, PaintBrushIcon } from '../../ui/icons.tsx';
+import { MENU_ITEM } from '../../ui/Dropdown.tsx';
+import { PhotoIcon, PlusIcon } from '../../ui/icons.tsx';
+import { NameDialog } from '../../ui/NameDialog.tsx';
+import { usePhone } from '../../ui/usePhone.ts';
 import { DetailHeader, PageContainer } from '../../ui/PageContainer.tsx';
 import { href } from '../../ui/router.ts';
 import { readEdited, renameEdited, savePages, type EditedKind } from './edited.ts';
 import { EditorCanvas } from './EditorCanvas.tsx';
+import { FormatButton, GROUP, TOOL, UndoRedo, useWide } from './EditorChrome.tsx';
 import { FormatSheet } from './FormatSheet.tsx';
 import { useJustCreated } from '../../ui/justCreated.ts';
 import * as history from './history.ts';
 import { ImagePicker } from './ImagePicker.tsx';
 import { Inspector } from './Inspector.tsx';
-import { InsertMenu } from './InsertMenu.tsx';
+import { InsertChoices, ShapeMenu, TextMark } from './InsertMenu.tsx';
+import { BehindPicker, behindSlide, useBehind } from './OverlayBehind.tsx';
 import { PageNavigator } from './PageNavigator.tsx';
 import * as model from './slideModel.ts';
 
-// A custom slide's editor (docs/custom-slides.md), as Keynote's: Ångra, Gör om, + and Format above the page; the
-// pages in a column at the left on a computer and an iPad, under the page on a phone; Format's panel at the right, or
-// a sheet on a phone. It saves as it goes, all the pages at once, half a second after the last change. An overlay is
-// edited by the same editor, with its one page and no pages to add or background to set.
+// A custom slide's editor (docs/custom-slides.md), as Keynote's (Lars, 2026-11-26): on a computer a toolbar of
+// grouped round buttons, Ångra and Gör om, then Text, Form and Bild, then Format at the right, which shows and hides
+// Format's panel beside the page, the page narrower and never covered; on a phone one group at the right, Ångra, Gör
+// om, + and Format, + and Format sheets from below with the page above them, Format's tabs at the sheet's head. The
+// pages in a column at the left on a wide screen, under the page otherwise. It saves as it goes, all the pages at once,
+// half a second after the last change. An overlay is edited by the same editor, with its one page and no pages to add
+// or background to set, over a song's slide, a Bible text's or the black screen (Exempelslide, under the page).
 
 const SAVE_AFTER_MS = 500;
-
-/** A round button of the editor's row, as Keynote's toolbar's. */
-const TOOL = 'size-10 rounded-full flex items-center justify-center cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-raised-2 disabled:text-stone-300 dark:disabled:text-stone-600 disabled:cursor-default';
 
 type Choosing = 'add' | 'replace' | 'background' | null;
 
@@ -49,7 +54,18 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const [writing, setWriting] = useState(false);
   // Just made: Format open with the name picked, where it is a popover or a sheet (ui/justCreated.ts).
   const isNew = useJustCreated(id);
-  const [formatOpen, setFormatOpen] = useState(isNew);
+  // Just made, the name is in Format to type at once, until something on the slide is picked.
+  const [naming, setNaming] = useState(isNew);
+  const phone = usePhone();
+  const column = useRef<HTMLDivElement>(null);
+  const wide = useWide(column) && !phone;
+  const [renaming, setRenaming] = useState(false);
+  // Open beside the page on a computer until closed; on a phone and in a popover only when asked for, or just made.
+  const [formatChoice, setFormatOpen] = useState<boolean | null>(isNew ? true : null);
+  const formatOpen = formatChoice ?? wide;
+  const [adding, setAdding] = useState(false);
+  const [behind, setBehind] = useBehind();
+  const [tabsSlot, setTabsSlot] = useState<HTMLDivElement | null>(null);
   const [choosing, setChoosing] = useState<Choosing>(null);
   const [clip, setClip] = useState<CustomElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -107,6 +123,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   };
   const pick = (eid: string | null) => {
     setPicked(eid);
+    if (eid) setNaming(false);
     if (!eid) setWriting(false);
   };
   const insert = (e: CustomElement) => {
@@ -172,7 +189,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
   const inspector = (
     <Inspector
       name={slide.name}
-      nameNew={isNew}
+      nameNew={naming}
       page={page}
       pageAt={pageAt}
       element={element}
@@ -183,17 +200,32 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
       onPage={onPage}
       onElement={(key, patch) => element && onPage(`${element.id}:${key}`, (p) => model.changeElement(p, element.id, patch))}
       onReorder={(to) => element && onPage('', (p) => model.reorderElement(p, element.id, to))}
+      onCorner={(corner) => element && onPage('', (p) => model.changeElement(p, element.id, model.inCorner(element, corner)))}
       onMoveLayer={(from, to) => onPage('', (p) => model.moveElement(p, from, to))}
       onPick={pick}
       onDuplicate={duplicate}
       onRemove={remove}
       onChoose={setChoosing}
+      tabsInto={phone ? tabsSlot : null}
     />
   );
+  const overlay = edits === 'overlay';
+  const undoRedo = <UndoRedo canUndo={!!h.past.length} canRedo={!!h.future.length} onUndo={() => step(history.undo)} onRedo={() => step(history.redo)} />;
+  const formatButton = <FormatButton open={formatOpen} onToggle={() => (setAdding(false), setFormatOpen(!formatOpen))} />;
 
   return (
     <PageContainer maxWidthClass="max-w-[1400px]" className="pb-8">
-      <DetailHeader backHref={href({ page: edits === 'slide' ? 'customSlides' : 'overlays' })} title={slide.name} saved={saved.node} className="px-5" />
+      <DetailHeader
+        backHref={href({ page: edits === 'slide' ? 'customSlides' : 'overlays' })}
+        title={slide.name}
+        menu={
+          <AppButton variant="plain" role="menuitem" className={MENU_ITEM} onClick={() => setRenaming(true)}>
+            {t('slideEditor.rename')}
+          </AppButton>
+        }
+        saved={saved.node}
+        className="px-5"
+      />
       {/* Three columns where the editor is wide enough (its own width: Inställningar's column is narrower than the
           window), else the page with its pages under it and Format as a sheet. */}
       <div className="@container">
@@ -212,44 +244,81 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
             />
           </div>
         )}
-        <div className="relative order-1 @4xl:order-2 flex-1 min-w-0 space-y-3">
-          {/* Keynote's toolbar: Ångra and Gör om at the left, + and Format at the right. */}
-          <div className="flex items-center gap-1" role="toolbar" aria-label={t('slideEditor.add')}>
-            <AppButton variant="plain" className={TOOL} disabled={!h.past.length} aria-label={t('slideEditor.undo')} title={t('slideEditor.undo')} onClick={() => step(history.undo)}>
-              <ArrowUturnLeftIcon className="size-5" />
-            </AppButton>
-            <AppButton variant="plain" className={TOOL} disabled={!h.future.length} aria-label={t('slideEditor.redo')} title={t('slideEditor.redo')} onClick={() => step(history.redo)}>
-              <ArrowUturnRightIcon className="size-5" />
-            </AppButton>
-            <span className="flex-1" />
-            {/* One popover at a time, as on an iPad: + closes Format where Format is one, so it never covers +'s menu. */}
-            <span className="contents" onClickCapture={() => setFormatOpen(false)}>
-              <InsertMenu className={TOOL} onInsert={add} />
-            </span>
-            <AppButton variant="plain" className={`${TOOL} @4xl:hidden ${formatOpen ? 'bg-sky-500/15' : ''}`} aria-label={t('slideEditor.format')} title={t('slideEditor.format')} aria-pressed={formatOpen} onClick={() => setFormatOpen((o) => !o)}>
-              <PaintBrushIcon className="size-5" />
-            </AppButton>
-          </div>
-          {/* Format under the brush where the editor is narrow; beside the page where it is wide. */}
-          {formatOpen && (
-            <FormatSheet title={t('slideEditor.format')} onClose={() => setFormatOpen(false)}>
+        <div ref={column} className="relative order-1 @4xl:order-2 flex-1 min-w-0 space-y-3">
+          {phone ? (
+            <div className="flex justify-end" role="toolbar" aria-label={t('slideEditor.add')}>
+              <div className={GROUP}>
+                {undoRedo}
+                <AppButton variant="plain" className={TOOL} aria-label={t('slideEditor.add')} title={t('slideEditor.add')} onClick={() => (setFormatOpen(false), setAdding(true))}>
+                  <PlusIcon className="size-5" />
+                </AppButton>
+                {formatButton}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2" role="toolbar" aria-label={t('slideEditor.add')}>
+              <div className={GROUP}>{undoRedo}</div>
+              <div className={GROUP}>
+                <AppButton variant="plain" className={TOOL} aria-label={t('slideEditor.addText')} title={t('slideEditor.text')} onClick={() => add('text')}>
+                  <TextMark />
+                </AppButton>
+                <ShapeMenu className={TOOL} onInsert={add} />
+                <AppButton variant="plain" className={TOOL} aria-label={t('slideEditor.addImage')} title={t('slideEditor.image')} onClick={() => add('image')}>
+                  <PhotoIcon className="size-5" />
+                </AppButton>
+              </div>
+              <span className="flex-1" />
+              <div className={GROUP}>{formatButton}</div>
+            </div>
+          )}
+          {/* Format as a popover under the brush where the column is narrow, as a sheet on a phone (its tabs at the
+              head); beside the page where it is wide. */}
+          {formatOpen && !wide && (
+            <FormatSheet title={t('slideEditor.format')} hideFrom="" head={phone && element ? <div ref={setTabsSlot} className="w-full" /> : undefined} onClose={() => setFormatOpen(false)}>
               {inspector}
             </FormatSheet>
           )}
-          <EditorCanvas
-            page={page}
-            theme={theme}
-            picked={element ? picked : null}
-            editingText={writing}
-            menu={menu}
-            onPick={pick}
-            onChange={(eid, patch) => onPage(`${eid}:${Object.keys(patch).join(',')}`, (p) => model.changeElement(p, eid, patch))}
-            onEditText={setWriting}
-          />
+          {adding && (
+            <FormatSheet title={t('slideEditor.add')} hideFrom="" onClose={() => setAdding(false)}>
+              <InsertChoices onInsert={(kind) => (setAdding(false), add(kind))} />
+            </FormatSheet>
+          )}
+          <div className="flex gap-4 items-start">
+            <div className="flex-1 min-w-0 space-y-3">
+              <EditorCanvas
+                page={page}
+                theme={theme}
+                picked={element ? picked : null}
+                editingText={writing}
+                menu={menu}
+                onPick={pick}
+                onChange={(eid, patch) => onPage(`${eid}:${Object.keys(patch).join(',')}`, (p) => model.changeElement(p, eid, patch))}
+                onEditText={setWriting}
+                behind={overlay ? behindSlide(behind) : undefined}
+              />
+              {overlay && <BehindPicker value={behind} onChange={setBehind} className="max-w-md" />}
+            </div>
+            {formatOpen && wide && (
+              <aside className="w-80 shrink-0" aria-label={t('slideEditor.format')} data-testid="format-panel">
+                {inspector}
+              </aside>
+            )}
+          </div>
         </div>
-        <aside className="hidden @4xl:block order-2 @4xl:order-3 @4xl:w-80 shrink-0">{inspector}</aside>
       </div>
       </div>
+      {renaming && (
+        <NameDialog
+          title={t('library.rename')}
+          label={t('song.name')}
+          maxChars={FIELD_RULES.name.max}
+          initial={slide.name}
+          onClose={() => setRenaming(false)}
+          submit={async (name) => {
+            if (await trySave(renameEdited(db, edits, id, name))) setRenaming(false);
+          }}
+        />
+      )}
       {choosing && (
         <ImagePicker
           onClose={() => setChoosing(null)}

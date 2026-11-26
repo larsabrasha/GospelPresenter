@@ -93,8 +93,14 @@ and dropped the table. An import from 1.x writes slideshows; a zip of an older f
 
 As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
 
-- **Above the page**, Ångra and Gör om at the left, + and Format (the brush) at the right. + adds a text, a picture
-  (of Bilder or from the device, `ImagePicker.tsx`), or a shape (rektangel, rundad rektangel, ellips, linje) in the middle of the page.
+- **Above the page** a toolbar of round buttons in groups, as Keynote's on macOS Tahoe (Lars, 2026-11-26): on a
+  computer Ångra and Gör om; then Text, Form and Bild, which add a text, a shape (Form's menu: rektangel, rundad
+  rektangel, ellips, linje) or a picture (of Bilder or from the device, `ImagePicker.tsx`) in the middle of the page;
+  and Format (the brush) at the right, filled while its panel is open. On a phone, as Keynote's on an iPhone, one group
+  at the right: Ångra, Gör om, + (a sheet of the text, the picture and the shapes, `InsertMenu.tsx`) and Format.
+- **Exempelslide** (overlays only, `OverlayBehind.tsx`): the overlay is edited over a song's slide, a Bible text's or
+  the black screen, in the organisation's theme, so it is placed where it will not cover the words; under the page,
+  and kept in the browser.
 - **The page** is drawn as the outputs draw it (`CustomPageView`), scaled to the column. A tap picks an element,
   a tap beside them all picks none, a tap on the picked one picks the one beneath it (after 250 ms, so a double tap
   still writes; the top one again after the bottom one), for an element covered by another; the picked one is
@@ -108,12 +114,15 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
   Enter writes in a picked text, and Escape lets go of the picked one. Tested in `e2e/keyboard.spec.ts`.
 - **Format** has the picked element's tabs: Text (words, size, bold, italic, alignment, colour) or Stil (fill,
   outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
-  (Lager, the page's elements front first as Keynote's object list, `LayerList.tsx`: a tap picks one, also a
-  covered one, a drag or Alt+↑/↓ moves it in the drawing order; Längst fram, Längst bak, Duplicera, Ta bort). With nothing picked it has the slide's name and the
-  page's background (a colour, the theme's, or a picture). It stands at the right where the editor is wide enough
-  (its own width, `@4xl`: Inställningar's column is narrower than the window); narrower, a popover under the brush,
-  as an iPad's, with the page beside it still to tap and drag; on a phone a sheet over the lower part of the screen,
-  the page above it, pulled down to close (Lars, 2026-11-04).
+  (Placera i hörn, four buttons that put the element in a corner 5 % of the slide's height from the top or foot and
+  the side alike, a text lined up to that side; Lager, the page's elements front first as Keynote's object list,
+  `LayerList.tsx`: a tap picks one, also a covered one, a drag or Alt+↑/↓ moves it in the drawing order; Längst fram,
+  Längst bak, Duplicera, Ta bort). The chosen tab is filled in the app's colour, as Keynote's. With nothing picked it
+  has the slide's name and the page's background (a colour, the theme's, or a picture). Where the editor's column is
+  640 px or wider it is a panel at the right of the page, open until the brush closes it, the page narrower and never
+  covered (Lars, 2026-11-26); narrower, a popover under the brush, as an iPad's; on a phone a sheet over the lower
+  part of the screen with the tabs at its head beside ✕, as Keynote's on an iPhone, the page above it, pulled down to
+  close.
 - **The pages** are a column of numbered thumbnails at the left where the editor is wide, a row under the page
   otherwise; + adds a page after the open one, and a page's menu (held, or a right click) duplicates, moves or
   removes it.

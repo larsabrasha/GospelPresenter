@@ -110,3 +110,19 @@ export function nextBeneath(stack: readonly string[], picked: string | null): st
   const at = picked ? stack.indexOf(picked) : -1;
   return at < 0 ? stack[0]! : stack[(at + 1) % stack.length]!;
 }
+
+export type Corner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+
+/** The slide's own margin for a corner: 5 % of its height, the same from the top and the side. */
+const CORNER_INSET = Math.round(H * 0.05);
+
+/**
+ * The element put in `corner`, as far from the top or foot as from the side (Lars, 2026-11-26); a text lined up to
+ * that side as well, so its words start or end at the margin and not inside a wider box.
+ */
+export function inCorner(e: CustomElement, corner: Corner): Partial<CustomElement> {
+  const left = corner === 'topLeft' || corner === 'bottomLeft';
+  const top = corner === 'topLeft' || corner === 'topRight';
+  const place = { x: left ? CORNER_INSET : W - e.w - CORNER_INSET, y: top ? CORNER_INSET : H - e.h - CORNER_INSET };
+  return e.kind === 'text' ? { ...place, align: left ? 'left' : 'right' } : place;
+}
