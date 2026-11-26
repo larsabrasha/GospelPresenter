@@ -323,6 +323,9 @@ for (const lang of ['sv', 'en'] as const) {
           await cdp.send('Emulation.setScrollbarsHidden', { hidden: true });
           const shoot = async (p: Page, name: string) => {
             await p.mouse.move(0, 0); // no hover, no tooltip
+            // Not the room a Mac's window keeps for its three buttons (app.css `.mac-frame`): the buttons are drawn by
+            // macOS, not in the picture, which showed an empty gap before ‹ (Lars, 2026-11-26); a phone has none.
+            await p.evaluate(() => document.documentElement.classList.remove('mac-frame'));
             await p.waitForTimeout(300); // a step's animation starts a moment after the click
             // Every animation that ends has ended (the live picture fades in out of a blur); the background's run forever.
             await p.evaluate(() =>
