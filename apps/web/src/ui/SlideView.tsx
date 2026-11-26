@@ -153,11 +153,6 @@ export function SlideView({
       <div className="slide-stage" style={style} data-testid="slide-stage" data-theme={slide ? theme.id : undefined} data-kind={slide?.kind}>
         {slide && (
           <>
-            {label && slide.label && (
-              <span className="absolute top-6 right-10 z-[1] rounded-full px-8 py-1 font-sans text-[48px]/[1.5] font-semibold text-white" style={{ background: slide.label.color }}>
-                {slide.label.text}
-              </span>
-            )}
             {slide.custom ? (
               <CustomPageView page={slide.custom} theme={theme} media={media} />
             ) : slide.kind === 'media' ? (
@@ -193,6 +188,14 @@ export function SlideView({
           <div className={`absolute inset-0 z-60 bg-black transition-opacity duration-500 ease-in-out ${black ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} data-testid="black-cover" />
         )}
       </div>
+      {/* In the tile's own pixels, not the stage's, so its round end follows the tile's corner (rounded-2xl, 16 px):
+          8 px in from the top and the side, half of its 16 px height round, as VISAS at the other corner (Lars,
+          2026-11-26). On the stage it was scaled with the tile, and could not. */}
+      {label && slide?.label && (
+        <span className="absolute top-2 right-2 z-[1] rounded-full px-2 font-sans text-[10px]/4 font-semibold text-white" style={{ background: slide.label.color }}>
+          {slide.label.text}
+        </span>
+      )}
     </div>
   );
 }

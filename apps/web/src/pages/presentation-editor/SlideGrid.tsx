@@ -112,9 +112,10 @@ export function SlideGrid({
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
                 {!media && <AudioMark slide={s} />}
                 {mark && <SlideMark kind={mark} className="absolute top-2 left-2 z-[3]" />}
-                {/* Its number, for a number and ↵ to show it while presenting (Lars, 2026-11-07). */}
+                {/* Its number, for a number and ↵ to show it while presenting (Lars, 2026-11-07); 6 px in and 10 round,
+                    so its end follows the tile's 16 px corner, as the part's label does (SlideView). */}
                 {!media && (
-                  <span className={`absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-md px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white ${typing && chosen ? 'bg-sky-500' : 'bg-black/55'}`} aria-hidden>
+                  <span className={`absolute bottom-1.5 right-1.5 z-[3] min-w-5 rounded-full px-1.5 text-center text-xs/5 font-semibold tabular-nums text-white ${typing && chosen ? 'bg-sky-500' : 'bg-black/55'}`} aria-hidden>
                     {i + 1}
                   </span>
                 )}
