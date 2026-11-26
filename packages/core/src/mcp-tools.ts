@@ -131,7 +131,7 @@ const TOOLS: Record<string, Tool<z.ZodType>> = {
     run: (a, cx) => presentation(cx.sql, a.presentationId),
   }),
   list_templates: tool({
-    description: 'Lists the templates a new presentation can start from, with their weekday (1 Monday to 7 Sunday), time and place.',
+    description: 'Lists the templates a new presentation can start from, with their weekday (0 Sunday, 1 Monday, ... 6 Saturday), time and place.',
     args: z.object({}),
     run: async (_a, cx) => ((await templatesView(LOCALE, cx.sql)) as Row[]).map((r) => pick(r, ['id', 'name', 'weekday', 'time', 'location'])),
   }),
