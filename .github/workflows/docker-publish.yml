@@ -4,7 +4,8 @@ name: Publish the Docker image
 # ghcr.io/larsabrasha/gospelpresenter-server: `latest` and the commit's `sha-…` on a push to main that touches what the
 # image is built from, for amd64 and arm64 (a Raspberry Pi, an Apple Silicon Mac). A pull request builds it and throws it
 # away, so a broken Dockerfile shows before the merge. A new name, not 1.x's image: an old compose file pulling
-# `gospelpresenter` never gets 2.0 by surprise.
+# `gospelpresenter` never gets 2.0 by surprise. Called by web-release.yml for a tag `web-v…`, it also gets that
+# version's tag (`web-v2.0.0-beta.1` → `2.0.0-beta.1`), the one to pin a server to.
 
 on:
   push:
@@ -31,6 +32,7 @@ on:
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: docker-publish-${{ github.ref }}
@@ -63,6 +65,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
+            type=match,pattern=web-v(.*),group=1
       - uses: docker/build-push-action@v7
         with:
           context: .

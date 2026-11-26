@@ -48,7 +48,35 @@ nsis:
   oneClick: true
   perMachine: false
   artifactName: Gospel-Presenter-Setup-${version}.exe
+# Packages are uploaded by the release workflow (.github/workflows/desktop-release.yml), never by electron-builder:
+# the app has no updater yet, so there is no update feed to write.
+publish: null
+# Four packages, as 1.x had (Lars, 2026-11-26): "Linux" is not one thing. AppImage for any distribution; deb for
+# Ubuntu, Debian, Mint, Pop!_OS; rpm for Fedora, RHEL, openSUSE; pacman for Arch, Omarchy, Manjaro. The three native
+# ones install under /opt and register the scheme in their .desktop file. Built on Linux only (release workflow).
 linux:
-  target: AppImage
+  target: [AppImage, deb, rpm, pacman]
   category: Office
-  artifactName: Gospel-Presenter-${version}-${arch}.AppImage
+  # An AppImage is decompressed at every start: gzip, not xz. The fpm targets name their own below, as fpm takes
+  # gz/xz/… and not "normal".
+  compression: normal
+  # deb and rpm refuse to build without a maintainer's address; noreply, a contact that says "not by mail".
+  maintainer: Gospel Presenter <noreply@gospelpresenter.com>
+  # The application menu's name; without it, the product name with dashes.
+  desktop:
+    entry:
+      Name: Gospel Presenter
+  artifactName: Gospel-Presenter-${version}-${arch}.${ext}
+# What `apt remove`, `dnf remove` and `pacman -R` are given; package.json's name is @gp/desktop.
+deb:
+  packageName: gospel-presenter
+  compression: xz
+rpm:
+  packageName: gospel-presenter
+  compression: xz
+pacman:
+  packageName: gospel-presenter
+  compression: xz
+  # The whole list (fpm's customDepends): electron-builder's default names two packages Arch's repositories no longer
+  # have (http-parser, libappindicator-gtk3), and pacman refuses a package it cannot resolve (1.x found this).
+  depends: [c-ares, ffmpeg, gtk3, libevent, libvpx, libxslt, libxss, minizip, nss, re2, snappy, libnotify, libayatana-appindicator]

@@ -43,14 +43,18 @@ const CALLBACK_SCHEME = app.isPackaged ? 'gospelpresenter' : 'gospelpresenter-lo
 /** How long a sign-in in the system browser may take (spec 06). */
 const SIGN_IN_WAIT_MS = 5 * 60_000;
 
+/** The release's Google client, built in by build.mjs; a development build has none. */
+declare const GP_BUILT_GOOGLE: { clientId: string; clientSecret: string } | undefined;
+
 /**
- * The host's Google client, from the environment. A fake issuer
- * (`GP_GOOGLE_TEST_ISSUER`, the e2e tests) is never read by a packaged app,
- * and the server refuses one unless the build allows it (build.mjs).
+ * The host's Google client, from the environment, else the one a release was built with (docs/desktop-app.md). A
+ * fake issuer (`GP_GOOGLE_TEST_ISSUER`, the e2e tests) is never read by a packaged app, and the server refuses one
+ * unless the build allows it (build.mjs).
  */
 function googleConfig(): GoogleConfig | undefined {
-  const clientId = process.env.GP_GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GP_GOOGLE_CLIENT_SECRET;
+  const built = typeof GP_BUILT_GOOGLE === 'object' ? GP_BUILT_GOOGLE : undefined;
+  const clientId = process.env.GP_GOOGLE_CLIENT_ID || built?.clientId;
+  const clientSecret = process.env.GP_GOOGLE_CLIENT_SECRET || built?.clientSecret;
   if (!clientId || !clientSecret) return undefined;
   const testIssuer = app.isPackaged ? undefined : process.env.GP_GOOGLE_TEST_ISSUER || undefined;
   return { clientId, clientSecret, testIssuer };

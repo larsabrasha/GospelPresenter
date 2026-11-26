@@ -64,9 +64,9 @@ Smaller gaps, not decided:
 - MEDIA-R14's eviction by when a file was last used (it is by when it arrived); an audio item with several files.
 - The keyboard in the template picker; a template is not pictured by the capture script.
 - The start page's Visas nu says the presentation's time and place, not the part shown.
-- The packaged desktop app's Google client built in (its package registers the callback scheme since 2026-11-03,
-  [desktop-app.md](desktop-app.md); a development build registers `gospelpresenter-local` only with
-  `GP_REGISTER_SCHEME=1`); a login hint or profile picture from Google.
+- Signing in with Google in a packaged desktop app, not tried: its client is built in from the release's secrets
+  since 2026-11-26 ([desktop-app.md](desktop-app.md), "Google in a package"); a login hint or profile picture from
+  Google.
 - Closing an open poke socket when its session is revoked (it receives only sequence numbers until it closes, and
   its next sync is refused).
 - Behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host` (the Google redirect URI then needs

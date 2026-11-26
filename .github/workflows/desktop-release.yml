@@ -1,0 +1,121 @@
+name: Desktop release
+
+# The desktop app's packages (docs/desktop-app.md, D32) into a draft GitHub Release, as 1.x made them (Lars,
+# 2026-11-26): a pushed tag `v…` is the only trigger, the one gesture hard to make by mistake, and the release stays a
+# draft until someone has looked at it; publishing it is one click. The tag must be the version in
+# apps/desktop/package.json (`v2.0.0-beta.1` for 2.0.0-beta.1), which names the files.
+#
+# macOS builds arm64 and x64 in one run (both .dmg), Windows an NSIS installer, Linux an AppImage, a deb, an rpm and a
+# pacman package. Each is built on its own system (the PowerPoint drawing, crates/gp-pptx, is a native program) and
+# uploaded here, not by electron-builder: the app has no updater yet, so there is no update feed to write.
+# The release carries the host's Google client from the repository's secrets GP_GOOGLE_CLIENT_ID and
+# GP_GOOGLE_CLIENT_SECRET (build.mjs); without them it is refused, as a package without them cannot sign in.
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: The tag is the app's version
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME is not v$version, the version in apps/desktop/package.json."
+            exit 1
+          fi
+      - name: The Google client is set
+        env:
+          ID: ${{ secrets.GP_GOOGLE_CLIENT_ID }}
+          SECRET: ${{ secrets.GP_GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -z "$ID" ] || [ -z "$SECRET" ]; then
+            echo "::error::Set the repository secrets GP_GOOGLE_CLIENT_ID and GP_GOOGLE_CLIENT_SECRET (docs/desktop-app.md)."
+            exit 1
+          fi
+      - name: Create the draft release unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists; left as it is."
+            exit 0
+          fi
+          notes=$(cat <<'MARKDOWN'
+          ## Vilken fil ska jag ladda ner? / Which file do I download?
+
+          | System | Fil / File |
+          | --- | --- |
+          | macOS, Apple Silicon (M1 och senare / and later) | `Gospel-Presenter-…-arm64.dmg` |
+          | macOS, Intel | `Gospel-Presenter-…-x64.dmg` |
+          | Windows | `Gospel-Presenter-Setup-….exe` |
+          | Ubuntu, Debian, Mint, Pop!_OS | `….deb` |
+          | Fedora, RHEL, openSUSE | `….rpm` |
+          | Arch, Omarchy, Manjaro | `….pacman` |
+          | Annan Linux / Any other Linux | `….AppImage` |
+
+          Appen är inte signerad. På en Mac stoppas första starten: tillåt den under Systeminställningar → Integritet
+          och säkerhet → "Öppna ändå". Windows varnar (SmartScreen): Mer information → Kör ändå.
+
+          The app is not signed. On a Mac the first start is blocked: allow it under System Settings → Privacy &
+          Security → "Open Anyway". Windows warns (SmartScreen): More info → Run anyway.
+          MARKDOWN
+          )
+          gh release create "$GITHUB_REF_NAME" --draft --prerelease="${{ contains(github.ref_name, '-') }}" \
+            --title "Gospel Presenter ${GITHUB_REF_NAME#v}" --notes "$notes" --generate-notes
+
+  build:
+    needs: draft
+    strategy:
+      # One system failing keeps the others' packages in the draft; what is missing shows before publishing.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            files: apps/desktop/release/*.dmg
+          - os: windows-latest
+            files: apps/desktop/release/*.exe
+          - os: ubuntu-latest
+            files: apps/desktop/release/*.AppImage apps/desktop/release/*.deb apps/desktop/release/*.rpm apps/desktop/release/*.pacman
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Linux packaging tools
+        if: runner.os == 'Linux'
+        # fpm's rpm needs rpmbuild, its pacman bsdtar.
+        run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Package
+        env:
+          GP_GOOGLE_CLIENT_ID: ${{ secrets.GP_GOOGLE_CLIENT_ID }}
+          GP_GOOGLE_CLIENT_SECRET: ${{ secrets.GP_GOOGLE_CLIENT_SECRET }}
+        run: pnpm --filter @gp/desktop release -- --publish never
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" ${{ matrix.files }} --clobber

@@ -6,7 +6,16 @@ import { build } from 'esbuild';
 
 // Only a development or test build may point sign-in at a fake Google
 // (apps/server/src/google.ts); GP_RELEASE=1 is the build a package is made from.
-const define = { GP_TEST_ISSUER: process.env.GP_RELEASE === '1' ? 'false' : 'true' };
+const release = process.env.GP_RELEASE === '1';
+// A release carries the host's Google client (main.ts `googleConfig`), from GP_GOOGLE_CLIENT_ID and
+// GP_GOOGLE_CLIENT_SECRET when it is built (the release workflow's secrets): an app started from the Dock or the
+// Start menu has no environment to read them from. A desktop app's client secret is no secret to Google (an installed
+// app's), and the build does not need one to run.
+const builtGoogle =
+  release && process.env.GP_GOOGLE_CLIENT_ID && process.env.GP_GOOGLE_CLIENT_SECRET
+    ? JSON.stringify({ clientId: process.env.GP_GOOGLE_CLIENT_ID, clientSecret: process.env.GP_GOOGLE_CLIENT_SECRET })
+    : 'undefined';
+const define = { GP_TEST_ISSUER: release ? 'false' : 'true', GP_BUILT_GOOGLE: builtGoogle };
 
 const common = {
   define,

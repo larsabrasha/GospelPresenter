@@ -1,0 +1,48 @@
+name: Web release
+
+# A release of the server and the web app, as 1.x's `web-v…` tags were (Lars, 2026-11-26): the Docker image gets the
+# version's tag (docker-publish.yml, `web-v2.0.0-beta.1` → `ghcr.io/…/gospelpresenter-server:2.0.0-beta.1`), and a
+# draft GitHub Release says what it is. A tag of its own, not `v…`, which desktop-release.yml owns. Production on
+# Cloudflare is deployed by hand from the tagged commit (`pnpm deploy:app`, docs/cloudflare.md): no Cloudflare key in
+# GitHub.
+
+on:
+  push:
+    tags: ['web-v*']
+
+jobs:
+  image:
+    uses: ./.github/workflows/docker-publish.yml
+    permissions:
+      contents: read
+      packages: write
+
+  release:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create the draft release unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists; left as it is."
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#web-v}"
+          notes=$(cat <<MARKDOWN
+          The server with the web app, as a Docker image for amd64 and arm64:
+
+          \`\`\`sh
+          docker pull ghcr.io/${{ github.repository_owner }}/gospelpresenter-server:${version}
+          \`\`\`
+
+          How to run it: [docs/self-hosting.md](https://github.com/${{ github.repository }}/blob/${GITHUB_REF_NAME}/docs/self-hosting.md).
+          MARKDOWN
+          )
+          gh release create "$GITHUB_REF_NAME" --draft --prerelease="${{ contains(github.ref_name, '-') }}" \
+            --title "Gospel Presenter web ${version}" --notes "$notes" --generate-notes
