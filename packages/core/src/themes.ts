@@ -25,6 +25,8 @@ const textStyleSchema = z.object({
   align: z.enum(['left', 'center', 'right']),
   shadow: z.boolean(),
   uppercase: z.boolean(),
+  /** Not set in a theme made before it: upright. */
+  italic: z.boolean().optional(),
   /** A line around each letter, in stage pixels, 0 for none (docs/themes.md). */
   outline: z.number().int().min(0).max(20),
   outlineColor: cssColor,
@@ -139,9 +141,11 @@ const TERMINAL_CREDITS: Partial<TextStyle> = { fontFamily: MONO, fontSize: 32, c
 const LIGHT = plain('#ffffff');
 const LIGHT_MAIN = { color: '#000000' };
 const LIGHT_CREDITS = { color: 'rgba(0, 0, 0, 0.4)' };
+/** Its picture's darkest blue under it, until the picture is drawn. */
+const BLUE: Background = { color: '#071226', image: { kind: 'builtIn', asset: 'backdrops/blue' }, fit: 'cover', scrim: 0 };
 
 /**
- * The two built-in themes (Lars, 2026-11-04: one dark and one light), in their order. The dark one is spec 05's
+ * The built-in themes (Lars, 2026-11-04: one dark and one light; 2026-11-26 a blue one), in their order. The dark one is spec 05's
  * Classic and keeps its id, so it is still the fallback; the light one is the same with black on white.
  */
 export const BUILT_IN_THEMES: Theme[] = [
@@ -168,11 +172,24 @@ export const BUILT_IN_THEMES: Theme[] = [
     },
   },
   {
+    // The theme of the website's pictures (Lars, 2026-11-26: what they show, one tap away): Mörkt on deep blue, lit
+    // softly from above, a picture the app ships (apps/web/src/assets/backdrops/blue.jpg, drawn from CSS gradients).
+    id: 'blue',
+    sort: 2,
+    name: 'Blått',
+    description: 'Som Mörkt, på en djupblå bakgrund med mjukt ljus. Temat på webbplatsens bilder.',
+    definition: {
+      song: style(BLUE, { fontWeight: 700 }),
+      bible: style(BLUE, { align: 'left' }),
+      media: plain('#000000'),
+    },
+  },
+  {
     // For Lekfullt läge (Lars, 2026-11-25): a terminal's green on black, the text where a command's output would be, a
     // prompt above it and a cursor after it, which the slide draws for this theme's id (PLAYFUL_THEME_IDS). Offered
     // only while Lekfullt läge is on; a copy of it (Duplicera) keeps the colours and the type, not the prompt.
     id: 'terminal',
-    sort: 2,
+    sort: 3,
     name: 'Terminal',
     description: 'Grön text på svart, som i en terminal, med prompt och blinkande markör.',
     definition: {
@@ -249,6 +266,7 @@ export function textStyleCss(s: TextStyle): Css {
     textAlign: s.align,
     ...(s.shadow ? { textShadow: TEXT_SHADOW } : {}),
     ...(s.uppercase ? { textTransform: 'uppercase' } : {}),
+    ...(s.italic ? { fontStyle: 'italic' } : {}),
     ...(s.outline > 0 ? { WebkitTextStroke: `${s.outline * 2}px ${s.outlineColor}`, paintOrder: 'stroke fill' } : {}),
   };
 }

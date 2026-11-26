@@ -192,6 +192,7 @@ export function SlideEditor({ id, edits = 'slide' }: { id: string; edits?: Edite
       name={slide.name}
       nameNew={naming}
       page={page}
+      theme={theme}
       pageAt={pageAt}
       element={element}
       textRef={textRef}

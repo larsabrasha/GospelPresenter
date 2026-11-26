@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/core';
 import { useLocalUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
+import { elementTextCss } from './customText.ts';
 
 // A slideshow's page on the 1920×1080 stage (docs/custom-slides.md): what is not set follows the theme, the text
 // colour and font of its song slides, and the stage under the page is the theme's background. A PDF's page is a
@@ -32,7 +33,6 @@ function elementBox(e: CustomElement): CSSProperties {
 function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: (hash: string) => string }): ReactNode {
   const box = elementBox(e);
   if (e.kind === 'text') {
-    const main = mainCss(theme, 'song');
     // As tall as its words at least, as Keynote's text box: a larger size grows the box with the text, so the box and
     // its handles stay round the words and a tap on them picks it (Lars, 2026-11-26). The words start at its top either way.
     // Its least height no more than to the slide's foot, so a box made taller once does not reach past it.
@@ -44,12 +44,7 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
           ...rest,
           top,
           minHeight: Math.max(0, Math.min(height, CANVAS.height - top)),
-          ...main,
-          fontSize: e.size,
-          fontWeight: e.bold ? 700 : main.fontWeight,
-          fontStyle: e.italic ? 'italic' : 'normal',
-          textAlign: e.align,
-          color: e.color ?? String(main.color),
+          ...elementTextCss(e, theme),
           whiteSpace: 'pre-wrap',
           overflowWrap: 'break-word',
         }}

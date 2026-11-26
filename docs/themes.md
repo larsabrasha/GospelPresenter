@@ -13,6 +13,10 @@ by a new version of the app:
   75 px Tahoma, line height 1.4, centred, on black; a Bible text regular and left; credits 40 px, 40 % white, at the
   foot. The fallback for an unknown theme (THEME-R1, R9).
 - **Ljust** (`light`): the same, black on white, credits 40 % black. Pictures and videos stay on black.
+- **Blått** (`blue`, Lars, 2026-11-26): Mörkt on a deep blue picture lit softly from above, the theme of the
+  website's pictures, so a church gets that look in one tap. The picture ships with the app
+  (`apps/web/src/assets/backdrops/blue.jpg`, a built-in asset `backdrops/blue`, drawn by Chromium from CSS
+  gradients, JPEG 4:4:4 at 92 %, which bands least), over its darkest blue. Pictures and videos stay on black.
 - **Terminal** (`terminal`, Lars, 2026-11-25): for Lekfullt läge (`apps/web/src/ui/playful.ts`). Green on black in the
   computer's own monospace font, left and from the top, under a prompt ("gp@kyrkan:~$ sjung --vers", "läs --högt"
   for a Bible text) that the slide draws for this id, with a blinking cursor after the text. Offered in Teman and a
@@ -36,7 +40,8 @@ Per kind (`themeDefinitionSchema`): `song` and `bible` each have a background, `
   slideshow's page names its pictures: one of Bilder is a copy (the same blobs), one from the device goes into the
   theme only.
 - **A text** (`main`, `credits`): typeface (Tahoma, Inter, Lato or Montserrat), size, weight, line height, colour (with
-  how opaque it is), alignment, shadow, capitals (`uppercase`), an outline around each letter (`outline` px and its
+  how opaque it is), alignment, italic (`italic`, upright where a theme made before it has none), shadow, capitals
+  (`uppercase`), an outline around each letter (`outline` px and its
   colour, drawn under the fill, so letters widen outwards), and where it sits: its box on the 1920×1080 stage
   (`area`) and the text at the box's top, middle or foot (`valign`). The built-in themes' boxes are the canvas minus
   its padding (LIVE-R17) and, for credits, the band at the foot.
@@ -93,7 +98,8 @@ choice (Lars, 2026-11-26). The
 theme is renamed from its title's menu (Byt namn…); its name is in Format only just after it was made. The slide is a
 sample of the kind, drawn as every output draws it; the boxes of its texts are dashed. Format has the slide's parts
 as tabs at its top (Bakgrund | Text | Källa), so what can be changed is in view; a part picked there or by a tap on the slide
-(the main text or the credits) shows its look, and its handles drag and size its box, lined up with the stage's edges
+(the main text or the credits) shows its look in the Text panel a slideshow's text has too (`TextFormat.tsx`, Lars
+2026-11-26: one panel, the same choices; its size a slider from 20 to 240), and its handles drag and size its box, lined up with the stage's edges
 and middle; Bakgrund, or a tap beside the texts, the kind's background. By the keyboard as the slideshows' editor: with focus on the slide, Tab
 picks the main text, then the credits, an arrow moves the picked box a point (⇧ ten), and Escape picks none
 (`e2e/keyboard.spec.ts`). It saves as it goes, the whole definition, half a second after the last

@@ -8,8 +8,8 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 import { makeZip, utf8Encode } from '../../../packages/core/src/index.ts';
 import { texts, type Language } from '../../web/src/i18n.ts';
 import { launch, MUTED, type Desktop } from './apps.ts';
-import { addSongs, backToSong, createOverlay, createPresentation, createSong, nameNew, openAdmin, openArrangement, pair, pickItem, setUpHost } from './flows.ts';
-import { backdropPng, sermonFile, sermonPdf } from './website-art.ts';
+import { addSongs, backToSong, createOverlay, createPresentation, createSong, openAdmin, openArrangement, pair, pickItem, setUpHost } from './flows.ts';
+import { sermonFile, sermonPdf } from './website-art.ts';
 
 const out = process.env.GP_WEBSITE;
 test.skip(!out, 'only with GP_WEBSITE=<directory>');
@@ -34,7 +34,7 @@ interface Song {
  */
 const CONTENT: Record<
   Language,
-  { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string; description: string; comment: string; overlay: [string, string]; theme: string; phone: string }
+  { org: string; songs: Song[]; bible: [string, string, string[]]; services: [string, number][]; phones: string; search: string; description: string; comment: string; overlay: [string, string]; phone: string }
 > = {
   sv: {
     org: 'Lilla Kyrkan',
@@ -93,7 +93,6 @@ const CONTENT: Record<
     phones: 'Mobiler',
     search: 'Gud',
     description: 'Med dop, och kyrkkaffe efteråt',
-    theme: 'Söndag',
     phone: 'Annas mobil',
     comment: 'Kören sjunger med i sista refrängen',
     overlay: ['Kollekt', 'Swish 123 456 78 90'],
@@ -156,7 +155,6 @@ const CONTENT: Record<
     phones: 'Phones',
     search: 'grace',
     description: 'With a baptism, and coffee afterwards',
-    theme: 'Sunday',
     phone: "Anne's phone",
     comment: 'The choir joins in on the last chorus',
     overlay: ['Offering', 'example.org/give'],
@@ -235,43 +233,18 @@ for (const lang of ['sv', 'en'] as const) {
         await backToSong(page);
       }
       await createOverlay(page, content.overlay[0], content.overlay[1]);
-      // Its text dragged from the middle, where it is put, to the top left corner, clear of a song's lines (Lars,
-      // 2026-11-26); a part's label is at the top right.
-      const canvas = page.getByTestId('slide-canvas');
-      const text = canvas.locator('[data-element]').filter({ hasText: content.overlay[1] }).first();
-      // Again until it is there: a press while the editor still takes the typed text in selects, and moves nothing.
-      await expect(async () => {
-        const [from, slide] = [(await text.boundingBox())!, (await canvas.boundingBox())!];
-        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-        await page.mouse.down();
-        const inset = slide.height * 0.05;
-        const [x, y] = [slide.x + inset + from.width / 2, slide.y + inset + from.height / 2];
-        await page.mouse.move(x, y, { steps: 10 });
-        await page.mouse.up();
-        const moved = (await text.boundingBox())!;
-        expect(moved.x, JSON.stringify({ from, slide, moved })).toBeLessThan(slide.x + slide.width * 0.1);
-        expect(moved.y).toBeLessThan(slide.y + slide.height * 0.1);
-      }).toPass({ timeout: 10_000 });
-      // Left aligned, so the text starts where its box does, as far from the side as from the top.
-      await page.getByRole('radiogroup', { name: 'Justering' }).getByRole('radio', { name: 'Vänster' }).click();
+      // Its text put at the top left by Placering på sliden, clear of a song's lines (Lars, 2026-11-26), lined up to
+      // the left, as far from the side as from the top; a part's label is at the top right.
+      await page.getByRole('tab', { name: 'Ordna' }).filter({ visible: true }).click();
+      await page.getByRole('radio', { name: 'Uppe till vänster' }).filter({ visible: true }).click();
+      await expect(page.getByRole('radio', { name: 'Uppe till vänster' }).filter({ visible: true })).toHaveAttribute('aria-checked', 'true');
       await expect(page.getByTestId('saved')).toBeVisible();
       const overlayEditor = new URL(page.url()).pathname;
-      // The church's own theme, a picture behind its songs, made the default: every slide in the pictures shows it.
+      // The built-in Blått, a picture behind the words, made the default: every slide in the pictures shows it, and a
+      // church gets the same look in one tap (Lars, 2026-11-26).
       browser ??= await chromium.launch({ args: MUTED });
       await openAdmin(page, 'Teman');
-      await page.getByRole('button', { name: 'Nytt tema' }).click();
-      await nameNew(page, content.theme);
-      await expect(page.getByTestId('theme-canvas')).toBeVisible();
-      // The background's panel, nothing picked; where the editor is narrow it is in Format's sheet.
-      const choose = page.getByRole('button', { name: 'Välj bakgrundsbild' }).filter({ visible: true });
-      if (!(await choose.count())) await page.getByRole('button', { name: 'Format', exact: true }).click();
-      await choose.click();
-      await page.getByRole('dialog', { name: 'Välj bild' }).getByTestId('picture-file').setInputFiles({ name: 'backdrop.png', mimeType: 'image/png', buffer: await backdropPng(browser) });
-      await expect(page.getByRole('button', { name: 'Byt bakgrundsbild' }).filter({ visible: true })).toBeVisible();
-      await expect(page.getByTestId('saved')).toBeVisible();
-      if (await page.getByTestId('format-sheet').isVisible()) await page.keyboard.press('Escape');
-      await openAdmin(page, 'Teman');
-      await page.getByRole('button', { name: `Fler val för ${content.theme}` }).click();
+      await page.getByRole('button', { name: 'Fler val för Blått' }).click();
       await page.getByRole('menuitem', { name: 'Använd som standard' }).click();
       await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
       // A phone of the church's, paired with this computer, to control from (the remote picture).
@@ -429,7 +402,17 @@ for (const lang of ['sv', 'en'] as const) {
           },
         ],
         ['bible', presentation, (p) => openAdd(p, t('add.bible'))],
-        ['overlay-editor', overlayEditor, closeAdminMenu],
+        [
+          'overlay-editor',
+          overlayEditor,
+          async (p) => {
+            await closeAdminMenu(p);
+            if (phone) return;
+            // Its text picked, so Format beside the slide shows its choices rather than a hint.
+            await p.getByTestId('slide-canvas').locator('[data-element]').filter({ hasText: content.overlay[1] }).first().click();
+            await expect(p.getByRole('radiogroup', { name: t('slideEditor.align') })).toBeVisible();
+          },
+        ],
         ['presentation-live', presentation, goLive],
         // Still live: Fjärrstyrning switched on, its QR code for whoever is to control from a phone.
         [

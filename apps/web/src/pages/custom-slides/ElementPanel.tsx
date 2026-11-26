@@ -1,21 +1,46 @@
 import type { ReactNode, RefObject } from 'react';
-import { CUSTOM_LIMITS, type CustomElement } from '@gp/core';
+import { CUSTOM_LIMITS, type CustomElement, type Theme } from '@gp/core';
 import { t, type TextKey } from '../../i18n.ts';
-import { ALIGN_CHOICES, ColorChoice, OnOff, Segments, Slider } from '../../ui/FormatControls.tsx';
+import { elementTextStyle } from '../../ui/customText.ts';
+import { ColorChoice, Segments, Slider } from '../../ui/FormatControls.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { ACTION_ROW, GROUP_ROW, Group, PopUp } from '../../ui/Group.tsx';
+import { ACTION_ROW, Group } from '../../ui/Group.tsx';
 import { withMaxChars } from '../../ui/maxChars.ts';
+import { splitColor } from '../theme-editor/themeModel.ts';
 import { FormatTabs } from './EditorChrome.tsx';
 import { placeOf, type Across, type Down, type Place } from './slideModel.ts';
+import { TextFormat, type TextLook } from './TextFormat.tsx';
 
-/**
- * A text's sizes, on the 1920×1080 slide: from a line under the song's words to a heading, as Keynote's menu of sizes
- * (Lars, 2026-11-26: a slider to 400 made sizes no slide wants easy to land on).
- */
-const SIZES = [32, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240];
+type TextElement = Extract<CustomElement, { kind: 'text' }>;
 
-/** The sizes, with a size of its own the text has (set before this menu) in its place among them. */
-const sizesWith = (size: number) => (SIZES.includes(size) ? SIZES : [...SIZES, size].toSorted((a, b) => a - b));
+/** A slide's text as the Text panel shows it: what it does not set, as the theme's song text it then follows. */
+function lookOf(e: TextElement, theme: Theme): TextLook {
+  const s = elementTextStyle(e, theme);
+  return {
+    font: e.font ?? null,
+    size: e.size,
+    weight: s.fontWeight,
+    italic: e.italic,
+    lineHeight: s.lineHeight,
+    align: e.align,
+    color: e.color,
+    opacity: e.opacity ?? 100,
+    uppercase: s.uppercase,
+    shadow: s.shadow,
+    outline: s.outline,
+    outlineColor: splitColor(s.outlineColor).hex,
+  };
+}
+
+/** A change in the Text panel as the text keeps it: the theme's font as none of its own, a weight with `bold` beside it. */
+function elementOf(patch: Partial<TextLook>): Partial<TextElement> {
+  const { font, weight, ...same } = patch;
+  return {
+    ...same,
+    ...('font' in patch ? { font: font ?? undefined } : {}),
+    ...(weight !== undefined ? { weight, bold: weight >= 700 } : {}),
+  };
+}
 
 /** The nine places on the slide, across and down, each with its name. */
 const PLACES: [Across, Down, TextKey][] = [
@@ -80,6 +105,7 @@ const TAB_TEXT: Record<InspectorTab, TextKey> = { text: 'slideEditor.text', styl
 
 export function ElementPanel({
   element: e,
+  theme,
   tab,
   textRef,
   onChange,
@@ -91,6 +117,8 @@ export function ElementPanel({
   onReplaceImage,
 }: {
   element: CustomElement;
+  /** The theme a text follows in what it does not set. */
+  theme: Theme;
   tab: InspectorTab;
   textRef: RefObject<HTMLTextAreaElement | null>;
   onChange: (patch: Partial<CustomElement>) => void;
@@ -116,27 +144,9 @@ export function ElementPanel({
               onChange={withMaxChars(CUSTOM_LIMITS.text, (ev) => onChange({ text: ev.target.value }))}
             />
           </div>
-          <div className={GROUP_ROW}>
-            <span>{t('slideEditor.size')}</span>
-            <PopUp aria-label={t('slideEditor.size')} value={e.size} onChange={(ev) => onChange({ size: Number(ev.target.value) })}>
-              {sizesWith(e.size).map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </PopUp>
-          </div>
-          <div className={GROUP_ROW}>
-            <span>{t('slideEditor.style')}</span>
-            <span className="flex gap-2">
-              <OnOff label={t('slideEditor.bold')} on={e.bold} onChange={(bold) => onChange({ bold })} />
-              <OnOff label={t('slideEditor.italic')} on={e.italic} onChange={(italic) => onChange({ italic })} />
-            </span>
-          </div>
-          <Segments label={t('slideEditor.align')} value={e.align} options={ALIGN_CHOICES} onChange={(align) => onChange({ align })} />
-          <ColorChoice label={t('slideEditor.color')} value={e.color} empty="theme" onChange={(color) => onChange({ color })} />
         </Group>
       )}
+      {tab === 'text' && e.kind === 'text' && <TextFormat look={lookOf(e, theme)} followsTheme onChange={(_, patch) => onChange(elementOf(patch))} />}
       {tab === 'style' && (e.kind === 'rect' || e.kind === 'ellipse') && (
         <Group>
           <ColorChoice label={t('slideEditor.fill')} value={e.fill} empty="none" onChange={(fill) => onChange({ fill })} />

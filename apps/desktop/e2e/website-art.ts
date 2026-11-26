@@ -1,24 +1,15 @@
-// What the website's pictures show beyond text (website.spec.ts): a theme's background picture and a sermon's
-// slideshow, both drawn by Chromium from HTML here, so nothing is fetched and nothing is anyone else's.
+// What the website's pictures show beyond text (website.spec.ts): a sermon's slideshow, drawn by Chromium from HTML
+// here, so nothing is fetched and nothing is anyone else's. Their theme is the built-in Blått.
 import type { Browser } from '@playwright/test';
 import type { Language } from '../../web/src/i18n.ts';
 
-/** Deep blue, lit softly from above: dark enough that white text reads on it with the theme's scrim. */
+/** The sermon's ground: Blått's picture (apps/web/src/themes.ts), so the slideshow and the songs belong together. */
 const BACKDROP = `
   background:
     radial-gradient(60% 55% at 30% 18%, rgba(56, 189, 248, 0.55), transparent 70%),
     radial-gradient(50% 45% at 78% 30%, rgba(129, 140, 248, 0.45), transparent 70%),
     radial-gradient(70% 60% at 55% 110%, rgba(14, 116, 144, 0.6), transparent 70%),
     linear-gradient(160deg, #0b1f3a, #071226 60%, #050b18);`;
-
-/** A 1920×1080 picture for a theme's background, as PNG. */
-export async function backdropPng(browser: Browser): Promise<Buffer> {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-  await page.setContent(`<body style="margin:0;width:1920px;height:1080px;${BACKDROP}"></body>`);
-  const png = await page.screenshot();
-  await page.close();
-  return png;
-}
 
 /** A sermon's three slides in each language: its title, its points, and the verse it is on (in the public domain). */
 const SERMON: Record<Language, { file: string; title: string; by: string; heading: string; points: string[]; verse: string; reference: string }> = {

@@ -1,10 +1,11 @@
-import { type Background, FONT_STACKS, type TextStyle, THEME_LIMITS, type ThemeDefinition } from '@gp/core';
-import { locale, t, type TextKey } from '../../i18n.ts';
+import { type Background, type TextStyle, THEME_LIMITS, type ThemeDefinition } from '@gp/core';
+import { t, type TextKey } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
-import { ALIGN_CHOICES, ColorChoice, OnOff, PLACE_CHOICES, Segments, Slider } from '../../ui/FormatControls.tsx';
-import { ACTION_ROW, GROUP_ROW, Group } from '../../ui/Group.tsx';
+import { ColorChoice, PLACE_CHOICES, Segments, Slider } from '../../ui/FormatControls.tsx';
+import { ACTION_ROW, Group } from '../../ui/Group.tsx';
 import { FormatTabs } from '../custom-slides/EditorChrome.tsx';
+import { TextFormat, type TextLook } from '../custom-slides/TextFormat.tsx';
 import { backgroundIn, defaultArea, joinColor, splitColor, type EditedKind, type TextRole } from './themeModel.ts';
 
 // The theme editor's Format (docs/themes.md), as the slideshows' editor's: the slide's parts as tabs at the top
@@ -12,68 +13,49 @@ import { backgroundIn, defaultArea, joinColor, splitColor, type EditedKind, type
 // and not to be guessed by tapping; under them the picked part's look and place, or the kind's background; and the
 // theme's name only just after it was made.
 
-const FONTS: [string, string][] = [
-  [FONT_STACKS.tahoma, 'Tahoma'],
-  [FONT_STACKS.inter, 'Inter'],
-  [FONT_STACKS.lato, 'Lato'],
-  [FONT_STACKS.montserrat, 'Montserrat'],
-];
-
 const KIND_TEXT: Record<EditedKind, TextKey> = { song: 'themeEditor.song', bible: 'themeEditor.bible', media: 'themeEditor.media' };
 
-/** A colour and how opaque it is, as two rows: the theme keeps both in one CSS colour. */
-function ColorWithOpacity({ label, value, onChange }: { label: string; value: string; onChange: (css: string) => void }) {
-  const { hex, alpha } = splitColor(value);
-  return (
-    <>
-      <ColorChoice label={label} value={hex} onChange={(c) => onChange(joinColor(c ?? hex, alpha))} />
-      <Slider label={t('themeEditor.opacity')} value={alpha} min={10} max={100} onChange={(a) => onChange(joinColor(hex, a))} />
-    </>
-  );
+/** The theme's text as the Text panel shows it: its colour and opacity, which the theme keeps in one CSS colour, apart. */
+function lookOf(style: TextStyle): TextLook {
+  const { hex, alpha } = splitColor(style.color);
+  return {
+    font: style.fontFamily,
+    size: style.fontSize,
+    weight: style.fontWeight,
+    italic: !!style.italic,
+    lineHeight: style.lineHeight,
+    align: style.align,
+    color: hex,
+    opacity: alpha,
+    uppercase: style.uppercase,
+    shadow: style.shadow,
+    outline: style.outline,
+    outlineColor: splitColor(style.outlineColor).hex,
+  };
+}
+
+/** A change in the Text panel as the theme keeps it. */
+function styleOf(look: TextLook, patch: Partial<TextLook>): Partial<TextStyle> {
+  const { font, size, weight, color, opacity, ...same } = patch;
+  return {
+    ...same,
+    ...(font ? { fontFamily: font } : {}),
+    ...(size !== undefined ? { fontSize: size } : {}),
+    ...(weight !== undefined ? { fontWeight: weight } : {}),
+    ...(color !== undefined || opacity !== undefined ? { color: joinColor(color ?? look.color ?? '#ffffff', opacity ?? look.opacity) } : {}),
+  };
 }
 
 function TextPanel({ kind, role, style, onText }: { kind: 'song' | 'bible'; role: TextRole; style: TextStyle; onText: (key: string, patch: Partial<TextStyle>) => void }) {
-  const font = FONTS.find(([stack]) => stack === style.fontFamily)?.[0] ?? FONTS[0]![0];
+  const look = lookOf(style);
   return (
     <div className="space-y-5" data-testid="theme-text-panel">
-      <Group title={t(role === 'main' ? 'themeEditor.mainText' : 'themeEditor.credits')}>
-        <label className={GROUP_ROW}>
-          <span>{t('themeEditor.font')}</span>
-          <select className="bg-transparent text-right text-stone-500 dark:text-stone-400 cursor-pointer outline-none" value={font} onChange={(e) => onText('fontFamily', { fontFamily: e.target.value })}>
-            {FONTS.map(([stack, name]) => (
-              <option key={name} value={stack}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Slider label={t('slideEditor.size')} value={style.fontSize} min={20} max={role === 'main' ? 200 : 100} onChange={(fontSize) => onText('fontSize', { fontSize })} />
-        <Segments
-          label={t('themeEditor.weight')}
-          value={String(style.fontWeight >= 700 ? 700 : style.fontWeight >= 500 ? 600 : 400)}
-          options={[
-            ['400', 'themeEditor.regular'],
-            ['600', 'themeEditor.semibold'],
-            ['700', 'slideEditor.bold'],
-          ]}
-          onChange={(w) => onText('fontWeight', { fontWeight: Number(w) })}
-        />
-        <Slider label={t('themeEditor.lineHeight')} value={Math.round(style.lineHeight * 10)} min={8} max={25} shown={style.lineHeight.toLocaleString(locale(), { minimumFractionDigits: 1 })} onChange={(n) => onText('lineHeight', { lineHeight: n / 10 })} />
-        <Segments label={t('slideEditor.align')} value={style.align} options={ALIGN_CHOICES} onChange={(align) => onText('align', { align })} />
-        <Segments label={t('themeEditor.placement')} value={style.valign} options={PLACE_CHOICES} onChange={(valign) => onText('valign', { valign })} />
-        <ColorWithOpacity label={t('slideEditor.color')} value={style.color} onChange={(color) => onText('color', { color })} />
-      </Group>
-      <Group>
-        <div className={GROUP_ROW}>
-          <span>{t('slideEditor.style')}</span>
-          <span className="flex gap-2">
-            <OnOff label={t('themeEditor.uppercase')} on={style.uppercase} onChange={(uppercase) => onText('uppercase', { uppercase })} />
-            <OnOff label={t('themeEditor.shadow')} on={style.shadow} onChange={(shadow) => onText('shadow', { shadow })} />
-          </span>
-        </div>
-        <Slider label={t('themeEditor.outline')} value={style.outline} min={0} max={10} onChange={(outline) => onText('outline', { outline })} />
-        {style.outline > 0 && <ColorChoice label={t('themeEditor.outlineColor')} value={splitColor(style.outlineColor).hex} onChange={(c) => onText('outlineColor', { outlineColor: c ?? '#000000' })} />}
-      </Group>
+      <TextFormat
+        title={t(role === 'main' ? 'themeEditor.mainText' : 'themeEditor.credits')}
+        look={look}
+        placement={<Segments label={t('themeEditor.placement')} value={style.valign} options={PLACE_CHOICES} onChange={(valign) => onText('valign', { valign })} />}
+        onChange={(key, patch) => onText(key, styleOf(look, patch))}
+      />
       <Group>
         <AppButton variant="plain" className={ACTION_ROW} onClick={() => onText('', { area: defaultArea(kind, role), valign: role === 'main' ? 'middle' : 'bottom' })}>
           {t('themeEditor.resetPlacement')}

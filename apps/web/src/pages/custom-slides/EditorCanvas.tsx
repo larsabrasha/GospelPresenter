@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import Moveable, { type OnDragEnd, type OnResizeEnd } from 'react-moveable';
 import { CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, type Slide, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
-import { mainCss, stageCss } from '../../themes.ts';
+import { stageCss } from '../../themes.ts';
+import { elementTextCss } from '../../ui/customText.ts';
 import { CustomPageView } from '../../ui/CustomPageView.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { arrowNudge, CANVAS_FOCUS, nextInTurn } from '../../ui/canvasKeys.ts';
@@ -266,7 +267,6 @@ export function EditorCanvas({
 
 /** A text written on the slide itself: a field over it in its own size, font and colour; Escape or a tap beside it ends. */
 function InlineText({ element: e, theme, onChange, onDone }: { element: Extract<CustomElement, { kind: 'text' }>; theme: Theme; onChange: (text: string) => void; onDone: () => void }) {
-  const main = mainCss(theme, 'song');
   return (
     <textarea
       data-writing
@@ -287,12 +287,7 @@ function InlineText({ element: e, theme, onChange, onDone }: { element: Extract<
         top: e.y,
         width: e.w,
         height: Math.max(e.h, e.size * 1.5),
-        ...main,
-        fontSize: e.size,
-        fontWeight: e.bold ? 700 : main.fontWeight,
-        fontStyle: e.italic ? 'italic' : 'normal',
-        textAlign: e.align,
-        color: e.color ?? String(main.color),
+        ...elementTextCss(e, theme),
         textShadow: 'none',
       }}
     />

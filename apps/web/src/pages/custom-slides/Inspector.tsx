@@ -1,6 +1,6 @@
 import { useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { type CustomElement, type CustomPage, FIELD_RULES } from '@gp/core';
+import { type CustomElement, type CustomPage, FIELD_RULES, type Theme } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { AutoSaveField } from '../../ui/AutoSave.tsx';
@@ -18,6 +18,7 @@ export function Inspector({
   name,
   nameNew,
   page,
+  theme,
   pageAt,
   element,
   textRef,
@@ -39,6 +40,8 @@ export function Inspector({
   /** Just made: the name is focused and picked, to type over. */
   nameNew?: boolean;
   page: CustomPage;
+  /** The theme a text follows in what it does not set. */
+  theme: Theme;
   pageAt: number;
   element: CustomElement | undefined;
   textRef: RefObject<HTMLTextAreaElement | null>;
@@ -67,6 +70,7 @@ export function Inspector({
         {tabsInto ? createPortal(<InspectorTabs tabs={tabs} value={tab} onChange={setChosen} />, tabsInto) : <InspectorTabs label={t('slideEditor.format')} tabs={tabs} value={tab} onChange={setChosen} />}
         <ElementPanel
           element={element}
+          theme={theme}
           tab={tab}
           textRef={textRef}
           // What changed is the step's kind: a slider pulled is one step, a colour then another.

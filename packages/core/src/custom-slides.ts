@@ -39,6 +39,18 @@ const textElement = z.object({
   italic: z.boolean(),
   align: z.enum(['left', 'center', 'right']),
   color,
+  // The rest of a theme's text look, as its editor has them (Lars, 2026-11-26: one Text panel for both). Not set, the
+  // theme's song text's, as before them; `weight` set wins over `bold`, which an older app still reads.
+  font: z.string().min(1).max(200).regex(/^[\w\s',-]+$/, 'a CSS font stack').optional(),
+  weight: z.number().int().min(100).max(900).optional(),
+  lineHeight: z.number().min(0.8).max(3).optional(),
+  /** Per cent, the whole text. */
+  opacity: z.number().int().min(10).max(100).optional(),
+  uppercase: z.boolean().optional(),
+  shadow: z.boolean().optional(),
+  /** A line around each letter, as a theme's, 0 for none. */
+  outline: z.number().int().min(0).max(20).optional(),
+  outlineColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
 });
 const blobHash = z.string().regex(MEDIA_HASH);
 /** A picture as a page keeps it: its `full` blob, fitting 1920×1080, and its `thumb`, as a library picture has them. */

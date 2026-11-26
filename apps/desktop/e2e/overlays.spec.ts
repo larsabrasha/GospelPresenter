@@ -238,3 +238,21 @@ test('a text box is made taller by its bottom handle, and lower again', async ()
 
   await expect.poll(async () => (await text.boundingBox())!.height).toBeLessThan(taller - 20);
 });
+
+test("an overlay's text has a theme's text's choices: its weight and shadow are drawn on the slide, and saved", async () => {
+  // Arrange
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
+  const text = page.getByTestId('slide-canvas').locator('[data-element]').filter({ hasText: 'Swish 123 45' });
+
+  // Act
+  await page.getByRole('radiogroup', { name: 'Vikt' }).getByRole('radio', { name: 'Halvfet' }).click();
+  await page.getByRole('switch', { name: 'Skugga' }).filter({ visible: true }).click();
+
+  // Assert
+  await expect(page.getByTestId('saved')).toBeVisible();
+  await expect(text).toHaveCSS('font-weight', '600');
+  await expect(text).not.toHaveCSS('text-shadow', 'none');
+});

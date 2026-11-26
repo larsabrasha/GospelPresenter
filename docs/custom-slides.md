@@ -20,7 +20,10 @@ PDF) is a slideshow too, its pages its pages' pictures: one kind of thing, Bilds
 A page is a 1920×1080 stage (`CANVAS`), so it is drawn the same on every output. Its elements, in drawing order,
 each with a box in stage pixels (`x`, `y`, `w`, `h`):
 
-- **text**: the text, its size, bold, italic, its alignment, and a colour;
+- **text**: the text, its size, bold, italic, its alignment, and a colour; and, as a theme's text has them (Lars,
+  2026-11-26), a font, a weight (which wins over bold, kept beside it for an older app), a line height, an opacity,
+  capitals, a shadow and an outline with its colour. What a text does not set follows the theme's song text, as
+  before it had them (`ui/customText.ts`);
 - **image**: a picture, fitted inside its box or filling it. It is the slideshow's own (`picture`: the hashes of its
   `full` and `thumb` blobs), as Keynote keeps its pictures (Lars, 2026-11-04): one taken from Bilder is a copy, the
   same blobs, as blobs are named by their content, so it takes no more room; one taken from the device goes into the
@@ -112,7 +115,8 @@ As Keynote's (Lars, 2026-11-04), in `apps/web/src/pages/custom-slides/`:
   by Tab or a tap; there Tab picks the next element, the front one first (⇧Tab the one before), and past the last
   leaves the page with none picked; an arrow moves the picked one a point, ⇧ ten, a run of them one step for Ångra;
   Enter writes in a picked text, and Escape lets go of the picked one. Tested in `e2e/keyboard.spec.ts`.
-- **Format** has the picked element's tabs: Text (words, size, bold, italic, alignment, colour) or Stil (fill,
+- **Format** has the picked element's tabs: Text (the words, then the theme editor's Text panel, `TextFormat.tsx`:
+  font, size, weight, line height, alignment, colour, opacity, italic, capitals, shadow, outline) or Stil (fill,
   outline, its width, a rectangle's corners; a line's colour and width) or Bild (fit, another picture), and Ordna
   (Placering på sliden, a small slide with nine points, as Keynote's and Figma's: a press puts the element at a corner,
   the middle of an edge or the middle, 5 % of the slide's height from the top or foot and the side alike, a text lined

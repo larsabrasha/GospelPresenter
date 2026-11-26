@@ -17,13 +17,14 @@ import {
 } from '../src/index.ts';
 
 describe('built-in themes (spec 05, ADR 0001)', () => {
-  it('THEME-A1: two, dark then light, with Swedish names, and Terminal for Lekfullt läge; ids unique; Classic, the dark one, exists', () => {
+  it('THEME-A1: dark, light and blue, with Swedish names, and Terminal for Lekfullt läge; ids unique; Classic, the dark one, exists', () => {
     expect(listThemes().map((t) => [t.id, t.name])).toEqual([
       ['classic', 'Mörkt'],
       ['light', 'Ljust'],
+      ['blue', 'Blått'],
       ['terminal', 'Terminal'],
     ]);
-    expect(new Set(BUILT_IN_THEMES.map((t) => t.id)).size).toBe(3);
+    expect(new Set(BUILT_IN_THEMES.map((t) => t.id)).size).toBe(4);
     expect([...PLAYFUL_THEME_IDS]).toEqual(['terminal']);
     expect(isBuiltInTheme('classic')).toBe(true);
     for (const t of BUILT_IN_THEMES) expect(themeDefinitionSchema.safeParse(t.definition).success, t.id).toBe(true);
@@ -36,6 +37,15 @@ describe('built-in themes (spec 05, ADR 0001)', () => {
     expect(song.background.color).toBe('#000000');
     expect(bible.main).toMatchObject({ fontSize: 75, fontWeight: 400, align: 'left' });
     expect(song.credits).toMatchObject({ fontSize: 40, lineHeight: 1.2, color: 'rgba(255, 255, 255, 0.4)', align: 'left' });
+  });
+
+  it("the blue theme is the dark one on the app's blue picture, over its darkest blue", () => {
+    const blue = BUILT_IN_THEMES.find((t) => t.id === 'blue')!.definition;
+
+    for (const kind of ['song', 'bible'] as const) {
+      expect(blue[kind].background, kind).toEqual({ color: '#071226', image: { kind: 'builtIn', asset: 'backdrops/blue' }, fit: 'cover', scrim: 0 });
+      expect([blue[kind].main, blue[kind].credits], kind).toEqual([CLASSIC.definition[kind].main, CLASSIC.definition[kind].credits]);
+    }
   });
 
   it('the light theme is the dark one with black text on white, credits black 40 %', () => {
@@ -136,7 +146,7 @@ describe('own themes (docs/themes.md)', () => {
   it('lists the built-in ones first, then the own ones by when they were made', () => {
     const later = { ...own, id: 'own-2', sort: 9 };
 
-    expect(listThemes([later, own]).map((t) => t.id)).toEqual(['classic', 'light', 'terminal', 'own-1', 'own-2']);
+    expect(listThemes([later, own]).map((t) => t.id)).toEqual(['classic', 'light', 'blue', 'terminal', 'own-1', 'own-2']);
   });
 
   it('resolves a presentation’s own theme and an own default', () => {
