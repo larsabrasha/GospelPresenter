@@ -325,8 +325,13 @@ function PartRow({
           )}
           {mark && <SlideMark kind={mark} />}
         </span>
-        {/* A Bible slide's verse numbers raised, as the slide shows them, not run into the text. */}
-        {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.verses ? <BibleText slide={slide} /> : slide.text}</span>}
+        {/* A Bible slide's verse numbers raised, as the slide shows them, not run into the text; larger and clearer than
+            the slide's, which are read on a big screen, so they still read in a 17 px row (Lars, 2026-11-26). */}
+        {!pictured && (
+          <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100 [&_.verse-number]:text-[0.7em] [&_.verse-number]:opacity-60">
+            {slide.verses ? <BibleText slide={slide} /> : slide.text}
+          </span>
+        )}
         {slide.audio && <span className="text-[17px]/snug truncate text-stone-900 dark:text-stone-100">{slide.audio.name}</span>}
       </span>
     </AppButton>
