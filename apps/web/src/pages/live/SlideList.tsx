@@ -268,7 +268,27 @@ function ItemNote({ item }: { item: PresentationItem }) {
   );
 }
 
-/** A part on a phone: its name and its whole text (a picture or a video drawn small), VISAS at its right. */
+/**
+ * A part's foot on a phone: its number, as a computer's tile has it at its corner (Lars, 2026-11-26), and VISAS before
+ * it. VISAS's room is kept when it is not there, so a row keeps its size as VISAS moves (Lars, 2026-11-02).
+ */
+function PartFoot({ partIndex, mark, className }: { partIndex: number; mark: SlideMarkKind | null; className: string }) {
+  return (
+    <span className={`flex items-center justify-end gap-1.5 ${className}`}>
+      {/* The room kept is VISAS's width in a pseudo-element, so the row's text holds no VISAS it does not show. */}
+      {mark ? (
+        <SlideMark kind={mark} />
+      ) : (
+        <span aria-hidden data-mark={t('live.shownBadge')} className="invisible shrink-0 text-[11px]/4 px-2 py-0.5 font-bold tracking-wide before:content-[attr(data-mark)]" />
+      )}
+      <span className="min-w-5 rounded-md px-1.5 text-center text-xs/5 font-semibold tabular-nums bg-stone-500/10 text-stone-500 dark:bg-white/10 dark:text-stone-400" aria-hidden>
+        {partIndex + 1}
+      </span>
+    </span>
+  );
+}
+
+/** A part on a phone: its label and its whole text (a picture or a video drawn small), its number and VISAS at its foot. */
 function PartRow({
   slide,
   partIndex,
@@ -313,27 +333,24 @@ function PartRow({
         </span>
       )}
       <span className="flex-1 min-w-0 flex flex-col gap-1.5">
-        {/* One height with or without VISAS, so a row keeps its size as it moves (Lars, 2026-11-02). */}
-        <span className="h-5 flex items-center justify-between gap-2">
-          {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one by its number. */}
-          {slide.label ? (
-            <span className={`${PILL} truncate`} style={{ background: slide.label.color }}>
-              {slide.label.text}
-            </span>
-          ) : (
-            !pictured && <span className="text-[13px]/5 font-semibold text-stone-500 dark:text-stone-400 truncate">{partIndex + 1}</span>
-          )}
-          {mark && <SlideMark kind={mark} />}
-        </span>
+        {/* A label in its colour, as 1.x's slides and the song editor show it; a part without one has no line for it. */}
+        {slide.label && (
+          <span className={`${PILL} self-start max-w-full truncate`} style={{ background: slide.label.color }}>
+            {slide.label.text}
+          </span>
+        )}
         {/* A Bible slide's verse numbers raised, as the slide shows them, not run into the text; larger and clearer than
             the slide's, which are read on a big screen, so they still read in a 17 px row, and raised only to the top of
-            the capitals, not above the line (Lars, 2026-11-26). */}
+            the capitals, not above the line (Lars, 2026-11-26). The foot floats at the end of the last line, or under
+            it when the line is full. */}
         {!pictured && (
           <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100 [&_.verse-number]:text-[0.7em] [&_.verse-number]:opacity-60 [&_.verse-number]:align-[0.1em]">
             {slide.verses ? <BibleText slide={slide} /> : slide.text}
+            <PartFoot partIndex={partIndex} mark={mark} className="float-right ml-3 mt-0.5" />
           </span>
         )}
         {slide.audio && <span className="text-[17px]/snug truncate text-stone-900 dark:text-stone-100">{slide.audio.name}</span>}
+        {pictured && <PartFoot partIndex={partIndex} mark={mark} className="self-end" />}
       </span>
     </AppButton>
   );
