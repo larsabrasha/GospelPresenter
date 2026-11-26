@@ -326,9 +326,10 @@ function PartRow({
           {mark && <SlideMark kind={mark} />}
         </span>
         {/* A Bible slide's verse numbers raised, as the slide shows them, not run into the text; larger and clearer than
-            the slide's, which are read on a big screen, so they still read in a 17 px row (Lars, 2026-11-26). */}
+            the slide's, which are read on a big screen, so they still read in a 17 px row, and raised only to the top of
+            the capitals, not above the line (Lars, 2026-11-26). */}
         {!pictured && (
-          <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100 [&_.verse-number]:text-[0.7em] [&_.verse-number]:opacity-60">
+          <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100 [&_.verse-number]:text-[0.7em] [&_.verse-number]:opacity-60 [&_.verse-number]:align-[0.1em]">
             {slide.verses ? <BibleText slide={slide} /> : slide.text}
           </span>
         )}
