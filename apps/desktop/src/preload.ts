@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('gpDesktop', {
   isHost: Boolean(ipcRenderer.sendSync('is-host')),
   cloud: String(ipcRenderer.sendSync('cloud')),
   connectServer: (typed: string) => ipcRenderer.invoke('connect-server', typed) as Promise<'ok' | 'invalid' | 'unreachable' | 'refused'>,
-  leaveServer: () => ipcRenderer.invoke('leave-server') as Promise<boolean>,
+  leaveServer: (hash?: string) => ipcRenderer.invoke('leave-server', hash) as Promise<boolean>,
   serverFixed: Boolean(ipcRenderer.sendSync('server-fixed')),
   drawPptx: (deck: Uint8Array) =>
     ipcRenderer.invoke('draw-pptx', deck) as Promise<{ charts: boolean; pages: { full: Uint8Array; thumb: Uint8Array }[] } | 'invalid' | 'pages' | 'unavailable'>,

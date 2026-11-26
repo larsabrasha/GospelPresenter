@@ -28,8 +28,8 @@ interface Window {
      * address), kept for the next start, the window going there. Refused unless it is a server's address that answers.
      */
     connectServer?(typed: string): Promise<'ok' | 'invalid' | 'unreachable' | 'refused'>;
-    /** From a server's sign-in page: back to this machine as the host ("Byt server"). */
-    leaveServer?(): Promise<boolean>;
+    /** From a server's sign-in page: back to this machine as the host ("Annan server…"), its start at `hash`. */
+    leaveServer?(hash?: string): Promise<boolean>;
     /** The environment (`GP_SERVER`) decides the server: no page offers to change it. */
     serverFixed?: boolean;
     /**

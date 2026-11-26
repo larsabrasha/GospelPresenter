@@ -4,8 +4,8 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Our cloud, what the first start offers first. */
-export const CLOUD = 'https://app.gospelpresenter.com';
+/** Our cloud, what the first start offers first; `GP_CLOUD` stands in for it in the e2e tests, never our own. */
+export const CLOUD = process.env.GP_CLOUD?.replace(/\/$/, '') ?? 'https://app.gospelpresenter.com';
 
 const file = (dataDir: string) => join(dataDir, 'connection.json');
 

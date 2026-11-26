@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ACCOUNT_LIMITS, type SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
@@ -12,8 +12,8 @@ import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 /** What a refusal of the desktop app's `connectServer` says. */
 const refusal = (r: 'invalid' | 'unreachable' | 'refused') => t(r === 'unreachable' ? 'server.unreachable' : 'desktop.invalidServer');
 
-/** A shaped button as wide as the sign-in's, quieter than it (Lars, 2026-11-25: buttons with a shape). */
-const SECOND = 'w-64 px-6 py-3 rounded-full bg-sky-500/12 text-sky-600 dark:text-sky-300 text-lg cursor-pointer hover:bg-sky-500/20 disabled:opacity-50 disabled:cursor-default';
+/** The second choice under the main one, in text, as Apple's setup has it (Lars, 2026-11-26). */
+const TEXT_CHOICE = 'px-3 py-1 rounded-full text-lg text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-500/10 disabled:opacity-50 disabled:cursor-default';
 
 /**
  * The desktop app's start on its own computer (D8; Lars, 2026-11-26), whenever its window is not signed in: an account
@@ -21,13 +21,17 @@ const SECOND = 'w-64 px-6 py-3 rounded-full bg-sky-500/12 text-sky-600 dark:text
  * account, everything kept on it and the church's phones and screens connecting to it on the network, even with no
  * internet. Without an account there is no sign-in: the first time asks the person's and the church's names, after
  * that Fortsätt; "Logga in som någon annan här" is the computer's own sign-in (`onSignInHere`), for a church whose
- * people share it. `setUp`: the computer has been set up. First what was chosen before: without an account once set up.
+ * people share it. `setUp`: the computer has been set up. Another server is offered where one signs in (LeaveServer),
+ * here once set up, and when our cloud does not answer, as on a church's network with no internet.
  */
 export function DesktopStart({ setUp, onSignedIn, onSignInHere }: { setUp: boolean; onSignedIn: (r: SignInResponse) => void; onSignInHere: () => void }) {
   const desktop = window.gpDesktop!;
-  const [other, setOther] = useState(false);
+  // A server's Annan server… opens at the address; the hash goes at once, so a reload is the start.
+  const [view, setView] = useState<'start' | 'local' | 'other'>(() => (location.hash === OTHER_SERVER ? 'other' : 'start'));
+  useEffect(() => {
+    if (location.hash === OTHER_SERVER) history.replaceState(history.state, '', location.pathname + location.search);
+  }, []);
   const [address, setAddress] = useState('');
-  const [local, setLocal] = useState(false);
   const [name, setName] = useState('');
   const [orgName, setOrgName] = useState('');
   const [busy, setBusy] = useState<'cloud' | 'other' | 'local' | null>(null);
@@ -64,79 +68,89 @@ export function DesktopStart({ setUp, onSignedIn, onSignInHere }: { setUp: boole
     setBusy(null);
   };
 
-  const account: ReactNode = (
-    <section className="flex flex-col items-center gap-3" aria-label={t('desktop.signInCloud')}>
-      <p className={AUTH_TEXT}>{t('desktop.connectText')}</p>
-      <AppButton variant="plain" className={setUp ? SECOND : `${AUTH_SUBMIT} w-64`} loading={busy === 'cloud'} disabled={!!busy} onClick={() => void connect(desktop.cloud!, 'cloud')}>
-        {t('desktop.signInCloud')}
-      </AppButton>
-      <p className="text-xs text-stone-400 dark:text-stone-500">{new URL(desktop.cloud!).host}</p>
-      {other ? (
-        <form className="w-64 space-y-3" onSubmit={(e) => (e.preventDefault(), address.trim() && void connect(address, 'other'))}>
-          <p className={AUTH_TEXT}>{t('desktop.otherText')}</p>
-          <FloatingInput label={t('server.address')} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" autoFocus maxChars={200} value={address} onChange={(e) => setAddress(e.target.value)} />
-          <div className="flex justify-center">
-            <AppButton type="submit" disabled={!address.trim() || !!busy} loading={busy === 'other'}>
-              {t('server.use')}
-            </AppButton>
-          </div>
-        </form>
-      ) : (
-        <AppButton variant="plain" className={SMALL_ACTION} disabled={!!busy} onClick={() => setOther(true)}>
-          {t('desktop.otherServer')}
-        </AppButton>
-      )}
-    </section>
+  const back = () => (setView('start'), setError(null));
+  const otherChoice = (
+    <AppButton variant="plain" className={TEXT_CHOICE} disabled={!!busy} onClick={() => (setView('other'), setError(null))}>
+      {t('desktop.otherServer')}
+    </AppButton>
+  );
+  const cancel = (
+    <AppButton variant="plain" className={TEXT_CHOICE} disabled={!!busy} onClick={back}>
+      {t('common.cancel')}
+    </AppButton>
   );
 
-  const withoutAccount: ReactNode = (
-    <section className="flex flex-col items-center gap-3" aria-label={t('desktop.withoutAccount')}>
-      <p className={AUTH_TEXT}>{t('desktop.withoutAccountText')}</p>
-      {setUp ? (
-        <>
-          <AppButton variant="plain" className={`${AUTH_SUBMIT} w-64`} loading={busy === 'local'} disabled={!!busy} onClick={() => void here()}>
-            {t('desktop.continueHere')}
-          </AppButton>
-          <AppButton variant="plain" className={SMALL_ACTION} disabled={!!busy} onClick={onSignInHere}>
-            {t('desktop.signInHere')}
-          </AppButton>
-        </>
-      ) : local ? (
-        <form className="w-64 flex flex-col gap-4" onSubmit={(e) => void here(e)}>
+  // One main choice and one in text, nothing to read first (Lars, 2026-11-26: as Apple's setup does); what a choice
+  // means is said on its own step. Another server is chosen where one signs in: a server's sign-in has Annan server…
+  const body: ReactNode =
+    view === 'other' ? (
+      <form className="flex flex-col items-center gap-4" onSubmit={(e) => (e.preventDefault(), address.trim() && void connect(address, 'other'))}>
+        <p className={AUTH_TEXT}>{t('desktop.otherText')}</p>
+        <div className="w-64">
+          <FloatingInput label={t('server.address')} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" autoFocus maxChars={200} value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+        <AppButton variant="plain" type="submit" className={`${AUTH_SUBMIT} w-64`} disabled={!address.trim() || !!busy} loading={busy === 'other'}>
+          {t('server.use')}
+        </AppButton>
+        {cancel}
+      </form>
+    ) : view === 'local' ? (
+      <form className="flex flex-col items-center gap-4" onSubmit={(e) => void here(e)}>
+        <p className={AUTH_TEXT}>{t('desktop.withoutAccountText')}</p>
+        <div className="w-64 flex flex-col gap-4">
           <FloatingInput id="setup-name" label={t('setup.name')} autoFocus maxChars={ACCOUNT_LIMITS.personName} value={name} onChange={(e) => setName(e.target.value)} />
           <FloatingInput id="setup-organization" label={t('setup.orgName')} maxChars={ACCOUNT_LIMITS.orgName} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
-          <AppButton variant="plain" type="submit" disabled={!!busy} loading={busy === 'local'} className={AUTH_SUBMIT}>
-            {t('setup.submit')}
-          </AppButton>
-        </form>
-      ) : (
-        <AppButton variant="plain" className={SECOND} disabled={!!busy} onClick={() => setLocal(true)}>
+        </div>
+        <AppButton variant="plain" type="submit" disabled={!!busy} loading={busy === 'local'} className={`${AUTH_SUBMIT} w-64`}>
+          {t('setup.submit')}
+        </AppButton>
+        {cancel}
+      </form>
+    ) : setUp ? (
+      <div className="flex flex-col items-center gap-4">
+        <AppButton variant="plain" className={`${AUTH_SUBMIT} w-64`} loading={busy === 'local'} disabled={!!busy} onClick={() => void here()}>
+          {t('desktop.continueHere')}
+        </AppButton>
+        <AppButton variant="plain" className={TEXT_CHOICE} disabled={!!busy} onClick={onSignInHere}>
+          {t('desktop.signInHere')}
+        </AppButton>
+        {otherChoice}
+      </div>
+    ) : (
+      <div className="flex flex-col items-center gap-4">
+        <AppButton variant="plain" className={`${AUTH_SUBMIT} w-64`} loading={busy === 'cloud'} disabled={!!busy} onClick={() => void connect(desktop.cloud!, 'cloud')}>
+          {t('desktop.signInCloud')}
+        </AppButton>
+        <AppButton variant="plain" className={TEXT_CHOICE} disabled={!!busy} onClick={() => setView('local')}>
           {t('desktop.withoutAccount')}
         </AppButton>
-      )}
-    </section>
-  );
+        {error && otherChoice}
+      </div>
+    );
 
+  const title = view === 'other' ? 'desktop.otherTitle' : view === 'local' ? 'desktop.withoutAccount' : setUp ? 'desktop.welcomeBack' : 'setup.title';
   return (
-    <AuthCard title={t(setUp ? 'desktop.welcomeBack' : 'setup.title')} centered>
-      {setUp ? withoutAccount : account}
-      <p className="text-center text-xs text-stone-400 dark:text-stone-500 py-2" aria-hidden>
-        {t('desktop.or')}
-      </p>
-      {setUp ? account : withoutAccount}
+    <AuthCard title={t(title)} centered>
+      {body}
       <FormError text={error} center />
     </AuthCard>
   );
 }
 
-/** "Byt server" on a server's sign-in and pairing pages in the desktop app: back to this computer's own start. */
+/** Where a server's "Annan server…" sends this computer's start: straight to the address (LeaveServer). */
+const OTHER_SERVER = '#other-server';
+
+/**
+ * "Annan server…" on a server's sign-in and pairing pages in the desktop app, our cloud's too: back to this
+ * computer's start, at the address of another server, whose Avbryt is the start (Lars, 2026-11-26).
+ */
 export function LeaveServer() {
   const desktop = window.gpDesktop;
   if (!desktop || desktop.isHost || !desktop.leaveServer || desktop.serverFixed) return null;
   return (
     <div className="pt-6 flex justify-center">
-      <AppButton variant="plain" className={SMALL_ACTION} onClick={() => void desktop.leaveServer!()}>
-        {t('desktop.leaveServer')}
+      <AppButton variant="plain" className={SMALL_ACTION} onClick={() => void desktop.leaveServer!(OTHER_SERVER)}>
+        {t('desktop.otherServer')}
       </AppButton>
     </div>
   );

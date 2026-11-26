@@ -6,14 +6,16 @@ its `sub`, and passkeys, by their credential id. One user may have both kinds, a
 way lands on the same user. The email is only filled in, and never used to find a user (spec 01,
 AUTH-R4). There is no self-registration: a Google account or passkey that is not linked is refused.
 
-**The desktop app's first start** (D8; Lars, 2026-11-26) asks where to go: Logga in, with one's account on our cloud
-(app.gospelpresenter.com), first and largest; Annan server…, a church's own server or another computer used without
-an account, by its address; or Använd utan konto, for a church that does not want to depend on the internet, or has
-none. A server is taken only once it answers (`/api/pair/status`), and the app then opens it, as a client of it: its
-sign-in, or pairing with a code when it is another desktop app. The choice is kept for the next start
-(`connection.json` in the app's data folder, `apps/desktop/src/connection.ts`; `GP_SERVER` in the environment wins). A
-server's sign-in and pairing pages in the app have Byt server, back to this computer. Each origin keeps its own data
-(D3). Only the computer's own page may send the app to a server, never a server's page. A server that does not answer
+**The desktop app's first start** (D8; Lars, 2026-11-26) has two choices and nothing to read, in the middle of the
+window as Apple's setup does: Logga in, with one's account on our cloud (app.gospelpresenter.com), and under it in
+text Använd utan konto, for a church that does not want to depend on the internet, or has none; what that means is
+said on its own step, with the two names. Another server, a church's own or another computer used without an account,
+is chosen where one signs in: a server's sign-in and pairing pages in the app have Annan server…, back to this
+computer's start at the address (Avbryt is the start); the start offers it too when our cloud does not answer, and
+once the computer is set up. A server is taken only once it answers (`/api/pair/status`), and the app then opens it,
+as a client of it: its sign-in, or pairing with a code when it is another desktop app. The choice is kept for the next
+start (`connection.json` in the app's data folder, `apps/desktop/src/connection.ts`; `GP_SERVER` in the environment
+wins, and `GP_CLOUD` stands in for our cloud in the e2e tests). Each origin keeps its own data (D3). Only the computer's own page may send the app to a server, never a server's page. A server that does not answer
 when the app opens it gets a dialog: try again, or this computer. The UI never says host or server for this computer.
 
 **Used without an account**, the computer's own window never signs in (Lars, 2026-11-26): whoever sits at the

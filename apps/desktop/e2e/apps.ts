@@ -69,6 +69,8 @@ export async function launch(
   const port = opts.server ? undefined : (opts.port ?? testPort());
   if (port) env.GP_PORT = String(port);
   if (opts.memory) env.GP_STORAGE = 'memory';
+  // Never our own cloud: in its place an address nothing answers at, unless a test gives one (desktop-connect.spec.ts).
+  env.GP_CLOUD = 'http://127.0.0.1:9';
   Object.assign(env, opts.env);
   // No visible window: the tests never take focus or a screen from whoever is at the computer. GP_E2E_VISIBLE=1 shows them.
   if (process.env.GP_E2E_VISIBLE !== '1') env.GP_HIDDEN_WINDOWS = '1';

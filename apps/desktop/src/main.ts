@@ -221,14 +221,14 @@ async function connect(server: string | null) {
  * Goes to `server`, or with none back to this machine as the host: the outputs close, the host's server stops or
  * starts, the choice is kept for the next start, and the window opens the new origin, whose data is its own (D3).
  */
-async function reconnect(server: string | null) {
+async function reconnect(server: string | null, hash = '') {
   outputs.hide();
   if (host) await host.close();
   host = null;
   saveServer(app.getPath('userData'), server);
   await connect(server);
   log({ event: 'connected', base, host: !!host });
-  await mainWindow?.loadURL(pageUrl(base));
+  await mainWindow?.loadURL(pageUrl(base) + hash);
 }
 
 app.whenReady().then(async () => {
@@ -252,10 +252,10 @@ app.whenReady().then(async () => {
     await reconnect(server);
     return 'ok';
   });
-  // Back to this machine as the host, from a server's sign-in page ("Byt server").
-  ipcMain.handle('leave-server', async () => {
+  // Back to this machine as the host, from a server's sign-in page ("Annan server…"); the one hash its start knows.
+  ipcMain.handle('leave-server', async (_e, hash: unknown) => {
     if (host || process.env.GP_SERVER) return false;
-    await reconnect(null);
+    await reconnect(null, hash === '#other-server' ? hash : '');
     return true;
   });
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));

@@ -1,5 +1,6 @@
-// The desktop app's first start (D8; Lars, 2026-11-26): an account on our cloud first, another server by its address,
-// or this computer alone as the host; the choice kept for the next start, and "Byt server" back.
+// The desktop app's first start (D8; Lars, 2026-11-26): an account on our cloud first, or this computer used without
+// an account; another server by its address where one signs in, or when the cloud does not answer; the choice kept
+// for the next start. GP_CLOUD stands in for our cloud: nothing answers at it unless a test says otherwise.
 import { expect, test } from '@playwright/test';
 import { type Desktop, launch } from './apps.ts';
 import { openAdmin, setUpHost, signOut } from './flows.ts';
@@ -10,48 +11,52 @@ test.afterEach(async () => {
   apps = [];
 });
 
-test('the first start offers the cloud first, refuses a server that does not answer, and goes to one that does', async () => {
+const BO = { name: 'Bo', org: 'Stora Kyrkan', google: { sub: 'google-bo', email: 'bo@kyrkan.se', name: 'Bo' } };
+
+test('the first start offers two choices; when the cloud does not answer, another server by its address, refused until one answers', async () => {
   const other = await launch();
   apps.push(other);
-  await setUpHost(other, { name: 'Bo', org: 'Stora Kyrkan', google: { sub: 'google-bo', email: 'bo@kyrkan.se', name: 'Bo' } });
+  await setUpHost(other, BO);
   const mine = await launch();
   apps.push(mine);
   const page = mine.page;
-
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Logga in', exact: true })).toBeVisible();
-  await expect(page.getByText('app.gospelpresenter.com')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Använd utan konto' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Annan server…' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Logga in', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveText('Ingen Gospel Presenter-server svarar på den adressen.');
   await page.getByRole('button', { name: 'Annan server…' }).click();
+  await expect(page.getByRole('heading', { name: 'Annan server' })).toBeVisible();
   await page.getByLabel('Serverns adress').fill('http://127.0.0.1:9');
   await page.getByRole('button', { name: 'Använd', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText('Ingen Gospel Presenter-server svarar på den adressen.');
-
   await page.getByLabel('Serverns adress').fill(other.base);
   await page.getByRole('button', { name: 'Använd', exact: true }).click();
 
-  // The other computer is a host: this app pairs with it, as a phone does.
+  // The other computer is used without an account: this app pairs with it, as a phone does.
   await expect(page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   expect(page.url().startsWith(other.base)).toBe(true);
 });
 
-test('the server chosen is kept for the next start, and Byt server goes back to this computer', async () => {
-  const other = await launch();
-  apps.push(other);
-  await setUpHost(other, { name: 'Bo', org: 'Stora Kyrkan', google: { sub: 'google-bo', email: 'bo@kyrkan.se', name: 'Bo' } });
-  const first = await launch();
-  await first.page.getByRole('button', { name: 'Annan server…' }).click();
-  await first.page.getByLabel('Serverns adress').fill(other.base);
-  await first.page.getByRole('button', { name: 'Använd', exact: true }).click();
+test('the cloud chosen is kept for the next start, and Annan server… on its page opens the address on this computer', async () => {
+  const cloud = await launch();
+  apps.push(cloud);
+  await setUpHost(cloud, BO);
+  const first = await launch({ env: { GP_CLOUD: cloud.base } });
+  await first.page.getByRole('button', { name: 'Logga in', exact: true }).click();
   await expect(first.page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
   await first.app.close();
 
-  const again = await launch({ dataDir: first.dataDir });
+  const again = await launch({ dataDir: first.dataDir, env: { GP_CLOUD: cloud.base } });
   apps.push(again);
   await expect(again.page.getByRole('heading', { name: 'Anslut till kyrkans dator' })).toBeVisible();
-  await again.page.getByRole('button', { name: 'Byt server' }).click();
+  await again.page.getByRole('button', { name: 'Annan server…' }).click();
 
+  await expect(again.page.getByRole('heading', { name: 'Annan server' })).toBeVisible();
+  expect(again.page.url().startsWith(cloud.base)).toBe(false);
+  await again.page.getByRole('button', { name: 'Avbryt' }).click();
   await expect(again.page.getByRole('button', { name: 'Använd utan konto' })).toBeVisible();
-  expect(again.page.url().startsWith(other.base)).toBe(false);
 });
 
 test('the computer used without an account is set up with two names, and comes back in after signing out without signing in', async () => {
