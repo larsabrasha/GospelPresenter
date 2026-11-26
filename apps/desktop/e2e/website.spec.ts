@@ -1,4 +1,4 @@
-// The pictures on gospelpresenter.com (docs/, its carousel in docs/src/carousel.js): seven views of the app, in
+// The pictures on gospelpresenter.com (website/, its carousel in website/src/carousel.js): eight views of the app, in
 // Swedish and English, light and dark, desktop (1440×900) and phone (390×844), at twice the pixels, as WebP
 // named `<view>_<lang>_<theme>_<viewport>.webp`. Not a test: it runs only with GP_WEBSITE set to the directory
 // the pictures go to; `pnpm screenshots` writes them over website/src/screenshots.
@@ -227,7 +227,8 @@ for (const lang of ['sv', 'en'] as const) {
         await backToSong(page);
       }
       await createOverlay(page, content.overlay[0], content.overlay[1]);
-      // Its text dragged from the middle, where it is put, to the foot of the slide, under a song's lines.
+      // Its text dragged from the middle, where it is put, to the top left corner, clear of a song's lines (Lars,
+      // 2026-11-26); a part's label is at the top right.
       const canvas = page.getByTestId('slide-canvas');
       const text = canvas.locator('[data-element]').filter({ hasText: content.overlay[1] }).first();
       // Again until it is there: a press while the editor still takes the typed text in selects, and moves nothing.
@@ -235,10 +236,12 @@ for (const lang of ['sv', 'en'] as const) {
         const [from, slide] = [(await text.boundingBox())!, (await canvas.boundingBox())!];
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
-        await page.mouse.move(from.x + from.width / 2, slide.y + slide.height * 0.94 - from.height / 2, { steps: 10 });
+        const [x, y] = [slide.x + slide.width * 0.04 + from.width / 2, slide.y + slide.height * 0.05 + from.height / 2];
+        await page.mouse.move(x, y, { steps: 10 });
         await page.mouse.up();
         const moved = (await text.boundingBox())!;
-        expect(moved.y + moved.height).toBeGreaterThan(slide.y + slide.height * 0.85);
+        expect(moved.x).toBeLessThan(slide.x + slide.width * 0.1);
+        expect(moved.y).toBeLessThan(slide.y + slide.height * 0.1);
       }).toPass({ timeout: 10_000 });
       await expect(page.getByTestId('saved')).toBeVisible();
       await openAdmin(page, 'Biblar');
@@ -374,6 +377,17 @@ for (const lang of ['sv', 'en'] as const) {
         ],
         ['bible', presentation, (p) => openAdd(p, t('add.bible'))],
         ['presentation-live', presentation, goLive],
+        // Still live: Fjärrstyrning switched on, its QR code for whoever is to control from a phone.
+        [
+          'remote',
+          presentation,
+          async (p) => {
+            await p.locator('[data-testid="remote-status"]:visible').first().click();
+            const sheet = p.getByRole('dialog', { name: t('live.remote'), exact: true });
+            await sheet.getByLabel(t('remote.allow')).check();
+            await expect(sheet.getByRole('img', { name: t('remote.qr') })).toBeVisible();
+          },
+        ],
       ];
 
       const cdp = await page.context().newCDPSession(page);
@@ -410,6 +424,10 @@ for (const lang of ['sv', 'en'] as const) {
             await act(page);
             await shoot(page, name);
           }
+          // Fjärrstyrning's sheet, left open by the last picture, closed: it covers the page.
+          const remoteSheet = page.getByRole('dialog', { name: t('live.remote'), exact: true });
+          if (await remoteSheet.isVisible()) await remoteSheet.getByRole('button', { name: t('common.close'), exact: true }).first().click();
+          await expect(remoteSheet).toHaveCount(0);
           // Still live: a phone in the pews that follows the public output. On a phone the outputs are in Visning's sheet.
           if (phone) await page.getByRole('button', { name: t('live.display'), exact: true }).click();
           const toggle = page.getByRole('list', { name: t('live.outputs') }).getByLabel(content.phones);

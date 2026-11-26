@@ -7,7 +7,7 @@ const screenshots = import.meta.glob('./screenshots/*.webp', {
 });
 
 // The pictures come from the app itself: `pnpm screenshots` (apps/desktop/e2e/website.spec.ts).
-const PAGES = ['presentation', 'presentation-live', 'watch', 'home', 'songs', 'add-song', 'bible'];
+const PAGES = ['presentation', 'presentation-live', 'remote', 'watch', 'home', 'songs', 'add-song', 'bible'];
 
 const lang = location.pathname.startsWith('/sv') ? 'sv' : 'en';
 
