@@ -79,6 +79,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await pickItem(page, 'Johannes 3:16-17');
+  // The slide list raises the verse numbers, as the slide does, rather than running them into the text.
+  await expect(page.getByRole('button', { name: 'Johannes 3:16-17 1' }).locator('sup.verse-number').first()).toHaveText('16');
   await page.getByRole('button', { name: 'Johannes 3:16-17 1' }).click();
   const stage = output.getByTestId('slide-stage');
   await expect(output.getByTestId('slide-text')).toContainText('16 For God so loved the world');

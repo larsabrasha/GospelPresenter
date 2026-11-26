@@ -10,8 +10,8 @@ import { t } from '../i18n.ts';
 const STAGE_WIDTH = CANVAS.width;
 const STAGE_HEIGHT = CANVAS.height;
 
-/** A Bible slide's text: each verse number small and faint, held to its first word (spec 05). */
-function BibleText({ slide }: { slide: Slide }) {
+/** A Bible slide's text: each verse number small and faint, held to its first word (spec 05); also the slide list's. */
+export function BibleText({ slide }: { slide: Slide }) {
   return (
     <>
       {slide.verses!.map((seg, i) => (

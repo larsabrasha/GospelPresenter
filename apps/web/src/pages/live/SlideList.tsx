@@ -5,7 +5,7 @@ import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { CommentIcon, EllipsisIcon, EmptySlidesPicture } from '../../ui/icons.tsx';
 import { AudioMark, SlideMark } from '../../ui/SlideTile.tsx';
-import { SlideView } from '../../ui/SlideView.tsx';
+import { BibleText, SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { ImageItemEditor, ItemWarnings } from '../presentation-editor/ItemParts.tsx';
 import { MediaPreview } from './MediaPreview.tsx';
@@ -325,7 +325,8 @@ function PartRow({
           )}
           {mark && <SlideMark kind={mark} />}
         </span>
-        {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.text}</span>}
+        {/* A Bible slide's verse numbers raised, as the slide shows them, not run into the text. */}
+        {!pictured && <span className="text-[17px]/snug whitespace-pre-line text-stone-900 dark:text-stone-100">{slide.verses ? <BibleText slide={slide} /> : slide.text}</span>}
         {slide.audio && <span className="text-[17px]/snug truncate text-stone-900 dark:text-stone-100">{slide.audio.name}</span>}
       </span>
     </AppButton>
