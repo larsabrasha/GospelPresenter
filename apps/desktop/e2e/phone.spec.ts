@@ -49,14 +49,14 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await page.setViewportSize(PHONE);
   await page.reload();
 
-  // Before presenting: the running order, each item one row with how many parts it has (Lars, 2026-11-26: an
-  // overview, for someone given a link to control it too); a tap opens its parts. ▶ in the bar, and no picture yet.
+  // Before presenting: the running order, each item one row as the computer's running order has it (Lars, 2026-11-26:
+  // an overview, for someone given a link to control it too); a tap opens its parts. ▶ in the bar, and no picture yet.
   const live = page.getByTestId('phone-live');
   const picture = page.getByTestId('phone-live-picture');
   const liveOrder = page.getByTestId('live-order');
   const start = live.getByRole('button', { name: 'Starta presentation' });
   await expect(liveOrder.getByText('A två')).toHaveCount(0);
-  await liveOrder.getByRole('button', { name: /Sång A\s*2 delar/ }).click();
+  await liveOrder.getByRole('button', { name: 'Sång A', exact: true }).click();
   await expect(liveOrder.getByText('A två')).toBeVisible();
   // With no side column, the description stands at the top of the list (Lars, 2026-11-03).
   await expect(liveOrder.getByTestId('description')).toContainText('Med nattvard');
@@ -120,7 +120,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   await onScreen(page.getByRole('button', { name: 'Släck' }));
   await expect(liveOrder.locator('section')).toHaveCount(2);
   // Sång B, just added, is the item open; a tap on Sång A's row opens it and closes Sång B, showing nothing.
-  await liveOrder.getByRole('button', { name: /Sång A\s*2 delar/ }).click();
+  await liveOrder.getByRole('button', { name: 'Sång A', exact: true }).click();
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toBeVisible();
   await expect(liveOrder.getByRole('button', { name: /B ett/ })).toHaveCount(0);
   await expect(picture).not.toContainText('A ett');

@@ -101,7 +101,7 @@ tapped shows nothing, and ▶ starts it.
   the same menu (Lars, 2026-11-05: as ProPresenter's and Planning Center's +, a computer as a phone). An item's parts are one group of rows with hairlines, as iOS's inset grouped lists, and the foot of the list
   has more room than the + takes, so the last item's … scrolls clear of it (Lars, 2026-11-04). An overview
   (Lars, 2026-11-26, for anyone given a link to control it too, who must find their way at once): each item is one
-  row, its kind's icon, title and number of parts, until a tap opens it, which shows nothing on the screens; a
+  row, its kind's icon, title, overlay and comment as the computer's running order has them, until a tap opens it, which shows nothing on the screens; a
   programme point is a row too, with its icon and nothing to open. An open item keeps the same row, its chevron › turned
   to ⌄ as Notes' sections, its parts under it and the row sticking at the top while they scroll (Lars, 2026-11-26); the
   chevron is at the far right, the … left of it, both at the same place in every row, and the shown item's row has the

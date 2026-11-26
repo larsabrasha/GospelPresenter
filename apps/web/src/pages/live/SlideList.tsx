@@ -231,7 +231,6 @@ export function SlideList({
               <div data-heading className="sticky -top-px z-[2] -mx-4 px-4 pt-[calc(0.5rem+1px)] bg-ground">
                 <ItemRow
                   item={item}
-                  parts={set?.slides.length ?? 0}
                   overlays={overlays}
                   open={open}
                   shown={item.id === pointer.itemId && !pointer.black}

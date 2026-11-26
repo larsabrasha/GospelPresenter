@@ -88,8 +88,8 @@ export function ToShownButton({ box, active }: { box: RefObject<HTMLElement | nu
 }
 
 /**
- * An item's row on a phone, the same closed and open (Lars, 2026-11-26, as Notes' sections): its kind, its title and
- * how many parts it has, then its overlay and its comment as the running order's row has them (they say what shows and
+ * An item's row on a phone, the same closed and open (Lars, 2026-11-26, as Notes' sections): its kind and its title,
+ * then its overlay and its comment as the computer's running order has them on its row (they say what shows and
  * what to mind), and a chevron, › closed and ⌄ open; a tap opens or closes it and shows nothing on the screens. The
  * chevron is at the far right, the … left of it, drawn over the row (the row is the button, and a button holds no
  * button) where the row keeps room for it. The item shown has the red dot at its left. A programme point (a heading
@@ -97,7 +97,6 @@ export function ToShownButton({ box, active }: { box: RefObject<HTMLElement | nu
  */
 export function ItemRow({
   item,
-  parts,
   overlays,
   open,
   shown,
@@ -106,7 +105,6 @@ export function ItemRow({
   menuButton,
 }: {
   item: PresentationItem;
-  parts: number;
   overlays: Overlay[];
   open: boolean;
   shown: boolean;
@@ -124,7 +122,6 @@ export function ItemRow({
       <ItemBadge type={item.type} />
         <span className="min-w-0 flex flex-col gap-0.5">
           <span className={`truncate text-[17px]/snug transition-colors ${marked ? 'text-sky-500' : 'text-stone-900 dark:text-stone-100'}`}>{item.title}</span>
-          {parts > 0 && <span className="text-[13px]/[18px] text-stone-500 dark:text-stone-400">{t(parts === 1 ? 'live.parts.one' : 'live.parts.many', { n: parts })}</span>}
           {overlay && (
             <span className={`self-start ${OVERLAY_CHIP}`} title={t('overlays.itemOverlay')}>
               <SquaresOverlapIcon className="size-3 shrink-0" />

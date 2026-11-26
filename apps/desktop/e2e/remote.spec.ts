@@ -238,10 +238,10 @@ test('a phone controlling remotely sees each item as a row, the shown one open a
   // The shown item open, the others a row each (Lars, 2026-11-26).
   await expect(order.getByRole('button', { name: /A ett/ })).toBeVisible({ timeout: 5_000 });
   await expect(order.getByRole('button', { name: /B ett/ })).toHaveCount(0);
-  await expect(order.getByRole('button', { name: /Sång C\s*1 del/ })).toBeVisible();
+  await expect(order.getByRole('button', { name: 'Sång C', exact: true })).toBeVisible();
 
   // The phone opens Sång C to be ready; the host shows Sång B: B opens, A closes, C stays open.
-  await order.getByRole('button', { name: /Sång C\s*1 del/ }).click();
+  await order.getByRole('button', { name: 'Sång C', exact: true }).click();
   await pickItem(page, 'Sång B');
   await page.getByRole('button', { name: 'Sång B 1' }).click();
   await expect(order.getByRole('button', { name: /B ett/ })).toContainText('VISAS', { timeout: 5_000 });
