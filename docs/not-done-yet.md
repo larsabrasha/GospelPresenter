@@ -85,7 +85,8 @@ To try first (Lars, 2026-11-08): Safari and Cloudflare.
 
 - **Safari**: the service worker is tested in Chromium only; whether Safari lets it answer the database worker's
   fetch of wa-sqlite's wasm is not known. Safari cannot encode WebP in a canvas, so the image pipeline encodes it in
-  wasm (`@jsquash/webp`); tested in Playwright's WebKit, not in Safari itself.
+  wasm (`@jsquash/webp`); tested in Playwright's WebKit, and by hand in Safari on a Mac against
+  the dev server (Lars, 2026-11-27); not on an iPhone or in a build.
 - **Cloudflare**: the Worker runs on apptest, but `/watch/{code}` and `/display` were not opened in a browser
   there; the Worker serves `/sw.js` with `no-cache`, but the service worker there was not tried. In local workerd
   a closed stream is never noticed (a saved screen stays Online, a viewer stays counted); whether Cloudflare

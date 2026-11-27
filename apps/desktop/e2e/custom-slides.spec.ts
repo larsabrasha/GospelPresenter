@@ -39,6 +39,18 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await expect(canvas.locator('img[data-element]')).toHaveCount(1);
   await expect(page.getByTestId('saved')).toBeVisible();
 
+  // Its pixels not see-through in one colour (a black logo made white), and back to its own colours.
+  if (!(await page.getByTestId('inspector').filter({ visible: true }).count())) await page.getByRole('button', { name: 'Format', exact: true }).click();
+  await page.getByRole('tab', { name: 'Bild', exact: true }).filter({ visible: true }).click();
+  const inspector = page.getByTestId('inspector').filter({ visible: true });
+  await inspector.getByRole('button', { name: 'Färg: Bildens egna' }).click();
+  await inspector.getByRole('radio', { name: '#ffffff' }).click();
+  await expect.poll(() => canvas.locator('[data-element]').last().evaluate((el) => [el.tagName, getComputedStyle(el).backgroundColor, getComputedStyle(el).maskImage.startsWith('url(')])).toEqual(['DIV', 'rgb(255, 255, 255)', true]);
+  await inspector.getByRole('button', { name: 'Färg: #ffffff' }).click();
+  await inspector.getByRole('radio', { name: 'Bildens egna' }).click();
+  await expect(canvas.locator('img[data-element]')).toHaveCount(1);
+  await expect(page.getByTestId('saved')).toBeVisible();
+
   // In the library under Välj, the slide is drawn as wide as outside it (it was 0 wide once).
   await page.getByRole('link', { name: 'Tillbaka' }).click();
   await page.getByRole('button', { name: 'Välj', exact: true }).click();

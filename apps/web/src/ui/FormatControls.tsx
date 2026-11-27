@@ -34,7 +34,8 @@ export function ColorChoice({
 }: {
   label: string;
   value: string | null;
-  empty?: "theme" | "none";
+  /** What no colour is: the theme's, none, or a picture's own colours. */
+  empty?: "theme" | "none" | "picture";
   onChange: (c: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -42,7 +43,7 @@ export function ColorChoice({
     "size-8 shrink-0 rounded-full cursor-pointer ring-offset-2 ring-offset-surface dark:ring-offset-raised";
   const emptyLook =
     "bg-[linear-gradient(135deg,transparent_45%,#ef4444_45%,#ef4444_55%,transparent_55%)]";
-  const emptyName = empty && t(empty === "theme" ? "slideEditor.theme" : "slideEditor.none");
+  const emptyName = empty && t(empty === "theme" ? "slideEditor.theme" : empty === "picture" ? "slideEditor.pictureColors" : "slideEditor.none");
   const choose = (c: string | null) => {
     onChange(c);
     setOpen(false);

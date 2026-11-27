@@ -24,7 +24,8 @@ each with a box in stage pixels (`x`, `y`, `w`, `h`):
   2026-11-26), a font, a weight (which wins over bold, kept beside it for an older app), a line height, an opacity,
   capitals, a shadow and an outline with its colour. What a text does not set follows the theme's song text, as
   before it had them (`ui/customText.ts`);
-- **image**: a picture, fitted inside its box or filling it. It is the slideshow's own (`picture`: the hashes of its
+- **image**: a picture, fitted inside its box or filling it, in its own colours or every pixel not see-through in one
+  colour (`tint`; Lars, 2026-11-27: a black logo made white), drawn as that colour masked by the picture. It is the slideshow's own (`picture`: the hashes of its
   `full` and `thumb` blobs), as Keynote keeps its pictures (Lars, 2026-11-04): one taken from Bilder is a copy, the
   same blobs, as blobs are named by their content, so it takes no more room; one taken from the device goes into the
   slideshow only. Bilder and slideshows are apart: a picture removed from Bilder leaves every slideshow as it was;

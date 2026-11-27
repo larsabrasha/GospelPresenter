@@ -57,7 +57,14 @@ const blobHash = z.string().regex(MEDIA_HASH);
 const pictureSchema = z.object({ full: blobHash, thumb: blobHash });
 export type Picture = z.infer<typeof pictureSchema>;
 
-const imageElement = z.object({ ...box, kind: z.literal('image'), picture: pictureSchema, fit: z.enum(['contain', 'cover']) });
+const imageElement = z.object({
+  ...box,
+  kind: z.literal('image'),
+  picture: pictureSchema,
+  fit: z.enum(['contain', 'cover']),
+  /** Every pixel not see-through in this colour, a black logo made white (Lars, 2026-11-27); none, its own colours. */
+  tint: color.optional(),
+});
 const shapeElement = z.object({
   ...box,
   kind: z.enum(['rect', 'ellipse']),

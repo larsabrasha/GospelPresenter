@@ -60,7 +60,7 @@ async function themeAnswer(sql: RunSql, themeId: string) {
 const elements = customPageSchema.shape.elements.describe(
   `The overlay's texts, pictures and shapes, the first drawn first; each has an id of your choosing, unique in the overlay. ${STAGE} ` +
     'A text: {id, kind: "text", x, y, w, h, text, size (px), bold, italic, align, color (null: the theme\'s)}; it grows downwards with its words. ' +
-    'A picture: {id, kind: "image", x, y, w, h, picture: {full, thumb} from add_picture_from_url, fit: "contain"}. ' +
+    'A picture: {id, kind: "image", x, y, w, h, picture: {full, thumb} from add_picture_from_url, fit: "contain", tint (optional, "#rrggbb": every pixel not see-through in that colour, a black logo made white)}. ' +
     'Nothing under them: an overlay has no background of its own, the slide shows through.',
 );
 

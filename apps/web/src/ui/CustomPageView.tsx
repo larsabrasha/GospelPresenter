@@ -8,21 +8,52 @@ import { elementTextCss } from './customText.ts';
 // colour and font of its song slides, and the stage under the page is the theme's background. A PDF's page is a
 // picture under the elements.
 
+interface PictureLook {
+  style: CSSProperties;
+  id?: string;
+  fit?: 'contain' | 'cover';
+  /** Its pixels not see-through in this colour: the colour, cut out by the picture as a mask. */
+  tint?: string | null;
+}
+
+function PictureAt({ url, style, id, fit = 'contain', tint }: PictureLook & { url: string | null }) {
+  if (!url) return <div style={style} data-element={id} />;
+  if (!tint) return <img src={url} alt="" draggable={false} style={{ ...style, objectFit: fit }} data-element={id} />;
+  const mask = { image: `url("${url}")`, size: fit, position: 'center', repeat: 'no-repeat' } as const;
+  return (
+    <div
+      data-element={id}
+      style={{
+        ...style,
+        backgroundColor: tint,
+        maskImage: mask.image,
+        maskSize: mask.size,
+        maskPosition: mask.position,
+        maskRepeat: mask.repeat,
+        // Safari before 15.4 knows the mask only by its prefix.
+        WebkitMaskImage: mask.image,
+        WebkitMaskSize: mask.size,
+        WebkitMaskPosition: mask.position,
+        WebkitMaskRepeat: mask.repeat,
+      }}
+    />
+  );
+}
+
 /** A picture of Bilder from this device: its full copy, else its thumbnail. */
-function BlobPagePicture({ hash, thumb, style, id }: { hash: string; thumb: string; style: CSSProperties; id?: string }) {
+function BlobPagePicture({ hash, thumb, ...look }: PictureLook & { hash: string; thumb: string }) {
   const full = useLocalUrl(hash);
   const small = useLocalUrl(full || thumb === hash ? null : thumb);
-  const url = full ?? small;
-  return url ? <img src={url} alt="" draggable={false} style={style} data-element={id} /> : <div style={style} data-element={id} />;
+  return <PictureAt url={full ?? small ?? null} {...look} />;
 }
 
 /**
  * A picture of Bilder: this device's, or, on a page with no database (a paired screen),
  * `media`'s URL, read with no hook of the database, which such a page lacks (SlideView's `Picture` does the same).
  */
-function PagePicture({ hash, thumb, media, style, id }: { hash: string; thumb: string; media?: (hash: string) => string; style: CSSProperties; id?: string }) {
-  if (!media) return <BlobPagePicture hash={hash} thumb={thumb} style={style} id={id} />;
-  return <img src={media(hash)} alt="" draggable={false} style={style} data-element={id} />;
+function PagePicture({ hash, thumb, media, ...look }: PictureLook & { hash: string; thumb: string; media?: (hash: string) => string }) {
+  if (!media) return <BlobPagePicture hash={hash} thumb={thumb} {...look} />;
+  return <PictureAt url={media(hash)} {...look} />;
 }
 
 /** Where an element sits: its box, and a line's from its start to its end, whichever way it runs. */
@@ -54,7 +85,7 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
     );
   }
   if (e.kind === 'image') {
-    return <PagePicture id={e.id} hash={e.picture.full} thumb={e.picture.thumb} media={media} style={{ ...box, objectFit: e.fit }} />;
+    return <PagePicture id={e.id} hash={e.picture.full} thumb={e.picture.thumb} media={media} style={box} fit={e.fit} tint={e.tint} />;
   }
   if (e.kind === 'line') {
     const { left, top, width, height } = box as { left: number; top: number; width: number; height: number };
@@ -93,10 +124,10 @@ export function CustomPageView({ page, theme, media, hide, children }: { page: C
   const background = page.backgroundPicture;
   return (
     <div className="absolute inset-0 overflow-hidden" style={page.background ? { background: page.background } : undefined} data-testid="custom-page">
-      {background && <PagePicture hash={background.full} thumb={background.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {background && <PagePicture hash={background.full} thumb={background.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} fit="cover" />}
       {/* A PDF's page, fitted as it was rendered (to 1920×1080), on the page's background. */}
       {page.backgroundPage && (
-        <PagePicture hash={page.backgroundPage.full} thumb={page.backgroundPage.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+        <PagePicture hash={page.backgroundPage.full} thumb={page.backgroundPage.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} fit="contain" />
       )}
       {/* `hide`: the text the editor writes over (pages/custom-slides/EditorCanvas.tsx). */}
       {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} theme={theme} media={media} />))}

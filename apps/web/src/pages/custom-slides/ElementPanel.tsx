@@ -164,6 +164,7 @@ export function ElementPanel({
       {tab === 'image' && e.kind === 'image' && (
         <Group>
           <Segments label={t('slideEditor.fit')} value={e.fit} options={[['contain', 'slideEditor.contain'], ['cover', 'slideEditor.cover']]} onChange={(fit) => onChange({ fit })} />
+          <ColorChoice label={t('slideEditor.color')} value={e.tint ?? null} empty="picture" onChange={(tint) => onChange({ tint })} />
           <AppButton variant="plain" className={ACTION_ROW} onClick={onReplaceImage}>
             {t('slideEditor.replaceImage')}
           </AppButton>
