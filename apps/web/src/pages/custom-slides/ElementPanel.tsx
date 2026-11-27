@@ -147,8 +147,21 @@ export function ElementPanel({
         </Group>
       )}
       {tab === 'text' && e.kind === 'text' && <TextFormat look={lookOf(e, theme)} followsTheme onChange={(_, patch) => onChange(elementOf(patch))} />}
-      {tab === 'style' && (e.kind === 'rect' || e.kind === 'ellipse') && (
+      {tab === 'style' && (e.kind === 'rect' || e.kind === 'ellipse' || e.kind === 'triangle' || e.kind === 'arrow') && (
         <Group>
+          {e.kind === 'arrow' && (
+            <Segments
+              label={t('slideEditor.direction')}
+              value={e.direction ?? 'right'}
+              options={[
+                ['left', 'slideEditor.pointLeft', '←'],
+                ['right', 'slideEditor.pointRight', '→'],
+                ['up', 'slideEditor.pointUp', '↑'],
+                ['down', 'slideEditor.pointDown', '↓'],
+              ]}
+              onChange={(direction) => onChange({ direction })}
+            />
+          )}
           <ColorChoice label={t('slideEditor.fill')} value={e.fill} empty="none" onChange={(fill) => onChange({ fill })} />
           <ColorChoice label={t('slideEditor.stroke')} value={e.stroke} empty="none" onChange={(stroke) => onChange({ stroke })} />
           <Slider label={t('slideEditor.strokeWidth')} value={e.strokeWidth} min={0} max={40} onChange={(strokeWidth) => onChange({ strokeWidth })} />

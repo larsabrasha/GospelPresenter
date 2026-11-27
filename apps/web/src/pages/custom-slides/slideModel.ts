@@ -3,7 +3,7 @@ import { blankPage, CANVAS, CUSTOM_LIMITS, type CustomElement, type CustomPage, 
 // What the editor does to a custom slide's pages (docs/custom-slides.md), as plain functions: each returns new pages,
 // so the editor keeps them in its state and saves them whole.
 
-export type NewKind = 'text' | 'rect' | 'roundedRect' | 'ellipse' | 'line' | 'image';
+export type NewKind = 'text' | 'rect' | 'roundedRect' | 'ellipse' | 'triangle' | 'arrow' | 'line' | 'image';
 
 /** A picture chosen for a page: its blobs, the page's own (from Bilder or from the device), and its size. */
 export interface PickedPicture {
@@ -26,6 +26,10 @@ export function newElement(kind: NewKind, id: string, image?: PickedPicture): Cu
       return { ...centred(640, 400), kind: 'rect', fill: '#3b82f6', stroke: null, strokeWidth: 0, radius: kind === 'rect' ? 0 : 48 };
     case 'ellipse':
       return { ...centred(400, 400), kind, fill: '#ef4444', stroke: null, strokeWidth: 0, radius: 0 };
+    case 'triangle':
+      return { ...centred(440, 380), kind, fill: '#22c55e', stroke: null, strokeWidth: 0, radius: 0 };
+    case 'arrow':
+      return { ...centred(560, 280), kind, fill: '#f59e0b', stroke: null, strokeWidth: 0, radius: 0, direction: 'right' };
     case 'line':
       return { id, x: (W - 800) / 2, y: H / 2, w: 800, h: 0, kind, stroke: null, strokeWidth: 8 };
     case 'image': {

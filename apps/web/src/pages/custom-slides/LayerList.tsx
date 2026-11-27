@@ -3,6 +3,7 @@ import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Group } from '../../ui/Group.tsx';
 import { GripIcon, PhotoIcon } from '../../ui/icons.tsx';
+import { shapePoints } from '../../ui/shapePoints.ts';
 import { useSortable } from '../../ui/sortable.ts';
 
 // Keynote's object list (docs/custom-slides.md): the page's elements, the front one first, a tap picking one (also
@@ -13,6 +14,8 @@ function nameOf(e: CustomElement): string {
   if (e.kind === 'text') return e.text.split('\n')[0]!.trim() || t('slideEditor.text');
   if (e.kind === 'image') return t('slideEditor.image');
   if (e.kind === 'ellipse') return t('slideEditor.ellipse');
+  if (e.kind === 'triangle') return t('slideEditor.triangle');
+  if (e.kind === 'arrow') return t('slideEditor.arrow');
   if (e.kind === 'line') return t('slideEditor.line');
   return t(e.radius ? 'slideEditor.roundedRect' : 'slideEditor.rect');
 }
@@ -22,6 +25,12 @@ function Swatch({ e }: { e: CustomElement }) {
   if (e.kind === 'text') return <span className="w-5 text-center font-serif text-base/5 font-semibold">T</span>;
   if (e.kind === 'image') return <PhotoIcon className="size-5 text-stone-500 dark:text-stone-400" />;
   if (e.kind === 'line') return <span className="w-5 h-0.5 bg-stone-500 dark:bg-stone-300" />;
+  if (e.kind === 'triangle' || e.kind === 'arrow')
+    return (
+      <svg viewBox="0 0 20 14" width={20} height={14}>
+        <polygon points={shapePoints(e.kind, 20, 14, e.direction)} fill={e.fill ?? 'none'} stroke="rgb(0 0 0 / 0.15)" strokeWidth={1} />
+      </svg>
+    );
   return <span className={`w-5 h-3.5 ring-1 ring-black/10 ${e.kind === 'ellipse' ? 'rounded-full' : e.radius ? 'rounded' : ''}`} style={{ background: e.fill ?? 'transparent' }} />;
 }
 

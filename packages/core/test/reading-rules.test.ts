@@ -2,7 +2,7 @@
 // round 6, docs/core-back-to-typescript.md): a text's length in characters, the app's JSON read strictly
 // (stored-json.ts), the order of a song's arrangements and where a word starts.
 import { describe, expect, it } from 'vitest';
-import { customPageSchema, imageItemIds, parseCustomPage, parsePartIds, prepareSong, rankSongs, sortedArrangements, type SongArrangement } from '../src/index.ts';
+import { customPageSchema, imageItemIds, parseCustomPage, parseCustomPages, parsePartIds, prepareSong, rankSongs, sortedArrangements, type SongArrangement } from '../src/index.ts';
 import { searchMarks } from '../src/core.ts';
 
 describe("a text's length", () => {
@@ -36,6 +36,30 @@ describe('the JSON the app keeps', () => {
     const page = parseCustomPage(stored);
 
     expect(page.background).toBeNull();
+  });
+
+  it('reads an overlay page with an element of a kind it does not know without that element, the rest kept', () => {
+    const text = { id: 't', kind: 'text', x: 0, y: 0, w: 100, h: 50, text: 'Swish', size: 40, bold: false, italic: false, align: 'left', color: null };
+    const stored = JSON.stringify({ background: '#ff0000', backgroundPicture: null, backgroundPage: null, elements: [{ id: 's', kind: 'star', x: 0, y: 0, w: 10, h: 10 }, text] });
+
+    const page = parseCustomPage(stored);
+
+    expect([page.background, page.elements.map((e) => e.id)]).toEqual(['#ff0000', ['t']]);
+  });
+
+  it("reads a slideshow's pages with an element that does not read without that element, every page kept", () => {
+    const blank = { background: null, backgroundPicture: null, backgroundPage: null };
+    const stored = JSON.stringify([
+      { ...blank, elements: [{ id: 'bad', kind: 'text', x: 0, y: 0, w: 10, h: 10 }] },
+      { ...blank, background: '#000000', elements: [] },
+    ]);
+
+    const pages = parseCustomPages(stored);
+
+    expect(pages.map((p) => [p.background, p.elements.length])).toEqual([
+      [null, 0],
+      ['#000000', 0],
+    ]);
   });
 
   it('reads an overlay page nested 128 levels deep as a blank page', () => {

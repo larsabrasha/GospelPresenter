@@ -49,7 +49,12 @@ test('a custom slide is made with a text and a rectangle, undone and redone, and
   await inspector.getByRole('button', { name: 'Färg: #ffffff' }).click();
   await inspector.getByRole('radio', { name: 'Bildens egna' }).click();
   await expect(canvas.locator('img[data-element]')).toHaveCount(1);
-  await expect(page.getByTestId('saved')).toBeVisible();
+  // Kept: white again, and white when the slideshow is left and opened again.
+  await inspector.getByRole('button', { name: 'Färg: Bildens egna' }).click();
+  await inspector.getByRole('radio', { name: '#ffffff' }).click();
+  await page.getByRole('link', { name: 'Tillbaka' }).click();
+  await page.getByRole('link', { name: 'Kollekt' }).first().click();
+  await expect.poll(() => canvas.locator('[data-element]').last().evaluate((el) => [el.tagName, getComputedStyle(el).backgroundColor])).toEqual(['DIV', 'rgb(255, 255, 255)']);
 
   // In the library under Välj, the slide is drawn as wide as outside it (it was 0 wide once).
   await page.getByRole('link', { name: 'Tillbaka' }).click();
@@ -108,4 +113,24 @@ test('an element covered by another is picked by a tap again or from Lager, and 
 
   await layers.getByRole('button', { name: 'Rektangel' }).click();
   await expect(shown('Stil')).toBeVisible();
+});
+
+test('a triangle and an arrow are drawn on a slide, and the arrow is turned by its direction', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openAdmin(page, 'Bildspel');
+  await page.getByRole('button', { name: /^(Nytt bildspel|Gör ett bildspel)$/ }).click();
+  await nameNew(page, 'Former');
+  const canvas = page.getByTestId('slide-canvas');
+  await addToSlide(page, 'Triangel');
+  await addToSlide(page, 'Pil');
+  await expect(canvas.locator('[data-element] polygon')).toHaveCount(2);
+
+  // The arrow, picked as it was put on, points right; Upp in Stil turns it, its tip then at the middle of its top.
+  if (!(await page.getByTestId('inspector').filter({ visible: true }).count())) await page.getByRole('button', { name: 'Format', exact: true }).click();
+  const inspector = page.getByTestId('inspector').filter({ visible: true });
+  await inspector.getByRole('radio', { name: 'Upp' }).click();
+  const tip = () => canvas.locator('[data-element] polygon').last().evaluate((p) => p.getAttribute('points')!.split(' ')[3]);
+  await expect.poll(tip).toBe('280,0');
 });

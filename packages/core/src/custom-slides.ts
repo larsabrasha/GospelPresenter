@@ -67,12 +67,15 @@ const imageElement = z.object({
 });
 const shapeElement = z.object({
   ...box,
-  kind: z.enum(['rect', 'ellipse']),
+  // A triangle points up, its base the box's foot; an arrow is a shaft and a head the way `direction` says, right when
+  // not set, as an element is not turned (Lars, 2026-11-27).
+  kind: z.enum(['rect', 'ellipse', 'triangle', 'arrow']),
   fill: color,
   stroke: color,
   strokeWidth: z.number().min(0).max(100),
-  /** A rectangle's corners; an ellipse has none. */
+  /** A rectangle's corners; the others have none. */
   radius: z.number().min(0).max(CANVAS.height / 2),
+  direction: z.enum(['right', 'left', 'up', 'down']).optional(),
 });
 const lineElement = z.object({ ...box, kind: z.literal('line'), stroke: color, strokeWidth: z.number().min(1).max(100) });
 
@@ -98,17 +101,26 @@ export const blankPage = (): CustomPage => ({ background: null, backgroundPictur
 export const pdfPages = (pages: Picture[]): CustomPage[] => pages.map((p) => ({ ...blankPage(), background: '#000000', backgroundPage: { full: p.full, thumb: p.thumb } }));
 
 // Every reader of a page checks it here, against the schemas: a slideshow's pages that do not read are one blank page,
-// as Bildspel lists them, and an overlay's page that does not read is a blank one; neither names a picture.
+// as Bildspel lists them, and an overlay's page that does not read is a blank one; neither names a picture. An element
+// that does not read is left out and the page kept, so a kind a newer app made (a triangle, read by an app from before
+// it) costs that element only, not the page (Lars, 2026-11-27).
+
+/** A page as kept, without its elements that do not read; anything else as it is, for the schema to judge. */
+function readableElements(v: unknown): unknown {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+  const elements = (v as { elements?: unknown }).elements;
+  return Array.isArray(elements) ? { ...v, elements: elements.filter((e) => elementSchema.safeParse(e).success) } : v;
+}
 
 /** A slideshow's pages, as kept or sent, checked; pages that do not read are one blank page. */
 export function readCustomPages(v: unknown): CustomPage[] {
-  const read = customPagesSchema.safeParse(v);
+  const read = customPagesSchema.safeParse(Array.isArray(v) ? v.map(readableElements) : v);
   return read.success ? read.data : [blankPage()];
 }
 
 /** A page (an overlay's), as kept or sent, checked; one that does not read is a blank page. */
 export function readCustomPage(v: unknown): CustomPage {
-  const read = customPageSchema.safeParse(v);
+  const read = customPageSchema.safeParse(readableElements(v));
   return read.success ? read.data : blankPage();
 }
 

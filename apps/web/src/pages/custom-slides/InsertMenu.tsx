@@ -1,17 +1,28 @@
+import type { ReactNode } from 'react';
 import { t, type TextKey } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dropdown } from '../../ui/Dropdown.tsx';
 import { PhotoIcon } from '../../ui/icons.tsx';
+import { shapePoints } from '../../ui/shapePoints.ts';
 import type { NewKind } from './slideModel.ts';
 
 // What goes on a slide (docs/custom-slides.md), as Keynote's: on a computer Text, Form and Bild in the toolbar, Form a
 // menu of the shapes, each drawn as it will look; on a phone all of them in +'s sheet.
 
-const SHAPES: [NewKind, TextKey, string][] = [
-  ['rect', 'slideEditor.rect', 'w-9 h-6 bg-sky-500'],
-  ['roundedRect', 'slideEditor.roundedRect', 'w-9 h-6 rounded-md bg-sky-500'],
-  ['ellipse', 'slideEditor.ellipse', 'size-7 rounded-full bg-sky-500'],
-  ['line', 'slideEditor.line', 'w-9 h-0.5 bg-stone-500 dark:bg-stone-300'],
+/** A triangle's or an arrow's mark, drawn as the slide draws it. */
+const polygonMark = (kind: 'triangle' | 'arrow', w: number, h: number) => (
+  <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} className="fill-sky-500">
+    <polygon points={shapePoints(kind, w, h)} />
+  </svg>
+);
+
+const SHAPES: [NewKind, TextKey, () => ReactNode][] = [
+  ['rect', 'slideEditor.rect', () => <span className="w-9 h-6 bg-sky-500" />],
+  ['roundedRect', 'slideEditor.roundedRect', () => <span className="w-9 h-6 rounded-md bg-sky-500" />],
+  ['ellipse', 'slideEditor.ellipse', () => <span className="size-7 rounded-full bg-sky-500" />],
+  ['triangle', 'slideEditor.triangle', () => polygonMark('triangle', 30, 26)],
+  ['arrow', 'slideEditor.arrow', () => polygonMark('arrow', 36, 22)],
+  ['line', 'slideEditor.line', () => <span className="w-9 h-0.5 bg-stone-500 dark:bg-stone-300" />],
 ];
 
 const SHAPE_BUTTON = 'h-14 rounded-lg flex items-center justify-center cursor-pointer hover:bg-raised-2';
@@ -34,10 +45,10 @@ function ShapeMark() {
 export function ShapeMenu({ className, onInsert }: { className: string; onInsert: (kind: NewKind) => void }) {
   return (
     <Dropdown menuClassName="min-w-64 left-0" className="relative" button={{ className, 'aria-label': t('slideEditor.addShape'), title: t('slideEditor.shapes') }} trigger={<ShapeMark />}>
-      <div className="grid grid-cols-4 gap-1 p-3">
+      <div className="grid grid-cols-3 gap-1 p-3">
         {SHAPES.map(([kind, key, look]) => (
           <AppButton key={kind} variant="plain" role="menuitem" aria-label={t(key)} title={t(key)} className={SHAPE_BUTTON} onClick={() => onInsert(kind)}>
-            <span className={look} />
+            {look()}
           </AppButton>
         ))}
       </div>
@@ -60,10 +71,10 @@ export function InsertChoices({ onInsert }: { onInsert: (kind: NewKind) => void 
         </AppButton>
       </div>
       <p className="px-1 text-xs font-semibold text-stone-500 dark:text-stone-400">{t('slideEditor.shapes')}</p>
-      <div className="grid grid-cols-4 gap-1 rounded-xl bg-surface dark:bg-raised p-2">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface dark:bg-raised p-2">
         {SHAPES.map(([kind, key, look]) => (
           <AppButton key={kind} variant="plain" aria-label={t(key)} title={t(key)} className={SHAPE_BUTTON} onClick={() => onInsert(kind)}>
-            <span className={look} />
+            {look()}
           </AppButton>
         ))}
       </div>

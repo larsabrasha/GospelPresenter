@@ -3,6 +3,7 @@ import { CANVAS, type CustomElement, type CustomPage, type Theme } from '@gp/cor
 import { useLocalUrl } from '../db/react.tsx';
 import { mainCss } from '../themes.ts';
 import { elementTextCss } from './customText.ts';
+import { shapePoints } from './shapePoints.ts';
 
 // A slideshow's page on the 1920×1080 stage (docs/custom-slides.md): what is not set follows the theme, the text
 // colour and font of its song slides, and the stage under the page is the theme's background. A PDF's page is a
@@ -101,6 +102,21 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
           stroke={e.stroke ?? String(mainCss(theme, 'song').color)}
           strokeWidth={e.strokeWidth}
           strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  if (e.kind === 'triangle' || e.kind === 'arrow') {
+    const { width, height } = box as { width: number; height: number };
+    // Its outline on its edge, half outside it, as a line's; the corners rounded a little.
+    return (
+      <svg data-element={e.id} viewBox={`0 0 ${width} ${height}`} style={{ ...box, overflow: 'visible' }}>
+        <polygon
+          points={shapePoints(e.kind, width, height, e.direction)}
+          fill={e.fill ?? 'none'}
+          stroke={e.stroke && e.strokeWidth ? e.stroke : 'none'}
+          strokeWidth={e.strokeWidth}
+          strokeLinejoin="round"
         />
       </svg>
     );

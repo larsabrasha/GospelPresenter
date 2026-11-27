@@ -21,7 +21,8 @@ function org() {
 
 const [full, thumb] = ['a'.repeat(64), 'b'.repeat(64)];
 /** A page with a picture behind it and a text whose size is under the least (10): a page that does not check. */
-const brokenPage = { background: null, backgroundPicture: { full, thumb }, backgroundPage: null, elements: [{ id: 't', kind: 'text', x: 0, y: 0, w: 10, h: 10, text: 'Hej', size: 5, bold: false, italic: false, align: 'left', color: null }] };
+// Broken as a page, not by an element: an element that does not read is left out and its page kept (custom-slides.ts).
+const brokenPage = { background: 'red', backgroundPicture: { full, thumb }, backgroundPage: null, elements: [] };
 const item = (type: string, sourceId: string) => ({ id: 'i1', type, title: 'Punkt', sourceId, arrangementId: null, content: null });
 type Shown = Record<string, { slides: Record<string, unknown>[]; video?: Record<string, unknown> }>;
 

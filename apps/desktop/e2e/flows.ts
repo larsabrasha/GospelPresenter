@@ -155,7 +155,7 @@ export async function createOverlay(page: Page, title: string, text: string) {
  * Puts a text, a picture or a shape on the slide being edited: from the toolbar on a computer (Form a menu of the
  * shapes), from +'s sheet on a phone.
  */
-export async function addToSlide(page: Page, kind: 'Text' | 'Bild' | 'Rektangel' | 'Rundad rektangel' | 'Ellips' | 'Linje') {
+export async function addToSlide(page: Page, kind: 'Text' | 'Bild' | 'Rektangel' | 'Rundad rektangel' | 'Ellips' | 'Triangel' | 'Pil' | 'Linje') {
   const plus = page.getByRole('toolbar', { name: 'Lägg till' }).getByRole('button', { name: 'Lägg till', exact: true });
   if (await plus.isVisible()) {
     await plus.click();

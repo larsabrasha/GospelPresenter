@@ -29,8 +29,13 @@ each with a box in stage pixels (`x`, `y`, `w`, `h`):
   `full` and `thumb` blobs), as Keynote keeps its pictures (Lars, 2026-11-04): one taken from Bilder is a copy, the
   same blobs, as blobs are named by their content, so it takes no more room; one taken from the device goes into the
   slideshow only. Bilder and slideshows are apart: a picture removed from Bilder leaves every slideshow as it was;
-- **rect** (with a corner radius), **ellipse**: a fill and an outline, each a colour or none;
+- **rect** (with a corner radius), **ellipse**, **triangle** (pointing up) and **arrow** (pointing right, left, up or
+  down, as an element is not turned; Lars, 2026-11-27): a fill and an outline, each a colour or none;
 - **line**: from the box's one corner to the other, a colour and a width.
+
+An element that does not read is left out and its page kept (`readCustomPages`, `readCustomPage`): an app from
+before a kind was added shows the rest of the page, not a blank one (Lars, 2026-11-27). Such an app, saving that
+page, saves it without the element it could not read.
 
 A page's background is a colour, a picture of its own filling the stage (`backgroundPicture`), or nothing, and over
 it a PDF's page (`backgroundPage`), fitted to the stage, where the slideshow was imported. Nothing, and a colour or a font that is not set,
