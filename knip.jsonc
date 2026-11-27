@@ -13,8 +13,9 @@
       "project": ["src/**/*.{ts,tsx,css}", "sw/**/*.ts", "test/**/*.ts"]
     },
     "apps/server": {
-      // The server on its own, which build-node.mjs bundles for the Docker image (docs/self-hosting.md).
-      "entry": ["src/standalone.ts"],
+      // The server on its own, which build-node.mjs bundles for the Docker image (docs/self-hosting.md), and the worker
+      // thread MCP's pictures are made in, bundled beside it and the desktop app (docs/mcp.md, "Pictures").
+      "entry": ["src/standalone.ts", "src/picture-worker.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
     "apps/desktop": {

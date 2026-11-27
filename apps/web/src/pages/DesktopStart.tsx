@@ -7,13 +7,10 @@ import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { SMALL_ACTION } from '../ui/Group.tsx';
-import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
+import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError, TEXT_CHOICE } from './AuthCard.tsx';
 
 /** What a refusal of the desktop app's `connectServer` says. */
 const refusal = (r: 'invalid' | 'unreachable' | 'refused') => t(r === 'unreachable' ? 'server.unreachable' : 'desktop.invalidServer');
-
-/** The second choice under the main one, in text, as Apple's setup has it (Lars, 2026-11-26). */
-const TEXT_CHOICE = 'px-3 py-1 rounded-full text-lg text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-500/10 disabled:opacity-50 disabled:cursor-default';
 
 /**
  * The desktop app's start on its own computer (D8; Lars, 2026-11-26), whenever its window is not signed in: an account

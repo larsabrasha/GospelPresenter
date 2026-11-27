@@ -94,6 +94,8 @@ export type Route =
   | { page: 'confirmEmail'; token: string }
   /** Back from Google on the web: the page collects its session (`POST /auth/google/finish`). */
   | { page: 'signedIn' }
+  /** `/oauth/authorize`: an assistant asks to use the app through MCP (pages/OAuthAllow.tsx); its query as it came. */
+  | { page: 'oauthAllow'; query: string }
   /** Back from a refused sign-in, with the server's error code. */
   | { page: 'signIn'; error: string | null }
   | { page: 'output' };
@@ -169,6 +171,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'confirm-email' && hash.length > 1) return { page: 'confirmEmail', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
+  if (first === 'oauth' && second === 'authorize') return { page: 'oauthAllow', query: search };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
   if (first === 'output') return { page: 'output' };
   if (first === 'watch' && id) return { page: 'watch', code: id };

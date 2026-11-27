@@ -1,5 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "lib": ["ES2023", "DOM"], "types": ["node"] },
-  "include": ["src", "e2e", "test", "playwright.config.ts", "vitest.config.ts"]
+  // The server's picture codecs import WebAssembly (apps/server/src/wasm.d.ts), which build.mjs bundles as bytes.
+  "include": ["src", "e2e", "test", "playwright.config.ts", "vitest.config.ts", "../server/src/wasm.d.ts"]
 }

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { GoogleConfig, PasskeyConfig } from '@gp/server';
 import { startNodeServer, type MailConfig } from '@gp/server/node';
-import { pptxPages, pptxProgram } from './pptx.ts';
+import { besideBundle, pptxPages, pptxProgram } from './pptx.ts';
 
 /** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
 /** Whether the church's phones and screens may reach this computer: set in the app (Enheter i nätverket), or GP_LAN=1. */
@@ -101,7 +101,8 @@ export async function startHost(opts: {
   mkdirSync(opts.dataDir, { recursive: true });
   const tls = tlsConfig(opts.dataDir);
   // This module is bundled into dist/main.mjs and dist/serve.mjs alike.
-  const pptx = pptxProgram(fileURLToPath(new URL('.', import.meta.url)));
+  const here = fileURLToPath(new URL('.', import.meta.url));
+  const pptx = pptxProgram(here);
   return startNodeServer({
     dataDir: join(opts.dataDir, 'server'),
     driver: 'node:sqlite',
@@ -123,6 +124,8 @@ export async function startHost(opts: {
     mail: opts.mail,
     // PowerPoint decks drawn here (docs/powerpoint-deckcraft.md), where the program is beside the bundle.
     pptx: pptx ? pptxPages(pptx) : undefined,
+    // MCP's pictures made off the main process, where the worker is beside the bundle or among the resources.
+    pictureWorker: besideBundle(here, 'picture-worker.mjs') ?? undefined,
   });
 }
 

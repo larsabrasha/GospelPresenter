@@ -17,6 +17,9 @@ function Brand({ className }: { className: string }) {
 /** A line of grey text under the title (Setup.razor's description). */
 export const AUTH_TEXT = 'text-sm text-stone-500 dark:text-stone-400 leading-relaxed text-center';
 
+/** The second choice under the main one, in text, as Apple's setup has it (Lars, 2026-11-26). */
+export const TEXT_CHOICE = 'px-3 py-1 rounded-full text-lg text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-500/10 disabled:opacity-50 disabled:cursor-default';
+
 /** The wide sky button at the foot of a form (Setup.razor's Kom igång). */
 export const AUTH_SUBMIT = 'mt-2 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600 disabled:opacity-50 disabled:cursor-default';
 

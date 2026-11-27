@@ -4,13 +4,17 @@
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/standalone.ts'],
-  outfile: 'dist/node-server.mjs',
+  // The picture worker beside it (src/picture-worker.ts): MCP's pictures are made off the server's thread.
+  entryPoints: { 'node-server': 'src/standalone.ts', 'picture-worker': 'src/picture-worker.ts' },
+  outdir: 'dist',
+  outExtension: { '.js': '.mjs' },
   bundle: true,
   platform: 'node',
   target: 'node24',
   format: 'esm',
   define: { GP_TEST_ISSUER: 'false' },
+  // The picture codecs' WebAssembly inside the bundle, as bytes (src/picture-codecs.ts).
+  loader: { '.wasm': 'binary' },
   external: ['better-sqlite3', 'bufferutil', 'utf-8-validate'],
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   logLevel: 'warning',

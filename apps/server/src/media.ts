@@ -5,6 +5,8 @@
 // (`media-disk.ts`: the desktop host and, by default, a self-hosted server),
 // R2 through its Workers binding, and memory (tests). S3 is not built yet
 // (docs/not-done-yet.md).
+import { mediaKey, recordMediaBlobSql } from '@gp/core';
+import type { Org } from './app.ts';
 
 /** A range of an object: `length` bytes from `offset`, fewer at its end. */
 export interface ByteRange {
@@ -33,6 +35,39 @@ export interface MediaStorage {
   putPart(key: string, uploadId: string, part: number, offset: number, bytes: Uint8Array): Promise<string>;
   finishUpload(key: string, uploadId: string, parts: string[]): Promise<void>;
   abortUpload(key: string, uploadId: string): Promise<void>;
+}
+
+/**
+ * Keeps a blob of an organisation's (a picture uploaded by a device, or fetched for MCP): its bytes, then its row in
+ * `media_blobs`, so a mutator that names it finds it. Known already, the upload says it is about to be used, so its
+ * grace period starts over.
+ */
+export async function keepBlob(org: Pick<Org, 'queue' | 'store'>, media: MediaStorage, orgId: string, hash: string, bytes: Uint8Array, type: string) {
+  const known = await org.queue.run(async () => {
+    if (org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return true;
+    await media.put(mediaKey(orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
+    const s = recordMediaBlobSql(hash, type, bytes.length, null, Date.now());
+    org.store.query(s.sql, s.params);
+    return false;
+  });
+  // A known file's bytes stored again all the same (the same key is the same bytes), outside the queue, so live and
+  // sync never wait on it, and safe there, as its grace period has just started over: a clean-up cut off between
+  // removing the bytes and the row leaves a row without them, which nothing else would ever mend.
+  if (known) await media.put(mediaKey(orgId, hash), bytes);
+}
+
+/**
+ * Records a blob whose bytes are stored already (a picture a Worker's stateless part made for MCP, mcp.ts
+ * `answerPictureCall`): its row, or its grace period started over; whether it was known, so its bytes are stored again
+ * as `keepBlob` stores them.
+ */
+export function recordBlob(org: Pick<Org, 'queue' | 'store'>, hash: string, type: string, size: number): Promise<boolean> {
+  return org.queue.run(async () => {
+    if (org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return true;
+    const s = recordMediaBlobSql(hash, type, size, null, Date.now());
+    org.store.query(s.sql, s.params);
+    return false;
+  });
 }
 
 /** Reads a whole stream. */

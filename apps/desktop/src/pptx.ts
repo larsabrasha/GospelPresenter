@@ -17,12 +17,15 @@ const TOO_MANY_PAGES = 3;
 const program = `gp-pptx${process.platform === 'win32' ? '.exe' : ''}`;
 
 /**
- * The program beside the bundle (dist/, in development and the e2e tests), or among a package's resources (two up
- * from app.asar's dist/, where the web app is too); null when neither has it, and decks then come in as PDF only.
+ * A file built beside the bundle (dist/, in development and the e2e tests), or among a package's resources (two up
+ * from app.asar's dist/, where the web app is too); null when neither has it.
  */
-export function pptxProgram(here: string): string | null {
-  return [join(here, program), join(here, '..', '..', program)].find((p) => existsSync(p)) ?? null;
+export function besideBundle(here: string, name: string): string | null {
+  return [join(here, name), join(here, '..', '..', name)].find((p) => existsSync(p)) ?? null;
 }
+
+/** The program, where `besideBundle` finds it; without it, decks come in as PDF only. */
+export const pptxProgram = (here: string): string | null => besideBundle(here, program);
 
 /**
  * Draws decks one at a time: the program uses the processor fully, and the church computer may be presenting while a

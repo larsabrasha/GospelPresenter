@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises';
 import { mkdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { AddressInfo } from 'node:net';
@@ -17,7 +18,9 @@ import type { PptxPages } from './pptx-routes.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
-import { GoogleOidc, type GoogleConfig } from './google.ts';
+import { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig } from './google.ts';
+import { webFetchPicture } from './picture-fetch.ts';
+import { threadPictureMaker } from './picture-thread.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { authenticateMcp, mcpRoutes } from './mcp.ts';
@@ -182,6 +185,13 @@ export interface NodeServerOptions {
   media?: MediaStorage;
   /** How long a picture blob nothing names is kept: an hour (tests shorten it). */
   mediaGraceMs?: number;
+  /** Test builds only (GP_TEST_ISSUER): MCP may fetch a picture from this machine, which the tests serve it from. */
+  pictureTestLoopback?: boolean;
+  /**
+   * The bundled picture worker (picture-worker.ts), where MCP's pictures are made off the server's thread; without it,
+   * on it (the tests, a server run from source).
+   */
+  pictureWorker?: string;
   /** Draws a PowerPoint deck's pages (the desktop host runs crates/gp-pptx); without it, decks come in as PDF only. */
   pptx?: PptxPages;
   /** What first-run setup must be given (D19). Without one, a random one is made at start; see `RunningServer.setupToken`. */
@@ -357,7 +367,15 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     mcpRoutes(async (c) => {
       const caller = await authenticateMcp(c.req.raw, accounts);
       return caller instanceof Response ? caller : { caller, org: openOrg(caller.orgId) };
-    }, log),
+    }, log, {
+      media,
+      // On Node the host name's addresses are looked up first: a desktop host sits in the church's own network.
+      fetchPicture: webFetchPicture({
+        resolve: async (host) => (await lookup(host, { all: true })).map((a) => a.address),
+        allowLoopback: TEST_ISSUER_BUILD && !!opts.pictureTestLoopback,
+      }),
+      makePicture: opts.pictureWorker ? threadPictureMaker(opts.pictureWorker) : undefined,
+    }),
   );
   app.route('/', screenStartRoutes({ screens, accounts, clientAddress }));
   app.route('/', screenPairRoutes(resolveCaller, { screens, accounts, clientAddress }));

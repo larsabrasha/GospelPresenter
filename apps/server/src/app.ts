@@ -17,7 +17,6 @@ import {
   SCREEN_ID,
   ORPHAN_BLOBS_SQL,
   ORPHAN_GRACE_MS,
-  recordMediaBlobSql,
   serializeBibleText,
   sha256HexBytes,
   sniffMedia,
@@ -32,7 +31,7 @@ import { legacyRoutes } from './legacy-routes.ts';
 import { pptxRoutes, type PptxPages } from './pptx-routes.ts';
 import type { LiveHub } from './live-hub.ts';
 import type { Viewer } from './live-viewers.ts';
-import type { MediaStorage } from './media.ts';
+import { keepBlob, type MediaStorage } from './media.ts';
 import type { PlayTokens } from './play-tokens.ts';
 import { serveVideo, videoBlob, videoRoutes } from './video-routes.ts';
 import type { WatchRegistry } from './watch.ts';
@@ -219,20 +218,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     const kind = sniffMedia(bytes);
     if (!kind) return c.json({ error: 'invalid-image' }, 400);
     if (bytes.length > kind.maxBytes) return c.json({ error: 'too-large' }, 413);
-    const type = kind.type;
-    const orgId = r.caller.orgId;
-    const known = await r.org.queue.run(async () => {
-      // Known already: the upload says it is about to be used, so its grace period starts over.
-      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return true;
-      await media.put(mediaKey(orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
-      const s = recordMediaBlobSql(hash, type, bytes.length, null, Date.now());
-      r.org.store.query(s.sql, s.params);
-      return false;
-    });
-    // A known file's bytes stored again all the same (the same key is the same bytes), outside the queue, so live and
-    // sync never wait on it, and safe there, as its grace period has just started over: a clean-up cut off between
-    // removing the bytes and the row leaves a row without them, which nothing else would ever mend.
-    if (known) await media.put(mediaKey(orgId, hash), bytes);
+    await keepBlob(r.org, media, r.caller.orgId, hash, bytes, kind.type);
     return c.body(null, 204);
   });
 

@@ -29,8 +29,12 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
 const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/', '/api/play/'];
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
 const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim', '/api/pair/dev']);
-/** An assistant's MCP requests (docs/mcp.md): the bearer key is their credential, checked by the route; no device sends them. */
-const KEYED_PATHS = new Set(['/api/mcp']);
+/**
+ * An assistant's MCP requests (docs/mcp.md): the bearer key is their credential, checked by the route; no device sends
+ * them. And its OAuth, which the 401 of `/api/mcp` names (auth/oauth-routes.ts): registering, and trading a code or a
+ * refresh token, each its own credential; the person allows it on a paired device or the host's window.
+ */
+const KEYED_PATHS = new Set(['/api/mcp', '/api/oauth/register', '/api/oauth/token']);
 /**
  * The host's own sign-in, which runs in the system browser of the host's
  * machine (spec 01 device sign-in): Google, or a passkey ceremony. That

@@ -29,9 +29,9 @@ enabled = true
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
-# Only the API starts the Worker; the app's files and pages come from Cloudflare's asset serving, with the
+# Only the API and MCP's OAuth metadata (/.well-known/) start the Worker; the app's files and pages come from Cloudflare's asset serving, with the
 # headers of web/public/_headers, and an address with no file gets index.html.
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/.well-known/*"]
 html_handling = "none"
 not_found_handling = "single-page-application"
 

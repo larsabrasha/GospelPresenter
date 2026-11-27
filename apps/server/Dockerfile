@@ -32,7 +32,7 @@ RUN apk add --no-cache libstdc++ \
  && mkdir /data && chown node:node /data
 COPY --from=build /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app
-COPY --from=build /src/apps/server/dist/node-server.mjs ./
+COPY --from=build /src/apps/server/dist/node-server.mjs /src/apps/server/dist/picture-worker.mjs ./
 COPY --from=build /src/apps/web/dist ./web
 # Everything a church has (its databases and files) is under /data: the one thing to keep and back up.
 VOLUME /data

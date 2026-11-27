@@ -25,11 +25,17 @@ const common = {
   outdir: 'dist',
   logLevel: 'warning',
   external: ['electron', 'better-sqlite3', 'bufferutil', 'utf-8-validate'],
+  // The server's picture codecs' WebAssembly inside the bundle, as bytes (apps/server/src/picture-codecs.ts): no
+  // node_modules go along in a package.
+  loader: { '.wasm': 'binary' },
 };
 
 await build({
   ...common,
-  entryPoints: ['src/main.ts', 'src/serve.ts'],
+  // The server's picture worker beside them (apps/server/src/picture-worker.ts), where MCP's pictures are made off the
+  // main process; electron-builder.yml puts it among a package's resources.
+  // Named, so all three land flat in dist/ though the worker's source is in another package.
+  entryPoints: { main: 'src/main.ts', serve: 'src/serve.ts', 'picture-worker': '../server/src/picture-worker.ts' },
   format: 'esm',
   outExtension: { '.js': '.mjs' },
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },

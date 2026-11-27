@@ -15,10 +15,11 @@ files:
 extraResources:
   - from: ../web/dist
     to: web/dist
-  # The PowerPoint drawing (crates/gp-pptx), a program, so outside app.asar; host.ts finds it two up from dist/.
+  # The PowerPoint drawing (crates/gp-pptx), a program, so outside app.asar; host.ts finds it two up from dist/. And the
+  # picture worker (apps/server/src/picture-worker.ts), a worker thread's file, which Node loads from a plain path.
   - from: dist/
     to: .
-    filter: ['gp-pptx', 'gp-pptx.exe']
+    filter: ['gp-pptx', 'gp-pptx.exe', 'picture-worker.mjs']
 npmRebuild: false
 # Sign-in hands the token back on this scheme (ADR 0005 (5)); the installer registers it.
 protocols:

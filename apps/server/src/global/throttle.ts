@@ -21,6 +21,11 @@ export const THROTTLE = {
   report: { free: 10, windowMs: HOUR },
   /** Client errors per user: every one counts, so one client in a loop cannot flood the log. */
   clientError: { free: 30, windowMs: QUARTER },
+  /**
+   * OAuth clients registered per address (docs/mcp.md, "OAuth"): each is a row, and claude.ai registers from a few
+   * addresses of Anthropic's for all its users, so the cap is high; one never used is dropped after a day.
+   */
+  oauthClient: { free: 500, windowMs: HOUR },
 } satisfies Record<string, ThrottlePolicy>;
 
 /** The answer to a key that is locked: 429 with how long to wait. */

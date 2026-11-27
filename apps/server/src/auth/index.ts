@@ -13,6 +13,7 @@ import { invitationRoutes } from './invitation-routes.ts';
 import { authKit, type AuthDeps } from './kit.ts';
 import { loginRoutes } from './login-routes.ts';
 import { mcpKeyRoutes } from './mcp-key-routes.ts';
+import { oauthRoutes } from './oauth-routes.ts';
 import { orgRoutes } from './org-routes.ts';
 import { pairingRoutes } from './pairing-routes.ts';
 import { passkeyRoutes } from './passkey-routes.ts';
@@ -22,6 +23,7 @@ import { userRoutes } from './user-routes.ts';
 
 export { authenticate, credentials, WS_PROTOCOL, type Caller } from './caller.ts';
 export { deviceOf, isApiPath, pairingGuard, type Pairing } from './pairing-guard.ts';
+export { protectedResourceUrl } from './oauth-routes.ts';
 export type { AuthDeps } from './kit.ts';
 
 export function authRoutes(deps: AuthDeps) {
@@ -33,6 +35,7 @@ export function authRoutes(deps: AuthDeps) {
   accountRoutes(app, kit);
   userRoutes(app, kit);
   mcpKeyRoutes(app, kit);
+  oauthRoutes(app, kit);
   invitationRoutes(app, kit);
   orgRoutes(app, kit);
   pairingRoutes(app, kit);

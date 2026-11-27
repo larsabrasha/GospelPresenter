@@ -30,6 +30,8 @@ const server = await startNodeServer({
   setupToken: env.GP_SETUP_TOKEN || undefined,
   trustedProxies: proxiesFromEnv(env),
   ...signInFromEnv(env),
+  // Beside the bundle (build-node.mjs): MCP's pictures are made off the server's thread.
+  pictureWorker: new URL('./picture-worker.mjs', import.meta.url).pathname,
 });
 console.log(`Gospel Presenter is listening on port ${server.port}`);
 if (server.setupToken) console.log(`Setup token: ${server.setupToken}`);

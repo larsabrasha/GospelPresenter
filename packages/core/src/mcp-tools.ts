@@ -6,37 +6,16 @@ import { FIELD_RULES, MAX_VERSES_PER_ITEM, MutationError } from './mutation.ts';
 import type { MutatorName } from './mutator-args.ts';
 import { prepareSong, rankSongs } from './search.ts';
 import { bibleItemTitle, type Verse } from './bible.ts';
+import { id, LOCALE, pick, tool, type McpToolContext, type McpToolInfo, type McpToolResult, type Row, type Tool } from './mcp-tool.ts';
+import { LOOK_TOOLS } from './mcp-tools-looks.ts';
 import { bibleView, verseSearchPlanView } from './views/slides-bible.ts';
 import { biblesView } from './views/lists-settings.ts';
 import { itemsView, presentationListView, templatesView } from './views/lists.ts';
 import { libraryLyrics, songPageView, songsView } from './views/lists-songs.ts';
 import type { RunSql } from './views/sql.ts';
 
-/** What a tool runs on: the organisation's database, and its mutators as the key's maker. */
-export interface McpToolContext {
-  sql: RunSql;
-  /** Runs a mutator, committed with its change log and announced to the devices; throws MutationError when refused. */
-  mutate(name: MutatorName, args: object): Promise<void>;
-  newId(): string;
-  now(): number;
-}
+export type { ImportedPicture, McpToolContext, McpToolInfo, McpToolResult } from './mcp-tool.ts';
 
-/** A tool as `tools/list` describes it; its annotations tell a client which tools only read and which remove. */
-export interface McpToolInfo {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations: { readOnlyHint: boolean; destructiveHint: boolean; openWorldHint: false };
-}
-
-/** A tool's answer as `tools/call` gives it: its result as JSON text, or why it was refused. */
-export interface McpToolResult {
-  content: { type: 'text'; text: string }[];
-  isError?: boolean;
-}
-
-const LOCALE = { locale: 'sv' };
-const id = z.string().min(1).max(100);
 const limit = (dflt: number, max: number) => z.number().int().min(1).max(max).default(dflt).describe(`At most this many (${dflt} if left out).`);
 const after = id.optional().describe("Add it right after this item of the running order; at the end if left out.");
 // A presentation's fields, within the limits the app keeps (FIELD_RULES); the mutator checks them again.
@@ -46,10 +25,8 @@ const eventTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM'
 const eventLocation = z.string().max(FIELD_RULES.location.max);
 const eventDescription = z.string().max(FIELD_RULES.description.max);
 
-type Row = Record<string, unknown>;
-const pick = (r: Row, keys: string[]) => Object.fromEntries(keys.map((k) => [k, r[k] ?? null]));
 const songRow = (r: Row) => pick(r, ['id', 'name', 'author', 'ccli']);
-const presentationRow = (r: Row) => pick(r, ['id', 'name', 'eventDate', 'time', 'location', 'description']);
+const presentationRow = (r: Row) => pick(r, ['id', 'name', 'eventDate', 'time', 'location', 'description', 'themeId']);
 
 /** The songs, by name; with a query, the ones that match, best first, as the songs page's search ranks them (SONG-R30). */
 async function songs(sql: RunSql, query: string | undefined, max: number) {
@@ -98,7 +75,7 @@ async function presentationOfItem(sql: RunSql, itemId: string): Promise<string> 
 async function presentation(sql: RunSql, presentationId: string) {
   await requirePresentation(sql, presentationId);
   const row = ((await presentationListView({}, sql)) as Row[]).find((r) => r.id === presentationId)!;
-  const items = ((await itemsView({ presentationId }, sql)) as Row[]).map((i) => pick(i, ['id', 'type', 'title', 'sourceId', 'arrangementId', 'note']));
+  const items = ((await itemsView({ presentationId }, sql)) as Row[]).map((i) => pick(i, ['id', 'type', 'title', 'sourceId', 'arrangementId', 'overlayId', 'note']));
   return { ...presentationRow(row), items };
 }
 
@@ -121,15 +98,6 @@ async function passage(sql: RunSql, bibleId: string, reference: string): Promise
   if (read.passage.length > MAX_VERSES_PER_ITEM) throw new MutationError('too-many', `${read.passage.length} verses; at most ${MAX_VERSES_PER_ITEM}`);
   return { abbreviation: String(row.abbreviation), verses: read.passage };
 }
-
-interface Tool<S extends z.ZodType> {
-  /** `read` changes nothing; `change` adds or edits; `remove` deletes what cannot be brought back. */
-  kind: 'read' | 'change' | 'remove';
-  description: string;
-  args: S;
-  run(a: z.output<S>, cx: McpToolContext): Promise<unknown>;
-}
-const tool = <S extends z.ZodType>(t: Tool<S>) => t as unknown as Tool<z.ZodType>;
 
 /** A change to a presentation's items: runs the mutator, and answers with the presentation as it is after it. */
 async function changeItem(cx: McpToolContext, itemId: string, mutator: MutatorName, args: object) {
@@ -219,7 +187,7 @@ const TOOLS: Record<string, Tool<z.ZodType>> = {
   }),
   update_presentation: tool({
     kind: 'change',
-    description: "Changes a presentation's name, date, time, place or description. Answers with the presentation after it.",
+    description: "Changes a presentation's name, date, time, place, description or theme. Answers with the presentation after it.",
     args: z.object({
       presentationId: id,
       name: title.optional().describe('Left out keeps it.'),
@@ -227,6 +195,7 @@ const TOOLS: Record<string, Tool<z.ZodType>> = {
       time: nullable(eventTime, 'HH:MM'),
       location: nullable(eventLocation, 'The place'),
       description: nullable(eventDescription, 'The description'),
+      themeId: nullable(id, "Its theme (list_themes); null follows the organisation's default"),
     }),
     run: async ({ presentationId, ...fields }, cx) => {
       await requirePresentation(cx.sql, presentationId);
@@ -275,6 +244,12 @@ const TOOLS: Record<string, Tool<z.ZodType>> = {
     args: z.object({ itemId: id, arrangementId: id.nullable() }),
     run: (a, cx) => changeItem(cx, a.itemId, 'setItemArrangement', { arrangementId: a.arrangementId }),
   }),
+  set_item_overlay: tool({
+    kind: 'change',
+    description: "Puts an overlay (list_overlays) over an item's slides, such as the Swish number over the collection's song; null takes it away.",
+    args: z.object({ itemId: id, overlayId: id.nullable() }),
+    run: (a, cx) => changeItem(cx, a.itemId, 'setItemOverlay', { overlayId: a.overlayId }),
+  }),
   remove_item: tool({
     kind: 'remove',
     description: 'Removes an item from a running order. It cannot be undone, in the app either: ask the user before removing.',
@@ -307,13 +282,14 @@ const TOOLS: Record<string, Tool<z.ZodType>> = {
       return { itemId: added.itemId, title: bibleItemTitle(verses), presentation: added.presentation };
     },
   }),
+  ...LOOK_TOOLS,
 };
 
 /** Every tool, as `tools/list` answers. */
 export function mcpTools(): McpToolInfo[] {
   return Object.entries(TOOLS).map(([name, t]) => {
     const { $schema: _, ...inputSchema } = z.toJSONSchema(t.args, { io: 'input' }) as Record<string, unknown>;
-    return { name, description: t.description, inputSchema, annotations: { readOnlyHint: t.kind === 'read', destructiveHint: t.kind === 'remove', openWorldHint: false } };
+    return { name, description: t.description, inputSchema, annotations: { readOnlyHint: t.kind === 'read', destructiveHint: t.kind === 'remove', openWorldHint: !!t.openWorld } };
   });
 }
 

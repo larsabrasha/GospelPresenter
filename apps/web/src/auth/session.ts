@@ -8,6 +8,8 @@ import { isHostWindow } from '../hostWindow.ts';
 // identity": no client-side expiry). The server decides on every request.
 
 const SESSION_KEY = 'gp.session';
+/** Where a sign-in made for an assistant's OAuth question goes back to once it is done (pages/OAuthAllow.tsx, Boot.tsx). */
+export const OAUTH_RETURN = 'gp.oauthReturn';
 /** The token a desktop host gave this device when it was paired; kept across sign-outs. */
 const DEVICE_KEY = 'gp.device';
 

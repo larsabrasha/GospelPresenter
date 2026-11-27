@@ -1,6 +1,7 @@
 // MCP keys (docs/mcp.md): the experiment a Superadmin turns on per person, and the keys someone it is on for makes.
 import { MCP_KEY_PREFIX, MCP_LIMITS, type McpKeyCreated, type McpKeyRow, type MemberRole } from '@gp/core';
 import { newRowId, newSecret, sha256 } from '../crypto.ts';
+import { OAUTH_PREFIX } from './oauth.ts';
 import type { GlobalSql, Row } from './sql.ts';
 
 /** Who a key acts as: its maker, in its organisation, with the role they have there now (D27). */
@@ -64,21 +65,47 @@ export class McpKeyService {
     return { key: { id, name, orgName: String(o?.name ?? ''), createdAt: now, lastUsedAt: null }, secret };
   }
 
+  /** Whether the user may make a key in `orgId`: the experiment on and a member there (the cap is checked as it is made). */
+  async mayMake(userId: string, orgId: string): Promise<boolean> {
+    const [u] = await this.sql.all('SELECT 1 FROM users u JOIN memberships m ON m.user_id = u.id AND m.org_id = ? WHERE u.id = ? AND u.mcp = 1', [orgId, userId]);
+    return !!u;
+  }
+
+  /**
+   * The key of an assistant's sign-in by OAuth (docs/mcp.md, "OAuth"), as `create` makes one; an earlier sign-in of
+   * the same assistant (its name) in the organisation goes, so connecting Claude again does not fill the ten. A key made
+   * by hand, which has no OAuth tokens, is never replaced.
+   */
+  async createForAssistant(userId: string, orgId: string, name: string): Promise<McpKeyCreated | 'forbidden' | 'limit'> {
+    await this.sql.run('DELETE FROM mcp_keys WHERE user_id = ? AND org_id = ? AND name = ? AND id IN (SELECT key_id FROM oauth_tokens)', [userId, orgId, name]);
+    return this.create(userId, orgId, name);
+  }
+
   /** Deletes one of the user's own keys: whatever uses it is refused from the next request. */
   async remove(userId: string, keyId: string): Promise<'ok' | 'not-found'> {
     const n = await this.sql.run('DELETE FROM mcp_keys WHERE id = ? AND user_id = ?', [keyId, userId]);
     return n === 1 ? 'ok' : 'not-found';
   }
 
-  /** Who a bearer key acts as; null for an unknown key, a maker the experiment is off for, or one no longer a member there. */
+  /** Whether the experiment is on for a user: off, an assistant's sign-in by OAuth is not offered. */
+  async enabled(userId: string): Promise<boolean> {
+    const [u] = await this.sql.all('SELECT 1 FROM users WHERE id = ? AND mcp = 1', [userId]);
+    return !!u;
+  }
+
+  /**
+   * Who a bearer secret acts as: a key, or an OAuth access token of a sign-in allowed (a key row too); null for an
+   * unknown one, one run out, a maker the experiment is off for, or one no longer a member there.
+   */
   async authenticate(secret: string): Promise<McpCaller | null> {
-    if (!secret.startsWith(MCP_KEY_PREFIX)) return null;
+    const key = secret.startsWith(MCP_KEY_PREFIX);
+    if (!key && !secret.startsWith(OAUTH_PREFIX.access)) return null;
     const [r] = await this.sql.all(
       `SELECT k.id, k.user_id, k.org_id, k.last_used_at, m.role FROM mcp_keys k
        JOIN users u ON u.id = k.user_id AND u.mcp = 1
        JOIN memberships m ON m.user_id = k.user_id AND m.org_id = k.org_id
-       WHERE k.token_hash = ?`,
-      [await sha256(secret)],
+       ${key ? 'WHERE k.token_hash = ?' : `JOIN oauth_tokens t ON t.key_id = k.id AND t.kind = 'access' WHERE t.hash = ? AND t.expires_at > ?`}`,
+      key ? [await sha256(secret)] : [await sha256(secret), this.now()],
     );
     if (!r) return null;
     const now = this.now();

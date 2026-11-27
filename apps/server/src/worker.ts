@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { Hono, type Context } from 'hono';
-import { LIVE_PING, LIVE_PONG, serverChangeTriggers, serverSyncDdl, type LegacyUser, type Poke, type Role } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, mediaKey, serverChangeTriggers, serverSyncDdl, type LegacyUser, type Poke, type Role } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -8,11 +8,12 @@ import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, tooManyAttempts, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
-import { authenticateMcp, mcpRoutes } from './mcp.ts';
+import { answerPictureCall, authenticateMcp, mcpRoutes, pictureCall } from './mcp.ts';
 import { capBodies } from './body-cap.ts';
 import { logServerErrors } from './server-error.ts';
 import { endIfGone, LIVE_SESSION_CHECK_MS, liveTokenHash, recheckDue } from './live-session.ts';
-import { r2Storage, type R2Like } from './media.ts';
+import { r2Storage, recordBlob, type R2Like } from './media.ts';
+import { webFetchPicture } from './picture-fetch.ts';
 import { PlayTokens } from './play-tokens.ts';
 import { Passkeys } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
@@ -38,6 +39,8 @@ interface Env {
   SESSION_IDLE_MS?: string;
   /** Tests only: how long a picture blob nothing names is kept. */
   MEDIA_GRACE_MS?: string;
+  /** Test builds only (GP_TEST_ISSUER): MCP may fetch a picture from this machine, which the tests serve it from. */
+  PICTURE_TEST_LOOPBACK?: string;
   /** Sign-in with Google. Without both, nobody can sign in or set up. The secret is a secret: never in wrangler.toml. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
@@ -174,7 +177,15 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.liveSessionCheckMs = env.LIVE_SESSION_CHECK_MS ? Number(env.LIVE_SESSION_CHECK_MS) : LIVE_SESSION_CHECK_MS;
     this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: this.accounts, clientAddress }));
     // The Worker checked the MCP key in D1 and names its maker as it names a session's user.
-    this.app.route('/', mcpRoutes(resolveCaller, log));
+    // A Worker reaches no private network, so its fetch needs no look-up of a host's addresses (picture-fetch.ts).
+    const fetchPicture = webFetchPicture({ allowLoopback: TEST_ISSUER_BUILD && env.PICTURE_TEST_LOOPBACK === '1' });
+    this.app.route('/', mcpRoutes(resolveCaller, log, { media, fetchPicture }));
+    // A picture the stateless Worker made for MCP and stored, recorded here (mcp.ts `answerPictureCall`). Only the
+    // Worker reaches this object, and it hands it no request from outside on this path (`orgPaths`).
+    this.app.post('/internal/mcp-blob', async (c) => {
+      const b = (await c.req.json()) as { hash: string; type: string; size: number };
+      return c.json({ known: await recordBlob(this.org, b.hash, b.type, b.size) });
+    });
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -373,7 +384,8 @@ worker.post('/api/screen', async (c) => {
 // (`run_worker_first`), so the app gets its CSP and index.html and /sw.js get `no-cache`.
 worker.all('*', async (c, next) => {
   const assets = c.env.ASSETS;
-  if (!assets || isApiPath(c.req.path)) return next();
+  // `/.well-known/` is MCP's OAuth metadata (auth/oauth-routes.ts), answered by the routes, not a page of the app.
+  if (!assets || isApiPath(c.req.path) || c.req.path.startsWith('/.well-known/')) return next();
   // With `html_handling = "none"` /index.html is served as it is, never redirected to `/`: the
   // service worker keeps it under that name, and a kept redirect would break navigation offline.
   const res = await assets.fetch(isAppPage(c.req.path) ? new Request(new URL('/index.html', c.req.url), c.req.raw) : c.req.raw);
@@ -387,6 +399,21 @@ worker.all('/api/mcp', async (c) => {
   const { accounts } = await globals(c.env);
   const caller = await authenticateMcp(c.req.raw, accounts);
   if (caller instanceof Response) return caller;
+  // A picture is fetched and made here, in the stateless Worker: in the organisation's object it would hold up the
+  // one thread its sync and live run on. The object only records it.
+  const call = c.req.method === 'POST' ? pictureCall(await c.req.raw.clone().json().catch(() => undefined)) : null;
+  if (call) {
+    const media = c.env.MEDIA ? r2Storage(c.env.MEDIA as unknown as R2Like) : null;
+    const org = c.env.ORG.get(c.env.ORG.idFromName(caller.orgId));
+    const keep = async (hash: string, bytes: Uint8Array, type: string) => {
+      await media!.put(mediaKey(caller.orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
+      const res = await org.fetch(new Request('https://org/internal/mcp-blob', { method: 'POST', body: JSON.stringify({ hash, type, size: bytes.length }) }));
+      // Known already: stored again after its grace period started over, as keepBlob does (media.ts).
+      if (((await res.json()) as { known: boolean }).known) await media!.put(mediaKey(caller.orgId, hash), bytes);
+    };
+    const fetchPicture = webFetchPicture({ allowLoopback: TEST_ISSUER_BUILD && c.env.PICTURE_TEST_LOOPBACK === '1' });
+    return c.json(await answerPictureCall(call, caller, { media, fetchPicture }, keep));
+  }
   return toOrg(c, caller.orgId, { 'x-user': caller.ctx.userId, 'x-session': caller.sessionId, 'x-role': caller.ctx.role, 'x-org': caller.orgId });
 });
 

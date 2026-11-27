@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App, OutputApp } from './App.tsx';
-import { storedSession, workerSession } from './auth/session.ts';
+import { OAUTH_RETURN, storedSession, workerSession } from './auth/session.ts';
 import { Boot, REPAIR_KEY } from './Boot.tsx';
 import { CrashGuard, errorMessage, Stopped } from './Stopped.tsx';
 import { Starting } from './pages/AuthCard.tsx';
@@ -18,6 +18,7 @@ import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
 import { ConfirmEmail } from './pages/ConfirmEmail.tsx';
+import { OAuthAllow } from './pages/OAuthAllow.tsx';
 import { browserLanguage, installLanguage } from './i18n.ts';
 import { currentRoute, installLinkHandler, NAVIGATED } from './ui/router.ts';
 import { installTrail } from './report/trail.ts';
@@ -83,6 +84,13 @@ if (route.page === 'watch') {
       <ConfirmEmail token={route.token} />
     </StrictMode>,
   );
+} else if (route.page === 'oauthAllow' && stored) {
+  // An assistant asks to use the app through MCP: signed in, the question; it opens no database.
+  root.render(
+    <StrictMode>
+      <OAuthAllow query={route.query} />
+    </StrictMode>,
+  );
 } else if (route.page === 'output') {
   // The output opens no database: it reads the operator window's, which works
   // whether that one is on OPFS or only in memory. Signed out, it stays black.
@@ -137,6 +145,8 @@ if (route.page === 'watch') {
     clearTimeout(slow);
   }
 } else {
+  // An assistant's question to someone signed out: they sign in, and Boot comes back to it.
+  if (route.page === 'oauthAllow') sessionStorage.setItem(OAUTH_RETURN, location.pathname + location.search);
   root.render(
     <StrictMode>
       <Boot boot={route.page === 'invite' ? { invite: route.token } : route.page === 'signedIn' ? { signedIn: true } : { error: route.page === 'signIn' ? route.error : null }} />

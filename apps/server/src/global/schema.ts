@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 12;
+export const GLOBAL_SCHEMA_VERSION = 13;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -199,7 +199,21 @@ const mcpKeysDdl = [
  */
 const hostOwnerDdl = `CREATE TABLE IF NOT EXISTS host_owner (user_id TEXT PRIMARY KEY NOT NULL)`;
 
-const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl, ...mcpKeysDdl, hostOwnerDdl];
+/**
+ * Version 13: OAuth for MCP (docs/mcp.md, "OAuth"), as praliner's: the assistants that registered themselves, the codes
+ * a sign-in hands one (who allowed it, where), and the tokens it gets for them, each only as its hash. A code traded
+ * becomes a row of `mcp_keys`, so the sign-in is listed, deleted and ended as a key is; its tokens name it.
+ */
+const oauthDdl = [
+  `CREATE TABLE IF NOT EXISTS oauth_clients (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, redirect_uris TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS oauth_codes (hash TEXT PRIMARY KEY NOT NULL, client_id TEXT NOT NULL, client_name TEXT NOT NULL,
+     redirect_uri TEXT NOT NULL, challenge TEXT NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS oauth_tokens (hash TEXT PRIMARY KEY NOT NULL, kind TEXT NOT NULL, key_id TEXT NOT NULL,
+     client_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS oauth_tokens_key ON oauth_tokens (key_id)`,
+];
+
+const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl, ...bugReportsDdl, ...mcpKeysDdl, hostOwnerDdl, ...oauthDdl];
 
 const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -256,6 +270,8 @@ const globalMigrations: Record<number, string[]> = {
   11: [`ALTER TABLE users ADD COLUMN mcp INTEGER NOT NULL DEFAULT 0`, ...mcpKeysDdl],
   // The desktop app without an account.
   12: [hostOwnerDdl],
+  // MCP through OAuth, for claude.ai's and a phone's connectors.
+  13: oauthDdl,
 };
 
 /**

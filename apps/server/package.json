@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
-    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --define:GP_TEST_ISSUER=false --minify-syntax --outfile=dist/worker.js",
+    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --define:GP_TEST_ISSUER=false --loader:.wasm=copy --minify-syntax --outfile=dist/worker.js",
     "build:node": "node build-node.mjs",
     "dev:worker": "wrangler dev"
   },
@@ -17,6 +17,11 @@
     "@gp/core": "workspace:*",
     "@gp/sync": "workspace:*",
     "@hono/node-server": "2.1.5",
+    "@jsquash/jpeg": "1.6.0",
+    "@jsquash/png": "3.1.1",
+    "@jsquash/resize": "2.1.1",
+    "@jsquash/webp": "1.5.0",
+    "@resvg/resvg-wasm": "2.6.2",
     "better-sqlite3": "13.0.3",
     "hono": "4.13.14",
     "ws": "8.22.0"

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AuthState, PairStatus, SignInResponse } from '@gp/core';
 import { api } from './auth/api.ts';
 import { errorText } from './auth/errors.ts';
-import { deviceName, saveDeviceToken, saveSession, storedSession } from './auth/session.ts';
+import { deviceName, OAUTH_RETURN, saveDeviceToken, saveSession, storedSession } from './auth/session.ts';
 import { t } from './i18n.ts';
 import { AUTH_TEXT, AuthCard, FormError, Starting } from './pages/AuthCard.tsx';
 import { DesktopStart } from './pages/DesktopStart.tsx';
@@ -18,6 +18,12 @@ export const REPAIR_KEY = 'gp.repair';
 /** Opens the app as the signed-in user: a fresh start, so the database worker opens their database (D3). */
 function enterApp() {
   sessionStorage.removeItem(REPAIR_KEY);
+  // Signed in for an assistant's question (pages/OAuthAllow.tsx): back to it, not into the app.
+  const asked = sessionStorage.getItem(OAUTH_RETURN);
+  if (asked) {
+    sessionStorage.removeItem(OAUTH_RETURN);
+    return location.assign(asked);
+  }
   history.replaceState(null, '', `/${location.search}`); // to the start page; drops an invite token from the address
   location.reload();
 }

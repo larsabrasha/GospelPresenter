@@ -71,6 +71,7 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
       debug: true,
       pokeWindowMs: POKE_WINDOW_MS,
       media,
+      pictureTestLoopback: true,
       ...rest,
       google: google && { clientId: google.clientId, clientSecret: google.clientSecret, testIssuer: google.url },
       log: rest.log ?? (() => undefined),
@@ -99,11 +100,14 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     platform: 'neutral',
     mainFields: ['module', 'main'],
     external: ['cloudflare:workers'],
+    // The picture codecs' WebAssembly beside the bundle, which workerd compiles as wrangler's deploy does.
+    loader: { '.wasm': 'copy' },
     outfile,
     logLevel: 'silent',
   });
   const mf = new Miniflare({
     modules: true,
+    modulesRules: [{ type: 'CompiledWasm', include: ['**/*.wasm'] }],
     scriptPath: outfile,
     compatibilityDate: '2026-08-01',
     d1Databases: { DB: 'gp-sync-spike-global' },
@@ -112,6 +116,8 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     bindings: {
       SPIKE_DEBUG: '1',
       POKE_WINDOW_MS: String(POKE_WINDOW_MS),
+      // MCP's pictures are served from this machine in the tests (picture-fetch.ts).
+      PICTURE_TEST_LOOPBACK: '1',
       ...(opts.mediaGraceMs !== undefined ? { MEDIA_GRACE_MS: String(opts.mediaGraceMs) } : {}),
       ...(opts.setupToken ? { SETUP_TOKEN: opts.setupToken } : {}),
       ...(opts.sessionIdleMs ? { SESSION_IDLE_MS: String(opts.sessionIdleMs) } : {}),

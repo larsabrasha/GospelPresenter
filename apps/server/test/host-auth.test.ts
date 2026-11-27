@@ -76,6 +76,18 @@ describe('desktop host: an MCP request', () => {
 
     expect(r.status).toBe(200);
   });
+
+  it("reaches OAuth's registration and token routes from a device that is not paired, as the 401 of /api/mcp names them", async () => {
+    const sql = nodeGlobalSql(openSqlite(':memory:', 'better-sqlite3'));
+    await migrateGlobal(sql);
+    const app = new Hono();
+    app.use('*', pairingGuard(new Accounts(sql), { hostToken: 'gphost_x' }, () => '192.168.1.20'));
+    app.all('*', (c) => c.text('reached'));
+
+    const statuses = [(await app.request('/api/oauth/register', { method: 'POST' })).status, (await app.request('/api/oauth/token', { method: 'POST' })).status];
+
+    expect(statuses).toEqual([200, 200]);
+  });
 });
 
 describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing, %s', (driver) => {

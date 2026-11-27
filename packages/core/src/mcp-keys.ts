@@ -35,3 +35,25 @@ export interface McpKeyCreated {
 
 /** `PUT /api/users/{id}/mcp`: a Superadmin turns the experiment on or off for someone. */
 export const setMcpRequest = z.object({ enabled: z.boolean() });
+
+/**
+ * `POST /api/oauth/authorize`: the signed-in person lets an assistant (Claude on claude.ai or a phone) use the
+ * session's organisation through MCP, as its OAuth sign-in page asked (docs/mcp.md, "OAuth").
+ */
+export const oauthAuthorizeRequest = z.object({
+  clientId: z.string().min(1).max(2000),
+  redirectUri: z.string().min(1).max(2000),
+  codeChallenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  state: z.string().max(2000),
+});
+
+/** `GET /api/oauth/client`: what the sign-in page shows before it is allowed: who asks, and where it goes back to. */
+export interface OAuthClientInfo {
+  name: string;
+  /** The host the answer goes to, so the person sees it is Claude's. */
+  redirectHost: string;
+  /** The organisation the assistant would act in: the session's. */
+  orgName: string;
+  /** Whether the experiment is on for the person; off, nothing can be allowed. */
+  mcp: boolean;
+}
