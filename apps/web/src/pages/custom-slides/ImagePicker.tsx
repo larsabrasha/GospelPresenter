@@ -38,7 +38,7 @@ export function ImagePicker({ onPick, onClose }: { onPick: (picked: PickedPictur
     }
   };
   return (
-    <Dialog title={t('slideEditor.chooseImage')} onClose={onClose} maxWidthClass="max-w-2xl">
+    <Dialog title={t('slideEditor.chooseImage')} onClose={onClose} maxWidthClass="max-w-2xl" showClose>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <AppButton asLabel variant="secondary" disabled={busy} className="inline-flex items-center gap-1.5">
