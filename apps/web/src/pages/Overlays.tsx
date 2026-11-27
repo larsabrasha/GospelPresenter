@@ -29,7 +29,7 @@ function OverlayTile({ overlay, theme }: { overlay: OverlayEntry; theme: Theme |
 
 /**
  * Överlägg (docs/custom-slides.md, spec 03 §4 `/admin/overlays`): a page shown above the live slide, e.g. a Swish
- * number at the collection, made in the custom slides' editor. A grid of them; a tap opens one's editor, + makes a
+ * number at the collection, made in the custom slides' editor. A grid, a list or large, as Bildspel; a tap opens one's editor, + makes a
  * new one at once and opens it, its name picked to type over. Deleting is permanent and asks first (PRES-R29). Everyone may make and change
  * them (ManageOverlays is every role's).
  */
@@ -55,6 +55,15 @@ export function Overlays() {
       title={t('overlays.title')}
       items={overlays}
       layout="grid"
+      // The three views as Bildspel's (Lars, 2026-11-27): a row has the overlay small before its name.
+      switchable
+      renderRow={(o) => ({
+        leading: (
+          <span className="w-16 shrink-0">
+            <OverlayTile overlay={o} theme={theme} />
+          </span>
+        ),
+      })}
       renderTile={(o) => <OverlayTile overlay={o} theme={theme} />}
       open={(o) => href({ page: 'overlay', id: o.id })}
       sorts={[

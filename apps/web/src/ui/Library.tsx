@@ -48,7 +48,7 @@ export interface LibraryProps<T extends LibraryEntry> {
   /** The search, when the page searches itself (Sånger searches the lyrics too); else by name and `words`. */
   search?: { query: string; onQuery: (query: string) => void; shown: T[] | undefined };
   words?: (item: T) => (string | null | undefined)[];
-  /** How it shows at first; with `switchable`, the three views beside the order (ui/ViewPicker.tsx: Bilder, Videor, Bildspel). */
+  /** How it shows at first; with `switchable`, the three views beside the order (ui/ViewPicker.tsx: Bilder, Videor, Bildspel, Överlägg). */
   layout: 'list' | 'grid';
   switchable?: boolean;
   renderRow?: (item: T, query: string) => LibraryRow;
@@ -178,9 +178,10 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
       </AppButton>
     </>
   );
-  // Not on what opens a page (a song): its page renames and deletes it (Lars, 2026-11-04); held, it has the menu still.
+  // On every item, what opens a page (a song, a slideshow) too: the menu is seen where the item is, not only held for or
+  // found on its page (Lars, 2026-11-27, undoing 2026-11-04's none on such an item).
   const more = (item: T) =>
-    p.manage && !p.open && (
+    p.manage && (
       <Dropdown
         menuClassName="min-w-40 right-0"
         className="relative shrink-0"

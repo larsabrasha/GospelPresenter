@@ -46,9 +46,8 @@ test('a song’s menu renames it, and Escape ends Välj without closing the page
   await createSong(page, 'Gammalt namn', []);
   await openAdmin(page, 'Sånger');
 
-  // A song has no ⋯ (its page renames and deletes it); held or right-clicked, it has the menu.
-  await expect(page.getByRole('button', { name: 'Fler val för Gammalt namn' })).toHaveCount(0);
-  await page.getByRole('list', { name: 'Sånger' }).getByText('Gammalt namn').click({ button: 'right' });
+  // A song has its ⋯ as every item in a library, though its page renames and deletes it too (Lars, 2026-11-27).
+  await page.getByRole('button', { name: 'Fler val för Gammalt namn' }).click();
   await page.getByRole('menuitem', { name: 'Byt namn' }).click();
   const dialog = page.getByRole('dialog', { name: 'Byt namn' });
   await dialog.getByLabel('Namn').fill('Nytt namn');

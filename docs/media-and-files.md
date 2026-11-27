@@ -50,7 +50,7 @@ outside.
 
 **In the app.** Bilder (everyone may see and import: User, Admin and Superadmin, as spec 05): a grid of
 thumbnails, newest first, import by button or by dropping files on the page, "Importerar i av n...", failures
-listed with their reason, search by file name, "⋯" moves to the trash without confirmation. Bilder, Videor and Bildspel, and the add dialog's
+listed with their reason, search by file name, "⋯" moves to the trash without confirmation. Bilder, Videor, Bildspel and Överlägg (Lars, 2026-11-27), and the add dialog's
 Bild, Video and Bildspel, show as a list, a grid or one large picture per row (`ui/ViewPicker.tsx`), each view's
 choice kept per device. The trash holds
 images with songs and presentations (30 days; "Töm" and the lazy purge include them). A picture goes into a

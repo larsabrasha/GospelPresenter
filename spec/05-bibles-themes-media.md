@@ -256,7 +256,7 @@ the Shared assembly as `Themes/aurora/background.webp`.
 ### `/admin/audios` — Audio (nav "Ljud")
 Identical to Images except: policy `ManageOrganizationAudios`; accept
 `audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm,audio/x-m4a`; trash link `/trash?kind=Audio`;
-list rows (speaker icon + file name + "⋯" menu; 2.0: no ⋯, the row's menu opens as a picture's, with "Byt namn"
+list rows (speaker icon + file name + "⋯" menu; 2.0: the ⋯ every library item has, its menu as a picture's, with "Byt namn"
 and "Radera") instead of a grid; strings "Ljud", "Alla ljudfiler",
 "Laddar ljudfiler...", "Inga ljudfiler än", "Importera ljudfiler för att spela upp under
 presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte importeras"

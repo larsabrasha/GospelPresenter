@@ -153,7 +153,8 @@ current ones (Avbryt and Stäng in the pairing dialog), they keep what they do a
 
 Where the look would change what the app does, Lars decided (2026-10-27) to follow the current app: Bilder and
 Ljud trash from a ⋯ menu (since 2026-11-04 the libraries are one page as iOS 27's, `ui/Library.tsx`: an item's menu
-opens on a right click or a held finger, with Byt namn and Radera, and Välj marks several for Radera; a list's order
+opens on a right click, a held finger or its ⋯, which every item has, one that opens a page too (Lars, 2026-11-27:
+Sånger, Biblar, Bildspel and Överlägg as Bilder), with Byt namn and Radera, and Välj marks several for Radera; a list's order
 is "Sortera ⇅" in the app's colour at the right, before Välj, as iOS's Abonnemang, its menu the orders with a tick:
 Lars, 2026-11-27, for every sort button in the app, `ui/SortMenu.tsx`); the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
 Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
