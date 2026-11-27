@@ -175,7 +175,7 @@ function Title({ title, menu, className }: { title: string; menu?: ReactNode; cl
       <Dropdown
         className="relative min-w-0"
         menuClassName="min-w-48 left-0"
-        button={{ className: 'flex items-center gap-1 min-w-0 max-w-full px-1.5 rounded-lg cursor-pointer hover:bg-stone-200/70 dark:hover:bg-raised-2' }}
+        button={{ className: 'flex items-center gap-1 min-w-0 max-w-full px-1.5 py-1 rounded-lg cursor-pointer hover:bg-stone-200/70 dark:hover:bg-raised-2' }}
         trigger={
           <>
             <span className="truncate">{title}</span>
@@ -221,14 +221,14 @@ export function DetailHeader({
         slot &&
         createPortal(
           <>
-            <Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px] truncate" />
+            <Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px]/6 truncate" />
             {saved}
           </>,
           slot,
         )}
       {toPhoneBar && (
         <>
-          {phone.title && title && createPortal(<Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px] truncate" />, phone.title)}
+          {phone.title && title && createPortal(<Title title={title} menu={menu} className="min-w-0 font-semibold text-[17px]/6 truncate" />, phone.title)}
           {phone.saved && createPortal(saved, phone.saved)}
         </>
       )}
