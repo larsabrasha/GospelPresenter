@@ -27,8 +27,9 @@ and `nosniff`; another organisation's hash is 404 (MEDIA-A11).
 
 **The pipeline is in the client** (`apps/web/src/media/process.ts`): the page checks type, size (10 MiB) and
 name (200 characters), decodes with `createImageBitmap`, fits within both boxes without upscaling, and
-re-encodes: JPEG stays JPEG, PNG, WebP and GIF become WebP (a GIF keeps its first frame). Re-encoding also
-drops metadata such as GPS. The worker keeps both blobs in `media_blobs` and queues `addImage`; before that
+re-encodes: JPEG stays JPEG, PNG, WebP and GIF become WebP (a GIF keeps its first frame), see-through kept.
+WebKit's canvas (Safari, iOS) cannot encode WebP, so there `@jsquash/webp` (libwebp in wasm, loaded only then)
+does; JPEG on white only if that fails too. Re-encoding also drops metadata such as GPS. The worker keeps both blobs in `media_blobs` and queues `addImage`; before that
 mutation is pushed, `MediaUploads` (`packages/sync/src/client/media.ts`, chained with the Bibles' uploads by
 `chainBeforePush`) uploads them. So importing works offline: the picture shows at once on that device and
 reaches the server and the other devices later. An upload that cannot reach the server or fails with 5xx holds

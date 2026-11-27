@@ -43,9 +43,27 @@ function surface(width: number, height: number): Surface {
   return canvas;
 }
 
-async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
+async function encodeByCanvas(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
   if (canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type, quality });
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), type, quality));
+}
+
+/**
+ * The canvas encoded as `type`. WebKit's canvas (Safari, the phone app on iOS) cannot encode WebP and answers PNG, so
+ * there libwebp in wasm encodes it, and a see-through PNG stays see-through (MEDIA-A3; Lars, 2026-11-27). Should
+ * that fail too, the canvas's answer is returned, and the caller sees its other type.
+ */
+async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
+  const blob = await encodeByCanvas(canvas, type, quality);
+  if (blob.type === type || type !== 'image/webp') return blob;
+  try {
+    const { default: encodeWebp } = await import('@jsquash/webp/encode.js');
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return new Blob([await encodeWebp(pixels, { quality: Math.round(quality * 100) })], { type });
+  } catch {
+    return blob;
+  }
 }
 
 /** Draws the picture (a bitmap, or a video's frame) at the size and encodes it; the blob's type may differ from `type` if the browser cannot encode it. */
@@ -78,9 +96,9 @@ async function decodeUpright(file: Blob): Promise<ImageBitmap> {
 }
 
 /**
- * Validates, decodes and re-encodes a picked file as the two stored sizes. A
- * browser that cannot encode WebP (Safari's canvas answers PNG) gets JPEG on
- * white instead, for the whole picture, so its two blobs have one type.
+ * Validates, decodes and re-encodes a picked file as the two stored sizes. Where
+ * WebP cannot be encoded at all (not by the canvas, not by wasm), the picture is
+ * JPEG on white instead, the whole of it, so its two blobs have one type.
  */
 export async function processImage(file: File, id: string): Promise<ImageImport> {
   const picked = checkPicked(file);

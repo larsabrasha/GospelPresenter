@@ -13,6 +13,7 @@
     "@gp/core": "workspace:*",
     "@gp/sync": "workspace:*",
     "@journeyapps/wa-sqlite": "2.0.8",
+    "@jsquash/webp": "1.5.0",
     "mediabunny": "1.62.1",
     "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
