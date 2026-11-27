@@ -34,7 +34,8 @@ import { OutputsPanel } from '../OutputsPanel.tsx';
 import { DescriptionGlyph, DisplayGlyph } from './LiveGlyphs.tsx';
 import { Description } from '../../presentation-editor/Description.tsx';
 
-type Open = null | 'display' | 'description' | { item: PresentationItem } | { images: PresentationItem };
+/** `opened` counts an item's sheet's openings: each one is its own sheet (below). */
+type Open = null | 'display' | 'description' | { item: PresentationItem; opened: number } | { images: PresentationItem };
 
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
@@ -96,6 +97,7 @@ export function PhoneLive({
   const { dialog, ask } = useConfirm();
   const remotePolicy = useData(orgRemoteControl, []);
   const [open, setOpen] = useState<Open>(null);
+  const openings = useRef(0);
   // The add dialog: after the item named, or with `images` adding pictures to that image item. + first asks which kind
   // (`kind`), as on a computer (Lars, 2026-11-05), and the dialog shows that one only.
   const [adding, setAdding] = useState<{ chosenId: string | null; images?: string; kind?: AddKind } | null>(null);
@@ -237,7 +239,7 @@ export function PhoneLive({
           onShow={presenting ? (itemId, partIndex) => page.send({ type: 'show', itemId, partIndex }) : undefined}
           picked={page.state.picked}
           onPick={(p) => page.send({ type: 'show', ...p })}
-          onItemMenu={(item) => setOpen({ item })}
+          onItemMenu={(item) => setOpen({ item, opened: ++openings.current })}
           // Before presenting, the description at the top of the list, as a computer has it atop its left column; while
           // presenting, behind the button left of Släck (Lars, 2026-11-03).
           header={!presenting && !!presentation.description && <Description key={presentation.description} text={presentation.description} className="mt-4" />}
@@ -284,6 +286,9 @@ export function PhoneLive({
       )}
       {open && typeof open === 'object' && 'item' in open && (
         <ItemSheet
+          // Its own sheet each time: one opened while the last still slides away (Markera, then … at once) is not that
+          // one, whose close, due when it is out of sight, would close it.
+          key={open.opened}
           item={items.find((i) => i.id === open.item.id) ?? open.item}
           songs={songs}
           arrangements={arrangements}
