@@ -100,14 +100,21 @@ test('capture every page', async () => {
   await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(2) });
   await expect(page.getByRole('list', { name: 'Ljud' }).getByRole('listitem')).toHaveCount(1);
   await createPresentation(page, 'Utan datum');
-  for (const [name, offset] of [
-    ['Bönekväll', -18],
-    ['Söndagsgudstjänst', -7],
-    ['Ungdomsgudstjänst', -1],
-    ['Söndagsgudstjänst', 0],
-    ['Familjegudstjänst', 6],
+  // A long description, for Tabell's Beskrivning cut short.
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
+  await page.getByRole('textbox', { name: 'Beskrivning' }).fill('Julkonsert med kören och barnkören, och efter den kaffe och lussekatter i församlingshemmet');
+  await page.getByRole('dialog', { name: 'Redigera detaljer' }).getByRole('button', { name: 'Spara' }).click();
+  for (const [name, offset, time] of [
+    // Months back, so the start page has its Äldre row.
+    ['Påskgudstjänst', -240, '11:00'],
+    ['Bönekväll', -18, '19:00'],
+    ['Söndagsgudstjänst', -7, '11:00'],
+    ['Ungdomsgudstjänst', -1, '18:30'],
+    ['Söndagsgudstjänst', 0, '11:00'],
+    ['Familjegudstjänst', 6, '10:00'],
   ] as const)
-    await createPresentation(page, name, day(offset));
+    await createPresentation(page, name, day(offset), time);
   await addSongs(page, ['Härlig är jorden', 'Tryggare kan ingen vara']);
   const presentation = new URL(page.url()).pathname;
   const id = presentation.split('/').pop()!;
@@ -205,7 +212,10 @@ test('capture every page', async () => {
     }
   };
   const pages: [string, string, ((p: Page) => Promise<unknown>)?, ((p: Page) => Promise<unknown>)?][] = [
-    ['home', '/'],
+    // The start page's three views; Lista chosen again after, as the view is kept on the device.
+    ['home', '/', (p) => p.getByRole('radio', { name: 'Lista' }).click()],
+    ['home-calendar', '/', (p) => p.getByRole('radio', { name: 'Kalender' }).click()],
+    ['home-table', '/', (p) => p.getByRole('radio', { name: 'Tabell' }).click(), (p) => p.getByRole('radio', { name: 'Lista' }).click()],
     ['presentation', presentation],
     ['presentation-item', presentation, pickItem],
     [

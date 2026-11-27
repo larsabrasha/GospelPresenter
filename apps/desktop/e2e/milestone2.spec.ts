@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, backToSong, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost, typePastLimit } from './flows.ts';
+import { addSongs, backToSong, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost, startRow, typePastLimit } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -377,12 +377,13 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
-  await details.getByLabel('Datum').fill('2026-11-08');
+  // Years ahead, so it stays among the planned on the start page.
+  await details.getByLabel('Datum').fill('2036-11-08');
   await details.getByLabel('Tid').fill('10:00');
   await details.getByLabel('Plats').fill('Stora salen');
   await details.getByRole('textbox', { name: 'Beskrivning' }).fill('Med nattvard');
   await details.getByRole('button', { name: 'Spara' }).click();
-  await expect(page.getByTestId('schedule')).toHaveText('2026-11-08 10:00 · Stora salen');
+  await expect(page.getByTestId('schedule')).toHaveText('2036-11-08 10:00 · Stora salen');
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   await expect(details.getByRole('textbox', { name: 'Beskrivning' })).toHaveValue('Med nattvard');
@@ -423,7 +424,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
 
   // The presentation flags the item and restores the song (D17).
   await openPresentations(page);
-  await page.getByRole('link', { name: 'Kväll' }).click();
+  await (await startRow(page, 'Kväll')).click();
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången ligger i papperskorgen och visas inte live.')).toBeVisible();
   await page.getByRole('button', { name: 'Återställ' }).click();
@@ -436,7 +437,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await page.getByRole('button', { name: 'Ta bort sång' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await openPresentations(page);
-  await page.getByRole('link', { name: 'Kväll' }).click();
+  await (await startRow(page, 'Kväll')).click();
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Radera presentation' }).click();
   // Every deletion asks first (Lars, 2026-11-03), saying it goes to the trash.
@@ -469,7 +470,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
 
   // The presentation is back, and its item says the song is gone.
   await openPresentations(page);
-  await page.getByRole('link', { name: 'Kväll' }).click();
+  await (await startRow(page, 'Kväll')).click();
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången finns inte längre.')).toBeVisible();
 

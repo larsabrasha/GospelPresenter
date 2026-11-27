@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/node/bible-fixtures.ts';
 import { launch, testPort, type Desktop } from './apps.ts';
-import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost, startRow } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -148,7 +148,8 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   await openAdmin(host.page, 'Biblar');
   await host.page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
   await expect(host.page.getByText('WEB · 15 verser')).toBeVisible();
-  await createPresentation(host.page, 'Gudstjänst', '2026-11-01');
+  // Years ahead, so it stays among the planned on the start page.
+  await createPresentation(host.page, 'Gudstjänst', '2036-11-01');
 
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
@@ -175,7 +176,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   const search = picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)');
   const searchJohn = async () => {
     await openPresentations(page);
-    await page.getByRole('link', { name: /Gudstjänst/ }).click();
+    await (await startRow(page, /Gudstjänst/)).click();
     await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
     await search.fill('Joh 3:16');
@@ -189,7 +190,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   host = undefined;
   await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
   await openPresentations(page);
-  await page.getByRole('link', { name: /Gudstjänst/ }).click();
+  await (await startRow(page, /Gudstjänst/)).click();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Bibeltext', exact: true }).click(); // + is a menu (spec 03 2f)
   await expect(picker.getByText('Bibeltexten finns inte på den här enheten och kan inte hämtas utan anslutning.', { exact: false })).toBeVisible();

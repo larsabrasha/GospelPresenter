@@ -205,9 +205,12 @@ overlay.
 The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
 name (no role or organisation), Inställningar (Mina inställningar is a row in it; since 2026-11-04 not in the menu, as the bar's cog is the one way there), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
-what and offers Synka nu. The page keeps Visas nu at the top (a card as the list's, red only in its pulsing dot and the line "Visas just nu", the whole card opening it with a ›, as Music's Now Playing; the row below has only a small red dot: Lars, 2026-11-03), then Idag, Kommande and Senast ändrade, each row with
-its time and place under its name and its number of items at the right, two lines at every width with no
-columns (Lars, 2026-11-02). The bar has Inställningar's cog beside the picture, as a presentation's bar has it. There is one Papperskorg, a row in
+what and offers Synka nu. The page keeps Visas nu at the top (a card as the list's, red only in its pulsing dot and the line "Visas just nu", the whole card opening it with a ›, as Music's Now Playing; the row below has only a small red dot: Lars, 2026-11-03), then Lista, Kalender or Tabell, chosen
+in a segmented control under the heading (Lars, 2026-11-27, spec 03 screen 1: a church plans half a year at a time).
+Lista is what is planned by month, what has no date folded into one row at the top, no past; Kalender a month with
+dots, any month, the past too; Tabell a sheet with columns, the one place with columns (Lista keeps two lines at every
+width: Lars, 2026-11-02). Each row has a date tile at its start (weekday, day and month; today's red), its time and place
+under its name, and no number of items. Mallar is beside the + for who may change the templates. The bar has Inställningar's cog beside the picture, as a presentation's bar has it. There is one Papperskorg, a row in
 Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 
 ## Inställningar

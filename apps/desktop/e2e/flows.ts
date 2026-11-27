@@ -187,13 +187,26 @@ export async function createSong(page: Page, name: string, parts: [string, strin
   }
 }
 
+/**
+ * A presentation's link on the start page's Lista, where what has no date is folded into one row ("2 utan datum"):
+ * unfolded first when the link is behind it. `timeout` as a click's own, for a page that loads slowly (offline).
+ */
+export async function startRow(page: Page, name: string | RegExp, timeout = 30_000): Promise<Locator> {
+  const link = page.getByRole('link', { name });
+  const fold = page.getByRole('button', { name: /utan datum/, expanded: false });
+  await expect(link.or(fold).first()).toBeVisible({ timeout });
+  if (!(await link.first().isVisible())) await fold.click();
+  return link;
+}
+
 /** Creates a presentation and stays in its editor. */
-export async function createPresentation(page: Page, name: string, date?: string) {
+export async function createPresentation(page: Page, name: string, date?: string, time?: string) {
   await openPresentations(page);
   await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill(name);
   if (date) await dialog.getByLabel('Datum').fill(date);
+  if (time) await dialog.getByLabel('Tid').fill(time);
   await dialog.getByLabel('Namn').press('Enter');
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 }

@@ -37,3 +37,37 @@ export function dateLabel(date: string, today: string, withYear: boolean): strin
   if (date === addDays(today, 1)) return t('presentations.tomorrow');
   return shortDate(date, withYear);
 }
+
+/** A date tile's three lines: "sön", "15" and "nov". */
+export function tileOf(date: string): { weekday: string; day: string; month: string } {
+  const d = dateOf(date);
+  const short = (o: Intl.DateTimeFormatOptions) => d.toLocaleDateString(locale(), o).replace(/\.$/, '');
+  return { weekday: short({ weekday: 'short' }), day: String(d.getDate()), month: short({ month: 'short' }) };
+}
+
+/** A table cell's date: "27 nov", with the year when it is not today's ("4 maj 2025"). */
+export function cellDate(date: string, today: string): string {
+  const other = date.slice(0, 4) !== today.slice(0, 4);
+  return dateOf(date).toLocaleDateString(locale(), { day: 'numeric', month: 'short', ...(other ? { year: 'numeric' } : {}) }).replace('.', '');
+}
+
+/** A month's caption, `YYYY-MM`: "November", with the year when it is not today's ("December 2025") or `withYear`. */
+export function monthTitle(month: string, today: string, withYear = false): string {
+  const year = withYear || month.slice(0, 4) !== today.slice(0, 4);
+  const name = dateOf(`${month}-01`).toLocaleDateString(locale(), { month: 'long', ...(year ? { year: 'numeric' } : {}) });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** The month `by` months from `month`, `YYYY-MM`. */
+export function addMonths(month: string, by: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const n = y! * 12 + (m! - 1) + by;
+  return `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`;
+}
+
+/** A month's calendar, `YYYY-MM`, Monday first: six weeks of dates, `YYYY-MM-DD`, those of other months included. */
+export function calendarDays(month: string): string[] {
+  const first = dateOf(`${month}-01`);
+  const back = (first.getDay() + 6) % 7;
+  return Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - back));
+}

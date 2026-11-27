@@ -11,56 +11,134 @@ function org(presentations: string) {
     return st.all(...(params as never[])) as unknown as Rows;
   };
   new Core().runSync('migrateOrgSchema', all);
-  db.exec(`INSERT INTO presentations (id, name, event_date, time, updated_at) VALUES ${presentations}`);
+  db.exec(`INSERT INTO presentations (id, name, event_date, time, location, updated_at) VALUES ${presentations}`);
   return { db, rows: async (sql: string, params: unknown[]) => all(sql, params) };
 }
 
-interface StartList {
-  id: string;
-  showDate: boolean;
-  withYear: boolean;
-  rows: { name: string; itemCount: number }[];
+type Named = { name: string };
+interface StartPage {
+  undated: Named[];
+  months: { month: string; rows: Named[] }[];
+  past: number;
+}
+interface TableGroup {
+  month?: string | null;
+  rows: Named[];
 }
 
+const names = (rows: Named[]) => rows.map((r) => r.name);
+const groups = (gs: TableGroup[]) => gs.map((g) => [g.month, names(g.rows)]);
+
 describe('startPageView', () => {
-  it('splits into today by time, upcoming soonest first, and the rest last changed first', async () => {
+  it('lists what is planned, today on, by month, soonest first and a day by its time', async () => {
     const { rows } = org(`
-      ('a', 'Gammal', '2026-01-04', NULL, 300), ('b', 'Utan datum', NULL, NULL, 200), ('c', 'Nästa vecka', '2026-11-03', NULL, NULL),
-      ('d', 'Kväll', '2026-10-27', '18:00', NULL), ('e', 'Imorgon', '2026-10-28', NULL, NULL), ('f', 'Förmiddag', '2026-10-27', '10:00', NULL),
-      ('g', 'Igår', '2026-10-26', NULL, 100), ('h', 'Aldrig ändrad', '2026-10-01', NULL, NULL)`);
+      ('a', 'Kväll', '2026-10-27', '18:00', NULL, NULL), ('b', 'Förmiddag', '2026-10-27', '10:00', NULL, NULL),
+      ('c', 'Nästa vecka', '2026-11-03', NULL, NULL, NULL), ('d', 'Imorgon', '2026-10-28', NULL, NULL, NULL)`);
 
-    const lists = await new Core().view<StartList[]>('startPageView', { today: '2026-10-27' }, rows);
+    const page = await new Core().view<StartPage>('startPageView', { today: '2026-10-27' }, rows);
 
-    expect(lists.map((l) => [l.id, l.rows.map((r) => r.name)])).toEqual([
-      ['today', ['Förmiddag', 'Kväll']],
-      ['upcoming', ['Imorgon', 'Nästa vecka']],
-      ['recent', ['Gammal', 'Utan datum', 'Igår', 'Aldrig ändrad']],
+    expect(page.months.map((m) => [m.month, names(m.rows)])).toEqual([
+      ['2026-10', ['Förmiddag', 'Kväll', 'Imorgon']],
+      ['2026-11', ['Nästa vecka']],
     ]);
   });
 
-  it('says which lists show their rows’ date and year', async () => {
-    const { rows } = org(`('a', 'Idag', '2026-10-27', NULL, NULL), ('b', 'Sedan', '2026-11-03', NULL, NULL), ('c', 'Förr', '2026-01-04', NULL, NULL)`);
+  it('leaves the past to the calendar', async () => {
+    const { rows } = org(`('a', 'Igår', '2026-10-26', NULL, NULL, NULL)`);
 
-    const lists = await new Core().view<StartList[]>('startPageView', { today: '2026-10-27' }, rows);
+    const page = await new Core().view<StartPage>('startPageView', { today: '2026-10-27' }, rows);
 
-    expect(lists.map((l) => [l.id, l.showDate, l.withYear])).toEqual([['today', false, false], ['upcoming', true, false], ['recent', true, true]]);
+    expect([page.months, page.past]).toEqual([[], 1]);
   });
 
-  it('leaves out an empty list', async () => {
-    const { rows } = org(`('a', 'Förr', '2026-01-04', NULL, NULL)`);
+  it('gives what has no date apart, last changed first', async () => {
+    const { rows } = org(`('a', 'Utkast', NULL, NULL, NULL, 200), ('b', 'Ändrad', NULL, NULL, NULL, 400)`);
 
-    const lists = await new Core().view<StartList[]>('startPageView', { today: '2026-10-27' }, rows);
+    const page = await new Core().view<StartPage>('startPageView', { today: '2026-10-27' }, rows);
 
-    expect(lists.map((l) => l.id)).toEqual(['recent']);
+    expect(names(page.undated)).toEqual(['Ändrad', 'Utkast']);
+  });
+});
+
+describe('calendarMonthView', () => {
+  it('gives a month’s presentations, past and planned, by day and time', async () => {
+    const { rows } = org(`
+      ('a', 'Sedan', '2026-11-29', '11:00', NULL, NULL), ('b', 'Förr', '2026-11-01', '11:00', NULL, NULL),
+      ('c', 'Kväll', '2026-11-15', '18:00', NULL, NULL), ('d', 'Morgon', '2026-11-15', '09:00', NULL, NULL),
+      ('e', 'December', '2026-12-06', NULL, NULL, NULL), ('f', 'Utan', NULL, NULL, NULL, NULL)`);
+
+    const month = await new Core().view<Named[]>('calendarMonthView', { month: '2026-11' }, rows);
+
+    expect(names(month)).toEqual(['Förr', 'Morgon', 'Kväll', 'Sedan']);
+  });
+});
+
+describe('presentationTableView', () => {
+  const sheet = () =>
+    org(`
+      ('a', 'Advent', '2026-11-29', '11:00', 'Kyrksalen', 100), ('b', 'Zion', '2026-12-06', NULL, NULL, 300),
+      ('c', 'Ödmjukhet', '2026-11-28', '18:00', 'Källaren', 200), ('d', 'Utkast', NULL, NULL, 'Lilla salen', 400),
+      ('e', 'Förr', '2026-10-01', '11:00', NULL, 50)`);
+
+  it('lists what is planned by month and what has no date last, by date', async () => {
+    const { rows } = sheet();
+
+    const table = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27' }, rows);
+
+    expect(groups(table)).toEqual([
+      ['2026-11', ['Ödmjukhet', 'Advent']],
+      ['2026-12', ['Zion']],
+      [null, ['Utkast']],
+    ]);
   });
 
-  it('gives each row its number of items', async () => {
-    const { db, rows } = org(`('a', 'Förr', '2026-01-04', NULL, NULL)`);
-    db.exec(`INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort) VALUES ('i1', 'a', 'header', 'Välkommen', 'i1', 0), ('i2', 'a', 'header', 'Bön', 'i2', 1)`);
+  it('takes the past too when asked', async () => {
+    const { rows } = sheet();
 
-    const lists = await new Core().view<StartList[]>('startPageView', { today: '2026-10-27' }, rows);
+    const table = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', past: true }, rows);
 
-    expect(lists[0]!.rows[0]!.itemCount).toBe(2);
+    expect(table[0]).toEqual({ month: '2026-10', rows: [expect.objectContaining({ name: 'Förr' })] });
+  });
+
+  it('turns the order the other way, the months with it', async () => {
+    const { rows } = sheet();
+
+    const table = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', desc: true }, rows);
+
+    expect(groups(table)).toEqual([
+      ['2026-12', ['Zion']],
+      ['2026-11', ['Advent', 'Ödmjukhet']],
+      [null, ['Utkast']],
+    ]);
+  });
+
+  it('sorts by name in the page’s language as one list', async () => {
+    const { rows } = sheet();
+
+    const table = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', sort: 'name', locale: 'sv' }, rows);
+
+    expect(groups(table)).toEqual([[undefined, ['Advent', 'Utkast', 'Zion', 'Ödmjukhet']]]);
+  });
+
+  it('puts the rows without the sorted value last, either way', async () => {
+    const { rows } = sheet();
+
+    const up = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', sort: 'location' }, rows);
+    const down = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', sort: 'location', desc: true }, rows);
+
+    // In Swedish order: Kyrksalen, Källaren (ä after y), Lilla salen; Zion has no place.
+    expect([names(up[0]!.rows), names(down[0]!.rows)]).toEqual([
+      ['Advent', 'Ödmjukhet', 'Utkast', 'Zion'],
+      ['Utkast', 'Ödmjukhet', 'Advent', 'Zion'],
+    ]);
+  });
+
+  it('sorts by change, latest first', async () => {
+    const { rows } = sheet();
+
+    const table = await new Core().view<TableGroup[]>('presentationTableView', { today: '2026-11-27', sort: 'changed' }, rows);
+
+    expect(names(table[0]!.rows)).toEqual(['Utkast', 'Zion', 'Ödmjukhet', 'Advent']);
   });
 });
 

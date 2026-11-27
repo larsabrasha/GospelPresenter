@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, testPort, type Desktop } from './apps.ts';
-import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, pair, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -162,7 +162,7 @@ test('another device shows a picture large, in Bilder and in Lägg till bild, fe
   await expect(page.getByRole('button', { name: 'Välj', exact: true })).toBeInViewport({ ratio: 1 });
 
   await page.goto(new URL(page.url()).origin);
-  await page.getByRole('link', { name: /Söndag/ }).click();
+  await (await startRow(page, /Söndag/)).click();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Bild', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });

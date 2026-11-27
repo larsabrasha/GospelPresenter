@@ -101,6 +101,26 @@ trash).
   third list), time `HH:mm`, location; tooltip = full date. A red **Live** pill if *this browser
   session* is presenting it (`S/Components/Presentations/PresentationRow.razor`). Row links to
   `/presentations/{id}`.
+  2.0 (Lars, 2026-11-27: a church plans half a year at a time, the past matters little): three views, chosen in
+  a segmented control **Lista | Kalender | Tabell** under the heading, the choice the device's.
+  - **Lista**: what has no date folded into one row at the top ("2 utan datum" and their names), which unfolds
+    them under it; then what is planned, today on, a list per month captioned by its name ("November", with the
+    year when it is not this year's), soonest first and a day by its time. No past: "Inget är planerat. Det som
+    varit finns i Kalender." with **Kalender** when nothing is planned and something has been.
+  - **Kalender**: a month, Monday first, ‹ › (**Föregående månad**, **Nästa månad**) to any month and **Idag**
+    back; a dot under a day with presentations, blue today on and grey before. A tap on a day shows its
+    presentations under the month, again the whole month. The undated row between; "Inga presentationer då."
+  - **Tabell**: a row a presentation, the name first and kept at the left as the rest scrolls sideways; the
+    columns Datum (weekday, date and time in one: "fre 27 nov · 11:00"), Plats, Beskrivning (on one line, cut short
+    with "…", whole in its tooltip) and Ändrad (no Tema), each hidden or shown under **Kolumner**. What is planned
+    and what has no date; the switch **Tidigare** takes the past in. A click on a caption — Namn's, Datum's (by
+    date, then time), Plats's, Beskrivning's or Ändrad's — sorts by it, again the other way, those without the value last; by Datum the rows are under
+    month captions and those without a date under **Utan datum** last. Columns, order and Tidigare are the
+    device's. Today's row is tinted red.
+  Each row in Lista and Kalender starts with a date tile (the short weekday in red, the day, the short month in
+  grey: "sön", "15", "nov"; today's all on red, with **Idag** by the name; a calendar for one without a date); its
+  subtitle is its time and place; no number of items. Who has ManageTemplates has **Mallar** beside the + (its
+  icon alone on a phone), to the templates page.
   4. **Papperskorg** button → `/trash?kind=Presentation`, always shown in the content state for
      users with ManagePresentations (`Dashboard.razor:125-137`). (Not shown in the empty state.)
      2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03).
@@ -561,10 +581,11 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   from it, then it contains the same items in the same order, the deck pages display, the template's
   theme is used, and deleting the deck item in the new presentation does not affect the template.
 - PRES-A5 Given presentations dated yesterday, today 18:00, today 10:00, next week, and undated, when
-  the dashboard loads, then "Idag" shows 10:00 then 18:00, "Kommande" shows next week, and the bottom
-  list shows yesterday's and the undated one ordered by last change.
-- PRES-A6 Given 25 past presentations, when the dashboard loads, then 20 are listed with **Visa
-  fler**; clicking it shows all 25 and hides the button.
+  the dashboard loads in Lista, then today's month lists 10:00, 18:00 and (in it) next week's in that order,
+  yesterday's is not there, and the undated one is behind "1 utan datum". 2.0 (Lars, 2026-11-27).
+- PRES-A6 Given a presentation last week, when **Kalender** is chosen and its month shown, then it is there
+  under the month, and a tap on its day shows that day's alone; after a reload Kalender is still chosen.
+  2.0 (Lars, 2026-11-27).
 - PRES-A7 Given an open presentation with items A, B, C and B selected, when the user adds a song via
   the Add modal, then the song is inserted between B and C, becomes selected, a toast `"{song}" har
   lagts till` appears, and after reload the order is still A, B, song, C.
@@ -649,6 +670,9 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   arrows step from the item before a point to the one after it.
 - PRES-A39 Given an item, when the user writes a comment under Kommentar in its ⋯, then the comment shows under the
   item's name, and not on the output.
+- PRES-A40 Given presentations planned, undated and past, when **Tabell** is chosen on the start page, then the
+  planned and undated show; **Tidigare** takes the past in; a click on Namn's caption orders them by name, again
+  the other way; a column hidden under **Kolumner** goes.
 
 ## Implementation artefacts
 

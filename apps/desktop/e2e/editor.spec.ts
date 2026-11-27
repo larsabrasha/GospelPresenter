@@ -2,7 +2,7 @@
 // on return, and Markera to remove several items.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pickItem, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -24,7 +24,7 @@ test('the item selected again on return, and Markera removes a range', async () 
   // The add dialog selected what it added; opened again, the page selects it again.
   await order.getByRole('button', { name: 'Sång B', exact: true }).click();
   await openPresentations(page);
-  await page.getByRole('link', { name: /Söndag/ }).click();
+  await (await startRow(page, /Söndag/)).click();
   await expect(order.getByRole('button', { name: 'Sång B', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
   // Markera, in A's …, ticks A; Shift+click C ticks the range, and the three go together after the question.

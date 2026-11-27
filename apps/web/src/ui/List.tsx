@@ -42,11 +42,14 @@ export function ListLinkRow({
   title,
   subtitle,
   subtitleTitle,
+  start,
   end,
   after,
   nav,
 }: {
   href: string;
+  /** What goes before the title: a presentation's date tile. */
+  start?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
   subtitleTitle?: string;
@@ -64,6 +67,7 @@ export function ListLinkRow({
         href={href}
         className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 no-underline text-inherit rounded-[inherit] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >
+        {start}
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>
           {subtitle && (

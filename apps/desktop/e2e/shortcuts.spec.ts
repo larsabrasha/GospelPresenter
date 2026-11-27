@@ -1,7 +1,7 @@
 // The keyboard help (KeyboardShortcuts.razor, ShortcutHelpDialog.razor): `?` lists the keys of what is on screen.
 import { expect, test, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openPresentations, setUpHost, startRow } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -36,7 +36,7 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await expect(help).toHaveCount(0);
 
   // The editor, and the add dialog above it, which hides the editor's keys.
-  await page.getByRole('link', { name: 'Söndag' }).click();
+  await (await startRow(page, 'Söndag')).click();
   help = await openHelp(page);
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Presentation', 'Överallt']);
   await expect(help.getByRole('listitem').filter({ hasText: 'Lägg till i presentationen' }).locator('kbd')).toHaveText('A');

@@ -5,7 +5,7 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 import { type Desktop, launch, MUTED } from './apps.ts';
 import { makeZip, prepareSong, PROTOCOL_VERSION, rankSongs, SCHEMA_VERSION, utf8Encode } from '@gp/core';
 import { searchMarks } from '@gp/core/core';
-import { addSongs, allowRemote, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost, startRow } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -55,7 +55,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   const take = phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' });
   await take.waitFor({ timeout: 10_000 });
   // Starting it on the tablet has the tablet fetch its audio (opening it alone, or a remote control, would not); then straight to control.
-  await phone.getByRole('link', { name: 'Söndag' }).click();
+  await (await startRow(phone, 'Söndag')).click();
   await phone.getByRole('button', { name: 'Starta presentation' }).click();
   await expect(phone.getByTestId('media-ready')).toBeVisible();
   await phone.goBack();
@@ -700,7 +700,7 @@ test('a slide step reaches the output window and a paired screen at once, measur
   await expect(screen.getByTestId('display-idle')).toBeVisible();
 
   await openPresentations(page);
-  await page.getByRole('link', { name: /Söndag/ }).click();
+  await (await startRow(page, /Söndag/)).click();
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Sång A 1', exact: true }).click();
   await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();

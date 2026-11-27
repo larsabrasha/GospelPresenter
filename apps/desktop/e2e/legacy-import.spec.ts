@@ -61,7 +61,10 @@ test('an export from version 1 is imported into an empty organisation', async ()
   await expect(page.getByRole('list', { name: 'Inbjudna' })).toContainText('bo@kyrkan.se');
   await closeAdmin(page);
   await openPresentations(page);
-  await expect(page.getByText('Gudstjänst i oktober')).toBeVisible();
+  // A past presentation: in Tabell with Tidigare, not in Lista.
+  await page.getByRole('radio', { name: 'Tabell' }).click();
+  await page.getByRole('switch', { name: 'Tidigare' }).check();
+  await expect(page.getByRole('table').getByRole('link', { name: 'Gudstjänst i oktober' })).toBeVisible();
 });
 
 test('an export is imported into an organisation that has songs, keeping them', async () => {

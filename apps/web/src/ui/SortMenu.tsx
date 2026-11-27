@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { Dropdown, MENU_ITEM } from './Dropdown.tsx';
-import { CheckIcon, ChevronDownIcon } from './icons.tsx';
+import { ArrowsUpDownIcon, CheckIcon } from './icons.tsx';
 
-// A library's order, as Files' and Photos' "Sortera efter": a quiet button with the order chosen, its menu the
-// orders with a tick by the chosen one. The choice is this device's, kept per library.
+// A list's order, as iOS's Abonnemang has it (Lars, 2026-11-27: every sort button in the app so): "Sortera ⇅" in the
+// app's colour at the right, its menu the orders with a tick by the chosen one; the chosen order is said to a screen
+// reader in the button's name. The choice is this device's, kept per library.
 
 export interface SortChoice {
   key: string;
@@ -37,13 +38,13 @@ export function SortMenu({ choices, value, onChange }: { choices: SortChoice[]; 
   const chosen = choices.find((c) => c.key === value) ?? choices[0];
   return (
     <Dropdown
-      menuClassName="min-w-48 left-0"
+      menuClassName="min-w-48"
       className="relative"
-      button={{ className: 'h-11 px-3 -ml-3 rounded-full flex items-center gap-1 text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2', 'aria-label': t('library.sortBy', { order: chosen?.label ?? '' }) }}
+      button={{ className: 'h-11 px-3 rounded-full flex items-center gap-1 text-[15px] text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised-2', 'aria-label': t('library.sortBy', { order: chosen?.label ?? '' }) }}
       trigger={
         <>
-          {chosen?.label}
-          <ChevronDownIcon className="size-4" />
+          {t('library.sort')}
+          <ArrowsUpDownIcon className="size-4" />
         </>
       }
     >

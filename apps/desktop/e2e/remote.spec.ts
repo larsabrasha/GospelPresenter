@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { addSongs, allowRemote, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -42,7 +42,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
 
   // Remote control is off: Bo's computer offers nothing to take.
   await openPresentations(secondApp.page);
-  await expect(secondApp.page.getByRole('link', { name: 'Söndag' })).toBeVisible({ timeout: 5_000 });
+  await expect(await startRow(secondApp.page, 'Söndag')).toBeVisible();
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
   // Anna allows it; the card appears on Bo's computer without a reload.
@@ -110,7 +110,7 @@ test('when the presenting computer drops out, the session freezes and someone el
 
   // Bo's computer presents, with remote control on.
   await openPresentations(secondApp.page);
-  await secondApp.page.getByRole('link', { name: 'Söndag' }).click({ timeout: 5_000 });
+  await (await startRow(secondApp.page, 'Söndag')).click();
   await secondApp.page.getByRole('button', { name: 'Starta presentation' }).click();
   await allowRemote(secondApp.page);
   await pickItem(secondApp.page, 'Sång A');
@@ -197,7 +197,7 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
 
   // She presents without switching anything on; Bo may take control.
   await openPresentations(page);
-  await page.getByRole('link', { name: 'Söndag' }).click();
+  await (await startRow(page, 'Söndag')).click();
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await remoteSwitch(page);
   await expect(page.getByText('Alla i organisationen kan fjärrstyra presentationen.')).toBeVisible();

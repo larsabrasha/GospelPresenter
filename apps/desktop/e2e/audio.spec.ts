@@ -2,7 +2,7 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost, startRow } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -171,7 +171,7 @@ test("an audio item's preview on another computer, which keeps no file of the pr
   second = await launch({ server: host.base });
   await pair(page, second.page, 'Andra datorn', 'Bo');
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
-  await second.page.getByText('Söndag').first().click();
+  await (await startRow(second.page, 'Söndag')).click();
   await pickItem(second.page, 'Preludium.wav');
 
   await expect(second.page.getByTestId('audio-preview')).toBeVisible({ timeout: 10_000 });

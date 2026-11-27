@@ -32,18 +32,29 @@ export async function songPreviewSlides(db: ReadDb, songId: string, arrangementI
 }
 
 /**
- * One of the start page's lists (`startPageView`, docs/view-models.md): Idag, Kommande or Senast ändrade, in their
- * order, each row with its number of items, and whether the rows show their date and its year.
+ * The start page's Lista (`startPageView`, docs/view-models.md): what has no date, what is planned from `today` (the
+ * device's date, `YYYY-MM-DD`) by month, and how many are past, as the core groups them for every shell.
  */
-export interface StartList {
-  id: 'today' | 'upcoming' | 'recent';
-  showDate: boolean;
-  withYear: boolean;
-  rows: (Presentation & { itemCount: number })[];
+export interface StartPage {
+  undated: Presentation[];
+  months: { month: string; rows: Presentation[] }[];
+  past: number;
 }
+export const startPage = (db: ReadDb, today: string) => db.view<StartPage>('startPageView', { today });
 
-/** The start page's lists on `today` (the device's date, `YYYY-MM-DD`), as the core groups them for every shell. */
-export const startPage = (db: ReadDb, today: string) => db.view<StartList[]>('startPageView', { today });
+/** Kalender's month, `YYYY-MM`: its presentations, past or planned, by day and time (`calendarMonthView`). */
+export const calendarMonth = (db: ReadDb, month: string) => db.view<Presentation[]>('calendarMonthView', { month });
+
+/** The columns Tabell sorts by. */
+export type TableSort = 'date' | 'name' | 'location' | 'description' | 'changed';
+
+/** Tabell's rows (`presentationTableView`): by month and those without a date last (`month` null), or one list. */
+export interface TableGroup {
+  month?: string | null;
+  rows: Presentation[];
+}
+export const presentationTable = (db: ReadDb, a: { today: string; past: boolean; sort: TableSort; desc: boolean; locale: string }) =>
+  db.view<TableGroup[]>('presentationTableView', a);
 
 /** The tables presentationPageView reads. */
 export const PRESENTATION_PAGE_READS = [...SLIDE_READS, 'presentations', 'presentation_items', 'themes', 'org_settings', 'overlays'];

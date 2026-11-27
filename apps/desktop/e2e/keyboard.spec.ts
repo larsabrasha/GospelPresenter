@@ -2,7 +2,7 @@
 // item put in order, a slideshow's slide, its elements picked with Tab and moved with the arrows, and the live keys.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, addToSlide, createPresentation, createSong, nameNew, openAdmin, pickItem, setUpHost } from './flows.ts';
+import { addSongs, addToSlide, createPresentation, createSong, nameNew, openAdmin, pickItem, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -280,7 +280,7 @@ test('the app\'s keys: g and a letter go to a section, / searches it, the arrows
   await page.locator('body').click({ position: { x: 1, y: 1 } });
   await page.keyboard.press('g');
   await page.keyboard.press('p');
-  await page.getByRole('link', { name: 'Söndag' }).click();
+  await (await startRow(page, 'Söndag')).click();
   await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
   await page.keyboard.press('F5');
   await expect(page.getByTestId('live-panel')).toBeVisible();

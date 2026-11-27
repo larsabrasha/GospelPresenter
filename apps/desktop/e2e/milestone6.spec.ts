@@ -1,7 +1,7 @@
 // Milestone 6: the rest of live, in slices: a clicker's keys, the output window, and where a presentation is presented.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, endPresentation, openAdmin, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, pickItem, setUpHost, startRow } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -107,20 +107,21 @@ test('a presentation is presented on its own page, as the current app: the addre
   await expect(page.getByRole('link', { name: 'Gospel Presenter' })).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  // Both the row, marked Live, and Visas just nu at the top open it.
+  // Both the row, marked Live (behind the folded row of what has no date), and Visas just nu at the top open it.
+  await page.getByRole('button', { name: /2 utan datum/ }).click();
   await expect(page.getByRole('link', { name: /^Söndag/ }).getByRole('img', { name: 'Live' })).toBeVisible();
   await page.getByRole('link', { name: 'Visas just nu: Söndag' }).click();
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByRole('button', { name: 'Avsluta' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  await page.getByRole('link', { name: /Lördag/ }).click();
+  await (await startRow(page, /Lördag/)).click();
   await expect(page).toHaveURL(/\/presentations\//);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);
 
   // Avsluta stays on the page, which is the editor again.
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  await page.getByRole('link', { name: /^Söndag/ }).click();
+  await (await startRow(page, /^Söndag/)).click();
   await endPresentation(page);
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);

@@ -41,7 +41,7 @@ test('the start page bar holds the cog and the picture, whose menu tells the syn
   await expect(page).toHaveURL(/\/logins$/);
 });
 
-test('the start page shows what this window presents at the top, and each row its number of items', async () => {
+test('the start page shows what this window presents at the top, and its row a red dot and no number of items', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -53,7 +53,10 @@ test('the start page shows what this window presents at the top, and each row it
   await page.getByTestId('presentation-bar').getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
 
   await expect(page.getByRole('link', { name: 'Visas just nu: Söndag' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Söndag/ }).last()).toContainText('1 inslag');
+  await page.getByRole('button', { name: /1 utan datum/ }).click();
+  const row = page.getByRole('list', { name: 'Utan datum' }).getByRole('link', { name: /^Söndag/ });
+  await expect(row.getByRole('img', { name: 'Live' })).toBeVisible();
+  await expect(row).not.toContainText('inslag');
 });
 
 test('Inställningar opens over a running presentation, which goes on presenting and shows the edits made there', async () => {

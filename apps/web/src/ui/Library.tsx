@@ -353,12 +353,14 @@ export function Library<T extends LibraryEntry>(p: LibraryProps<T>) {
           {p.search ? <ListSearch query={query} onChange={p.search.onQuery} /> : <ListSearch query={query} onChange={setOwnQuery} />}
           {(p.sorts || p.manage || p.switchable) && (
             <div className="flex items-center justify-between gap-2 px-4 -mt-3">
-              <span className="flex items-center gap-1">
+              {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
+              {p.switchable ? <ViewPicker value={view} onChange={setView} /> : <span />}
+              {/* Sortera at the right, before Välj, as iOS's Abonnemang (Lars, 2026-11-27); the last one's text lines up
+                  with the edge. */}
+              <span className={`flex items-center ${p.manage ? '' : '-mr-3'}`}>
                 {p.sorts && sort && <SortMenu choices={p.sorts} value={sort.key} onChange={setSortKey} />}
-                {/* The three views as a segmented control, as Photos' and Finder's (Lars, 2026-11-04, three 2026-11-05). */}
-                {p.switchable && <ViewPicker className="ml-2" value={view} onChange={setView} />}
+                {p.manage && <SelectButtons selection={selection} ids={shown?.map((i) => i.id) ?? []} />}
               </span>
-              {p.manage && <SelectButtons selection={selection} ids={shown?.map((i) => i.id) ?? []} />}
             </div>
           )}
         </StickyBar>

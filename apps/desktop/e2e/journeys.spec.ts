@@ -3,7 +3,7 @@
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/node/bible-fixtures.ts';
 import { type Desktop, launch, MUTED, testPort } from './apps.ts';
-import { addSongs, closeAdmin, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { addSongs, closeAdmin, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -179,7 +179,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
   const page = host.page;
   await expect(laptop.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await openPresentations(page);
-  await page.getByRole('link', { name: 'Söndag' }).click({ timeout: 10_000 });
+  await (await startRow(page, 'Söndag', 10_000)).click();
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Psalm 1/, /Kors\.png/]);
 
   // Presented on the projector: the song, then the picture, whose bytes came from the laptop.

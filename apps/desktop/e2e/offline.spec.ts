@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -23,7 +23,7 @@ const video = () => readFileSync(new URL('../../../packages/core/test/fixtures/h
 /** Opens a presentation from the start page and gives its offline line. */
 async function offlineLine(page: Page, name: string) {
   await openPresentations(page);
-  await page.getByRole('link', { name }).click();
+  await (await startRow(page, name)).click();
   return page.getByTestId('offline-status');
 }
 
@@ -72,7 +72,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   await host.page.getByTestId('image-file').setInputFiles({ name: 'Affisch.png', mimeType: 'image/png', buffer: solidPng(1200, 800, [180, 40, 40]) });
   await expect(host.page.locator('[data-library-item]')).toHaveCount(1);
   await openPresentations(host.page);
-  await host.page.getByRole('link', { name: 'Konsert' }).click();
+  await (await startRow(host.page, 'Konsert')).click();
   await addFromLibrary(host.page, 'Bild', 'Affisch.png');
   // The second computer fetches it without opening the presentation: time to sync and fetch, then all is there.
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/);
@@ -82,7 +82,7 @@ test('a presentation kept offline by its line has its pictures and its video who
   await host.app.close();
   host = undefined;
   await expect(second.page.getByTestId('status')).toContainText('Offline', { timeout: 10_000 });
-  await second.page.getByRole('link', { name: 'Konsert' }).click();
+  await (await startRow(second.page, 'Konsert')).click();
   await expect(second.page.getByTestId('offline-status')).toHaveText('Sparad offline');
   await second.page.getByTestId('offline-status').click();
   const dialog = second.page.getByRole('dialog', { name: 'Spara offline' });

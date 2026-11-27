@@ -1,8 +1,8 @@
 import type { Presentation } from '@gp/core';
-import { useState, type HTMLAttributes } from 'react';
+import { useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { itemsOf, recentTemplates } from '../db/queries.ts';
-import { startPage, type StartList } from '../db/views.ts';
+import { itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
+import { startPage } from '../db/views.ts';
 import { locale, t } from '../i18n.ts';
 import { funPick, loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
@@ -11,14 +11,19 @@ import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { ChevronRightIcon } from '../ui/icons.tsx';
-import { CARD, ListLinkRow, ListSection, ROW_HOVER } from '../ui/List.tsx';
+import { CARD, ROW_HOVER } from '../ui/List.tsx';
+import { Segmented } from '../ui/Segmented.tsx';
+import { useStoredChoice } from '../ui/SortMenu.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
-import { useRovingList } from '../ui/listNav.ts';
 import { usePageKeys } from '../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
-import { dateLabel, fullDate, localToday } from './dashboard.ts';
+import { localToday } from './dashboard.ts';
+import { StartCalendar } from './StartCalendar.tsx';
+import { StartList } from './StartList.tsx';
+import { TemplatesButton } from './StartRows.tsx';
+import { StartTable } from './StartTable.tsx';
 import { nextDate } from './templates.ts';
 import { TemplatePicker } from './TemplatePicker.tsx';
 import { detailsArgs, PresentationDetailsDialog } from './presentation-editor/PresentationDetailsDialog.tsx';
@@ -121,51 +126,6 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
   );
 }
 
-function Row({
-  p,
-  today,
-  showDate,
-  withYear,
-  live,
-  items,
-  nav,
-}: {
-  p: Presentation;
-  today: string;
-  showDate: boolean;
-  withYear: boolean;
-  live: boolean;
-  items: number;
-  nav: HTMLAttributes<HTMLAnchorElement>;
-}) {
-  const date = showDate && p.eventDate;
-  const when = [date ? dateLabel(date, today, withYear) : null, p.time].filter(Boolean).join(' · ');
-  const count = items === 1 ? t('presentations.item') : t('presentations.items', { n: items });
-  // Two lines at every width, as a list in Mail or Notes (Lars, 2026-11-02: no columns): the name, and under it
-  // "mån 4 maj · 11:00 · Stora salen"; the number of items at the right.
-  const subtitle = [when, p.location].filter(Boolean).join(' · ');
-  return (
-    <ListLinkRow
-      href={href({ page: 'presentation', id: p.id })}
-      title={p.name}
-      subtitle={subtitle || undefined}
-      subtitleTitle={date ? fullDate(date, withYear) : undefined}
-      nav={nav}
-      end={
-        <>
-          {/* A small red dot, as Music marks what plays in a list: the card "Visas just nu" above says it (Lars, 2026-11-03). */}
-          {live && <span role="img" aria-label={t('presentations.live')} title={t('presentations.live')} className="shrink-0 size-2 rounded-full bg-red-500" />}
-          <span className="shrink-0 text-[13px] text-stone-500 dark:text-stone-400">{count}</span>
-        </>
-      }
-    />
-  );
-}
-
-const PAGE_SIZE = 20;
-
-/** The start page, Presentationer (Components/Dashboard.razor). `n` starts Skapa. */
-
 /** The start page's keys in the help dialog (Dashboard.razor's scope). */
 const KEYS: ShortcutGroup = {
   title: t('shortcuts.group.dashboard'),
@@ -176,33 +136,25 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
-/** The start page's lists' headings, by the id the core gives each (`startPageView`). */
-const LIST_TITLES: Record<StartList['id'], () => string> = {
-  today: () => t('presentations.today'),
-  upcoming: () => t('presentations.upcoming'),
-  recent: () => t('presentations.recent'),
-};
+type StartView = 'list' | 'calendar' | 'table';
+const VIEWS: StartView[] = ['list', 'calendar', 'table'];
 
+/** The start page, Presentationer (Components/Dashboard.razor), as Lista, Kalender or Tabell. `n` starts Skapa. */
 export function Presentations({ link, ownSessionId, manageTemplates }: { link: LiveLink; ownSessionId: string; manageTemplates: boolean }) {
   const today = localToday();
-  // Idag, Kommande and Senast ändrade as the core groups them for every shell (docs/view-models.md).
-  const lists = useData((db) => startPage(db, today), [today]);
+  // Lista, Kalender or Tabell, this device's, as a library's view (Lars, 2026-11-27).
+  const [view, setView] = useStoredChoice('presentations-view', VIEWS);
+  // What has no date and what is planned, as the core groups them for every shell (docs/view-models.md).
+  const page = useData((db) => startPage(db, today), [today]);
   const templates = useData(recentTemplates, []);
   const { sessions } = useLiveSessions(link);
   const [picking, setPicking] = useState(false);
   // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
   const [creating, setCreating] = useState<{ template: Presentation | null } | null>(null);
-  // The rest shows 20 at a time, with "Visa fler" (Dashboard.razor's PageSize).
-  const [restShown, setRestShown] = useState(PAGE_SIZE);
-  const shown = lists?.map((l) => (l.id === 'recent' ? { ...l, rows: l.rows.slice(0, restShown) } : l));
-  // ↑ ↓ Home End run through Idag, Kommande and the rest as one list, Tab stopping once.
-  const navCount = shown?.reduce((n, l) => n + l.rows.length, 0) ?? 0;
-  const list = useRovingList(navCount);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
-  const ownLive = lists?.flatMap((l) => l.rows).find((p) => p.id === livePresentation);
-  const row = (p: StartList['rows'][number], index: number, showDate: boolean, withYear: boolean) => (
-    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} items={p.itemCount} nav={list.item(index)} />
-  );
+  // What this window presents may be past, or another month's: looked up among all.
+  const ownLive = useData((db) => (livePresentation ? listPresentations(db) : Promise.resolve([])), [livePresentation])?.find((p) => p.id === livePresentation);
+  const empty = page && !page.undated.length && !page.months.length && !page.past;
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);
   usePageKeys((e) => {
@@ -211,14 +163,16 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
       startCreating();
     }
   });
-  // Each list's first row's place in the one roving list.
-  const starts = shown?.map((_, i) => shown.slice(0, i).reduce((n, l) => n + l.rows.length, 0)) ?? [];
 
   return (
     <PageContainer>
       {/* + in the heading row, as every page that lists something (ui/AddButton.tsx); `n` does the same. */}
       <PageHeader title={t('nav.presentations')} large>
-        <AddButton label={t('presentations.new')} onClick={startCreating} />
+        {/* Mallar beside the +, for who may change them (Lars, 2026-11-27: else only Skapa's picker led there). */}
+        <span className="flex items-center gap-2 max-sm:gap-1.5">
+          {manageTemplates && <TemplatesButton />}
+          <AddButton label={t('presentations.new')} onClick={startCreating} />
+        </span>
       </PageHeader>
       {ownLive && <OwnLive p={ownLive} />}
       <LiveNow link={link} ownSessionId={ownSessionId} />
@@ -234,30 +188,33 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
         />
       )}
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
-      {!lists && (
+      {!page && (
         <div className={CARD}>
           <div className="loading-line px-4 py-3 text-stone-400">{loadingText()}</div>
         </div>
       )}
-      {lists && !lists.length && (
+      {empty && (
         <EmptyPicture picture={<PresentationsPicture />} title={funPick(t('presentations.emptyTitle'), [t('fun.presentationsEmpty1'), t('fun.presentationsEmpty2')])} text={t('presentations.emptyText')}>
           <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
         </EmptyPicture>
       )}
-      {lists && shown && (
-        <div className="space-y-5" onKeyDown={list.onKeyDown}>
-          {shown.map((l, li) => (
-            <div key={l.id} className="space-y-2">
-              <ListSection title={LIST_TITLES[l.id]()}>{l.rows.map((p, i) => row(p, starts[li]! + i, l.showDate, l.withYear))}</ListSection>
-              {l.rows.length < lists[li]!.rows.length && (
-                <div className="flex justify-center pt-2">
-                  <AppButton variant="cancel" onClick={() => setRestShown((n) => n + PAGE_SIZE)}>
-                    {t('common.showMore')}
-                  </AppButton>
-                </div>
-              )}
-            </div>
-          ))}
+      {page && !empty && (
+        <div className="space-y-4">
+          <div className="px-2">
+            <Segmented
+              label={t('presentations.viewAs')}
+              options={[
+                { key: 'list', label: t('presentations.viewList') },
+                { key: 'calendar', label: t('presentations.viewCalendar') },
+                { key: 'table', label: t('presentations.viewTable') },
+              ]}
+              value={view as StartView}
+              onChange={setView}
+            />
+          </div>
+          {view === 'list' && <StartList page={page} today={today} liveId={livePresentation} onCalendar={() => setView('calendar')} />}
+          {view === 'calendar' && <StartCalendar today={today} undated={page.undated} liveId={livePresentation} />}
+          {view === 'table' && <StartTable today={today} />}
         </div>
       )}
     </PageContainer>
