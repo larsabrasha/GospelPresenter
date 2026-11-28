@@ -9,7 +9,7 @@ import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { copyOfWebApp, type Desktop, launch, MUTED, testPort } from './apps.ts';
-import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
+import { createSong, openAdmin, pair, setUpHost, startPage } from './flows.ts';
 import { testDir } from './temp.ts';
 
 let host: Desktop | undefined;
@@ -133,7 +133,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   await tablet.getByRole('link', { name: 'Härlig är jorden' }).click();
   await expect(tablet.getByRole('heading', { name: 'Härlig är jorden' })).toBeVisible();
   await tablet.goto(`${app}/presentations`);
-  await expect(tablet.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(tablet)).toBeVisible();
   // The API is never answered from the kept copy.
   expect(await tablet.evaluate(() => fetch('/api/auth/state').then((r) => r.status, () => 'failed'))).toBe('failed');
 

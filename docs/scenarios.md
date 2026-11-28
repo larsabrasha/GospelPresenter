@@ -33,6 +33,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 
 | Scenario | Tests |
 | --- | --- |
+| Plan who does what at each event in place of a shared sheet: import the sheet, fill a cell in Tabell, a member in a field, a presentation made from the event, only those with a presentation shown (docs/planning.md) | `calendar.spec.ts`: "Kalender says what it is for", `calendar.spec.ts`: "an event from Ny händelse", `calendar.spec.ts`: "a presentation made with a date", `calendar.spec.ts`: '"Med presentation"' |
 | Import songs from ProPresenter | `song-import.spec.ts`: "chosen .pro files become songs", `song-import.spec.ts`: "a name the library has" |
 | Write and edit a song; it saves as you type | `milestone2.spec.ts`: "the song saves 500 ms after typing" |
 | Arrangements | `milestone2.spec.ts`: "arrangements" |

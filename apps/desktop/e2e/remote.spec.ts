@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { type Desktop, launch, MUTED } from './apps.ts';
-import { addSongs, allowRemote, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost, startRow } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost, startPage, startRow } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -99,7 +99,7 @@ test('a controller with nothing to control can go back to the presentations', as
 
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
 });
 
 test('when the presenting computer drops out, the session freezes and someone else may end it (LIVE-R50)', async () => {

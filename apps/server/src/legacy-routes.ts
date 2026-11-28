@@ -4,6 +4,7 @@ import {
   DISPLAY_CODE,
   displayCode,
   LEGACY_TABLES,
+  PRESENTATION_EVENTS_SQL,
   legacyRowsSchema,
   tableByName,
   type LegacyImportRefusal,
@@ -81,6 +82,8 @@ function importLegacyRows(store: OrgStore, rows: LegacyRows, userId: string): Re
       );
     }
   }
+  // A presentation with a date is one of an event (docs/planning.md): the imported ones get theirs, as the upgrade gave.
+  store.query(PRESENTATION_EVENTS_SQL);
   return null;
 }
 

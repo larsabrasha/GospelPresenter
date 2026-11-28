@@ -4,7 +4,7 @@
 // right; on a phone the list is alone, and a row opens its page with ‹ Inställningar.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, adminDialog, closeAdmin, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, adminDialog, closeAdmin, createPresentation, createSong, openAdmin, setUpHost, startPage } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -18,8 +18,8 @@ test('the start page bar holds the cog and the picture, whose menu tells the syn
   await setUpHost(host);
 
   const bar = page.getByRole('navigation').first();
-  await expect(bar.getByRole('button', { name: 'Ny presentation' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Ny presentation' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Ny', exact: true })).toHaveCount(0);
+  await expect(startPage(page)).toBeVisible();
   // The cog, as a presentation's bar has it (Lars, 2026-11-02).
   await bar.getByRole('link', { name: 'Inställningar' }).click();
   await expect(page.getByRole('navigation', { name: 'Administration' })).toBeVisible();
@@ -110,7 +110,7 @@ test('a link straight to a page of Inställningar opens it over the start page, 
   await closeAdmin(page);
 
   await expect(page).toHaveURL(`${host.base}/`);
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
 });
 
 test('on a phone Inställningar fills the screen with its list, and a row opens its page alone with ‹ Inställningar back to it', async () => {
@@ -131,7 +131,7 @@ test('on a phone Inställningar fills the screen with its list, and a row opens 
   await adminDialog(page).getByRole('link', { name: 'Tillbaka' }).click();
   await expect(list).toBeVisible();
   await closeAdmin(page);
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
 });
 
 test('Om Gospel Presenter, at the foot of the list for everyone, tells the version and links out in new tabs', async () => {

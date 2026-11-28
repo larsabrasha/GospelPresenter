@@ -439,6 +439,17 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect((await api<UserRow[]>(h, 'GET', '/api/users', { token: other })).body.map((u) => u.id)).toEqual(['kay']);
   });
 
+  it('people: any member reads the members’ ids and names, without addresses or roles; another organisation’s are not among them', async () => {
+    const ma = await member('Ma', 'user');
+    const other = await setRole(h, `mo-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
+
+    const people = (await api<Record<string, unknown>[]>(h, 'GET', '/api/people', as(ma))).body;
+
+    expect(people).toContainEqual({ id: ma.id, name: 'Ma' });
+    expect(people.every((p) => Object.keys(p).toSorted().join() === 'id,name')).toBe(true);
+    expect((await api<{ id: string }[]>(h, 'GET', '/api/people', { token: other })).body.map((p) => p.id)).not.toContain(ma.id);
+  });
+
   // ------------------------------------------------------------ the user detail page (/admin/users/{id})
 
   it('one user: an admin reads them as the list shows them; a User is refused and another organisation finds no one', async () => {

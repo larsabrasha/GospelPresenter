@@ -187,7 +187,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [not-done-yet.md](docs/not-done-yet.md) | The smaller gaps, per area |
 | [bug-reports.md](docs/bug-reports.md) | "Rapportera fel": what a report carries and never carries, the steps before it, Felrapporter for the SuperAdmin, and the thread with the one who reported |
 | [assumptions.md](docs/assumptions.md) | Where the spec and ADR 0007 leave a choice open, the choice made, per milestone |
-| [planning.md](docs/planning.md) | Not built: planning who does what at each gathering, in place of a shared spreadsheet; what the church's sheet shows, the design, what is left out |
+| [planning.md](docs/planning.md) | Step 1 built: the calendar, who does what at each event, in place of a shared spreadsheet; the start page as one list of events, a presentation with a date always an event's; what the church's sheet shows, the import, step 1, what comes later and what is left out |
 | [core-back-to-typescript.md](docs/core-back-to-typescript.md) | How the core came back from Rust to TypeScript (ADR 0008): the waves, the parity checks against Rust, what was removed; the Rust core, the native apps and the TUI are at the tag `native-experiment-end` |
 | [view-models.md](docs/view-models.md) | What a page offers (menus, enabled actions, where + adds, a field's rule) worked out in the core for every shell: what is built, how it is proved, what is next |
 | [powerpoint-deckcraft.md](docs/powerpoint-deckcraft.md) | Decided, step 1 to build: a `.pptx` item drawn by DeckCraft's libraries when added, its builds and animations as layers every device moves; what was tried on real decks and LibreOffice's and Apache POI's test files, and what is open |

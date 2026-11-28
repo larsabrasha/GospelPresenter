@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { eventFollowsPresentation } from './event-link.ts';
 import { presentationItems, presentations } from '../schema.ts';
 import { id, LIMITS, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { changedAt, eventDescription, eventLocation, eventTime, purgeRows, setDeletedAt } from './presentations.ts';
@@ -125,6 +126,7 @@ export async function createFromTemplate(tx: Tx, a: z.output<typeof createFromTe
   });
   await copyItems(tx, a.templateId, a.id, a.items);
   await tx.update(presentations).set({ lastUsedAt: a.at }).where(eq(presentations.id, a.templateId));
+  if (a.eventDate) await eventFollowsPresentation(tx, a.id, changedAt(ctx));
 }
 
 export const trashTemplateArgs = z.object({ id, at: z.number().int() });

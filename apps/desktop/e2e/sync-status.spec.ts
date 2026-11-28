@@ -2,7 +2,7 @@
 // menu says how it stands; a change the server refused is told in a toast.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { openPresentations, setUpHost } from './flows.ts';
+import { newPresentation, openPresentations, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -24,7 +24,7 @@ test('the cloud shows in the bar only while changes wait past a moment, and the 
     await route.continue();
   });
 
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   await page.getByRole('dialog', { name: 'Skapa presentation' }).getByLabel('Namn').press('Enter');
 
   // The new presentation's bar shows the cloud; the picture's menu is on the start page.
@@ -52,7 +52,7 @@ test('a change the server refuses is told in a toast, and the bar shows no warni
   });
 
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill('Gudstjänst');
   await dialog.getByLabel('Namn').press('Enter');

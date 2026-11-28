@@ -3,7 +3,7 @@
 // them, and deleting one needs its name typed.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { closeAdmin, createSong, openAdmin, openPresentations, setUpHost, superMode } from './flows.ts';
+import { closeAdmin, createSong, openAdmin, openPresentations, setUpHost, startPage, superMode } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -36,7 +36,7 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await page.getByRole('menuitem', { name: 'Byt organisation' }).click();
   await page.getByRole('menuitem', { name: 'Lilla Kyrkan' }).click();
   await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
   await openAdmin(page, 'Sånger');
   await expect(page.getByRole('link', { name: 'Bara hemma' })).toBeVisible();
 

@@ -2,6 +2,7 @@
 // the checks of their arguments, are the Rust core's (crates/gp-core, docs/rust-core.md 2.5); these types are the
 // TS mutators' argument types as they were at 238d481b (their zod schemas' input), the reference the core is checked
 // against. A new mutator, or a new version of one, is added here beside its port to the core.
+import type { FieldEntry, Visibility } from './calendar.ts';
 import type { CustomPage } from './custom-slides.ts';
 import type { ImageEdit } from './mutation.ts';
 import type { ThemeDefinition } from './themes.ts';
@@ -24,6 +25,9 @@ export const MUTATOR_VERSIONS = {
   addVideo: 1, trashVideo: 1, renameVideo: 1, restoreVideo: 1, purgeVideo: 1,
   createCustomSlide: 1, updateCustomSlide: 1, trashCustomSlide: 1, restoreCustomSlide: 1, purgeCustomSlide: 1, addCustomSlideToPresentation: 1,
   createOverlay: 1, updateOverlay: 1, deleteOverlay: 1, createDisplay: 1, newDisplayCode: 1, deleteDisplay: 1,
+  createEvent: 1, updateEvent: 1, trashEvent: 1, restoreEvent: 1, purgeEvent: 1,
+  addEventField: 1, updateEventField: 1, moveEventField: 1, removeEventField: 1,
+  linkEventPresentation: 1, createPresentationForEvent: 1, createEventFromPresentation: 1, importEvents: 1,
   probeWriteThenThrow: 1,
 } as const;
 
@@ -39,6 +43,14 @@ type ImportedSongArgs = {
 };
 type FromItem = { from: string; id: string };
 type EventFields = { eventDate?: string | null; time?: string | null; location?: string | null; description?: string | null };
+type CalendarDetails = {
+  title?: string; time?: string | null; endDate?: string | null; endTime?: string | null; place?: string | null;
+  description?: string | null; visibility?: Visibility; busyWord?: string | null;
+};
+export type ImportedEventArgs = {
+  id: string; title: string; date: string; time: string | null; endDate: string | null; endTime: string | null;
+  description: string | null; fields: { name: string; entries: FieldEntry[] }[];
+};
 type AudioType = 'audio/mpeg' | 'audio/wav' | 'audio/ogg' | 'audio/mp4' | 'audio/webm' | 'audio/x-m4a';
 
 interface AllMutatorArgs {
@@ -143,6 +155,19 @@ interface AllMutatorArgs {
   createDisplay: { id: string; name: string; code: string; kind: 'public' | 'screen' };
   newDisplayCode: { id: string; code: string };
   deleteDisplay: { id: string };
+  createEvent: CalendarDetails & { id: string; title: string; date: string | null; isTemplate?: boolean; template?: string; at: number };
+  updateEvent: CalendarDetails & { id: string; date?: string; at: number };
+  trashEvent: { id: string; at: number };
+  restoreEvent: { id: string };
+  purgeEvent: { id: string };
+  addEventField: { id: string; eventId: string; name: string; entries?: FieldEntry[] };
+  updateEventField: { id: string; name?: string; entries?: FieldEntry[] };
+  moveEventField: { id: string; to: number };
+  removeEventField: { id: string };
+  linkEventPresentation: { eventId: string; presentationId: string | null; at: number };
+  createPresentationForEvent: { eventId: string; presentationId: string; name: string; at: number };
+  createEventFromPresentation: { presentationId: string; eventId: string; at: number };
+  importEvents: { events: ImportedEventArgs[]; at: number };
   probeWriteThenThrow: { songId: string };
 }
 

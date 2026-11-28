@@ -79,7 +79,7 @@ describe('runMutation', () => {
     const unknown: string[] = [];
     for (const name of names) await runMutation(o, name, {}, admin).catch((e: { code?: string }) => e.code === 'unknown-mutator' && unknown.push(name));
 
-    expect([names.length, unknown]).toEqual([99, []]);
+    expect([names.length, unknown]).toEqual([112, []]);
   });
 
   it('refuses a name no core knows as unknown-mutator', async () => {

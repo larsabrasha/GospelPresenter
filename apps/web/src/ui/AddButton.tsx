@@ -9,7 +9,7 @@ import { useHeaderFloat } from './headerFloat.ts';
  * The round + of a heading row (docs/layout-2-0.md): how every page that lists something adds to it, as iOS 27 puts
  * "new" by a list's title. Filled in the app's blue, so it is seen (Lars, 2026-11-02), and flat, as it sits in the page.
  */
-const ROUND_ADD = 'size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer bg-sky-500 hover:bg-sky-600 text-white';
+export const ROUND_ADD = 'size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer bg-sky-500 hover:bg-sky-600 text-white';
 
 /** In Inställningar the heading row's + floats at the column's bottom right, as iOS 26 puts "new" (Lars, 2026-11-02). */
 const FLOATING_ADD = `size-14 shrink-0 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}`;

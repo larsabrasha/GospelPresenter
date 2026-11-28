@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { BIBLE_ITEM_LIMITS, BIBLE_LIMITS, bibleItemTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
 import { ORIGINAL_ARRANGEMENT } from '../slides.ts';
+import { eventFollowsPresentation } from './event-link.ts';
 import { requireTheme } from './themes.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
@@ -40,6 +41,8 @@ export async function createPresentation(tx: Tx, a: z.output<typeof createPresen
       updatedAt: changedAt(ctx),
     })
     .onConflictDoNothing();
+  // With a date it is a presentation of an event, made with it (docs/planning.md, "One date").
+  if (a.eventDate) await eventFollowsPresentation(tx, a.id, changedAt(ctx));
 }
 
 export const renamePresentationArgs = z.object({ id, name });
@@ -73,6 +76,8 @@ export async function updatePresentation(tx: Tx, a: z.output<typeof updatePresen
       .update(presentations)
       .set({ ...set, updatedAt: changedAt(ctx) })
       .where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, false)));
+  // Its date, time and place are its event's: written there too, the event made or let go (docs/planning.md).
+  if (['eventDate', 'time', 'location'].some((k) => k in set)) await eventFollowsPresentation(tx, presentationId, changedAt(ctx));
 }
 
 /**

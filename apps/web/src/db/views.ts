@@ -42,20 +42,6 @@ export interface StartPage {
 }
 export const startPage = (db: ReadDb, today: string) => db.view<StartPage>('startPageView', { today });
 
-/** Kalender's month, `YYYY-MM`: its presentations, past or planned, by day and time (`calendarMonthView`). */
-export const calendarMonth = (db: ReadDb, month: string) => db.view<Presentation[]>('calendarMonthView', { month });
-
-/** The columns Tabell sorts by. */
-export type TableSort = 'date' | 'name' | 'location' | 'description' | 'changed';
-
-/** Tabell's rows (`presentationTableView`): by month and those without a date last (`month` null), or one list. */
-export interface TableGroup {
-  month?: string | null;
-  rows: Presentation[];
-}
-export const presentationTable = (db: ReadDb, a: { today: string; past: boolean; sort: TableSort; desc: boolean; locale: string }) =>
-  db.view<TableGroup[]>('presentationTableView', a);
-
 /** The tables presentationPageView reads. */
 export const PRESENTATION_PAGE_READS = [...SLIDE_READS, 'presentations', 'presentation_items', 'themes', 'org_settings', 'overlays'];
 

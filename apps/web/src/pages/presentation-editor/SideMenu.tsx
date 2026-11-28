@@ -5,6 +5,7 @@ import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
 import { useKeepOffline } from '../../ui/KeepOffline.tsx';
 import { useFold } from '../../ui/sidePanels.ts';
 import { PanelToggle } from '../../ui/PanelToggle.tsx';
+import { CalendarLink } from '../calendar/CalendarLink.tsx';
 import { Description } from './Description.tsx';
 import { OfflineStatus } from './OfflineStatus.tsx';
 
@@ -40,6 +41,12 @@ export function SideMenu({
   useFold(column, 'left', open);
   return (
     <aside ref={column} className="flex w-[300px] shrink-0 h-full pt-3 flex-col overflow-hidden bg-sidebar border-r-[0.5px] border-separator">
+      {/* The event it belongs to, or Lägg i kalendern (docs/planning.md); not on a template, which has no date. */}
+      {!presentation.isTemplate && (
+        <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-3 [scrollbar-gutter:stable] empty:hidden">
+          <CalendarLink presentation={presentation} manage={!!onEditDescription} />
+        </div>
+      )}
       {/* The list's scrollbar room and padding too, so the box's edges line up with the rows' (Lars, 2026-11-02). */}
       {presentation.description && (
         <div className="shrink-0 pl-5 pr-(--beside-scrollbar) pt-1 pb-4 overflow-hidden [scrollbar-gutter:stable]">

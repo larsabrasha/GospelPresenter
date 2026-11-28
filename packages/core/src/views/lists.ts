@@ -55,5 +55,7 @@ export async function trashEntriesView(args: unknown, sql: RunSql) {
   for (const p of await trashed(PRESENTATION, 'presentations'))
     out.push(p.isTemplate === true ? { kind: 'Template', id: p.id, name: p.name, detail: null, template: p, deletedAt: p.deletedAt } : entry('Presentation', p.id, p.name, p.eventDate, p.deletedAt));
   for (const s of await trashed(SONG, 'songs')) out.push(entry('Song', s.id, s.name, s.author, s.deletedAt));
+  for (const r of await sql('SELECT id, title, date, deleted_at, is_template FROM events WHERE deleted_at IS NOT NULL', []))
+    out.push(entry(r[4] ? 'EventTemplate' : 'Event', r[0], r[1], r[2], jsNum(r[3])));
   return out;
 }

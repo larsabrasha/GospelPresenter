@@ -71,7 +71,16 @@ export async function closeAdmin(page: Page) {
 export async function openPresentations(page: Page) {
   await closeAdmin(page);
   await page.getByRole('link', { name: /^(Gospel Presenter|Tillbaka till presentationerna)$/ }).click();
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
+}
+
+/** The start page's + (docs/planning.md, "One list"): there is one only there, under the church's name. */
+export const startPage = (page: Page) => page.getByRole('button', { name: 'Ny', exact: true });
+
+/** + on the start page, then Ny presentation. */
+export async function newPresentation(page: Page) {
+  await startPage(page).click();
+  await page.getByRole('menuitem', { name: 'Ny presentation' }).click();
 }
 
 /** Logga ut, in the menu behind the user's picture in the bar. */
@@ -188,21 +197,26 @@ export async function createSong(page: Page, name: string, parts: [string, strin
 }
 
 /**
- * A presentation's link on the start page's Lista, where what has no date is folded into one row ("2 utan datum"):
- * unfolded first when the link is behind it. `timeout` as a click's own, for a page that loads slowly (offline).
+ * The way to a presentation from the start page's Lista: the button at its event's row (docs/planning.md, "One
+ * list"), or for one without a date its link in the row that folds them ("2 utan datum"), unfolded first when the
+ * link is behind it. `timeout` as a click's own, for a page that loads slowly (offline).
  */
 export async function startRow(page: Page, name: string | RegExp, timeout = 30_000): Promise<Locator> {
-  const link = page.getByRole('link', { name });
+  const button = page.getByRole('link', { name: typeof name === 'string' ? `Öppna presentationen ${name}` : new RegExp(`^Öppna presentationen ${name.source.replace(/^\^/, '')}`, name.flags) });
+  const link = button.or(page.getByRole('list', { name: UNDATED }).getByRole('link', { name }));
   const fold = page.getByRole('button', { name: /utan datum/, expanded: false });
   await expect(link.or(fold).first()).toBeVisible({ timeout });
   if (!(await link.first().isVisible())) await fold.click();
   return link;
 }
 
+/** The folded row of presentations without a date, as the start page names it. */
+const UNDATED = 'Utan datum';
+
 /** Creates a presentation and stays in its editor. */
 export async function createPresentation(page: Page, name: string, date?: string, time?: string) {
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill(name);
   if (date) await dialog.getByLabel('Datum').fill(date);

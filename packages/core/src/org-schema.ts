@@ -4,7 +4,7 @@ import { MutationError } from './mutation.ts';
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 28;
+export const SCHEMA_VERSION = 30;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -55,6 +55,17 @@ const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NU
 const themesDdl = `CREATE TABLE IF NOT EXISTS themes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, definition TEXT NOT NULL,
      sort INTEGER NOT NULL, updated_at INTEGER NOT NULL)`;
 
+/** The calendar (docs/planning.md, schema 29): its events and templates, and their fields. */
+const eventsDdl = [
+  `CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, date TEXT, time TEXT, end_date TEXT,
+     end_time TEXT, place TEXT, description TEXT, visibility TEXT NOT NULL, busy_word TEXT, presentation_id TEXT,
+     is_template INTEGER NOT NULL DEFAULT 0, deleted_at INTEGER, updated_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS event_fields (id TEXT PRIMARY KEY NOT NULL, event_id TEXT NOT NULL REFERENCES events(id),
+     name TEXT NOT NULL, sort INTEGER NOT NULL, entries TEXT NOT NULL)`,
+  'CREATE INDEX IF NOT EXISTS events_by_date ON events (is_template, date)',
+  'CREATE INDEX IF NOT EXISTS event_fields_by_event ON event_fields (event_id, sort)',
+];
+
 const videoFilesDdl = `CREATE TABLE IF NOT EXISTS video_files (hash TEXT PRIMARY KEY NOT NULL, size INTEGER NOT NULL, received INTEGER NOT NULL,
      used_at INTEGER NOT NULL)`;
 
@@ -104,6 +115,7 @@ export const orgDdl: string[] = [
   videoFilesDdl,
   customSlidesDdl,
   themesDdl,
+  ...eventsDdl,
   ...orgIndexes,
 ];
 
@@ -139,6 +151,18 @@ export const FIELD_TIMES = [
 ] as const satisfies readonly (readonly [string, readonly [string, string]])[];
 
 const fieldTimeColumns = (table: string, fields: readonly string[]) => fields.map((f) => `ALTER TABLE ${table} ADD COLUMN ${f}_at INTEGER`);
+
+/**
+ * Each presentation with a date, out of the trash and without an event, given its event, of its id, with its name,
+ * date, time and place, seen only inside the church (docs/planning.md, "One date"): the upgrade to schema 30, and the
+ * server after an import writes presentations without the mutators.
+ */
+export const PRESENTATION_EVENTS_SQL = `INSERT OR IGNORE INTO events (id, title, date, time, end_date, end_time, place, description, visibility, busy_word,
+       presentation_id, is_template, deleted_at, updated_at)
+     SELECT p.id, substr(p.name, 1, 200), p.event_date, p.time, NULL, NULL, p.location, NULL, 'hidden', NULL, p.id, 0, NULL, p.updated_at
+     FROM presentations p
+     WHERE p.is_template = 0 AND p.deleted_at IS NULL AND p.event_date IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM events e WHERE e.presentation_id = p.id AND e.deleted_at IS NULL)`;
 
 /** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
 export const orgMigrations: Record<number, string[]> = {
@@ -208,6 +232,12 @@ export const orgMigrations: Record<number, string[]> = {
   27: FIELD_TIMES.flatMap(([table, fields]) => [...fieldTimeColumns(table, fields), `UPDATE ${table} SET ${fields.map((f) => `${f}_at = updated_at`).join(', ')}`]),
   // A song made in the add dialog is a draft until Skapa (Lars, 2026-11-25): in no list until then.
   28: ['ALTER TABLE songs ADD COLUMN draft INTEGER'],
+  // The calendar, its events and their fields (docs/planning.md).
+  29: eventsDdl,
+  // A presentation is what shows at an event, its date the event's (docs/planning.md, "One date"): each presentation
+  // with a date, out of the trash, gets its event, of its id, with its name, date, time and place, seen only inside the
+  // church. The same on every device and the server, so the rows agree before they sync.
+  30: [PRESENTATION_EVENTS_SQL],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

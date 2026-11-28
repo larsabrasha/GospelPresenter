@@ -1,4 +1,7 @@
 import { blob, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { eventFields, events } from './schema-events.ts';
+
+export { eventFields, events };
 
 // An organisation's synced tables (spec 02 and 03, milestone 1 subset). Every
 // synced table has a single text primary key `id`, so the change log and the
@@ -428,6 +431,8 @@ export const schema = {
   overlays,
   videos,
   customSlides,
+  events,
+  eventFields,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
@@ -437,7 +442,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides, themes];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos, customSlides, themes, events, eventFields];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { LargeTileIcon, ListBulletIcon, Squares2x2Icon } from './icons.tsx';
@@ -32,19 +33,36 @@ export function useView(key: string, first: View): [View, (view: View) => void] 
 /** The three views as a segmented control, as Photos' and Finder's, the one shown picked. */
 export function ViewPicker({ value, onChange, className }: { value: View; onChange: (view: View) => void; className?: string }) {
   return (
-    <span className={`flex shrink-0 rounded-full bg-stone-200/80 dark:bg-raised p-0.5 ${className ?? ''}`} role="radiogroup" aria-label={t('library.layout')}>
-      {VIEWS.map((v) => (
+    <IconSegmented
+      label={t('library.layout')}
+      value={value}
+      onChange={onChange}
+      className={className}
+      options={VIEWS.map((v) => ({
+        key: v,
+        label: t(v === 'list' ? 'library.asList' : v === 'grid' ? 'library.asGrid' : 'library.asLarge'),
+        icon: v === 'list' ? <ListBulletIcon className="size-4" /> : v === 'grid' ? <Squares2x2Icon className="size-4" /> : <LargeTileIcon className="size-4" />,
+      }))}
+    />
+  );
+}
+
+/** A segmented control of icons, each named for screen readers and as its tooltip: the views above, Kalender's Lista and Tabell. */
+export function IconSegmented<K extends string>({ label, options, value, onChange, className }: { label: string; options: { key: K; label: string; icon: ReactNode }[]; value: K; onChange: (key: K) => void; className?: string }) {
+  return (
+    <span className={`flex shrink-0 rounded-full bg-stone-200/80 dark:bg-raised p-0.5 ${className ?? ''}`} role="radiogroup" aria-label={label}>
+      {options.map((o) => (
         <AppButton
-          key={v}
+          key={o.key}
           variant="plain"
           role="radio"
-          aria-checked={value === v}
-          aria-label={t(v === 'list' ? 'library.asList' : v === 'grid' ? 'library.asGrid' : 'library.asLarge')}
-          title={t(v === 'list' ? 'library.asList' : v === 'grid' ? 'library.asGrid' : 'library.asLarge')}
-          className={`h-7 w-9 touch:h-9 touch:w-10 flex items-center justify-center rounded-full cursor-pointer ${value === v ? 'bg-white dark:bg-raised-2 shadow-sm text-stone-800 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400'}`}
-          onClick={() => onChange(v)}
+          aria-checked={value === o.key}
+          aria-label={o.label}
+          title={o.label}
+          className={`h-7 w-9 touch:h-9 touch:w-10 flex items-center justify-center rounded-full cursor-pointer ${value === o.key ? 'bg-white dark:bg-raised-2 shadow-sm text-stone-800 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400'}`}
+          onClick={() => onChange(o.key)}
         >
-          {v === 'list' ? <ListBulletIcon className="size-4" /> : v === 'grid' ? <Squares2x2Icon className="size-4" /> : <LargeTileIcon className="size-4" />}
+          {o.icon}
         </AppButton>
       ))}
     </span>

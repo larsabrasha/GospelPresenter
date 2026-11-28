@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, backToSong, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost, startRow, typePastLimit } from './flows.ts';
+import { addSongs, backToSong, createPresentation, createSong, dragTo, newPresentation, openAdmin, openArrangement, openPresentations, setUpHost, startRow, typePastLimit } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -242,7 +242,7 @@ test('a refused create says "Kunde inte spara", and the dialog stays to try agai
   const page = host.page;
   await setUpHost(host);
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   const name = dialog.getByLabel('Namn');
 
@@ -389,8 +389,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await expect(details.getByRole('textbox', { name: 'Beskrivning' })).toHaveValue('Med nattvard');
   await details.getByRole('button', { name: 'Avbryt' }).click();
   await openPresentations(page);
-  await expect(page.getByRole('link', { name: /Gudstjänst/ })).toContainText('10:00 · Stora salen');
-  await page.getByRole('link', { name: /Gudstjänst/ }).click();
+  await expect(page.getByRole('link', { name: /^Gudstjänst/ })).toContainText('10:00 · Stora salen');
+  await (await startRow(page, 'Gudstjänst')).click();
 
   // Live, the item shows Kort's order on the output.
   await page.getByRole('button', { name: 'Starta presentation' }).click();

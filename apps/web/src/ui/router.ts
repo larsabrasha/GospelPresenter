@@ -12,7 +12,7 @@ import { movedPage } from '../newBuild.ts';
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video', 'Slide'] as const;
+export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video', 'Slide', 'Event', 'EventTemplate'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -35,6 +35,12 @@ export type Route =
    * naming which. An old link's `?stage=true` is left out: the stage view is gone (Lars, 2026-11-01).
    */
   | { page: 'presentation'; id: string; remote?: boolean; session?: string | null }
+  /** An event's page, or an event template's (`/calendar/{id}`). */
+  | { page: 'event'; id: string }
+  /** The event templates (`/calendar/templates`), for an Admin. */
+  | { page: 'eventTemplates' }
+  /** A member as a field names them (`/calendar/people/{id}`): their coming events. */
+  | { page: 'person'; id: string }
   /** The templates page (spec 03 screen 3), Mallar in the bar. */
   | { page: 'templates' }
   /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
@@ -168,6 +174,12 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     return { page: 'presentation', id, remote: true, session: query.get('session') };
   }
   if (first === 'templates') return id ? { page: 'template', id } : { page: 'templates' };
+  if (first === 'calendar') {
+    if (id === 'templates') return { page: 'eventTemplates' };
+    if (id === 'people' && third) return { page: 'person', id: third };
+    // `/calendar` alone was Kalender's own page: the start page has the events now (docs/planning.md, "One list").
+    return id ? { page: 'event', id } : { page: 'presentations' };
+  }
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'confirm-email' && hash.length > 1) return { page: 'confirmEmail', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
@@ -248,6 +260,12 @@ export function href(r: Route): string {
       return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':
       return `/templates/${encodeURIComponent(r.id)}`;
+    case 'event':
+      return `/calendar/${encodeURIComponent(r.id)}`;
+    case 'eventTemplates':
+      return '/calendar/templates';
+    case 'person':
+      return `/calendar/people/${encodeURIComponent(r.id)}`;
     case 'trash':
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';
     case 'watch':

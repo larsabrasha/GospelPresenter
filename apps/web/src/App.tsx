@@ -29,6 +29,9 @@ import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/presentation-editor/index.ts';
 import { Presentations } from './pages/Presentations.tsx';
+import { EventPage } from './pages/calendar/EventPage.tsx';
+import { EventTemplates } from './pages/calendar/EventTemplates.tsx';
+import { PersonPage } from './pages/calendar/PersonPage.tsx';
 import { OrgSettings } from './pages/OrgSettings.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { CcliReport } from './pages/CcliReport.tsx';
@@ -195,9 +198,15 @@ export function App({ me: initial, live, link, sessionId, playback }: { me: Me; 
           <TopBar me={me} warnings={!adminOpen} />
         )}
         {under.page === 'presentations' ? (
-          <Presentations link={link} ownSessionId={sessionId} manageTemplates={can(me.role, 'ManageTemplates')} />
+          <Presentations link={link} ownSessionId={sessionId} manageTemplates={can(me.role, 'ManageTemplates')} orgName={me.orgName} userId={me.userId} />
         ) : under.page === 'presentation' ? (
           <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={playback.audio} video={playback.video} sessionId={sessionId} remote={under.remote} session={under.session} />
+        ) : under.page === 'event' ? (
+          <EventPage key={under.id} id={under.id} />
+        ) : under.page === 'eventTemplates' ? (
+          can(me.role, 'ManageTemplates') ? <EventTemplates /> : <Refused text={t('templates.forbidden')} />
+        ) : under.page === 'person' ? (
+          <PersonPage key={under.id} id={under.id} admin={can(me.role, 'ViewUsers')} />
         ) : under.page === 'templates' ? (
           can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />
         ) : under.page === 'template' ? (

@@ -30,6 +30,15 @@ export function userRoutes(app: Hono, kit: AuthKit) {
     withCaller('ViewUsers', async (c, caller) => c.json(await accounts.members.listUsers(caller.orgId))),
   );
 
+  /**
+   * The members as anyone in the organisation may see them, for a name picked in an event's field and a person's view
+   * (docs/planning.md): their id and name, no address and no role.
+   */
+  app.get(
+    '/api/people',
+    withCaller('ViewEvents', async (c, caller) => c.json((await accounts.members.listUsers(caller.orgId)).map((u) => ({ id: u.id, name: u.name })))),
+  );
+
   /** A person at a desktop host, to pair devices as (`createUserRequest`); elsewhere people are invited. */
   app.post(
     '/api/users',

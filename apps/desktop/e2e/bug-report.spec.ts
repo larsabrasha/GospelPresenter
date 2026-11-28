@@ -36,7 +36,8 @@ test('a bug report is sent with its screenshot and steps, and a Superadmin reads
   await openAdmin(page, 'Felrapporter');
   await page.getByRole('link', { name: /Sången blev dubbel/ }).click();
   await expect(page.getByTestId('report-detail-shot')).toBeVisible();
-  await expect(page.getByText('Lilla Kyrkan', { exact: true })).toBeVisible();
+  // In the report, not the start page's heading under Inställningar, which is the church's name too.
+  await expect(adminDialog(page).getByText('Lilla Kyrkan', { exact: true })).toBeVisible();
   await expect(page.getByText('Stegen innan')).toBeVisible();
   await expect(page.getByText('Rapportera fel', { exact: true }).first()).toBeVisible(); // the press that opened it
   await page.getByRole('button', { name: 'Markera som klar' }).click();

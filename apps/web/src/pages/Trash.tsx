@@ -7,6 +7,7 @@ import { errorText, funPick, loadingText } from '../ui/playful.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import {
+  CalendarIcon,
   DocumentTextIcon,
   MapIcon,
   MusicalNoteOutlineIcon,
@@ -35,9 +36,11 @@ const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
   Audio: 'ManageAudios',
   Video: 'ManageVideos',
   Slide: 'ManagePresentations',
+  Event: 'ManageEvents',
+  EventTemplate: 'ManageTemplates',
 };
-const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo', Slide: 'restoreCustomSlide' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo', Slide: 'purgeCustomSlide' } as const;
+const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo', Slide: 'restoreCustomSlide', Event: 'restoreEvent', EventTemplate: 'restoreEvent' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo', Slide: 'purgeCustomSlide', Event: 'purgeEvent', EventTemplate: 'purgeEvent' } as const;
 
 /** Each kind's icon at the start of its row (Trash.razor). */
 function KindIcon({ kind }: { kind: TrashKind }) {
@@ -57,6 +60,9 @@ function KindIcon({ kind }: { kind: TrashKind }) {
       return <VideoOutlineIcon className={className} />;
     case 'Slide':
       return <SlideshowIcon className={className} />;
+    case 'Event':
+    case 'EventTemplate':
+      return <CalendarIcon className={className} />;
   }
 }
 

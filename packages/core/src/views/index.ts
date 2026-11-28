@@ -1,6 +1,7 @@
 // The views ported back from the Rust core (ADR 0008, docs/core-back-to-typescript.md), one file per group of them;
 // a group adds its views here, and commands.ts answers each name here.
 import * as live from './live.ts';
+import { calendarListView, calendarTableView, eventSuggestionsView, eventTemplatesView, eventView, personEventsView, presentationEventView } from './calendar.ts';
 import type { PureView, View } from './sql.ts';
 import { slidesPureViews, slidesViews } from './slides.ts';
 import { calendarMonthView, presentationTableView, startPageView } from './start-page.ts';
@@ -19,6 +20,7 @@ export const views: Record<string, View> = {
   songsView, songSearchPrepare, songSearchView, songView, songPageView, songPresentationsView, songHistoryView, songMaterialsView,
   biblesView, ownThemesView, ownThemeView, defaultThemeIdView, ccliReportView,
   startPageView, calendarMonthView, presentationTableView,
+  calendarListView, calendarTableView, eventView, eventTemplatesView, eventSuggestionsView, personEventsView, presentationEventView,
   ...pageViews,
   ...filesViews,
 };

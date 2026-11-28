@@ -44,10 +44,10 @@ export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide';
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video' | 'Slide' | 'Event' | 'EventTemplate';
   id: string;
   name: string;
-  /** The event date of a presentation, the author of a song. */
+  /** The date of a presentation or an event, the author of a song. */
   detail: string | null;
   /** A template's, for its weekday, time and place. */
   template?: Presentation;

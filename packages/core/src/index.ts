@@ -31,3 +31,6 @@ export * from './custom-slides.ts';
 export * from './client-errors.ts';
 export * from './bug-reports.ts';
 export * from './chars.ts';
+export * from './calendar.ts';
+export { readSheet } from './sheet.ts';
+export { eventsFromSheet, type SheetEvents, type SheetMember } from './sheet-events.ts';

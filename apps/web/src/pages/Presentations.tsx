@@ -1,29 +1,33 @@
 import type { Presentation } from '@gp/core';
 import { useState } from 'react';
-import { useData, useDb } from '../db/react.tsx';
+import { useData, useDataReading, useDb } from '../db/react.tsx';
 import { itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
 import { startPage } from '../db/views.ts';
 import { locale, t } from '../i18n.ts';
 import { funPick, loadingText } from '../ui/playful.ts';
 import { newId } from '../ids.ts';
-import { AddButton } from '../ui/AddButton.tsx';
 import { EmptyPicture } from '../ui/Empty.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { ChevronRightIcon } from '../ui/icons.tsx';
 import { CARD, ROW_HOVER } from '../ui/List.tsx';
-import { Segmented } from '../ui/Segmented.tsx';
 import { useStoredChoice } from '../ui/SortMenu.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { usePageKeys } from '../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
+import { usePhone } from '../ui/usePhone.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
+import { CalendarTable } from './calendar/CalendarTable.tsx';
+import { calendarList, CALENDAR_READS, passes, type Scope } from './calendar/data.ts';
+import { EventList } from './calendar/EventList.tsx';
+import { ImportDialog } from './calendar/ImportDialog.tsx';
+import { NewEventDialog } from './calendar/NewEventDialog.tsx';
 import { localToday } from './dashboard.ts';
-import { StartCalendar } from './StartCalendar.tsx';
-import { StartList } from './StartList.tsx';
-import { TemplatesButton } from './StartRows.tsx';
-import { StartTable } from './StartTable.tsx';
+import { MonthFilter } from './StartCalendar.tsx';
+import { StartFilters, useStartFlags } from './StartFilters.tsx';
+import { START_VIEWS, StartMore, StartNew, StartViews, type StartView } from './StartHeader.tsx';
+import { UndatedRows } from './StartRows.tsx';
 import { nextDate } from './templates.ts';
 import { TemplatePicker } from './TemplatePicker.tsx';
 import { detailsArgs, PresentationDetailsDialog } from './presentation-editor/PresentationDetailsDialog.tsx';
@@ -136,25 +140,49 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
-type StartView = 'list' | 'calendar' | 'table';
-const VIEWS: StartView[] = ['list', 'calendar', 'table'];
-
-/** The start page, Presentationer (Components/Dashboard.razor), as Lista, Kalender or Tabell. `n` starts Skapa. */
-export function Presentations({ link, ownSessionId, manageTemplates }: { link: LiveLink; ownSessionId: string; manageTemplates: boolean }) {
+/**
+ * The start page (docs/planning.md, "One list"; Lars, 2026-11-28): what happens in the church, under the church's
+ * name, as Lista or Tabell, each row an event, its presentation a button away; a search and quick filters narrow it,
+ * Kalender among them, a month above the list. Presentations without a date fold into one row at the top. `n` starts Ny
+ * presentation; + offers it and Ny händelse.
+ */
+export function Presentations({ link, ownSessionId, manageTemplates, orgName, userId }: { link: LiveLink; ownSessionId: string; manageTemplates: boolean; orgName: string; userId: string }) {
   const today = localToday();
-  // Lista, Kalender or Tabell, this device's, as a library's view (Lars, 2026-11-27).
-  const [view, setView] = useStoredChoice('presentations-view', VIEWS);
-  // What has no date and what is planned, as the core groups them for every shell (docs/view-models.md).
+  const phone = usePhone();
+  // Lista or Tabell, this device's, as a library's view (Lars, 2026-11-27); Tabell not on a phone.
+  const [stored, setView] = useStoredChoice('presentations-view', START_VIEWS);
+  const view: StartView = phone ? 'list' : (stored as StartView);
+  const [flags, setFlags] = useStartFlags();
+  const [query, setQuery] = useState('');
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [day, setDay] = useState<string | null>(null);
+  const [past, setPast] = useState(false);
+  const searching = query.trim() !== '';
+  // A month's events under Kalender, every event while searching, else the coming or the past.
+  const scope: Scope = flags.calendar ? { month } : searching ? { all: true } : { today, past };
+  const filter = { presentation: flags.presentation, missing: flags.missing, mine: flags.mine, query, day: flags.calendar ? day : null };
+  const keep = passes(filter, userId);
+  const rows = useDataReading((db) => calendarList(db, scope), [JSON.stringify(scope)], CALENDAR_READS);
+  // The days with an event the filters other than the day let through: Kalender's dots.
+  const days = new Set((rows ?? []).filter(passes({ ...filter, day: null }, userId)).map((e) => e.date ?? ''));
+  const shown = rows?.filter(keep);
+  // The presentations without a date, as the core groups them (docs/view-models.md); how many events there are.
   const page = useData((db) => startPage(db, today), [today]);
+  const counts = useDataReading(async (db) => ({ coming: (await calendarList(db, { today, past: false })).length, past: (await calendarList(db, { today, past: true })).length }), [today], CALENDAR_READS);
   const templates = useData(recentTemplates, []);
   const { sessions } = useLiveSessions(link);
   const [picking, setPicking] = useState(false);
   // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
   const [creating, setCreating] = useState<{ template: Presentation | null } | null>(null);
+  const [newEvent, setNewEvent] = useState(false);
+  const [importing, setImporting] = useState(false);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
   // What this window presents may be past, or another month's: looked up among all.
   const ownLive = useData((db) => (livePresentation ? listPresentations(db) : Promise.resolve([])), [livePresentation])?.find((p) => p.id === livePresentation);
-  const empty = page && !page.undated.length && !page.months.length && !page.past;
+  const empty = page && counts && !page.undated.length && counts.coming + counts.past === 0;
+  // The plain coming list: the undated row at its top and Tidigare at its end; a filter or a search shows what it finds.
+  const plain = !flags.calendar && !searching && !flags.missing && !flags.mine;
+  const emptyText = plain ? (past ? t('calendar.noPast') : t('calendar.noComing')) : flags.calendar && !searching && !flags.presentation && !flags.missing && !flags.mine ? t('presentations.noneThen') : t('start.noMatch');
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);
   usePageKeys((e) => {
@@ -165,13 +193,14 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
   });
 
   return (
-    <PageContainer>
-      {/* + in the heading row, as every page that lists something (ui/AddButton.tsx); `n` does the same. */}
-      <PageHeader title={t('nav.presentations')} large>
-        {/* Mallar beside the +, for who may change them (Lars, 2026-11-27: else only Skapa's picker led there). */}
+    // Tabell takes the window's width, up to a wide screen's, so many columns show without scrolling sideways (Lars,
+    // 2026-11-28); Lista keeps the reading column.
+    <PageContainer maxWidthClass={view === 'table' && !empty ? 'sm:w-full max-w-[1600px]' : undefined}>
+      <PageHeader title={orgName} large>
         <span className="flex items-center gap-2 max-sm:gap-1.5">
-          {manageTemplates && <TemplatesButton />}
-          <AddButton label={t('presentations.new')} onClick={startCreating} />
+          {!empty && !phone && <StartViews value={view} onChange={setView} />}
+          <StartMore onImport={() => setImporting(true)} manageTemplates={manageTemplates} />
+          <StartNew onPresentation={startCreating} onEvent={() => setNewEvent(true)} />
         </span>
       </PageHeader>
       {ownLive && <OwnLive p={ownLive} />}
@@ -188,38 +217,48 @@ export function Presentations({ link, ownSessionId, manageTemplates }: { link: L
         />
       )}
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
-      {!page && (
+      {newEvent && <NewEventDialog today={today} onClose={() => setNewEvent(false)} />}
+      {importing && <ImportDialog today={today} onClose={() => setImporting(false)} />}
+      {(!page || !counts) && (
         <div className={CARD}>
           <div className="loading-line px-4 py-3 text-stone-400">{loadingText()}</div>
         </div>
       )}
       {empty && (
-        <EmptyPicture picture={<PresentationsPicture />} title={funPick(t('presentations.emptyTitle'), [t('fun.presentationsEmpty1'), t('fun.presentationsEmpty2')])} text={t('presentations.emptyText')}>
-          <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
+        <EmptyPicture picture={<PresentationsPicture />} title={funPick(t('calendar.emptyTitle'), [t('fun.presentationsEmpty1'), t('fun.presentationsEmpty2')])} text={t('calendar.emptyText')}>
+          <div className="flex flex-wrap justify-center gap-2">
+            <AppButton onClick={startCreating}>{t('presentations.emptyNew')}</AppButton>
+            <AppButton variant="secondary" onClick={() => setNewEvent(true)}>
+              {t('calendar.new')}
+            </AppButton>
+            <AppButton variant="secondary" onClick={() => setImporting(true)}>
+              {t('calendar.import')}
+            </AppButton>
+          </div>
         </EmptyPicture>
       )}
-      {page && !empty && (
+      {page && counts && !empty && (
         <div className="space-y-4">
-          <div className="px-2">
-            <Segmented
-              label={t('presentations.viewAs')}
-              options={[
-                { key: 'list', label: t('presentations.viewList') },
-                { key: 'calendar', label: t('presentations.viewCalendar') },
-                { key: 'table', label: t('presentations.viewTable') },
-              ]}
-              value={view as StartView}
-              onChange={setView}
-            />
-          </div>
-          {view === 'list' && <StartList page={page} today={today} liveId={livePresentation} onCalendar={() => setView('calendar')} />}
-          {view === 'calendar' && <StartCalendar today={today} undated={page.undated} liveId={livePresentation} />}
-          {view === 'table' && <StartTable today={today} />}
+          <StartFilters flags={flags} onFlags={setFlags} query={query} onQuery={setQuery} />
+          {flags.calendar && <MonthFilter month={month} onMonth={setMonth} day={day} onDay={setDay} today={today} days={days} />}
+          {view === 'list' && plain && !past && !flags.presentation && <UndatedRows rows={page.undated} today={today} liveId={livePresentation} />}
+          {view === 'list' && shown && <EventList rows={shown} today={today} liveId={livePresentation} />}
+          {view === 'list' && shown && !shown.length && <p className="px-5 text-sm text-stone-400">{emptyText}</p>}
+          {view === 'table' && <CalendarTable today={today} scope={scope} keep={keep} emptyText={emptyText} />}
+          {/* The past where the list ends, a quiet button, not a link at the top (Lars, 2026-11-28). */}
+          {plain && (past || counts.past > 0) && (
+            <div className="flex justify-center">
+              <AppButton variant="plain" aria-pressed={past} className="h-9 px-4 rounded-full text-sm cursor-pointer bg-stone-200/80 hover:bg-stone-300/70 dark:bg-raised dark:hover:bg-raised-2 text-stone-600 dark:text-stone-300" onClick={() => setPast(!past)}>
+                {past ? t('calendar.showComing') : t('calendar.showPast', { n: counts.past })}
+              </AppButton>
+            </div>
+          )}
         </div>
       )}
     </PageContainer>
   );
 }
+
 
 /** The empty start page's picture: a stack of slides and a plus. */
 function PresentationsPicture() {

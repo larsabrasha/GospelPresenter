@@ -14,6 +14,7 @@ export function DetailsDialog({ presentation: p, onClose }: { presentation: Pres
       initial={{ name: p.name, date: p.eventDate ?? '', time: p.time ?? '', location: p.location ?? '', description: p.description ?? '', themeId: p.themeId ?? '' }}
       onSave={(d) => {
         // Closes at once; a refused write says so after the dialog is gone.
+        // The date, time and place go to its event too, in the core (docs/planning.md, "One date").
         afterWrite(db.mutate('updatePresentation', { id: p.id, ...detailsArgs(d), themeId: d.themeId || null }), () => {}, saveFailed);
         onClose();
       }}

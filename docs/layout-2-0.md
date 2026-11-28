@@ -202,6 +202,10 @@ overlay.
 
 ## The start page and the bar
 
+The start page is one list of what happens in the church (docs/planning.md, "One list"; Lars, 2026-11-28): the
+church's name as its title, Lista, Kalender and Tabell as icons, ⋯ and + in its heading row, and the filter "Med
+presentation". What follows about the start page's views is from before; docs/planning.md says what they show now.
+
 The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
 name (no role or organisation), Inställningar (Mina inställningar is a row in it; since 2026-11-04 not in the menu, as the bar's cog is the one way there), Byt organisation (only with two organisations or more), the sync's state only while it has a problem, and Logga ut, with no line under each (Lars, 2026-11-02). The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says

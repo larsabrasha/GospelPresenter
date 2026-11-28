@@ -5,6 +5,7 @@ import { audios, customSlides, images, presentationItems, presentations, songs, 
 import { TRASH_RETENTION_MS } from '../trash.ts';
 import type { MutatorCtx, Tx } from './base.ts';
 import { deleteSongRows } from './songs.ts';
+import { purgeTrashedEvents } from './events.ts';
 
 // ------------------------------------------------------------------ trash
 
@@ -42,6 +43,9 @@ async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
     await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, tx.select({ id: presentations.id }).from(presentations).where(expired)));
     await tx.delete(presentations).where(expired);
   }
+  // Events and their templates, as presentations and theirs (docs/planning.md).
+  if (can(ctx.role, 'ManageEvents')) await purgeTrashedEvents(tx, false, cutoff);
+  if (can(ctx.role, 'ManageTemplates')) await purgeTrashedEvents(tx, true, cutoff);
   if (can(ctx.role, 'ManageImages')) {
     await tx.delete(images).where(and(isNotNull(images.deletedAt), lte(images.deletedAt, cutoff)));
   }

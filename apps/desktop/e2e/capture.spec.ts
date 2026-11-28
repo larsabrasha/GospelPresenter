@@ -212,9 +212,9 @@ test('capture every page', async () => {
     }
   };
   const pages: [string, string, ((p: Page) => Promise<unknown>)?, ((p: Page) => Promise<unknown>)?][] = [
-    // The start page's three views; Lista chosen again after, as the view is kept on the device.
+    // The start page's two views and Välj dag, a filter; Lista chosen and Välj dag off again after, as both are kept.
     ['home', '/', (p) => p.getByRole('radio', { name: 'Lista' }).click()],
-    ['home-calendar', '/', (p) => p.getByRole('radio', { name: 'Kalender' }).click()],
+    ['home-calendar', '/', (p) => p.getByRole('button', { name: 'Välj dag', exact: true }).click(), (p) => p.getByRole('button', { name: 'Välj dag', exact: true }).click()],
     ['home-table', '/', (p) => p.getByRole('radio', { name: 'Tabell' }).click(), (p) => p.getByRole('radio', { name: 'Lista' }).click()],
     ['presentation', presentation],
     ['presentation-item', presentation, pickItem],

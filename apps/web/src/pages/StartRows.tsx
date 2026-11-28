@@ -1,24 +1,24 @@
 import type { Presentation } from '@gp/core';
 import { useState, type HTMLAttributes } from 'react';
 import { t } from '../i18n.ts';
-import { useRoundAdd } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
-import { CalendarIcon, ChevronDownIcon, ChevronRightIcon, DocumentDuplicateIcon } from '../ui/icons.tsx';
+import { CalendarIcon, ChevronDownIcon, ChevronRightIcon } from '../ui/icons.tsx';
 import { CARD, ListLinkRow, ROW_HOVER } from '../ui/List.tsx';
 import { href } from '../ui/router.ts';
 import { fullDate, tileOf } from './dashboard.ts';
 
-// The start page's rows (Lars, 2026-11-27: as a calendar): each with its date in a tile at its start, today's red,
-// its time and place under its name and no number of items; what has no date folded into one row; Mallar beside the +.
+// The start page's rows (Lars, 2026-11-27: as a calendar): each with its date in a tile at its start, a little wider
+// than tall and all grey, today's a darker grey (Lars, 2026-11-28: red read as a holiday), its time and place under its
+// name and no number of items; what has no date folded into one row.
 
-const TILE = 'w-10 shrink-0 rounded-lg flex flex-col items-center justify-center py-1';
+const TILE = 'w-12 shrink-0 rounded-lg flex flex-col items-center justify-center py-1';
 const GREY_TILE = `${TILE} bg-stone-100 dark:bg-white/10`;
 
 /** A tile without a date: a calendar in grey, as tall as a dated one. */
 const EMPTY_TILE = `${GREY_TILE} h-14 text-stone-400 dark:text-stone-500`;
 
-/** The weekday in red, the day, and the month in grey; today's all on red. A calendar for one without a date. */
-function DateTile({ date, today }: { date: string | null | undefined; today: boolean }) {
+/** The weekday, the day and the month, on grey; today's on a darker grey. A calendar for one without a date. */
+export function DateTile({ date, today }: { date: string | null | undefined; today: boolean }) {
   if (!date)
     return (
       <span aria-hidden="true" className={EMPTY_TILE}>
@@ -27,16 +27,16 @@ function DateTile({ date, today }: { date: string | null | undefined; today: boo
     );
   const { weekday, day, month } = tileOf(date);
   return (
-    <span aria-hidden="true" className={`${today ? `${TILE} bg-red-500 text-white` : GREY_TILE} h-14`}>
-      <span className={`text-[11px]/3.5 font-semibold ${today ? '' : 'text-red-500'}`}>{weekday}</span>
+    <span aria-hidden="true" className={`${today ? `${TILE} bg-stone-300 dark:bg-white/25` : GREY_TILE} h-14`}>
+      <span className="text-[11px]/3.5 font-semibold text-stone-500 dark:text-stone-400">{weekday}</span>
       <span className="text-lg/5 font-semibold tabular-nums">{day}</span>
-      <span className={`text-[11px]/3.5 ${today ? '' : 'text-stone-500 dark:text-stone-400'}`}>{month}</span>
+      <span className="text-[11px]/3.5 text-stone-500 dark:text-stone-400">{month}</span>
     </span>
   );
 }
 
 /** A presentation: its tile, its name (today's with "Idag" beside it), and under it its time and place. */
-export function PresentationRow({ p, today, live, nav }: { p: Presentation; today: string; live: boolean; nav?: HTMLAttributes<HTMLAnchorElement> }) {
+function PresentationRow({ p, today, live, nav }: { p: Presentation; today: string; live: boolean; nav?: HTMLAttributes<HTMLAnchorElement> }) {
   const isToday = p.eventDate === today;
   return (
     <ListLinkRow
@@ -88,21 +88,5 @@ export function UndatedRows({ rows, today, liveId }: { rows: Presentation[]; tod
       </li>
       {open && rows.map((p) => <PresentationRow key={p.id} p={p} today={today} live={p.id === liveId} />)}
     </ul>
-  );
-}
-
-/**
- * Mallar beside the +, a capsule with its icon and word, for who may change the templates; on a phone, beside the
- * large title, its icon alone in a circle a little smaller than the +, so the title fits, the word for screen readers.
- */
-export function TemplatesButton() {
-  return useRoundAdd(
-    (className) => (
-      <AppButton variant="plain" href={href({ page: 'templates' })} title={t('nav.templates')} className={`${className} max-sm:size-10 max-sm:px-0`}>
-        <DocumentDuplicateIcon className="size-5" />
-        <span className="max-sm:sr-only">{t('nav.templates')}</span>
-      </AppButton>
-    ),
-    true,
   );
 }

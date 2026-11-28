@@ -4,7 +4,7 @@
 // page, and deleted to their own trash.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, closeAdmin, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, closeAdmin, createSong, newPresentation, openAdmin, openPresentations, setUpHost, startPage } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -52,11 +52,11 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await page.getByRole('link', { name: 'Tillbaka till mallarna' }).click();
   await expect(page.getByRole('list', { name: 'Mallar' }).getByRole('listitem')).toHaveText([/^Söndag/]);
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+  await expect(startPage(page)).toBeVisible();
 
   // PRES-A3: Skapa on the start page offers the template, and the dialog is prefilled from it.
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   const picker = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(picker.getByRole('button', { name: 'Tom presentation' })).toBeVisible();
   await expect(picker.getByRole('link', { name: 'Hantera mallar' })).toHaveAttribute('href', '/templates');
@@ -81,7 +81,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await expect(page.getByRole('status').getByText('Sparad som mall')).toBeVisible();
   // Hantera mallar in Skapa's picker opens the templates page.
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await newPresentation(page);
   await page.getByRole('dialog', { name: 'Skapa presentation' }).getByRole('link', { name: 'Hantera mallar' }).click();
   const list = page.getByRole('list', { name: 'Mallar' });
   await expect(list.getByRole('listitem')).toHaveText([/^Påsk/, /^Söndag/]);
