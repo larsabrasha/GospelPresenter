@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { Hono, type Context } from 'hono';
-import { LIVE_PING, LIVE_PONG, mediaKey, serverChangeTriggers, serverSyncDdl, type LegacyUser, type Poke, type Role } from '@gp/core';
+import { LIVE_PING, LIVE_PONG, mediaKey, serverChangeBackfill, serverChangeTriggers, serverSyncDdl, type LegacyUser, type Poke, type Role } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import { playRoutes } from './video-routes.ts';
 import { authenticate, authRoutes, credentials, isApiPath, WS_PROTOCOL } from './auth/index.ts';
@@ -89,7 +89,7 @@ export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
   const core = new Core();
   // The schema's migration, in one transaction: a refused database is left as it was.
   storage.transactionSync(() => core.runSync('migrateOrgSchema', rows));
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) storage.sql.exec(s).toArray();
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...serverChangeBackfill()]) storage.sql.exec(s).toArray();
   // After the change triggers, so the default labels sync like any change (SONG-R47).
   core.runSync('seedLabels', rows);
   return {

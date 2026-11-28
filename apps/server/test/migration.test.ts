@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, pdfPages, schemaMetaDdl, tableInfo } from '@gp/core';
+import { PROTOCOL_VERSION, SCHEMA_VERSION, pdfPages, schemaMetaDdl, serverChangeTriggers, serverSyncDdl, tableInfo } from '@gp/core';
+import { handlePull } from '@gp/sync/server';
 
 /** Today's organisation tables, then their indexes, as the Rust core makes them: read back from a new database. */
 const [orgTables, orgIndexes] = (() => {
@@ -22,8 +23,11 @@ const [orgTables, orgIndexes] = (() => {
 })();
 const orgDdl = [...orgTables, ...orgIndexes];
 
+/** Today's tables as a file before version 29 had them: no events. */
+const before29 = orgDdl.filter((s) => !/ (events|event_fields)\b/.test(s));
+
 /** Today's tables as a file before version 28 had them: no song drafts. */
-const before28 = orgDdl.map((s) => s.replace(', deleted_at INTEGER, draft INTEGER)', ', deleted_at INTEGER)'));
+const before28 = before29.map((s) => s.replace(', deleted_at INTEGER, draft INTEGER)', ', deleted_at INTEGER)'));
 
 /** Today's tables as a file before version 27 had them: no field times (SYNC-R23). */
 const before27 = before28.map((s) => s.replace(/, (name|pages|title|content|definition)_at INTEGER/g, ''));
@@ -231,6 +235,24 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
       [{ part_ids: '["P2","P2","P4"]' }],
     ]);
     f.close();
+  });
+
+  it("a version 28 file's dated presentations get their events (30), and a device starting over pulls them", () => {
+    // As on app.gospelpresenter.com before 30: the presentation was synced, so it has its change row.
+    const file = fileWith(driver, [
+      ...before29,
+      schemaMetaDdl,
+      'INSERT INTO _schema (one, version) VALUES (1, 28)',
+      ...serverSyncDdl,
+      ...serverChangeTriggers().filter((s) => !/ON (events|event_fields)\b|sync_(events|event_fields)_/.test(s)),
+      `INSERT INTO presentations (id, name, event_date, updated_at) VALUES ('P', 'Gudstjänst', '2026-11-29', 1)`,
+    ]);
+
+    const store = nodeOrgStore(openSqlite(file, driver));
+    const res = handlePull(store, { userId: 'u', role: 'admin' }, { protocol: PROTOCOL_VERSION, schemaVersion: SCHEMA_VERSION, clientId: 'c', cookie: null, lastMutationId: 0 });
+
+    const events = res.status === 200 ? res.body.patch.filter((op) => op.op === 'put' && op.tbl === 'events') : [];
+    expect(events.map((op) => (op.op === 'put' ? op.row.presentation_id : null))).toEqual(['P']);
   });
 
   it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {

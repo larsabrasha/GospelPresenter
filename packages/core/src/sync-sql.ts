@@ -71,6 +71,19 @@ export function serverChangeTriggers(): string[] {
   ]);
 }
 
+/**
+ * Records every row that has no `sync_change` row yet, run after the triggers on every open. A migration writes
+ * before the triggers exist (30 made an event of each dated presentation), and a device that starts over pulls only
+ * what `sync_change` holds: without this those rows never reach it. One index lookup per row (UNIQUE (tbl, pk)).
+ */
+export function serverChangeBackfill(): string[] {
+  return tableInfo.map(
+    ({ name }) =>
+      `INSERT INTO sync_change (tbl, pk, op) SELECT '${name}', id, 'put' FROM ${name}
+         WHERE NOT EXISTS (SELECT 1 FROM sync_change c WHERE c.tbl = '${name}' AND c.pk = ${name}.id)`,
+  );
+}
+
 // ---------------------------------------------------------------- client
 
 export const clientSyncDdl: string[] = [

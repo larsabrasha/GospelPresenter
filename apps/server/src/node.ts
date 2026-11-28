@@ -12,7 +12,7 @@ import type BetterSqlite3 from 'better-sqlite3';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { serverChangeTriggers, serverSyncDdl, type Poke } from '@gp/core';
+import { serverChangeBackfill, serverChangeTriggers, serverSyncDdl, type Poke } from '@gp/core';
 import { outputRoutes, syncRoutes, type Org } from './app.ts';
 import type { PptxPages } from './pptx-routes.ts';
 import { playRoutes } from './video-routes.ts';
@@ -124,7 +124,7 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
     if (f.inTransaction()) f.exec('ROLLBACK');
     throw e;
   }
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...serverChangeBackfill()]) f.exec(s);
   // After the change triggers, so the default labels sync like any change (SONG-R47).
   core.runSync('seedLabels', f.rows);
   return {
