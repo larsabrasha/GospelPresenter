@@ -3,7 +3,7 @@
 // Claude on a phone). A theme is changed in what is named and answered whole; an overlay's elements are written whole,
 // as the app's editor saves them.
 import { z } from 'zod';
-import { blankPage, customPageSchema, parseCustomPage } from './custom-slides.ts';
+import { blankPage, CUSTOM_LIMITS, knownElementSchema, parseCustomPage } from './custom-slides.ts';
 import { DEFAULT_THEME_ID, BUILT_IN_THEMES, PLAYFUL_THEME_IDS, themeDefinitionSchema, type Theme, type ThemeDefinition } from './themes.ts';
 import { MutationError } from './mutation.ts';
 import { id, tool, type McpToolContext, type Row, type Tool } from './mcp-tool.ts';
@@ -57,7 +57,8 @@ async function themeAnswer(sql: RunSql, themeId: string) {
 
 // ------------------------------------------------------------------ overlays
 
-const elements = customPageSchema.shape.elements.describe(
+// Only the kinds known here: an assistant makes no element of another.
+const elements = z.array(knownElementSchema).max(CUSTOM_LIMITS.elements).describe(
   `The overlay's texts, pictures and shapes, the first drawn first; each has an id of your choosing, unique in the overlay. ${STAGE} ` +
     'A text: {id, kind: "text", x, y, w, h, text, size (px), bold, italic, align, color (null: the theme\'s)}; it grows downwards with its words. ' +
     'A picture: {id, kind: "image", x, y, w, h, picture: {full, thumb} from add_picture_from_url, fit: "contain", tint (optional, "#rrggbb": every pixel not see-through in that colour, a black logo made white)}. ' +

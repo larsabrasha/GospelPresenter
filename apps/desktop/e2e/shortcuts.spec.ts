@@ -44,6 +44,8 @@ test('? lists the keys of the page or the dialog on screen, and closes again', a
   await expect(help).toHaveCount(0);
   // A opens the + menu, each choice with the letter G takes to its library (Lars, 2026-11-25: A S as G S): the arrows
   // and ↵ choose, as S for Sång does.
+  // A clicks the + in view; with none yet drawn it opens Lägg till sång, so the sidebar's + first.
+  await expect(page.getByRole('button', { name: 'Lägg till', exact: true })).toBeVisible();
   await page.keyboard.press('a');
   const menu = page.getByRole('menu');
   await expect(menu.getByRole('menuitem')).toHaveText([/^Sång\s*S$/, /^Bibeltext\s*B$/, /^Bild\s*I$/, /^Ljud\s*L$/, /^Video\s*V$/, /^Bildspel\s*E$/, /^Programpunkt\s*P$/]);

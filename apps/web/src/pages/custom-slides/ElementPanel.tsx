@@ -98,7 +98,8 @@ function PlacePad({ element, onPlace }: { element: CustomElement; onPlace: (plac
 export type InspectorTab = 'text' | 'style' | 'image' | 'arrange';
 
 export function elementTabs(kind: CustomElement['kind']): InspectorTab[] {
-  return kind === 'text' ? ['text', 'arrange'] : kind === 'image' ? ['image', 'arrange'] : ['style', 'arrange'];
+  // One of a kind not known here has nothing of its own to change: only its place.
+  return kind === 'text' ? ['text', 'arrange'] : kind === 'image' ? ['image', 'arrange'] : kind === 'unknown' ? ['arrange'] : ['style', 'arrange'];
 }
 
 const TAB_TEXT: Record<InspectorTab, TextKey> = { text: 'slideEditor.text', style: 'slideEditor.styleTab', image: 'slideEditor.image', arrange: 'slideEditor.arrange' };

@@ -225,7 +225,7 @@ export function EditorCanvas({
                 )}
               </div>
             )}
-            <CustomPageView page={page} theme={theme} hide={writing?.id} />
+            <CustomPageView page={page} theme={theme} hide={writing?.id} placeholder={t('slideEditor.unknownElement')} />
             {writing && <InlineText element={writing} theme={theme} onChange={(text) => onChange(writing.id, { text })} onDone={() => onEditText(false)} />}
           </div>
         </div>

@@ -79,8 +79,50 @@ const shapeElement = z.object({
 });
 const lineElement = z.object({ ...box, kind: z.literal('line'), stroke: color, strokeWidth: z.number().min(1).max(100) });
 
-const elementSchema = z.discriminatedUnion('kind', [textElement, imageElement, shapeElement, lineElement]);
-export type CustomElement = z.infer<typeof elementSchema>;
+/** The elements of the kinds this app knows, each checked whole. */
+export const knownElementSchema = z.discriminatedUnion('kind', [textElement, imageElement, shapeElement, lineElement]);
+
+/**
+ * An element of a kind this app does not know, a newer app's (Lars, 2026-11-27): kept as it came (`raw`), drawn as
+ * nothing on an output and as a placeholder in the editor, and saved back as it came, so an older app does not lose it.
+ * Its box is its own: it can be moved and resized as any element, and `raw` takes the box back when it is saved.
+ */
+export interface UnknownElement {
+  id: string;
+  kind: 'unknown';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  raw: Record<string, unknown>;
+}
+export type CustomElement = z.infer<typeof knownElementSchema> | UnknownElement;
+
+const KNOWN_KINDS = new Set<string>([textElement.shape.kind.value, imageElement.shape.kind.value, ...shapeElement.shape.kind.options, lineElement.shape.kind.value]);
+const unknownBox = z.object(box);
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * An element as kept or sent: one of a kind known here, checked; one of another kind, with an id and a box, as an
+ * UnknownElement; null where it does not read. One kept unknown is read as itself again, its box as it was moved, so an
+ * app that knows its kind gets it back whole.
+ */
+export function readElement(v: unknown): CustomElement | null {
+  const raw = isRecord(v) && v.kind === 'unknown' && isRecord(v.raw) ? { ...v.raw, id: v.id, x: v.x, y: v.y, w: v.w, h: v.h } : v;
+  const known = knownElementSchema.safeParse(raw);
+  if (known.success) return known.data;
+  if (!isRecord(raw) || typeof raw.kind !== 'string' || raw.kind === 'unknown' || KNOWN_KINDS.has(raw.kind)) return null;
+  const at = unknownBox.safeParse(raw);
+  return at.success ? { ...at.data, kind: 'unknown', raw } : null;
+}
+
+/** An element in a page as kept or sent: `readElement`'s, refused where it does not read. */
+const elementSchema = z.unknown().transform((v, ctx): CustomElement => {
+  const e = readElement(v);
+  if (e) return e;
+  ctx.addIssue({ code: 'custom', message: 'an element that does not read' });
+  return z.NEVER;
+});
 
 export const customPageSchema = z.object({
   background: color,
@@ -102,14 +144,12 @@ export const pdfPages = (pages: Picture[]): CustomPage[] => pages.map((p) => ({ 
 
 // Every reader of a page checks it here, against the schemas: a slideshow's pages that do not read are one blank page,
 // as Bildspel lists them, and an overlay's page that does not read is a blank one; neither names a picture. An element
-// that does not read is left out and the page kept, so a kind a newer app made (a triangle, read by an app from before
-// it) costs that element only, not the page (Lars, 2026-11-27).
+// of a kind not known here is kept (UnknownElement); one that does not read at all is left out and the page kept.
 
 /** A page as kept, without its elements that do not read; anything else as it is, for the schema to judge. */
 function readableElements(v: unknown): unknown {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
-  const elements = (v as { elements?: unknown }).elements;
-  return Array.isArray(elements) ? { ...v, elements: elements.filter((e) => elementSchema.safeParse(e).success) } : v;
+  if (!isRecord(v)) return v;
+  return Array.isArray(v.elements) ? { ...v, elements: v.elements.filter((e) => readElement(e) !== null) } : v;
 }
 
 /** A slideshow's pages, as kept or sent, checked; pages that do not read are one blank page. */

@@ -62,8 +62,15 @@ function elementBox(e: CustomElement): CSSProperties {
   return { position: 'absolute', left: Math.min(e.x, e.x + e.w), top: Math.min(e.y, e.y + e.h), width: Math.abs(e.w), height: Math.abs(e.h) };
 }
 
-function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: (hash: string) => string }): ReactNode {
+function Element({ e, theme, media, placeholder }: { e: CustomElement; theme: Theme; media?: (hash: string) => string; placeholder?: string }): ReactNode {
   const box = elementBox(e);
+  // A newer app's element: nothing on an output; in the editor a box saying so, as it is kept and can be moved.
+  if (e.kind === 'unknown')
+    return placeholder ? (
+      <div data-element={e.id} style={{ ...box, boxSizing: 'border-box', border: '4px dashed rgb(120 113 108)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, color: 'rgb(120 113 108)', fontSize: 40, textAlign: 'center', background: 'rgb(120 113 108 / 0.15)' }}>
+        {placeholder}
+      </div>
+    ) : null;
   if (e.kind === 'text') {
     // As tall as its words at least, as Keynote's text box: a larger size grows the box with the text, so the box and
     // its handles stay round the words and a tap on them picks it (Lars, 2026-11-26). The words start at its top either way.
@@ -136,7 +143,22 @@ function Element({ e, theme, media }: { e: CustomElement; theme: Theme; media?: 
 }
 
 /** The page's own background, its elements in drawing order, and `children` above them (the editor's handles). */
-export function CustomPageView({ page, theme, media, hide, children }: { page: CustomPage; theme: Theme; media?: (hash: string) => string; hide?: string; children?: ReactNode }) {
+export function CustomPageView({
+  page,
+  theme,
+  media,
+  hide,
+  placeholder,
+  children,
+}: {
+  page: CustomPage;
+  theme: Theme;
+  media?: (hash: string) => string;
+  hide?: string;
+  /** The editor's: an element of a kind not known here drawn as a box saying this, not as nothing. */
+  placeholder?: string;
+  children?: ReactNode;
+}) {
   const background = page.backgroundPicture;
   return (
     <div className="absolute inset-0 overflow-hidden" style={page.background ? { background: page.background } : undefined} data-testid="custom-page">
@@ -146,7 +168,7 @@ export function CustomPageView({ page, theme, media, hide, children }: { page: C
         <PagePicture hash={page.backgroundPage.full} thumb={page.backgroundPage.thumb} media={media} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} fit="contain" />
       )}
       {/* `hide`: the text the editor writes over (pages/custom-slides/EditorCanvas.tsx). */}
-      {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} theme={theme} media={media} />))}
+      {page.elements.map((e) => (e.id === hide ? null : <Element key={e.id} e={e} theme={theme} media={media} placeholder={placeholder} />))}
       {children}
     </div>
   );

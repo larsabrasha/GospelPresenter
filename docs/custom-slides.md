@@ -33,9 +33,12 @@ each with a box in stage pixels (`x`, `y`, `w`, `h`):
   down, as an element is not turned; Lars, 2026-11-27): a fill and an outline, each a colour or none;
 - **line**: from the box's one corner to the other, a colour and a width.
 
-An element that does not read is left out and its page kept (`readCustomPages`, `readCustomPage`): an app from
-before a kind was added shows the rest of the page, not a blank one (Lars, 2026-11-27). Such an app, saving that
-page, saves it without the element it could not read.
+An element of a kind an app does not know, a newer app's, is kept as it came (`UnknownElement`, `readElement`):
+nothing on an output, a dashed box saying "Okänt element" in the editor, which can be moved, resized, put in another
+place in the drawing order or removed, and saved back as it came, so an app from before a kind was added does not
+lose it (Lars, 2026-11-27). An app that knows the kind reads it whole again, its box as it was moved. An element
+that does not read at all is left out and its page kept (`readCustomPages`, `readCustomPage`). Apps from before
+2026-11-28 had neither: they show such a page blank.
 
 A page's background is a colour, a picture of its own filling the stage (`backgroundPicture`), or nothing, and over
 it a PDF's page (`backgroundPage`), fitted to the stage, where the slideshow was imported. Nothing, and a colour or a font that is not set,

@@ -1,6 +1,7 @@
 // Slideshows (Bildspel, docs/custom-slides.md): one made in Inställningar → Bildspel, a text and a shape put on it
 // from +, undone and done again, and the slideshow added to a presentation from Lägg till's Bildspel, drawn there.
 import { expect, test } from '@playwright/test';
+import { LEGACY_ENTRIES, LEGACY_FORMAT, LEGACY_TABLES, makeZip, utf8Encode } from '@gp/core';
 import { launch, type Desktop } from './apps.ts';
 import { addToSlide, closeAdmin, createPresentation, nameNew, openAdmin, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
@@ -133,4 +134,44 @@ test('a triangle and an arrow are drawn on a slide, and the arrow is turned by i
   await inspector.getByRole('radio', { name: 'Upp' }).click();
   const tip = () => canvas.locator('[data-element] polygon').last().evaluate((p) => p.getAttribute('points')!.split(' ')[3]);
   await expect.poll(tip).toBe('280,0');
+});
+
+/** An export of this app's with one slideshow, `pages` as they are kept. */
+function slideshowZip(name: string, pages: unknown[]): Buffer {
+  const rows: Record<string, unknown[]> = Object.fromEntries(LEGACY_TABLES.map((t) => [t, []]));
+  rows.custom_slides = [{ id: 'cs-1', name, pages: JSON.stringify(pages), created_at: 1, updated_at: 1, deleted_at: null, name_at: 1, pages_at: 1 }];
+  const manifest = { format: LEGACY_FORMAT, orgName: 'Kyrkan', exportedAt: 1, counts: { songs: 0, presentations: 0, users: 0, blobs: 0 } };
+  const json = (v: unknown) => utf8Encode(JSON.stringify(v));
+  return Buffer.from(
+    makeZip([
+      { name: LEGACY_ENTRIES.manifest, data: json(manifest) },
+      { name: LEGACY_ENTRIES.users, data: json([]) },
+      ...LEGACY_TABLES.map((t) => ({ name: LEGACY_ENTRIES.rows(t), data: json(rows[t]) })),
+    ]),
+  );
+}
+
+test("an element of a kind this app does not know is a box saying so in the editor, and kept when the slideshow is changed", async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  // A newer app's star beside a text, as an import brings them.
+  const star = { id: 'star', kind: 'star', x: 100, y: 100, w: 300, h: 300, points: 5 };
+  const text = { id: 'text', kind: 'text', x: 600, y: 400, w: 800, h: 160, text: 'Kollekt', size: 96, bold: false, italic: false, align: 'center', color: null };
+  await openAdmin(page, 'Organisationen');
+  await page.getByTestId('legacy-zip').setInputFiles({ name: 'framtid.zip', mimeType: 'application/zip', buffer: slideshowZip('Framtid', [{ background: null, backgroundPicture: null, backgroundPage: null, elements: [star, text] }]) });
+  await page.getByRole('button', { name: 'Importera', exact: true }).click();
+  await expect(page.getByText(/Klart\./)).toBeVisible();
+
+  await openAdmin(page, 'Bildspel');
+  await page.getByRole('link', { name: 'Framtid' }).first().click();
+  const canvas = page.getByTestId('slide-canvas');
+  await expect(canvas).toContainText('Okänt element');
+
+  // A change saves the page: the star is kept, with the text and the new rectangle.
+  await addToSlide(page, 'Rektangel');
+  await page.getByRole('link', { name: 'Tillbaka' }).click();
+  await page.getByRole('link', { name: 'Framtid' }).first().click();
+  await expect(canvas.locator('[data-element]')).toHaveCount(3);
+  await expect(canvas).toContainText('Okänt element');
 });

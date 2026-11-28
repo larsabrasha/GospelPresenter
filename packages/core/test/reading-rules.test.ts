@@ -2,7 +2,7 @@
 // round 6, docs/core-back-to-typescript.md): a text's length in characters, the app's JSON read strictly
 // (stored-json.ts), the order of a song's arrangements and where a word starts.
 import { describe, expect, it } from 'vitest';
-import { customPageSchema, imageItemIds, parseCustomPage, parseCustomPages, parsePartIds, prepareSong, rankSongs, sortedArrangements, type SongArrangement } from '../src/index.ts';
+import { customPageSchema, imageItemIds, parseCustomPage, parseCustomPages, parsePartIds, prepareSong, readElement, rankSongs, sortedArrangements, type SongArrangement } from '../src/index.ts';
 import { searchMarks } from '../src/core.ts';
 
 describe("a text's length", () => {
@@ -38,13 +38,37 @@ describe('the JSON the app keeps', () => {
     expect(page.background).toBeNull();
   });
 
-  it('reads an overlay page with an element of a kind it does not know without that element, the rest kept', () => {
+  it('keeps an element of a kind it does not know as it came, with its box, beside the rest', () => {
+    const star = { id: 's', kind: 'star', x: 10, y: 20, w: 30, h: 40, points: 5 };
     const text = { id: 't', kind: 'text', x: 0, y: 0, w: 100, h: 50, text: 'Swish', size: 40, bold: false, italic: false, align: 'left', color: null };
-    const stored = JSON.stringify({ background: '#ff0000', backgroundPicture: null, backgroundPage: null, elements: [{ id: 's', kind: 'star', x: 0, y: 0, w: 10, h: 10 }, text] });
+    const stored = JSON.stringify({ background: '#ff0000', backgroundPicture: null, backgroundPage: null, elements: [star, text] });
 
     const page = parseCustomPage(stored);
 
-    expect([page.background, page.elements.map((e) => e.id)]).toEqual(['#ff0000', ['t']]);
+    expect(page.elements[0]).toEqual({ id: 's', kind: 'unknown', x: 10, y: 20, w: 30, h: 40, raw: star });
+  });
+
+  it('reads a kept element of an unknown kind as itself again, its box as it was moved', () => {
+    const kept = { id: 's', kind: 'unknown', x: 500, y: 20, w: 30, h: 40, raw: { id: 's', kind: 'star', x: 10, y: 20, w: 30, h: 40, points: 5 } };
+
+    const element = readElement(kept);
+
+    expect(element).toEqual({ ...kept, raw: { ...kept.raw, x: 500 } });
+  });
+
+  it('gives an element kept by an app that did not know its kind back whole to an app that knows it', () => {
+    const triangle = { id: 'tri', kind: 'triangle', x: 0, y: 0, w: 100, h: 80, fill: '#22c55e', stroke: null, strokeWidth: 0, radius: 0 };
+    const kept = { id: 'tri', kind: 'unknown', x: 300, y: 0, w: 100, h: 80, raw: triangle };
+
+    const element = readElement(kept);
+
+    expect(element).toEqual({ ...triangle, x: 300 });
+  });
+
+  it('leaves out an element of an unknown kind that has no box', () => {
+    const element = readElement({ id: 's', kind: 'star' });
+
+    expect(element).toBeNull();
   });
 
   it("reads a slideshow's pages with an element that does not read without that element, every page kept", () => {

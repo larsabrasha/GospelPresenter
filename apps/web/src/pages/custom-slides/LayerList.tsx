@@ -13,6 +13,7 @@ import { useSortable } from '../../ui/sortable.ts';
 function nameOf(e: CustomElement): string {
   if (e.kind === 'text') return e.text.split('\n')[0]!.trim() || t('slideEditor.text');
   if (e.kind === 'image') return t('slideEditor.image');
+  if (e.kind === 'unknown') return t('slideEditor.unknownElement');
   if (e.kind === 'ellipse') return t('slideEditor.ellipse');
   if (e.kind === 'triangle') return t('slideEditor.triangle');
   if (e.kind === 'arrow') return t('slideEditor.arrow');
@@ -24,6 +25,7 @@ function nameOf(e: CustomElement): string {
 function Swatch({ e }: { e: CustomElement }) {
   if (e.kind === 'text') return <span className="w-5 text-center font-serif text-base/5 font-semibold">T</span>;
   if (e.kind === 'image') return <PhotoIcon className="size-5 text-stone-500 dark:text-stone-400" />;
+  if (e.kind === 'unknown') return <span className="w-5 h-3.5 border border-dashed border-stone-400" />;
   if (e.kind === 'line') return <span className="w-5 h-0.5 bg-stone-500 dark:bg-stone-300" />;
   if (e.kind === 'triangle' || e.kind === 'arrow')
     return (
